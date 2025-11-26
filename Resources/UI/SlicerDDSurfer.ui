@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DDSurfer</class>
+ <widget class="qMRMLWidget" name="DDSurfer">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>480</width>
+    <height>871</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QFrame" name="headerFrame">
+     <property name="styleSheet">
+      <string notr="true">QFrame#headerFrame { background-color: #F5F7FA; border-radius: 8px; padding: 16px; border: 1px solid #D0D3D8; } QLabel#headlineLabel { font-weight: 600; font-size: 20px; color: #263238; } QLabel#subtitleLabel { color: #607D8B; font-size: 13px; }</string>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <layout class="QHBoxLayout" name="headerLayout">
+      <item>
+       <widget class="QLabel" name="logoLabel">
+        <property name="minimumSize">
+         <size>
+          <width>48</width>
+          <height>48</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>64</width>
+          <height>64</height>
+         </size>
+        </property>
+        <property name="pixmap">
+         <pixmap>../Icons/SlicerDDSurfer.png</pixmap>
+        </property>
+        <property name="scaledContents">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="headerTextWidget" native="true">
+        <layout class="QVBoxLayout" name="headerTextLayout">
+         <item>
+          <widget class="QLabel" name="headlineLabel">
+           <property name="text">
+            <string>DDSurfer Pipeline</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="subtitleLabel">
+           <property name="text">
+            <string>A unified framework for reconstructing cortical surfaces from diffusion MRI, providing automated preprocessing, surface prediction, and native-space projection.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="statusFrame">
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
+     </property>
+     <layout class="QHBoxLayout" name="statusLayout">
+      <item>
+       <widget class="QLabel" name="statusLabel">
+        <property name="styleSheet">
+         <string notr="true">QLabel#statusLabel { padding: 4px 10px; border-radius: 6px; background-color: #C62828; color: white; font-weight: 600; }</string>
+        </property>
+        <property name="text">
+         <string>Waiting for input...</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="ctkCollapsibleButton" name="configurationCollapsibleButton">
+     <property name="text">
+      <string>Configuration</string>
+     </property>
+     <layout class="QVBoxLayout" name="configurationLayout">
+      <item>
+       <widget class="QLabel" name="configurationSectionLabel">
+        <property name="text">
+         <string>&lt;b&gt;Basic settings&lt;/b&gt;</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QFormLayout" name="configurationFormLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="subjectIdLabel">
+          <property name="text">
+           <string>Subject ID</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="subjectIdLineEdit">
+          <property name="placeholderText">
+           <string>e.g. 100307</string>
+          </property>
+          <property name="clearButtonEnabled">
+           <bool>true</bool>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>subjectId</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="inputDirectoryLabel">
+          <property name="text">
+           <string>Input directory</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="ctkPathLineEdit" name="inputDirectoryPath">
+          <property name="filters">
+           <set>ctkPathLineEdit::Dirs</set>
+          </property>
+          <property name="placeholderText" stdset="0">
+           <string>Select folder containing subject data</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="outputDirectoryLabel">
+          <property name="text">
+           <string>Output directory</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="ctkPathLineEdit" name="outputDirectoryPath">
+          <property name="filters">
+           <set>ctkPathLineEdit::Dirs</set>
+          </property>
+          <property name="placeholderText" stdset="0">
+           <string>Folder for pipeline results</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="predictModeLabel">
+          <property name="text">
+           <string>Predict surfaces</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QComboBox" name="predictModeComboBox">
+          <item>
+           <property name="text">
+            <string>all</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>wm</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="deviceLabel">
+          <property name="text">
+           <string>Torch device</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QComboBox" name="deviceComboBox">
+          <item>
+           <property name="text">
+            <string>cpu</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>cuda:0</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="5" column="0">
+         <widget class="QLabel" name="cleanupLabel">
+          <property name="text">
+           <string>Clean intermediates</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1">
+         <widget class="QCheckBox" name="cleanupCheckBox">
+          <property name="text">
+           <string>Delete temporary folders after success</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>cleanupIntermediates</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="configurationActionsLayout">
+        <item>
+         <widget class="QPushButton" name="validateButton">
+          <property name="toolTip">
+           <string>Check subject directories and required files before running.</string>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton#validateButton { border: 1px solid #00ACC1; color: #00ACC1; border-radius: 6px; padding: 4px 10px; background: transparent; } QPushButton#validateButton:hover { background-color: rgba(0,172,193,0.1); }</string>
+          </property>
+          <property name="text">
+           <string>Validate inputs</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QPushButton" name="applyButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QPushButton#applyButton { background-color: #00ACC1; color: white; font-weight: 600; border-radius: 6px; padding: 6px 14px; } QPushButton#applyButton:disabled { background-color: #CFD8DC; color: #90A4AE; } QPushButton#applyButton:hover:!disabled { background-color: #00838F; }</string>
+        </property>
+        <property name="text">
+         <string>Run DDSurfer</string>
+        </property>
+        <property name="shortcut">
+         <string>Ctrl+Return</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="ctkCollapsibleButton" name="infoCollapsibleButton">
+     <property name="text">
+      <string>Input Checklist</string>
+     </property>
+     <layout class="QVBoxLayout" name="infoLayout">
+      <item>
+       <widget class="QLabel" name="patternsLabel">
+        <property name="styleSheet">
+         <string notr="true">QLabel#patternsLabel { font-family: Menlo,Consolas,monospace; }</string>
+        </property>
+        <property name="text">
+         <string>&lt;b&gt;Files expected per subject:&lt;/b&gt;&lt;ul&gt;&lt;li&gt;{subject_id}-dti-FractionalAnisotropy-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-dti-MinEigenvalue-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-dti-MidEigenvalue-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-dti-MaxEigenvalue-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-dti-Trace-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-dti-MeanDiffusivity-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-mask-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-b0ToAtlasT2.tfm&lt;/li&gt;&lt;/ul&gt;</string>
+        </property>
+        <property name="textFormat">
+         <enum>Qt::RichText</enum>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="ctkCollapsibleButton" name="logCollapsibleButton">
+     <property name="text">
+      <string>Pipeline Log</string>
+     </property>
+     <property name="collapsed">
+      <bool>false</bool>
+     </property>
+     <layout class="QVBoxLayout" name="logLayout">
+      <item>
+       <layout class="QHBoxLayout" name="logToolbarLayout">
+        <item>
+         <widget class="QLabel" name="logHintLabel">
+          <property name="styleSheet">
+           <string notr="true">QLabel#logHintLabel { color: #607D8B; }</string>
+          </property>
+          <property name="text">
+           <string>Messages appear as the pipeline runs.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="clearLogButton">
+          <property name="styleSheet">
+           <string notr="true">QPushButton#clearLogButton { border: 1px solid #B0BEC5; border-radius: 6px; padding: 4px 8px; background: transparent; } QPushButton#clearLogButton:hover { background-color: rgba(176,190,197,0.3); }</string>
+          </property>
+          <property name="text">
+           <string>Clear</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QPlainTextEdit" name="logPlainTextEdit">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="placeholderText">
+         <string>Status messages will appear here.</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="actionLayout"/>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ctkCollapsibleButton</class>
+   <extends>QWidget</extends>
+   <header>ctkCollapsibleButton.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ctkPathLineEdit</class>
+   <extends>QWidget</extends>
+   <header>ctkPathLineEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>qMRMLWidget</class>
+   <extends>QWidget</extends>
+   <header>qMRMLWidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
