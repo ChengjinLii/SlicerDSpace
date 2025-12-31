@@ -257,6 +257,10 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 slicer.util.selectModule("SlicerDDSurfer")
                 if self._sculptWidget:
                     self._sculptWidget.widget.setCollapsed(False)
+                docker_panel = getattr(self.ui, "dockerPostprocessCollapsibleButton", None)
+                if docker_panel:
+                    docker_panel.collapsed = False
+                    docker_panel.raise_()
             except Exception:
                 pass
             slicer.util.showStatusMessage("Jumped to surface post-process area", 3000)
