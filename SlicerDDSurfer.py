@@ -98,6 +98,14 @@ class SlicerDDSurferParameterNode:
     predictMode: str = "all"
     device: str = "cpu"
     cleanupIntermediates: bool = False
+    postprocessSubjectId: str = ""
+    postprocessNativeDir: str = ""
+    postprocessMriDir: str = ""
+    postprocessRepoDir: str = ""
+    postprocessLicensePath: str = ""
+    postprocessMode: str = "whole"
+    postprocessDockerImage: str = ""
+    postprocessForce: bool = True
 
 
 class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
@@ -129,6 +137,24 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.outputDirectoryPath.currentPathChanged.connect(self._onOutputDirectoryChanged)
         self.ui.predictModeComboBox.currentTextChanged.connect(self._onPredictModeChanged)
         self.ui.deviceComboBox.currentTextChanged.connect(self._onDeviceChanged)
+        if hasattr(self.ui, "postprocessSubjectLineEdit"):
+            self.ui.postprocessSubjectLineEdit.textChanged.connect(self._onPostprocessSubjectChanged)
+        if hasattr(self.ui, "postprocessNativePath"):
+            self.ui.postprocessNativePath.currentPathChanged.connect(self._onPostprocessNativeDirChanged)
+        if hasattr(self.ui, "postprocessMriPath"):
+            self.ui.postprocessMriPath.currentPathChanged.connect(self._onPostprocessMriDirChanged)
+        if hasattr(self.ui, "postprocessRepoPath"):
+            self.ui.postprocessRepoPath.currentPathChanged.connect(self._onPostprocessRepoChanged)
+        if hasattr(self.ui, "postprocessLicensePath"):
+            self.ui.postprocessLicensePath.currentPathChanged.connect(self._onPostprocessLicenseChanged)
+        if hasattr(self.ui, "postprocessModeComboBox"):
+            self.ui.postprocessModeComboBox.currentTextChanged.connect(self._onPostprocessModeChanged)
+        if hasattr(self.ui, "postprocessImageLineEdit"):
+            self.ui.postprocessImageLineEdit.textChanged.connect(self._onPostprocessImageChanged)
+        if hasattr(self.ui, "postprocessForceCheckBox"):
+            self.ui.postprocessForceCheckBox.toggled.connect(self._onPostprocessForceToggled)
+        if hasattr(self.ui, "runPostprocessButton"):
+            self.ui.runPostprocessButton.connect("clicked()", self._onRunDockerPostprocess)
 
         if hasattr(self.ui, "validateButton"):
             self.ui.validateButton.connect("clicked()", self._onValidateClicked)
@@ -287,6 +313,57 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 if index >= 0:
                     self.ui.deviceComboBox.setCurrentIndex(index)
                 del blocker
+            if hasattr(self.ui, "postprocessSubjectLineEdit"):
+                current = self.ui.postprocessSubjectLineEdit.text()
+                desired = node.postprocessSubjectId or ""
+                if current != desired:
+                    blocker = QSignalBlocker(self.ui.postprocessSubjectLineEdit)
+                    self.ui.postprocessSubjectLineEdit.setText(desired)
+                    del blocker
+            if hasattr(self.ui, "postprocessNativePath"):
+                desired = node.postprocessNativeDir or ""
+                if self.ui.postprocessNativePath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.postprocessNativePath)
+                    self.ui.postprocessNativePath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "postprocessMriPath"):
+                desired = node.postprocessMriDir or ""
+                if self.ui.postprocessMriPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.postprocessMriPath)
+                    self.ui.postprocessMriPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "postprocessRepoPath"):
+                desired = node.postprocessRepoDir or ""
+                if self.ui.postprocessRepoPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.postprocessRepoPath)
+                    self.ui.postprocessRepoPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "postprocessLicensePath"):
+                desired = node.postprocessLicensePath or ""
+                if self.ui.postprocessLicensePath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.postprocessLicensePath)
+                    self.ui.postprocessLicensePath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "postprocessModeComboBox"):
+                desired_mode = node.postprocessMode or "whole"
+                if self.ui.postprocessModeComboBox.currentText != desired_mode:
+                    blocker = QSignalBlocker(self.ui.postprocessModeComboBox)
+                    idx = self.ui.postprocessModeComboBox.findText(desired_mode)
+                    if idx >= 0:
+                        self.ui.postprocessModeComboBox.setCurrentIndex(idx)
+                    del blocker
+            if hasattr(self.ui, "postprocessImageLineEdit"):
+                desired = node.postprocessDockerImage or ""
+                if self.ui.postprocessImageLineEdit.text() != desired:
+                    blocker = QSignalBlocker(self.ui.postprocessImageLineEdit)
+                    self.ui.postprocessImageLineEdit.setText(desired)
+                    del blocker
+            if hasattr(self.ui, "postprocessForceCheckBox"):
+                desired = bool(node.postprocessForce)
+                if self.ui.postprocessForceCheckBox.isChecked() != desired:
+                    blocker = QSignalBlocker(self.ui.postprocessForceCheckBox)
+                    self.ui.postprocessForceCheckBox.setChecked(desired)
+                    del blocker
 
         self.validateInputs(manual=False)
 
@@ -318,6 +395,54 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self._parameterNode.device = newText or "cpu"
         self._checkCanApply()
 
+    def _onPostprocessSubjectChanged(self, newText: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.postprocessSubjectId = newText or ""
+
+    def _onPostprocessNativeDirChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.postprocessNativeDir = path or ""
+
+    def _onPostprocessMriDirChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.postprocessMriDir = path or ""
+
+    def _onPostprocessRepoChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.postprocessRepoDir = path or ""
+
+    def _onPostprocessLicenseChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.postprocessLicensePath = path or ""
+
+    def _onPostprocessModeChanged(self, text: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.postprocessMode = text or "whole"
+
+    def _onPostprocessImageChanged(self, text: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.postprocessDockerImage = text or ""
+
+    def _onPostprocessForceToggled(self, state: bool) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.postprocessForce = bool(state)
+
     def appendLog(self, text: str) -> None:
         if hasattr(self.ui, "logPlainTextEdit"):
             self.ui.logPlainTextEdit.appendPlainText(text)
@@ -326,6 +451,71 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def _onClearLogClicked(self) -> None:
         if hasattr(self.ui, "logPlainTextEdit"):
             self.ui.logPlainTextEdit.clear()
+
+    def _onRunDockerPostprocess(self) -> None:
+        if not self._parameterNode or not self.logic:
+            return
+
+        subject = (self._parameterNode.postprocessSubjectId or self._parameterNode.subjectId or "").strip()
+        native_dir = (self._parameterNode.postprocessNativeDir or "").strip()
+        mri_dir = (self._parameterNode.postprocessMriDir or "").strip()
+        repo_dir = (self._parameterNode.postprocessRepoDir or "").strip()
+        license_path = (self._parameterNode.postprocessLicensePath or "").strip()
+        mode = (self._parameterNode.postprocessMode or "whole").strip() or "whole"
+        image_tag = (self._parameterNode.postprocessDockerImage or "").strip()
+        force = bool(self._parameterNode.postprocessForce)
+
+        missing: List[str] = []
+        if not subject:
+            missing.append("Subject ID")
+        paths_to_check: List[tuple[str, str, bool]] = [
+            (native_dir, "Native output directory", False),
+            (mri_dir, "MRI directory", False),
+            (repo_dir, "postprocess-release directory", False),
+            (license_path, "FreeSurfer license", True),
+        ]
+        resolved_paths: dict[str, Path] = {}
+        for path_str, label, require_file in paths_to_check:
+            if not path_str:
+                missing.append(label)
+                continue
+            path = Path(path_str).expanduser()
+            if require_file and not path.is_file():
+                missing.append(label)
+                continue
+            if not require_file and not path.is_dir():
+                missing.append(label)
+                continue
+            resolved_paths[label] = path
+
+        if missing:
+            slicer.util.errorDisplay(
+                "Cannot run Docker postprocess. Please provide the following:\n- " + "\n- ".join(missing),
+                parent=self.parent,
+            )
+            return
+
+        def docker_log(message: str) -> None:
+            self.appendLog(f"[Docker] {message}")
+
+        slicer.util.showStatusMessage("Running Docker postprocess...", 0)
+        self._setStatus("running", "Docker postprocess in progress")
+        with slicer.util.tryWithErrorDisplay("Docker postprocess failed.", waitCursor=True):
+            self.appendLog("Starting Docker postprocess...")
+            self.logic.runDockerPostprocess(
+                subject_id=subject,
+                native_dir=resolved_paths["Native output directory"],
+                mri_dir=resolved_paths["MRI directory"],
+                repo_path=resolved_paths["postprocess-release directory"],
+                license_path=resolved_paths["FreeSurfer license"],
+                mode=mode,
+                docker_image=image_tag or None,
+                force=force,
+                log_callback=docker_log,
+            )
+            self.appendLog("Docker postprocess completed.")
+            slicer.util.showStatusMessage("Docker postprocess completed.", 5000)
+        self._setStatus("ready", "Pipeline ready")
 
     def onApplyButton(self) -> None:
         if not self._parameterNode or not self.logic:
@@ -762,6 +952,51 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
             self._cleanup_intermediates(work_root, keep_native=True, log=self.log)
 
         return PipelineResult(generated_models=ras_models)
+
+    def runDockerPostprocess(
+        self,
+        *,
+        subject_id: str,
+        native_dir: Path,
+        mri_dir: Path,
+        repo_path: Path,
+        license_path: Path,
+        mode: str,
+        docker_image: Optional[str],
+        force: bool,
+        log_callback=None,
+    ) -> None:
+        if not subject_id:
+            raise ValueError("Subject ID must be provided for Docker postprocess.")
+        if not native_dir.is_dir():
+            raise FileNotFoundError(f"Native output directory not found: {native_dir}")
+        if not mri_dir.is_dir():
+            raise FileNotFoundError(f"MRI directory not found: {mri_dir}")
+        if not repo_path.is_dir():
+            raise FileNotFoundError(f"postprocess-release directory not found: {repo_path}")
+        if not license_path.is_file():
+            raise FileNotFoundError(f"FreeSurfer license not found: {license_path}")
+
+        try:
+            import run_postprocess_docker as docker_helper
+        except ImportError as exc:  # pragma: no cover - runtime environment guard
+            raise RuntimeError(
+                "Unable to import run_postprocess_docker.py. Ensure it is located in the SlicerDDSurfer module directory."
+            ) from exc
+
+        docker_helper.run_postprocess(
+            subject_id=subject_id,
+            native_dir=native_dir,
+            mri_dir=mri_dir,
+            postprocess_repo=repo_path,
+            mode=mode,
+            license_path=license_path,
+            image_tag=docker_image,
+            inputs_dir=None,
+            outputs_dir=None,
+            force=force,
+            log_callback=log_callback,
+        )
 
     def _load_model_node(self, stl_path: Path, surface: str, subject_id: str) -> None:
         name = f"{subject_id}_{surface}_{stl_path.stem.split('_')[-1]}"

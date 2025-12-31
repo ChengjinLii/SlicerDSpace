@@ -15,12 +15,16 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Callable, Optional
 
 REQUIRED_MRI_FILES = ("brain.mgz", "DDSurfer-wmparc.nii.gz")
 
 
-def log(msg: str) -> None:
-    print(msg, flush=True)
+def _emit(msg: str, callback: Optional[Callable[[str], None]] = None) -> None:
+    if callback:
+        callback(msg)
+    else:
+        print(msg, flush=True)
 
 
 def copy_file(src: Path, dest: Path) -> None:
@@ -30,7 +34,14 @@ def copy_file(src: Path, dest: Path) -> None:
     shutil.copy2(src, dest)
 
 
-def stage_subject_inputs(subject_id: str, native_dir: Path, mri_dir: Path, inputs_dir: Path, clobber: bool) -> Path:
+def stage_subject_inputs(
+    subject_id: str,
+    native_dir: Path,
+    mri_dir: Path,
+    inputs_dir: Path,
+    clobber: bool,
+    log_callback: Optional[Callable[[str], None]] = None,
+) -> Path:
     subject_input_dir = inputs_dir / subject_id
     surf_dir = subject_input_dir / "surf"
     mri_out_dir = subject_input_dir / "mri"
@@ -42,7 +53,7 @@ def stage_subject_inputs(subject_id: str, native_dir: Path, mri_dir: Path, input
 
     for filename in REQUIRED_MRI_FILES:
         copy_file(mri_dir / filename, mri_out_dir / filename)
-        log(f"Copied {filename} to {mri_out_dir}")
+        _emit(f"Copied {filename} to {mri_out_dir}", log_callback)
 
     pattern = f"{subject_id}_predicted_*_orig.stl"
     stl_paths = sorted(native_dir.glob(pattern))
@@ -53,12 +64,21 @@ def stage_subject_inputs(subject_id: str, native_dir: Path, mri_dir: Path, input
         )
     for stl in stl_paths:
         copy_file(stl, surf_dir / stl.name)
-        log(f"Copied {stl.name} to {surf_dir}")
+        _emit(f"Copied {stl.name} to {surf_dir}", log_callback)
 
     return subject_input_dir
 
 
-def run_docker(subject_id: str, mode: str, postprocess_repo: Path, license_path: Path, inputs_dir: Path, outputs_dir: Path, image_tag: str | None) -> None:
+def run_docker(
+    subject_id: str,
+    mode: str,
+    postprocess_repo: Path,
+    license_path: Path,
+    inputs_dir: Path,
+    outputs_dir: Path,
+    image_tag: str | None,
+    log_callback: Optional[Callable[[str], None]] = None,
+) -> None:
     docker_script = postprocess_repo / "docker" / "run_container.sh"
     if not docker_script.is_file():
         raise FileNotFoundError(f"Docker helper not found: {docker_script}")
@@ -72,10 +92,68 @@ def run_docker(subject_id: str, mode: str, postprocess_repo: Path, license_path:
         env["DDSURFER_POST_IMAGE"] = image_tag
 
     cmd = ["bash", str(docker_script), subject_id, mode]
-    log(f"Running docker command: {' '.join(cmd)}")
-    proc = subprocess.run(cmd, env=env, cwd=str(postprocess_repo))
-    if proc.returncode != 0:
-        raise RuntimeError(f"Docker postprocess failed with exit code {proc.returncode}")
+    _emit(f"Running docker command: {' '.join(cmd)}", log_callback)
+    process = subprocess.Popen(
+        cmd,
+        env=env,
+        cwd=str(postprocess_repo),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    if process.stdout:
+        for line in process.stdout:
+            _emit(line.rstrip(), log_callback)
+    return_code = process.wait()
+    if return_code != 0:
+        raise RuntimeError(f"Docker postprocess failed with exit code {return_code}")
+
+
+def run_postprocess(
+    subject_id: str,
+    native_dir: Path,
+    mri_dir: Path,
+    postprocess_repo: Path,
+    mode: str = "whole",
+    license_path: Path | None = None,
+    image_tag: str | None = None,
+    inputs_dir: Path | None = None,
+    outputs_dir: Path | None = None,
+    force: bool = False,
+    log_callback: Optional[Callable[[str], None]] = None,
+) -> None:
+    if license_path is None:
+        license_path = Path.home() / ".freesurfer-license"
+    if inputs_dir is None:
+        inputs_dir = postprocess_repo / "inputs"
+    if outputs_dir is None:
+        outputs_dir = postprocess_repo / "outputs"
+
+    inputs_dir.mkdir(parents=True, exist_ok=True)
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+
+    staged_dir = stage_subject_inputs(
+        subject_id=subject_id,
+        native_dir=native_dir,
+        mri_dir=mri_dir,
+        inputs_dir=inputs_dir,
+        clobber=force,
+        log_callback=log_callback,
+    )
+    _emit(f"Inputs staged under {staged_dir}", log_callback)
+
+    run_docker(
+        subject_id=subject_id,
+        mode=mode,
+        postprocess_repo=postprocess_repo,
+        license_path=license_path,
+        inputs_dir=inputs_dir,
+        outputs_dir=outputs_dir,
+        image_tag=image_tag,
+        log_callback=log_callback,
+    )
+    _emit("Docker postprocess completed.", log_callback)
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -113,23 +191,19 @@ def main(argv: list[str]) -> int:
     if not license_path.is_file():
         raise FileNotFoundError(f"FreeSurfer license not found: {license_path}")
 
-    log(f"Staging inputs for subject {subject_id}...")
-    staged_dir = stage_subject_inputs(subject_id, native_dir, mri_dir, inputs_dir, args.force)
-    log(f"Inputs staged under {staged_dir}")
-
-    outputs_dir.mkdir(parents=True, exist_ok=True)
-
-    log("Launching Docker postprocess pipeline...")
-    run_docker(
+    _emit(f"Launching Docker postprocess for {subject_id}...", None)
+    run_postprocess(
         subject_id=subject_id,
-        mode=args.mode,
+        native_dir=native_dir,
+        mri_dir=mri_dir,
         postprocess_repo=postprocess_repo,
+        mode=args.mode,
         license_path=license_path,
+        image_tag=args.image_tag,
         inputs_dir=inputs_dir,
         outputs_dir=outputs_dir,
-        image_tag=args.image_tag,
+        force=args.force,
     )
-    log("Docker postprocess completed.")
     return 0
 
 
