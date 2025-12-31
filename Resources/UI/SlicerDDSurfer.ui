@@ -411,11 +411,11 @@
          </widget>
         </item>
        </layout>
-      </item>
-      <item>
-       <widget class="QPushButton" name="applyButton">
-        <property name="enabled">
-         <bool>false</bool>
+     </item>
+     <item>
+      <widget class="QPushButton" name="applyButton">
+       <property name="enabled">
+        <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">QPushButton#applyButton { background-color: #00ACC1; color: white; font-weight: 600; border-radius: 6px; padding: 6px 14px; } QPushButton#applyButton:disabled { background-color: #CFD8DC; color: #90A4AE; } QPushButton#applyButton:hover:!disabled { background-color: #00838F; }</string>
@@ -426,11 +426,196 @@
         <property name="shortcut">
          <string>Ctrl+Return</string>
         </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </item>
+  <item>
+   <widget class="ctkCollapsibleButton" name="dockerPostprocessCollapsibleButton">
+    <property name="text">
+     <string>FreeSurfer Postprocess (Docker)</string>
+    </property>
+    <property name="collapsed">
+     <bool>true</bool>
+    </property>
+    <layout class="QVBoxLayout" name="dockerLayout">
+     <item>
+      <widget class="QLabel" name="postprocessSectionLabel">
+       <property name="text">
+        <string>&lt;b&gt;Stage &amp; run&lt;/b&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="dockerHintLabel">
+       <property name="styleSheet">
+        <string notr="true">QLabel#dockerHintLabel { color: #546E7A; }</string>
+       </property>
+       <property name="text">
+        <string>Stage DDSurfer outputs and launch postprocess-release via Docker (requires Docker engine and a valid FreeSurfer license).</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QFormLayout" name="dockerFormLayout">
+       <item row="0" column="0">
+        <widget class="QLabel" name="dockerSubjectLabel">
+         <property name="text">
+          <string>Subject ID</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="postprocessSubjectLineEdit">
+         <property name="placeholderText">
+          <string>Leave empty to reuse DDSurfer subject</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="dockerNativeLabel">
+         <property name="text">
+          <string>Native output dir</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="ctkPathLineEdit" name="postprocessNativePath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Dirs</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Folder containing *_orig.stl</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="dockerMriLabel">
+         <property name="text">
+          <string>MRI directory</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="ctkPathLineEdit" name="postprocessMriPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Dirs</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Folder with brain.mgz and DDSurfer-wmparc.nii.gz</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="dockerRepoLabel">
+         <property name="text">
+          <string>postprocess-release</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="ctkPathLineEdit" name="postprocessRepoPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Dirs</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Path to postprocess-release repo</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="dockerLicenseLabel">
+         <property name="text">
+          <string>License file</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="ctkPathLineEdit" name="postprocessLicensePath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Files</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>FreeSurfer license.txt</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="dockerModeLabel">
+         <property name="text">
+          <string>Hemisphere mode</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="QComboBox" name="postprocessModeComboBox">
+         <item>
+          <property name="text">
+           <string>whole</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>left</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>right</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="dockerImageLabel">
+         <property name="text">
+          <string>Docker image tag</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QLineEdit" name="postprocessImageLineEdit">
+         <property name="placeholderText">
+          <string>Optional (defaults to dds_postprocess:latest)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0">
+        <widget class="QLabel" name="dockerForceLabel">
+         <property name="text">
+          <string>Stage inputs</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="1">
+        <widget class="QCheckBox" name="postprocessForceCheckBox">
+         <property name="text">
+          <string>Overwrite staged inputs</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QPushButton" name="runPostprocessButton">
+       <property name="text">
+        <string>Run Docker Postprocess</string>
+       </property>
+       <property name="toolTip">
+        <string>Stage inputs and launch docker/run_container.sh</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </item>
    <item>
     <widget class="ctkCollapsibleButton" name="infoCollapsibleButton">
      <property name="text">
