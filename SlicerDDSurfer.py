@@ -20,7 +20,8 @@ from slicer.ScriptedLoadableModule import (
 )
 from slicer.parameterNodeWrapper import parameterNodeWrapper
 from slicer.util import VTKObservationMixin
-from qt import QSignalBlocker, QPixmap
+from qt import QSignalBlocker, QPixmap, QPushButton, QFrame, QHBoxLayout, QLabel
+from ddspipeline.sculpting.surface_sculptor import SurfaceSculptorWidget
 
 
 def _ensure_torch_via_extension(min_version: str = "2.0.0", log: Optional[callable] = None):
@@ -39,26 +40,26 @@ def _ensure_torch_via_extension(min_version: str = "2.0.0", log: Optional[callab
         import PyTorchUtils  # provided by the PyTorch extension
     except ModuleNotFoundError as exc:  # pragma: no cover - surfaced at runtime
         raise RuntimeError(
-            "未检测到 PyTorch 扩展。请在 Extension Manager 中安装 'PyTorch' 扩展并重启 Slicer。"
+            "PyTorch extension not detected. Please install the 'PyTorch' extension via Extension Manager and restart Slicer."
         ) from exc
 
     torch_logic = PyTorchUtils.PyTorchUtilsLogic()
 
     if torch_logic.torchInstalled():
         import torch  # type: ignore[import-not-found]
-        _log(f"PyTorch 已安装 (版本 {torch.__version__})")
+        _log(f"PyTorch detected (version {torch.__version__})")
         return torch
 
-    _log("未检测到 PyTorch，正在通过扩展安装（可能耗时数分钟）...")
+    _log("PyTorch not found, installing via extension (may take several minutes)...")
     torch = torch_logic.installTorch(
         askConfirmation=False,
         torchVersionRequirement=f">={min_version}",
     )
     if torch is None:  # pragma: no cover - error surfaced at runtime
         raise RuntimeError(
-            "PyTorch 扩展存在，但安装 torch 失败。请检查网络后在 'PyTorch Util' 模块中重试安装。"
+            "PyTorch extension present, but torch installation failed. Please check network and retry in 'PyTorch Util'."
         )
-    _log(f"PyTorch 安装完成 (版本 {torch.__version__})")
+    _log(f"PyTorch installed (version {torch.__version__})")
     return torch
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -110,9 +111,11 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._parameterNodeGuiTag = None
         self._lastStatusMessage: Optional[str] = None
         self._pipelineActive: bool = False
+        self._sculptWidget: SurfaceSculptorWidget | None = None
 
     def setup(self) -> None:
         ScriptedLoadableModuleWidget.setup(self)
+        self._add_navigation_panel()
         uiWidget = slicer.util.loadUI(self.resourcePath("UI/SlicerDDSurfer.ui"))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)
@@ -155,8 +158,52 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._setStatus("error", "Waiting for input")
         self.initializeParameterNode()
 
+        # Topology-preserving surface sculptor (parallel to main pipeline)
+        try:
+            self._sculptWidget = SurfaceSculptorWidget(parent=self.parent)
+            self.layout.addWidget(self._sculptWidget.widget)
+        except Exception as exc:  # pragma: no cover - ui instantiation safeguard
+            LOGGER.exception("Failed to initialize sculptor widget: %s", exc)
+
+    def _add_navigation_panel(self) -> None:
+        """Add top-level navigation buttons for quick jumps to related modules."""
+        frame = QFrame()
+        frame.setObjectName("navigationFrame")
+        frame.setStyleSheet(
+            "QFrame#navigationFrame { background: #f7f9fc; border: 1px solid #d7dce5; border-radius: 8px; padding: 8px; } "
+            "QPushButton.navBtn { background-color: #1565C0; color: white; border-radius: 6px; padding: 6px 10px; } "
+            "QPushButton.navBtn:hover { background-color: #0d47a1; } "
+            "QPushButton.navBtn:disabled { background-color: #9e9e9e; } "
+        )
+        layout = QHBoxLayout(frame)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(8)
+        label = QLabel("Choose workflow:")
+        label.setStyleSheet("font-weight: 600; color: #263238;")
+        layout.addWidget(label)
+
+        buttons = [
+            ("101-region parcellation (DDParcel)", "DDParcel"),
+            ("WM/GM/CSF segmentation (DDSeg)", "DDSeg"),
+            ("WM & Pial Surface (DDSurfer)", "LOCAL_DDSURFER"),
+            ("Surface post-process", "SurfacePost"),
+        ]
+        for text, target in buttons:
+            btn = QPushButton(text)
+            btn.setObjectName("navBtn")
+            btn.setProperty("class", "navBtn")
+            btn.setToolTip("Jump to module")
+            btn.setStyleSheet("")
+            btn.clicked.connect(lambda _=False, tgt=target: self._jump_to_module(tgt))
+            layout.addWidget(btn)
+        layout.addStretch(1)
+        self.layout.insertWidget(0, frame)
+
     def cleanup(self) -> None:
         self.removeObservers()
+        if self._sculptWidget:
+            self._sculptWidget.cleanup()
+        # Navigation cleanup not required
 
     def enter(self) -> None:
         self.initializeParameterNode()
@@ -176,6 +223,34 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def initializeParameterNode(self) -> None:
         self.setParameterNode(self.logic.getParameterNode())
+
+    def _jump_to_module(self, target: str) -> None:
+        """Handle navigation button clicks."""
+        if target == "SurfacePost":
+            try:
+                slicer.util.selectModule("SlicerDDSurfer")
+                if self._sculptWidget:
+                    self._sculptWidget.widget.setCollapsed(False)
+            except Exception:
+                pass
+            slicer.util.showStatusMessage("Jumped to surface post-process area", 3000)
+            return
+
+        if target == "LOCAL_DDSURFER":
+            try:
+                slicer.util.selectModule("SlicerDDSurfer")
+                if hasattr(self, "ui") and getattr(self.ui, "configurationCollapsibleButton", None):
+                    self.ui.configurationCollapsibleButton.collapsed = False
+            except Exception:
+                pass
+            slicer.util.showStatusMessage("Jumped to DDSurfer configuration", 3000)
+            return
+
+        try:
+            slicer.util.selectModule(target)
+            slicer.util.showStatusMessage(f"Jumped to {target}", 3000)
+        except Exception:
+            slicer.util.infoDisplay(f"Module {target} not installed or not yet implemented. Coming soon.")
 
     def setParameterNode(self, inputParameterNode: Optional[SlicerDDSurferParameterNode]) -> None:
         if self._parameterNode:
@@ -284,8 +359,7 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         color = palette.get(kind, palette["error"])
         label.setText(message)
         label.setStyleSheet(
-            f"QLabel#statusLabel {{ background-color: {color}; color: white; "
-            "padding: 4px 10px; border-radius: 6px; font-weight: 600; }}"
+            f"background-color: {color}; color: white; padding: 4px 10px; border-radius: 6px; font-weight: 600;"
         )
         if not progress:
             return
@@ -517,8 +591,7 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
             postprocessing = importlib.import_module("ddspipeline.postprocessing")
         except ImportError as exc:  # pragma: no cover - surfaced at runtime
             raise RuntimeError(
-                "无法导入 SlicerDDSurfer 管线代码。请确认扩展目录下存在 ddspipeline 子目录，"
-                "并且其中包含 preprocessing/prediction/postprocessing 模块。"
+                "Failed to import SlicerDDSurfer pipeline code. Ensure ddspipeline exists with preprocessing/prediction/postprocessing."
             ) from exc
 
         self._pipeline_modules = {
@@ -557,7 +630,7 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
         try:
             self.setupPythonRequirements()
         except Exception as exc:
-            raise RuntimeError("依赖安装失败，请检查网络或 PyTorch 扩展。") from exc
+            raise RuntimeError("Dependency installation failed. Please check network or PyTorch extension.") from exc
         subject_id = parameters.subjectId.strip()
         if not subject_id:
             raise ValueError("Subject identifier must be provided.")
@@ -600,7 +673,7 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
         missing_inputs = [path for path in list(metric_paths.values()) + [mask_path, transform_path] if not path.exists()]
         if missing_inputs:
             missing_list = "\n".join(str(path) for path in missing_inputs)
-            raise FileNotFoundError(f"未找到以下必需的输入文件:\n{missing_list}")
+            raise FileNotFoundError(f"Required input files missing:\n{missing_list}")
 
         for metric, path in metric_paths.items():
             self.log(f"{metric} volume: {path}")
@@ -634,7 +707,7 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
             preprocess_result: SubjectPreprocessingResult = preprocess_subject(preprocess_config)
         except Exception as exc:  # pragma: no cover - runtime safeguard
             raise RuntimeError(
-                "预处理阶段失败，请检查 NIfTI/掩模/模板是否有效，或依赖库（nibabel、SimpleITK、numpy）是否已安装。"
+                "Preprocessing failed. Verify NIfTI/mask/template validity and that nibabel/SimpleITK/numpy are installed."
             ) from exc
         self.log(f"Preprocessed volumes stored in {preprocess_result.preprocessed_dir}")
 
@@ -660,8 +733,7 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
                 prediction_results.append(predict_subject(cfg))
             except Exception as exc:  # pragma: no cover
                 raise RuntimeError(
-                    "预测阶段失败。请确认 PyTorch、trimesh 等依赖已安装，"
-                    "以及 GPU/CPU 设备参数设置正确。"
+                    "Prediction failed. Ensure PyTorch/trimesh dependencies are installed and device parameters are valid."
                 ) from exc
 
         post_config = PostprocessingConfig(
@@ -674,7 +746,7 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
             native_outputs = convert_meshes_to_native_space(post_config, prediction_results)
         except Exception as exc:  # pragma: no cover
             raise RuntimeError(
-                "后处理阶段失败。请确认 SimpleITK、trimesh 依赖存在，及变换文件/预测网格有效。"
+                "Postprocessing failed. Ensure SimpleITK/trimesh dependencies exist and transform/predicted meshes are valid."
             ) from exc
 
         ras_models: list[Path] = []

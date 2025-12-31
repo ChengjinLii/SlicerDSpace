@@ -79,9 +79,6 @@
      <layout class="QHBoxLayout" name="statusLayout">
       <item>
        <widget class="QLabel" name="statusLabel">
-        <property name="styleSheet">
-         <string notr="true">QLabel#statusLabel { padding: 4px 10px; border-radius: 6px; background-color: #C62828; color: white; font-weight: 600; }</string>
-        </property>
         <property name="text">
          <string>Waiting for input...</string>
         </property>
@@ -93,7 +90,7 @@
    <item>
     <widget class="ctkCollapsibleButton" name="configurationCollapsibleButton">
      <property name="text">
-      <string>Configuration</string>
+      <string>DDSurfer</string>
      </property>
      <layout class="QVBoxLayout" name="configurationLayout">
       <item>

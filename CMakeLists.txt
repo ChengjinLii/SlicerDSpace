@@ -14,6 +14,8 @@ set(MODULE_PYTHON_SCRIPTS
   ddspipeline/models/dsc_volume_reg.py
   ddspipeline/networks/__init__.py
   ddspipeline/networks/tanet.py
+  ddspipeline/sculpting/__init__.py
+  ddspipeline/sculpting/surface_sculptor.py
   )
 
 set(MODULE_PYTHON_RESOURCES
