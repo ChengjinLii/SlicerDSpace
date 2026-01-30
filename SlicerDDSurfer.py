@@ -21,7 +21,7 @@ from slicer.ScriptedLoadableModule import (
 from slicer.parameterNodeWrapper import parameterNodeWrapper
 from slicer.util import VTKObservationMixin
 from qt import QSignalBlocker, QPixmap, QPushButton, QFrame, QHBoxLayout, QLabel
-from ddspipeline.sculpting.surface_sculptor import SurfaceSculptorWidget
+from ddsurferpipeline.sculpting.surface_sculptor import SurfaceSculptorWidget
 
 
 def _ensure_torch_via_extension(min_version: str = "2.0.0", log: Optional[callable] = None):
@@ -63,7 +63,7 @@ def _ensure_torch_via_extension(min_version: str = "2.0.0", log: Optional[callab
     return torch
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ddspipeline.prediction import PredictionResult  # type: ignore
+    from ddsurferpipeline.prediction import PredictionResult  # type: ignore
 
 LOGGER = logging.getLogger(__name__)
 
@@ -106,6 +106,21 @@ class SlicerDDSurferParameterNode:
     postprocessMode: str = "whole"
     postprocessDockerImage: str = ""
     postprocessForce: bool = True
+    ddparcelSubjectId: str = ""
+    ddparcelInputRoot: str = ""
+    ddparcelOutputRoot: str = ""
+    ddparcelAtlasPath: str = ""
+    ddparcelFlip: int = 1
+    ddsegMaskPath: str = ""
+    ddsegDwiPath: str = ""
+    ddsegBvalPath: str = ""
+    ddsegBvecPath: str = ""
+    ddsegOutputDir: str = ""
+    ddsegWeightsDir: str = ""
+    ddsegSlicerBase: str = ""
+    ddsegSlicerExt: str = ""
+    ddsegDevice: str = "cpu"
+    ddsegApplySoftmax: bool = False
 
 
 class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
@@ -155,6 +170,40 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.ui.postprocessForceCheckBox.toggled.connect(self._onPostprocessForceToggled)
         if hasattr(self.ui, "runPostprocessButton"):
             self.ui.runPostprocessButton.connect("clicked()", self._onRunDockerPostprocess)
+        if hasattr(self.ui, "ddparcelSubjectLineEdit"):
+            self.ui.ddparcelSubjectLineEdit.textChanged.connect(self._onDDParcelSubjectChanged)
+        if hasattr(self.ui, "ddparcelInputRootPath"):
+            self.ui.ddparcelInputRootPath.currentPathChanged.connect(self._onDDParcelInputRootChanged)
+        if hasattr(self.ui, "ddparcelOutputRootPath"):
+            self.ui.ddparcelOutputRootPath.currentPathChanged.connect(self._onDDParcelOutputRootChanged)
+        if hasattr(self.ui, "ddparcelAtlasPath"):
+            self.ui.ddparcelAtlasPath.currentPathChanged.connect(self._onDDParcelAtlasChanged)
+        if hasattr(self.ui, "ddparcelFlipSpinBox"):
+            self.ui.ddparcelFlipSpinBox.valueChanged.connect(self._onDDParcelFlipChanged)
+        if hasattr(self.ui, "runDDParcelButton"):
+            self.ui.runDDParcelButton.connect("clicked()", self._onRunDDParcelPipeline)
+        if hasattr(self.ui, "ddsegMaskPath"):
+            self.ui.ddsegMaskPath.currentPathChanged.connect(self._onDDSegMaskChanged)
+        if hasattr(self.ui, "ddsegDwiPath"):
+            self.ui.ddsegDwiPath.currentPathChanged.connect(self._onDDSegDwiChanged)
+        if hasattr(self.ui, "ddsegBvalPath"):
+            self.ui.ddsegBvalPath.currentPathChanged.connect(self._onDDSegBvalChanged)
+        if hasattr(self.ui, "ddsegBvecPath"):
+            self.ui.ddsegBvecPath.currentPathChanged.connect(self._onDDSegBvecChanged)
+        if hasattr(self.ui, "ddsegOutputPath"):
+            self.ui.ddsegOutputPath.currentPathChanged.connect(self._onDDSegOutputChanged)
+        if hasattr(self.ui, "ddsegWeightsPath"):
+            self.ui.ddsegWeightsPath.currentPathChanged.connect(self._onDDSegWeightsChanged)
+        if hasattr(self.ui, "ddsegSlicerBasePath"):
+            self.ui.ddsegSlicerBasePath.currentPathChanged.connect(self._onDDSegSlicerBaseChanged)
+        if hasattr(self.ui, "ddsegSlicerExtPath"):
+            self.ui.ddsegSlicerExtPath.currentPathChanged.connect(self._onDDSegSlicerExtChanged)
+        if hasattr(self.ui, "ddsegDeviceComboBox"):
+            self.ui.ddsegDeviceComboBox.currentTextChanged.connect(self._onDDSegDeviceChanged)
+        if hasattr(self.ui, "ddsegSoftmaxCheckBox"):
+            self.ui.ddsegSoftmaxCheckBox.toggled.connect(self._onDDSegSoftmaxChanged)
+        if hasattr(self.ui, "runDDSegButton"):
+            self.ui.runDDSegButton.connect("clicked()", self._onRunDDSegPipeline)
 
         if hasattr(self.ui, "validateButton"):
             self.ui.validateButton.connect("clicked()", self._onValidateClicked)
@@ -249,9 +298,24 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def initializeParameterNode(self) -> None:
         self.setParameterNode(self.logic.getParameterNode())
+        if self._parameterNode and not (self._parameterNode.ddparcelAtlasPath or "").strip():
+            atlas_path = self.resourcePath("Data/100HCP-population-mean-T2.nii.gz")
+            if atlas_path and os.path.exists(atlas_path):
+                self._parameterNode.ddparcelAtlasPath = atlas_path
 
     def _jump_to_module(self, target: str) -> None:
         """Handle navigation button clicks."""
+        if target == "DDSeg":
+            try:
+                slicer.util.selectModule("SlicerDDSurfer")
+                panel = getattr(self.ui, "ddsegCollapsibleButton", None)
+                if panel:
+                    panel.collapsed = False
+                    panel.raise_()
+            except Exception:
+                pass
+            slicer.util.showStatusMessage("DDSeg pipeline is available in this module", 3000)
+            return
         if target == "SurfacePost":
             try:
                 slicer.util.selectModule("SlicerDDSurfer")
@@ -368,6 +432,96 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                     blocker = QSignalBlocker(self.ui.postprocessForceCheckBox)
                     self.ui.postprocessForceCheckBox.setChecked(desired)
                     del blocker
+            if hasattr(self.ui, "ddparcelSubjectLineEdit"):
+                desired = node.ddparcelSubjectId or ""
+                if self.ui.ddparcelSubjectLineEdit.text() != desired:
+                    blocker = QSignalBlocker(self.ui.ddparcelSubjectLineEdit)
+                    self.ui.ddparcelSubjectLineEdit.setText(desired)
+                    del blocker
+            if hasattr(self.ui, "ddparcelInputRootPath"):
+                desired = node.ddparcelInputRoot or ""
+                if self.ui.ddparcelInputRootPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddparcelInputRootPath)
+                    self.ui.ddparcelInputRootPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddparcelOutputRootPath"):
+                desired = node.ddparcelOutputRoot or ""
+                if self.ui.ddparcelOutputRootPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddparcelOutputRootPath)
+                    self.ui.ddparcelOutputRootPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddparcelAtlasPath"):
+                desired = node.ddparcelAtlasPath or ""
+                if self.ui.ddparcelAtlasPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddparcelAtlasPath)
+                    self.ui.ddparcelAtlasPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddparcelFlipSpinBox"):
+                desired = int(node.ddparcelFlip)
+                if self.ui.ddparcelFlipSpinBox.value != desired:
+                    blocker = QSignalBlocker(self.ui.ddparcelFlipSpinBox)
+                    self.ui.ddparcelFlipSpinBox.value = desired
+                    del blocker
+            if hasattr(self.ui, "ddsegMaskPath"):
+                desired = node.ddsegMaskPath or ""
+                if self.ui.ddsegMaskPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddsegMaskPath)
+                    self.ui.ddsegMaskPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddsegDwiPath"):
+                desired = node.ddsegDwiPath or ""
+                if self.ui.ddsegDwiPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddsegDwiPath)
+                    self.ui.ddsegDwiPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddsegBvalPath"):
+                desired = node.ddsegBvalPath or ""
+                if self.ui.ddsegBvalPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddsegBvalPath)
+                    self.ui.ddsegBvalPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddsegBvecPath"):
+                desired = node.ddsegBvecPath or ""
+                if self.ui.ddsegBvecPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddsegBvecPath)
+                    self.ui.ddsegBvecPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddsegOutputPath"):
+                desired = node.ddsegOutputDir or ""
+                if self.ui.ddsegOutputPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddsegOutputPath)
+                    self.ui.ddsegOutputPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddsegWeightsPath"):
+                desired = node.ddsegWeightsDir or ""
+                if self.ui.ddsegWeightsPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddsegWeightsPath)
+                    self.ui.ddsegWeightsPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddsegSlicerBasePath"):
+                desired = node.ddsegSlicerBase or ""
+                if self.ui.ddsegSlicerBasePath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddsegSlicerBasePath)
+                    self.ui.ddsegSlicerBasePath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddsegSlicerExtPath"):
+                desired = node.ddsegSlicerExt or ""
+                if self.ui.ddsegSlicerExtPath.currentPath != desired:
+                    blocker = QSignalBlocker(self.ui.ddsegSlicerExtPath)
+                    self.ui.ddsegSlicerExtPath.setCurrentPath(desired)
+                    del blocker
+            if hasattr(self.ui, "ddsegDeviceComboBox"):
+                desired = node.ddsegDevice or "cpu"
+                if self.ui.ddsegDeviceComboBox.currentText != desired:
+                    blocker = QSignalBlocker(self.ui.ddsegDeviceComboBox)
+                    self.ui.ddsegDeviceComboBox.setCurrentText(desired)
+                    del blocker
+            if hasattr(self.ui, "ddsegSoftmaxCheckBox"):
+                desired = bool(node.ddsegApplySoftmax)
+                if self.ui.ddsegSoftmaxCheckBox.isChecked() != desired:
+                    blocker = QSignalBlocker(self.ui.ddsegSoftmaxCheckBox)
+                    self.ui.ddsegSoftmaxCheckBox.setChecked(desired)
+                    del blocker
 
         self.validateInputs(manual=False)
 
@@ -447,6 +601,155 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         with slicer.util.NodeModify(self._parameterNode):
             self._parameterNode.postprocessForce = bool(state)
 
+    def _onDDParcelSubjectChanged(self, newText: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddparcelSubjectId = newText or ""
+
+    def _onDDParcelInputRootChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddparcelInputRoot = path or ""
+
+    def _onDDParcelOutputRootChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddparcelOutputRoot = path or ""
+
+    def _onDDParcelAtlasChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddparcelAtlasPath = path or ""
+
+    def _onDDParcelFlipChanged(self, value: int) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddparcelFlip = int(value)
+
+    def _onDDSegMaskChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddsegMaskPath = path or ""
+
+    def _onDDSegDwiChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddsegDwiPath = path or ""
+
+    def _onDDSegBvalChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddsegBvalPath = path or ""
+
+    def _onDDSegBvecChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddsegBvecPath = path or ""
+
+    def _onDDSegOutputChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddsegOutputDir = path or ""
+
+    def _onDDSegWeightsChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddsegWeightsDir = path or ""
+
+    def _onDDSegSlicerBaseChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddsegSlicerBase = path or ""
+
+    def _onDDSegSlicerExtChanged(self, path: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddsegSlicerExt = path or ""
+
+    def _onDDSegDeviceChanged(self, value: str) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddsegDevice = value or "cpu"
+
+    def _onDDSegSoftmaxChanged(self, value: bool) -> None:
+        if not self._parameterNode:
+            return
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.ddsegApplySoftmax = bool(value)
+
+    def _onRunDDSegPipeline(self) -> None:
+        if not self._parameterNode or not self.logic:
+            return
+
+        mask_path = (self._parameterNode.ddsegMaskPath or "").strip()
+        dwi_path = (self._parameterNode.ddsegDwiPath or "").strip()
+        bval_path = (self._parameterNode.ddsegBvalPath or "").strip()
+        bvec_path = (self._parameterNode.ddsegBvecPath or "").strip()
+        output_dir = (self._parameterNode.ddsegOutputDir or "").strip()
+        weights_dir = (self._parameterNode.ddsegWeightsDir or "").strip()
+        slicer_base = (self._parameterNode.ddsegSlicerBase or "").strip()
+        slicer_ext = (self._parameterNode.ddsegSlicerExt or "").strip()
+        device = (self._parameterNode.ddsegDevice or "cpu").strip()
+        apply_softmax = bool(self._parameterNode.ddsegApplySoftmax)
+
+        missing: List[str] = []
+        for label, value in (
+            ("Mask NIfTI", mask_path),
+            ("DWI NIfTI", dwi_path),
+            ("bval", bval_path),
+            ("bvec", bvec_path),
+            ("DDSeg output", output_dir),
+            ("DDSeg weights", weights_dir),
+            ("Slicer base", slicer_base),
+            ("SlicerDMRI extension", slicer_ext),
+        ):
+            if not value:
+                missing.append(label)
+
+        if missing:
+            slicer.util.errorDisplay(
+                "Cannot run DDSeg. Please provide the following:\n- " + "\n- ".join(sorted(set(missing))),
+                parent=self.parent,
+            )
+            return
+
+        self.appendLog("Starting DDSeg pipeline...")
+        self._setStatus("running", "DDSeg pipeline in progress")
+        slicer.util.showStatusMessage("DDSeg pipeline running...", 0)
+
+        with slicer.util.tryWithErrorDisplay("DDSeg pipeline failed.", waitCursor=True):
+            self.logic.setupDDSegRequirements()
+            self.logic.runDDSegPipeline(
+                mask_path=Path(mask_path).expanduser(),
+                dwi_path=Path(dwi_path).expanduser(),
+                bval_path=Path(bval_path).expanduser(),
+                bvec_path=Path(bvec_path).expanduser(),
+                output_dir=Path(output_dir).expanduser(),
+                weights_dir=Path(weights_dir).expanduser(),
+                slicer_base=Path(slicer_base).expanduser(),
+                slicer_ext=Path(slicer_ext).expanduser(),
+                device=device,
+                apply_softmax=apply_softmax,
+            )
+
+        self.appendLog("DDSeg pipeline completed.")
+        self._setStatus("ready", "Pipeline ready")
+        slicer.util.showStatusMessage("DDSeg pipeline completed.", 5000)
+
     def appendLog(self, text: str) -> None:
         if hasattr(self.ui, "logPlainTextEdit"):
             self.ui.logPlainTextEdit.appendPlainText(text)
@@ -520,6 +823,64 @@ class SlicerDDSurferWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.appendLog("Docker postprocess completed.")
             slicer.util.showStatusMessage("Docker postprocess completed.", 5000)
         self._setStatus("ready", "Pipeline ready")
+
+    def _onRunDDParcelPipeline(self) -> None:
+        if not self._parameterNode or not self.logic:
+            return
+
+        subject = (self._parameterNode.ddparcelSubjectId or self._parameterNode.subjectId or "").strip()
+        input_root = (self._parameterNode.ddparcelInputRoot or "").strip()
+        output_root = (self._parameterNode.ddparcelOutputRoot or "").strip()
+        atlas_path = (self._parameterNode.ddparcelAtlasPath or "").strip()
+        flip = int(self._parameterNode.ddparcelFlip or 1)
+
+        missing: List[str] = []
+        if not subject:
+            missing.append("Subject ID")
+        if not input_root:
+            missing.append("DDParcel input root")
+        if not output_root:
+            missing.append("DDParcel output root")
+        if not atlas_path:
+            missing.append("Atlas T2")
+
+        input_root_path = Path(input_root).expanduser() if input_root else None
+        output_root_path = Path(output_root).expanduser() if output_root else None
+        atlas_path_obj = Path(atlas_path).expanduser() if atlas_path else None
+        if input_root_path and not input_root_path.is_dir():
+            missing.append("DDParcel input root")
+        if output_root_path and not output_root_path.exists():
+            missing.append("DDParcel output root")
+        if atlas_path_obj and not atlas_path_obj.is_file():
+            missing.append("Atlas T2")
+
+        if missing:
+            slicer.util.errorDisplay(
+                "Cannot run DDParcel. Please provide the following:\n- " + "\n- ".join(sorted(set(missing))),
+                parent=self.parent,
+            )
+            return
+
+        self.appendLog("Starting DDParcel pipeline...")
+        self._setStatus("running", "DDParcel pipeline in progress")
+        slicer.util.showStatusMessage("DDParcel pipeline running...", 0)
+
+        from ddparcpipeline import DDParcelConfig, run_ddparcel
+
+        with slicer.util.tryWithErrorDisplay("DDParcel pipeline failed.", waitCursor=True):
+            self.logic.setupDDParcelRequirements()
+            config = DDParcelConfig(
+                subject_id=subject,
+                input_root=input_root_path,
+                output_root=output_root_path,
+                atlas_t2=atlas_path_obj,
+                flip=flip,
+            )
+            run_ddparcel(config, log=self.appendLog)
+
+        self.appendLog("DDParcel pipeline completed.")
+        self._setStatus("ready", "Pipeline ready")
+        slicer.util.showStatusMessage("DDParcel pipeline completed.", 5000)
 
     def onApplyButton(self) -> None:
         if not self._parameterNode or not self.logic:
@@ -731,6 +1092,8 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
     def __init__(self) -> None:
         ScriptedLoadableModuleLogic.__init__(self)
         self.module_dir = Path(__file__).resolve().parent
+        self.ddseg_root = self.module_dir / "ddsegpipeline"
+        self.ddseg_src = self.ddseg_root / "src"
         self._pipeline_modules: Optional[Dict[str, Any]] = None
         self.template_dir = self._resolve_template_dir()
         self.checkpoint_root = self._resolve_checkpoint_root()
@@ -767,6 +1130,53 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
         ):
             ensure_package(requirement, import_name)
 
+    def setupDDParcelRequirements(self) -> None:
+        import importlib
+
+        _ensure_torch_via_extension(min_version="2.0.0", log=self.log)
+
+        def ensure_package(requirement: str, import_name: Optional[str] = None) -> None:
+            module_name = import_name or requirement
+            try:
+                importlib.import_module(module_name)
+            except ModuleNotFoundError:
+                self.log(f"Installing Python package: {requirement}")
+                slicer.util.pip_install(requirement)
+
+        for requirement, import_name in (
+            ("numpy", "numpy"),
+            ("scipy", "scipy"),
+            ("nibabel>=5.0", "nibabel"),
+            ("pynrrd", "nrrd"),
+            ("scikit-image", "skimage"),
+            ("h5py", "h5py"),
+            ("plumbum", "plumbum"),
+            ("torchvision", "torchvision"),
+        ):
+            ensure_package(requirement, import_name)
+
+    def setupDDSegRequirements(self) -> None:
+        import importlib
+
+        _ensure_torch_via_extension(min_version="2.0.0", log=self.log)
+
+        def ensure_package(requirement: str, import_name: Optional[str] = None) -> None:
+            module_name = import_name or requirement
+            try:
+                importlib.import_module(module_name)
+            except ModuleNotFoundError:
+                self.log(f"Installing Python package: {requirement}")
+                slicer.util.pip_install(requirement)
+
+        for requirement, import_name in (
+            ("numpy", "numpy"),
+            ("scipy", "scipy"),
+            ("nibabel>=5.0", "nibabel"),
+            ("pynrrd", "nrrd"),
+            ("torchvision", "torchvision"),
+        ):
+            ensure_package(requirement, import_name)
+
     def getParameterNode(self) -> SlicerDDSurferParameterNode:
         return SlicerDDSurferParameterNode(super().getParameterNode())
 
@@ -780,12 +1190,12 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
         import importlib
 
         try:
-            preprocessing = importlib.import_module("ddspipeline.preprocessing")
-            prediction = importlib.import_module("ddspipeline.prediction")
-            postprocessing = importlib.import_module("ddspipeline.postprocessing")
+            preprocessing = importlib.import_module("ddsurferpipeline.preprocessing")
+            prediction = importlib.import_module("ddsurferpipeline.prediction")
+            postprocessing = importlib.import_module("ddsurferpipeline.postprocessing")
         except ImportError as exc:  # pragma: no cover - surfaced at runtime
             raise RuntimeError(
-                "Failed to import SlicerDDSurfer pipeline code. Ensure ddspipeline exists with preprocessing/prediction/postprocessing."
+                "Failed to import SlicerDDSurfer pipeline code. Ensure ddsurferpipeline exists with preprocessing/prediction/postprocessing."
             ) from exc
 
         self._pipeline_modules = {
@@ -794,6 +1204,46 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
             "postprocessing": postprocessing,
         }
         return self._pipeline_modules
+
+    def _ensure_ddseg_on_path(self) -> None:
+        if self.ddseg_src.exists() and str(self.ddseg_src) not in sys.path:
+            sys.path.insert(0, str(self.ddseg_src))
+
+    def runDDSegPipeline(
+        self,
+        mask_path: Path,
+        dwi_path: Path,
+        bval_path: Path,
+        bvec_path: Path,
+        output_dir: Path,
+        weights_dir: Path,
+        slicer_base: Path,
+        slicer_ext: Path,
+        device: str = "cpu",
+        apply_softmax: bool = False,
+    ) -> None:
+        self._ensure_ddseg_on_path()
+
+        if not self.ddseg_src.exists():
+            raise FileNotFoundError(f"DDSeg source not found at {self.ddseg_src}")
+
+        from ddseg.config import DDSegConfig
+        from ddseg.pipeline import run_ddseg
+
+        cfg = DDSegConfig(
+            input_mask_nii=mask_path,
+            parameter_type="DTI",
+            output_folder=output_dir,
+            weights_dir=weights_dir,
+            device=device,
+            apply_softmax=apply_softmax,
+            dwi_nii=dwi_path,
+            bval=bval_path,
+            bvec=bvec_path,
+            slicer_base=slicer_base,
+            slicer_ext=slicer_ext,
+        )
+        run_ddseg(cfg)
 
     def _validate_resources(self) -> None:
         if not self.template_volume.exists():
@@ -1042,7 +1492,7 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
             [
                 self.module_dir / "Resources" / "Data" / "template",
                 self.module_dir / "Resources" / "template",
-                self.module_dir / "ddspipeline" / "template",
+                self.module_dir / "ddsurferpipeline" / "template",
                 self.module_dir / "template",
                 self.module_dir.parent / "template",
             ]
@@ -1066,7 +1516,7 @@ class SlicerDDSurferLogic(ScriptedLoadableModuleLogic):
             [
                 self.module_dir / "Resources" / "Data" / "ckpts",
                 self.module_dir / "Resources" / "ckpts",
-                self.module_dir / "ddspipeline" / "ckpts",
+                self.module_dir / "ddsurferpipeline" / "ckpts",
                 self.module_dir / "ckpts",
                 self.module_dir.parent / "ckpts",
             ]
