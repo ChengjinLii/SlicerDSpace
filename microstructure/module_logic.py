@@ -1,0 +1,82 @@
+"""Microstructure workflow logic glue for SlicerDDSurfer."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
+from shared import ensure_native_dti_bundle, find_subject_root
+
+MICROSTRUCTURE_PYTHON_REQUIREMENTS: tuple[tuple[str, str], ...] = (
+    ("numpy", "numpy"),
+    ("nibabel>=5.0", "nibabel"),
+    ("dipy>=1.11,<1.13", "dipy"),
+    ("dmri-amico", "amico"),
+)
+
+
+class MicrostructureLogicMixin:
+    """Logic entrypoints for the microstructure workflow."""
+
+    def setupMicrostructureRequirements(self) -> None:
+        self._ensure_python_packages(MICROSTRUCTURE_PYTHON_REQUIREMENTS)
+
+    def runMicrostructurePipeline(
+        self,
+        *,
+        subject_id: str,
+        input_root: Path,
+        output_dir: Optional[Path],
+        roi_label_map: Optional[Path] = None,
+        fit_method: str = "wls",
+        run_free_water: bool = True,
+        run_noddi: bool = True,
+        force_recompute: bool = False,
+    ) -> None:
+        from microstructure import MicrostructureConfig, run_microstructure
+
+        input_root = input_root.expanduser().resolve()
+        raw_bundle = find_subject_root(input_root, subject_id)
+        resolved_output_dir = self._resolve_optional_output_dir(
+            output_dir,
+            subject_root=raw_bundle.subject_root,
+            task_name="microstructure",
+        )
+        native_bundle = ensure_native_dti_bundle(
+            raw_bundle,
+            fit_method=fit_method,
+            reuse=True,
+            log=self.log,
+        )
+        config = MicrostructureConfig(
+            subject_id=subject_id,
+            raw_input_bundle=raw_bundle,
+            native_bundle=native_bundle,
+            output_dir=resolved_output_dir,
+            roi_label_map=roi_label_map.expanduser().resolve() if roi_label_map is not None else None,
+            run_free_water=bool(run_free_water),
+            run_noddi=bool(run_noddi),
+            force_recompute=bool(force_recompute),
+        )
+        result = run_microstructure(config, log=self.log)
+        self.log(f"[Microstructure] FA: {result.fa_path}")
+        self.log(f"[Microstructure] MD: {result.md_path}")
+        self.log(f"[Microstructure] Free Water Fraction: {result.fwf_path}")
+        self.log(f"[Microstructure] Free Water Tissue FA: {result.fw_tissue_fa_path}")
+        self.log(f"[Microstructure] Free Water Tissue MD: {result.fw_tissue_md_path}")
+        self.log(f"[Microstructure] NODDI NDI: {result.noddi_ndi_path}")
+        self.log(f"[Microstructure] NODDI ODI: {result.noddi_odi_path}")
+        self.log(f"[Microstructure] NODDI FWF: {result.noddi_fwf_path}")
+        self._load_scalar_volume_node(result.fa_path, f"{subject_id}_FA")
+        self._load_scalar_volume_node(result.md_path, f"{subject_id}_MD")
+        self._load_scalar_volume_node(result.fwf_path, f"{subject_id}_FWF")
+        self._load_scalar_volume_node(result.fw_tissue_fa_path, f"{subject_id}_FW_TissueFA")
+        self._load_scalar_volume_node(result.fw_tissue_md_path, f"{subject_id}_FW_TissueMD")
+        self._load_scalar_volume_node(result.noddi_ndi_path, f"{subject_id}_NODDI_NDI")
+        self._load_scalar_volume_node(result.noddi_odi_path, f"{subject_id}_NODDI_ODI")
+        self._load_scalar_volume_node(result.noddi_fwf_path, f"{subject_id}_NODDI_FWF")
+        if result.roi_stats_csv_path is not None:
+            self.log(f"[Microstructure] ROI-wise stats CSV: {result.roi_stats_csv_path}")
+            self._load_table_node(result.roi_stats_csv_path, f"{subject_id}_ROIWise_Microstructure")
+        else:
+            self.log("[Microstructure] ROI-wise statistics were skipped because no ROI label map was available.")

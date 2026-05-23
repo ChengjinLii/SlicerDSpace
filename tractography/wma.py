@@ -1,0 +1,421 @@
+"""WhiteMatterAnalysis integration for tractography post-processing.
+
+This module intentionally keeps WMA execution behind an explicit ``execute``
+flag so the extension can construct reproducible commands and manifests before
+running long tractography clustering jobs.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Callable, Optional
+
+
+WMA_APPLY_ORG_SCRIPT = Path("bin") / "wm_apply_ORG_atlas_to_subject.sh"
+WMA_APPLY_ORG_SCRIPT_NAME = "wm_apply_ORG_atlas_to_subject.sh"
+WMA_REPOSITORY = "https://github.com/SlicerDMRI/whitematteranalysis.git"
+EXPECTED_ORG_ATLAS_DIRS = ("ORG-RegAtlas-100HCP", "ORG-800FC-100HCP")
+REQUIRED_WMA_COMMANDS = (
+    "wm_append_clusters_to_anatomical_tracts.py",
+    "wm_assess_cluster_location_by_hemisphere.py",
+    "wm_cluster_from_atlas.py",
+    "wm_cluster_remove_outliers.py",
+    "wm_harden_transform.py",
+    "wm_register_to_atlas_new.py",
+    "wm_separate_clusters_by_hemisphere.py",
+)
+OPTIONAL_WMA_COMMANDS = ("wm_diffusion_measurements.py", "xvfb-run")
+
+
+@dataclass(frozen=True)
+class WMAOrgAtlasConfig:
+    """Configuration for applying the WMA ORG atlas to one tractogram."""
+
+    subject_id: str
+    input_tractography: Path
+    atlas_dir: Path
+    output_dir: Path
+    slicer_executable: Path
+    wma_root: Optional[Path] = None
+    transform_path: Optional[Path] = None
+    registration_mode: str = "rig"
+    num_threads: int = 1
+    use_virtual_x: bool = False
+    export_diffusion_measures: bool = False
+    fiber_tract_measurements_cli: Optional[Path] = None
+    clean_files: int = 0
+    execute: bool = False
+
+
+@dataclass(frozen=True)
+class WMAOrgAtlasResult:
+    """Prepared or completed WMA ORG atlas run."""
+
+    subject_id: str
+    output_dir: Path
+    manifest_path: Path
+    qc_path: Path
+    command: tuple[str, ...]
+    executed: bool
+    backend_status: dict[str, Any]
+    atlas_status: dict[str, Any]
+    return_code: Optional[int] = None
+
+
+def resolve_configured_wma_root() -> Path:
+    """Resolve WMA from environment variables or PATH."""
+
+    for env_name in ("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT"):
+        env_value = os.environ.get(env_name)
+        if env_value:
+            return Path(env_value).expanduser().resolve()
+
+    script_on_path = shutil.which(WMA_APPLY_ORG_SCRIPT_NAME)
+    if script_on_path:
+        script_path = Path(script_on_path).resolve()
+        if script_path.parent.name == "bin":
+            return script_path.parent.parent
+        return script_path.parent
+
+    raise FileNotFoundError(
+        "WMA ORG atlas script was not found. Configure WMA by passing wma_root, "
+        "setting SLICERDDSURFER_WMA_ROOT or WMA_ROOT, or adding "
+        f"{WMA_APPLY_ORG_SCRIPT_NAME} to PATH. WMA is an optional external backend; "
+        "it is not bundled inside SlicerDDSurfer."
+    )
+
+
+def resolve_wma_root(wma_root: Optional[Path] = None, module_dir: Optional[Path] = None) -> Path:
+    del module_dir  # Backward-compatible signature; WMA discovery is no longer repo-relative.
+    candidate = (wma_root.expanduser().resolve() if wma_root is not None else resolve_configured_wma_root())
+    script = candidate / WMA_APPLY_ORG_SCRIPT
+    if not script.is_file():
+        raise FileNotFoundError(
+            f"WMA ORG atlas script not found: {script}. "
+            "Configure an external WhiteMatterAnalysis checkout with wma_root, "
+            "SLICERDDSURFER_WMA_ROOT, WMA_ROOT, or PATH."
+        )
+    return candidate
+
+
+def wma_source_info(wma_root: Path) -> dict[str, str]:
+    git_dir = wma_root / ".git"
+    info = {
+        "root": wma_root.as_posix(),
+        "repository": WMA_REPOSITORY,
+    }
+    if git_dir.exists():
+        try:
+            commit = subprocess.check_output(
+                ["git", "-C", wma_root.as_posix(), "rev-parse", "HEAD"],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+            info["commit"] = commit
+        except Exception:
+            pass
+    return info
+
+
+def _command_path(command_name: str, wma_root: Path) -> Optional[Path]:
+    local_candidates = [
+        wma_root / "bin" / command_name,
+        wma_root / "utilities" / command_name,
+    ]
+    for candidate in local_candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    found = shutil.which(command_name)
+    return Path(found).resolve() if found else None
+
+
+def inspect_wma_backend(
+    wma_root: Optional[Path] = None,
+    *,
+    require_virtual_x: bool = False,
+    require_diffusion_measurements: bool = False,
+) -> dict[str, Any]:
+    """Inspect the external WhiteMatterAnalysis backend without running WMA."""
+
+    status: dict[str, Any] = {
+        "available": False,
+        "root": None,
+        "script": None,
+        "missing_required": [],
+        "missing_optional": [],
+        "commands": {},
+        "source": None,
+    }
+    root = resolve_wma_root(wma_root)
+    status["root"] = root.as_posix()
+    script = root / WMA_APPLY_ORG_SCRIPT
+    status["script"] = script.as_posix()
+    status["source"] = wma_source_info(root)
+
+    required = list(REQUIRED_WMA_COMMANDS)
+    optional = list(OPTIONAL_WMA_COMMANDS)
+    if require_diffusion_measurements and "wm_diffusion_measurements.py" not in required:
+        required.append("wm_diffusion_measurements.py")
+    if require_virtual_x and "xvfb-run" not in required:
+        required.append("xvfb-run")
+    for command_name in required:
+        command_path = _command_path(command_name, root)
+        status["commands"][command_name] = command_path.as_posix() if command_path else None
+        if command_path is None:
+            status["missing_required"].append(command_name)
+    for command_name in optional:
+        if command_name in required:
+            continue
+        command_path = _command_path(command_name, root)
+        status["commands"][command_name] = command_path.as_posix() if command_path else None
+        if command_path is None:
+            status["missing_optional"].append(command_name)
+
+    status["script_executable"] = os.access(script, os.X_OK)
+    status["available"] = not status["missing_required"] and bool(status["script_executable"])
+    return status
+
+
+def inspect_wma_org_atlas(atlas_dir: Path) -> dict[str, Any]:
+    """Inspect the expected ORG atlas directory layout."""
+
+    root = atlas_dir.expanduser().resolve()
+    status: dict[str, Any] = {
+        "available": False,
+        "root": root.as_posix(),
+        "exists": root.is_dir(),
+        "missing_required_dirs": [],
+        "required_dirs": {},
+    }
+    if not root.is_dir():
+        status["missing_required_dirs"] = list(EXPECTED_ORG_ATLAS_DIRS)
+        return status
+
+    for dirname in EXPECTED_ORG_ATLAS_DIRS:
+        path = root / dirname
+        file_count = sum(1 for item in path.rglob("*") if item.is_file()) if path.is_dir() else 0
+        status["required_dirs"][dirname] = {
+            "path": path.as_posix(),
+            "exists": path.is_dir(),
+            "file_count": file_count,
+        }
+        if not path.is_dir():
+            status["missing_required_dirs"].append(dirname)
+    status["available"] = not status["missing_required_dirs"]
+    return status
+
+
+def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[str, Any]:
+    """Summarize expected WMA output products for manifest/QC."""
+
+    case_id = input_tractography.stem
+    case_dir = output_dir / case_id
+    anatomical_dir = case_dir / "AnatomicalTracts"
+    cluster_dir = case_dir / "FiberClustering"
+    tracts = sorted(anatomical_dir.glob("*.vtp")) if anatomical_dir.is_dir() else []
+    return {
+        "case_id": case_id,
+        "case_dir": case_dir.as_posix(),
+        "case_dir_exists": case_dir.is_dir(),
+        "anatomical_tracts_dir": anatomical_dir.as_posix(),
+        "anatomical_tracts_dir_exists": anatomical_dir.is_dir(),
+        "anatomical_tract_count": len(tracts),
+        "fiber_clustering_dir": cluster_dir.as_posix(),
+        "fiber_clustering_dir_exists": cluster_dir.is_dir(),
+        "diffusion_measurements_csv": (anatomical_dir / "diffusion_measurements_anatomical_tracts.csv").as_posix(),
+        "diffusion_measurements_csv_exists": (anatomical_dir / "diffusion_measurements_anatomical_tracts.csv").is_file(),
+    }
+
+
+def build_wma_org_atlas_command(config: WMAOrgAtlasConfig) -> tuple[str, ...]:
+    wma_root = resolve_wma_root(config.wma_root)
+    script = wma_root / WMA_APPLY_ORG_SCRIPT
+    if config.registration_mode not in {"rig", "nonrig"}:
+        raise ValueError("registration_mode must be 'rig' or 'nonrig'.")
+    if config.num_threads < 1:
+        raise ValueError("num_threads must be >= 1.")
+    if config.clean_files not in {0, 1, 2}:
+        raise ValueError("clean_files must be 0, 1, or 2.")
+
+    cmd: list[str] = [
+        script.as_posix(),
+        "-i",
+        config.input_tractography.expanduser().resolve().as_posix(),
+        "-o",
+        config.output_dir.expanduser().resolve().as_posix(),
+        "-a",
+        config.atlas_dir.expanduser().resolve().as_posix(),
+        "-s",
+        config.slicer_executable.expanduser().resolve().as_posix(),
+        "-r",
+        config.registration_mode,
+        "-n",
+        str(config.num_threads),
+        "-x",
+        "1" if config.use_virtual_x else "0",
+        "-c",
+        str(config.clean_files),
+    ]
+    if config.transform_path is not None:
+        cmd.extend(["-t", config.transform_path.expanduser().resolve().as_posix()])
+    if config.export_diffusion_measures:
+        if config.fiber_tract_measurements_cli is None:
+            raise ValueError("fiber_tract_measurements_cli is required when export_diffusion_measures=True.")
+        cmd.extend(
+            [
+                "-d",
+                "1",
+                "-m",
+                config.fiber_tract_measurements_cli.expanduser().resolve().as_posix(),
+            ]
+        )
+    return tuple(cmd)
+
+
+def validate_wma_org_inputs(config: WMAOrgAtlasConfig) -> None:
+    if not config.subject_id.strip():
+        raise ValueError("subject_id is required.")
+    if config.input_tractography.suffix.lower() not in {".vtk", ".vtp"}:
+        raise ValueError("WMA ORG atlas input must be a VTK/VTP tractography file.")
+    if not config.input_tractography.expanduser().is_file():
+        raise FileNotFoundError(f"Input tractography not found: {config.input_tractography}")
+    if not config.atlas_dir.expanduser().is_dir():
+        raise FileNotFoundError(f"WMA ORG atlas directory not found: {config.atlas_dir}")
+    atlas_status = inspect_wma_org_atlas(config.atlas_dir)
+    if not atlas_status["available"]:
+        missing = ", ".join(atlas_status["missing_required_dirs"])
+        raise FileNotFoundError(f"WMA ORG atlas directory is incomplete. Missing: {missing}")
+    if not config.slicer_executable.expanduser().is_file():
+        raise FileNotFoundError(f"Slicer executable not found: {config.slicer_executable}")
+    if config.transform_path is not None and not config.transform_path.expanduser().is_file():
+        raise FileNotFoundError(f"Transform file not found: {config.transform_path}")
+    if (
+        config.fiber_tract_measurements_cli is not None
+        and not config.fiber_tract_measurements_cli.expanduser().is_file()
+    ):
+        raise FileNotFoundError(f"FiberTractMeasurements CLI not found: {config.fiber_tract_measurements_cli}")
+    backend_status = inspect_wma_backend(
+        config.wma_root,
+        require_virtual_x=config.use_virtual_x,
+        require_diffusion_measurements=config.export_diffusion_measures,
+    )
+    if not backend_status["available"]:
+        missing = ", ".join(backend_status["missing_required"])
+        raise RuntimeError(f"WMA backend is incomplete. Missing required command(s): {missing}")
+
+
+def run_wma_org_atlas(
+    config: WMAOrgAtlasConfig,
+    *,
+    log: Optional[Callable[[str], None]] = None,
+) -> WMAOrgAtlasResult:
+    """Prepare or execute WMA ORG atlas clustering for one tractogram."""
+
+    validate_wma_org_inputs(config)
+    wma_root = resolve_wma_root(config.wma_root)
+    backend_status = inspect_wma_backend(
+        wma_root,
+        require_virtual_x=config.use_virtual_x,
+        require_diffusion_measurements=config.export_diffusion_measures,
+    )
+    atlas_status = inspect_wma_org_atlas(config.atlas_dir)
+    command = build_wma_org_atlas_command(config)
+    output_dir = config.output_dir.expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = output_dir / "wma_org_atlas_manifest.json"
+    qc_path = output_dir / "wma_org_atlas_qc.json"
+    output_summary = summarize_wma_outputs(output_dir, config.input_tractography.expanduser().resolve())
+
+    manifest = {
+        "kind": "wma_org_atlas",
+        "version": 2,
+        "name": "WMA ORG atlas clustering",
+        "subject_id": config.subject_id,
+        "input_tractography": config.input_tractography.expanduser().resolve().as_posix(),
+        "atlas_dir": config.atlas_dir.expanduser().resolve().as_posix(),
+        "output_dir": output_dir.as_posix(),
+        "registration_mode": config.registration_mode,
+        "num_threads": config.num_threads,
+        "use_virtual_x": config.use_virtual_x,
+        "export_diffusion_measures": config.export_diffusion_measures,
+        "clean_files": config.clean_files,
+        "executed": bool(config.execute),
+        "status": "planned" if not config.execute else "running",
+        "command": list(command),
+        "backend": backend_status,
+        "atlas": atlas_status,
+        "outputs": {
+            "qc": qc_path.as_posix(),
+            "summary": output_summary,
+        },
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    if log:
+        mode = "Executing" if config.execute else "Prepared dry-run"
+        log(f"[WMA] {mode} ORG atlas command: {' '.join(command)}")
+        log(f"[WMA] Manifest: {manifest_path}")
+
+    start_time = time.monotonic()
+    return_code: Optional[int] = None
+    execution_error: Optional[str] = None
+    if config.execute:
+        env = os.environ.copy()
+        python_path = wma_root.as_posix()
+        env["PYTHONPATH"] = (
+            python_path if not env.get("PYTHONPATH") else python_path + os.pathsep + env["PYTHONPATH"]
+        )
+        path_entries = [
+            (wma_root / "bin").as_posix(),
+            (wma_root / "utilities").as_posix(),
+        ]
+        env["PATH"] = os.pathsep.join(path_entries + ([env["PATH"]] if env.get("PATH") else []))
+        try:
+            completed = subprocess.run(command, check=True, cwd=wma_root.as_posix(), env=env)
+            return_code = completed.returncode
+        except subprocess.CalledProcessError as exc:
+            return_code = exc.returncode
+            execution_error = str(exc)
+            raise
+        finally:
+            output_summary = summarize_wma_outputs(output_dir, config.input_tractography.expanduser().resolve())
+
+    elapsed_seconds = time.monotonic() - start_time
+    qc = {
+        "kind": "wma_org_atlas_qc",
+        "version": 1,
+        "subject_id": config.subject_id,
+        "status": "failed" if execution_error else ("completed" if config.execute else "planned"),
+        "executed": bool(config.execute),
+        "return_code": return_code,
+        "elapsed_seconds": elapsed_seconds,
+        "backend_available": bool(backend_status["available"]),
+        "atlas_available": bool(atlas_status["available"]),
+        "output_summary": output_summary,
+        "error": execution_error,
+    }
+    qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    manifest["status"] = qc["status"]
+    manifest["executed"] = bool(config.execute)
+    manifest["return_code"] = return_code
+    manifest["outputs"]["summary"] = output_summary
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    return WMAOrgAtlasResult(
+        subject_id=config.subject_id,
+        output_dir=output_dir,
+        manifest_path=manifest_path,
+        qc_path=qc_path,
+        command=command,
+        executed=bool(config.execute),
+        backend_status=backend_status,
+        atlas_status=atlas_status,
+        return_code=return_code,
+    )

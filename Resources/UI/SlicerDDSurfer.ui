@@ -51,14 +51,14 @@
          <item>
           <widget class="QLabel" name="headlineLabel">
            <property name="text">
-            <string>DDSurfer Pipeline</string>
+            <string>Diffusion Subject Pipelines</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QLabel" name="subtitleLabel">
            <property name="text">
-            <string>A unified framework for reconstructing cortical surfaces from diffusion MRI, providing automated preprocessing, surface prediction, and native-space projection.</string>
+            <string>Run DDSurfer, DDParcel, DDSeg, and phase-2 microstructure analysis from one subject-root layout, with shared DTI and registration caches reused automatically across tasks.</string>
            </property>
            <property name="wordWrap">
             <bool>true</bool>
@@ -125,17 +125,17 @@
         <item row="1" column="0">
          <widget class="QLabel" name="inputDirectoryLabel">
           <property name="text">
-           <string>Input directory</string>
+           <string>Subject directory</string>
           </property>
          </widget>
         </item>
         <item row="1" column="1">
          <widget class="ctkPathLineEdit" name="inputDirectoryPath">
           <property name="filters">
-           <set>ctkPathLineEdit::Dirs</set>
+          <set>ctkPathLineEdit::Dirs</set>
           </property>
           <property name="placeholderText" stdset="0">
-           <string>Select folder containing subject data</string>
+           <string>Preferred: &lt;subject_root&gt; containing input/data.nii.gz for all three tasks; legacy DDSurfer Reg directories also supported</string>
           </property>
          </widget>
         </item>
@@ -149,10 +149,10 @@
         <item row="2" column="1">
          <widget class="ctkPathLineEdit" name="outputDirectoryPath">
           <property name="filters">
-           <set>ctkPathLineEdit::Dirs</set>
+          <set>ctkPathLineEdit::Dirs</set>
           </property>
           <property name="placeholderText" stdset="0">
-           <string>Folder for pipeline results</string>
+           <string>Optional. Defaults to &lt;subject_root&gt;/outputs/ddsurfer</string>
           </property>
          </widget>
         </item>
@@ -453,7 +453,7 @@
      <item>
       <widget class="QLabel" name="ddparcelSectionLabel">
        <property name="text">
-        <string>&lt;b&gt;External runner&lt;/b&gt;</string>
+        <string>&lt;b&gt;Shared-cache consumer&lt;/b&gt;</string>
        </property>
       </widget>
      </item>
@@ -463,8 +463,8 @@
         <string notr="true">QLabel#ddparcelHintLabel { color: #546E7A; }</string>
        </property>
        <property name="text">
-        <string>Run the DDParcel preprocessing pipeline using the packaged ddparcpipeline code. Provide input/output roots and the atlas path.</string>
-       </property>
+        <string>Run DDParcel from the same subject directory layout used by DDSurfer. If cached registered DTI features already exist, they will be reused automatically.</string>
+        </property>
        <property name="wordWrap">
         <bool>true</bool>
        </property>
@@ -489,34 +489,34 @@
        <item row="1" column="0">
         <widget class="QLabel" name="ddparcelScriptLabel">
          <property name="text">
-          <string>Input root</string>
+          <string>Subject directory</string>
          </property>
         </widget>
        </item>
        <item row="1" column="1">
         <widget class="ctkPathLineEdit" name="ddparcelInputRootPath">
          <property name="filters">
-          <set>ctkPathLineEdit::Dirs</set>
+         <set>ctkPathLineEdit::Dirs</set>
          </property>
          <property name="placeholderText" stdset="0">
-          <string>Root folder containing subject/T1w/Diffusion</string>
+          <string>Preferred: &lt;subject_root&gt; containing input/data.nii.gz; legacy DDParcel roots also supported</string>
          </property>
         </widget>
        </item>
        <item row="2" column="0">
         <widget class="QLabel" name="ddparcelOutputRootLabel">
          <property name="text">
-          <string>Output root</string>
+          <string>Output directory</string>
          </property>
         </widget>
        </item>
        <item row="2" column="1">
         <widget class="ctkPathLineEdit" name="ddparcelOutputRootPath">
          <property name="filters">
-          <set>ctkPathLineEdit::Dirs</set>
+         <set>ctkPathLineEdit::Dirs</set>
          </property>
          <property name="placeholderText" stdset="0">
-          <string>Root folder for DDParcel outputs</string>
+          <string>Optional. Defaults to &lt;subject_root&gt;/outputs/ddparcel</string>
          </property>
         </widget>
        </item>
@@ -564,11 +564,426 @@
        <property name="text">
         <string>Run DDParcel</string>
        </property>
-       <property name="toolTip">
-        <string>Launch the external DDParcel script</string>
+      <property name="toolTip">
+        <string>Run DDParcel using the shared subject-root cache when available.</string>
        </property>
        <property name="styleSheet">
         <string notr="true">QPushButton#runDDParcelButton { background-color: #00ACC1; color: white; font-weight: 600; border-radius: 6px; padding: 6px 14px; } QPushButton#runDDParcelButton:disabled { background-color: #CFD8DC; color: #90A4AE; } QPushButton#runDDParcelButton:hover:!disabled { background-color: #00838F; }</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </item>
+  <item>
+   <widget class="ctkCollapsibleButton" name="microstructureCollapsibleButton">
+   <property name="text">
+     <string>Microstructure (Phase 3)</string>
+    </property>
+    <property name="collapsed">
+     <bool>true</bool>
+    </property>
+    <layout class="QVBoxLayout" name="microstructureLayout">
+     <item>
+      <widget class="QLabel" name="microstructureSectionLabel">
+       <property name="text">
+        <string>&lt;b&gt;FA / MD + Free Water + NODDI + ROI-wise stats&lt;/b&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="microstructureHintLabel">
+       <property name="styleSheet">
+        <string notr="true">QLabel#microstructureHintLabel { color: #546E7A; }</string>
+       </property>
+       <property name="text">
+        <string>Export native-space FA and MD from the shared DTI cache, fit a DIPY Free Water model from the raw DWI, fit AMICO NODDI maps, and compute ROI-wise FA / MD / FWF / corrected tissue FA / corrected tissue MD / NDI / ODI / NODDI FWF. If ROI label map is left empty, the workflow will try &lt;subject_root&gt;/outputs/ddparcel/&lt;subject&gt;-DDSurfer-wmparc.nii.gz. Multi-shell DWI is required. Free Water and NODDI are cached as separate stages, so reruns can selectively recompute only the stage you enable. For stability on this environment, AMICO NODDI runs with a single worker thread (nthreads=1).</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QFormLayout" name="microstructureFormLayout">
+       <item row="0" column="0">
+        <widget class="QLabel" name="microstructureSubjectLabel">
+         <property name="text">
+          <string>Subject ID</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="microstructureSubjectLineEdit">
+         <property name="placeholderText">
+          <string>Leave empty to reuse DDSurfer subject</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="microstructureInputLabel">
+         <property name="text">
+          <string>Subject directory</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="ctkPathLineEdit" name="microstructureInputRootPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Dirs</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Preferred: &lt;subject_root&gt; containing input/data.nii.gz</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="microstructureOutputLabel">
+         <property name="text">
+          <string>Output directory</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="ctkPathLineEdit" name="microstructureOutputPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Dirs</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Optional. Defaults to &lt;subject_root&gt;/outputs/microstructure</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="microstructureRoiLabel">
+         <property name="text">
+          <string>ROI label map</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="ctkPathLineEdit" name="microstructureRoiPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Files</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Optional. Defaults to DDParcel native wmparc output when present.</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="microstructureFitLabel">
+         <property name="text">
+          <string>DTI fit cache</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+       <widget class="QComboBox" name="microstructureFitComboBox">
+         <item>
+          <property name="text">
+           <string>wls</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>ls</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="microstructureRunFreeWaterLabel">
+         <property name="text">
+          <string>Run Free Water</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="QCheckBox" name="microstructureRunFreeWaterCheckBox">
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>Enabled</string>
+         </property>
+         <property name="toolTip">
+          <string>When disabled, existing Free Water maps must already exist in the output folder.</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="microstructureRunNoddiLabel">
+         <property name="text">
+          <string>Run NODDI</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QCheckBox" name="microstructureRunNoddiCheckBox">
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>Enabled</string>
+         </property>
+         <property name="toolTip">
+          <string>When disabled, existing NODDI maps must already exist in the output folder.</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0">
+        <widget class="QLabel" name="microstructureForceRecomputeLabel">
+         <property name="text">
+          <string>Force recompute</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="1">
+        <widget class="QCheckBox" name="microstructureForceRecomputeCheckBox">
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Enabled</string>
+         </property>
+         <property name="toolTip">
+          <string>Recompute selected stages even when cache manifest matches.</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QPushButton" name="runMicrostructureButton">
+       <property name="text">
+        <string>Run Microstructure</string>
+       </property>
+       <property name="toolTip">
+        <string>Export FA/MD, run selected Free Water/NODDI stages with cache reuse, and compute ROI-wise microstructure statistics from shared subject-root inputs.</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QPushButton#runMicrostructureButton { background-color: #00ACC1; color: white; font-weight: 600; border-radius: 6px; padding: 6px 14px; } QPushButton#runMicrostructureButton:disabled { background-color: #CFD8DC; color: #90A4AE; } QPushButton#runMicrostructureButton:hover:!disabled { background-color: #00838F; }</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </item>
+  <item>
+   <widget class="ctkCollapsibleButton" name="ddsegCollapsibleButton">
+    <property name="text">
+     <string>DDSeg Pipeline</string>
+    </property>
+    <property name="collapsed">
+     <bool>true</bool>
+    </property>
+    <layout class="QVBoxLayout" name="ddsegLayout">
+     <item>
+      <widget class="QLabel" name="ddsegSectionLabel">
+       <property name="text">
+        <string>&lt;b&gt;WM / GM / CSF segmentation&lt;/b&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="ddsegHintLabel">
+       <property name="styleSheet">
+        <string notr="true">QLabel#ddsegHintLabel { color: #546E7A; }</string>
+       </property>
+       <property name="text">
+        <string>Preferred mode: choose the same &lt;subject_root&gt; in the “Subject directory / DWI” field and leave mask, bval, and bvec empty. DDSeg will reuse cache/native_dti/ls automatically. Legacy raw-file mode is still supported below.</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QFormLayout" name="ddsegFormLayout">
+       <item row="0" column="0">
+        <widget class="QLabel" name="ddsegDwiLabel">
+         <property name="text">
+          <string>Subject directory / DWI</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="ctkPathLineEdit" name="ddsegDwiPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Dirs|ctkPathLineEdit::Files</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Preferred: &lt;subject_root&gt;; legacy mode: raw data.nii.gz</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="ddsegMaskLabel">
+         <property name="text">
+          <string>Mask NIfTI</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="ctkPathLineEdit" name="ddsegMaskPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Files</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Legacy mode only. Leave empty in subject-root mode.</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="ddsegBvalLabel">
+         <property name="text">
+          <string>bvals</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="ctkPathLineEdit" name="ddsegBvalPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Files</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Legacy mode only. Leave empty in subject-root mode.</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="ddsegBvecLabel">
+         <property name="text">
+          <string>bvecs</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="ctkPathLineEdit" name="ddsegBvecPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Files</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Legacy mode only. Leave empty in subject-root mode.</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="ddsegOutputLabel">
+         <property name="text">
+          <string>Output directory</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="ctkPathLineEdit" name="ddsegOutputPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Dirs</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Optional in subject-root mode. Defaults to &lt;subject_root&gt;/outputs/ddseg</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="ddsegWeightsLabel">
+         <property name="text">
+          <string>Weights directory</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="ctkPathLineEdit" name="ddsegWeightsPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Dirs</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Defaults to segmentation/weights</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="ddsegSlicerBaseLabel">
+         <property name="text">
+          <string>Slicer base</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="ctkPathLineEdit" name="ddsegSlicerBasePath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Dirs</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Legacy mode only. Auto-filled from the current Slicer.</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0">
+        <widget class="QLabel" name="ddsegSlicerExtLabel">
+         <property name="text">
+          <string>SlicerDMRI extension</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="1">
+        <widget class="ctkPathLineEdit" name="ddsegSlicerExtPath">
+         <property name="filters">
+          <set>ctkPathLineEdit::Dirs</set>
+         </property>
+         <property name="placeholderText" stdset="0">
+          <string>Legacy mode only. Auto-filled when SlicerDMRI is installed.</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0">
+        <widget class="QLabel" name="ddsegDeviceLabel">
+         <property name="text">
+          <string>Torch device</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="1">
+        <widget class="QComboBox" name="ddsegDeviceComboBox">
+         <item>
+          <property name="text">
+           <string>cpu</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>cuda:0</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="9" column="0">
+        <widget class="QLabel" name="ddsegSoftmaxLabel">
+         <property name="text">
+          <string>Output mode</string>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="1">
+        <widget class="QCheckBox" name="ddsegSoftmaxCheckBox">
+         <property name="text">
+          <string>Apply softmax before saving probability maps</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QPushButton" name="runDDSegButton">
+       <property name="text">
+        <string>Run DDSeg</string>
+       </property>
+       <property name="toolTip">
+        <string>Run DDSeg from a subject-root cache or from explicit raw DWI inputs.</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QPushButton#runDDSegButton { background-color: #00ACC1; color: white; font-weight: 600; border-radius: 6px; padding: 6px 14px; } QPushButton#runDDSegButton:disabled { background-color: #CFD8DC; color: #90A4AE; } QPushButton#runDDSegButton:hover:!disabled { background-color: #00838F; }</string>
        </property>
       </widget>
      </item>
@@ -586,8 +1001,8 @@
         <property name="styleSheet">
          <string notr="true">QLabel#patternsLabel { font-family: Menlo,Consolas,monospace; }</string>
         </property>
-        <property name="text">
-         <string>&lt;b&gt;Files expected per subject:&lt;/b&gt;&lt;ul&gt;&lt;li&gt;{subject_id}-dti-FractionalAnisotropy-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-dti-MinEigenvalue-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-dti-MidEigenvalue-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-dti-MaxEigenvalue-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-dti-Trace-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-dti-MeanDiffusivity-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-mask-Reg.nii.gz&lt;/li&gt;&lt;li&gt;{subject_id}-b0ToAtlasT2.tfm&lt;/li&gt;&lt;/ul&gt;</string>
+       <property name="text">
+         <string>&lt;b&gt;Shared preferred input layout for DDSurfer, DDParcel, DDSeg, and Microstructure:&lt;/b&gt;&lt;ul&gt;&lt;li&gt;&lt;subject_root&gt;/input/data.nii.gz&lt;/li&gt;&lt;li&gt;&lt;subject_root&gt;/input/bvals&lt;/li&gt;&lt;li&gt;&lt;subject_root&gt;/input/bvecs&lt;/li&gt;&lt;li&gt;&lt;subject_root&gt;/input/nodif_brain_mask.nii.gz&lt;/li&gt;&lt;/ul&gt;&lt;b&gt;Cache reuse:&lt;/b&gt; DDSeg reads &lt;subject_root&gt;/cache/native_dti/ls, while DDSurfer, DDParcel, and Microstructure can reuse cached DTI outputs when available. Legacy DDSurfer Reg layouts are still accepted.</string>
         </property>
         <property name="textFormat">
          <enum>Qt::RichText</enum>
