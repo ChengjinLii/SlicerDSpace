@@ -5,8 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+from shared import default_task_output_dir_for_dependency
 from tractography.act import ACTTrackingConfig, ACTTrackingResult, run_act_tracking
+from tractography.bundle_parcellation import (
+    BundleParcellationConfig,
+    BundleParcellationResult,
+    run_bundle_parcellation,
+)
 from tractography.dti import DTITrackingConfig, DTITrackingResult, run_dti_tracking
+from tractography.tractcloud import TractCloudConfig, TractCloudResult, run_tractcloud_parcellation
 from tractography.wma import WMAOrgAtlasConfig, WMAOrgAtlasResult, run_wma_org_atlas
 
 
@@ -50,7 +57,7 @@ class TractographyLogicMixin:
         *,
         subject_id: str,
         parcellation_path: Path,
-        output_dir: Path,
+        output_dir: Optional[Path] = None,
         tractography_path: Optional[Path] = None,
         dwi_path: Optional[Path] = None,
         bval_path: Optional[Path] = None,
@@ -64,10 +71,15 @@ class TractographyLogicMixin:
         sift2: bool = True,
         execute: bool = False,
     ) -> ACTTrackingResult:
+        resolved_output_dir = (
+            output_dir
+            if output_dir is not None
+            else default_task_output_dir_for_dependency(parcellation_path, "tractography_act")
+        )
         config = ACTTrackingConfig(
             subject_id=subject_id,
             parcellation_path=parcellation_path,
-            output_dir=output_dir,
+            output_dir=resolved_output_dir,
             tractography_path=tractography_path,
             dwi_path=dwi_path,
             bval_path=bval_path,
@@ -89,7 +101,7 @@ class TractographyLogicMixin:
         subject_id: str,
         input_tractography: Path,
         atlas_dir: Path,
-        output_dir: Path,
+        output_dir: Optional[Path] = None,
         slicer_executable: Path,
         wma_root: Optional[Path] = None,
         transform_path: Optional[Path] = None,
@@ -101,11 +113,16 @@ class TractographyLogicMixin:
         clean_files: int = 0,
         execute: bool = False,
     ) -> WMAOrgAtlasResult:
+        resolved_output_dir = (
+            output_dir
+            if output_dir is not None
+            else default_task_output_dir_for_dependency(input_tractography, "wma_org_atlas")
+        )
         config = WMAOrgAtlasConfig(
             subject_id=subject_id,
             input_tractography=input_tractography,
             atlas_dir=atlas_dir,
-            output_dir=output_dir,
+            output_dir=resolved_output_dir,
             slicer_executable=slicer_executable,
             wma_root=wma_root,
             transform_path=transform_path,
@@ -118,3 +135,43 @@ class TractographyLogicMixin:
             execute=execute,
         )
         return run_wma_org_atlas(config, log=self.log)
+
+    def runTractCloudParcellationPipeline(
+        self,
+        *,
+        subject_id: str,
+        input_tractography: Path,
+        output_dir: Optional[Path] = None,
+        python_executable: Optional[Path] = None,
+        include_other: bool = False,
+        device: str = "auto",
+        batch_size: int = 2048,
+        data_dir: Optional[Path] = None,
+        create_mrb: bool = False,
+        execute: bool = False,
+    ) -> TractCloudResult:
+        resolved_output_dir = (
+            output_dir
+            if output_dir is not None
+            else default_task_output_dir_for_dependency(input_tractography, "tractcloud")
+        )
+        config = TractCloudConfig(
+            subject_id=subject_id,
+            input_tractography=input_tractography,
+            output_dir=resolved_output_dir,
+            python_executable=python_executable,
+            include_other=include_other,
+            device=device,
+            batch_size=batch_size,
+            data_dir=data_dir,
+            create_mrb=create_mrb,
+            execute=execute,
+        )
+        return run_tractcloud_parcellation(config, log=self.log)
+
+    def runBundleParcellationPipeline(
+        self,
+        *,
+        config: BundleParcellationConfig,
+    ) -> BundleParcellationResult:
+        return run_bundle_parcellation(config, log=self.log)

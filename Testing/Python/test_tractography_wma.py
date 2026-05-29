@@ -25,7 +25,23 @@ class WMAIntegrationTest(unittest.TestCase):
         self.wma_bin = self.wma_root / "bin"
         self.wma_bin.mkdir(parents=True)
         self.wma_script = self.wma_bin / "wm_apply_ORG_atlas_to_subject.sh"
-        self.wma_script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        self.wma_script.write_text(
+            """#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -i) input="$2"; shift 2 ;;
+    -o) out="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+case_id=$(basename "$input")
+case_id=${case_id%.*}
+mkdir -p "$out/$case_id/FiberClustering" "$out/$case_id/AnatomicalTracts"
+printf '' > "$out/$case_id/AnatomicalTracts/T_AF_left.vtp"
+exit 0
+""",
+            encoding="utf-8",
+        )
         self.wma_script.chmod(0o755)
         for script_name in (
             "wm_append_clusters_to_anatomical_tracts.py",

@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from shared.io_layout import default_task_output_dir
 from shared.pipeline import RAW_INPUT_FILES, RawInputBundle, find_subject_root, inspect_subject_directory
 
 
@@ -421,7 +422,7 @@ def validate_subject_inputs(config: InputValidationConfig) -> InputValidationRes
         output_dir = (
             config.output_dir.expanduser().resolve()
             if config.output_dir is not None
-            else (subject_root / "outputs" / "validation" if subject_root else config.input_root / "validation")
+            else (default_task_output_dir(subject_root, "validation") if subject_root else config.input_root / "validation")
         )
         report_path = output_dir / f"{config.subject_id or 'unknown'}_input_validation.json"
         _write_report(

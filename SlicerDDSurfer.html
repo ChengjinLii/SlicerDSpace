@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Slicer 插件项目工作流</title>
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --paper: #fffdf9;
+      --ink: #1f2933;
+      --muted: #667085;
+      --line: #d8d2c8;
+      --soft-line: #e9e3d9;
+      --blue: #315f8c;
+      --green: #4e7a5b;
+      --amber: #a8672a;
+      --teal: #2d6f73;
+      --red: #9b4a42;
+      --purple: #66508a;
+      --shadow: 0 18px 50px rgba(31, 41, 51, 0.08);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(102,80,138,.10), transparent 30%),
+        radial-gradient(circle at top right, rgba(45,111,115,.10), transparent 34%),
+        var(--bg);
+      line-height: 1.55;
+    }
+
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 44px 34px 64px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 28px;
+      align-items: stretch;
+      margin-bottom: 28px;
+    }
+
+    .hero-card, .side-card, .section, .note-card {
+      background: rgba(255, 253, 249, 0.88);
+      border: 1px solid var(--soft-line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-card {
+      padding: 38px 42px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -80px;
+      bottom: -110px;
+      width: 280px;
+      height: 280px;
+      border: 1px solid rgba(49,95,140,.16);
+      border-radius: 50%;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--purple);
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 4vw, 58px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      font-weight: 800;
+    }
+
+    .subtitle {
+      max-width: 780px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .side-card {
+      padding: 28px;
+      display: grid;
+      gap: 14px;
+      align-content: center;
+    }
+
+    .summary-item {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 14px;
+      align-items: start;
+      padding: 14px;
+      border-radius: 16px;
+      background: #faf7f1;
+      border: 1px solid var(--soft-line);
+    }
+
+    .icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: white;
+      background: var(--blue);
+      flex: none;
+    }
+
+    .icon.green { background: var(--green); }
+    .icon.amber { background: var(--amber); }
+    .icon.teal { background: var(--teal); }
+    .icon.red { background: var(--red); }
+    .icon.purple { background: var(--purple); }
+
+    .summary-item b { display: block; margin-bottom: 3px; }
+    .summary-item span { color: var(--muted); font-size: 14px; }
+
+    .section {
+      padding: 28px;
+      margin-top: 24px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 25px;
+      letter-spacing: -0.025em;
+    }
+
+    .section-head p {
+      margin: 0;
+      max-width: 620px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .orchestration {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 14px;
+      position: relative;
+    }
+
+    .step {
+      position: relative;
+      min-height: 132px;
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fffaf2;
+    }
+
+    .step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9b9287;
+      font-weight: 800;
+      z-index: 2;
+    }
+
+    .step small {
+      display: block;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: 1.1fr 1.1fr 1.1fr 2.4fr 1.25fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .lane {
+      border: 1px solid var(--soft-line);
+      border-radius: 20px;
+      background: #fffaf2;
+      padding: 16px;
+      position: relative;
+    }
+
+    .lane-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 17px;
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+
+    .num {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 15px;
+      background: var(--blue);
+    }
+
+    .num.green { background: var(--green); }
+    .num.amber { background: var(--amber); }
+    .num.teal { background: var(--teal); }
+    .num.red { background: var(--red); }
+
+    .card {
+      padding: 15px;
+      border-radius: 16px;
+      background: white;
+      border: 1px solid var(--soft-line);
+      margin-bottom: 12px;
+    }
+
+    .card:last-child { margin-bottom: 0; }
+    .card b { display: block; margin-bottom: 6px; }
+    .card p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    ul.clean {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .branches {
+      display: grid;
+      gap: 14px;
+    }
+
+    .branch {
+      border-radius: 18px;
+      border: 1px solid rgba(45,111,115,.28);
+      background: linear-gradient(180deg, rgba(45,111,115,.05), rgba(255,255,255,.85));
+      padding: 16px;
+    }
+
+    .branch-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(45,111,115,.10);
+      color: var(--teal);
+      font-weight: 800;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .mini-flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .mini-box {
+      background: white;
+      border: 1px solid var(--soft-line);
+      border-radius: 14px;
+      padding: 11px 12px;
+      font-size: 13px;
+      min-height: 54px;
+    }
+
+    .arrow { color: var(--muted); font-weight: 800; }
+
+    .output-box {
+      margin-top: 10px;
+      padding: 13px 14px;
+      border-radius: 15px;
+      background: #f3f8f8;
+      border: 1px solid rgba(45,111,115,.22);
+      font-size: 13px;
+      color: #315457;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: .9fr 1.1fr;
+      gap: 20px;
+    }
+
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .rule {
+      padding: 14px 15px;
+      border-radius: 16px;
+      border: 1px solid #e5d6bf;
+      background: #fff9ed;
+      color: #61451c;
+      font-size: 14px;
+    }
+
+    .glossary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px 16px;
+    }
+
+    .term {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--soft-line);
+      font-size: 14px;
+    }
+
+    .term b {
+      display: inline-block;
+      min-width: 76px;
+      color: var(--blue);
+    }
+
+    .term span { color: var(--muted); }
+
+    .footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+      .hero, .two-col { grid-template-columns: 1fr; }
+      .orchestration { grid-template-columns: repeat(2, 1fr); }
+      .step::after { display: none; }
+      .workflow { grid-template-columns: 1fr; }
+      .glossary { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      .page { padding: 24px 16px 42px; }
+      .hero-card, .side-card, .section { padding: 22px; }
+      .orchestration, .rules, .glossary { grid-template-columns: 1fr; }
+      h1 { font-size: 34px; }
+    }
+  
+    .file-system {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .tree-card {
+      border: 1px solid var(--soft-line);
+      border-radius: 20px;
+      background: #fffaf2;
+      overflow: hidden;
+    }
+
+    .tree-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--soft-line);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .tree-head h3 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.015em;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #f0eee7;
+      border: 1px solid var(--soft-line);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .tree-body {
+      padding: 18px;
+      overflow-x: auto;
+    }
+
+    .wide-tree-card {
+      grid-column: 1 / -1;
+    }
+
+    .design-principles {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .principle {
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid var(--soft-line);
+      background: #fffdf9;
+    }
+
+    .principle b {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .principle p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tree-section-label {
+      display: inline-flex;
+      margin: 16px 0 8px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #eef3f3;
+      color: var(--teal);
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .tree {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #26323d;
+    }
+
+    .tree li {
+      position: relative;
+      padding-left: 20px;
+      white-space: nowrap;
+    }
+
+    .tree li::before {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 0;
+      bottom: 0;
+      border-left: 1px solid #ded6cb;
+    }
+
+    .tree li::after {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 14px;
+      width: 10px;
+      border-top: 1px solid #ded6cb;
+    }
+
+    .tree > li::before,
+    .tree > li::after { display: none; }
+
+    .tree ul {
+      margin: 0;
+      padding-left: 16px;
+      list-style: none;
+    }
+
+    .folder { color: #315f8c; font-weight: 800; }
+    .file { color: #4b5563; }
+    .shared { color: var(--teal); font-weight: 800; }
+    .optional { color: #8a6b3a; }
+    .generated { color: var(--green); }
+    .comment { color: #8b949e; font-style: italic; }
+
+    .legend-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .legend-pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: white;
+      border: 1px solid var(--soft-line);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .rationale-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .rationale {
+      padding: 15px;
+      border-radius: 16px;
+      background: white;
+      border: 1px solid var(--soft-line);
+    }
+
+    .rationale b {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .rationale p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .io-flow {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .io-node {
+      position: relative;
+      padding: 14px;
+      border-radius: 16px;
+      background: #ffffff;
+      border: 1px solid var(--soft-line);
+      min-height: 94px;
+    }
+
+    .io-node:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9b9287;
+      font-weight: 800;
+      z-index: 1;
+    }
+
+    .io-node b { display: block; margin-bottom: 4px; }
+    .io-node span { color: var(--muted); font-size: 12.5px; }
+
+    @media (max-width: 1100px) {
+      .file-system, .rationale-grid, .io-flow, .design-principles { grid-template-columns: 1fr; }
+      .io-node::after { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-card">
+        <div class="eyebrow">3D Slicer Extension · dMRI Pipeline</div>
+        <h1>3D Slicer 插件项目工作流</h1>
+        <p class="subtitle">面向 dMRI 微结构分析、皮层表面重建、纤维束追踪与连接组分析的统一插件式 pipeline。整体目标是把已有命令行流程、深度学习模型和 Slicer 场景交互整合为一个清晰、可复现、可扩展的工作流。</p>
+      </div>
+      <aside class="side-card">
+        <div class="summary-item"><div class="icon purple">01</div><div><b>统一编排</b><span>GUI、参数节点、DAG runner 与工具适配层共同管理流程。</span></div></div>
+        <div class="summary-item"><div class="icon teal">02</div><div><b>三条科学分支</b><span>微结构、结构/表面/分区、纤维束追踪与连接性分析。</span></div></div>
+        <div class="summary-item"><div class="icon red">03</div><div><b>结果可追溯</b><span>输出影像、表面、表格、QC 报告、MRB 场景与 provenance.json。</span></div></div>
+      </aside>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>1. 插件编排层</h2>
+        <p>这一层负责把用户操作、参数配置、流程执行和外部工具调用统一起来，是 Slicer 插件从“脚本集合”走向“稳定产品形态”的关键。</p>
+      </div>
+      <div class="orchestration">
+        <div class="step"><b>脚本化 GUI / QC 面板</b><small>用户选择数据、参数预设、查看中间结果与质量控制。</small></div>
+        <div class="step"><b>参数节点</b><small>MRML + JSON job spec，用于保存任务配置和运行状态。</small></div>
+        <div class="step"><b>DAG 流程运行器</b><small>支持依赖管理、断点续跑、缓存、日志和失败恢复。</small></div>
+        <div class="step"><b>工具适配层</b><small>Slicer CLI、Python logic、容器和外部命令的统一封装。</small></div>
+        <div class="step"><b>外部计算引擎</b><small>MRtrix3、FSL、DIPY、DDSeg、DDSurfer、DDParcel、pyAFQ。</small></div>
+        <div class="step"><b>MRML 场景与 provenance</b><small>把结果、显示状态、文件路径、版本信息与报告统一管理。</small></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>2. 主流程总览</h2>
+        <p>从数据导入到下游导出，主流程保持线性清晰；复杂建模部分在中间拆分为三个并行但互相依赖的科学分支。</p>
+      </div>
+
+      <div class="workflow">
+        <div class="lane">
+          <div class="lane-title"><span class="num">2</span>输入与验证</div>
+          <div class="card"><b>输入数据</b><p>DWI（Diffusion-Weighted Imaging）+ bval/bvec 梯度文件；可选 T1w（T1-weighted MRI）；BIDS 元数据。</p></div>
+          <div class="card"><b>导入与验证</b><ul class="clean"><li>文件完整性检查</li><li>相位编码 / 读出时间检查</li><li>梯度方向与依赖环境检查</li><li>QC（Quality Control）</li></ul></div>
+        </div>
+
+        <div class="lane">
+          <div class="lane-title"><span class="num green">3</span>DWI 预处理</div>
+          <div class="card"><b>DWI 标准化</b><p>NIfTI / NRRD 格式规范化，统一后续模块输入。</p></div>
+          <div class="card"><b>去噪与伪影处理</b><p>去噪、Gibbs ringing 去除。</p></div>
+          <div class="card"><b>畸变与运动校正</b><p>运动校正、涡流校正、磁敏感畸变校正。</p></div>
+          <div class="card"><b>QC 快照</b><p>保存 native-space corrected DWI 与关键 QC 结果。</p></div>
+        </div>
+
+        <div class="lane">
+          <div class="lane-title"><span class="num amber">4</span>数据准备与共享缓存</div>
+          <div class="card"><b>共享缓存</b><p>统一沉淀 DWI、mask、DTI 基础图谱和质量控制结果，避免跨分支重复计算。</p></div>
+          <div class="card"><b>Native-space 优先</b><p>所有主分析在 DWI native space 内闭环，减少额外空间变换引入的不确定性。</p></div>
+          <div class="card"><b>可选扩展</b><p>如需模板空间展示或跨模态对齐，作为独立可选扩展，不作为主流程前置。</p></div>
+        </div>
+
+        <div class="lane">
+          <div class="lane-title"><span class="num teal">5</span>建模与解剖分支</div>
+          <div class="branches">
+            <div class="branch">
+              <div class="branch-title">A · 微结构分支</div>
+              <div class="mini-flow"><div class="mini-box">DTI（Diffusion Tensor Imaging）</div><div class="arrow">→</div><div class="mini-box">FA、MD、AD、RD、L1/L2/L3 eigenvalue maps</div></div>
+              <div class="mini-flow"><div class="mini-box">Free-water 建模</div><div class="arrow">→</div><div class="mini-box">FW-corrected FA / MD</div></div>
+              <div class="mini-flow"><div class="mini-box">NODDI</div><div class="arrow">→</div><div class="mini-box">NDI/ICVF、ODI、IsoVF</div></div>
+              <div class="output-box"><b>输出：</b>微结构图谱集合，默认保存于 native space。</div>
+            </div>
+
+            <div class="branch">
+              <div class="branch-title">B · 结构 / 表面 / 分区分支</div>
+              <div class="mini-flow"><div class="mini-box">DDSeg</div><div class="arrow">→</div><div class="mini-box">WM / GM / CSF 分割</div></div>
+              <div class="mini-flow"><div class="mini-box">DDSurfer</div><div class="arrow">→</div><div class="mini-box">white surface 与 pial surface 重建</div></div>
+              <div class="mini-flow"><div class="mini-box">DDSurfer postprocess annot + DDParcel wmparc</div><div class="arrow">→</div><div class="mini-box">surface annotation 与 wmparc 分区</div></div>
+              <div class="output-box"><b>输出：</b>mask、surface、label map、parcellation，默认保存于 native space。</div>
+            </div>
+
+            <div class="branch">
+              <div class="branch-title">C · 纤维束追踪与连接性分支</div>
+              <div class="mini-flow"><div class="mini-box">5TT + ACT</div><div class="arrow">→</div><div class="mini-box">解剖约束纤维追踪准备</div></div>
+              <div class="mini-flow"><div class="mini-box">CSD / FOD + GMWMI</div><div class="arrow">→</div><div class="mini-box">全脑纤维追踪 + SIFT2</div></div>
+              <div class="mini-flow"><div class="mini-box">Tract cloud / FiberBundle</div><div class="arrow">→</div><div class="mini-box">可复用的 bundle 输入来源</div></div>
+              <div class="mini-flow"><div class="mini-box">WMQL bundle segmentation</div><div class="arrow">→</div><div class="mini-box">AF、CST 等纤维束；connectome 放在 Tractography 内</div></div>
+              <div class="output-box"><b>输出：</b>tractograms、bundles、connectome matrices、bundle-level metrics。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lane">
+          <div class="lane-title"><span class="num red">6</span>分析与导出</div>
+          <div class="card"><b>Slicer 可视化</b><p>volume、segmentation、surface、table、plot。</p></div>
+          <div class="card"><b>标准结果导出</b><p>NIfTI / NRRD、VTK / GIFTI、CSV / TSV、QC 报告。</p></div>
+          <div class="card"><b>场景与追溯</b><p>MRB scene archive、provenance.json、软件版本和运行参数。</p></div>
+          <div class="card"><b>群体分析准备</b><p>连接组矩阵、tractometry、区域统计、group-ready CSV / TSV。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>3. 输入 / 输出文件树设计</h2>
+        <p>这一版按“先生成公共底座，再由各 pipeline 复用”的原则重写：DWI 预处理、mask、DTI 标量图、CSD/FOD、结构分割、surface 和 parcellation 都只计算一次；DDSurfer、DDParcel、ACT、tractography 内的 connectome 和区域统计统一从 shared 层读取。</p>
+      </div>
+
+      <div class="design-principles">
+        <div class="principle"><b>公共底座优先</b><p>把 DWI 标准化、denoise、degibbs、eddy/topup、bias correction、mask 与 QC 放入 <code>01_preproc/</code>，后续所有方法共享。</p></div>
+        <div class="principle"><b>模型图谱集中</b><p>DTI 的 FA、MD、AD、RD、L1/L2/L3、Trace 与后续 free-water、NODDI 等稳定产物统一放入 <code>02_microstructure/</code>；可重建的 tensor 原始中间文件留在 <code>cache/</code>。</p></div>
+        <div class="principle"><b>结构逐级复用</b><p>DDSeg 产物支持 DDSurfer；DDSurfer surface / annotation 与 DDParcel wmparc 支持 ACT、tractography 内 connectome 和区域统计。</p></div>
+        <div class="principle"><b>Native-space 主线</b><p>核心建模与分析默认不依赖跨空间配准；模板空间相关结果作为可选扩展产物单独管理。</p></div>
+        <div class="principle"><b>结果与缓存分离</b><p><code>outputs/</code> 只放稳定产物；<code>cache/</code> 放可重建临时文件、容器 workdir、模型中间 tensor。</p></div>
+        <div class="principle"><b>manifest 可追溯</b><p>每个阶段写入 status、输入输出、hash、软件版本和参数，方便 Slicer GUI 恢复、重跑和调试。</p></div>
+        <div class="principle"><b>命名规范统一</b><p>推荐采用 BIDS-like 命名（如 <code>sub-*&nbsp;_space-*&nbsp;_desc-*</code>）；减少长期维护中的语义歧义和批处理脚本分支。</p></div>
+      </div>
+
+      <div class="file-system">
+        <div class="tree-card">
+          <div class="tree-head">
+            <h3>输入树：统一输入契约（建议长期保持）</h3>
+            <span class="badge">minimal + compatible</span>
+          </div>
+          <div class="tree-body">
+            <ul class="tree">
+              <li><span class="folder">&lt;subject_root&gt;/</span>
+                <ul>
+                  <li><span class="folder">input/</span>
+                    <ul>
+                      <li><span class="file">data.nii.gz</span> <span class="comment"># DWI 主数据，4D NIfTI</span></li>
+                      <li><span class="file">bvals</span> <span class="comment"># b-value 文件</span></li>
+                      <li><span class="file">bvecs</span> <span class="comment"># gradient direction 文件</span></li>
+                      <li><span class="file">nodif_brain_mask.nii.gz</span> <span class="comment"># DWI native-space brain mask</span></li>
+                      <li><span class="optional">data.json</span> <span class="comment"># 建议提供：BIDS metadata，含 PhaseEncodingDirection / TotalReadoutTime</span></li>
+                      <li><span class="optional">T1w.nii.gz</span> <span class="comment"># 可选：仅用于未来跨模态扩展，不作为主流程前置</span></li>
+                    </ul>
+                  </li>
+                  <li><span class="generated">outputs/</span> <span class="comment"># 可选，运行后自动生成</span></li>
+                  <li><span class="generated">cache/</span> <span class="comment"># 可选，运行后自动生成</span></li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tree-card">
+          <div class="tree-head">
+            <h3>复用关系</h3>
+            <span class="badge">不要重复计算</span>
+          </div>
+          <div class="tree-body">
+            <div class="io-flow" style="grid-template-columns: 1fr; margin-top: 0;">
+              <div class="io-node"><b>FA / MD / AD / RD / L1-L3</b><span>只在 <code>02_microstructure/dti/</code> 中生成一次；DDSurfer、DDParcel、regional statistics 读取同一份。</span></div>
+              <div class="io-node"><b>mask / b0 / corrected DWI</b><span>只在 <code>01_preproc/</code> 中生成一次；DTI、NODDI、FOD、DDSeg 都复用。</span></div>
+              <div class="io-node"><b>surface / parcellation</b><span>DDSurfer 输出 white/pial surface；DDParcel 读取 surface 后输出 aparc/wmparc/DKT/Yeo labels。</span></div>
+              <div class="io-node"><b>5TT / GMWMI / FOD</b><span>只为 tractography 生成一次；whole-brain tractography、bundle segmentation 和 connectome 共用。</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tree-card wide-tree-card">
+          <div class="tree-head">
+            <h3>完整输出树：所有 pipeline 跑完后的推荐文件结构</h3>
+            <span class="badge">每个文件 / 文件夹均附说明</span>
+          </div>
+          <div class="tree-body">
+            <ul class="tree">
+              <li><span class="folder">&lt;subject_root&gt;/outputs/</span> <span class="comment"># 正式结果根目录；只保存稳定、可复用、可导出的产物</span>
+                <ul>
+                  <li><span class="shared">00_manifest/</span> <span class="comment"># 全流程索引、状态、参数、版本与可追溯记录</span>
+                    <ul>
+                      <li><span class="file">job_spec.json</span> <span class="comment"># 本次任务的统一配置；由 Slicer 参数节点或 GUI 导出</span></li>
+                      <li><span class="file">pipeline_config.json</span> <span class="comment"># pipeline 各阶段参数快照；用于复现实验设置</span></li>
+                      <li><span class="file">pipeline_status.json</span> <span class="comment"># 每个 stage 的完成 / 失败 / 跳过状态；用于断点续跑</span></li>
+                      <li><span class="file">provenance.json</span> <span class="comment"># 输入、输出、命令、参数、hash、时间戳的可追溯记录</span></li>
+                      <li><span class="file">software_versions.json</span> <span class="comment"># Slicer、MRtrix3、FSL、DIPY、模型版本等环境信息</span></li>
+                      <li><span class="file">input_file_hashes.tsv</span> <span class="comment"># 原始输入文件 hash；防止输入变化后误复用旧结果</span></li>
+                      <li><span class="file">output_file_index.tsv</span> <span class="comment"># 全部正式输出文件索引；给 GUI、报告和后续统计读取</span></li>
+                      <li><span class="file">run_summary.tsv</span> <span class="comment"># 每个 stage 的运行时间、退出状态、主要输出文件摘要</span></li>
+                    </ul>
+                  </li>
+
+                  <li><span class="shared">01_preproc/</span> <span class="comment"># DWI 公共预处理底座；所有 dMRI 模型和结构分支共享</span>
+                    <ul>
+                      <li><span class="folder">00_import/</span> <span class="comment"># 原始输入的标准化副本与 Slicer 可读转换结果</span>
+                        <ul>
+                          <li><span class="file">subj_dwi_raw.nii.gz</span> <span class="comment"># 原始 DWI 的标准命名副本；保留原始体数据</span></li>
+                          <li><span class="file">subj_dwi_raw.bval</span> <span class="comment"># 与 raw DWI 对应的 b-value 文件</span></li>
+                          <li><span class="file">subj_dwi_raw.bvec</span> <span class="comment"># 与 raw DWI 对应的梯度方向文件</span></li>
+                          <li><span class="file">subj_dwi_raw.json</span> <span class="comment"># BIDS metadata 标准化副本；保存相位编码、读出时间等信息</span></li>
+                          <li><span class="file">subj_dwi_raw.nhdr</span> <span class="comment"># DWIConvert 后的 NHDR 头文件；便于 SlicerDMRI 直接加载</span></li>
+                          <li><span class="file">subj_nodif_brain_mask_raw.nii.gz</span> <span class="comment"># 输入 brain mask 的标准命名副本；用于后续 mask 对齐和 QC</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">01_gradients/</span> <span class="comment"># 梯度文件转换、校验与质量控制结果</span>
+                        <ul>
+                          <li><span class="file">subj_gradients_original.b</span> <span class="comment"># 原始梯度信息合并表示；便于记录和检查</span></li>
+                          <li><span class="file">subj_gradients_mrtrix.b</span> <span class="comment"># MRtrix 格式梯度表；供 MRtrix3 命令复用</span></li>
+                          <li><span class="file">subj_gradients_checked.bvec</span> <span class="comment"># 校验 / 必要时修正后的 bvec 文件</span></li>
+                          <li><span class="file">subj_gradients_checked.bval</span> <span class="comment"># 校验后的 bval 文件；与 checked bvec 配套使用</span></li>
+                          <li><span class="file">subj_gradient_qc.tsv</span> <span class="comment"># 梯度数量、b-shell、方向范数、异常方向等 QC 表</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">02_denoise_degibbs/</span> <span class="comment"># 去噪和 Gibbs ringing 去除阶段输出</span>
+                        <ul>
+                          <li><span class="file">subj_dwi_denoised.nii.gz</span> <span class="comment"># 去噪后的 DWI；通常来自 MP-PCA / dwidenoise 类步骤</span></li>
+                          <li><span class="file">subj_dwi_noise.nii.gz</span> <span class="comment"># 估计噪声图；用于 QC 和算法质量评估</span></li>
+                          <li><span class="file">subj_dwi_residual.nii.gz</span> <span class="comment"># raw 与 denoised 的残差图；用于检查去噪是否过强</span></li>
+                          <li><span class="file">subj_dwi_degibbs.nii.gz</span> <span class="comment"># Gibbs ringing 去除后的 DWI；进入畸变 / 运动校正</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">03_distortion_motion/</span> <span class="comment"># topup / eddy / motion / susceptibility correction 相关结果</span>
+                        <ul>
+                          <li><span class="file">subj_dwi_preproc.nii.gz</span> <span class="comment"># 运动、涡流和磁敏感畸变校正后的 DWI</span></li>
+                          <li><span class="file">subj_dwi_preproc.bval</span> <span class="comment"># 与 preproc DWI 对应的 b-value 文件</span></li>
+                          <li><span class="file">subj_dwi_preproc.bvec</span> <span class="comment"># 旋转 / 校正后的 bvec 文件；供模型拟合使用</span></li>
+                          <li><span class="file">subj_dwi_preproc.nhdr</span> <span class="comment"># preproc DWI 的 SlicerDMRI 可读版本</span></li>
+                          <li><span class="file">subj_dwi_mean_b0.nii.gz</span> <span class="comment"># 校正后 b0 平均图；用于 QC 和模型稳定性检查</span></li>
+                          <li><span class="file">subj_dwi_mean_b0_brain.nii.gz</span> <span class="comment"># 去除非脑组织后的平均 b0 图；用于后续建模输入一致性检查</span></li>
+                          <li><span class="file">subj_dwi_brain_mask.nii.gz</span> <span class="comment"># 与最终 DWI 对齐的 brain mask；所有模型共享</span></li>
+                          <li><span class="file">subj_eddy_parameters.txt</span> <span class="comment"># eddy 估计的运动 / 涡流参数</span></li>
+                          <li><span class="file">subj_eddy_movement_rms.txt</span> <span class="comment"># 每个 volume 的运动 RMS；用于运动 QC</span></li>
+                          <li><span class="file">subj_eddy_outlier_map.nii.gz</span> <span class="comment"># slice / volume outlier 图；用于识别异常扩散方向</span></li>
+                          <li><span class="file">subj_topup_fieldcoef.nii.gz</span> <span class="comment"># topup 估计的场系数；用于磁敏感畸变校正追溯</span></li>
+                          <li><span class="file">subj_topup_movpar.txt</span> <span class="comment"># topup 对齐参数；用于检查反向相位编码 b0 的校正稳定性</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">04_bias_normalize/</span> <span class="comment"># bias field correction 与最终 DWI 标准化结果</span>
+                        <ul>
+                          <li><span class="file">subj_dwi_biasfield.nii.gz</span> <span class="comment"># 估计的 bias field；用于 QC 和复现</span></li>
+                          <li><span class="file">subj_dwi_biascorr.nii.gz</span> <span class="comment"># bias correction 后的 DWI</span></li>
+                          <li><span class="file">subj_dwi_biascorr.bval</span> <span class="comment"># biascorr DWI 对应 b-value</span></li>
+                          <li><span class="file">subj_dwi_biascorr.bvec</span> <span class="comment"># biascorr DWI 对应 b-vector</span></li>
+                          <li><span class="file">subj_dwi_biascorr.nhdr</span> <span class="comment"># biascorr DWI 的 NHDR 版本</span></li>
+                          <li><span class="file">subj_dwi_final.nii.gz</span> <span class="comment"># 最终公共 DWI；DTI、NODDI、FOD、DDSeg 等统一读取它</span></li>
+                          <li><span class="file">subj_dwi_final.bval</span> <span class="comment"># 最终公共 DWI 对应 b-value</span></li>
+                          <li><span class="file">subj_dwi_final.bvec</span> <span class="comment"># 最终公共 DWI 对应 b-vector</span></li>
+                          <li><span class="file">subj_dwi_final.nhdr</span> <span class="comment"># 最终公共 DWI 的 SlicerDMRI 加载入口</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">05_qc/</span> <span class="comment"># DWI 预处理质量控制图、表和 JSON 摘要</span>
+                        <ul>
+                          <li><span class="file">subj_preproc_qc.json</span> <span class="comment"># 预处理质量控制结构化摘要</span></li>
+                          <li><span class="file">subj_b0_before_after.png</span> <span class="comment"># 校正前后 b0 对比图</span></li>
+                          <li><span class="file">subj_mask_overlay.png</span> <span class="comment"># brain mask 叠加检查图</span></li>
+                          <li><span class="file">subj_motion_plot.png</span> <span class="comment"># 运动参数可视化</span></li>
+                          <li><span class="file">subj_gradient_table.png</span> <span class="comment"># b-shell / gradient 分布可视化</span></li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </li>
+
+                  <li><span class="folder">02_microstructure/</span> <span class="comment"># 微结构模型公共输出；FA/MD 等只在这里生成一次</span>
+                    <ul>
+                      <li><span class="folder">dti/</span> <span class="comment"># DTI 标量图输出；由 native DTI cache 真实生成</span>
+                        <ul>
+                          <li><span class="shared">subj_dti_FA.nii.gz</span> <span class="comment"># Fractional Anisotropy；DDSurfer/DDParcel/统计共享</span></li>
+                          <li><span class="shared">subj_dti_MD.nii.gz</span> <span class="comment"># Mean Diffusivity；connectome 和 regional statistics 共享</span></li>
+                          <li><span class="file">subj_dti_AD.nii.gz</span> <span class="comment"># Axial Diffusivity；等同 L1 / 最大特征值</span></li>
+                          <li><span class="file">subj_dti_RD.nii.gz</span> <span class="comment"># Radial Diffusivity；由 L2 和 L3 平均得到</span></li>
+                          <li><span class="file">subj_dti_L1.nii.gz</span> <span class="comment"># tensor 第一特征值图</span></li>
+                          <li><span class="file">subj_dti_L2.nii.gz</span> <span class="comment"># tensor 第二特征值图</span></li>
+                          <li><span class="file">subj_dti_L3.nii.gz</span> <span class="comment"># tensor 第三特征值图</span></li>
+                          <li><span class="file">subj_dti_Trace.nii.gz</span> <span class="comment"># tensor trace；用于 QC 和派生指标检查</span></li>
+                          <li><span class="file">subj_dti_qc.json</span> <span class="comment"># DTI 拟合质量控制结果</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">freewater/</span> <span class="comment"># free-water 模型输出；用于自由水校正扩散指标</span>
+                        <ul>
+                          <li><span class="file">subj_fw_fraction.nii.gz</span> <span class="comment"># free-water fraction 图</span></li>
+                          <li><span class="file">subj_fw_FA.nii.gz</span> <span class="comment"># 自由水校正后的 FA 图</span></li>
+                          <li><span class="file">subj_fw_MD.nii.gz</span> <span class="comment"># 自由水校正后的 MD 图</span></li>
+                          <li><span class="file">subj_fw_corrected_dwi.nii.gz</span> <span class="comment"># 可选：自由水校正后的 DWI 或模型重建图</span></li>
+                          <li><span class="file">subj_freewater_qc.json</span> <span class="comment"># free-water 模型质量控制结果</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">noddi/</span> <span class="comment"># NODDI 模型输出；仅多壳层 DWI 时启用</span>
+                        <ul>
+                          <li><span class="file">subj_noddi_ICVF.nii.gz</span> <span class="comment"># Intracellular Volume Fraction；细胞内体积分数</span></li>
+                          <li><span class="file">subj_noddi_NDI.nii.gz</span> <span class="comment"># Neurite Density Index；通常与 ICVF 等价或近似映射</span></li>
+                          <li><span class="file">subj_noddi_ODI.nii.gz</span> <span class="comment"># Orientation Dispersion Index；神经突方向离散度</span></li>
+                          <li><span class="file">subj_noddi_IsoVF.nii.gz</span> <span class="comment"># Isotropic Volume Fraction；各向同性 / CSF-like 成分</span></li>
+                          <li><span class="file">subj_noddi_kappa.nii.gz</span> <span class="comment"># NODDI 方向分布集中度参数；用于模型解释</span></li>
+                          <li><span class="file">subj_noddi_qc.json</span> <span class="comment"># NODDI 拟合质量控制结果</span></li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </li>
+
+                  <li><span class="folder">03_structural/</span> <span class="comment"># 结构、表面与分区结果；DDSeg → DDSurfer → DDParcel 逐级复用</span>
+                    <ul>
+                      <li><span class="folder">ddseg/</span> <span class="comment"># dMRI-based tissue segmentation 输出</span>
+                        <ul>
+                          <li><span class="file">subj_ddseg_WM_prob.nii.gz</span> <span class="comment"># white matter 概率图</span></li>
+                          <li><span class="file">subj_ddseg_GM_prob.nii.gz</span> <span class="comment"># gray matter 概率图</span></li>
+                          <li><span class="file">subj_ddseg_CSF_prob.nii.gz</span> <span class="comment"># cerebrospinal fluid 概率图</span></li>
+                          <li><span class="file">subj_ddseg_WM_mask.nii.gz</span> <span class="comment"># white matter 二值 mask</span></li>
+                          <li><span class="file">subj_ddseg_GM_mask.nii.gz</span> <span class="comment"># gray matter 二值 mask</span></li>
+                          <li><span class="file">subj_ddseg_CSF_mask.nii.gz</span> <span class="comment"># CSF 二值 mask</span></li>
+                          <li><span class="file">subj_ddseg_labels.nii.gz</span> <span class="comment"># WM/GM/CSF 合并 label 图；支持 5TT 和 QC</span></li>
+                          <li><span class="file">subj_ddseg_qc.json</span> <span class="comment"># DDSeg 分割质量控制结果</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">ddsurfer/</span> <span class="comment"># dMRI-based cortical surface reconstruction 输出</span>
+                        <ul>
+                          <li><span class="folder">mri/</span> <span class="comment"># 体素空间结构标签与体积结果</span>
+                            <ul>
+                              <li><span class="file">subj_ddsurfer_brainmask.nii.gz</span> <span class="comment"># DDSurfer 使用 / 生成的 brain mask</span></li>
+                              <li><span class="file">subj_ddsurfer_aseg.nii.gz</span> <span class="comment"># anatomical segmentation volume；类似 aseg 结构标签</span></li>
+                              <li><span class="file">subj_ddsurfer_ribbon.nii.gz</span> <span class="comment"># cortical ribbon label；用于皮层表面 QC</span></li>
+                              <li><span class="file">subj_ddsurfer_wm.nii.gz</span> <span class="comment"># white matter volume；用于 white surface 支撑</span></li>
+                              <li><span class="file">subj_ddsurfer_pial_mask.nii.gz</span> <span class="comment"># pial surface 相关 mask / envelope</span></li>
+                            </ul>
+                          </li>
+                          <li><span class="folder">surf/</span> <span class="comment"># 左右半球 cortical surface 文件；供 Slicer 和 DDParcel 复用</span>
+                            <ul>
+                              <li><span class="file">lh.white.vtk</span> <span class="comment"># 左半球 white matter surface，VTK 格式</span></li>
+                              <li><span class="file">rh.white.vtk</span> <span class="comment"># 右半球 white matter surface，VTK 格式</span></li>
+                              <li><span class="file">lh.pial.vtk</span> <span class="comment"># 左半球 pial surface，VTK 格式</span></li>
+                              <li><span class="file">rh.pial.vtk</span> <span class="comment"># 右半球 pial surface，VTK 格式</span></li>
+                              <li><span class="file">lh.inflated.vtk</span> <span class="comment"># 左半球 inflated surface；用于显示和 surface QC</span></li>
+                              <li><span class="file">rh.inflated.vtk</span> <span class="comment"># 右半球 inflated surface；用于显示和 surface QC</span></li>
+                              <li><span class="file">lh.sphere.vtk</span> <span class="comment"># 左半球 spherical surface；用于 surface parameterization / parcellation</span></li>
+                              <li><span class="file">rh.sphere.vtk</span> <span class="comment"># 右半球 spherical surface；用于 surface parameterization / parcellation</span></li>
+                              <li><span class="file">lh.white.gii</span> <span class="comment"># 左半球 white surface，GIFTI 格式；便于跨软件交换</span></li>
+                              <li><span class="file">rh.white.gii</span> <span class="comment"># 右半球 white surface，GIFTI 格式；便于跨软件交换</span></li>
+                              <li><span class="file">lh.pial.gii</span> <span class="comment"># 左半球 pial surface，GIFTI 格式</span></li>
+                              <li><span class="file">rh.pial.gii</span> <span class="comment"># 右半球 pial surface，GIFTI 格式</span></li>
+                            </ul>
+                          </li>
+                          <li><span class="file">subj_ddsurfer_surface_qc.json</span> <span class="comment"># surface 拓扑、面积、厚度或异常检查摘要</span></li>
+                          <li><span class="file">subj_ddsurfer_surface_overlay.png</span> <span class="comment"># 表面叠加到影像上的 QC 截图</span></li>
+                          <li><span class="folder">postprocess_annot/</span> <span class="comment"># DDSurfer 后处理产物：多种 surface annotation</span>
+                            <ul>
+                              <li><span class="file">lh.aparc.annot</span> <span class="comment"># 左半球 aparc annotation</span></li>
+                              <li><span class="file">rh.aparc.annot</span> <span class="comment"># 右半球 aparc annotation</span></li>
+                              <li><span class="file">lh.DKT.annot</span> <span class="comment"># 左半球 DKT annotation</span></li>
+                              <li><span class="file">rh.DKT.annot</span> <span class="comment"># 右半球 DKT annotation</span></li>
+                              <li><span class="file">lh.Yeo7.annot</span> <span class="comment"># 左半球 Yeo7 annotation</span></li>
+                              <li><span class="file">rh.Yeo7.annot</span> <span class="comment"># 右半球 Yeo7 annotation</span></li>
+                              <li><span class="file">lh.Yeo17.annot</span> <span class="comment"># 左半球 Yeo17 annotation</span></li>
+                              <li><span class="file">rh.Yeo17.annot</span> <span class="comment"># 右半球 Yeo17 annotation</span></li>
+                            </ul>
+                          </li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">ddparcel/</span> <span class="comment"># dMRI-based anatomical parcellation 输出（核心为 wmparc）</span>
+                        <ul>
+                          <li><span class="file">subj_ddparcel_wmparc_labels.nii.gz</span> <span class="comment"># white matter parcellation 体素标签图</span></li>
+                          <li><span class="file">subj_ddparcel_wmparc_lut.tsv</span> <span class="comment"># wmparc label index 与区域名称查找表</span></li>
+                          <li><span class="file">subj_ddparcel_qc.json</span> <span class="comment"># DDParcel 分区质量控制结果</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">registered_to_dwi/</span> <span class="comment"># 结构标签重采样到 DWI native；ACT 和 connectome 的主入口</span>
+                        <ul>
+                          <li><span class="file">subj_ddseg_labels_in_dwi.nii.gz</span> <span class="comment"># DDSeg 标签图的 DWI 空间版本</span></li>
+                          <li><span class="file">subj_ddparcel_wmparc_in_dwi.nii.gz</span> <span class="comment"># wmparc 标签图的 DWI 空间版本</span></li>
+                          <li><span class="file">subj_5tt_from_ddseg_in_dwi.nii.gz</span> <span class="comment"># 从 DDSeg 结构结果构建的 5TT 图；ACT 输入</span></li>
+                          <li><span class="file">subj_gmwmi_from_ddseg_in_dwi.nii.gz</span> <span class="comment"># GM-WM interface seed 图；ACT / tractography 播种使用</span></li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </li>
+
+                  <li><span class="folder">04_tractography/</span> <span class="comment"># CSD/FOD、ACT 约束、tract cloud、束分割和 connectome 的统一输出层</span>
+                    <ul>
+                      <li><span class="folder">csd/</span> <span class="comment"># CSD 建模输出；FOD 归在 CSD 下面，避免和 tractogram 方法混淆</span>
+                        <ul>
+                          <li><span class="file">subj_response_wm.txt</span> <span class="comment"># white matter response function</span></li>
+                          <li><span class="file">subj_response_gm.txt</span> <span class="comment"># gray matter response function</span></li>
+                          <li><span class="file">subj_response_csf.txt</span> <span class="comment"># CSF response function</span></li>
+                          <li><span class="folder">fod/</span> <span class="comment"># FOD 和 multi-tissue compartment 图；作为 CSD 的子产物</span>
+                            <ul>
+                              <li><span class="file">subj_wmfod.nii.gz</span> <span class="comment"># white matter FOD 图；CSD 追踪主输入</span></li>
+                              <li><span class="file">subj_wmfod_norm.nii.gz</span> <span class="comment"># intensity-normalized WM FOD；推荐给 tckgen 使用</span></li>
+                              <li><span class="file">subj_gm.nii.gz</span> <span class="comment"># GM compartment 图；multi-tissue CSD 输出之一</span></li>
+                              <li><span class="file">subj_csf.nii.gz</span> <span class="comment"># CSF compartment 图；multi-tissue CSD 输出之一</span></li>
+                              <li><span class="file">subj_vf_wm.nii.gz</span> <span class="comment"># WM volume fraction 图；用于 QC</span></li>
+                              <li><span class="file">subj_vf_gm.nii.gz</span> <span class="comment"># GM volume fraction 图；用于 QC</span></li>
+                              <li><span class="file">subj_vf_csf.nii.gz</span> <span class="comment"># CSF volume fraction 图；用于 QC</span></li>
+                            </ul>
+                          </li>
+                          <li><span class="file">subj_csd_qc.json</span> <span class="comment"># response/FOD 估计质量控制结果</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">act_prep/</span> <span class="comment"># ACT 准备层：放解剖约束追踪所需输入与检查结果，不单独代表一种输出</span>
+                        <ul>
+                          <li><span class="file">subj_5tt.nii.gz</span> <span class="comment"># Five-Tissue-Type 图；ACT 必需输入</span></li>
+                          <li><span class="file">subj_5tt_vis.nii.gz</span> <span class="comment"># 5TT 可视化版本；用于检查组织边界</span></li>
+                          <li><span class="file">subj_gmwmi_seed.nii.gz</span> <span class="comment"># GM-WM interface seed 图；用于 anatomically informed seeding</span></li>
+                          <li><span class="file">subj_act_qc.json</span> <span class="comment"># ACT 输入完整性和空间一致性检查结果</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">tract_cloud/</span> <span class="comment"># 来自 Slicer tract cloud / FiberBundle 插件的 tract cloud 输入或中间表示，可作为 bundle 来源</span>
+                        <ul>
+                          <li><span class="file">subj_tractcloud.vtk</span> <span class="comment"># Slicer FiberBundle / tract cloud 格式的纤维云</span></li>
+                          <li><span class="file">subj_tractcloud_downsampled.vtk</span> <span class="comment"># 下采样后的 tract cloud；用于快速 bundle 分割或可视化</span></li>
+                          <li><span class="file">subj_tractcloud_index.tsv</span> <span class="comment"># streamline id、来源 tractogram、长度、权重等索引表</span></li>
+                          <li><span class="file">subj_tractcloud_manifest.json</span> <span class="comment"># tract cloud 生成方式、坐标空间、输入版本记录</span></li>
+                          <li><span class="file">subj_tractcloud_qc.json</span> <span class="comment"># tract cloud 完整性、streamline 数量和长度分布 QC</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">tractograms/</span> <span class="comment"># 追踪输出层：按方法分目录，避免 ACT/FOD/DTI 混淆</span>
+                        <ul>
+                          <li><span class="folder">dti_det/</span> <span class="comment"># DTI deterministic tracking 输出</span>
+                            <ul>
+                              <li><span class="file">subj_desc-dtiDet_wholebrain_2M.tck</span></li>
+                              <li><span class="file">subj_desc-dtiDet_density.nii.gz</span></li>
+                            </ul>
+                          </li>
+                          <li><span class="folder">csd_prob/</span> <span class="comment"># CSD probabilistic（不带 ACT）输出</span>
+                            <ul>
+                              <li><span class="file">subj_desc-csdProb_wholebrain_10M.tck</span></li>
+                              <li><span class="file">subj_desc-csdProb_sift2_weights.txt</span></li>
+                              <li><span class="file">subj_desc-csdProb_density.nii.gz</span></li>
+                            </ul>
+                          </li>
+                          <li><span class="folder">csd_act/</span> <span class="comment"># CSD + ACT 约束追踪输出</span>
+                            <ul>
+                              <li><span class="file">subj_desc-csdAct_wholebrain_10M.tck</span></li>
+                              <li><span class="file">subj_desc-csdAct_sift2_weights.txt</span></li>
+                              <li><span class="file">subj_desc-csdAct_density.nii.gz</span></li>
+                            </ul>
+                          </li>
+                          <li><span class="file">subj_tractograms_manifest.tsv</span> <span class="comment"># 每个 tractogram 的 method/seed/source_fod/use_act/sift2 字段</span></li>
+                          <li><span class="file">subj_tractography_qc.json</span> <span class="comment"># 各方法 streamlines 数量、长度分布、失败率等 QC 指标</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">bundles/</span> <span class="comment"># 束分割输出：可以来自 tract cloud、WMQL 查询或 WMA/DL 后端</span>
+                        <ul>
+                          <li><span class="folder">tract_cloud_dl/</span> <span class="comment"># 基于 tract cloud 的深度学习 / 插件后端 bundle 分割结果</span>
+                            <ul>
+                              <li><span class="file">subj_desc-tractCloud_bundle-AF_hemi-L.tck</span> <span class="comment"># tract cloud 路线得到的左 AF</span></li>
+                              <li><span class="file">subj_desc-tractCloud_bundle-AF_hemi-R.tck</span> <span class="comment"># tract cloud 路线得到的右 AF</span></li>
+                              <li><span class="file">subj_desc-tractCloud_bundle-CST_hemi-L.tck</span> <span class="comment"># tract cloud 路线得到的左 CST</span></li>
+                              <li><span class="file">subj_desc-tractCloud_bundle-CST_hemi-R.tck</span> <span class="comment"># tract cloud 路线得到的右 CST</span></li>
+                            </ul>
+                          </li>
+                          <li><span class="folder">wmql/</span> <span class="comment"># WMQL 规则查询结果；可服务 bundle 和 connectome</span>
+                            <ul>
+                              <li><span class="folder">queries/</span> <span class="comment"># 白质束规则定义</span>
+                                <ul>
+                                  <li><span class="file">AF.wmql</span> <span class="comment"># 弓状束查询规则</span></li>
+                                  <li><span class="file">CST.wmql</span> <span class="comment"># 皮质脊髓束查询规则</span></li>
+                                  <li><span class="file">ILF.wmql</span> <span class="comment"># 下纵束查询规则</span></li>
+                                </ul>
+                              </li>
+                              <li><span class="file">subj_desc-wmql_bundle-AF_hemi-L.tck</span> <span class="comment"># WMQL 路线得到的左 AF</span></li>
+                              <li><span class="file">subj_desc-wmql_bundle-AF_hemi-R.tck</span> <span class="comment"># WMQL 路线得到的右 AF</span></li>
+                              <li><span class="file">subj_desc-wmql_bundle-CST_hemi-L.tck</span> <span class="comment"># WMQL 路线得到的左 CST</span></li>
+                              <li><span class="file">subj_desc-wmql_bundle-CST_hemi-R.tck</span> <span class="comment"># WMQL 路线得到的右 CST</span></li>
+                              <li><span class="file">subj_wmql_qc.json</span> <span class="comment"># WMQL 查询命中率、空束和异常束检查</span></li>
+                            </ul>
+                          </li>
+                          <li><span class="file">subj_bundles_manifest.tsv</span> <span class="comment"># 每条 bundle 的来源 tractogram、method、use_act、segmentation_route</span></li>
+                          <li><span class="file">subj_bundles_qc.json</span> <span class="comment"># bundle segmentation 的 QC 指标</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">connectome/</span> <span class="comment"># 放在 Tractography 内；可基于 WMQL bundle 或全脑 tractogram + wmparc 构建</span>
+                        <ul>
+                          <li><span class="file">subj_desc-csdAct_wmparc_connectome_counts.csv</span> <span class="comment"># wmparc 节点间 streamline count 矩阵（来源：CSD+ACT）</span></li>
+                          <li><span class="file">subj_desc-csdAct_wmparc_connectome_sift2.csv</span> <span class="comment"># wmparc 节点间 SIFT2 加权连接矩阵（来源：CSD+ACT）</span></li>
+                          <li><span class="file">subj_desc-wmql_wmparc_connectome_counts.csv</span> <span class="comment"># 基于 WMQL bundle 汇总的节点间连接矩阵</span></li>
+                          <li><span class="file">subj_desc-tractCloud_wmparc_connectome_counts.csv</span> <span class="comment"># 基于 tract cloud bundle 汇总的节点间连接矩阵</span></li>
+                          <li><span class="file">subj_desc-csdAct_wmparc_connectome_meanFA.csv</span> <span class="comment"># 边上采样 FA 后得到的平均 FA 矩阵（来源：CSD+ACT）</span></li>
+                          <li><span class="file">subj_desc-csdAct_wmparc_connectome_meanMD.csv</span> <span class="comment"># 边上采样 MD 后得到的平均 MD 矩阵（来源：CSD+ACT）</span></li>
+                          <li><span class="file">subj_desc-csdAct_wmparc_connectome_meanODI.csv</span> <span class="comment"># 边上采样 ODI 后得到的平均 ODI 矩阵（来源：CSD+ACT）</span></li>
+                          <li><span class="file">subj_connectome_nodes_wmparc.tsv</span> <span class="comment"># connectome node 表；包含 label id、名称、半球、坐标</span></li>
+                          <li><span class="file">subj_connectome_edges_wmparc.tsv</span> <span class="comment"># 长表格式 edge list；便于统计建模</span></li>
+                          <li><span class="file">subj_connectome_manifest.tsv</span> <span class="comment"># 每个 connectome 矩阵对应的 tractogram/bundle 路线、权重类型、节点图版本</span></li>
+                          <li><span class="file">subj_connectome_qc.json</span> <span class="comment"># connectome 构建质量控制结果</span></li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </li>
+
+                  <li><span class="folder">05_statistics/</span> <span class="comment"># 区域级、纤维束级和 group-ready 特征表</span>
+                    <ul>
+                      <li><span class="folder">regional_microstructure/</span> <span class="comment"># parcellation 区域内微结构统计</span>
+                        <ul>
+                          <li><span class="file">subj_DKT_region_FA.tsv</span> <span class="comment"># 每个 DKT 区域的 FA 均值、标准差、体素数等</span></li>
+                          <li><span class="file">subj_DKT_region_MD.tsv</span> <span class="comment"># 每个 DKT 区域的 MD 统计</span></li>
+                          <li><span class="file">subj_DKT_region_AD.tsv</span> <span class="comment"># 每个 DKT 区域的 AD 统计</span></li>
+                          <li><span class="file">subj_DKT_region_RD.tsv</span> <span class="comment"># 每个 DKT 区域的 RD 统计</span></li>
+                          <li><span class="file">subj_DKT_region_ICVF.tsv</span> <span class="comment"># 每个 DKT 区域的 ICVF / NDI 统计</span></li>
+                          <li><span class="file">subj_DKT_region_ODI.tsv</span> <span class="comment"># 每个 DKT 区域的 ODI 统计</span></li>
+                          <li><span class="file">subj_Yeo7_region_FA.tsv</span> <span class="comment"># 每个 Yeo7 网络的 FA 统计</span></li>
+                          <li><span class="file">subj_Yeo7_region_MD.tsv</span> <span class="comment"># 每个 Yeo7 网络的 MD 统计</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">bundle_profiles/</span> <span class="comment"># 沿纤维束 profile 的 tractometry 特征</span>
+                        <ul>
+                          <li><span class="file">subj_AF_left_profile_FA.tsv</span> <span class="comment"># 左 AF 沿束 FA profile</span></li>
+                          <li><span class="file">subj_AF_right_profile_FA.tsv</span> <span class="comment"># 右 AF 沿束 FA profile</span></li>
+                          <li><span class="file">subj_CST_left_profile_FA.tsv</span> <span class="comment"># 左 CST 沿束 FA profile</span></li>
+                          <li><span class="file">subj_CST_right_profile_FA.tsv</span> <span class="comment"># 右 CST 沿束 FA profile</span></li>
+                          <li><span class="file">subj_AF_left_profile_MD.tsv</span> <span class="comment"># 左 AF 沿束 MD profile</span></li>
+                          <li><span class="file">subj_CST_left_profile_MD.tsv</span> <span class="comment"># 左 CST 沿束 MD profile</span></li>
+                          <li><span class="file">subj_bundle_summary.tsv</span> <span class="comment"># 各 bundle 的长度、体积、streamline 数量和微结构摘要</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="file">subj_group_ready_features.tsv</span> <span class="comment"># 单被试宽表特征；可直接合并进入群体统计</span></li>
+                      <li><span class="file">subj_feature_dictionary.tsv</span> <span class="comment"># group-ready 特征名、来源、单位和计算方式说明</span></li>
+                    </ul>
+                  </li>
+
+                  <li><span class="folder">06_slicer_scene_report/</span> <span class="comment"># Slicer 场景、可视化截图和最终 QC 报告</span>
+                    <ul>
+                      <li><span class="file">subj_slicer_scene.mrb</span> <span class="comment"># Slicer MRB 场景归档；包含加载好的 volume、surface、tract、table 等</span></li>
+                      <li><span class="file">subj_slicer_scene.mrml</span> <span class="comment"># Slicer MRML scene 描述文件；便于调试场景节点</span></li>
+                      <li><span class="file">subj_qc_report.html</span> <span class="comment"># 可交互 / 可浏览的 HTML QC 报告</span></li>
+                      <li><span class="file">subj_qc_report.pdf</span> <span class="comment"># 可提交 / 可归档的 PDF QC 报告</span></li>
+                      <li><span class="folder">figures/</span> <span class="comment"># 报告中引用的静态图像和截图</span>
+                        <ul>
+                          <li><span class="file">subj_workflow_overview.png</span> <span class="comment"># 本次 pipeline 运行概览图</span></li>
+                          <li><span class="file">subj_microstructure_montage.png</span> <span class="comment"># FA/MD/NODDI 等微结构图谱拼图</span></li>
+                          <li><span class="file">subj_surface_overlay.png</span> <span class="comment"># white/pial surface 叠加检查图</span></li>
+                          <li><span class="file">subj_tractography_snapshot.png</span> <span class="comment"># 全脑或代表性 bundle 的 Slicer 截图</span></li>
+                          <li><span class="file">subj_connectome_matrix.png</span> <span class="comment"># connectome matrix 热图</span></li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tree-card wide-tree-card">
+          <div class="tree-head">
+            <h3>Cache：可重建临时层，不作为正式输出引用</h3>
+            <span class="badge">safe to delete / rebuild</span>
+          </div>
+          <div class="tree-body">
+            <ul class="tree">
+              <li><span class="folder">&lt;subject_root&gt;/cache/</span>
+                <ul>
+                  <li><span class="folder">mrtrix_work/</span>
+                    <ul>
+                      <li><span class="file">dwifslpreproc_tmp/</span></li>
+                      <li><span class="file">response_tmp/</span></li>
+                      <li><span class="file">tckgen_tmp/</span></li>
+                    </ul>
+                  </li>
+                  <li><span class="folder">optional_alignment_work/</span>
+                    <ul>
+                      <li><span class="file">alignment_tmp/</span></li>
+                      <li><span class="file">warp_tmp/</span></li>
+                    </ul>
+                  </li>
+                  <li><span class="folder">deep_models/</span>
+                    <ul>
+                      <li><span class="file">ddseg_logits.nii.gz</span></li>
+                      <li><span class="file">ddsurfer_raw_surfaces/</span></li>
+                      <li><span class="file">ddparcel_raw_probs.nii.gz</span></li>
+                    </ul>
+                  </li>
+                  <li><span class="folder">slicer_nodes/</span>
+                    <ul>
+                      <li><span class="file">node_id_map.json</span></li>
+                      <li><span class="file">load_state.json</span></li>
+                    </ul>
+                  </li>
+                  <li><span class="file">cache_manifest.json</span></li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="rationale-grid">
+        <div class="rationale"><b>为什么 FA / MD 不放进 DDSurfer？</b><p>FA、MD 是 DTI 模型公共产物；DDSurfer 只是消费它们或其他共享图谱，不应该拥有第二份拷贝。</p></div>
+        <div class="rationale"><b>为什么 DDParcel 不应强耦合 DDSurfer？</b><p>DDParcel 优先复用 shared DTI 底座；surface priors 可作为增强分支，而不是唯一前置条件。</p></div>
+        <div class="rationale"><b>为什么 registered_to_dwi 单独放？</b><p>ACT、connectome 和 tractography 都在 DWI/native 空间最稳定，label 必须有一份 in_dwi 版本。</p></div>
+        <div class="rationale"><b>为什么输出里保留 .nhdr？</b><p>SlicerDMRI 对 NHDR/NRRD 扩散数据更友好，保留一份可直接加载进 Slicer scene 的格式。</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>4. 启用条件与关键缩写</h2>
+        <p>插件中建议把这些判断写成显式 gating rules，避免用户在不满足数据条件时误跑模型或得到低可信结果。</p>
+      </div>
+      <div class="two-col">
+        <div class="note-card" style="padding: 22px;">
+          <h2 style="font-size: 20px; margin-bottom: 14px;">流程启用条件</h2>
+          <div class="rules">
+            <div class="rule">仅多壳层 DWI 才启用 NODDI。</div>
+            <div class="rule">磁敏感畸变校正优先使用反向相位编码 b0 或等价场图信息。</div>
+            <div class="rule">T1w MRI 仅作为可选扩展输入，不是主流程必需项。</div>
+            <div class="rule">DDSeg / DDSurfer / DDParcel 可提供 dMRI-only fallback，但结构结果置信度较低。</div>
+          </div>
+        </div>
+        <div class="note-card" style="padding: 22px;">
+          <h2 style="font-size: 20px; margin-bottom: 8px;">关键缩写</h2>
+          <div class="glossary">
+            <div class="term"><b>DWI</b><span>Diffusion-Weighted Imaging，扩散加权成像</span></div>
+            <div class="term"><b>T1w</b><span>T1-weighted MRI，T1 加权 MRI</span></div>
+            <div class="term"><b>BIDS</b><span>Brain Imaging Data Structure</span></div>
+            <div class="term"><b>MRML</b><span>Medical Reality Modeling Language</span></div>
+            <div class="term"><b>DTI</b><span>Diffusion Tensor Imaging，扩散张量成像</span></div>
+            <div class="term"><b>FA</b><span>Fractional Anisotropy，各向异性分数</span></div>
+            <div class="term"><b>MD</b><span>Mean Diffusivity，平均扩散率</span></div>
+            <div class="term"><b>NODDI</b><span>Neurite Orientation Dispersion and Density Imaging</span></div>
+            <div class="term"><b>ODI</b><span>Orientation Dispersion Index</span></div>
+            <div class="term"><b>IsoVF</b><span>Isotropic Volume Fraction</span></div>
+            <div class="term"><b>ACT</b><span>Anatomically-Constrained Tractography</span></div>
+            <div class="term"><b>FOD</b><span>Fiber Orientation Distribution</span></div>
+            <div class="term"><b>CSD</b><span>Constrained Spherical Deconvolution</span></div>
+            <div class="term"><b>WMQL</b><span>White Matter Query Language</span></div>
+            <div class="term"><b>AF</b><span>Arcuate Fasciculus，弓状束</span></div>
+            <div class="term"><b>CST</b><span>Corticospinal Tract，皮质脊髓束</span></div>
+            <div class="term"><b>CSF</b><span>Cerebrospinal Fluid，脑脊液</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">3D Slicer Plugin Workflow · dMRI Microstructure, Surface, Tractography and Connectome Analysis</div>
+  </main>
+</body>
+</html>

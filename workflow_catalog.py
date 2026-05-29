@@ -24,7 +24,7 @@ WORKFLOW_AREAS: tuple[WorkflowArea, ...] = (
     WorkflowArea(
         key="surface",
         title="Surface",
-        summary="DDSurfer cortical surface reconstruction, native-space mesh export, and sculpting.",
+        summary="DDSurfer cortical surface reconstruction and native-space mesh export.",
         package="surface",
         status="implemented",
         navigation_label="Surface (DDSurfer)",

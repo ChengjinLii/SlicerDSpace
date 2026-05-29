@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 from connectome.pipeline import ConnectomeConfig, ConnectomeResult, run_connectome
 
@@ -16,7 +17,7 @@ class ConnectomeLogicMixin:
         subject_id: str,
         tractography_path: Path,
         parcellation_path: Path,
-        output_dir: Path,
+        output_dir: Optional[Path] = None,
         metric: str = "streamline_count",
         node_source: str = "ddparcel",
         execute: bool = False,

@@ -61,15 +61,21 @@ class ProductFacadeTest(unittest.TestCase):
     def test_planned_packages_expose_plans(self) -> None:
         from connectome import ConnectomeConfig, PLANNED_WORKFLOWS as CONNECTOME_WORKFLOWS, run_connectome
         from tractography import (
+            BundleParcellationConfig,
             TractographyACTConfig,
+            TractographyBundleParcellationConfig,
             PLANNED_WORKFLOWS as TRACTOGRAPHY_WORKFLOWS,
             TractographyDTIConfig,
+            TractographyTractCloudConfig,
             TractographyWMAConfig,
             inspect_mrtrix_backend,
+            inspect_tractcloud_backend,
             inspect_wma_backend,
             inspect_wma_org_atlas,
             run_act_tracking,
+            run_bundle_parcellation_pipeline,
             run_dti_tracking,
+            run_tractcloud_parcellation_pipeline,
             run_wma_org_atlas_pipeline,
         )
 
@@ -77,12 +83,18 @@ class ProductFacadeTest(unittest.TestCase):
         self.assertIsNotNone(TractographyACTConfig)
         self.assertIsNotNone(TractographyDTIConfig)
         self.assertIsNotNone(TractographyWMAConfig)
+        self.assertIsNotNone(TractographyTractCloudConfig)
+        self.assertIsNotNone(TractographyBundleParcellationConfig)
+        self.assertIsNotNone(BundleParcellationConfig)
         self.assertTrue(callable(run_act_tracking))
         self.assertTrue(callable(run_dti_tracking))
         self.assertTrue(callable(inspect_mrtrix_backend))
+        self.assertTrue(callable(inspect_tractcloud_backend))
         self.assertTrue(callable(inspect_wma_backend))
         self.assertTrue(callable(inspect_wma_org_atlas))
         self.assertTrue(callable(run_wma_org_atlas_pipeline))
+        self.assertTrue(callable(run_tractcloud_parcellation_pipeline))
+        self.assertTrue(callable(run_bundle_parcellation_pipeline))
         self.assertIsNotNone(ConnectomeConfig)
         self.assertTrue(callable(run_connectome))
         self.assertGreaterEqual(len(CONNECTOME_WORKFLOWS), 1)

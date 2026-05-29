@@ -73,6 +73,12 @@ class MicrostructureResult:
     output_dir: Path
     fa_path: Path
     md_path: Path
+    ad_path: Path
+    rd_path: Path
+    l1_path: Path
+    l2_path: Path
+    l3_path: Path
+    trace_path: Path
     fwf_path: Path
     fw_tissue_fa_path: Path
     fw_tissue_md_path: Path
@@ -169,14 +175,25 @@ def _resolve_roi_label_map(config: MicrostructureConfig) -> Path | None:
             raise FileNotFoundError(f"ROI label map not found: {roi_path}")
         return roi_path
 
-    default_path = (
+    default_candidates = [
+        config.native_bundle.subject_root
+        / "outputs"
+        / "03_structural"
+        / "ddparcel"
+        / f"{config.subject_id}_ddparcel_wmparc_labels.nii.gz",
+        config.native_bundle.subject_root
+        / "outputs"
+        / "03_structural"
+        / "ddparcel"
+        / f"{config.subject_id}-DDSurfer-wmparc.nii.gz",
         config.native_bundle.subject_root
         / "outputs"
         / "ddparcel"
-        / f"{config.subject_id}-DDSurfer-wmparc.nii.gz"
-    )
-    if default_path.is_file():
-        return default_path
+        / f"{config.subject_id}-DDSurfer-wmparc.nii.gz",
+    ]
+    for default_path in default_candidates:
+        if default_path.is_file():
+            return default_path
     return None
 
 
@@ -214,19 +231,32 @@ def _output_paths(
     subject_id: str,
     output_dir: Path,
 ) -> dict[str, Path]:
+    dti_dir = output_dir / "dti"
+    freewater_dir = output_dir / "freewater"
+    noddi_dir = output_dir / "noddi"
+    if output_dir.name == "02_microstructure":
+        roi_dir = output_dir.parent / "05_statistics" / "regional_microstructure"
+    else:
+        roi_dir = output_dir / "regional_microstructure"
     return {
-        "fa": output_dir / f"{subject_id}-dti-FractionalAnisotropy.nii.gz",
-        "md": output_dir / f"{subject_id}-dti-MeanDiffusivity.nii.gz",
-        "fwf": output_dir / f"{subject_id}-freewater-Fraction.nii.gz",
-        "fw_tissue_fa": output_dir / f"{subject_id}-freewater-TissueFA.nii.gz",
-        "fw_tissue_md": output_dir / f"{subject_id}-freewater-TissueMD.nii.gz",
-        "noddi_ndi": output_dir / f"{subject_id}-noddi-NDI.nii.gz",
-        "noddi_odi": output_dir / f"{subject_id}-noddi-ODI.nii.gz",
-        "noddi_fwf": output_dir / f"{subject_id}-noddi-FWF.nii.gz",
-        "roi_stats_csv": output_dir / f"{subject_id}-ROIWise-Microstructure.csv",
-        "roi_stats_json": output_dir / f"{subject_id}-ROIWise-Microstructure.json",
-        "free_water_manifest": output_dir / "freewater_manifest.json",
-        "noddi_manifest": output_dir / "noddi_manifest.json",
+        "fa": dti_dir / f"{subject_id}_dti_FA.nii.gz",
+        "md": dti_dir / f"{subject_id}_dti_MD.nii.gz",
+        "ad": dti_dir / f"{subject_id}_dti_AD.nii.gz",
+        "rd": dti_dir / f"{subject_id}_dti_RD.nii.gz",
+        "l1": dti_dir / f"{subject_id}_dti_L1.nii.gz",
+        "l2": dti_dir / f"{subject_id}_dti_L2.nii.gz",
+        "l3": dti_dir / f"{subject_id}_dti_L3.nii.gz",
+        "trace": dti_dir / f"{subject_id}_dti_Trace.nii.gz",
+        "fwf": freewater_dir / f"{subject_id}_fw_fraction.nii.gz",
+        "fw_tissue_fa": freewater_dir / f"{subject_id}_fw_FA.nii.gz",
+        "fw_tissue_md": freewater_dir / f"{subject_id}_fw_MD.nii.gz",
+        "noddi_ndi": noddi_dir / f"{subject_id}_noddi_NDI.nii.gz",
+        "noddi_odi": noddi_dir / f"{subject_id}_noddi_ODI.nii.gz",
+        "noddi_fwf": noddi_dir / f"{subject_id}_noddi_IsoVF.nii.gz",
+        "roi_stats_csv": roi_dir / f"{subject_id}_ROIWise-Microstructure.csv",
+        "roi_stats_json": roi_dir / f"{subject_id}_ROIWise-Microstructure.json",
+        "free_water_manifest": freewater_dir / "freewater_manifest.json",
+        "noddi_manifest": noddi_dir / "noddi_manifest.json",
         "manifest": output_dir / "manifest.json",
     }
 
@@ -237,12 +267,18 @@ def _expected_manifest(
 ) -> dict[str, object]:
     return {
         "kind": "microstructure_phase3",
-        "version": 2,
+        "version": 3,
         "subject_id": config.subject_id,
         "fit_method": config.native_bundle.fit_method,
         "roi_metrics": [
             "FA",
             "MD",
+            "AD",
+            "RD",
+            "L1",
+            "L2",
+            "L3",
+            "TRACE",
             "FWF",
             "FW_TISSUE_FA",
             "FW_TISSUE_MD",
@@ -332,6 +368,12 @@ def _outputs_complete(paths: dict[str, Path], *, roi_enabled: bool) -> bool:
     required = [
         paths["fa"],
         paths["md"],
+        paths["ad"],
+        paths["rd"],
+        paths["l1"],
+        paths["l2"],
+        paths["l3"],
+        paths["trace"],
         paths["fwf"],
         paths["fw_tissue_fa"],
         paths["fw_tissue_md"],
@@ -357,6 +399,30 @@ def _noddi_outputs_complete(paths: dict[str, Path]) -> bool:
     return all(
         paths[key].is_file() for key in ("noddi_ndi", "noddi_odi", "noddi_fwf")
     )
+
+
+def _compute_rd_map(l2_path: Path, l3_path: Path, output_path: Path) -> None:
+    _ensure_base_imports_ready()
+    l2_img = nib.load(str(l2_path))
+    l3_img = nib.load(str(l3_path))
+    l2 = np.asarray(l2_img.get_fdata(dtype=np.float32), dtype=np.float32)
+    l3 = np.asarray(l3_img.get_fdata(dtype=np.float32), dtype=np.float32)
+    rd = (l2 + l3) / np.float32(2.0)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    nib.save(nib.Nifti1Image(rd, l2_img.affine, l2_img.header), str(output_path))
+
+
+def _export_dti_scalar_maps(config: MicrostructureConfig, paths: dict[str, Path]) -> None:
+    native = config.native_bundle
+    _copy_if_needed(native.fa_nii_path, paths["fa"])
+    _copy_if_needed(native.mean_diffusivity_nii_path, paths["md"])
+    _copy_if_needed(native.max_eig_nii_path, paths["l1"])
+    _copy_if_needed(native.mid_eig_nii_path, paths["l2"])
+    _copy_if_needed(native.min_eig_nii_path, paths["l3"])
+    _copy_if_needed(native.trace_nii_path, paths["trace"])
+    _copy_if_needed(native.max_eig_nii_path, paths["ad"])
+    if config.force_recompute or not paths["rd"].is_file():
+        _compute_rd_map(paths["l2"], paths["l3"], paths["rd"])
 
 
 def _remove_legacy_roi_outputs(output_dir: Path, subject_id: str) -> None:
@@ -476,7 +542,7 @@ def _amico_subject_dir(config: MicrostructureConfig) -> Path:
 
 
 def _amico_output_dir(config: MicrostructureConfig) -> Path:
-    return config.output_dir / "_amico_noddi"
+    return config.output_dir / "noddi" / "_amico_noddi"
 
 
 def _prepare_amico_inputs(
@@ -669,6 +735,7 @@ def _compute_roi_stats(
         row["voxel_count"] = int(voxel_count)
         rows.append(row)
 
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
     with csv_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
@@ -728,6 +795,12 @@ def run_microstructure(
             output_dir=output_dir,
             fa_path=paths["fa"],
             md_path=paths["md"],
+            ad_path=paths["ad"],
+            rd_path=paths["rd"],
+            l1_path=paths["l1"],
+            l2_path=paths["l2"],
+            l3_path=paths["l3"],
+            trace_path=paths["trace"],
             fwf_path=paths["fwf"],
             fw_tissue_fa_path=paths["fw_tissue_fa"],
             fw_tissue_md_path=paths["fw_tissue_md"],
@@ -740,11 +813,10 @@ def run_microstructure(
         )
 
     _emit(
-        f"[Microstructure] Exporting FA/MD maps from native DTI bundle ({config.native_bundle.fit_method})",
+        f"[Microstructure] Exporting DTI scalar maps from native DTI bundle ({config.native_bundle.fit_method})",
         log,
     )
-    _copy_if_needed(config.native_bundle.fa_nii_path, paths["fa"])
-    _copy_if_needed(config.native_bundle.mean_diffusivity_nii_path, paths["md"])
+    _export_dti_scalar_maps(config, paths)
     _remove_legacy_roi_outputs(output_dir, subject_id)
 
     expected_free_water_manifest = _expected_free_water_manifest(config)
@@ -811,6 +883,12 @@ def run_microstructure(
             metric_paths={
                 "fa": paths["fa"],
                 "md": paths["md"],
+                "ad": paths["ad"],
+                "rd": paths["rd"],
+                "l1": paths["l1"],
+                "l2": paths["l2"],
+                "l3": paths["l3"],
+                "trace": paths["trace"],
                 "fwf": paths["fwf"],
                 "fw_tissue_fa": paths["fw_tissue_fa"],
                 "fw_tissue_md": paths["fw_tissue_md"],
@@ -841,6 +919,12 @@ def run_microstructure(
         output_dir=output_dir,
         fa_path=paths["fa"],
         md_path=paths["md"],
+        ad_path=paths["ad"],
+        rd_path=paths["rd"],
+        l1_path=paths["l1"],
+        l2_path=paths["l2"],
+        l3_path=paths["l3"],
+        trace_path=paths["trace"],
         fwf_path=paths["fwf"],
         fw_tissue_fa_path=paths["fw_tissue_fa"],
         fw_tissue_md_path=paths["fw_tissue_md"],

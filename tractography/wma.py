@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,9 @@ REQUIRED_WMA_COMMANDS = (
     "wm_separate_clusters_by_hemisphere.py",
 )
 OPTIONAL_WMA_COMMANDS = ("wm_diffusion_measurements.py", "xvfb-run")
+EXTRA_TOOL_DIRS = (
+    Path("/data/chengjin/software/xvfb/usr/bin"),
+)
 
 
 @dataclass(frozen=True)
@@ -128,11 +132,27 @@ def _command_path(command_name: str, wma_root: Path) -> Optional[Path]:
         wma_root / "bin" / command_name,
         wma_root / "utilities" / command_name,
     ]
+    local_candidates.extend(tool_dir / command_name for tool_dir in EXTRA_TOOL_DIRS)
     for candidate in local_candidates:
         if candidate.is_file():
             return candidate.resolve()
     found = shutil.which(command_name)
     return Path(found).resolve() if found else None
+
+
+def _slicerdmri_module_paths(slicer_executable: Path) -> tuple[Path, ...]:
+    slicer_root = slicer_executable.expanduser().resolve().parent
+    candidates = sorted((slicer_root / "slicer.org").glob("Extensions-*/SlicerDMRI"))
+    if not candidates:
+        return ()
+    slicerdmri_root = candidates[-1]
+    module_root = slicerdmri_root / "lib" / "Slicer-5.10"
+    paths = (
+        module_root / "qt-loadable-modules",
+        module_root / "qt-scripted-modules",
+        module_root / "cli-modules",
+    )
+    return tuple(path for path in paths if path.is_dir())
 
 
 def inspect_wma_backend(
@@ -371,20 +391,73 @@ def run_wma_org_atlas(
         env["PYTHONPATH"] = (
             python_path if not env.get("PYTHONPATH") else python_path + os.pathsep + env["PYTHONPATH"]
         )
+        slicer_executable = config.slicer_executable.expanduser().resolve()
+        slicer_python_candidates = (
+            slicer_executable.parent / "PythonSlicer",
+            slicer_executable.parent / "bin" / "PythonSlicer",
+        )
+        slicer_python = next((candidate for candidate in slicer_python_candidates if candidate.is_file()), None)
         path_entries = [
             (wma_root / "bin").as_posix(),
             (wma_root / "utilities").as_posix(),
         ]
-        env["PATH"] = os.pathsep.join(path_entries + ([env["PATH"]] if env.get("PATH") else []))
+        path_entries.extend(tool_dir.as_posix() for tool_dir in EXTRA_TOOL_DIRS if tool_dir.is_dir())
+        temp_python_dir: Optional[tempfile.TemporaryDirectory[str]] = None
         try:
-            completed = subprocess.run(command, check=True, cwd=wma_root.as_posix(), env=env)
+            slicerdmri_paths = _slicerdmri_module_paths(slicer_executable)
+            if slicer_python is not None or config.use_virtual_x or slicerdmri_paths:
+                temp_python_dir = tempfile.TemporaryDirectory(prefix="slicerdds_wma_python_")
+                if slicer_python is not None:
+                    shim = Path(temp_python_dir.name) / "python"
+                    shim.symlink_to(slicer_python)
+                if config.use_virtual_x:
+                    real_xvfb = _command_path("xvfb-run", wma_root)
+                    if real_xvfb is not None:
+                        xvfb_shim = Path(temp_python_dir.name) / "xvfb-run"
+                        xvfb_shim.write_text(
+                            f"#!/bin/sh\nexec {real_xvfb.as_posix()} -a \"$@\"\n",
+                            encoding="utf-8",
+                        )
+                        xvfb_shim.chmod(0o755)
+                if slicerdmri_paths:
+                    slicer_shim = Path(temp_python_dir.name) / "Slicer"
+                    module_args = " ".join(
+                        f"--additional-module-paths '{path.as_posix()}'" for path in slicerdmri_paths
+                    )
+                    slicer_shim.write_text(
+                        f"#!/bin/sh\nexec '{slicer_executable.as_posix()}' {module_args} \"$@\"\n",
+                        encoding="utf-8",
+                    )
+                    slicer_shim.chmod(0o755)
+                    runtime_command = list(command)
+                    if "-s" in runtime_command:
+                        runtime_command[runtime_command.index("-s") + 1] = slicer_shim.as_posix()
+                    command_to_run = tuple(runtime_command)
+                else:
+                    command_to_run = command
+                path_entries.insert(0, temp_python_dir.name)
+            else:
+                command_to_run = command
+            env["PATH"] = os.pathsep.join(path_entries + ([env["PATH"]] if env.get("PATH") else []))
+            completed = subprocess.run(command_to_run, check=True, cwd=wma_root.as_posix(), env=env)
             return_code = completed.returncode
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode
             execution_error = str(exc)
             raise
         finally:
+            if temp_python_dir is not None:
+                temp_python_dir.cleanup()
             output_summary = summarize_wma_outputs(output_dir, config.input_tractography.expanduser().resolve())
+            if (
+                execution_error is None
+                and config.execute
+                and (
+                    not output_summary["fiber_clustering_dir_exists"]
+                    or not output_summary["anatomical_tracts_dir_exists"]
+                )
+            ):
+                execution_error = "WMA command returned without required FiberClustering/AnatomicalTracts outputs."
 
     elapsed_seconds = time.monotonic() - start_time
     qc = {

@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
+from shared import default_task_output_dir_for_dependency
+
 
 SUPPORTED_TRACTOGRAPHY_EXTENSIONS = {".trk", ".tck", ".vtk", ".vtp"}
 SUPPORTED_PARCELLATION_SUFFIXES = (".nii", ".nii.gz", ".nrrd", ".mgz")
@@ -22,7 +24,7 @@ class ConnectomeConfig:
     subject_id: str
     tractography_path: Path
     parcellation_path: Path
-    output_dir: Path
+    output_dir: Optional[Path] = None
     metric: str = "streamline_count"
     node_source: str = "ddparcel"
     symmetric: bool = True
@@ -368,11 +370,17 @@ def _validate_config(config: ConnectomeConfig) -> None:
         raise ValueError("Only metric='streamline_count' is currently planned.")
 
 
+def _infer_connectome_output_dir(config: ConnectomeConfig) -> Path:
+    if config.output_dir is not None:
+        return config.output_dir.expanduser().resolve()
+    return default_task_output_dir_for_dependency(config.tractography_path, "connectome")
+
+
 def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], None]] = None) -> ConnectomeResult:
     """Prepare connectome outputs that explicitly depend on tractography and DDParcel."""
 
     _validate_config(config)
-    output_dir = config.output_dir.expanduser().resolve()
+    output_dir = _infer_connectome_output_dir(config)
     output_dir.mkdir(parents=True, exist_ok=True)
     stem = f"{config.subject_id}-connectome-{config.metric}"
     matrix_path = output_dir / f"{stem}.csv"

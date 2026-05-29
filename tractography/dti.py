@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
-from shared import NativeDTIBundle, find_subject_root
+from shared import NativeDTIBundle, default_task_output_dir, find_subject_root
 
 
 SUPPORTED_TRACKING_METHODS = {"deterministic", "probabilistic"}
@@ -142,7 +142,7 @@ def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str],
     output_dir = (
         config.output_dir.expanduser().resolve()
         if config.output_dir is not None
-        else raw.subject_root / "outputs" / "tractography"
+        else default_task_output_dir(raw.subject_root, "tractography_dti")
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     native_bundle = _native_bundle_from_expected_cache(raw.subject_root, raw.subject_id, fit_method)

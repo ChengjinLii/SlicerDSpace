@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Lightweight tests for TractCloud bundle parcellation integration."""
+
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+
+class TractCloudIntegrationTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self.tmp.name)
+        self.python = self.tmp_path / "PythonSlicer"
+        self.python.write_text(
+            """#!/bin/sh
+if [ "$1" = "-c" ]; then
+  echo '{"tractcloud": true, "torch": true}'
+  exit 0
+fi
+out=""
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--output-dir" ]; then
+    out="$arg"
+  fi
+  prev="$arg"
+done
+mkdir -p "$out/Association"
+printf '<VTKFile></VTKFile>' > "$out/Association/arcuate_fasciculus.vtp"
+exit 0
+""",
+            encoding="utf-8",
+        )
+        self.python.chmod(0o755)
+        self.tractography = self.tmp_path / "subject.vtp"
+        self.tractography.write_text("<VTKFile></VTKFile>\n", encoding="utf-8")
+        self.output_dir = self.tmp_path / "tractcloud_out"
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_builds_tractcloud_command_without_running(self) -> None:
+        from tractography import TractCloudConfig, run_tractcloud_parcellation
+
+        result = run_tractcloud_parcellation(
+            TractCloudConfig(
+                subject_id="100307",
+                input_tractography=self.tractography,
+                output_dir=self.output_dir,
+                python_executable=self.python,
+                include_other=True,
+                device="cpu",
+                batch_size=512,
+                create_mrb=True,
+                execute=False,
+            )
+        )
+
+        self.assertFalse(result.executed)
+        self.assertTrue(result.backend_status["available"])
+        self.assertTrue(result.manifest_path.is_file())
+        self.assertTrue(result.qc_path.is_file())
+        command = list(result.command)
+        self.assertEqual(command[:3], [self.python.resolve().as_posix(), "-m", "tractcloud"])
+        self.assertIn("--include-other", command)
+        self.assertIn("--mrb", command)
+        self.assertIn("cpu", command)
+        self.assertIn("512", command)
+
+        manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["kind"], "tractcloud_parcellation")
+        self.assertEqual(manifest["status"], "planned")
+        self.assertFalse(manifest["executed"])
+        self.assertEqual(manifest["backend"]["repository"], "https://github.com/SlicerDMRI/TractCloud")
+
+    def test_execute_true_summarizes_created_bundles_with_fake_backend(self) -> None:
+        from tractography import TractCloudConfig, run_tractcloud_parcellation
+
+        result = run_tractcloud_parcellation(
+            TractCloudConfig(
+                subject_id="100307",
+                input_tractography=self.tractography,
+                output_dir=self.output_dir,
+                python_executable=self.python,
+                execute=True,
+            )
+        )
+
+        self.assertTrue(result.executed)
+        self.assertEqual(result.return_code, 0)
+        qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+        self.assertEqual(qc["status"], "completed")
+        self.assertEqual(qc["output_summary"]["bundle_count"], 1)
+
+    def test_bundle_parcellation_dispatches_tractcloud_backend(self) -> None:
+        from tractography import BundleParcellationConfig, TractCloudConfig, run_bundle_parcellation
+
+        result = run_bundle_parcellation(
+            BundleParcellationConfig(
+                backend="tractcloud",
+                tractcloud=TractCloudConfig(
+                    subject_id="100307",
+                    input_tractography=self.tractography,
+                    output_dir=self.output_dir,
+                    python_executable=self.python,
+                ),
+            )
+        )
+
+        self.assertEqual(result.manifest_path.name, "tractcloud_manifest.json")
+
+    def test_rejects_backend_config_mix(self) -> None:
+        from tractography import BundleParcellationConfig, run_bundle_parcellation
+
+        with self.assertRaisesRegex(ValueError, "requires only the tractcloud config"):
+            run_bundle_parcellation(BundleParcellationConfig(backend="tractcloud"))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -30,7 +30,6 @@ __all__ = [
     "run_surface_preprocessing",
     "run_surface_prediction",
     "run_surface_postprocessing",
-    "SurfaceSculptorWidget",
 ]
 
 SurfacePreprocessingConfig = SubjectPreprocessingConfig
@@ -39,11 +38,3 @@ SurfacePostprocessingConfig = PostprocessingConfig
 run_surface_preprocessing = preprocess_subject
 run_surface_prediction = predict_subject
 run_surface_postprocessing = convert_meshes_to_native_space
-
-
-def __getattr__(name):
-    if name == "SurfaceSculptorWidget":
-        from .sculpting.surface_sculptor import SurfaceSculptorWidget
-
-        return SurfaceSculptorWidget
-    raise AttributeError(name)

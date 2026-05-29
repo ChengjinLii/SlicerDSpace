@@ -17,6 +17,8 @@ class SharedWidgetMixin:
     """Shared UI helpers used across the unified SlicerDDSurfer widget."""
 
     def _connect_common_ui(self) -> None:
+        if hasattr(self.ui, "runSelectedButton"):
+            self.ui.runSelectedButton.connect("clicked()", self._onRunSelectedClicked)
         if hasattr(self.ui, "validateButton"):
             self.ui.validateButton.connect("clicked()", self._onValidateClicked)
         if hasattr(self.ui, "clearLogButton"):
@@ -63,10 +65,7 @@ class SharedWidgetMixin:
         label.setStyleSheet("font-weight: 600; color: #263238;")
         layout.addWidget(label)
 
-        buttons = [
-            (area.navigation_label, area.navigation_target) for area in NAVIGATION_WORKFLOW_AREAS
-        ]
-        buttons.append(("Surface post-process", "SurfacePost"))
+        buttons = [(area.navigation_label, area.navigation_target) for area in NAVIGATION_WORKFLOW_AREAS]
         for text, target in buttons:
             btn = QPushButton(text)
             btn.setObjectName("navBtn")
@@ -80,8 +79,6 @@ class SharedWidgetMixin:
 
     def cleanup(self) -> None:
         self.removeObservers()
-        if self._sculptWidget:
-            self._sculptWidget.cleanup()
 
     def enter(self) -> None:
         self.initializeParameterNode()
@@ -155,20 +152,6 @@ class SharedWidgetMixin:
                 pass
             slicer.util.showStatusMessage("DDSeg pipeline is available in this module", 3000)
             return
-        if target == "SurfacePost":
-            try:
-                slicer.util.selectModule("SlicerDDSurfer")
-                if self._sculptWidget:
-                    self._sculptWidget.widget.setCollapsed(False)
-                docker_panel = getattr(self.ui, "dockerPostprocessCollapsibleButton", None)
-                if docker_panel:
-                    docker_panel.collapsed = False
-                    docker_panel.raise_()
-            except Exception:
-                pass
-            slicer.util.showStatusMessage("Jumped to surface post-process area", 3000)
-            return
-
         if target == "LOCAL_DDSURFER":
             try:
                 slicer.util.selectModule("SlicerDDSurfer")
@@ -215,7 +198,10 @@ class SharedWidgetMixin:
         del blocker
 
     def _sync_line_edit(self, widget, desired: str) -> None:
-        if not widget or widget.text() == desired:
+        if not widget:
+            return
+        current_text = widget.text() if callable(getattr(widget, "text", None)) else widget.text
+        if current_text == desired:
             return
         blocker = QSignalBlocker(widget)
         widget.setText(desired)
@@ -317,6 +303,10 @@ class SharedWidgetMixin:
                 via_index=False,
             )
             self._sync_checkbox(getattr(self.ui, "ddsegSoftmaxCheckBox", None), bool(node.ddsegApplySoftmax))
+            self._sync_checkbox(getattr(self.ui, "targetSurfaceCheckBox", None), bool(node.targetSurface))
+            self._sync_checkbox(getattr(self.ui, "targetParcellationCheckBox", None), bool(node.targetParcellation))
+            self._sync_checkbox(getattr(self.ui, "targetSegmentationCheckBox", None), bool(node.targetSegmentation))
+            self._sync_checkbox(getattr(self.ui, "targetMicrostructureCheckBox", None), bool(node.targetMicrostructure))
 
         self.validateInputs(manual=False)
 
@@ -335,6 +325,65 @@ class SharedWidgetMixin:
     def _onClearLogClicked(self) -> None:
         if hasattr(self.ui, "logPlainTextEdit"):
             self.ui.logPlainTextEdit.clear()
+
+    def _selected_workflows(self) -> list[str]:
+        node = self._parameterNode
+        if not node:
+            return []
+        selected: list[str] = []
+        if bool(node.targetSurface):
+            selected.append("Surface / DDSurfer")
+        if bool(node.targetParcellation):
+            selected.append("Parcellation / DDParcel")
+        if bool(node.targetSegmentation):
+            selected.append("Segmentation / DDSeg")
+        if bool(node.targetMicrostructure):
+            selected.append("Microstructure")
+        return selected
+
+    def _apply_shared_inputs_to_workflow_fields(self) -> None:
+        """Populate empty product-specific fields from the shared subject setup."""
+        node = self._parameterNode
+        if not node:
+            return
+        subject_id = (node.subjectId or "").strip()
+        subject_root = (node.inputDirectory or "").strip()
+        with slicer.util.NodeModify(node):
+            if subject_id:
+                if not (node.ddparcelSubjectId or "").strip():
+                    node.ddparcelSubjectId = subject_id
+                if not (node.microstructureSubjectId or "").strip():
+                    node.microstructureSubjectId = subject_id
+            if subject_root:
+                if not (node.ddparcelInputRoot or "").strip():
+                    node.ddparcelInputRoot = subject_root
+                if not (node.microstructureInputRoot or "").strip():
+                    node.microstructureInputRoot = subject_root
+                if not (node.ddsegDwiPath or "").strip():
+                    node.ddsegDwiPath = subject_root
+
+    def _onRunSelectedClicked(self) -> None:
+        if not self._parameterNode or not self.logic:
+            return
+        selected = self._selected_workflows()
+        if not selected:
+            slicer.util.errorDisplay("Select at least one target product to run.", parent=self.parent)
+            return
+
+        self._apply_shared_inputs_to_workflow_fields()
+        self.appendLog("Running selected products: " + ", ".join(selected))
+        self._setPipelineActive(True)
+        try:
+            if bool(self._parameterNode.targetSurface):
+                self.onApplyButton()
+            if bool(self._parameterNode.targetParcellation):
+                self._onRunDDParcelPipeline()
+            if bool(self._parameterNode.targetSegmentation):
+                self._onRunDDSegPipeline()
+            if bool(self._parameterNode.targetMicrostructure):
+                self._onRunMicrostructurePipeline()
+        finally:
+            self._setPipelineActive(False)
 
     def _setStatus(self, kind: str, message: str) -> None:
         label = getattr(self.ui, "statusLabel", None)

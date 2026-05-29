@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, Optional
 
 import slicer
 
-from shared import InputValidationConfig, InputValidationResult, inspect_subject_directory, validate_subject_inputs
+from shared import InputValidationConfig, InputValidationResult, default_task_output_dir, inspect_subject_directory, validate_subject_inputs
 
 LOGGER = logging.getLogger(__name__)
 
@@ -175,7 +175,7 @@ class SharedLogicMixin:
         return result
 
     def _default_task_output_dir(self, subject_root: Path, task_name: str) -> Path:
-        return subject_root / "outputs" / task_name
+        return default_task_output_dir(subject_root, task_name)
 
     def _resolve_optional_output_dir(
         self,

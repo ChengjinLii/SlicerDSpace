@@ -88,6 +88,10 @@ class SlicerDDSurferParameterNode:
     microstructureRunFreeWater: bool = True
     microstructureRunNoddi: bool = True
     microstructureForceRecompute: bool = False
+    targetSurface: bool = True
+    targetParcellation: bool = False
+    targetSegmentation: bool = False
+    targetMicrostructure: bool = False
 
 
 class SlicerDDSurferWidget(
@@ -109,7 +113,6 @@ class SlicerDDSurferWidget(
         self._parameterNodeGuiTag = None
         self._lastStatusMessage: Optional[str] = None
         self._pipelineActive: bool = False
-        self._sculptWidget = None
 
     def setup(self) -> None:
         ScriptedLoadableModuleWidget.setup(self)
@@ -128,7 +131,6 @@ class SlicerDDSurferWidget(
         self._connect_segmentation_ui()
         self._connect_common_ui()
         self._initialize_common_ui_state()
-        self._attach_surface_sculptor()
 
 
 class SlicerDDSurferLogic(

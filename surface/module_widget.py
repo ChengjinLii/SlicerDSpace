@@ -9,7 +9,6 @@ from typing import List, Optional
 import slicer
 
 from shared import inspect_subject_directory
-from surface import SurfaceSculptorWidget
 
 LOGGER = logging.getLogger(__name__)
 
@@ -42,13 +41,6 @@ class SurfaceWidgetMixin:
             self.ui.postprocessForceCheckBox.toggled.connect(self._onPostprocessForceToggled)
         if hasattr(self.ui, "runPostprocessButton"):
             self.ui.runPostprocessButton.connect("clicked()", self._onRunDockerPostprocess)
-
-    def _attach_surface_sculptor(self) -> None:
-        try:
-            self._sculptWidget = SurfaceSculptorWidget(parent=self.parent)
-            self.layout.addWidget(self._sculptWidget.widget)
-        except Exception as exc:  # pragma: no cover - ui instantiation safeguard
-            LOGGER.exception("Failed to initialize sculptor widget: %s", exc)
 
     def _onOutputDirectoryChanged(self, newPath: str) -> None:
         if not self._update_parameter_node("outputDirectory", newPath or ""):
