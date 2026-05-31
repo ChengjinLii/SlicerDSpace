@@ -179,6 +179,39 @@ exit 0
         qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
         self.assertEqual(qc["status"], "completed")
         self.assertEqual(qc["return_code"], 0)
+        self.assertTrue(Path(qc["logs"]["stdout"]).is_file())
+        self.assertTrue(Path(qc["logs"]["stderr"]).is_file())
+
+    def test_execute_true_marks_failed_when_script_returns_zero_without_outputs(self) -> None:
+        from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
+
+        self.wma_script.write_text(
+            """#!/bin/sh
+exit 0
+""",
+            encoding="utf-8",
+        )
+        self.wma_script.chmod(0o755)
+
+        result = run_wma_org_atlas(
+            WMAOrgAtlasConfig(
+                subject_id="100307",
+                input_tractography=self.tractography,
+                atlas_dir=self.atlas_dir,
+                output_dir=self.output_dir,
+                slicer_executable=self.slicer_executable,
+                wma_root=self.wma_root,
+                execute=True,
+            )
+        )
+
+        self.assertTrue(result.executed)
+        self.assertEqual(result.return_code, 0)
+        qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+        self.assertEqual(qc["status"], "failed")
+        self.assertIn("required FiberClustering/AnatomicalTracts outputs", qc["error"])
+        self.assertTrue(Path(qc["logs"]["stdout"]).is_file())
+        self.assertTrue(Path(qc["logs"]["stderr"]).is_file())
 
 
 if __name__ == "__main__":

@@ -253,6 +253,16 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
     }
 
 
+def _last_nonempty_line(text: Optional[str]) -> Optional[str]:
+    if not text:
+        return None
+    for line in reversed(text.splitlines()):
+        stripped = line.strip()
+        if stripped:
+            return stripped
+    return None
+
+
 def build_wma_org_atlas_command(config: WMAOrgAtlasConfig) -> tuple[str, ...]:
     wma_root = resolve_wma_root(config.wma_root)
     script = wma_root / WMA_APPLY_ORG_SCRIPT
@@ -350,6 +360,9 @@ def run_wma_org_atlas(
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = output_dir / "wma_org_atlas_manifest.json"
     qc_path = output_dir / "wma_org_atlas_qc.json"
+    log_dir = output_dir / "logs"
+    stdout_log = log_dir / "wma_stdout.log"
+    stderr_log = log_dir / "wma_stderr.log"
     output_summary = summarize_wma_outputs(output_dir, config.input_tractography.expanduser().resolve())
 
     manifest = {
@@ -372,6 +385,8 @@ def run_wma_org_atlas(
         "atlas": atlas_status,
         "outputs": {
             "qc": qc_path.as_posix(),
+            "stdout_log": stdout_log.as_posix(),
+            "stderr_log": stderr_log.as_posix(),
             "summary": output_summary,
         },
     }
@@ -386,6 +401,7 @@ def run_wma_org_atlas(
     return_code: Optional[int] = None
     execution_error: Optional[str] = None
     if config.execute:
+        log_dir.mkdir(parents=True, exist_ok=True)
         env = os.environ.copy()
         python_path = wma_root.as_posix()
         env["PYTHONPATH"] = (
@@ -439,10 +455,21 @@ def run_wma_org_atlas(
             else:
                 command_to_run = command
             env["PATH"] = os.pathsep.join(path_entries + ([env["PATH"]] if env.get("PATH") else []))
-            completed = subprocess.run(command_to_run, check=True, cwd=wma_root.as_posix(), env=env)
+            completed = subprocess.run(
+                command_to_run,
+                check=True,
+                cwd=wma_root.as_posix(),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            stdout_log.write_text(completed.stdout or "", encoding="utf-8")
+            stderr_log.write_text(completed.stderr or "", encoding="utf-8")
             return_code = completed.returncode
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode
+            stdout_log.write_text(exc.stdout or "", encoding="utf-8")
+            stderr_log.write_text(exc.stderr or "", encoding="utf-8")
             execution_error = str(exc)
             raise
         finally:
@@ -457,7 +484,12 @@ def run_wma_org_atlas(
                     or not output_summary["anatomical_tracts_dir_exists"]
                 )
             ):
+                log_hint = _last_nonempty_line(stderr_log.read_text(encoding="utf-8") if stderr_log.is_file() else "")
+                if log_hint is None:
+                    log_hint = _last_nonempty_line(stdout_log.read_text(encoding="utf-8") if stdout_log.is_file() else "")
                 execution_error = "WMA command returned without required FiberClustering/AnatomicalTracts outputs."
+                if log_hint:
+                    execution_error += f" Last log line: {log_hint}"
 
     elapsed_seconds = time.monotonic() - start_time
     qc = {
@@ -471,6 +503,12 @@ def run_wma_org_atlas(
         "backend_available": bool(backend_status["available"]),
         "atlas_available": bool(atlas_status["available"]),
         "output_summary": output_summary,
+        "logs": {
+            "stdout": stdout_log.as_posix(),
+            "stderr": stderr_log.as_posix(),
+            "stdout_exists": stdout_log.is_file(),
+            "stderr_exists": stderr_log.is_file(),
+        },
         "error": execution_error,
     }
     qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
