@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Annotated, Optional
 
 import slicer
 from slicer.ScriptedLoadableModule import (
@@ -10,7 +10,7 @@ from slicer.ScriptedLoadableModule import (
     ScriptedLoadableModuleLogic,
     ScriptedLoadableModuleWidget,
 )
-from slicer.parameterNodeWrapper import parameterNodeWrapper
+from slicer.parameterNodeWrapper import Choice, parameterNodeWrapper
 from slicer.util import VTKObservationMixin
 
 from connectome.module_logic import ConnectomeLogicMixin
@@ -55,15 +55,15 @@ class SlicerDDSurferParameterNode:
     subjectId: str = ""
     outputDirectory: str = ""
     inputDirectory: str = ""
-    predictMode: str = "all"
-    device: str = "cpu"
+    predictMode: Annotated[str, Choice(["all", "wm"])] = "all"
+    device: Annotated[str, Choice(["cpu", "cuda:0"])] = "cpu"
     cleanupIntermediates: bool = False
     postprocessSubjectId: str = ""
     postprocessNativeDir: str = ""
     postprocessMriDir: str = ""
     postprocessRepoDir: str = ""
     postprocessLicensePath: str = ""
-    postprocessMode: str = "whole"
+    postprocessMode: Annotated[str, Choice(["whole", "left", "right"])] = "whole"
     postprocessDockerImage: str = ""
     postprocessForce: bool = True
     ddparcelSubjectId: str = ""
@@ -79,18 +79,18 @@ class SlicerDDSurferParameterNode:
     ddsegWeightsDir: str = ""
     ddsegSlicerBase: str = ""
     ddsegSlicerExt: str = ""
-    ddsegDevice: str = "cpu"
+    ddsegDevice: Annotated[str, Choice(["cpu", "cuda:0"])] = "cpu"
     ddsegApplySoftmax: bool = False
     microstructureSubjectId: str = ""
     microstructureInputRoot: str = ""
     microstructureOutputDir: str = ""
     microstructureRoiPath: str = ""
-    microstructureFitMethod: str = "wls"
+    microstructureFitMethod: Annotated[str, Choice(["wls", "ls"])] = "wls"
     microstructureRunFreeWater: bool = True
     microstructureRunNoddi: bool = True
     microstructureForceRecompute: bool = False
     targetPreprocessing: bool = False
-    preprocessingBackend: str = "dipy"
+    preprocessingBackend: Annotated[str, Choice(["dipy", "mrtrix_fsl"])] = "dipy"
     targetSurface: bool = True
     targetParcellation: bool = False
     targetSegmentation: bool = False

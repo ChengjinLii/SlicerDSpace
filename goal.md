@@ -35,6 +35,7 @@ SlicerDDSurfer 的长期目标是从单一 DDSurfer Slicer 模块，扩展为一
 - `WMQL / AF-CST bundles`：已修复默认 `query_selection`。原先选择 `AF,CST` 无法命中 `AF.side/CST.side` 展开的 `af.left/af.right/cst.left/cst.right`；现在默认选择 side-aware bundle 名称，并在 QC 中记录每个 bundle 文件和 streamline count。100307 的 100k ACT tractogram 当前命中 4 个 bundles：`af.left=9`、`af.right=2`、`cst.left=12`、`cst.right=6`。
 - `UI / Product targets`：主 UI 已按“Subject root + Output directory + optional preprocessing + target products”继续收口，目标产品增加 `Tractography`、`Bundles`、`Connectome` checkbox；复杂依赖由后端 manifest/QC 报告。`runSelectedButton` 现在会把 DDSeg / DDParcel / Microstructure / Tractography / Bundles / Connectome 交给统一 product orchestrator；Surface 暂时仍走原 Surface 面板执行，直到拆出不依赖 Slicer scene loading 的 headless facade。
 - `DAG / Resume runner`：已新增轻量 `shared.orchestrator`，支持 subject-root、target products、`run_name`、`execute`、`resume`、MRtrix bin、TractQuerier root。当前覆盖 `segmentation.ddseg -> parcellation.ddparcel -> surface.ddsurfer(resume/block only) -> microstructure.dti -> tractography.csd_act -> bundles.wmql -> connectome.streamline_count/sift2`，会读取各步骤 QC 或核心输出，已完成则 skip，依赖缺失则 blocked，并写 `outputs/00_run_metadata/<run_name>_orchestration_manifest.json`。已用 100307 的 `csd_act_100k` 结果验证全产品 resume：DDSeg、DDParcel、DDSurfer surfaces、Microstructure、CSD/ACT、WMQL、streamline connectome、SIFT2 connectome 全部跳过，不重跑 MRtrix 或 Slicer CLI。
+- `Slicer GUI smoke`：已用 `/data/chengjin/software/run-slicer.sh`、`DISPLAY=:99` 和临时模块目录完成真实 Slicer GUI 启动、模块切换和截图。截图路径：`/data/chengjin/SlicerDDSurfer-test/gui_smoke/SlicerDDSurfer_gui_fixed_choice_20260531_170837.png`。本轮修复了 Slicer 5.10 `parameterNodeWrapper` 对 `QComboBox` 字段要求 `Choice` annotation 的问题。
 
 ## 下一步建议
 
@@ -90,17 +91,23 @@ SlicerDDSurfer 的长期目标是从单一 DDSurfer Slicer 模块，扩展为一
 
 ### P0: Slicer 集成验证
 
-- 修复当前机器直接启动 Slicer / PythonSlicer 时的动态库问题：`libpcre2-16.so.0` 缺失导致 launcher 级导入测试无法完成。
-- 用正确 launcher 完成一次真实 Slicer Python 导入验证：
+- 真实 Slicer GUI smoke 已完成：`DISPLAY=:99` 下启动 Slicer，使用临时 module path 加载 `SlicerDDSurfer.py`，成功切换到 `SlicerDDSurfer` 模块并保存截图。
+- 验证命令模式：
 
 ```bash
-/data/chengjin/software/run-slicer.sh --launch \
-  /data/chengjin/software/Slicer-5.10.0-linux-amd64/bin/PythonSlicer \
-  -c "import sys; sys.path.insert(0, '/data/chengjin/SlicerDDSurfer'); import SlicerDDSurfer; print('OK')"
+rm -rf /tmp/SlicerDDSurfer_slicer_module
+mkdir -p /tmp/SlicerDDSurfer_slicer_module
+ln -s /data/chengjin/SlicerDDSurfer/SlicerDDSurfer.py /tmp/SlicerDDSurfer_slicer_module/SlicerDDSurfer.py
+ln -s /data/chengjin/SlicerDDSurfer/Resources /tmp/SlicerDDSurfer_slicer_module/Resources
+DISPLAY=:99 PYTHONPATH=/data/chengjin/SlicerDDSurfer \
+  SLICERDDSURFER_GUI_CAPTURE=/data/chengjin/SlicerDDSurfer-test/gui_smoke/SlicerDDSurfer_gui_fixed_choice_20260531_170837.png \
+  /data/chengjin/software/run-slicer.sh --no-splash \
+  --additional-module-paths /tmp/SlicerDDSurfer_slicer_module \
+  --python-script /data/chengjin/SlicerDDSurfer/Testing/Python/slicer_gui_capture.py
 ```
 
-- 做一次 GUI 级 smoke：打开模块、展开各 workflow panel、确认默认路径填充、导航按钮、运行按钮状态没有回归。
-- 给 `SlicerDDSurferWidget` 的产品 mixin 组合补轻量导入测试，避免后续拆 UI 时发生循环导入。
+- 注意：不要把仓库根目录直接作为 Slicer `--additional-module-paths`。Slicer 会扫描根目录所有 `.py`，误把 `workflow_catalog.py` 和 `run_postprocess_docker.py` 当模块/CLI 加载。开发 smoke 应使用临时 module dir；正式安装路径应由 Slicer extension packaging 只暴露模块入口和 Resources。
+- `PythonSlicer` 不能替代 GUI import，因为 `parameterNodeWrapper` 会使用 GUI Qt 类型，例如 `qt.QColor`。
 
 ### P1: Microstructure 收口
 
@@ -166,21 +173,18 @@ python3 Testing/Python/run_microstructure_regression.py \
 
 ## 当前推荐执行顺序
 
-1. 做一次 `git add -A` 前的最终 diff 分组审计，确认哪些改动属于同一提交，哪些应拆分。
-2. 继续评估 MRtrix CSD/ACT 更大规模长测试：例如 500k/1M streamlines、保留 SIFT2 weights、记录运行时间和磁盘占用。
-3. 改进 WMQL bundle 质量：当前 100k 已能命中 AF/CST，但数量较少，应继续评估查询定义、ACT tissue model 和 parcellation 端点策略。
-4. 扩展 product orchestrator：继续拆 Surface headless facade，并定义 Free Water / NODDI 是否进入默认 DAG 的 gating；DDSeg、DDParcel、Microstructure DTI、CSD/ACT、WMQL、Connectome 已纳入。
-5. Slicer launcher / GUI smoke 修复和验证。
-6. 完整 Slicer GUI smoke：需要有 DISPLAY 或安装 `xvfb-run/Xvfb` 后再跑；当前无显示环境会阻断 Qt `xcb` 初始化。
-7. WMA 真实运行准备：已有 149741 downsampled VTK 测试输入；全盘扫描未发现 ORG atlas，仍需 ORG atlas 和 SlicerDMRI CLI 路径。
-8. Connectome Phase 1.5：继续补 MRtrix dense matrix 到 ROI-label matrix 的可选压缩；节点 LUT 名称映射、length、FA/MD、SIFT2 weighted connectome 已完成。
-9. Microstructure 长回归和 WMA 真实 clustering 放到后台或夜间测试。
+1. 继续评估 MRtrix CSD/ACT 更大规模长测试：例如 500k/1M streamlines、保留 SIFT2 weights、记录运行时间和磁盘占用。
+2. 改进 WMQL bundle 质量：当前 100k 已能命中 AF/CST，但数量较少，应继续评估查询定义、ACT tissue model 和 parcellation 端点策略。
+3. 扩展 product orchestrator：继续拆 Surface headless facade，并定义 Free Water / NODDI 是否进入默认 DAG 的 gating；DDSeg、DDParcel、Microstructure DTI、CSD/ACT、WMQL、Connectome 已纳入。
+4. WMA 真实运行准备：已有 149741 downsampled VTK 测试输入；全盘扫描未发现 ORG atlas，仍需 ORG atlas 和 SlicerDMRI CLI 路径。
+5. Connectome Phase 1.5：继续补 MRtrix dense matrix 到 ROI-label matrix 的可选压缩；节点 LUT 名称映射、length、FA/MD、SIFT2 weighted connectome 已完成。
+6. Microstructure 长回归和 WMA 真实 clustering 放到后台或夜间测试。
 
 ## 当前风险
 
 - 工作树当前不是干净状态，目录迁移表现为大量旧文件删除和新产品目录新增；在继续大改前应避免回退已有改动。
 - `.gitattributes` 已新增更多 LFS 规则，但不会自动改写历史中已经作为普通 Git blob 存在的 atlas/template 大文件；如需完全去除历史大文件，需要单独规划 `git lfs migrate`，会改写历史，不建议在当前功能提交里直接做。
-- Slicer launcher 动态库问题已由 `/data/chengjin/software/run-slicer.sh` 补充库路径缓解；当前 GUI smoke 的新阻断是无 `DISPLAY` 且无 `xvfb-run/Xvfb`，完整 Slicer 报 Qt `xcb` 初始化失败。`PythonSlicer` 不能替代 GUI import，因为其中 `qt` 模块缺少 `QColor`、`QFrame` 等 GUI 类。
+- Slicer launcher 动态库问题已由 `/data/chengjin/software/run-slicer.sh` 补充库路径缓解；真实 GUI smoke 已可在 `DISPLAY=:99` 的 Xvfb/VNC 环境下完成。剩余风险是正式 extension packaging 不能直接暴露仓库根目录，否则 Slicer 会误扫描非模块 `.py` 文件。
 - NODDI 全量重算耗时长，长回归应作为可选验证，适合后台或夜间运行。
 - 输入验证第一版只读取 BIDS sidecar，不做 DICOM/BIDS 自动索引，也不验证相位编码和图像轴向的一致性。
 - Tractography 已有 WMA、DTI、ACT/CSD pipeline、manifest 和轻量测试；DTI 与 MRtrix CSD/ACT 已完成真实 streamlines smoke。真实 WMA clustering、TractCloud 模型执行和 GUI 控件仍未完成；Connectome 已有真实 streamline-count、SIFT2 weighted、length、FA/MD endpoint-label matrix 和 MRtrix dense matrix QC。
