@@ -90,6 +90,40 @@ class ProductOrchestratorTest(unittest.TestCase):
             manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["run_name"], "csd_act_test")
             self.assertFalse(manifest["execute"])
+            self.assertEqual(manifest["select_streamlines"], 1000)
+            self.assertEqual(manifest["connectome_backend"], "python")
+
+    def test_dry_run_honors_output_root_and_advanced_connectome_options(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            output_root = Path(tmp) / "custom_outputs"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    output_root=output_root,
+                    targets=("tractography", "connectome"),
+                    run_name="csd_act_100k",
+                    execute=False,
+                    select_streamlines=100000,
+                    connectome_backend="mrtrix",
+                    connectome_compress_mrtrix_dense=True,
+                )
+            )
+
+            self.assertTrue(result.run_manifest_path.is_relative_to(output_root))
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["output_root"], output_root.resolve().as_posix())
+            self.assertEqual(manifest["select_streamlines"], 100000)
+            self.assertEqual(manifest["connectome_backend"], "mrtrix")
+            self.assertTrue(manifest["connectome_compress_mrtrix_dense"])
 
     def test_resume_skips_completed_existing_outputs(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products, subject_layout

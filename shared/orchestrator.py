@@ -34,6 +34,7 @@ class ProductOrchestratorConfig:
     subject_id: str
     subject_root: Path
     targets: tuple[str, ...]
+    output_root: Optional[Path] = None
     run_name: str = "csd_act"
     execute: bool = False
     resume: bool = True
@@ -43,6 +44,8 @@ class ProductOrchestratorConfig:
     select_streamlines: int = 1000
     mrtrix_bin_dir: Optional[Path] = None
     tract_querier_root: Optional[Path] = None
+    connectome_backend: str = "python"
+    connectome_compress_mrtrix_dense: bool = False
 
 
 @dataclass(frozen=True)
@@ -207,15 +210,18 @@ def run_subject_products(
         raise ValueError("subject_id is required.")
     if config.select_streamlines <= 0:
         raise ValueError("select_streamlines must be > 0.")
+    if config.connectome_backend not in {"python", "mrtrix"}:
+        raise ValueError("connectome_backend must be one of: python, mrtrix.")
 
     targets = _normalize_targets(config.targets)
     subject_root = config.subject_root.expanduser().resolve()
-    layout = subject_layout(subject_root)
+    output_root = config.output_root.expanduser().resolve() if config.output_root is not None else None
+    layout = subject_layout(subject_root, output_root=output_root)
     run_name = config.run_name.strip().replace("/", "_") or "csd_act"
     tasks: list[ProductTaskRecord] = []
     start = time.monotonic()
 
-    materialize_canonical_output_tree(subject_root, mode="symlink", archive_legacy=False)
+    materialize_canonical_output_tree(subject_root, output_root=output_root, mode="symlink", archive_legacy=False)
 
     if "validation" in targets:
         validation = validate_subject_inputs(
@@ -541,7 +547,9 @@ def run_subject_products(
                     parcellation_path=parcellation,
                     output_dir=connectome_dir,
                     metric="streamline_count",
-                    backend="python",
+                    backend=config.connectome_backend,
+                    mrtrix_bin_dir=config.mrtrix_bin_dir,
+                    compress_mrtrix_dense=config.connectome_compress_mrtrix_dense,
                     execute=True,
                 ),
                 log=log,
@@ -556,7 +564,9 @@ def run_subject_products(
                         output_dir=sift2_connectome_dir,
                         metric="sift2_weighted_streamline_count",
                         sift2_weights_path=sift2_weights,
-                        backend="python",
+                        backend=config.connectome_backend,
+                        mrtrix_bin_dir=config.mrtrix_bin_dir,
+                        compress_mrtrix_dense=config.connectome_compress_mrtrix_dense,
                         execute=True,
                     ),
                     log=log,
@@ -593,7 +603,9 @@ def run_subject_products(
                         output_dir=sift2_connectome_dir,
                         metric="sift2_weighted_streamline_count",
                         sift2_weights_path=sift2_weights,
-                        backend="python",
+                        backend=config.connectome_backend,
+                        mrtrix_bin_dir=config.mrtrix_bin_dir,
+                        compress_mrtrix_dense=config.connectome_compress_mrtrix_dense,
                         execute=True,
                     ),
                     log=log,
@@ -605,6 +617,7 @@ def run_subject_products(
         "version": 1,
         "subject_id": config.subject_id,
         "subject_root": subject_root.as_posix(),
+        "output_root": output_root.as_posix() if output_root is not None else layout.outputs.as_posix(),
         "targets": list(targets),
         "run_name": run_name,
         "execute": config.execute,
@@ -613,6 +626,8 @@ def run_subject_products(
         "atlas_t2": atlas_t2.as_posix(),
         "ddseg_device": config.ddseg_device,
         "select_streamlines": config.select_streamlines,
+        "connectome_backend": config.connectome_backend,
+        "connectome_compress_mrtrix_dense": config.connectome_compress_mrtrix_dense,
         "elapsed_seconds": time.monotonic() - start,
         "tasks": [
             {

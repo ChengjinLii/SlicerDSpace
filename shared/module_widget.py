@@ -309,6 +309,20 @@ class SharedWidgetMixin:
                 node.preprocessingBackend or "dipy",
                 via_index=False,
             )
+            self._sync_line_edit(getattr(self.ui, "orchestrationRunNameLineEdit", None), node.orchestrationRunName or "")
+            self._sync_spinbox(
+                getattr(self.ui, "orchestrationSelectStreamlinesSpinBox", None),
+                int(node.orchestrationSelectStreamlines),
+            )
+            self._sync_combo_text(
+                getattr(self.ui, "connectomeBackendComboBox", None),
+                node.connectomeBackend or "python",
+                via_index=False,
+            )
+            self._sync_checkbox(
+                getattr(self.ui, "connectomeCompressMrtrixDenseCheckBox", None),
+                bool(node.connectomeCompressMrtrixDense),
+            )
             self._sync_checkbox(getattr(self.ui, "targetSurfaceCheckBox", None), bool(node.targetSurface))
             self._sync_checkbox(getattr(self.ui, "targetParcellationCheckBox", None), bool(node.targetParcellation))
             self._sync_checkbox(getattr(self.ui, "targetSegmentationCheckBox", None), bool(node.targetSegmentation))
@@ -425,15 +439,20 @@ class SharedWidgetMixin:
             orchestrator_targets = self._selected_orchestrator_targets()
             if any(target != "validation" for target in orchestrator_targets):
                 subject_root = Path((self._parameterNode.inputDirectory or "").strip()).expanduser()
+                output_root_text = (self._parameterNode.outputDirectory or "").strip()
                 subject_id = (self._parameterNode.subjectId or "").strip()
+                run_name = (self._parameterNode.orchestrationRunName or "csd_act_ui").strip() or "csd_act_ui"
                 self.logic.runSelectedProductOrchestration(
                     subject_id=subject_id,
                     subject_root=subject_root,
+                    output_root=Path(output_root_text).expanduser() if output_root_text else None,
                     targets=orchestrator_targets,
-                    run_name="csd_act_ui",
+                    run_name=run_name,
                     execute=True,
                     resume=True,
-                    select_streamlines=1000,
+                    select_streamlines=max(1, int(self._parameterNode.orchestrationSelectStreamlines)),
+                    connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
+                    connectome_compress_mrtrix_dense=bool(self._parameterNode.connectomeCompressMrtrixDense),
                 )
         finally:
             self._setPipelineActive(False)

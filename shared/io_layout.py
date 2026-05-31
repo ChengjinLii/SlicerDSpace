@@ -8,6 +8,7 @@ explicit user-provided output paths for backward compatibility.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 from pathlib import Path
 import shutil
 
@@ -17,10 +18,11 @@ class SubjectIOLayout:
     """Canonical output and cache directories for one subject root."""
 
     subject_root: Path
+    output_root: Optional[Path] = None
 
     @property
     def outputs(self) -> Path:
-        return self.subject_root / "outputs"
+        return self.output_root if self.output_root is not None else self.subject_root / "outputs"
 
     @property
     def run_metadata(self) -> Path:
@@ -143,8 +145,11 @@ class SubjectIOLayout:
         return self.subject_root / "cache"
 
 
-def subject_layout(subject_root: Path) -> SubjectIOLayout:
-    return SubjectIOLayout(subject_root=subject_root.expanduser().resolve())
+def subject_layout(subject_root: Path, output_root: Optional[Path] = None) -> SubjectIOLayout:
+    return SubjectIOLayout(
+        subject_root=subject_root.expanduser().resolve(),
+        output_root=output_root.expanduser().resolve() if output_root is not None else None,
+    )
 
 
 def default_task_output_dir(subject_root: Path, task_name: str) -> Path:
@@ -234,7 +239,13 @@ def _archive_legacy_path(src: Path, archive_root: Path) -> None:
     shutil.move(src.as_posix(), dest.as_posix())
 
 
-def materialize_canonical_output_tree(subject_root: Path, *, mode: str = "symlink", archive_legacy: bool = False) -> dict[str, Path]:
+def materialize_canonical_output_tree(
+    subject_root: Path,
+    *,
+    output_root: Optional[Path] = None,
+    mode: str = "symlink",
+    archive_legacy: bool = False,
+) -> dict[str, Path]:
     """Create canonical output-tree views for known legacy SlicerDDSurfer outputs.
 
     ``mode`` controls how existing legacy files are exposed in the canonical tree:
@@ -249,7 +260,7 @@ def materialize_canonical_output_tree(subject_root: Path, *, mode: str = "symlin
     if archive_legacy and mode == "symlink":
         raise ValueError("archive_legacy=True requires mode='copy' so canonical links do not break")
 
-    layout = subject_layout(subject_root)
+    layout = subject_layout(subject_root, output_root=output_root)
     outputs = layout.outputs
     archive_root = layout.subject_root / ".legacy_flat_outputs"
     created: dict[str, Path] = {}

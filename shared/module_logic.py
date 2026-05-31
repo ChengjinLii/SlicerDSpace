@@ -192,6 +192,7 @@ class SharedLogicMixin:
         subject_id: str,
         subject_root: Path,
         targets: tuple[str, ...],
+        output_root: Optional[Path] = None,
         run_name: str = "csd_act",
         execute: bool = False,
         resume: bool = True,
@@ -200,12 +201,15 @@ class SharedLogicMixin:
         ddseg_device: str = "cpu",
         mrtrix_bin_dir: Optional[Path] = None,
         tract_querier_root: Optional[Path] = None,
+        connectome_backend: str = "python",
+        connectome_compress_mrtrix_dense: bool = False,
     ) -> ProductOrchestratorResult:
         result = run_subject_products(
             ProductOrchestratorConfig(
                 subject_id=subject_id,
                 subject_root=subject_root,
                 targets=targets,
+                output_root=output_root,
                 run_name=run_name,
                 execute=execute,
                 resume=resume,
@@ -214,6 +218,8 @@ class SharedLogicMixin:
                 select_streamlines=select_streamlines,
                 mrtrix_bin_dir=mrtrix_bin_dir,
                 tract_querier_root=tract_querier_root,
+                connectome_backend=connectome_backend,
+                connectome_compress_mrtrix_dense=connectome_compress_mrtrix_dense,
             ),
             log=self.log,
         )

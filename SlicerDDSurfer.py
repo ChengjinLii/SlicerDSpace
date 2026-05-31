@@ -91,6 +91,10 @@ class SlicerDDSurferParameterNode:
     microstructureForceRecompute: bool = False
     targetPreprocessing: bool = False
     preprocessingBackend: Annotated[str, Choice(["dipy", "mrtrix_fsl"])] = "dipy"
+    orchestrationRunName: str = "csd_act_ui"
+    orchestrationSelectStreamlines: int = 1000
+    connectomeBackend: Annotated[str, Choice(["python", "mrtrix"])] = "python"
+    connectomeCompressMrtrixDense: bool = False
     targetSurface: bool = True
     targetParcellation: bool = False
     targetSegmentation: bool = False
