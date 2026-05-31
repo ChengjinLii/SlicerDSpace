@@ -10,7 +10,16 @@ from typing import Any, Callable, Dict, Optional
 
 import slicer
 
-from shared import InputValidationConfig, InputValidationResult, default_task_output_dir, inspect_subject_directory, validate_subject_inputs
+from shared import (
+    InputValidationConfig,
+    InputValidationResult,
+    ProductOrchestratorConfig,
+    ProductOrchestratorResult,
+    default_task_output_dir,
+    inspect_subject_directory,
+    run_subject_products,
+    validate_subject_inputs,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -177,6 +186,43 @@ class SharedLogicMixin:
     def _default_task_output_dir(self, subject_root: Path, task_name: str) -> Path:
         return default_task_output_dir(subject_root, task_name)
 
+    def runSelectedProductOrchestration(
+        self,
+        *,
+        subject_id: str,
+        subject_root: Path,
+        targets: tuple[str, ...],
+        run_name: str = "csd_act",
+        execute: bool = False,
+        resume: bool = True,
+        select_streamlines: int = 1000,
+        atlas_t2: Optional[Path] = None,
+        ddseg_device: str = "cpu",
+        mrtrix_bin_dir: Optional[Path] = None,
+        tract_querier_root: Optional[Path] = None,
+    ) -> ProductOrchestratorResult:
+        result = run_subject_products(
+            ProductOrchestratorConfig(
+                subject_id=subject_id,
+                subject_root=subject_root,
+                targets=targets,
+                run_name=run_name,
+                execute=execute,
+                resume=resume,
+                atlas_t2=atlas_t2,
+                ddseg_device=ddseg_device,
+                select_streamlines=select_streamlines,
+                mrtrix_bin_dir=mrtrix_bin_dir,
+                tract_querier_root=tract_querier_root,
+            ),
+            log=self.log,
+        )
+        self.log(f"[Orchestrator] Manifest: {result.run_manifest_path}")
+        for task in result.tasks:
+            detail = f" ({task.reason})" if task.reason else ""
+            self.log(f"[Orchestrator] {task.name}: {task.status}{detail}")
+        return result
+
     def _resolve_optional_output_dir(
         self,
         output_dir: Optional[Path],
@@ -213,6 +259,21 @@ class SharedLogicMixin:
         table_node = slicer.util.loadTable(table_path.as_posix())
         if table_node:
             table_node.SetName(node_name)
+
+    def _load_fiber_bundle_node(self, fiber_path: Path, node_name: str) -> None:
+        if not fiber_path.is_file():
+            return
+        loader = getattr(slicer.util, "loadFiberBundle", None)
+        if loader is None:
+            self.log(f"[Slicer] FiberBundle loader is unavailable; skipped loading {fiber_path}")
+            return
+        try:
+            fiber_node = loader(fiber_path.as_posix())
+        except Exception as exc:  # pragma: no cover - depends on SlicerDMRI extension availability
+            self.log(f"[Slicer] Failed to load FiberBundle {fiber_path}: {exc}")
+            return
+        if fiber_node:
+            fiber_node.SetName(node_name)
 
     def _resolve_template_dir(self) -> Path:
         candidates = []

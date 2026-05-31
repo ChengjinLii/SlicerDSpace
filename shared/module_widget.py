@@ -303,10 +303,19 @@ class SharedWidgetMixin:
                 via_index=False,
             )
             self._sync_checkbox(getattr(self.ui, "ddsegSoftmaxCheckBox", None), bool(node.ddsegApplySoftmax))
+            self._sync_checkbox(getattr(self.ui, "targetPreprocessingCheckBox", None), bool(node.targetPreprocessing))
+            self._sync_combo_text(
+                getattr(self.ui, "preprocessingBackendComboBox", None),
+                node.preprocessingBackend or "dipy",
+                via_index=False,
+            )
             self._sync_checkbox(getattr(self.ui, "targetSurfaceCheckBox", None), bool(node.targetSurface))
             self._sync_checkbox(getattr(self.ui, "targetParcellationCheckBox", None), bool(node.targetParcellation))
             self._sync_checkbox(getattr(self.ui, "targetSegmentationCheckBox", None), bool(node.targetSegmentation))
             self._sync_checkbox(getattr(self.ui, "targetMicrostructureCheckBox", None), bool(node.targetMicrostructure))
+            self._sync_checkbox(getattr(self.ui, "targetTractographyCheckBox", None), bool(node.targetTractography))
+            self._sync_checkbox(getattr(self.ui, "targetBundlesCheckBox", None), bool(node.targetBundles))
+            self._sync_checkbox(getattr(self.ui, "targetConnectomeCheckBox", None), bool(node.targetConnectome))
 
         self.validateInputs(manual=False)
 
@@ -331,6 +340,8 @@ class SharedWidgetMixin:
         if not node:
             return []
         selected: list[str] = []
+        if bool(node.targetPreprocessing):
+            selected.append("DWI Preprocessing")
         if bool(node.targetSurface):
             selected.append("Surface / DDSurfer")
         if bool(node.targetParcellation):
@@ -339,7 +350,32 @@ class SharedWidgetMixin:
             selected.append("Segmentation / DDSeg")
         if bool(node.targetMicrostructure):
             selected.append("Microstructure")
+        if bool(node.targetTractography):
+            selected.append("Tractography")
+        if bool(node.targetBundles):
+            selected.append("Bundles")
+        if bool(node.targetConnectome):
+            selected.append("Connectome")
         return selected
+
+    def _selected_orchestrator_targets(self) -> tuple[str, ...]:
+        node = self._parameterNode
+        if not node:
+            return ()
+        targets = ["validation"]
+        if bool(node.targetSegmentation):
+            targets.append("segmentation")
+        if bool(node.targetParcellation):
+            targets.append("parcellation")
+        if bool(node.targetMicrostructure):
+            targets.append("microstructure")
+        if bool(node.targetTractography):
+            targets.append("tractography")
+        if bool(node.targetBundles):
+            targets.append("bundles")
+        if bool(node.targetConnectome):
+            targets.append("connectome")
+        return tuple(targets)
 
     def _apply_shared_inputs_to_workflow_fields(self) -> None:
         """Populate empty product-specific fields from the shared subject setup."""
@@ -374,14 +410,31 @@ class SharedWidgetMixin:
         self.appendLog("Running selected products: " + ", ".join(selected))
         self._setPipelineActive(True)
         try:
+            if bool(self._parameterNode.targetPreprocessing):
+                output_dir_text = (self._parameterNode.outputDirectory or "").strip()
+                self.logic.runDwiPreprocessingPipeline(
+                    subject_id=(self._parameterNode.subjectId or "").strip(),
+                    input_root=Path((self._parameterNode.inputDirectory or "").strip()).expanduser(),
+                    output_dir=Path(output_dir_text).expanduser() if output_dir_text else None,
+                    backend=(self._parameterNode.preprocessingBackend or "dipy").strip(),
+                    execute=True,
+                    skip=False,
+                )
             if bool(self._parameterNode.targetSurface):
                 self.onApplyButton()
-            if bool(self._parameterNode.targetParcellation):
-                self._onRunDDParcelPipeline()
-            if bool(self._parameterNode.targetSegmentation):
-                self._onRunDDSegPipeline()
-            if bool(self._parameterNode.targetMicrostructure):
-                self._onRunMicrostructurePipeline()
+            orchestrator_targets = self._selected_orchestrator_targets()
+            if any(target != "validation" for target in orchestrator_targets):
+                subject_root = Path((self._parameterNode.inputDirectory or "").strip()).expanduser()
+                subject_id = (self._parameterNode.subjectId or "").strip()
+                self.logic.runSelectedProductOrchestration(
+                    subject_id=subject_id,
+                    subject_root=subject_root,
+                    targets=orchestrator_targets,
+                    run_name="csd_act_ui",
+                    execute=True,
+                    resume=True,
+                    select_streamlines=1000,
+                )
         finally:
             self._setPipelineActive(False)
 

@@ -21,6 +21,7 @@ from .io_layout import (
     materialize_canonical_output_tree,
     subject_layout,
 )
+from .orchestrator import ProductOrchestratorConfig, ProductOrchestratorResult, ProductTaskRecord, run_subject_products
 
 __all__ = [
     "InputValidationConfig",
@@ -29,6 +30,9 @@ __all__ = [
     "NativeDTIBundle",
     "RegisteredDTIBundle",
     "SubjectIOLayout",
+    "ProductOrchestratorConfig",
+    "ProductOrchestratorResult",
+    "ProductTaskRecord",
     "ValidationIssue",
     "default_task_output_dir",
     "default_task_output_dir_for_dependency",
@@ -42,5 +46,6 @@ __all__ = [
     "resolve_launcher_executable",
     "resolve_pythonslicer_executable",
     "subject_layout",
+    "run_subject_products",
     "validate_subject_inputs",
 ]

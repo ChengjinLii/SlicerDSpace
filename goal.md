@@ -1,6 +1,6 @@
 # SlicerDDSurfer Goal
 
-更新日期：2026-05-23
+更新日期：2026-05-31
 
 ## 当前定位
 
@@ -27,7 +27,14 @@ SlicerDDSurfer 的长期目标是从单一 DDSurfer Slicer 模块，扩展为一
 - `Tractography / WMA scaffold`：已将 WMA ORG atlas clustering 包装为 SlicerDDSurfer Tractography 内的可选外部后端，支持显式 `wma_root`、环境变量或 PATH 发现，提供 dry-run wrapper、backend 可用性检查、ORG atlas 结构检查、manifest、QC JSON 和轻量测试。已从 `/dataset/nfs_share01` 复制 `149741_wma_act` 最小测试子集，包含 downsampled VTK tractography、WMA VTP/CSV、DWI 梯度、mask 和 parcellation。
 - `Tractography / DTI scaffold`：已增加 DTI tracking config/result、dry-run manifest、QC JSON、native DTI cache 复用扫描、Slicer logic glue 和轻量测试。
 - `Tractography / ACT`：已增加 ACT config/result、MRtrix3 后端可用性检查、DDParcel/parcellation 依赖检查、5TT/GMWMI 标准 ACT readiness 检查、manifest、QC JSON 和轻量测试；已构造 MRtrix3 ACT 命令链，并支持在后端和标准 ACT 输入齐备时 `execute=True`。`third_party/act_mrtrix_reference` 仅作为本地参考脚本，不作为运行时默认依赖；`third_party/mrtrix3_reference` 已浅拷贝 MRtrix3 官方源码作为 ACT/tckgen/tcksift2/tck2connectome 参考实现，同样不作为运行时默认依赖。
+- `Tractography / SAF`：已将 MATLAB-to-Python SAF 转写版收进 `tractography/saf_backend`，不再运行时依赖 `third_party/SAF-Python`；新增 `tractography.saf` facade，支持依赖检查、dry-run manifest/QC、`SlicerDDSurferLogic.runSAFPipeline(...)` 和 `execute=True` 调用入口，默认输出到 `outputs/04_tractography/saf`，执行后会尝试把 `SAF.tck` 作为 FiberBundle 加载到 Slicer scene。
 - `Connectome / Phase 1`：已增加 `connectome.pipeline`，显式依赖 tractography 输出和 DDParcel/parcellation 节点，输出 matrix/nodes、manifest、QC JSON 和轻量测试；`.tck` 可走 MRtrix3 `tck2connectome`，`.trk`/`.tck` 和 legacy `.vtk` 可走 Python endpoint-label fallback。已用 `149741_wma_act` 的 downsampled VTK + wmparc 做过真实 `execute=True` 验证，得到 100000 条 streamlines、61708 条 assigned、5535 条边。
+- `Real subject minimal closure`：已新增 `Testing/Python/run_real_subject_minimal_closure.py`，并用 `/data/chengjin/SlicerDDSurfer-test/100307` 跑通真实最小闭环：DTI FA/MD/AD/RD/L1/L2/L3、ROI-wise DTI stats、DIPY DTI `.trk`、WMQL execute、connectome matrix。当前回归参数 `--max-seed-voxels 5000 --min-fa 0.15 --wmql-execute` 生成 4944 条合法 streamlines，connectome assigned 4208 条、205 条边；WMQL 后端执行成功，但受限于稀疏 DTI tractogram，AF/CST bundle 命中数为 0。
+- `Tractography / CSD-FOD-ACT`：已新增外部 MRtrix3 backend `tractography/csd.py`，覆盖 response function estimation、MSMT-CSD FOD、mtnormalise、ACT `tckgen`、可选 `tcksift2`、TCK-to-TRK 导出、manifest/QC 和测试。MRtrix3 已作为外部环境安装在 `/data/chengjin/software/mrtrix3_env`，插件不打包 MRtrix3；`CSDActConfig.mrtrix_bin_dir` 可显式指定后端路径。
+- `Real subject CSD/ACT closure`：已新增 `Testing/Python/run_csd_act_real_subject_smoke.py`，并用 `/data/chengjin/SlicerDDSurfer-test/100307` 跑通真实 MRtrix CSD/FOD/ACT/SIFT2 -> TRK export -> WMQL -> connectome 闭环。1000 条 smoke 可快速验证；100k 长测试已用 `--run-name csd_act_100k --select-streamlines 100000` 跑通，输出独立目录，不覆盖 1000 条结果。100k connectome 为 101 个节点、625 条边、95121 条 assigned streamlines；SIFT2 assigned weight 为 76872.7276；`mean_fa`、`mean_md`、`mean_length_mm`、`total_length_mm` 均完成真实 100307 输出。
+- `WMQL / AF-CST bundles`：已修复默认 `query_selection`。原先选择 `AF,CST` 无法命中 `AF.side/CST.side` 展开的 `af.left/af.right/cst.left/cst.right`；现在默认选择 side-aware bundle 名称，并在 QC 中记录每个 bundle 文件和 streamline count。100307 的 100k ACT tractogram 当前命中 4 个 bundles：`af.left=9`、`af.right=2`、`cst.left=12`、`cst.right=6`。
+- `UI / Product targets`：主 UI 已按“Subject root + Output directory + optional preprocessing + target products”继续收口，目标产品增加 `Tractography`、`Bundles`、`Connectome` checkbox；复杂依赖由后端 manifest/QC 报告。`runSelectedButton` 现在会把 DDSeg / DDParcel / Microstructure / Tractography / Bundles / Connectome 交给统一 product orchestrator；Surface 暂时仍走原 Surface 面板执行，直到拆出不依赖 Slicer scene loading 的 headless facade。
+- `DAG / Resume runner`：已新增轻量 `shared.orchestrator`，支持 subject-root、target products、`run_name`、`execute`、`resume`、MRtrix bin、TractQuerier root。当前覆盖 `segmentation.ddseg -> parcellation.ddparcel -> surface.ddsurfer(resume/block only) -> microstructure.dti -> tractography.csd_act -> bundles.wmql -> connectome.streamline_count/sift2`，会读取各步骤 QC 或核心输出，已完成则 skip，依赖缺失则 blocked，并写 `outputs/00_run_metadata/<run_name>_orchestration_manifest.json`。已用 100307 的 `csd_act_100k` 结果验证全产品 resume：DDSeg、DDParcel、DDSurfer surfaces、Microstructure、CSD/ACT、WMQL、streamline connectome、SIFT2 connectome 全部跳过，不重跑 MRtrix 或 Slicer CLI。
 
 ## 下一步建议
 
@@ -62,23 +69,24 @@ SlicerDDSurfer 的长期目标是从单一 DDSurfer Slicer 模块，扩展为一
 
 ### Workflow 图对照：仍未完整实现
 
-- `DAG pipeline runner`：目前各产品 pipeline 有 cache/manifest，但还没有统一 DAG runner 来表达任务依赖、resume 策略、统一日志和失败恢复。
+- `DAG pipeline runner`：已完成第一版轻量 runner，覆盖 DDSeg / DDParcel / DDSurfer surface resume / Microstructure DTI / Tractography / Bundles / Connectome 的依赖顺序、resume skip、blocked 状态和统一 run manifest。DDSeg 与 DDParcel 已有 headless execute 入口；Surface 目前只做 resume/plan/block，尚未拆出完整 headless execute facade；高级失败恢复和并行调度尚未实现。
 - `Tool adapter layer`：已有 Slicer CLI、Python logic、WMA shell wrapper、Docker postprocess 的局部适配，但还没有统一 adapter interface 和任务规范。
-- `DWI Preprocessing`：NIfTI/NRRD 标准化已有局部实现；去噪、Gibbs removal、motion/eddy/susceptibility correction 仍未作为统一预处理阶段实现。
+- `DWI Preprocessing`：已新增可选 `preprocessing/` 阶段，支持 skip / dry-run / execute。默认 `backend=dipy` 提供插件内轻量预处理（denoise、Gibbs removal、between-volume motion correction）；`backend=mrtrix_fsl` 保留完整外部路线（MRtrix3 `dwidenoise`、`mrdegibbs`、`dwifslpreproc` + FSL eddy/topup）。DIPY 后端不声明完整 susceptibility distortion / eddy-current 建模，真实高质量畸变校正仍建议用 MRtrix/FSL。
 - `Registration chain`：已有 DWI 到 atlas 的注册 cache；尚未完整实现 DWI ↔ T1w ↔ MNI 的通用链路和 transform provenance。
-- `T1w branch / ACT`：ACT 命令链和可执行入口已有；5TT/GMWMI 生成和真实 MRtrix3 小数据验证尚未实现，因为当前环境未安装 MRtrix3 命令。
-- `FOD / CSD / SIFT2`：尚未实现 MRtrix3 CSD、全脑 tractography、SIFT2。
-- `WMQL / pyAFQ bundle segmentation`：WMA ORG atlas dry-run scaffold 已有，但 WMQL/pyAFQ 路线尚未实现。
-- `Connectome`：connectome 执行入口已有；legacy `.vtk` 已用 149741 fixture 验证，`.vtp` 仍需要安装 `vtk` Python 模块；边权重仍只覆盖 streamline count。
+- `T1w branch / ACT`：ACT 命令链和可执行入口已有；新增简化 ACT prep，可从 WM/GM/CSF label map 生成 5TT/GMWMI 近似输入。完整 FreeSurfer/MRtrix `5ttgen` 级组织模型和真实 MRtrix3 小数据验证仍未完成。
+- `FOD / CSD / SIFT2`：DIPY DTI tractography 已支持 `execute=True`，可生成第一版 `.trk/.tck`；MRtrix3 CSD/FOD/ACT/SIFT2 外部 backend 已完成真实 `execute=True` 验证，并自动导出 WMQL 可读的 `.trk`。100k streamlines 长测试已跑通，后续可继续评估更大规模 tractogram 的稳定性和 runtime。
+- `WMQL / pyAFQ bundle segmentation`：WMQL 已作为正式 bundle backend 接入，包含默认 AF/CST 查询、backend 检查、dry-run manifest/QC、execute 入口和 Slicer logic glue；已在 100307 上执行 Tract Querier，但当前稀疏 DTI tractogram 未命中 AF/CST。pyAFQ 路线尚未实现。
+- `Connectome`：connectome 执行入口已有；支持 streamline count、SIFT2 weighted streamline count、`mean_length_mm`、`total_length_mm`，以及基于 scalar map 的 `mean_fa` / `mean_md` / `mean_odi` / `mean_scalar` Python endpoint connectome；已在 100307 DTI 最小闭环和 MRtrix CSD/ACT 闭环中生成真实 matrix。节点表现在会自动使用 `parcellation/conversion/data/FreeSurferColorLUT.txt` 或显式 `lut_path` 输出真实 ROI 名称，并在 QC 记录 named/unnamed node count。`tck2connectome` dense CSV 现在会回填 node_count、edge_count 和 assigned streamlines，但插件默认更倾向 Python endpoint-label 输出，以避免 sparse label 造成超大 dense matrix。
 - `Export package`：已有各分支输出和部分 manifest；尚未统一导出 MRB、provenance.json、QC report bundle、group-analysis CSV/TSV。
 
 ### P0: 代码库收口与可维护性
 
 - `AGENTS.md` 中的旧路径引用已更新为当前产品目录。
 - `workflow_catalog.py` 顶部说明已更新为产品目录承载真实实现。
-- `.gitignore` 已覆盖 Python cache、Slicer 测试临时目录、coverage 和常见临时文件；本轮已清理运行产生的 `__pycache__/`。
-- 已检查 Git LFS 规则：`.gitattributes` 对 `*.pt` 和 `*.pkl` 仍启用 LFS；新路径下权重文件存在。当前最高优先级是执行提交前索引检查：`git add -A` 后复查 `git lfs ls-files` 是否显示新路径。
-- 已补仓库级 smoke test，验证产品代码不再引用旧根目录包名。
+- `.gitignore` 已覆盖 Python cache、Slicer 测试临时目录、coverage、常见临时文件和 `third_party/`；本轮已清理运行产生的 `__pycache__/` / `.pyc`。
+- 已检查 Git LFS 规则：`.gitattributes` 对 `*.pt`、`*.pkl`、`*.nii.gz`、`*.mgz`、`*.tck`、`*.trk`、`*.vtk`、`*.vtp`、`*.obj`、`*.stl` 启用 LFS。新规则会保护后续新增影像、tractogram、surface mesh 和模型文件；当前历史里已有的 atlas/template `.nii.gz/.obj` 不是 LFS pointer，若要彻底迁移需要单独做 Git LFS history migration，不应混在普通功能提交里。
+- 已补仓库级 smoke test，验证产品代码不再引用旧根目录包名、`third_party` 被 ignore、大文件扩展名具备 LFS filter、未跟踪文件中没有大运行产物。
+- 当前未跟踪文件审计结果：都是源码、测试脚本和小型查询文件，未发现超过 5MB 的新增运行产物。
 
 ### P0: Slicer 集成验证
 
@@ -96,6 +104,8 @@ SlicerDDSurfer 的长期目标是从单一 DDSurfer Slicer 模块，扩展为一
 
 ### P1: Microstructure 收口
 
+- `microstructure.dti` 已纳入 `shared.orchestrator`，统一入口可从 `subject_root/input` 复用 `cache/native_dti`，输出 FA/MD/AD/RD/L1/L2/L3/Trace 和 ROI-wise stats；100307 `csd_act_100k` resume 已验证会正确跳过已有 DTI 输出。
+- Free Water / NODDI 暂时仍保留在 Microstructure 专用面板和 pipeline 配置里，不作为 orchestrator 默认步骤，避免用户选择 Microstructure 时默认触发高耗时或额外依赖阶段。
 - 跑完较慢的三段阶段复用回归：
 
 ```bash
@@ -116,6 +126,11 @@ python3 Testing/Python/run_microstructure_regression.py \
 
 ### P1: Tractography Phase 1
 
+- SAF Python backend 已作为插件内部 backend 接入：`tractography/saf_backend` 保存算法实现，`tractography/saf.py` 保存 SlicerDDSurfer wrapper、manifest/QC 和执行入口。
+- SAF 当前已完成 dry-run 单元测试、import/compile 验证，以及基于 `/data/chengjin/SlicerDDSurfer-test/100307-FastSurfer` 的 Python 版和 Slicer 插件 logic 版 `execute=True` smoke。测试使用 `noregister + pregenerated_tractogram + maxlen=None`，生成 `SAF.tck`、`saf_manifest.json`、`saf_qc.json` 和 `surf_data/`。
+- SAF 输出树已固定为 `outputs/04_tractography/saf/`，核心文件为 `SAF.tck`、`saf_manifest.json`、`saf_qc.json`、`log.txt` 和 `surf_data/`。
+- SAF FastSurfer 回归命令已补：`python3 Testing/Python/run_saf_fastsurfer_smoke.py --subject-root /data/chengjin/SlicerDDSurfer-test/100307 --subject-id 100307 --fs-dir /data/chengjin/SlicerDDSurfer-test/100307-FastSurfer --execute`；Slicer 版可用 `xvfb-run` 加 `--use-slicer-logic`。
+- SAF / MRtrix3 适配层已补：MRtrix3 不打包进插件，可通过 `mrtrix_bin_dir`、`SLICERDDSURFER_MRTRIX_BIN` / `MRTRIX_BIN` 或 `PATH` 发现；也支持 `mrtrix_prefix` 的 container/shell wrapper 模式。manifest 会记录 discovery、resolved commands、effective prefix 和 `initial_tractogram_source`。使用已有 `.tck` 时不强制 `tckgen`，关闭 `maxlen` 时不强制 `tckstats`。
 - WMA ORG atlas clustering scaffold 已完成：`tractography/wma.py` 可构造 WMA 命令、写 manifest、dry-run，`tractography/pipeline.py` 和 `SlicerDDSurferLogic.runWMAOrgAtlasPipeline(...)` 已作为 pipeline glue 接入。
 - WMA Phase 2 小收口已完成：`inspect_wma_backend(...)` 检查 WMA shell 和依赖脚本，`inspect_wma_org_atlas(...)` 检查 `ORG-RegAtlas-100HCP` / `ORG-800FC-100HCP`，`run_wma_org_atlas(...)` 同时写 `wma_org_atlas_manifest.json` 和 `wma_org_atlas_qc.json`。
 - fake backend 的 `execute=True` 已由 `test_tractography_wma.py` 覆盖；真实 WMA 数据测试尚未完成，因为当前机器未发现 ORG atlas 目录，也未在 100307 测试个体中发现 `.vtk/.vtp` tractography。
@@ -131,7 +146,7 @@ python3 Testing/Python/run_microstructure_regression.py \
 - 节点来源已明确：默认复用 DDParcel/parcellation label map。
 - 边来源已明确：默认使用 Tractography 输出的 streamlines。
 - `connectome/pipeline.py` 已建立，输出 matrix CSV、nodes TSV、manifest 和 QC JSON。
-- 已支持 `.tck` 的 MRtrix3 `tck2connectome` 后端，以及 `.trk`/`.tck`/legacy `.vtk` 的 Python endpoint-label fallback；后续再扩展 length、FA/MD weighted connectome。
+- 已支持 `.tck` 的 MRtrix3 `tck2connectome` 后端，以及 `.trk`/`.tck`/legacy `.vtk` 的 Python endpoint-label fallback；已支持 length、FA/MD 和 SIFT2 weighted connectome。
 - 增加 connectome 与 tractography 的 cache/manifest 一致性检查。
 
 ### P2: 去 T1w 依赖路线
@@ -151,19 +166,21 @@ python3 Testing/Python/run_microstructure_regression.py \
 
 ## 当前推荐执行顺序
 
-1. 提交前收口和 LFS 新路径复查。
-2. Slicer launcher / GUI smoke 修复和验证。
-3. 完整 Slicer GUI smoke：需要有 DISPLAY 或安装 `xvfb-run/Xvfb` 后再跑；当前无显示环境会阻断 Qt `xcb` 初始化。
-4. ACT Phase 1.5：实现 5TT/GMWMI 生成策略，优先基于 DDSeg/DDParcel/T1w 可选输入的明确分支。
-5. Tractography DTI tracking 真实 streamlines 后端：DIPY deterministic / probabilistic 最小实现。
-6. WMA 真实运行准备：已有 149741 downsampled VTK 测试输入；全盘扫描未发现 ORG atlas，仍需 ORG atlas 和 SlicerDMRI CLI 路径。
-7. Connectome Phase 1.5：增加 dense matrix 导出、节点 LUT、length/FA/MD weighted connectome。
-8. Microstructure 长回归和 WMA 真实 clustering 放到后台或夜间测试。
+1. 做一次 `git add -A` 前的最终 diff 分组审计，确认哪些改动属于同一提交，哪些应拆分。
+2. 继续评估 MRtrix CSD/ACT 更大规模长测试：例如 500k/1M streamlines、保留 SIFT2 weights、记录运行时间和磁盘占用。
+3. 改进 WMQL bundle 质量：当前 100k 已能命中 AF/CST，但数量较少，应继续评估查询定义、ACT tissue model 和 parcellation 端点策略。
+4. 扩展 product orchestrator：继续拆 Surface headless facade，并定义 Free Water / NODDI 是否进入默认 DAG 的 gating；DDSeg、DDParcel、Microstructure DTI、CSD/ACT、WMQL、Connectome 已纳入。
+5. Slicer launcher / GUI smoke 修复和验证。
+6. 完整 Slicer GUI smoke：需要有 DISPLAY 或安装 `xvfb-run/Xvfb` 后再跑；当前无显示环境会阻断 Qt `xcb` 初始化。
+7. WMA 真实运行准备：已有 149741 downsampled VTK 测试输入；全盘扫描未发现 ORG atlas，仍需 ORG atlas 和 SlicerDMRI CLI 路径。
+8. Connectome Phase 1.5：继续补 MRtrix dense matrix 到 ROI-label matrix 的可选压缩；节点 LUT 名称映射、length、FA/MD、SIFT2 weighted connectome 已完成。
+9. Microstructure 长回归和 WMA 真实 clustering 放到后台或夜间测试。
 
 ## 当前风险
 
 - 工作树当前不是干净状态，目录迁移表现为大量旧文件删除和新产品目录新增；在继续大改前应避免回退已有改动。
+- `.gitattributes` 已新增更多 LFS 规则，但不会自动改写历史中已经作为普通 Git blob 存在的 atlas/template 大文件；如需完全去除历史大文件，需要单独规划 `git lfs migrate`，会改写历史，不建议在当前功能提交里直接做。
 - Slicer launcher 动态库问题已由 `/data/chengjin/software/run-slicer.sh` 补充库路径缓解；当前 GUI smoke 的新阻断是无 `DISPLAY` 且无 `xvfb-run/Xvfb`，完整 Slicer 报 Qt `xcb` 初始化失败。`PythonSlicer` 不能替代 GUI import，因为其中 `qt` 模块缺少 `QColor`、`QFrame` 等 GUI 类。
 - NODDI 全量重算耗时长，长回归应作为可选验证，适合后台或夜间运行。
 - 输入验证第一版只读取 BIDS sidecar，不做 DICOM/BIDS 自动索引，也不验证相位编码和图像轴向的一致性。
-- Tractography 已有 WMA、DTI、ACT pipeline、manifest 和轻量测试，但尚无真实 WMA clustering、DTI/CSD/ACT streamlines 生成或 GUI 控件；Connectome 已有真实 streamline-count endpoint-label matrix，但还没有 dense matrix、节点 LUT 或 weighted connectome。
+- Tractography 已有 WMA、DTI、ACT/CSD pipeline、manifest 和轻量测试；DTI 与 MRtrix CSD/ACT 已完成真实 streamlines smoke。真实 WMA clustering、TractCloud 模型执行和 GUI 控件仍未完成；Connectome 已有真实 streamline-count、SIFT2 weighted、length、FA/MD endpoint-label matrix 和 MRtrix dense matrix QC。

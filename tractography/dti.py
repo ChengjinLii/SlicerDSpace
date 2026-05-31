@@ -1,10 +1,4 @@
-"""DTI tractography scaffold.
-
-The current implementation prepares stable inputs, output names, manifests, and
-QC placeholders without launching long tractography jobs. Actual streamline
-generation will be enabled in a later phase after the backend and thresholds are
-validated on test data.
-"""
+"""DTI tractography using a lightweight DIPY backend."""
 
 from __future__ import annotations
 
@@ -31,6 +25,8 @@ class DTITrackingConfig:
     step_size_mm: float = 0.5
     max_angle_deg: float = 30.0
     seed_density: int = 1
+    max_seed_voxels: Optional[int] = None
+    random_seed: int = 12345
     min_fa: float = 0.2
     force_recompute: bool = False
     execute: bool = False
@@ -122,17 +118,140 @@ def _validate_config(config: DTITrackingConfig) -> None:
         raise ValueError("max_angle_deg must be > 0.")
     if config.seed_density < 1:
         raise ValueError("seed_density must be >= 1.")
+    if config.max_seed_voxels is not None and config.max_seed_voxels < 1:
+        raise ValueError("max_seed_voxels must be >= 1 when provided.")
     if config.min_fa < 0:
         raise ValueError("min_fa must be >= 0.")
 
 
-def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str], None]] = None) -> DTITrackingResult:
-    """Prepare DTI tractography outputs and manifests.
+def _streamline_lengths(streamlines: list[object]) -> list[float]:
+    import numpy as np
 
-    ``execute=False`` records a reproducible plan and can run in normal Python.
-    ``execute=True`` is reserved for the future DIPY backend and currently raises
-    ``NotImplementedError`` after validating inputs.
-    """
+    lengths: list[float] = []
+    for streamline in streamlines:
+        points = np.asarray(streamline, dtype=float)
+        if points.shape[0] < 2:
+            lengths.append(0.0)
+            continue
+        lengths.append(float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum()))
+    return lengths
+
+
+def _run_dipy_dti_tracking(
+    config: DTITrackingConfig,
+    *,
+    streamlines_path: Path,
+    log: Optional[Callable[[str], None]] = None,
+) -> dict[str, object]:
+    try:
+        import nibabel as nib
+        import numpy as np
+        from dipy.core.gradients import gradient_table
+        from dipy.data import default_sphere
+        from dipy.direction import peaks_from_model
+        from dipy.io.stateful_tractogram import Space, StatefulTractogram
+        from dipy.io.streamline import save_tck, save_trk
+        from dipy.reconst.dti import TensorModel, fractional_anisotropy
+        from dipy.tracking import utils
+        from dipy.tracking.local_tracking import LocalTracking
+        from dipy.tracking.stopping_criterion import ThresholdStoppingCriterion
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise RuntimeError("DTI tractography execution requires DIPY, nibabel, and numpy.") from exc
+
+    raw = find_subject_root(config.input_root.expanduser().resolve(), config.subject_id)
+    _emit("[Tractography] Loading DWI, gradients, and mask for DIPY DTI tracking", log)
+    dwi_img = nib.load(raw.dwi_path.as_posix())
+    data = dwi_img.get_fdata(dtype=np.float32)
+    mask = nib.load(raw.mask_path.as_posix()).get_fdata() > 0
+    bvals = np.loadtxt(raw.bval_path.as_posix(), ndmin=1)
+    bvecs = np.loadtxt(raw.bvec_path.as_posix())
+    if bvecs.ndim == 2 and bvecs.shape[0] == 3:
+        bvecs = bvecs.T
+    if data.ndim != 4:
+        raise ValueError(f"DTI tracking expects 4D DWI data, got shape {data.shape}")
+    if data.shape[:3] != mask.shape:
+        raise ValueError(f"Mask shape {mask.shape} does not match DWI shape {data.shape[:3]}")
+    if data.shape[3] != len(bvals):
+        raise ValueError(f"DWI volume count {data.shape[3]} does not match bvals count {len(bvals)}")
+
+    gtab = gradient_table(bvals, bvecs=bvecs)
+    _emit("[Tractography] Fitting DIPY TensorModel", log)
+    tenmodel = TensorModel(gtab, fit_method=config.fit_method.upper())
+    tenfit = tenmodel.fit(data, mask=mask)
+    fa = np.nan_to_num(fractional_anisotropy(tenfit.evals), nan=0.0, posinf=0.0, neginf=0.0)
+    tracking_mask = np.logical_and(mask, fa >= float(config.min_fa))
+    if config.max_seed_voxels is not None:
+        voxel_indices = np.argwhere(tracking_mask)
+        if voxel_indices.shape[0] > int(config.max_seed_voxels):
+            rng = np.random.default_rng(int(config.random_seed))
+            selected = rng.choice(voxel_indices.shape[0], size=int(config.max_seed_voxels), replace=False)
+            limited_mask = np.zeros_like(tracking_mask, dtype=bool)
+            limited_indices = voxel_indices[selected]
+            limited_mask[limited_indices[:, 0], limited_indices[:, 1], limited_indices[:, 2]] = True
+            tracking_mask = limited_mask
+    seed_count = int(tracking_mask.sum())
+    if seed_count == 0:
+        raise RuntimeError("No voxels passed the DTI tracking FA/mask threshold.")
+
+    _emit("[Tractography] Building tensor peaks and seeds", log)
+    peaks = peaks_from_model(
+        tenmodel,
+        data,
+        default_sphere,
+        relative_peak_threshold=0.5,
+        min_separation_angle=float(config.max_angle_deg),
+        mask=tracking_mask,
+        npeaks=1,
+        normalize_peaks=True,
+        legacy=False,
+        parallel=False,
+    )
+    seeds = utils.seeds_from_mask(
+        tracking_mask,
+        dwi_img.affine,
+        density=(int(config.seed_density), int(config.seed_density), int(config.seed_density)),
+    )
+    stopping_criterion = ThresholdStoppingCriterion(fa, float(config.min_fa))
+    local_tracking = LocalTracking(
+        peaks,
+        stopping_criterion,
+        seeds,
+        dwi_img.affine,
+        step_size=float(config.step_size_mm),
+        maxlen=500,
+        minlen=2,
+        return_all=True,
+    )
+    streamlines = [streamline for streamline in local_tracking if len(streamline) >= 2]
+    if not streamlines:
+        raise RuntimeError("DIPY tracking produced no streamlines with at least two points.")
+    streamlines_path.parent.mkdir(parents=True, exist_ok=True)
+    sft = StatefulTractogram(streamlines, dwi_img, Space.RASMM)
+    if streamlines_path.suffix.lower() == ".trk":
+        save_trk(sft, streamlines_path.as_posix(), bbox_valid_check=False)
+    elif streamlines_path.suffix.lower() == ".tck":
+        save_tck(sft, streamlines_path.as_posix(), bbox_valid_check=False)
+    else:
+        raise ValueError(f"Unsupported streamline output format: {streamlines_path.suffix}")
+
+    lengths = _streamline_lengths(streamlines)
+    length_summary = {
+        "mean_mm": float(np.mean(lengths)) if lengths else 0.0,
+        "min_mm": float(np.min(lengths)) if lengths else 0.0,
+        "max_mm": float(np.max(lengths)) if lengths else 0.0,
+    }
+    return {
+        "streamline_count": len(streamlines),
+        "seed_voxel_count": seed_count,
+        "seed_count": int(len(seeds)),
+        "fa_threshold": float(config.min_fa),
+        "tracking_mask_voxels": int(tracking_mask.sum()),
+        "length": length_summary,
+    }
+
+
+def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str], None]] = None) -> DTITrackingResult:
+    """Prepare or execute DTI tractography outputs and manifests."""
 
     _validate_config(config)
     raw = find_subject_root(config.input_root.expanduser().resolve(), config.subject_id)
@@ -152,18 +271,13 @@ def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str],
     manifest_path = output_dir / f"{stem}_manifest.json"
     qc_path = output_dir / f"{stem}_qc.json"
 
-    if config.execute:
-        raise NotImplementedError(
-            "DTI tractography execution is not enabled yet. Use execute=False to prepare a manifest scaffold."
-        )
-
     manifest = {
         "kind": "dti_tracking",
         "version": 1,
         "subject_id": raw.subject_id,
         "backend": "dipy",
-        "executed": False,
-        "status": "planned",
+        "executed": bool(config.execute),
+        "status": "running" if config.execute else "planned",
         "parameters": {
             "fit_method": fit_method,
             "tracking_method": tracking_method,
@@ -171,6 +285,8 @@ def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str],
             "step_size_mm": config.step_size_mm,
             "max_angle_deg": config.max_angle_deg,
             "seed_density": config.seed_density,
+            "max_seed_voxels": config.max_seed_voxels,
+            "random_seed": config.random_seed,
             "min_fa": config.min_fa,
             "force_recompute": bool(config.force_recompute),
         },
@@ -195,8 +311,8 @@ def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str],
     }
     qc = {
         "subject_id": raw.subject_id,
-        "status": "planned",
-        "executed": False,
+        "status": "running" if config.execute else "planned",
+        "executed": bool(config.execute),
         "native_cache_available": native_available,
         "streamline_count": None,
         "length_mean_mm": None,
@@ -204,9 +320,27 @@ def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str],
         "length_max_mm": None,
         "mask_coverage": None,
     }
+    if config.execute:
+        execution_summary = _run_dipy_dti_tracking(config, streamlines_path=streamlines_path, log=log)
+        length = execution_summary["length"]  # type: ignore[index]
+        manifest["status"] = "completed"
+        qc.update(
+            {
+                "status": "completed",
+                "streamline_count": execution_summary["streamline_count"],
+                "seed_voxel_count": execution_summary["seed_voxel_count"],
+                "seed_count": execution_summary["seed_count"],
+                "tracking_mask_voxels": execution_summary["tracking_mask_voxels"],
+                "length_mean_mm": length["mean_mm"],  # type: ignore[index]
+                "length_min_mm": length["min_mm"],  # type: ignore[index]
+                "length_max_mm": length["max_mm"],  # type: ignore[index]
+                "streamlines_exists": streamlines_path.is_file(),
+            }
+        )
+        manifest["execution_summary"] = execution_summary
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    _emit(f"[Tractography] Prepared DTI tracking scaffold: {manifest_path}", log)
+    _emit(f"[Tractography] {'Completed' if config.execute else 'Prepared'} DTI tracking: {manifest_path}", log)
 
     return DTITrackingResult(
         subject_id=raw.subject_id,
@@ -216,5 +350,5 @@ def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str],
         qc_path=qc_path,
         native_bundle_dir=native_bundle.bundle_dir,
         native_cache_available=native_available,
-        executed=False,
+        executed=bool(config.execute),
     )

@@ -73,9 +73,6 @@ class MicrostructureWidgetMixin:
             missing.append("Subject ID")
         if not input_root:
             missing.append("Microstructure subject directory")
-        if not run_free_water and not run_noddi:
-            missing.append("At least one stage enabled (Run Free Water and/or Run NODDI)")
-
         input_root_path = Path(input_root).expanduser() if input_root else None
         output_dir_path = Path(output_dir).expanduser() if output_dir else None
         roi_path_obj = Path(roi_path).expanduser() if roi_path else None

@@ -67,12 +67,6 @@ class MicrostructureLogicMixin:
         self.log(f"[Microstructure] L2: {result.l2_path}")
         self.log(f"[Microstructure] L3: {result.l3_path}")
         self.log(f"[Microstructure] Trace: {result.trace_path}")
-        self.log(f"[Microstructure] Free Water Fraction: {result.fwf_path}")
-        self.log(f"[Microstructure] Free Water Tissue FA: {result.fw_tissue_fa_path}")
-        self.log(f"[Microstructure] Free Water Tissue MD: {result.fw_tissue_md_path}")
-        self.log(f"[Microstructure] NODDI NDI: {result.noddi_ndi_path}")
-        self.log(f"[Microstructure] NODDI ODI: {result.noddi_odi_path}")
-        self.log(f"[Microstructure] NODDI FWF: {result.noddi_fwf_path}")
         self._load_scalar_volume_node(result.fa_path, f"{subject_id}_FA")
         self._load_scalar_volume_node(result.md_path, f"{subject_id}_MD")
         self._load_scalar_volume_node(result.ad_path, f"{subject_id}_AD")
@@ -81,12 +75,24 @@ class MicrostructureLogicMixin:
         self._load_scalar_volume_node(result.l2_path, f"{subject_id}_L2")
         self._load_scalar_volume_node(result.l3_path, f"{subject_id}_L3")
         self._load_scalar_volume_node(result.trace_path, f"{subject_id}_Trace")
-        self._load_scalar_volume_node(result.fwf_path, f"{subject_id}_FWF")
-        self._load_scalar_volume_node(result.fw_tissue_fa_path, f"{subject_id}_FW_TissueFA")
-        self._load_scalar_volume_node(result.fw_tissue_md_path, f"{subject_id}_FW_TissueMD")
-        self._load_scalar_volume_node(result.noddi_ndi_path, f"{subject_id}_NODDI_NDI")
-        self._load_scalar_volume_node(result.noddi_odi_path, f"{subject_id}_NODDI_ODI")
-        self._load_scalar_volume_node(result.noddi_fwf_path, f"{subject_id}_NODDI_FWF")
+        if result.fwf_path.is_file():
+            self.log(f"[Microstructure] Free Water Fraction: {result.fwf_path}")
+            self._load_scalar_volume_node(result.fwf_path, f"{subject_id}_FWF")
+        if result.fw_tissue_fa_path.is_file():
+            self.log(f"[Microstructure] Free Water Tissue FA: {result.fw_tissue_fa_path}")
+            self._load_scalar_volume_node(result.fw_tissue_fa_path, f"{subject_id}_FW_TissueFA")
+        if result.fw_tissue_md_path.is_file():
+            self.log(f"[Microstructure] Free Water Tissue MD: {result.fw_tissue_md_path}")
+            self._load_scalar_volume_node(result.fw_tissue_md_path, f"{subject_id}_FW_TissueMD")
+        if result.noddi_ndi_path.is_file():
+            self.log(f"[Microstructure] NODDI NDI: {result.noddi_ndi_path}")
+            self._load_scalar_volume_node(result.noddi_ndi_path, f"{subject_id}_NODDI_NDI")
+        if result.noddi_odi_path.is_file():
+            self.log(f"[Microstructure] NODDI ODI: {result.noddi_odi_path}")
+            self._load_scalar_volume_node(result.noddi_odi_path, f"{subject_id}_NODDI_ODI")
+        if result.noddi_fwf_path.is_file():
+            self.log(f"[Microstructure] NODDI FWF: {result.noddi_fwf_path}")
+            self._load_scalar_volume_node(result.noddi_fwf_path, f"{subject_id}_NODDI_FWF")
         if result.roi_stats_csv_path is not None:
             self.log(f"[Microstructure] ROI-wise stats CSV: {result.roi_stats_csv_path}")
             self._load_table_node(result.roi_stats_csv_path, f"{subject_id}_ROIWise_Microstructure")

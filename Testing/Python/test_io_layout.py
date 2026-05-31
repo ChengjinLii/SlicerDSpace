@@ -30,6 +30,7 @@ class IOLayoutTest(unittest.TestCase):
                 default_task_output_dir(subject_root, "tractography_dti"),
                 layout.outputs / "04_tractography" / "tractograms" / "dti_det",
             )
+            self.assertEqual(default_task_output_dir(subject_root, "saf"), layout.outputs / "04_tractography" / "saf")
             self.assertEqual(default_task_output_dir(subject_root, "connectome"), layout.outputs / "04_tractography" / "connectome")
             self.assertEqual(
                 default_task_output_dir(subject_root, "regional_microstructure"),
@@ -50,6 +51,10 @@ class IOLayoutTest(unittest.TestCase):
             self.assertEqual(
                 default_task_output_dir_for_dependency(tractogram, "tractcloud"),
                 subject_root.resolve() / "outputs" / "04_tractography" / "bundles" / "tract_cloud_dl",
+            )
+            self.assertEqual(
+                default_task_output_dir_for_dependency(tractogram, "wmql"),
+                subject_root.resolve() / "outputs" / "04_tractography" / "bundles" / "wmql",
             )
 
     def test_legacy_outputs_can_be_materialized_under_canonical_tree(self) -> None:

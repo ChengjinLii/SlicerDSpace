@@ -60,7 +60,7 @@ WORKFLOW_AREAS: tuple[WorkflowArea, ...] = (
     WorkflowArea(
         key="tractography",
         title="Tractography",
-        summary="Diffusion tractography area with DTI tracking and WMA ORG atlas clustering scaffolds; CSD/ACT planned.",
+        summary="Diffusion tractography area with DTI tracking, SAF extraction, WMQL/WMA/TractCloud bundle parcellation, and ACT scaffolds.",
         package="tractography",
         status="partial",
     ),

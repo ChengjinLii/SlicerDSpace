@@ -18,6 +18,7 @@ from microstructure.module_logic import MicrostructureLogicMixin
 from microstructure.module_widget import MicrostructureWidgetMixin
 from parcellation.module_logic import ParcellationLogicMixin
 from parcellation.module_widget import ParcellationWidgetMixin
+from preprocessing.module_logic import PreprocessingLogicMixin
 from segmentation.module_logic import SegmentationLogicMixin
 from segmentation.module_widget import SegmentationWidgetMixin
 from shared.module_logic import SharedLogicMixin
@@ -88,10 +89,15 @@ class SlicerDDSurferParameterNode:
     microstructureRunFreeWater: bool = True
     microstructureRunNoddi: bool = True
     microstructureForceRecompute: bool = False
+    targetPreprocessing: bool = False
+    preprocessingBackend: str = "dipy"
     targetSurface: bool = True
     targetParcellation: bool = False
     targetSegmentation: bool = False
     targetMicrostructure: bool = False
+    targetTractography: bool = False
+    targetBundles: bool = False
+    targetConnectome: bool = False
 
 
 class SlicerDDSurferWidget(
@@ -135,6 +141,7 @@ class SlicerDDSurferWidget(
 
 class SlicerDDSurferLogic(
     SharedLogicMixin,
+    PreprocessingLogicMixin,
     SurfaceLogicMixin,
     ParcellationLogicMixin,
     MicrostructureLogicMixin,

@@ -176,9 +176,9 @@
                   </ul>
                 </li>
 
-                <li><span class="folder">01_preproc/</span> <span class="comment"># DWI 预处理主产物目录</span>
+                <li><span class="folder">01_preproc/</span> <span class="comment"># 可选 DWI 预处理主产物目录；支持 DIPY 轻量后端或 MRtrix/FSL 完整后端，用户也可跳过</span>
                   <ul>
-                    <li><span class="file">subj_dwi_final.nii.gz</span> <span class="comment"># 预处理后统一 DWI 主输入</span></li>
+                    <li><span class="file">subj_dwi_final.nii.gz</span> <span class="comment"># 预处理后统一 DWI 主输入；跳过预处理时不存在</span></li>
                     <li><span class="file">subj_dwi_final.bval</span> <span class="comment"># 与 final DWI 对应的 bval</span></li>
                     <li><span class="file">subj_dwi_final.bvec</span> <span class="comment"># 与 final DWI 对应的 bvec</span></li>
                     <li><span class="file">subj_dwi_final.nhdr</span> <span class="comment"># SlicerDMRI 友好的 DWI 头文件</span></li>
@@ -288,6 +288,15 @@
                         <li><span class="folder">csd_act/</span> <span class="comment"># CSD + ACT tractogram 子目录</span></li>
                         <li><span class="file">subj_tractograms_manifest.tsv</span> <span class="comment"># tractogram 方法、种子、权重索引</span></li>
                         <li><span class="file">subj_tractography_qc.json</span> <span class="comment"># tractography 质量控制</span></li>
+                      </ul>
+                    </li>
+                    <li><span class="folder">saf/</span> <span class="comment"># SAF short association fibres 提取结果；Python SAF 后端输出</span>
+                      <ul>
+                        <li><span class="file">SAF.tck</span> <span class="comment"># 短程联合纤维 tractogram 主输出</span></li>
+                        <li><span class="file">saf_manifest.json</span> <span class="comment"># SAF 参数、输入、依赖和输出追溯</span></li>
+                        <li><span class="file">saf_qc.json</span> <span class="comment"># SAF 后端可用性和输出完整性 QC</span></li>
+                        <li><span class="file">log.txt</span> <span class="comment"># SAF backend 运行日志</span></li>
+                        <li><span class="folder">surf_data/</span> <span class="comment"># SAF 投影到表面的曲率/统计文件</span></li>
                       </ul>
                     </li>
                     <li><span class="folder">bundles/</span> <span class="comment"># 束分割输出目录</span>

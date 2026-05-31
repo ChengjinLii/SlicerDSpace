@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import unittest
+import subprocess
 from pathlib import Path
 
 
@@ -39,6 +40,46 @@ class RepositoryStructureTest(unittest.TestCase):
                 for legacy_name in LEGACY_PACKAGE_NAMES:
                     if legacy_name in text:
                         offenders.append(f"{file_path.relative_to(REPO_ROOT)}: {legacy_name}")
+        self.assertEqual(offenders, [])
+
+    def test_third_party_reference_tree_is_gitignored(self) -> None:
+        result = subprocess.run(
+            ["git", "check-ignore", "-q", "third_party/whitematteranalysis"],
+            cwd=REPO_ROOT,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0)
+
+    def test_large_neuroimaging_and_model_extensions_use_lfs(self) -> None:
+        expected_lfs_paths = (
+            "segmentation/weights/dti_axial.pt",
+            "parcellation/weights/Fused-Unet-v3-noMax-axial.pkl",
+            "Resources/Data/100HCP-population-mean-T2.nii.gz",
+            "Resources/Data/template/hcp_hemi-left_init_160k.obj",
+        )
+        result = subprocess.run(
+            ["git", "check-attr", "filter", "--", *expected_lfs_paths],
+            cwd=REPO_ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+        offenders = [line for line in result.stdout.splitlines() if not line.endswith("filter: lfs")]
+        self.assertEqual(offenders, [])
+
+    def test_untracked_files_are_not_large_runtime_artifacts(self) -> None:
+        result = subprocess.run(
+            ["git", "ls-files", "-o", "--exclude-standard"],
+            cwd=REPO_ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+        offenders: list[str] = []
+        for relative in result.stdout.splitlines():
+            path = REPO_ROOT / relative
+            if path.is_file() and path.stat().st_size > 5 * 1024 * 1024:
+                offenders.append(f"{relative}: {path.stat().st_size} bytes")
         self.assertEqual(offenders, [])
 
 

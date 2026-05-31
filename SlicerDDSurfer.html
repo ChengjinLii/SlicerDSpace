@@ -690,11 +690,11 @@
     <section class="section">
       <div class="section-head">
         <h2>3. 输入 / 输出文件树设计</h2>
-        <p>这一版按“先生成公共底座，再由各 pipeline 复用”的原则重写：DWI 预处理、mask、DTI 标量图、CSD/FOD、结构分割、surface 和 parcellation 都只计算一次；DDSurfer、DDParcel、ACT、tractography 内的 connectome 和区域统计统一从 shared 层读取。</p>
+        <p>这一版按“可选公共底座 + 下游复用”的原则重写：DWI 预处理可以由用户选择跳过或先运行；mask、DTI 标量图、CSD/FOD、结构分割、surface 和 parcellation 等稳定产物尽量只计算一次；DDSurfer、DDParcel、ACT、tractography 内的 connectome 和区域统计统一从 shared 层读取。</p>
       </div>
 
       <div class="design-principles">
-        <div class="principle"><b>公共底座优先</b><p>把 DWI 标准化、denoise、degibbs、eddy/topup、bias correction、mask 与 QC 放入 <code>01_preproc/</code>，后续所有方法共享。</p></div>
+        <div class="principle"><b>可选公共底座</b><p>用户可以跳过 DWI 预处理，直接运行下游；也可以先运行 DIPY 轻量预处理，或使用 MRtrix/FSL 完整 eddy/topup 路线，把标准化 DWI、mask 与 QC 放入 <code>01_preproc/</code>，后续方法再复用。</p></div>
         <div class="principle"><b>模型图谱集中</b><p>DTI 的 FA、MD、AD、RD、L1/L2/L3、Trace 与后续 free-water、NODDI 等稳定产物统一放入 <code>02_microstructure/</code>；可重建的 tensor 原始中间文件留在 <code>cache/</code>。</p></div>
         <div class="principle"><b>结构逐级复用</b><p>DDSeg 产物支持 DDSurfer；DDSurfer surface / annotation 与 DDParcel wmparc 支持 ACT、tractography 内 connectome 和区域统计。</p></div>
         <div class="principle"><b>Native-space 主线</b><p>核心建模与分析默认不依赖跨空间配准；模板空间相关结果作为可选扩展产物单独管理。</p></div>
@@ -739,7 +739,7 @@
           <div class="tree-body">
             <div class="io-flow" style="grid-template-columns: 1fr; margin-top: 0;">
               <div class="io-node"><b>FA / MD / AD / RD / L1-L3</b><span>只在 <code>02_microstructure/dti/</code> 中生成一次；DDSurfer、DDParcel、regional statistics 读取同一份。</span></div>
-              <div class="io-node"><b>mask / b0 / corrected DWI</b><span>只在 <code>01_preproc/</code> 中生成一次；DTI、NODDI、FOD、DDSeg 都复用。</span></div>
+              <div class="io-node"><b>mask / b0 / corrected DWI</b><span>可选在 <code>01_preproc/</code> 中生成一次；跳过预处理时 DTI、NODDI、FOD、DDSeg 直接读取原始 subject input。</span></div>
               <div class="io-node"><b>surface / parcellation</b><span>DDSurfer 输出 white/pial surface；DDParcel 读取 surface 后输出 aparc/wmparc/DKT/Yeo labels。</span></div>
               <div class="io-node"><b>5TT / GMWMI / FOD</b><span>只为 tractography 生成一次；whole-brain tractography、bundle segmentation 和 connectome 共用。</span></div>
             </div>
@@ -768,7 +768,7 @@
                     </ul>
                   </li>
 
-                  <li><span class="shared">01_preproc/</span> <span class="comment"># DWI 公共预处理底座；所有 dMRI 模型和结构分支共享</span>
+                  <li><span class="shared">01_preproc/</span> <span class="comment"># 可选 DWI 公共预处理底座；跳过时下游直接读取 input/</span>
                     <ul>
                       <li><span class="folder">00_import/</span> <span class="comment"># 原始输入的标准化副本与 Slicer 可读转换结果</span>
                         <ul>
@@ -1014,7 +1014,16 @@
                           <li><span class="file">subj_tractography_qc.json</span> <span class="comment"># 各方法 streamlines 数量、长度分布、失败率等 QC 指标</span></li>
                         </ul>
                       </li>
-                      <li><span class="folder">bundles/</span> <span class="comment"># 束分割输出：可以来自 tract cloud、WMQL 查询或 WMA/DL 后端</span>
+                      <li><span class="folder">saf/</span> <span class="comment"># Short Association Fibres；作为 tractography 内的专用提取结果，不混入 whole-brain tractograms</span>
+                        <ul>
+                          <li><span class="file">SAF.tck</span> <span class="comment"># Python SAF 后端输出的短程联合纤维 tractogram</span></li>
+                          <li><span class="file">saf_manifest.json</span> <span class="comment"># SAF 参数、输入、依赖、backend 状态和输出索引</span></li>
+                          <li><span class="file">saf_qc.json</span> <span class="comment"># SAF 输出完整性、backend 可用性和错误信息</span></li>
+                          <li><span class="file">log.txt</span> <span class="comment"># SAF backend 原生日志</span></li>
+                          <li><span class="folder">surf_data/</span> <span class="comment"># SAF 投影到表面的曲率/统计文件</span></li>
+                        </ul>
+                      </li>
+                      <li><span class="folder">bundles/</span> <span class="comment"># 束分割输出：可以来自 tract cloud、正式 WMQL 查询后端或 WMA/DL 后端</span>
                         <ul>
                           <li><span class="folder">tract_cloud_dl/</span> <span class="comment"># 基于 tract cloud 的深度学习 / 插件后端 bundle 分割结果</span>
                             <ul>

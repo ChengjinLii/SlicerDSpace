@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the DTI tractography scaffold on a subject root without tractography execution."""
+"""Run the DTI tractography pipeline on a subject root."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-format", choices=("trk", "tck"), default="trk")
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--require-native-cache", action="store_true")
+    parser.add_argument("--execute", action="store_true", help="Run the DIPY DTI tracking backend instead of dry-run.")
     return parser.parse_args()
 
 
@@ -38,7 +39,7 @@ def main() -> int:
             fit_method=args.fit_method,
             tracking_method=args.tracking_method,
             output_format=args.output_format,
-            execute=False,
+            execute=args.execute,
         )
     )
     if args.require_native_cache and not result.native_cache_available:
@@ -48,7 +49,7 @@ def main() -> int:
     print(f"native_cache_available={result.native_cache_available}")
     print(f"manifest={result.manifest_path}")
     print(f"qc={result.qc_path}")
-    print(f"planned_streamlines={result.streamlines_path}")
+    print(f"streamlines={result.streamlines_path}")
     return 0
 
 

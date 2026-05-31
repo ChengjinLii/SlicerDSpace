@@ -26,6 +26,11 @@ class ConnectomeConfig:
     parcellation_path: Path
     output_dir: Optional[Path] = None
     metric: str = "streamline_count"
+    scalar_map_path: Optional[Path] = None
+    sift2_weights_path: Optional[Path] = None
+    lut_path: Optional[Path] = None
+    mrtrix_bin_dir: Optional[Path] = None
+    backend: str = "auto"
     node_source: str = "ddparcel"
     symmetric: bool = True
     execute: bool = False
@@ -68,11 +73,29 @@ def _has_supported_parcellation_suffix(path: Path) -> bool:
     return any(name.endswith(suffix) for suffix in SUPPORTED_PARCELLATION_SUFFIXES)
 
 
-def inspect_connectome_backends() -> dict[str, object]:
+def _default_lut_path() -> Path:
+    return Path(__file__).resolve().parents[1] / "parcellation" / "conversion" / "data" / "FreeSurferColorLUT.txt"
+
+
+def _resolve_lut_path(config: ConnectomeConfig) -> Optional[Path]:
+    lut_path = config.lut_path.expanduser().resolve() if config.lut_path is not None else _default_lut_path()
+    return lut_path if lut_path.is_file() else None
+
+
+def _resolve_command(name: str, bin_dir: Optional[Path] = None) -> Optional[str]:
+    if bin_dir is not None:
+        candidate = bin_dir.expanduser() / name
+        if candidate.is_file():
+            return candidate.resolve().as_posix()
+    return shutil.which(name)
+
+
+def inspect_connectome_backends(bin_dir: Optional[Path] = None) -> dict[str, object]:
     """Inspect optional backends for tractography-to-parcellation assignment."""
 
     status: dict[str, object] = {
-        "tck2connectome": shutil.which("tck2connectome"),
+        "mrtrix_bin_dir": bin_dir.expanduser().resolve().as_posix() if bin_dir is not None else None,
+        "tck2connectome": _resolve_command("tck2connectome", bin_dir),
         "python": {
             "nibabel": False,
             "numpy": False,
@@ -102,6 +125,19 @@ def _load_label_volume(path: Path):
     return data, inverse_affine
 
 
+def _load_scalar_volume(path: Path):
+    try:
+        import nibabel as nib
+        import numpy as np
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise RuntimeError("Scalar-weighted connectome execution requires nibabel and numpy.") from exc
+
+    image = nib.load(path.as_posix())
+    data = np.asarray(image.dataobj, dtype=float)
+    inverse_affine = np.linalg.inv(image.affine)
+    return data, inverse_affine
+
+
 def _label_at_point(point, data, inverse_affine) -> int:
     import numpy as np
 
@@ -109,6 +145,17 @@ def _label_at_point(point, data, inverse_affine) -> int:
     if np.any(voxel < 0) or np.any(voxel >= np.array(data.shape[:3])):
         return 0
     return int(data[tuple(voxel)])
+
+
+def _scalar_at_point(point, data, inverse_affine) -> Optional[float]:
+    import math
+    import numpy as np
+
+    voxel = np.rint((inverse_affine @ np.array([point[0], point[1], point[2], 1.0]))[:3]).astype(int)
+    if np.any(voxel < 0) or np.any(voxel >= np.array(data.shape[:3])):
+        return None
+    value = float(data[tuple(voxel)])
+    return value if math.isfinite(value) else None
 
 
 def _iter_trk_tck_streamlines(path: Path) -> Iterable[object]:
@@ -286,29 +333,113 @@ def _iter_streamlines(path: Path) -> Iterable[object]:
     raise ValueError(f"Unsupported tractography format: {suffix}")
 
 
-def _write_nodes_table(path: Path, labels: Iterable[int]) -> int:
+def _parse_label_names(lut_path: Optional[Path]) -> dict[int, str]:
+    if lut_path is None:
+        return {}
+
+    names: dict[int, str] = {}
+    with lut_path.open("r", encoding="utf-8") as stream:
+        first_data_line_seen = False
+        header: list[str] | None = None
+        for raw_line in stream:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split("\t") if "\t" in line else line.split()
+            if not first_data_line_seen and not parts[0].lstrip("-").isdigit():
+                header = [part.strip().lower() for part in parts]
+                first_data_line_seen = True
+                continue
+            first_data_line_seen = True
+            try:
+                if header and "label" in header and "name" in header:
+                    label = int(parts[header.index("label")])
+                    name = parts[header.index("name")]
+                else:
+                    label = int(parts[0])
+                    name = parts[1]
+            except (IndexError, ValueError):
+                continue
+            names[label] = name
+    return names
+
+
+def _write_nodes_table(path: Path, labels: Iterable[int], *, label_names: Optional[dict[int, str]] = None) -> int:
     unique_labels = sorted({int(label) for label in labels if int(label) != 0})
+    names = label_names or {}
     with path.open("w", encoding="utf-8", newline="") as stream:
         stream.write("node_id\tlabel\tname\n")
         for index, label in enumerate(unique_labels, start=1):
-            stream.write(f"{index}\t{label}\tROI-{label}\n")
+            stream.write(f"{index}\t{label}\t{names.get(label, f'ROI-{label}')}\n")
     return len(unique_labels)
 
 
-def _write_python_connectome(config: ConnectomeConfig, matrix_path: Path, nodes_path: Path) -> dict[str, int]:
+def _metric_requires_scalar(metric: str) -> bool:
+    return metric.lower() in {"mean_scalar", "mean_fa", "mean_md", "mean_odi"}
+
+
+def _metric_requires_length(metric: str) -> bool:
+    return metric.lower() in {"mean_length_mm", "total_length_mm"}
+
+
+def _streamline_length_mm(streamline) -> float:
+    import numpy as np
+
+    points = np.asarray(streamline, dtype=float)
+    if len(points) < 2:
+        return 0.0
+    return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
+
+
+def _read_sift2_weights(path: Path) -> list[float]:
+    weights: list[float] = []
+    for line in path.expanduser().read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        for token in stripped.split():
+            try:
+                weights.append(float(token))
+            except ValueError:
+                continue
+    return weights
+
+
+def _write_python_connectome(
+    config: ConnectomeConfig,
+    matrix_path: Path,
+    nodes_path: Path,
+    *,
+    lut_path: Optional[Path],
+) -> dict[str, object]:
     try:
         import numpy as np
     except ImportError as exc:  # pragma: no cover - environment dependent
         raise RuntimeError("Connectome execution requires numpy.") from exc
 
     data, inverse_affine = _load_label_volume(config.parcellation_path.expanduser().resolve())
+    label_names = _parse_label_names(lut_path)
+    scalar_data = None
+    scalar_inverse_affine = None
+    sift2_weights = _read_sift2_weights(config.sift2_weights_path) if config.metric == "sift2_weighted_streamline_count" and config.sift2_weights_path is not None else None
+    if _metric_requires_scalar(config.metric):
+        if config.scalar_map_path is None:
+            raise ValueError(f"metric='{config.metric}' requires scalar_map_path.")
+        scalar_data, scalar_inverse_affine = _load_scalar_volume(config.scalar_map_path.expanduser().resolve())
     all_labels = np.unique(data)
-    node_count = _write_nodes_table(nodes_path, (int(label) for label in all_labels))
+    unique_nonzero_labels = sorted({int(label) for label in all_labels if int(label) != 0})
+    named_node_count = sum(1 for label in unique_nonzero_labels if label in label_names)
+    node_count = _write_nodes_table(nodes_path, unique_nonzero_labels, label_names=label_names)
     edge_counts: Counter[tuple[int, int]] = Counter()
+    edge_scalar_sums: Counter[tuple[int, int]] = Counter()
+    edge_scalar_counts: Counter[tuple[int, int]] = Counter()
+    edge_length_sums: Counter[tuple[int, int]] = Counter()
+    edge_length_counts: Counter[tuple[int, int]] = Counter()
     skipped_streamlines = 0
+    skipped_scalar_streamlines = 0
     total_streamlines = 0
 
-    for streamline in _iter_streamlines(config.tractography_path.expanduser().resolve()):
+    for streamline_index, streamline in enumerate(_iter_streamlines(config.tractography_path.expanduser().resolve())):
         total_streamlines += 1
         if len(streamline) < 2:
             skipped_streamlines += 1
@@ -319,13 +450,44 @@ def _write_python_connectome(config: ConnectomeConfig, matrix_path: Path, nodes_
             skipped_streamlines += 1
             continue
         edge = tuple(sorted((source, target))) if config.symmetric else (source, target)
-        edge_counts[edge] += 1
+        if sift2_weights is not None:
+            if streamline_index >= len(sift2_weights):
+                skipped_streamlines += 1
+                continue
+            edge_counts[edge] += sift2_weights[streamline_index]
+        else:
+            edge_counts[edge] += 1
+        if _metric_requires_length(config.metric):
+            edge_length_sums[edge] += _streamline_length_mm(streamline)
+            edge_length_counts[edge] += 1
+        if scalar_data is not None and scalar_inverse_affine is not None:
+            samples = [
+                value
+                for value in (_scalar_at_point(point, scalar_data, scalar_inverse_affine) for point in streamline)
+                if value is not None
+            ]
+            if samples:
+                edge_scalar_sums[edge] += float(np.mean(samples))
+                edge_scalar_counts[edge] += 1
+            else:
+                skipped_scalar_streamlines += 1
 
     with matrix_path.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.writer(stream)
         writer.writerow(["source_node", "target_node", config.metric])
         for (source, target), count in sorted(edge_counts.items()):
-            writer.writerow([source, target, count])
+            if _metric_requires_scalar(config.metric):
+                scalar_count = edge_scalar_counts[(source, target)]
+                value = (edge_scalar_sums[(source, target)] / scalar_count) if scalar_count else ""
+                writer.writerow([source, target, value])
+            elif config.metric == "mean_length_mm":
+                length_count = edge_length_counts[(source, target)]
+                value = (edge_length_sums[(source, target)] / length_count) if length_count else ""
+                writer.writerow([source, target, value])
+            elif config.metric == "total_length_mm":
+                writer.writerow([source, target, edge_length_sums[(source, target)]])
+            else:
+                writer.writerow([source, target, count])
 
     return {
         "node_count": node_count,
@@ -333,11 +495,17 @@ def _write_python_connectome(config: ConnectomeConfig, matrix_path: Path, nodes_
         "streamline_count_total": total_streamlines,
         "streamline_count_assigned": sum(edge_counts.values()),
         "streamline_count_skipped": skipped_streamlines,
+        "streamline_count_scalar_sampled": sum(edge_scalar_counts.values()) if _metric_requires_scalar(config.metric) else None,
+        "streamline_count_scalar_skipped": skipped_scalar_streamlines if _metric_requires_scalar(config.metric) else None,
+        "streamline_count_length_sampled": sum(edge_length_counts.values()) if _metric_requires_length(config.metric) else None,
+        "sift2_weight_count": len(sift2_weights) if sift2_weights is not None else None,
+        "named_node_count": named_node_count,
+        "unnamed_node_count": node_count - named_node_count,
     }
 
 
 def build_tck2connectome_command(config: ConnectomeConfig, matrix_path: Path) -> tuple[str, ...]:
-    command = shutil.which("tck2connectome")
+    command = _resolve_command("tck2connectome", config.mrtrix_bin_dir)
     if command is None:
         raise RuntimeError("tck2connectome was not found on PATH.")
     cmd = [
@@ -348,9 +516,56 @@ def build_tck2connectome_command(config: ConnectomeConfig, matrix_path: Path) ->
         "-stat_edge",
         "sum",
     ]
+    if config.sift2_weights_path is not None:
+        cmd.extend(["-tck_weights_in", config.sift2_weights_path.expanduser().resolve().as_posix()])
     if config.symmetric:
         cmd.append("-symmetric")
     return tuple(cmd)
+
+
+def _summarize_dense_connectome_matrix(matrix_path: Path, *, symmetric: bool) -> dict[str, object]:
+    """Read an MRtrix tck2connectome dense CSV and report basic QC metrics."""
+
+    try:
+        import numpy as np
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise RuntimeError("Dense connectome QC parsing requires numpy.") from exc
+
+    rows: list[list[float]] = []
+    with matrix_path.open("r", encoding="utf-8", newline="") as stream:
+        reader = csv.reader(stream)
+        for row in reader:
+            if not row:
+                continue
+            rows.append([float(value) for value in row if value != ""])
+    if not rows:
+        return {
+            "node_count": 0,
+            "edge_count": 0,
+            "streamline_count_total": None,
+            "streamline_count_assigned": 0,
+            "streamline_count_skipped": None,
+        }
+
+    matrix = np.asarray(rows, dtype=float)
+    if matrix.ndim != 2:
+        raise RuntimeError(f"Connectome matrix is not 2D: {matrix_path}")
+    node_count = int(matrix.shape[0])
+    if symmetric and matrix.shape[0] == matrix.shape[1]:
+        upper = np.triu(matrix)
+        edge_count = int(np.count_nonzero(upper))
+        assigned = float(np.trace(matrix) + np.triu(matrix, k=1).sum())
+    else:
+        edge_count = int(np.count_nonzero(matrix))
+        assigned = float(matrix.sum())
+
+    return {
+        "node_count": node_count,
+        "edge_count": edge_count,
+        "streamline_count_total": None,
+        "streamline_count_assigned": int(assigned) if assigned.is_integer() else assigned,
+        "streamline_count_skipped": None,
+    }
 
 
 def _validate_config(config: ConnectomeConfig) -> None:
@@ -366,8 +581,33 @@ def _validate_config(config: ConnectomeConfig) -> None:
         raise FileNotFoundError(f"DDParcel/parcellation dependency does not exist: {parcellation}")
     if not _has_supported_parcellation_suffix(parcellation):
         raise ValueError(f"Unsupported parcellation format: {parcellation.name}")
-    if config.metric != "streamline_count":
-        raise ValueError("Only metric='streamline_count' is currently planned.")
+    if config.metric not in {
+        "streamline_count",
+        "sift2_weighted_streamline_count",
+        "mean_scalar",
+        "mean_fa",
+        "mean_md",
+        "mean_odi",
+        "mean_length_mm",
+        "total_length_mm",
+    }:
+        raise ValueError(
+            "metric must be one of: streamline_count, sift2_weighted_streamline_count, mean_scalar, mean_fa, mean_md, mean_odi, mean_length_mm, total_length_mm."
+        )
+    if config.backend not in {"auto", "python", "mrtrix"}:
+        raise ValueError("backend must be one of: auto, python, mrtrix.")
+    if _metric_requires_scalar(config.metric):
+        if config.scalar_map_path is None:
+            raise ValueError(f"metric='{config.metric}' requires scalar_map_path.")
+        if not config.scalar_map_path.expanduser().is_file():
+            raise FileNotFoundError(f"Scalar map does not exist: {config.scalar_map_path}")
+    if config.metric == "sift2_weighted_streamline_count":
+        if config.sift2_weights_path is None:
+            raise ValueError("metric='sift2_weighted_streamline_count' requires sift2_weights_path.")
+        if not config.sift2_weights_path.expanduser().is_file():
+            raise FileNotFoundError(f"SIFT2 weights do not exist: {config.sift2_weights_path}")
+        if config.tractography_path.expanduser().suffix.lower() != ".tck":
+            raise ValueError("SIFT2 weighted connectome currently requires a .tck tractogram.")
 
 
 def _infer_connectome_output_dir(config: ConnectomeConfig) -> Path:
@@ -382,13 +622,14 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
     _validate_config(config)
     output_dir = _infer_connectome_output_dir(config)
     output_dir.mkdir(parents=True, exist_ok=True)
+    lut_path = _resolve_lut_path(config)
     stem = f"{config.subject_id}-connectome-{config.metric}"
     matrix_path = output_dir / f"{stem}.csv"
     nodes_path = output_dir / f"{config.subject_id}-connectome-nodes.tsv"
     manifest_path = output_dir / f"{stem}_manifest.json"
     qc_path = output_dir / f"{stem}_qc.json"
 
-    backend_status = inspect_connectome_backends()
+    backend_status = inspect_connectome_backends(config.mrtrix_bin_dir)
 
     manifest = {
         "kind": "connectome",
@@ -397,12 +638,16 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
         "executed": False,
         "status": "planned",
         "metric": config.metric,
+        "requested_backend": config.backend,
         "node_source": config.node_source,
         "symmetric": config.symmetric,
         "backend": backend_status,
         "dependencies": {
             "tractography": _file_info(config.tractography_path),
             "ddparcel_parcellation": _file_info(config.parcellation_path),
+            "scalar_map": _file_info(config.scalar_map_path) if config.scalar_map_path is not None else None,
+            "sift2_weights": _file_info(config.sift2_weights_path) if config.sift2_weights_path is not None else None,
+            "lut": _file_info(lut_path) if lut_path is not None else None,
         },
         "outputs": {
             "matrix": matrix_path.as_posix(),
@@ -420,6 +665,12 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
         "streamline_count_total": None,
         "streamline_count_assigned": None,
         "streamline_count_skipped": None,
+        "streamline_count_scalar_sampled": None,
+        "streamline_count_scalar_skipped": None,
+        "streamline_count_length_sampled": None,
+        "sift2_weight_count": None,
+        "named_node_count": None,
+        "unnamed_node_count": None,
         "return_code": None,
         "elapsed_seconds": 0.0,
         "backend": "planned",
@@ -433,15 +684,36 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
         manifest["status"] = "running"
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         try:
-            if config.tractography_path.suffix.lower() == ".tck" and backend_status["tck2connectome"]:
+            use_mrtrix = (
+                config.backend == "mrtrix"
+                and config.tractography_path.suffix.lower() == ".tck"
+                and config.metric in {"streamline_count", "sift2_weighted_streamline_count"}
+                and bool(backend_status["tck2connectome"])
+            )
+            if config.backend == "mrtrix" and not use_mrtrix:
+                raise RuntimeError("Requested MRtrix connectome backend is unavailable for this input/metric.")
+            if use_mrtrix:
                 command = build_tck2connectome_command(config, matrix_path)
                 manifest["command"] = list(command)
                 completed = subprocess.run(command, check=True)
                 return_code = completed.returncode
-                _write_nodes_table(nodes_path, [])
+                try:
+                    data, _ = _load_label_volume(config.parcellation_path.expanduser().resolve())
+                    label_names = _parse_label_names(lut_path)
+                    unique_labels = sorted({int(label) for label in data.ravel() if int(label) != 0})
+                    _write_nodes_table(nodes_path, unique_labels, label_names=label_names)
+                    qc.update(
+                        {
+                            "named_node_count": sum(1 for label in unique_labels if label in label_names),
+                            "unnamed_node_count": sum(1 for label in unique_labels if label not in label_names),
+                        }
+                    )
+                except Exception:
+                    _write_nodes_table(nodes_path, [], label_names={})
+                qc.update(_summarize_dense_connectome_matrix(matrix_path, symmetric=config.symmetric))
                 qc.update({"backend": "mrtrix3.tck2connectome"})
             else:
-                summary = _write_python_connectome(config, matrix_path, nodes_path)
+                summary = _write_python_connectome(config, matrix_path, nodes_path, lut_path=lut_path)
                 qc.update(summary)
                 qc.update({"backend": "python.endpoint_labels"})
                 return_code = 0
@@ -465,7 +737,7 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
             writer.writerow(["source_node", "target_node", config.metric])
         try:
             data, _ = _load_label_volume(config.parcellation_path.expanduser().resolve())
-            _write_nodes_table(nodes_path, data.ravel())
+            _write_nodes_table(nodes_path, data.ravel(), label_names=_parse_label_names(lut_path))
         except Exception:
             nodes_path.write_text("node_id\tlabel\tname\n", encoding="utf-8")
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")

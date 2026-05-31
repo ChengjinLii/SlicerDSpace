@@ -1,0 +1,439 @@
+"""SAF short association fibre workflow facade.
+
+The implementation keeps the translated SAF algorithm bundled under
+``tractography/saf_backend`` and exposes a SlicerDDSurfer-style wrapper with
+input validation, backend checks, manifest/QC output, and explicit execution.
+"""
+
+from __future__ import annotations
+
+import importlib
+import importlib.util
+import json
+import os
+import shutil
+import sys
+import time
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable, Iterator, Optional
+
+from shared import default_task_output_dir, find_subject_root
+
+
+REQUIRED_SAF_PYTHON_PACKAGES = ("numpy", "scipy", "sklearn", "nibabel")
+BASE_MRTRIX_COMMANDS = ("mrconvert",)
+TRACTOGRAPHY_MRTRIX_COMMANDS = ("tckgen",)
+LENGTH_FILTER_MRTRIX_COMMANDS = ("tckstats",)
+OPTIONAL_MRTRIX_COMMANDS = ("tcksample",)
+REGISTRATION_COMMANDS = ("antsIntermodalityIntrasubject.sh", "antsApplyTransforms", "antsApplyTransformsToPoints")
+FREESURFER_COMMANDS = ("recon-all",)
+
+
+@dataclass(frozen=True)
+class SAFConfig:
+    """Configuration for Python SAF short association fibre extraction."""
+
+    subject_id: str
+    input_root: Path
+    fs_dir: Path
+    fod_path: Path
+    output_dir: Optional[Path] = None
+    fa_path: Optional[Path] = None
+    pregenerated_tractogram: Optional[Path] = None
+    streamline_weights: Optional[Path] = None
+    tckgen_options: str = ""
+    mrtrix_bin_dir: Optional[Path] = None
+    mrtrix_prefix: str = ""
+    noregister: bool = False
+    notrunc: bool = False
+    fast_intersection: bool = True
+    gwg_hard: bool = False
+    pialfilter: bool = False
+    remesh_seeds: bool | float = False
+    maxlen: Optional[float] = 90.0
+    scalar2surf: tuple[Path, ...] = field(default_factory=tuple)
+    force_recompute: bool = False
+    diagnostics: bool = False
+    execute: bool = False
+
+
+@dataclass(frozen=True)
+class SAFResult:
+    """Prepared or completed SAF run."""
+
+    subject_id: str
+    output_dir: Path
+    saf_tractogram: Path
+    manifest_path: Path
+    qc_path: Path
+    executed: bool
+    backend_status: dict[str, Any]
+    return_code: Optional[int] = None
+
+
+def _emit(message: str, log: Optional[Callable[[str], None]] = None) -> None:
+    if log:
+        log(message)
+
+
+def _file_info(path: Optional[Path]) -> dict[str, object]:
+    if path is None:
+        return {"path": None, "exists": False}
+    expanded = path.expanduser()
+    if not expanded.exists():
+        return {"path": expanded.as_posix(), "exists": False}
+    stat = expanded.stat()
+    return {
+        "path": expanded.resolve().as_posix(),
+        "exists": True,
+        "is_file": expanded.is_file(),
+        "is_dir": expanded.is_dir(),
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+    }
+
+
+def _configured_mrtrix_bin_dir(mrtrix_bin_dir: Optional[Path] = None) -> Optional[Path]:
+    if mrtrix_bin_dir is not None:
+        return mrtrix_bin_dir.expanduser().resolve()
+    env_value = os.environ.get("SLICERDDSURFER_MRTRIX_BIN") or os.environ.get("MRTRIX_BIN")
+    if env_value:
+        return Path(env_value).expanduser().resolve()
+    return None
+
+
+def _resolve_command(command: str, *, bin_dir: Optional[Path] = None) -> Optional[str]:
+    if bin_dir is not None:
+        candidate = bin_dir / command
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate.resolve().as_posix()
+    found = shutil.which(command)
+    return Path(found).resolve().as_posix() if found else None
+
+
+def _command_status(
+    commands: tuple[str, ...],
+    *,
+    bin_dir: Optional[Path] = None,
+    prefix: str = "",
+) -> dict[str, Optional[str]]:
+    if prefix and bin_dir is None:
+        return {command: f"{prefix}{command}" for command in commands}
+    return {command: _resolve_command(command, bin_dir=bin_dir) for command in commands}
+
+
+def _package_status(packages: tuple[str, ...]) -> dict[str, bool]:
+    return {package: importlib.util.find_spec(package) is not None for package in packages}
+
+
+def bundled_saf_backend_dir() -> Path:
+    return Path(__file__).resolve().parent / "saf_backend"
+
+
+def inspect_saf_backend(
+    *,
+    mrtrix_bin_dir: Optional[Path] = None,
+    mrtrix_prefix: str = "",
+    noregister: bool = False,
+    require_recon_all: bool = False,
+    require_mrconvert: bool = True,
+    require_tckgen: bool = True,
+    require_tckstats: bool = True,
+    require_tcksample: bool = False,
+) -> dict[str, Any]:
+    """Inspect Python SAF, MRtrix3, ANTs, and optional FreeSurfer dependencies."""
+
+    packages = _package_status(REQUIRED_SAF_PYTHON_PACKAGES)
+    resolved_mrtrix_bin_dir = _configured_mrtrix_bin_dir(mrtrix_bin_dir)
+    required_mrtrix_commands = list(BASE_MRTRIX_COMMANDS) if require_mrconvert else []
+    if require_tckgen:
+        required_mrtrix_commands.extend(TRACTOGRAPHY_MRTRIX_COMMANDS)
+    if require_tckstats:
+        required_mrtrix_commands.extend(LENGTH_FILTER_MRTRIX_COMMANDS)
+    mrtrix_required = _command_status(
+        tuple(required_mrtrix_commands),
+        bin_dir=resolved_mrtrix_bin_dir,
+        prefix=mrtrix_prefix,
+    )
+    mrtrix_optional = _command_status(
+        OPTIONAL_MRTRIX_COMMANDS,
+        bin_dir=resolved_mrtrix_bin_dir,
+        prefix=mrtrix_prefix,
+    )
+    ants = _command_status(()) if noregister else _command_status(REGISTRATION_COMMANDS)
+    freesurfer = _command_status(FREESURFER_COMMANDS) if require_recon_all else {}
+    missing_required = [
+        f"python:{name}" for name, available in packages.items() if not available
+    ]
+    missing_required.extend(
+        f"mrtrix:{name}" for name, resolved in mrtrix_required.items() if resolved is None
+    )
+    missing_required.extend(
+        f"ants:{name}" for name, resolved in ants.items() if resolved is None
+    )
+    missing_required.extend(
+        f"freesurfer:{name}" for name, resolved in freesurfer.items() if resolved is None
+    )
+    missing_optional = [
+        f"mrtrix:{name}" for name, resolved in mrtrix_optional.items() if resolved is None
+    ]
+    if require_tcksample:
+        missing_required.extend(missing_optional)
+        missing_optional = []
+    backend_dir = bundled_saf_backend_dir()
+    return {
+        "name": "python_saf",
+        "available": not missing_required and backend_dir.is_dir(),
+        "backend_dir": backend_dir.as_posix(),
+        "backend_dir_exists": backend_dir.is_dir(),
+        "packages": packages,
+        "mrtrix": {
+            "bin_dir": resolved_mrtrix_bin_dir.as_posix() if resolved_mrtrix_bin_dir else None,
+            "bin_dir_exists": resolved_mrtrix_bin_dir.is_dir() if resolved_mrtrix_bin_dir else None,
+            "prefix": mrtrix_prefix,
+            "discovery": "explicit_or_env" if resolved_mrtrix_bin_dir else ("prefix_unchecked" if mrtrix_prefix else "PATH"),
+        },
+        "mrtrix_required": mrtrix_required,
+        "mrtrix_optional": mrtrix_optional,
+        "ants": ants,
+        "freesurfer": freesurfer,
+        "missing_required": missing_required,
+        "missing_optional": missing_optional,
+    }
+
+
+def _validate_config(config: SAFConfig) -> None:
+    if not config.subject_id.strip():
+        raise ValueError("subject_id is required.")
+    if not config.fs_dir.expanduser().is_dir():
+        raise FileNotFoundError(f"FreeSurfer directory not found: {config.fs_dir}")
+    if not config.fod_path.expanduser().is_file():
+        raise FileNotFoundError(f"FOD image not found: {config.fod_path}")
+    if not config.noregister and (config.fa_path is None or not config.fa_path.expanduser().is_file()):
+        raise FileNotFoundError("fa_path is required unless noregister=True.")
+    if config.pregenerated_tractogram is not None and not config.pregenerated_tractogram.expanduser().is_file():
+        raise FileNotFoundError(f"Pregenerated tractogram not found: {config.pregenerated_tractogram}")
+    if config.streamline_weights is not None and not config.streamline_weights.expanduser().is_file():
+        raise FileNotFoundError(f"Streamline weights not found: {config.streamline_weights}")
+    if config.mrtrix_bin_dir is not None and not config.mrtrix_bin_dir.expanduser().is_dir():
+        raise FileNotFoundError(f"MRtrix bin directory not found: {config.mrtrix_bin_dir}")
+    for scalar in config.scalar2surf:
+        if not scalar.expanduser().is_file():
+            raise FileNotFoundError(f"Scalar-to-surface image not found: {scalar}")
+    if config.maxlen is not None and config.maxlen <= 0:
+        raise ValueError("maxlen must be > 0 or None.")
+
+
+def _effective_mrtrix_prefix(config: SAFConfig) -> str:
+    if config.mrtrix_prefix:
+        return config.mrtrix_prefix
+    bin_dir = _configured_mrtrix_bin_dir(config.mrtrix_bin_dir)
+    if bin_dir is None:
+        return ""
+    return f"PATH={bin_dir.as_posix()}:$PATH "
+
+
+def _build_saf_args(config: SAFConfig, output_dir: Path) -> list[Any]:
+    args: list[Any] = [
+        "fs_dir",
+        config.fs_dir.expanduser().resolve().as_posix(),
+        "fod",
+        config.fod_path.expanduser().resolve().as_posix(),
+        "outf",
+        output_dir.as_posix(),
+    ]
+    if config.fa_path is not None:
+        args.extend(["fa", config.fa_path.expanduser().resolve().as_posix()])
+    if config.noregister:
+        args.append("noregister")
+    if config.notrunc:
+        args.append("notrunc")
+    if not config.fast_intersection:
+        args.extend(["fastx", "off"])
+    if config.gwg_hard:
+        args.append("gwg_hard")
+    if config.pialfilter:
+        args.append("pialfilter")
+    if config.remesh_seeds:
+        args.extend(["remesh_seeds", config.remesh_seeds])
+    if config.maxlen is None:
+        args.extend(["maxlen", ""])
+    else:
+        args.extend(["maxlen", float(config.maxlen)])
+    if config.tckgen_options:
+        args.extend(["tckgen", config.tckgen_options])
+    if config.pregenerated_tractogram is not None:
+        args.extend(["noseed", config.pregenerated_tractogram.expanduser().resolve().as_posix()])
+    if config.streamline_weights is not None:
+        args.extend(["sl_weights", config.streamline_weights.expanduser().resolve().as_posix()])
+    mrtrix_prefix = _effective_mrtrix_prefix(config)
+    if mrtrix_prefix:
+        args.extend(["mrtrix_prefix", mrtrix_prefix])
+    if config.force_recompute:
+        args.append("force")
+    if config.diagnostics:
+        args.append("dgn")
+    for scalar in config.scalar2surf:
+        args.extend(["scalar2surf", scalar.expanduser().resolve().as_posix()])
+    return args
+
+
+@contextmanager
+def _saf_backend_import_path() -> Iterator[None]:
+    backend_dir = bundled_saf_backend_dir()
+    backend = backend_dir.as_posix()
+    added = backend not in sys.path
+    if added:
+        sys.path.insert(0, backend)
+    try:
+        yield
+    finally:
+        if added:
+            try:
+                sys.path.remove(backend)
+            except ValueError:
+                pass
+
+
+def _summarize_saf_outputs(output_dir: Path) -> dict[str, Any]:
+    saf_tractogram = output_dir / "SAF.tck"
+    surf_data = output_dir / "surf_data"
+    return {
+        "saf_tractogram": _file_info(saf_tractogram),
+        "weights": _file_info(output_dir / "SAF.wts"),
+        "log": _file_info(output_dir / "log.txt"),
+        "ps_mat": _file_info(output_dir / "PS.mat"),
+        "sd_mat": _file_info(output_dir / "SD.mat"),
+        "surface_data_dir": _file_info(surf_data),
+        "surface_data_files": sorted(path.name for path in surf_data.iterdir()) if surf_data.is_dir() else [],
+    }
+
+
+def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -> SAFResult:
+    """Prepare or execute Python SAF for one subject.
+
+    ``execute=False`` writes manifest/QC only. ``execute=True`` imports the
+    bundled Python SAF backend in-process and runs the translated SAF pipeline.
+    """
+
+    _validate_config(config)
+    raw = find_subject_root(config.input_root.expanduser().resolve(), config.subject_id)
+    output_dir = (
+        config.output_dir.expanduser().resolve()
+        if config.output_dir is not None
+        else default_task_output_dir(raw.subject_root, "saf")
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = output_dir / "saf_manifest.json"
+    qc_path = output_dir / "saf_qc.json"
+    saf_tractogram = output_dir / "SAF.tck"
+    backend_status = inspect_saf_backend(
+        mrtrix_bin_dir=config.mrtrix_bin_dir,
+        mrtrix_prefix=config.mrtrix_prefix,
+        noregister=config.noregister,
+        require_recon_all=False,
+        require_mrconvert=not (config.noregister and (output_dir / "brain_T1.nii.gz").is_file()),
+        require_tckgen=config.pregenerated_tractogram is None,
+        require_tckstats=config.maxlen is not None or config.streamline_weights is not None,
+        require_tcksample=bool(config.fa_path or config.scalar2surf),
+    )
+    args = _build_saf_args(config, output_dir)
+    manifest = {
+        "kind": "saf_short_association_fibres",
+        "version": 1,
+        "subject_id": raw.subject_id,
+        "backend": backend_status,
+        "executed": bool(config.execute),
+        "status": "planned" if not config.execute else "running",
+        "parameters": {
+            "noregister": config.noregister,
+            "notrunc": config.notrunc,
+            "fast_intersection": config.fast_intersection,
+            "gwg_hard": config.gwg_hard,
+            "pialfilter": config.pialfilter,
+            "remesh_seeds": config.remesh_seeds,
+            "maxlen": config.maxlen,
+            "tckgen_options": config.tckgen_options,
+            "mrtrix_bin_dir": config.mrtrix_bin_dir.expanduser().resolve().as_posix() if config.mrtrix_bin_dir else None,
+            "mrtrix_prefix": config.mrtrix_prefix,
+            "effective_mrtrix_prefix": _effective_mrtrix_prefix(config),
+            "initial_tractogram_source": "pregenerated" if config.pregenerated_tractogram else "mrtrix_tckgen",
+            "force_recompute": config.force_recompute,
+            "diagnostics": config.diagnostics,
+        },
+        "inputs": {
+            "subject_root": raw.subject_root.as_posix(),
+            "fs_dir": _file_info(config.fs_dir),
+            "fod": _file_info(config.fod_path),
+            "fa": _file_info(config.fa_path),
+            "pregenerated_tractogram": _file_info(config.pregenerated_tractogram),
+            "streamline_weights": _file_info(config.streamline_weights),
+            "scalar2surf": [_file_info(path) for path in config.scalar2surf],
+        },
+        "saf_args": [str(arg) for arg in args],
+        "outputs": {
+            "saf_tractogram": saf_tractogram.as_posix(),
+            "qc": qc_path.as_posix(),
+            "summary": _summarize_saf_outputs(output_dir),
+        },
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    _emit(f"[SAF] Manifest: {manifest_path}", log)
+    start_time = time.monotonic()
+    return_code: Optional[int] = None
+    execution_error: Optional[str] = None
+    if config.execute:
+        if not backend_status["available"]:
+            missing = ", ".join(str(item) for item in backend_status["missing_required"])
+            raise RuntimeError(f"SAF backend is incomplete. Missing: {missing}")
+        cwd = Path.cwd()
+        try:
+            with _saf_backend_import_path():
+                module = importlib.import_module("SAF_pipeline")
+                module.SAF_pipeline(*args)
+            return_code = 0
+        except Exception as exc:
+            return_code = 1
+            execution_error = str(exc)
+            raise
+        finally:
+            os.chdir(cwd)
+
+    elapsed_seconds = time.monotonic() - start_time
+    output_summary = _summarize_saf_outputs(output_dir)
+    if config.execute and execution_error is None and not saf_tractogram.is_file():
+        execution_error = "SAF backend finished without SAF.tck."
+        return_code = 1
+    qc = {
+        "kind": "saf_qc",
+        "version": 1,
+        "subject_id": raw.subject_id,
+        "status": "failed" if execution_error else ("completed" if config.execute else "planned"),
+        "executed": bool(config.execute),
+        "return_code": return_code,
+        "elapsed_seconds": elapsed_seconds,
+        "backend_available": bool(backend_status["available"]),
+        "output_summary": output_summary,
+        "error": execution_error,
+    }
+    qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    manifest["status"] = qc["status"]
+    manifest["return_code"] = return_code
+    manifest["outputs"]["summary"] = output_summary
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if execution_error is not None:
+        raise RuntimeError(f"SAF execution failed: {execution_error}")
+
+    return SAFResult(
+        subject_id=raw.subject_id,
+        output_dir=output_dir,
+        saf_tractogram=saf_tractogram,
+        manifest_path=manifest_path,
+        qc_path=qc_path,
+        executed=bool(config.execute),
+        backend_status=backend_status,
+        return_code=return_code,
+    )

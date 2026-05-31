@@ -1,0 +1,28 @@
+# Default SlicerDDSurfer WMQL bundle definitions.
+#
+# These definitions target aparc/wmparc-style parcellations. They intentionally
+# use ctx_* cortical labels instead of the broader FreeSurfer aliases, because
+# dMRI-only DDParcel wmparc may not include the 3000/4000-series white-matter
+# parcellation labels referenced by the original Tract Querier examples.
+
+import FreeSurfer.qry
+
+AF.side = (
+    endpoints_in(
+        ctx_parsopercularis.side or
+        ctx_parsorbitalis.side or
+        ctx_parstriangularis.side or
+        ctx_caudalmiddlefrontal.side or
+        ctx_rostralmiddlefrontal.side or
+        ctx_precentral.side
+    )
+    and endpoints_in(
+        ctx_superiortemporal.side or
+        ctx_middletemporal.side
+    )
+)
+
+CST.side = (
+    endpoints_in(Brain_Stem)
+    and endpoints_in(ctx_precentral.side or ctx_postcentral.side)
+)

@@ -168,13 +168,60 @@
       <item>
        <layout class="QFormLayout" name="targetProductsFormLayout">
         <item row="0" column="0">
+         <widget class="QLabel" name="targetPreprocessingLabel">
+          <property name="text">
+           <string>Preprocessing</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QCheckBox" name="targetPreprocessingCheckBox">
+          <property name="text">
+           <string>Optional DWI denoise / Gibbs / eddy-motion correction</string>
+          </property>
+          <property name="toolTip">
+           <string>Optional. Leave unchecked to run downstream workflows from the original subject input folder.</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>targetPreprocessing</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="preprocessingBackendLabel">
+          <property name="text">
+           <string>Preproc backend</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="preprocessingBackendComboBox">
+          <property name="toolTip">
+           <string>DIPY is an in-plugin lightweight backend. MRtrix/FSL is the fuller external eddy/topup route.</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>preprocessingBackend</string>
+          </property>
+          <item>
+           <property name="text">
+            <string>dipy</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>mrtrix_fsl</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="2" column="0">
          <widget class="QLabel" name="targetSurfaceLabel">
           <property name="text">
            <string>Surface</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="1">
+        <item row="2" column="1">
          <widget class="QCheckBox" name="targetSurfaceCheckBox">
           <property name="text">
            <string>DDSurfer white / pial surfaces</string>
@@ -187,14 +234,14 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
+        <item row="3" column="0">
          <widget class="QLabel" name="targetParcellationLabel">
           <property name="text">
            <string>Parcellation</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
+        <item row="3" column="1">
          <widget class="QCheckBox" name="targetParcellationCheckBox">
           <property name="text">
            <string>DDParcel aparc / wmparc labels</string>
@@ -204,14 +251,14 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="0">
+        <item row="4" column="0">
          <widget class="QLabel" name="targetSegmentationLabel">
           <property name="text">
            <string>Segmentation</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
+        <item row="4" column="1">
          <widget class="QCheckBox" name="targetSegmentationCheckBox">
           <property name="text">
            <string>DDSeg WM / GM / CSF</string>
@@ -221,20 +268,71 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
+        <item row="5" column="0">
          <widget class="QLabel" name="targetMicrostructureLabel">
           <property name="text">
            <string>Microstructure</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="1">
+        <item row="5" column="1">
          <widget class="QCheckBox" name="targetMicrostructureCheckBox">
           <property name="text">
            <string>FA / MD, ROI stats, Free Water, NODDI</string>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>targetMicrostructure</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="0">
+         <widget class="QLabel" name="targetTractographyLabel">
+          <property name="text">
+           <string>Tractography</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="1">
+         <widget class="QCheckBox" name="targetTractographyCheckBox">
+          <property name="text">
+           <string>DTI tractogram, MRtrix CSD / FOD / ACT when backend is available</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>targetTractography</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="0">
+         <widget class="QLabel" name="targetBundlesLabel">
+          <property name="text">
+           <string>Bundles</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="1">
+         <widget class="QCheckBox" name="targetBundlesCheckBox">
+          <property name="text">
+           <string>WMQL AF / CST, WMA or TractCloud bundle extraction</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>targetBundles</string>
+          </property>
+         </widget>
+        </item>
+        <item row="8" column="0">
+         <widget class="QLabel" name="targetConnectomeLabel">
+          <property name="text">
+           <string>Connectome</string>
+          </property>
+         </widget>
+        </item>
+        <item row="8" column="1">
+         <widget class="QCheckBox" name="targetConnectomeCheckBox">
+          <property name="text">
+           <string>Streamline-count and scalar-weighted connectivity matrices</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>targetConnectome</string>
           </property>
          </widget>
         </item>

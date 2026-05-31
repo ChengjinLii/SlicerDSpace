@@ -265,27 +265,17 @@ def _expected_manifest(
     config: MicrostructureConfig,
     roi_label_map: Path | None,
 ) -> dict[str, object]:
+    roi_metrics = ["FA", "MD", "AD", "RD", "L1", "L2", "L3", "TRACE"]
+    if config.run_free_water:
+        roi_metrics.extend(["FWF", "FW_TISSUE_FA", "FW_TISSUE_MD"])
+    if config.run_noddi:
+        roi_metrics.extend(["NODDI_NDI", "NODDI_ODI", "NODDI_FWF"])
     return {
         "kind": "microstructure_phase3",
         "version": 3,
         "subject_id": config.subject_id,
         "fit_method": config.native_bundle.fit_method,
-        "roi_metrics": [
-            "FA",
-            "MD",
-            "AD",
-            "RD",
-            "L1",
-            "L2",
-            "L3",
-            "TRACE",
-            "FWF",
-            "FW_TISSUE_FA",
-            "FW_TISSUE_MD",
-            "NODDI_NDI",
-            "NODDI_ODI",
-            "NODDI_FWF",
-        ],
+        "roi_metrics": roi_metrics,
         "native_bundle": {
             "dir": str(config.native_bundle.bundle_dir.resolve()),
             "manifest": _read_json(config.native_bundle.manifest_path),
@@ -364,7 +354,13 @@ def _expected_noddi_manifest(config: MicrostructureConfig) -> dict[str, object]:
     }
 
 
-def _outputs_complete(paths: dict[str, Path], *, roi_enabled: bool) -> bool:
+def _outputs_complete(
+    paths: dict[str, Path],
+    *,
+    roi_enabled: bool,
+    free_water_enabled: bool,
+    noddi_enabled: bool,
+) -> bool:
     required = [
         paths["fa"],
         paths["md"],
@@ -374,16 +370,12 @@ def _outputs_complete(paths: dict[str, Path], *, roi_enabled: bool) -> bool:
         paths["l2"],
         paths["l3"],
         paths["trace"],
-        paths["fwf"],
-        paths["fw_tissue_fa"],
-        paths["fw_tissue_md"],
-        paths["noddi_ndi"],
-        paths["noddi_odi"],
-        paths["noddi_fwf"],
-        paths["free_water_manifest"],
-        paths["noddi_manifest"],
         paths["manifest"],
     ]
+    if free_water_enabled:
+        required.extend([paths["fwf"], paths["fw_tissue_fa"], paths["fw_tissue_md"], paths["free_water_manifest"]])
+    if noddi_enabled:
+        required.extend([paths["noddi_ndi"], paths["noddi_odi"], paths["noddi_fwf"], paths["noddi_manifest"]])
     if roi_enabled:
         required.extend([paths["roi_stats_csv"], paths["roi_stats_json"]])
     return all(path.is_file() for path in required)
@@ -745,7 +737,7 @@ def _compute_roi_stats(
         writer.writerows(rows)
 
     payload = {
-        "subject_id": next(iter(metric_paths.values())).name.split("-")[0],
+        "subject_id": next(iter(metric_paths.values())).name.split("_")[0],
         "roi_label_map": str(roi_label_map.resolve()),
         "lut_path": str(lut_path.resolve()) if lut_path is not None else None,
         "feature_maps": {metric_key: str(metric_path.resolve()) for metric_key, metric_path in metric_paths.items()},
@@ -771,9 +763,6 @@ def run_microstructure(
         raise ValueError("Subject ID does not match the provided native DTI bundle.")
     if config.raw_input_bundle.subject_root != config.native_bundle.subject_root:
         raise ValueError("Raw input bundle and native DTI bundle must belong to the same subject root.")
-    if not bool(config.run_free_water) and not bool(config.run_noddi):
-        raise ValueError("At least one stage must be enabled: Free Water and/or NODDI.")
-
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -787,7 +776,12 @@ def run_microstructure(
     if (
         not force_recompute
         and actual_manifest == expected_manifest
-        and _outputs_complete(paths, roi_enabled=roi_enabled)
+        and _outputs_complete(
+            paths,
+            roi_enabled=roi_enabled,
+            free_water_enabled=bool(config.run_free_water),
+            noddi_enabled=bool(config.run_noddi),
+        )
     ):
         _emit(f"[Microstructure] Reusing outputs in {output_dir}", log)
         return MicrostructureResult(
@@ -835,17 +829,7 @@ def run_microstructure(
             _compute_free_water_maps(config=config, paths=paths, log=log)
             _write_json(paths["free_water_manifest"], expected_free_water_manifest)
     else:
-        if not _free_water_outputs_complete(paths):
-            raise RuntimeError(
-                "Free Water stage is disabled, but no cached Free Water outputs were found. "
-                "Enable 'Run Free Water' or provide existing Free Water outputs first."
-            )
-        if actual_free_water_manifest != expected_free_water_manifest:
-            raise RuntimeError(
-                "Free Water stage is disabled, but cached Free Water outputs do not match current inputs/config. "
-                "Enable 'Run Free Water' to recompute matching outputs."
-            )
-        _emit("[Microstructure] Free Water stage disabled; using existing outputs", log)
+        _emit("[Microstructure] Free Water stage disabled; DTI-only outputs will not include Free Water maps", log)
 
     expected_noddi_manifest = _expected_noddi_manifest(config)
     actual_noddi_manifest = _read_json(paths["noddi_manifest"])
@@ -863,46 +847,47 @@ def run_microstructure(
             _compute_noddi_maps(config=config, paths=paths, log=log)
             _write_json(paths["noddi_manifest"], expected_noddi_manifest)
     else:
-        if not _noddi_outputs_complete(paths):
-            raise RuntimeError(
-                "NODDI stage is disabled, but no cached NODDI outputs were found. "
-                "Enable 'Run NODDI' or provide existing NODDI outputs first."
-            )
-        if actual_noddi_manifest != expected_noddi_manifest:
-            raise RuntimeError(
-                "NODDI stage is disabled, but cached NODDI outputs do not match current inputs/config. "
-                "Enable 'Run NODDI' to recompute matching outputs."
-            )
-        _emit("[Microstructure] NODDI stage disabled; using existing outputs", log)
+        _emit("[Microstructure] NODDI stage disabled; DTI-only outputs will not include NODDI maps", log)
 
     if roi_label_map is not None:
         _ensure_base_imports_ready()
         lut_path = _resolve_lut_path(config)
-        _emit(f"[Microstructure] Computing ROI-wise DTI + Free Water + NODDI statistics from {roi_label_map}", log)
+        metric_paths = {
+            "fa": paths["fa"],
+            "md": paths["md"],
+            "ad": paths["ad"],
+            "rd": paths["rd"],
+            "l1": paths["l1"],
+            "l2": paths["l2"],
+            "l3": paths["l3"],
+            "trace": paths["trace"],
+        }
+        if config.run_free_water:
+            metric_paths.update(
+                {
+                    "fwf": paths["fwf"],
+                    "fw_tissue_fa": paths["fw_tissue_fa"],
+                    "fw_tissue_md": paths["fw_tissue_md"],
+                }
+            )
+        if config.run_noddi:
+            metric_paths.update(
+                {
+                    "noddi_ndi": paths["noddi_ndi"],
+                    "noddi_odi": paths["noddi_odi"],
+                    "noddi_fwf": paths["noddi_fwf"],
+                }
+            )
+        _emit(f"[Microstructure] Computing ROI-wise statistics from {roi_label_map}", log)
         roi_count = _compute_roi_stats(
-            metric_paths={
-                "fa": paths["fa"],
-                "md": paths["md"],
-                "ad": paths["ad"],
-                "rd": paths["rd"],
-                "l1": paths["l1"],
-                "l2": paths["l2"],
-                "l3": paths["l3"],
-                "trace": paths["trace"],
-                "fwf": paths["fwf"],
-                "fw_tissue_fa": paths["fw_tissue_fa"],
-                "fw_tissue_md": paths["fw_tissue_md"],
-                "noddi_ndi": paths["noddi_ndi"],
-                "noddi_odi": paths["noddi_odi"],
-                "noddi_fwf": paths["noddi_fwf"],
-            },
+            metric_paths=metric_paths,
             roi_label_map=roi_label_map,
             lut_path=lut_path,
             csv_path=paths["roi_stats_csv"],
             json_path=paths["roi_stats_json"],
         )
         _emit(
-            f"[Microstructure] ROI-wise DTI + Free Water + NODDI statistics written for {roi_count} labels",
+            f"[Microstructure] ROI-wise statistics written for {roi_count} labels",
             log,
         )
     else:

@@ -36,6 +36,39 @@ def _make_subject_root(root: Path) -> Path:
     return subject_root
 
 
+def _make_nifti_subject_root(root: Path) -> Path:
+    import nibabel as nib
+    import numpy as np
+
+    subject_root = root / SUBJECT_ID
+    input_dir = subject_root / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    bvals = np.array([0, 1000, 1000, 1000, 1000, 1000, 1000], dtype=float)
+    bvecs = np.array(
+        [
+            [0, 1, 0, 0, 1 / np.sqrt(2), 1 / np.sqrt(2), 0],
+            [0, 0, 1, 0, 1 / np.sqrt(2), 0, 1 / np.sqrt(2)],
+            [0, 0, 0, 1, 0, 1 / np.sqrt(2), 1 / np.sqrt(2)],
+        ],
+        dtype=float,
+    )
+    tensor = np.diag([0.0015, 0.0003, 0.0003])
+    data = np.zeros((4, 4, 4, len(bvals)), dtype=np.float32)
+    data[..., 0] = 1000.0
+    for index, (bval, gradient) in enumerate(zip(bvals[1:], bvecs.T[1:]), start=1):
+        attenuation = np.exp(-bval * float(gradient @ tensor @ gradient))
+        data[..., index] = 1000.0 * attenuation
+    mask = np.ones((4, 4, 4), dtype=np.uint8)
+    nib.save(nib.Nifti1Image(data, np.eye(4)), str(input_dir / "data.nii.gz"))
+    nib.save(nib.Nifti1Image(mask, np.eye(4)), str(input_dir / "nodif_brain_mask.nii.gz"))
+    (input_dir / "bvals").write_text(" ".join(f"{value:g}" for value in bvals) + "\n", encoding="utf-8")
+    (input_dir / "bvecs").write_text(
+        "\n".join(" ".join(f"{value:.10g}" for value in row) for row in bvecs) + "\n",
+        encoding="utf-8",
+    )
+    return subject_root
+
+
 def _make_native_cache(subject_root: Path, fit_method: str = "wls") -> Path:
     cache_dir = subject_root / "cache" / "native_dti" / fit_method
     _touch(cache_dir / "manifest.json", '{"kind": "native_dti"}')
@@ -98,18 +131,28 @@ class DTITractographyScaffoldTest(unittest.TestCase):
             self.assertFalse(manifest["native_dti_cache"]["available"])
             self.assertFalse(Path(manifest["outputs"]["streamlines"]).exists())
 
-    def test_execute_true_is_not_enabled_yet(self) -> None:
+    def test_execute_true_generates_streamlines_with_dipy_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            subject_root = _make_subject_root(Path(tmp))
+            subject_root = _make_nifti_subject_root(Path(tmp))
+            output_dir = subject_root / "outputs" / "tractography"
 
-            with self.assertRaises(NotImplementedError):
-                run_dti_tracking(
-                    DTITrackingConfig(
-                        subject_id=SUBJECT_ID,
-                        input_root=subject_root,
-                        execute=True,
-                    )
+            result = run_dti_tracking(
+                DTITrackingConfig(
+                    subject_id=SUBJECT_ID,
+                    input_root=subject_root,
+                    output_dir=output_dir,
+                    output_format="trk",
+                    min_fa=0.05,
+                    seed_density=1,
+                    execute=True,
                 )
+            )
+
+            self.assertTrue(result.executed)
+            self.assertTrue(result.streamlines_path.is_file())
+            qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(qc["status"], "completed")
+            self.assertGreaterEqual(qc["streamline_count"], 1)
 
 
 if __name__ == "__main__":

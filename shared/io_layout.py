@@ -99,6 +99,10 @@ class SubjectIOLayout:
         return self.tractograms / "csd_act"
 
     @property
+    def saf(self) -> Path:
+        return self.tractography / "saf"
+
+    @property
     def bundles(self) -> Path:
         return self.tractography / "bundles"
 
@@ -167,8 +171,14 @@ def default_task_output_dir(subject_root: Path, task_name: str) -> Path:
         "dti_tractography": layout.tractograms_dti_det,
         "tractography_act": layout.tractograms_csd_act,
         "act": layout.tractograms_csd_act,
+        "act_prep": layout.act_prep,
+        "saf": layout.saf,
+        "short_association_fibres": layout.saf,
+        "short_association_fibers": layout.saf,
         "wma": layout.bundles_wma,
         "wma_org_atlas": layout.bundles_wma,
+        "wmql": layout.bundles_wmql,
+        "wmql_bundle_segmentation": layout.bundles_wmql,
         "tractcloud": layout.bundles_tractcloud,
         "tract_cloud": layout.tract_cloud,
         "connectome": layout.connectome,
