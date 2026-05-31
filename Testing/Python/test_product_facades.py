@@ -32,17 +32,21 @@ class ProductFacadeTest(unittest.TestCase):
 
     def test_surface_facade_exports_core_aliases(self) -> None:
         from surface import (
+            SurfaceConfig,
             SurfacePostprocessingConfig,
             SurfacePredictionConfig,
             SurfacePreprocessingConfig,
+            run_surface,
             run_surface_postprocessing,
             run_surface_prediction,
             run_surface_preprocessing,
         )
 
+        self.assertIsNotNone(SurfaceConfig)
         self.assertIsNotNone(SurfacePreprocessingConfig)
         self.assertIsNotNone(SurfacePredictionConfig)
         self.assertIsNotNone(SurfacePostprocessingConfig)
+        self.assertTrue(callable(run_surface))
         self.assertTrue(callable(run_surface_preprocessing))
         self.assertTrue(callable(run_surface_prediction))
         self.assertTrue(callable(run_surface_postprocessing))

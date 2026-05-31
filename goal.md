@@ -17,7 +17,7 @@ SlicerDDSurfer 的长期目标是从单一 DDSurfer Slicer 模块，扩展为一
 
 ## 已完成基线
 
-- `Surface / DDSurfer`：支持从统一 `subject_root` 或 legacy registered 输入运行，复用 `registered_dti` cache，输出 native-space STL mesh。
+- `Surface / DDSurfer`：支持从统一 `subject_root` 或 legacy registered 输入运行，复用 `registered_dti` cache，输出 native-space STL mesh。已新增 `surface.pipeline` headless facade，输出 `surface_manifest.json` / `surface_qc.json`，并可在资源齐备时由统一 product orchestrator 执行；Slicer 面板仍负责把生成模型加载到 scene。
 - `Parcellation / DDParcel`：支持从统一 `subject_root` 运行，复用 `registered_dti` cache，输出 `DDSurfer-wmparc`。
 - `Segmentation / DDSeg`：支持 subject-root 模式和 legacy 显式输入模式，复用 `native_dti/ls` cache，通过 `PythonSlicer` 子进程运行。
 - `Microstructure`：已实现 FA/MD、ROI-wise stats、DIPY Free Water、AMICO NODDI，并支持 Free Water / NODDI 分阶段 cache 复用。
@@ -36,7 +36,7 @@ SlicerDDSurfer 的长期目标是从单一 DDSurfer Slicer 模块，扩展为一
 - `WMQL / AF-CST bundles`：已修复默认 `query_selection`。原先选择 `AF,CST` 无法命中 `AF.side/CST.side` 展开的 `af.left/af.right/cst.left/cst.right`；现在默认选择 side-aware bundle 名称，并在 QC 中记录每个 bundle 文件和 streamline count。100307 的 100k ACT tractogram 当前命中 4 个 bundles：`af.left=9`、`af.right=2`、`cst.left=12`、`cst.right=6`。
 - `Real subject audit summary`：已新增 `Testing/Python/summarize_csd_act_real_subject.py`，用于只读汇总既有真实长测试 QC，避免引用过期 smoke summary。100307 `csd_act_100k` 审计输出为 `/data/chengjin/SlicerDDSurfer-test/100307/outputs/00_run_metadata/csd_act_100k_real_subject_audit.json`，状态 `completed`；记录 CSD/ACT runtime 121.93 秒、CSD/FOD 输出目录约 5.60GB、tractogram 目录约 64MB、WMQL runtime 3.96 秒、connectome root 约 8.54MB、6 类 connectome 均完成。
 - `UI / Product targets`：主 UI 已按“Subject root + Output directory + optional preprocessing + target products”继续收口，目标产品增加 `Tractography`、`Bundles`、`Connectome` checkbox；复杂依赖由后端 manifest/QC 报告。`runSelectedButton` 现在会把 DDSeg / DDParcel / Microstructure / Tractography / Bundles / Connectome 交给统一 product orchestrator；Surface 暂时仍走原 Surface 面板执行，直到拆出不依赖 Slicer scene loading 的 headless facade。统一入口已暴露高级运行参数：`run_name`、ACT `select_streamlines`、Connectome backend（python/mrtrix）和 MRtrix dense compression；`Output directory` 现在作为 orchestrator 的可选 output root，留空则继续使用 `<subject_root>/outputs`。
-- `DAG / Resume runner`：已新增轻量 `shared.orchestrator`，支持 subject-root、output-root、target products、`run_name`、`execute`、`resume`、MRtrix bin、TractQuerier root、Connectome backend 和 dense compression。当前覆盖 `segmentation.ddseg -> parcellation.ddparcel -> surface.ddsurfer(resume/block only) -> microstructure.dti -> tractography.csd_act -> bundles.wmql -> connectome.streamline_count/sift2`，会读取各步骤 QC 或核心输出，已完成则 skip，依赖缺失则 blocked，并写 `<output_root|subject_root/outputs>/00_run_metadata/<run_name>_orchestration_manifest.json`。已用 100307 的 `csd_act_100k` 结果验证全产品 resume：DDSeg、DDParcel、DDSurfer surfaces、Microstructure、CSD/ACT、WMQL、streamline connectome、SIFT2 connectome 全部跳过，不重跑 MRtrix 或 Slicer CLI。
+- `DAG / Resume runner`：已新增轻量 `shared.orchestrator`，支持 subject-root、output-root、target products、`run_name`、`execute`、`resume`、MRtrix bin、TractQuerier root、Connectome backend 和 dense compression。当前覆盖 `segmentation.ddseg -> parcellation.ddparcel -> surface.ddsurfer -> microstructure.dti -> tractography.csd_act -> bundles.wmql -> connectome.streamline_count/sift2`，会读取各步骤 QC 或核心输出，已完成则 skip，依赖缺失则 blocked，并写 `<output_root|subject_root/outputs>/00_run_metadata/<run_name>_orchestration_manifest.json`。Surface 已从 resume/block 升级为 headless execute facade：资源齐全时运行 DDSurfer preprocessing / prediction / native-space postprocessing，资源缺失时写明 blocked reason。已用 100307 的 `csd_act_100k` 结果验证全产品 resume：DDSeg、DDParcel、DDSurfer surfaces、Microstructure、CSD/ACT、WMQL、streamline connectome、SIFT2 connectome 全部跳过，不重跑 MRtrix 或 Slicer CLI。
 - `Slicer GUI smoke`：已用 `/data/chengjin/software/run-slicer.sh`、`DISPLAY=:99` 和临时模块目录完成真实 Slicer GUI 启动、模块切换和截图。截图路径：`/data/chengjin/SlicerDDSurfer-test/gui_smoke/SlicerDDSurfer_gui_fixed_choice_20260531_170837.png`。本轮修复了 Slicer 5.10 `parameterNodeWrapper` 对 `QComboBox` 字段要求 `Choice` annotation 的问题。
 
 ## 下一步建议
@@ -72,7 +72,7 @@ SlicerDDSurfer 的长期目标是从单一 DDSurfer Slicer 模块，扩展为一
 
 ### Workflow 图对照：仍未完整实现
 
-- `DAG pipeline runner`：已完成第一版轻量 runner，覆盖 DDSeg / DDParcel / DDSurfer surface resume / Microstructure DTI / Tractography / Bundles / Connectome 的依赖顺序、resume skip、blocked 状态、可选 output root 和统一 run manifest。DDSeg 与 DDParcel 已有 headless execute 入口；Surface 目前只做 resume/plan/block，尚未拆出完整 headless execute facade；高级失败恢复和并行调度尚未实现。
+- `DAG pipeline runner`：已完成第一版轻量 runner，覆盖 DDSeg / DDParcel / DDSurfer Surface / Microstructure DTI / Tractography / Bundles / Connectome 的依赖顺序、resume skip、blocked 状态、可选 output root 和统一 run manifest。DDSeg、DDParcel、Surface、Microstructure DTI、CSD/ACT、WMQL、Connectome 均已有 headless execute 入口；高级失败恢复和并行调度尚未实现。
 - `Tool adapter layer`：已有 Slicer CLI、Python logic、WMA shell wrapper、Docker postprocess 的局部适配，但还没有统一 adapter interface 和任务规范。
 - `DWI Preprocessing`：已新增可选 `preprocessing/` 阶段，支持 skip / dry-run / execute。默认 `backend=dipy` 提供插件内轻量预处理（denoise、Gibbs removal、between-volume motion correction）；`backend=mrtrix_fsl` 保留完整外部路线（MRtrix3 `dwidenoise`、`mrdegibbs`、`dwifslpreproc` + FSL eddy/topup）。DIPY 后端不声明完整 susceptibility distortion / eddy-current 建模，真实高质量畸变校正仍建议用 MRtrix/FSL。
 - `Registration chain`：已有 DWI 到 atlas 的注册 cache；尚未完整实现 DWI ↔ T1w ↔ MNI 的通用链路和 transform provenance。
@@ -177,7 +177,7 @@ python3 Testing/Python/run_microstructure_regression.py \
 
 1. 评估是否需要继续跑 500k/1M streamlines；100k 已有完整审计证据，但 AF/CST 命中数仍偏少。
 2. 改进 WMQL bundle 质量：当前 100k 已能命中 AF/CST，但数量较少，应继续评估查询定义、ACT tissue model 和 parcellation 端点策略。
-3. 扩展 product orchestrator：继续拆 Surface headless facade，并定义 Free Water / NODDI 是否进入默认 DAG 的 gating；DDSeg、DDParcel、Microstructure DTI、CSD/ACT、WMQL、Connectome 已纳入，output root、100k streamlines、Connectome MRtrix backend 和 dense compression 已可从统一 UI 传入。
+3. 扩展 product orchestrator：Surface headless facade 已纳入；下一步应定义 Free Water / NODDI 是否进入默认 DAG 的 gating。DDSeg、DDParcel、Surface、Microstructure DTI、CSD/ACT、WMQL、Connectome 已纳入，output root、100k streamlines、Connectome MRtrix backend 和 dense compression 已可从统一 UI 传入。
 4. WMA 真实运行准备：已有 149741 downsampled VTK 测试输入；全盘扫描未发现 ORG atlas，仍需 ORG atlas 和 SlicerDMRI CLI 路径。
 5. Connectome Phase 1.5：节点 LUT 名称映射、length、FA/MD、SIFT2 weighted connectome 和 MRtrix dense matrix 到 ROI-label edge-list 的可选压缩已完成真实 100307 审计；后续可继续做 UI 暴露和 group-analysis 汇总格式。
 6. Microstructure 长回归和 WMA 真实 clustering 放到后台或夜间测试。

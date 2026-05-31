@@ -363,13 +363,42 @@ def run_subject_products(
         elif not config.execute:
             tasks.append(ProductTaskRecord(name="surface.ddsurfer", status="planned", reason="execute=False"))
         else:
-            tasks.append(
-                ProductTaskRecord(
-                    name="surface.ddsurfer",
-                    status="blocked",
-                    reason="headless surface execution is not yet wired into ProductOrchestrator; use the Surface panel",
-                )
+            from surface import SurfaceConfig, inspect_surface_resources, run_surface
+
+            surface_config = SurfaceConfig(
+                subject_id=config.subject_id,
+                subject_root=subject_root,
+                output_dir=layout.ddsurfer,
+                predict_mode="all",
+                device=config.ddseg_device,
+                registration_atlas=atlas_t2,
+                execute=True,
             )
+            resources = inspect_surface_resources(surface_config)
+            if not resources["available"]:
+                missing = resources.get("missing", [])
+                tasks.append(
+                    ProductTaskRecord(
+                        name="surface.ddsurfer",
+                        status="blocked",
+                        reason="missing DDSurfer resources: " + ", ".join(str(item) for item in missing),
+                    )
+                )
+            elif any(not path.is_file() for path in raw.values()):
+                missing = [label for label, path in raw.items() if not path.is_file()]
+                tasks.append(ProductTaskRecord(name="surface.ddsurfer", status="blocked", reason="missing raw input: " + ", ".join(missing)))
+            else:
+                _emit("[Orchestrator] Running DDSurfer surface", log)
+                result = run_surface(surface_config, log=log)
+                tasks.append(
+                    ProductTaskRecord(
+                        name="surface.ddsurfer",
+                        status="completed",
+                        manifest_path=result.manifest_path,
+                        qc_path=result.qc_path,
+                        outputs={f"model_{index}": path.as_posix() for index, path in enumerate(result.generated_models, start=1)},
+                    )
+                )
 
     if "microstructure" in targets:
         if config.resume and _microstructure_dti_complete(subject_root, config.subject_id):

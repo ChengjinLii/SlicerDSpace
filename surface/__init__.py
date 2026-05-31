@@ -13,6 +13,12 @@ from .postprocessing import (
     PostprocessingConfig,
     convert_meshes_to_native_space,
 )
+from .pipeline import (
+    SurfaceConfig,
+    SurfaceResult,
+    inspect_surface_resources,
+    run_surface,
+)
 
 __all__ = [
     "SubjectPreprocessingConfig",
@@ -30,6 +36,10 @@ __all__ = [
     "run_surface_preprocessing",
     "run_surface_prediction",
     "run_surface_postprocessing",
+    "SurfaceConfig",
+    "SurfaceResult",
+    "inspect_surface_resources",
+    "run_surface",
 ]
 
 SurfacePreprocessingConfig = SubjectPreprocessingConfig
