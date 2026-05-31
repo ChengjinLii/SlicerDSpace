@@ -82,6 +82,31 @@ exit 0
         self.assertFalse(manifest["executed"])
         self.assertEqual(manifest["backend"]["repository"], "https://github.com/SlicerDMRI/TractCloud")
 
+    def test_external_source_root_is_added_to_backend_probe_and_manifest(self) -> None:
+        from tractography import TractCloudConfig, run_tractcloud_parcellation
+
+        tractcloud_root = self.tmp_path / "TractCloud"
+        package_dir = tractcloud_root / "src" / "tractcloud"
+        package_dir.mkdir(parents=True)
+        (package_dir / "__init__.py").write_text("", encoding="utf-8")
+
+        result = run_tractcloud_parcellation(
+            TractCloudConfig(
+                subject_id="100307",
+                input_tractography=self.tractography,
+                output_dir=self.output_dir,
+                tractcloud_root=tractcloud_root,
+                python_executable=self.python,
+                execute=False,
+            )
+        )
+
+        self.assertTrue(result.backend_status["available"])
+        self.assertEqual(result.backend_status["source"]["root"], tractcloud_root.resolve().as_posix())
+        self.assertEqual(result.backend_status["source"]["pythonpath"], (tractcloud_root / "src").resolve().as_posix())
+        manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["tractcloud_root"], tractcloud_root.resolve().as_posix())
+
     def test_execute_true_summarizes_created_bundles_with_fake_backend(self) -> None:
         from tractography import TractCloudConfig, run_tractcloud_parcellation
 

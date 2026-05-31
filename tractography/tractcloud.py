@@ -30,6 +30,7 @@ class TractCloudConfig:
     subject_id: str
     input_tractography: Path
     output_dir: Path
+    tractcloud_root: Optional[Path] = None
     python_executable: Optional[Path] = None
     include_other: bool = False
     device: str = "auto"
@@ -77,14 +78,80 @@ def resolve_tractcloud_python(python_executable: Optional[Path] = None) -> Path:
     return Path(sys.executable).resolve()
 
 
-def inspect_tractcloud_backend(python_executable: Optional[Path] = None) -> dict[str, Any]:
+def resolve_tractcloud_root(tractcloud_root: Optional[Path] = None) -> Optional[Path]:
+    """Resolve an optional TractCloud source checkout."""
+
+    candidate_value = tractcloud_root
+    if candidate_value is None:
+        env_value = os.environ.get("SLICERDDSURFER_TRACTCLOUD_ROOT") or os.environ.get("TRACTCLOUD_ROOT")
+        candidate_value = Path(env_value) if env_value else None
+    if candidate_value is None:
+        return None
+
+    candidate = candidate_value.expanduser().resolve()
+    package_candidates = [
+        candidate / "tractcloud",
+        candidate / "src" / "tractcloud",
+    ]
+    if not any(path.is_dir() for path in package_candidates):
+        raise FileNotFoundError(
+            f"TractCloud source checkout not found at {candidate}. Expected tractcloud/ or src/tractcloud/."
+        )
+    return candidate
+
+
+def _tractcloud_pythonpath(root: Optional[Path]) -> Optional[str]:
+    if root is None:
+        return None
+    src_dir = root / "src"
+    return src_dir.as_posix() if (src_dir / "tractcloud").is_dir() else root.as_posix()
+
+
+def _tractcloud_source_info(root: Optional[Path]) -> dict[str, Any] | None:
+    if root is None:
+        return None
+    info: dict[str, Any] = {
+        "root": root.as_posix(),
+        "repository": TRACTCLOUD_REPOSITORY,
+        "pythonpath": _tractcloud_pythonpath(root),
+    }
+    if (root / ".git").is_dir():
+        try:
+            commit = subprocess.check_output(
+                ["git", "-C", root.as_posix(), "rev-parse", "HEAD"],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+            info["commit"] = commit
+        except Exception:
+            pass
+    return info
+
+
+def _tractcloud_env(config: "TractCloudConfig", backend_status: Optional[dict[str, Any]] = None) -> dict[str, str]:
+    env = os.environ.copy()
+    source = backend_status.get("source") if backend_status else None
+    root_value = source.get("pythonpath") if isinstance(source, dict) else None
+    if root_value:
+        env["PYTHONPATH"] = root_value + os.pathsep + env.get("PYTHONPATH", "")
+    if config.data_dir is not None:
+        env["TRACTCLOUD_DATA_DIR"] = config.data_dir.expanduser().resolve().as_posix()
+    return env
+
+
+def inspect_tractcloud_backend(
+    python_executable: Optional[Path] = None,
+    tractcloud_root: Optional[Path] = None,
+) -> dict[str, Any]:
     """Inspect TractCloud package availability without importing torch in-process."""
 
     python_path = resolve_tractcloud_python(python_executable)
+    root = resolve_tractcloud_root(tractcloud_root)
     status: dict[str, Any] = {
         "available": False,
         "python_executable": python_path.as_posix(),
         "repository": TRACTCLOUD_REPOSITORY,
+        "source": _tractcloud_source_info(root),
         "packages": {
             "tractcloud": False,
             "torch": False,
@@ -99,11 +166,16 @@ def inspect_tractcloud_backend(python_executable: Optional[Path] = None) -> dict
         "}))"
     )
     try:
+        env = os.environ.copy()
+        source_pythonpath = _tractcloud_pythonpath(root)
+        if source_pythonpath:
+            env["PYTHONPATH"] = source_pythonpath + os.pathsep + env.get("PYTHONPATH", "")
         completed = subprocess.run(
             [python_path.as_posix(), "-c", probe],
             check=True,
             capture_output=True,
             text=True,
+            env=env,
         )
         packages = json.loads(completed.stdout.strip() or "{}")
         status["packages"].update({key: bool(packages.get(key)) for key in status["packages"]})
@@ -126,7 +198,7 @@ def validate_tractcloud_inputs(config: TractCloudConfig) -> None:
         raise ValueError("batch_size must be >= 64.")
     if config.data_dir is not None and not config.data_dir.expanduser().is_dir():
         raise FileNotFoundError(f"TractCloud data directory not found: {config.data_dir}")
-    backend_status = inspect_tractcloud_backend(config.python_executable)
+    backend_status = inspect_tractcloud_backend(config.python_executable, config.tractcloud_root)
     if config.execute and not backend_status["available"]:
         missing = [name for name, available in backend_status["packages"].items() if not available]
         raise RuntimeError(f"TractCloud backend is incomplete. Missing package(s): {', '.join(missing)}")
@@ -182,13 +254,14 @@ def run_tractcloud_parcellation(
     """Prepare or execute TractCloud parcellation for one tractogram."""
 
     validate_tractcloud_inputs(config)
-    backend_status = inspect_tractcloud_backend(config.python_executable)
+    backend_status = inspect_tractcloud_backend(config.python_executable, config.tractcloud_root)
     command = build_tractcloud_command(config)
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = output_dir / "tractcloud_manifest.json"
     qc_path = output_dir / "tractcloud_qc.json"
     output_summary = summarize_tractcloud_outputs(output_dir)
+    resolved_root = resolve_tractcloud_root(config.tractcloud_root)
 
     manifest = {
         "kind": "tractcloud_parcellation",
@@ -197,6 +270,7 @@ def run_tractcloud_parcellation(
         "subject_id": config.subject_id,
         "input_tractography": config.input_tractography.expanduser().resolve().as_posix(),
         "output_dir": output_dir.as_posix(),
+        "tractcloud_root": resolved_root.as_posix() if resolved_root else None,
         "include_other": config.include_other,
         "device": config.device,
         "batch_size": config.batch_size,
@@ -222,9 +296,7 @@ def run_tractcloud_parcellation(
     return_code: Optional[int] = None
     execution_error: Optional[str] = None
     if config.execute:
-        env = os.environ.copy()
-        if config.data_dir is not None:
-            env["TRACTCLOUD_DATA_DIR"] = config.data_dir.expanduser().resolve().as_posix()
+        env = _tractcloud_env(config, backend_status)
         try:
             completed = subprocess.run(command, check=True, env=env)
             return_code = completed.returncode
