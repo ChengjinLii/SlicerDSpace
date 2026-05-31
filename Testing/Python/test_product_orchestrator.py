@@ -125,6 +125,34 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(manifest["connectome_backend"], "mrtrix")
             self.assertTrue(manifest["connectome_compress_mrtrix_dense"])
 
+    def test_microstructure_optional_stage_gates_are_explicit(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("microstructure",),
+                    execute=False,
+                    microstructure_run_free_water=True,
+                    microstructure_run_noddi=True,
+                )
+            )
+
+            self.assertEqual(result.tasks[0].status, "planned")
+            self.assertIn("Free Water", result.tasks[0].reason)
+            self.assertIn("NODDI", result.tasks[0].reason)
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertTrue(manifest["microstructure_run_free_water"])
+            self.assertTrue(manifest["microstructure_run_noddi"])
+
     def test_resume_skips_completed_existing_outputs(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products, subject_layout
 

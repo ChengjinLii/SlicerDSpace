@@ -93,6 +93,8 @@ class SlicerDDSurferParameterNode:
     preprocessingBackend: Annotated[str, Choice(["dipy", "mrtrix_fsl"])] = "dipy"
     orchestrationRunName: str = "csd_act_ui"
     orchestrationSelectStreamlines: int = 1000
+    orchestrationRunFreeWater: bool = False
+    orchestrationRunNoddi: bool = False
     connectomeBackend: Annotated[str, Choice(["python", "mrtrix"])] = "python"
     connectomeCompressMrtrixDense: bool = False
     targetSurface: bool = True

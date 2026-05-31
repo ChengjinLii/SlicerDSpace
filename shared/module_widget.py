@@ -314,6 +314,14 @@ class SharedWidgetMixin:
                 getattr(self.ui, "orchestrationSelectStreamlinesSpinBox", None),
                 int(node.orchestrationSelectStreamlines),
             )
+            self._sync_checkbox(
+                getattr(self.ui, "orchestrationRunFreeWaterCheckBox", None),
+                bool(node.orchestrationRunFreeWater),
+            )
+            self._sync_checkbox(
+                getattr(self.ui, "orchestrationRunNoddiCheckBox", None),
+                bool(node.orchestrationRunNoddi),
+            )
             self._sync_combo_text(
                 getattr(self.ui, "connectomeBackendComboBox", None),
                 node.connectomeBackend or "python",
@@ -450,6 +458,8 @@ class SharedWidgetMixin:
                     run_name=run_name,
                     execute=True,
                     resume=True,
+                    microstructure_run_free_water=bool(self._parameterNode.orchestrationRunFreeWater),
+                    microstructure_run_noddi=bool(self._parameterNode.orchestrationRunNoddi),
                     select_streamlines=max(1, int(self._parameterNode.orchestrationSelectStreamlines)),
                     connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
                     connectome_compress_mrtrix_dense=bool(self._parameterNode.connectomeCompressMrtrixDense),

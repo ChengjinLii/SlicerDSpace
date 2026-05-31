@@ -39,6 +39,8 @@ class ProductOrchestratorConfig:
     execute: bool = False
     resume: bool = True
     microstructure_fit_method: str = "wls"
+    microstructure_run_free_water: bool = False
+    microstructure_run_noddi: bool = False
     atlas_t2: Optional[Path] = None
     ddseg_device: str = "cpu"
     select_streamlines: int = 1000
@@ -169,8 +171,8 @@ def _surface_complete(subject_root: Path, subject_id: str) -> bool:
     return all(path.is_file() for path in _surface_outputs(subject_root, subject_id).values())
 
 
-def _microstructure_dti_outputs(subject_root: Path, subject_id: str) -> dict[str, Path]:
-    layout = subject_layout(subject_root)
+def _microstructure_dti_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
+    layout = subject_layout(subject_root, output_root=output_root)
     dti_dir = layout.microstructure_dti
     return {
         "fa": dti_dir / f"{subject_id}_dti_FA.nii.gz",
@@ -185,8 +187,55 @@ def _microstructure_dti_outputs(subject_root: Path, subject_id: str) -> dict[str
     }
 
 
-def _microstructure_dti_complete(subject_root: Path, subject_id: str) -> bool:
-    return all(path.is_file() for path in _microstructure_dti_outputs(subject_root, subject_id).values())
+def _microstructure_dti_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+    return all(path.is_file() for path in _microstructure_dti_outputs(subject_root, subject_id, output_root).values())
+
+
+def _microstructure_freewater_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
+    layout = subject_layout(subject_root, output_root=output_root)
+    freewater_dir = layout.microstructure_freewater
+    return {
+        "fwf": freewater_dir / f"{subject_id}_fw_fraction.nii.gz",
+        "fw_fa": freewater_dir / f"{subject_id}_fw_FA.nii.gz",
+        "fw_md": freewater_dir / f"{subject_id}_fw_MD.nii.gz",
+        "manifest": freewater_dir / "freewater_manifest.json",
+    }
+
+
+def _microstructure_freewater_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+    return all(path.is_file() for path in _microstructure_freewater_outputs(subject_root, subject_id, output_root).values())
+
+
+def _microstructure_noddi_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
+    layout = subject_layout(subject_root, output_root=output_root)
+    noddi_dir = layout.microstructure_noddi
+    return {
+        "ndi": noddi_dir / f"{subject_id}_noddi_NDI.nii.gz",
+        "odi": noddi_dir / f"{subject_id}_noddi_ODI.nii.gz",
+        "isovf": noddi_dir / f"{subject_id}_noddi_IsoVF.nii.gz",
+        "manifest": noddi_dir / "noddi_manifest.json",
+    }
+
+
+def _microstructure_noddi_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+    return all(path.is_file() for path in _microstructure_noddi_outputs(subject_root, subject_id, output_root).values())
+
+
+def _microstructure_requested_outputs_complete(
+    subject_root: Path,
+    subject_id: str,
+    *,
+    output_root: Optional[Path],
+    run_free_water: bool,
+    run_noddi: bool,
+) -> bool:
+    if not _microstructure_dti_complete(subject_root, subject_id, output_root):
+        return False
+    if run_free_water and not _microstructure_freewater_complete(subject_root, subject_id, output_root):
+        return False
+    if run_noddi and not _microstructure_noddi_complete(subject_root, subject_id, output_root):
+        return False
+    return True
 
 
 def _task_from_result(name: str, result, *, status: str = "completed", reason: str = "") -> ProductTaskRecord:
@@ -249,7 +298,7 @@ def run_subject_products(
     segmentation_outputs = _segmentation_outputs(subject_root)
     parcellation_outputs = _parcellation_outputs(subject_root, config.subject_id)
     surface_outputs = _surface_outputs(subject_root, config.subject_id)
-    micro_outputs = _microstructure_dti_outputs(subject_root, config.subject_id)
+    micro_outputs = _microstructure_dti_outputs(subject_root, config.subject_id, output_root)
     csd_dir = layout.csd if run_name == "csd_act" else layout.tractography / run_name
     tractogram_dir = layout.tractograms / run_name
     wmql_dir = layout.bundles_wmql / run_name
@@ -401,18 +450,43 @@ def run_subject_products(
                 )
 
     if "microstructure" in targets:
-        if config.resume and _microstructure_dti_complete(subject_root, config.subject_id):
+        micro_outputs = _microstructure_dti_outputs(subject_root, config.subject_id, output_root)
+        freewater_outputs = _microstructure_freewater_outputs(subject_root, config.subject_id, output_root)
+        noddi_outputs = _microstructure_noddi_outputs(subject_root, config.subject_id, output_root)
+        if (
+            config.resume
+            and _microstructure_requested_outputs_complete(
+                subject_root,
+                config.subject_id,
+                output_root=output_root,
+                run_free_water=config.microstructure_run_free_water,
+                run_noddi=config.microstructure_run_noddi,
+            )
+        ):
+            outputs = {key: path.as_posix() for key, path in micro_outputs.items() if key != "manifest"}
+            if config.microstructure_run_free_water:
+                outputs.update({f"freewater_{key}": path.as_posix() for key, path in freewater_outputs.items() if key != "manifest"})
+            if config.microstructure_run_noddi:
+                outputs.update({f"noddi_{key}": path.as_posix() for key, path in noddi_outputs.items() if key != "manifest"})
             tasks.append(
                 ProductTaskRecord(
                     name="microstructure.dti",
                     status="skipped",
-                    reason="completed DTI outputs found",
+                    reason="completed requested microstructure outputs found",
                     manifest_path=micro_outputs["manifest"],
-                    outputs={key: path.as_posix() for key, path in micro_outputs.items() if key != "manifest"},
+                    outputs=outputs,
                 )
             )
         elif not config.execute:
-            tasks.append(ProductTaskRecord(name="microstructure.dti", status="planned", reason="execute=False"))
+            reason = "execute=False"
+            enabled = []
+            if config.microstructure_run_free_water:
+                enabled.append("Free Water")
+            if config.microstructure_run_noddi:
+                enabled.append("NODDI")
+            if enabled:
+                reason += "; gated stages enabled: " + ", ".join(enabled)
+            tasks.append(ProductTaskRecord(name="microstructure.dti", status="planned", reason=reason))
         elif any(not path.is_file() for path in raw.values()):
             missing = [label for label, path in raw.items() if not path.is_file()]
             tasks.append(ProductTaskRecord(name="microstructure.dti", status="blocked", reason="missing raw input: " + ", ".join(missing)))
@@ -435,8 +509,8 @@ def run_subject_products(
                     native_bundle=native_bundle,
                     output_dir=layout.microstructure,
                     roi_label_map=parcellation,
-                    run_free_water=False,
-                    run_noddi=False,
+                    run_free_water=config.microstructure_run_free_water,
+                    run_noddi=config.microstructure_run_noddi,
                     force_recompute=not config.resume,
                 ),
                 log=log,
@@ -457,6 +531,12 @@ def run_subject_products(
                         "trace": result.trace_path.as_posix(),
                         "roi_stats_csv": result.roi_stats_csv_path.as_posix() if result.roi_stats_csv_path else None,
                         "roi_stats_json": result.roi_stats_json_path.as_posix() if result.roi_stats_json_path else None,
+                        "fwf": result.fwf_path.as_posix() if config.microstructure_run_free_water else None,
+                        "fw_tissue_fa": result.fw_tissue_fa_path.as_posix() if config.microstructure_run_free_water else None,
+                        "fw_tissue_md": result.fw_tissue_md_path.as_posix() if config.microstructure_run_free_water else None,
+                        "noddi_ndi": result.noddi_ndi_path.as_posix() if config.microstructure_run_noddi else None,
+                        "noddi_odi": result.noddi_odi_path.as_posix() if config.microstructure_run_noddi else None,
+                        "noddi_fwf": result.noddi_fwf_path.as_posix() if config.microstructure_run_noddi else None,
                     },
                 )
             )
@@ -652,6 +732,8 @@ def run_subject_products(
         "execute": config.execute,
         "resume": config.resume,
         "microstructure_fit_method": config.microstructure_fit_method,
+        "microstructure_run_free_water": config.microstructure_run_free_water,
+        "microstructure_run_noddi": config.microstructure_run_noddi,
         "atlas_t2": atlas_t2.as_posix(),
         "ddseg_device": config.ddseg_device,
         "select_streamlines": config.select_streamlines,
