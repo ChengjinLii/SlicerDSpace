@@ -33,6 +33,7 @@ class ConnectomeConfig:
     backend: str = "auto"
     node_source: str = "ddparcel"
     symmetric: bool = True
+    compress_mrtrix_dense: bool = False
     execute: bool = False
 
 
@@ -568,6 +569,97 @@ def _summarize_dense_connectome_matrix(matrix_path: Path, *, symmetric: bool) ->
     }
 
 
+def _load_dense_connectome_matrix(matrix_path: Path):
+    try:
+        import numpy as np
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise RuntimeError("Dense connectome matrix parsing requires numpy.") from exc
+
+    rows: list[list[float]] = []
+    with matrix_path.open("r", encoding="utf-8", newline="") as stream:
+        reader = csv.reader(stream)
+        for row in reader:
+            if not row:
+                continue
+            rows.append([float(value) for value in row if value != ""])
+    if not rows:
+        return np.zeros((0, 0), dtype=float)
+    matrix = np.asarray(rows, dtype=float)
+    if matrix.ndim != 2:
+        raise RuntimeError(f"Connectome matrix is not 2D: {matrix_path}")
+    return matrix
+
+
+def _write_compressed_dense_connectome(
+    dense_matrix_path: Path,
+    sparse_matrix_path: Path,
+    labels: Iterable[int],
+    *,
+    metric: str,
+    symmetric: bool,
+) -> dict[str, object]:
+    """Compress an MRtrix dense matrix to label-valued sparse edge rows.
+
+    MRtrix ``tck2connectome`` can produce very large dense matrices when the
+    parcellation uses sparse FreeSurfer-style label values. This helper keeps
+    only rows/columns that correspond to labels actually present in the
+    parcellation image and writes a compact edge-list CSV.
+    """
+
+    import numpy as np
+
+    matrix = _load_dense_connectome_matrix(dense_matrix_path)
+    unique_labels = sorted({int(label) for label in labels if int(label) != 0})
+    if matrix.shape[0] == len(unique_labels) and matrix.shape[1] == len(unique_labels):
+        remap_mode = "sequential_sorted_labels"
+        index_by_label = {label: index for index, label in enumerate(unique_labels)}
+    else:
+        remap_mode = "one_based_label_indices"
+        index_by_label = {
+            label: label - 1
+            for label in unique_labels
+            if label > 0 and label - 1 < matrix.shape[0] and label - 1 < matrix.shape[1]
+        }
+
+    edge_count = 0
+    assigned = 0.0
+    dropped_labels = [label for label in unique_labels if label not in index_by_label]
+    with sparse_matrix_path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.writer(stream)
+        writer.writerow(["source_node", "target_node", metric])
+        for source in unique_labels:
+            source_index = index_by_label.get(source)
+            if source_index is None:
+                continue
+            target_labels = unique_labels
+            if symmetric:
+                target_labels = [label for label in unique_labels if label >= source]
+            for target in target_labels:
+                target_index = index_by_label.get(target)
+                if target_index is None:
+                    continue
+                value = float(matrix[source_index, target_index])
+                if not np.isfinite(value) or value == 0:
+                    continue
+                edge_count += 1
+                assigned += value
+                writer.writerow([source, target, int(value) if value.is_integer() else value])
+
+    return {
+        "node_count": len(unique_labels),
+        "edge_count": edge_count,
+        "streamline_count_total": None,
+        "streamline_count_assigned": int(assigned) if assigned.is_integer() else assigned,
+        "streamline_count_skipped": None,
+        "dense_node_count": int(matrix.shape[0]) if matrix.ndim == 2 else 0,
+        "dense_matrix_path": dense_matrix_path.as_posix(),
+        "dense_remap_mode": remap_mode,
+        "dense_remapped_label_count": len(index_by_label),
+        "dense_dropped_label_count": len(dropped_labels),
+        "dense_dropped_labels_preview": dropped_labels[:20],
+    }
+
+
 def _validate_config(config: ConnectomeConfig) -> None:
     if not config.subject_id.strip():
         raise ValueError("subject_id is required.")
@@ -641,6 +733,7 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
         "requested_backend": config.backend,
         "node_source": config.node_source,
         "symmetric": config.symmetric,
+        "compress_mrtrix_dense": config.compress_mrtrix_dense,
         "backend": backend_status,
         "dependencies": {
             "tractography": _file_info(config.tractography_path),
@@ -674,6 +767,11 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
         "return_code": None,
         "elapsed_seconds": 0.0,
         "backend": "planned",
+        "dense_node_count": None,
+        "dense_matrix_path": None,
+        "dense_remap_mode": None,
+        "dense_remapped_label_count": None,
+        "dense_dropped_label_count": None,
         "error": None,
     }
     return_code: Optional[int] = None
@@ -693,10 +791,16 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
             if config.backend == "mrtrix" and not use_mrtrix:
                 raise RuntimeError("Requested MRtrix connectome backend is unavailable for this input/metric.")
             if use_mrtrix:
-                command = build_tck2connectome_command(config, matrix_path)
+                mrtrix_matrix_path = (
+                    output_dir / f"{stem}_dense.csv" if config.compress_mrtrix_dense else matrix_path
+                )
+                if config.compress_mrtrix_dense:
+                    manifest["outputs"]["dense_matrix"] = mrtrix_matrix_path.as_posix()  # type: ignore[index]
+                command = build_tck2connectome_command(config, mrtrix_matrix_path)
                 manifest["command"] = list(command)
                 completed = subprocess.run(command, check=True)
                 return_code = completed.returncode
+                unique_labels: list[int] = []
                 try:
                     data, _ = _load_label_volume(config.parcellation_path.expanduser().resolve())
                     label_names = _parse_label_names(lut_path)
@@ -710,7 +814,18 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
                     )
                 except Exception:
                     _write_nodes_table(nodes_path, [], label_names={})
-                qc.update(_summarize_dense_connectome_matrix(matrix_path, symmetric=config.symmetric))
+                if config.compress_mrtrix_dense:
+                    qc.update(
+                        _write_compressed_dense_connectome(
+                            mrtrix_matrix_path,
+                            matrix_path,
+                            unique_labels,
+                            metric=config.metric,
+                            symmetric=config.symmetric,
+                        )
+                    )
+                else:
+                    qc.update(_summarize_dense_connectome_matrix(matrix_path, symmetric=config.symmetric))
                 qc.update({"backend": "mrtrix3.tck2connectome"})
             else:
                 summary = _write_python_connectome(config, matrix_path, nodes_path, lut_path=lut_path)

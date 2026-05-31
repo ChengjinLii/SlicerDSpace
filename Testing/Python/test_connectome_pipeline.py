@@ -146,6 +146,61 @@ class ConnectomePipelineTest(unittest.TestCase):
             manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
             self.assertIn("-tck_weights_in", manifest["command"])
 
+    def test_mrtrix_dense_matrix_can_be_compressed_to_sparse_labels(self) -> None:
+        try:
+            import nibabel as nib
+            import numpy as np
+        except ImportError:
+            self.skipTest("nibabel/numpy are required for dense remap connectome test")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            fake = bin_dir / "tck2connectome"
+            fake.write_text(
+                "#!/bin/sh\n"
+                "printf '0,0,0,0,0\\n0,2,0,0,7\\n0,0,0,0,0\\n0,0,0,0,0\\n0,0,0,0,3\\n' > \"$3\"\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            fake.chmod(0o755)
+            tractography = root / "streamlines.tck"
+            tractography.write_text("tck", encoding="utf-8")
+            labels = np.zeros((6, 6, 6), dtype=np.int16)
+            labels[1, 1, 1] = 2
+            labels[5, 5, 5] = 5
+            parcellation = root / "wmparc.nii.gz"
+            nib.save(nib.Nifti1Image(labels, np.eye(4)), parcellation.as_posix())
+
+            result = run_connectome(
+                ConnectomeConfig(
+                    subject_id="dense",
+                    tractography_path=tractography,
+                    parcellation_path=parcellation,
+                    output_dir=root / "connectome",
+                    mrtrix_bin_dir=bin_dir,
+                    backend="mrtrix",
+                    compress_mrtrix_dense=True,
+                    execute=True,
+                )
+            )
+
+            matrix = result.matrix_path.read_text(encoding="utf-8")
+            self.assertIn("source_node,target_node,streamline_count", matrix)
+            self.assertIn("2,2,2", matrix)
+            self.assertIn("2,5,7", matrix)
+            self.assertIn("5,5,3", matrix)
+            qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(qc["node_count"], 2)
+            self.assertEqual(qc["edge_count"], 3)
+            self.assertEqual(qc["dense_node_count"], 5)
+            self.assertEqual(qc["dense_remap_mode"], "one_based_label_indices")
+            self.assertEqual(qc["streamline_count_assigned"], 12)
+            manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+            self.assertTrue(manifest["compress_mrtrix_dense"])
+            self.assertTrue(Path(manifest["outputs"]["dense_matrix"]).is_file())
+
     def test_execute_true_computes_endpoint_matrix_for_ascii_vtk(self) -> None:
         try:
             import nibabel as nib
