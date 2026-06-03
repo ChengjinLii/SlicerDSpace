@@ -240,7 +240,15 @@ def default_task_output_dir_for_dependency(dependency_path: Path, task_name: str
 
 
 def _safe_link_or_copy(src: Path, dest: Path, *, mode: str) -> None:
-    if dest.exists() or dest.is_symlink():
+    if dest.is_symlink():
+        try:
+            if dest.resolve(strict=True) == src.resolve():
+                return
+        except (FileNotFoundError, OSError):
+            dest.unlink()
+        else:
+            return
+    if dest.exists():
         return
     dest.parent.mkdir(parents=True, exist_ok=True)
     if mode == "symlink":
@@ -280,6 +288,40 @@ def _archive_debug_path(src: Path, archive_root: Path) -> Optional[Path]:
         dest = archive_root / f"{src.name}.{suffix}"
     shutil.move(src.as_posix(), dest.as_posix())
     return dest
+
+
+def _merge_directory_contents(src: Path, dest: Path, *, mode: str, files_only: bool = False) -> None:
+    dest.mkdir(parents=True, exist_ok=True)
+    for child in sorted(src.iterdir()):
+        if files_only and child.is_dir():
+            continue
+        _safe_link_or_copy(child, dest / child.name, mode=mode)
+
+
+def _legacy_csd_run_sources(layout: SubjectIOLayout) -> list[Path]:
+    sources: list[Path] = []
+    if layout.tractography.is_dir():
+        sources.extend(
+            sorted(
+                path
+                for path in layout.tractography.iterdir()
+                if path.is_dir() and path.name.startswith("csd_act") and path.name != "csd"
+            )
+        )
+    debug_legacy_runs = layout.subject_root / ".debug_outputs" / "04_tractography" / "legacy_csd_runs"
+    if debug_legacy_runs.is_dir():
+        sources.extend(sorted(path for path in debug_legacy_runs.iterdir() if path.is_dir()))
+    return sources
+
+
+def _legacy_connectome_dir_sources(layout: SubjectIOLayout) -> list[Path]:
+    sources: list[Path] = []
+    if layout.connectome.is_dir():
+        sources.extend(sorted(path for path in layout.connectome.iterdir() if path.is_dir()))
+    debug_legacy_layout = layout.subject_root / ".debug_outputs" / "04_tractography" / "connectome_legacy_layout"
+    if debug_legacy_layout.is_dir():
+        sources.extend(sorted(path for path in debug_legacy_layout.iterdir() if path.is_dir()))
+    return sources
 
 
 def materialize_canonical_output_tree(
@@ -356,15 +398,16 @@ def materialize_canonical_output_tree(
                 _safe_link_or_copy(legacy_path, layout.tractograms_dti_det / legacy_path.name, mode=mode)
                 created[f"tractography/{legacy_path.name}"] = layout.tractograms_dti_det / legacy_path.name
 
-    if layout.tractography.is_dir():
-        for legacy_csd_run in sorted(
-            path
-            for path in layout.tractography.iterdir()
-            if path.is_dir() and path.name.startswith("csd_act") and path.name != "csd"
-        ):
-            target = layout.csd / legacy_csd_run.name
-            _safe_link_or_copy(legacy_csd_run, target, mode=mode)
-            created[legacy_csd_run.name] = target
+    for legacy_csd_run in _legacy_csd_run_sources(layout):
+        if not legacy_csd_run.is_dir():
+            continue
+        if legacy_csd_run.parent == layout.csd:
+            continue
+        if not legacy_csd_run.name.startswith("csd_act"):
+            continue
+        target = layout.csd / legacy_csd_run.name
+        _safe_link_or_copy(legacy_csd_run, target, mode=mode)
+        created[legacy_csd_run.name] = target
 
     legacy_roots = [outputs]
     debug_legacy_root = layout.subject_root / ".debug_outputs" / "legacy_outputs_root"
@@ -376,15 +419,32 @@ def materialize_canonical_output_tree(
             _safe_link_or_copy(legacy_wma_run, target, mode=mode)
             created[legacy_wma_run.name] = target
 
-    if layout.connectome.is_dir():
-        for legacy_connectome_dir in sorted(path for path in layout.connectome.iterdir() if path.is_dir()):
-            parsed = _parse_legacy_connectome_dir_name(legacy_connectome_dir.name)
-            if parsed is None:
-                continue
-            legacy_run_name, metric = parsed
-            target = canonical_connectome_output_dir(layout.subject_root, legacy_run_name, metric, output_root=output_root)
+    for legacy_connectome_dir in _legacy_connectome_dir_sources(layout):
+        if not legacy_connectome_dir.is_dir():
+            continue
+        parsed = _parse_legacy_connectome_dir_name(legacy_connectome_dir.name)
+        if parsed is None:
+            continue
+        legacy_run_name, metric = parsed
+        target = canonical_connectome_output_dir(layout.subject_root, legacy_run_name, metric, output_root=output_root)
+        if legacy_connectome_dir == target:
+            continue
+        if metric == "streamline_count":
+            _merge_directory_contents(legacy_connectome_dir, target, mode=mode, files_only=True)
+        else:
             _safe_link_or_copy(legacy_connectome_dir, target, mode=mode)
-            created[legacy_connectome_dir.name] = target
+        created[legacy_connectome_dir.name] = target
+
+    debug_legacy_root_files = layout.subject_root / ".debug_outputs" / "04_tractography" / "connectome_legacy_root_files"
+    if debug_legacy_root_files.is_dir():
+        for root_file in sorted(debug_legacy_root_files.iterdir()):
+            if not root_file.is_file():
+                continue
+            if not root_file.name.startswith(f"{layout.subject_root.name}-connectome-"):
+                continue
+            target = layout.connectome / "csd_act" / root_file.name
+            _safe_link_or_copy(root_file, target, mode=mode)
+            created[f"csd_act/{root_file.name}"] = target
 
     tractcloud_root_map = {
         "AnatomicalTracts": layout.bundles_tractcloud / "AnatomicalTracts",

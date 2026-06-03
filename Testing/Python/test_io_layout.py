@@ -191,6 +191,47 @@ class IOLayoutTest(unittest.TestCase):
             )
             self.assertIn(root_file.as_posix(), moved)
 
+    def test_materialize_repairs_broken_csd_symlink_from_debug_archive(self) -> None:
+        from shared import materialize_canonical_output_tree, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            archived_run = subject_root / ".debug_outputs" / "04_tractography" / "legacy_csd_runs" / "csd_act_100k"
+            archived_run.mkdir(parents=True)
+            (archived_run / "csd_act_qc.json").write_text("{}", encoding="utf-8")
+
+            broken_target = subject_root / "outputs" / "04_tractography" / "missing_csd_act_100k"
+            broken_target.parent.mkdir(parents=True, exist_ok=True)
+            layout.csd.mkdir(parents=True, exist_ok=True)
+            (layout.csd / "csd_act_100k").symlink_to(broken_target, target_is_directory=True)
+
+            materialize_canonical_output_tree(subject_root, mode="symlink", archive_legacy=False)
+
+            repaired = layout.csd / "csd_act_100k"
+            self.assertTrue(repaired.is_symlink())
+            self.assertTrue((repaired / "csd_act_qc.json").is_file())
+
+    def test_materialize_rehydrates_connectome_run_from_debug_archive(self) -> None:
+        from shared import materialize_canonical_output_tree, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            archived_root = subject_root / ".debug_outputs" / "04_tractography" / "connectome_legacy_layout"
+            run_root = archived_root / "csd_act_100k"
+            mean_md_root = archived_root / "csd_act_100k_mean_md"
+            run_root.mkdir(parents=True)
+            mean_md_root.mkdir(parents=True)
+            (run_root / "100307-connectome-streamline_count_qc.json").write_text("{}", encoding="utf-8")
+            (run_root / "100307-connectome-streamline_count_manifest.json").write_text("{}", encoding="utf-8")
+            (mean_md_root / "100307-connectome-mean_md_qc.json").write_text("{}", encoding="utf-8")
+
+            materialize_canonical_output_tree(subject_root, mode="symlink", archive_legacy=False)
+
+            self.assertTrue((layout.connectome / "csd_act_100k" / "100307-connectome-streamline_count_qc.json").is_file())
+            self.assertTrue((layout.connectome / "csd_act_100k" / "mean_md" / "100307-connectome-mean_md_qc.json").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -23,6 +23,7 @@ CONNECTOME_METRICS = (
     "mean_md",
     "mean_length_mm",
     "total_length_mm",
+    "mrtrix_dense_compressed",
 )
 
 
@@ -70,8 +71,12 @@ def _file_record(path: Path) -> dict[str, Any]:
 
 
 def _connectome_qc_path(connectome_root: Path, subject_id: str, run_name: str, metric: str) -> Path:
-    output_dir = connectome_root / run_name / metric
-    return output_dir / f"{subject_id}-connectome-{metric}_qc.json"
+    run_dir = connectome_root / run_name
+    if metric == "streamline_count":
+        return run_dir / f"{subject_id}-connectome-streamline_count_qc.json"
+    if metric == "mrtrix_dense_compressed":
+        return run_dir / metric / f"{subject_id}-connectome-streamline_count_qc.json"
+    return run_dir / metric / f"{subject_id}-connectome-{metric}_qc.json"
 
 
 def _summarize_connectomes(connectome_root: Path, subject_id: str, run_name: str) -> dict[str, Any]:
