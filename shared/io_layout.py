@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path
+import json
 import shutil
 
 
@@ -239,7 +240,7 @@ def default_task_output_dir_for_dependency(dependency_path: Path, task_name: str
     return resolved.parent / task_name
 
 
-def _safe_link_or_copy(src: Path, dest: Path, *, mode: str) -> None:
+def _safe_link_or_copy(src: Path, dest: Path, *, mode: str, replace: bool = False) -> None:
     if dest.is_symlink():
         try:
             if dest.resolve(strict=True) == src.resolve():
@@ -247,9 +248,18 @@ def _safe_link_or_copy(src: Path, dest: Path, *, mode: str) -> None:
         except (FileNotFoundError, OSError):
             dest.unlink()
         else:
+            if replace:
+                dest.unlink()
+            else:
+                return
+    elif dest.exists():
+        if replace:
+            if dest.is_dir():
+                shutil.rmtree(dest)
+            else:
+                dest.unlink()
+        else:
             return
-    if dest.exists():
-        return
     dest.parent.mkdir(parents=True, exist_ok=True)
     if mode == "symlink":
         try:
@@ -296,6 +306,34 @@ def _merge_directory_contents(src: Path, dest: Path, *, mode: str, files_only: b
         if files_only and child.is_dir():
             continue
         _safe_link_or_copy(child, dest / child.name, mode=mode)
+
+
+def _refresh_microstructure_manifest_flags(
+    manifest_path: Path,
+    *,
+    freewater_enabled: bool,
+    noddi_enabled: bool,
+) -> None:
+    if not manifest_path.is_file():
+        return
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+
+    changed = False
+    freewater_model = payload.get("free_water_model")
+    if isinstance(freewater_model, dict) and freewater_enabled and not freewater_model.get("run_enabled"):
+        freewater_model["run_enabled"] = True
+        changed = True
+
+    noddi_model = payload.get("noddi_model")
+    if isinstance(noddi_model, dict) and noddi_enabled and not noddi_model.get("run_enabled"):
+        noddi_model["run_enabled"] = True
+        changed = True
+
+    if changed:
+        manifest_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _legacy_csd_run_sources(layout: SubjectIOLayout) -> list[Path]:
@@ -364,9 +402,16 @@ def materialize_canonical_output_tree(
             _safe_link_or_copy(legacy_dir, canonical_dir, mode=mode)
             created[legacy_name] = canonical_dir
 
-    legacy_microstructure = outputs / "microstructure"
-    if legacy_microstructure.exists():
+    legacy_microstructure_roots = [
+        outputs / "microstructure",
+        archive_root / "microstructure",
+    ]
+    for legacy_microstructure in legacy_microstructure_roots:
+        if not legacy_microstructure.exists():
+            continue
         subject_id = layout.subject_root.name
+        freewater_enabled = False
+        noddi_enabled = False
         file_map = {
             f"{subject_id}-dti-FractionalAnisotropy.nii.gz": layout.microstructure_dti / f"{subject_id}_dti_FA.nii.gz",
             f"{subject_id}-dti-MeanDiffusivity.nii.gz": layout.microstructure_dti / f"{subject_id}_dti_MD.nii.gz",
@@ -380,12 +425,27 @@ def materialize_canonical_output_tree(
             "noddi_manifest.json": layout.microstructure_noddi / "noddi_manifest.json",
             f"{subject_id}-ROIWise-FA.csv": layout.regional_microstructure / f"{subject_id}_ROIWise-Microstructure.csv",
             f"{subject_id}-ROIWise-FA.json": layout.regional_microstructure / f"{subject_id}_ROIWise-Microstructure.json",
+            f"{subject_id}-ROIWise-Microstructure.csv": layout.regional_microstructure / f"{subject_id}_ROIWise-Microstructure.csv",
+            f"{subject_id}-ROIWise-Microstructure.json": layout.regional_microstructure / f"{subject_id}_ROIWise-Microstructure.json",
         }
         for legacy_name, canonical_path in file_map.items():
             legacy_path = legacy_microstructure / legacy_name
             if legacy_path.exists():
                 _safe_link_or_copy(legacy_path, canonical_path, mode=mode)
                 created[legacy_name] = canonical_path
+                if "freewater-" in legacy_name or legacy_name == "freewater_manifest.json":
+                    freewater_enabled = True
+                if "noddi-" in legacy_name or legacy_name == "noddi_manifest.json":
+                    noddi_enabled = True
+        legacy_manifest = legacy_microstructure / "manifest.json"
+        if legacy_manifest.exists():
+            _safe_link_or_copy(legacy_manifest, layout.microstructure / "manifest.json", mode=mode, replace=True)
+            _refresh_microstructure_manifest_flags(
+                layout.microstructure / "manifest.json",
+                freewater_enabled=freewater_enabled,
+                noddi_enabled=noddi_enabled,
+            )
+            created["microstructure_manifest"] = layout.microstructure / "manifest.json"
         amico_dir = legacy_microstructure / "_amico_noddi"
         if amico_dir.exists():
             _safe_link_or_copy(amico_dir, layout.microstructure_noddi / "_amico_noddi", mode=mode)

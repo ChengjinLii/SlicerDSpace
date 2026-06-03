@@ -91,6 +91,40 @@ class IOLayoutTest(unittest.TestCase):
             self.assertTrue((subject_root / ".legacy_flat_outputs" / "AnatomicalTracts").is_dir())
             self.assertIn("100307-dti-FractionalAnisotropy.nii.gz", created)
 
+    def test_archived_legacy_microstructure_can_rehydrate_canonical_freewater_noddi(self) -> None:
+        from shared import materialize_canonical_output_tree, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            archived_micro = subject_root / ".legacy_flat_outputs" / "microstructure"
+            archived_micro.mkdir(parents=True)
+            (layout.microstructure / "manifest.json").parent.mkdir(parents=True, exist_ok=True)
+            (layout.microstructure / "manifest.json").write_text('{"old": true}\n', encoding="utf-8")
+            (archived_micro / "100307-freewater-Fraction.nii.gz").write_text("fwf", encoding="utf-8")
+            (archived_micro / "100307-freewater-TissueFA.nii.gz").write_text("fa", encoding="utf-8")
+            (archived_micro / "100307-freewater-TissueMD.nii.gz").write_text("md", encoding="utf-8")
+            (archived_micro / "100307-noddi-NDI.nii.gz").write_text("ndi", encoding="utf-8")
+            (archived_micro / "100307-noddi-ODI.nii.gz").write_text("odi", encoding="utf-8")
+            (archived_micro / "100307-noddi-FWF.nii.gz").write_text("fwf", encoding="utf-8")
+            (archived_micro / "100307-ROIWise-Microstructure.csv").write_text("csv", encoding="utf-8")
+            (archived_micro / "100307-ROIWise-Microstructure.json").write_text("{}", encoding="utf-8")
+            (archived_micro / "freewater_manifest.json").write_text("{}", encoding="utf-8")
+            (archived_micro / "noddi_manifest.json").write_text("{}", encoding="utf-8")
+            (archived_micro / "manifest.json").write_text('{"run_noddi": true}\n', encoding="utf-8")
+            amico_dir = archived_micro / "_amico_noddi"
+            amico_dir.mkdir()
+            (amico_dir / "fit_NDI.nii.gz").write_text("fit", encoding="utf-8")
+
+            created = materialize_canonical_output_tree(subject_root, mode="copy", archive_legacy=False)
+
+            self.assertTrue((layout.microstructure_freewater / "100307_fw_fraction.nii.gz").is_file())
+            self.assertTrue((layout.microstructure_noddi / "100307_noddi_NDI.nii.gz").is_file())
+            self.assertTrue((layout.microstructure_noddi / "_amico_noddi" / "fit_NDI.nii.gz").is_file())
+            self.assertTrue((layout.regional_microstructure / "100307_ROIWise-Microstructure.csv").is_file())
+            self.assertIn('"run_noddi": true', (layout.microstructure / "manifest.json").read_text(encoding="utf-8"))
+            self.assertIn("microstructure_manifest", created)
+
     def test_development_outputs_can_be_archived_outside_canonical_tree(self) -> None:
         from shared import archive_development_outputs, subject_layout
 
