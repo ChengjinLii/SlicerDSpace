@@ -12,6 +12,58 @@ SlicerDDSurfer 是一个 3D Slicer 扩展模块，整合了多条基于扩散 MR
 
 ---
 
+## 统一命令入口
+
+现在推荐通过仓库根目录的统一 CLI 运行：
+
+```bash
+cd /data/chengjin/SlicerDDSurfer
+python3 run_subject_pipeline.py \
+  --subject-root /data/chengjin/SlicerDDSurfer-test/100307 \
+  --subject-id 100307 \
+  --all \
+  --execute \
+  --tractography-backend csd_act \
+  --connectome-backend mrtrix \
+  --select-streamlines 100000 \
+  --compress-mrtrix-dense
+```
+
+这条命令的设计目标就是：**尽量一次生成完整输出文件树**。默认输出到：
+
+```text
+<subject-root>/outputs/
+```
+
+如果你想只跑一部分，可以用：
+
+```bash
+python3 run_subject_pipeline.py \
+  --subject-root /data/chengjin/SlicerDDSurfer-test/100307 \
+  --targets microstructure,tractography,connectome \
+  --skip-targets bundles \
+  --tractography-backend dti_det
+```
+
+常用开关：
+- `--all`：跑完整产品树
+- `--targets ...`：只跑指定产品
+- `--skip-targets ...`：显式跳过某些产品
+- `--execute`：真正执行；不加时只是 dry-run 规划
+- `--no-resume`：关闭已有结果复用
+- `--output-root ...`：把输出写到自定义目录
+- `--run-free-water` / `--run-noddi`：打开较慢的微结构阶段
+- `--tractography-backend csd_act|dti_det`
+- `--connectome-backend python|mrtrix`
+
+当前如果不显式传 `--targets`，默认会规划：
+- `microstructure`
+- `tractography`
+- `bundles`
+- `connectome`
+
+---
+
 ## 代码结构
 
 ```
