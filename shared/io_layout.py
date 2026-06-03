@@ -477,5 +477,8 @@ def archive_development_outputs(subject_root: Path, *, output_root: Optional[Pat
                     )
                     if canonical_target != child and canonical_target.exists():
                         _move_if_exists(child, debug_root / "04_tractography" / "connectome_legacy_layout")
+        for child in list(connectome.iterdir()):
+            if child.is_file() and child.name.startswith(f"{layout.subject_root.name}-connectome-"):
+                _move_if_exists(child, debug_root / "04_tractography" / "connectome_legacy_root_files")
 
     return moved

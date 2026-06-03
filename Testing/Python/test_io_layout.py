@@ -173,6 +173,24 @@ class IOLayoutTest(unittest.TestCase):
             self.assertTrue((subject_root / ".debug_outputs" / "04_tractography" / "connectome_legacy_layout" / "csd_act_100k_mean_fa").is_dir())
             self.assertIn(legacy_metric_dir.as_posix(), moved)
 
+    def test_legacy_connectome_root_files_can_be_archived(self) -> None:
+        from shared import archive_development_outputs, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            root_file = layout.connectome / "100307-connectome-streamline_count_qc.json"
+            root_file.parent.mkdir(parents=True)
+            root_file.write_text("{}", encoding="utf-8")
+
+            moved = archive_development_outputs(subject_root)
+
+            self.assertFalse(root_file.exists())
+            self.assertTrue(
+                (subject_root / ".debug_outputs" / "04_tractography" / "connectome_legacy_root_files" / "100307-connectome-streamline_count_qc.json").is_file()
+            )
+            self.assertIn(root_file.as_posix(), moved)
+
 
 if __name__ == "__main__":
     unittest.main()

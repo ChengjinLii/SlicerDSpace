@@ -52,7 +52,13 @@ def main() -> int:
 
     from connectome import ConnectomeConfig, run_connectome
     from microstructure import MicrostructureConfig, run_microstructure
-    from shared import ensure_native_dti_bundle, find_subject_root, materialize_canonical_output_tree, subject_layout
+    from shared import (
+        canonical_connectome_output_dir,
+        ensure_native_dti_bundle,
+        find_subject_root,
+        materialize_canonical_output_tree,
+        subject_layout,
+    )
     from tractography import DTITrackingConfig, WMQLConfig, run_dti_tracking, run_wmql_bundle_segmentation
 
     subject_root = Path(args.subject_root).expanduser().resolve()
@@ -135,7 +141,7 @@ def main() -> int:
             subject_id=subject_id,
             tractography_path=tracking.streamlines_path,
             parcellation_path=parcellation,
-            output_dir=layout.connectome,
+            output_dir=canonical_connectome_output_dir(subject_root, "dti_minimal_closure", "streamline_count"),
             metric="streamline_count",
             execute=True,
         ),
