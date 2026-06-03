@@ -116,6 +116,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional DWI preprocessing backend.",
     )
     parser.add_argument("--preprocessing-force", action="store_true", help="Force rerun preprocessing even if outputs exist.")
+    parser.add_argument(
+        "--preprocessing-dipy-denoise-method",
+        default="mppca",
+        choices=("mppca", "localpca", "patch2self", "none"),
+        help="DIPY denoise method for preprocessing.",
+    )
+    parser.add_argument("--preprocessing-skip-gibbs", action="store_true", help="Skip Gibbs removal in DIPY preprocessing.")
+    parser.add_argument("--preprocessing-skip-motion", action="store_true", help="Skip between-volume motion correction in DIPY preprocessing.")
     parser.add_argument("--preprocessing-mrtrix-bin-dir", type=Path, help="Optional MRtrix3 bin dir for preprocessing.")
     parser.add_argument("--preprocessing-fsl-bin-dir", type=Path, help="Optional FSL bin dir for preprocessing.")
     parser.add_argument("--preprocessing-reverse-phase-b0", type=Path, help="Optional reverse phase-encoding b0 for MRtrix/FSL preprocessing.")
@@ -202,6 +210,9 @@ def main(argv: list[str] | None = None) -> int:
         resume=not args.no_resume,
         preprocessing_backend=args.preprocessing_backend,
         preprocessing_force=bool(args.preprocessing_force),
+        preprocessing_dipy_denoise_method=args.preprocessing_dipy_denoise_method,
+        preprocessing_dipy_run_gibbs=not args.preprocessing_skip_gibbs,
+        preprocessing_dipy_run_motion_correction=not args.preprocessing_skip_motion,
         preprocessing_mrtrix_bin_dir=args.preprocessing_mrtrix_bin_dir,
         preprocessing_fsl_bin_dir=args.preprocessing_fsl_bin_dir,
         preprocessing_reverse_phase_b0=args.preprocessing_reverse_phase_b0,

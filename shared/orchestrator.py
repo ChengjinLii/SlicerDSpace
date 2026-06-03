@@ -51,6 +51,9 @@ class ProductOrchestratorConfig:
     resume: bool = True
     preprocessing_backend: str = "dipy"
     preprocessing_force: bool = False
+    preprocessing_dipy_denoise_method: str = "mppca"
+    preprocessing_dipy_run_gibbs: bool = True
+    preprocessing_dipy_run_motion_correction: bool = True
     preprocessing_mrtrix_bin_dir: Optional[Path] = None
     preprocessing_fsl_bin_dir: Optional[Path] = None
     preprocessing_reverse_phase_b0: Optional[Path] = None
@@ -423,6 +426,9 @@ def run_subject_products(
                     execute=True,
                     skip=False,
                     force=config.preprocessing_force or (not config.resume),
+                    dipy_denoise_method=config.preprocessing_dipy_denoise_method,
+                    dipy_run_gibbs=config.preprocessing_dipy_run_gibbs,
+                    dipy_run_motion_correction=config.preprocessing_dipy_run_motion_correction,
                     mrtrix_bin_dir=config.preprocessing_mrtrix_bin_dir,
                     fsl_bin_dir=config.preprocessing_fsl_bin_dir,
                     reverse_phase_b0=config.preprocessing_reverse_phase_b0,
@@ -1089,6 +1095,9 @@ def run_subject_products(
         "resume": config.resume,
         "preprocessing_backend": config.preprocessing_backend,
         "preprocessing_force": config.preprocessing_force,
+        "preprocessing_dipy_denoise_method": config.preprocessing_dipy_denoise_method,
+        "preprocessing_dipy_run_gibbs": config.preprocessing_dipy_run_gibbs,
+        "preprocessing_dipy_run_motion_correction": config.preprocessing_dipy_run_motion_correction,
         "preprocessing_mrtrix_bin_dir": config.preprocessing_mrtrix_bin_dir.as_posix() if config.preprocessing_mrtrix_bin_dir else None,
         "preprocessing_fsl_bin_dir": config.preprocessing_fsl_bin_dir.as_posix() if config.preprocessing_fsl_bin_dir else None,
         "preprocessing_reverse_phase_b0": config.preprocessing_reverse_phase_b0.as_posix() if config.preprocessing_reverse_phase_b0 else None,

@@ -112,6 +112,42 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
             task_names = [task["name"] for task in payload["tasks"]]
             self.assertEqual(task_names, ["tractography.saf", "bundles.wma", "bundles.tractcloud"])
 
+    def test_cli_records_preprocessing_dipy_options(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "preprocessing",
+                    "--preprocessing-backend",
+                    "dipy",
+                    "--preprocessing-dipy-denoise-method",
+                    "none",
+                    "--preprocessing-skip-gibbs",
+                    "--preprocessing-skip-motion",
+                    "--print-manifest-only",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            manifest_path = Path(completed.stdout.strip())
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["preprocessing_backend"], "dipy")
+            self.assertEqual(manifest["preprocessing_dipy_denoise_method"], "none")
+            self.assertFalse(manifest["preprocessing_dipy_run_gibbs"])
+            self.assertFalse(manifest["preprocessing_dipy_run_motion_correction"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -364,16 +364,21 @@ def _run_dipy_backend(
             log("[Preproc:DIPY] " + message)
 
     subject = raw.subject_id
+    emit(f"Loading source DWI from {raw.dwi_path}")
     source_img = nib.load(str(raw.dwi_path))
+    emit("Materializing DWI array into memory")
     data = source_img.get_fdata(dtype=np.float32)
     if data.ndim != 4:
         raise ValueError(f"DIPY preprocessing expects a 4D DWI image, got shape {data.shape}")
+    emit(f"Loaded DWI shape={data.shape}")
 
+    emit("Loading gradients")
     bvals = np.loadtxt(str(raw.bval_path), ndmin=1)
     bvecs = np.loadtxt(str(raw.bvec_path))
     if bvecs.ndim == 2 and bvecs.shape[0] == 3:
         bvecs = bvecs.T
     gtab = gradient_table(bvals, bvecs=bvecs, b0_threshold=config.b0_threshold)
+    emit(f"Gradient table prepared with {int(len(bvals))} volumes")
 
     denoise_method = config.dipy_denoise_method.lower()
     denoised = data
@@ -498,14 +503,13 @@ def run_dwi_preprocessing(
         "outputs": {key: value.as_posix() for key, value in paths.items() if key not in {"import_dir", "gradients_dir", "denoise_dir", "motion_dir", "mask_dir", "qc_dir"}},
         "commands": command_records,
     }
+    _write_json(paths["manifest"], manifest)
 
     if config.skip:
-        _write_json(paths["manifest"], manifest)
         _write_json(paths["qc"], {"kind": "dwi_preprocessing_qc", "status": "skipped", "subject_id": raw.subject_id, "checks": []})
         return DwiPreprocessingResult(raw.subject_id, "skipped", output_dir, paths["manifest"], paths["qc"], paths["final_dwi"], paths["final_bval"], paths["final_bvec"], paths["final_mask"])
 
     if not config.execute:
-        _write_json(paths["manifest"], manifest)
         _write_json(paths["qc"], {"kind": "dwi_preprocessing_qc", "status": "planned", "subject_id": raw.subject_id, "backend_available": backend["available"]})
         return DwiPreprocessingResult(raw.subject_id, "planned", output_dir, paths["manifest"], paths["qc"], paths["final_dwi"], paths["final_bval"], paths["final_bvec"], paths["final_mask"])
 
@@ -521,6 +525,17 @@ def run_dwi_preprocessing(
 
     _materialize_dirs(paths)
     _copy_input_sidecars(raw, paths)
+    manifest["status"] = "running"
+    _write_json(paths["manifest"], manifest)
+    _write_json(
+        paths["qc"],
+        {
+            "kind": "dwi_preprocessing_qc",
+            "status": "running",
+            "subject_id": raw.subject_id,
+            "backend_available": backend["available"],
+        },
+    )
 
     backend_details: dict[str, Any] = {}
     if backend.get("backend") == "dipy":
