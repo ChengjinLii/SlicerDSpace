@@ -153,6 +153,26 @@ class IOLayoutTest(unittest.TestCase):
             self.assertTrue((subject_root / ".debug_outputs" / "04_tractography" / "legacy_csd_runs" / "csd_act_100k").is_dir())
             self.assertIn(legacy_csd.as_posix(), moved)
 
+    def test_legacy_connectome_metric_dirs_can_be_materialized_under_run_metric_tree(self) -> None:
+        from shared import archive_development_outputs, materialize_canonical_output_tree, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            legacy_metric_dir = subject_root / "outputs" / "04_tractography" / "connectome" / "csd_act_100k_mean_fa"
+            legacy_metric_dir.mkdir(parents=True)
+            (legacy_metric_dir / "100307-connectome-mean_fa_qc.json").write_text("{}", encoding="utf-8")
+
+            created = materialize_canonical_output_tree(subject_root, mode="copy", archive_legacy=False)
+            layout = subject_layout(subject_root)
+            target = layout.connectome / "csd_act_100k" / "mean_fa" / "100307-connectome-mean_fa_qc.json"
+            self.assertTrue(target.is_file())
+            self.assertIn("csd_act_100k_mean_fa", created)
+
+            moved = archive_development_outputs(subject_root)
+            self.assertFalse(legacy_metric_dir.exists())
+            self.assertTrue((subject_root / ".debug_outputs" / "04_tractography" / "connectome_legacy_layout" / "csd_act_100k_mean_fa").is_dir())
+            self.assertIn(legacy_metric_dir.as_posix(), moved)
+
 
 if __name__ == "__main__":
     unittest.main()

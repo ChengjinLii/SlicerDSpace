@@ -152,6 +152,35 @@ def subject_layout(subject_root: Path, output_root: Optional[Path] = None) -> Su
     )
 
 
+def normalize_run_name(run_name: str) -> str:
+    normalized = run_name.strip().replace("/", "_")
+    return normalized or "csd_act"
+
+
+def canonical_connectome_output_dir(
+    subject_root: Path,
+    run_name: str,
+    metric: str,
+    *,
+    output_root: Optional[Path] = None,
+) -> Path:
+    layout = subject_layout(subject_root, output_root=output_root)
+    run_dir = layout.connectome / normalize_run_name(run_name)
+    return run_dir if metric == "streamline_count" else (run_dir / metric)
+
+
+def _parse_legacy_connectome_dir_name(name: str) -> tuple[str, str] | None:
+    if name.endswith("_sift2"):
+        return name[: -len("_sift2")], "sift2_weighted_streamline_count"
+    for metric in ("mean_fa", "mean_md", "mean_length_mm", "total_length_mm", "mrtrix_dense_compressed"):
+        suffix = f"_{metric}"
+        if name.endswith(suffix):
+            return name[: -len(suffix)], metric
+    if name.startswith("csd_act"):
+        return name, "streamline_count"
+    return None
+
+
 def default_task_output_dir(subject_root: Path, task_name: str) -> Path:
     """Return the canonical default output directory for a workflow task."""
 
@@ -347,6 +376,16 @@ def materialize_canonical_output_tree(
             _safe_link_or_copy(legacy_wma_run, target, mode=mode)
             created[legacy_wma_run.name] = target
 
+    if layout.connectome.is_dir():
+        for legacy_connectome_dir in sorted(path for path in layout.connectome.iterdir() if path.is_dir()):
+            parsed = _parse_legacy_connectome_dir_name(legacy_connectome_dir.name)
+            if parsed is None:
+                continue
+            legacy_run_name, metric = parsed
+            target = canonical_connectome_output_dir(layout.subject_root, legacy_run_name, metric, output_root=output_root)
+            _safe_link_or_copy(legacy_connectome_dir, target, mode=mode)
+            created[legacy_connectome_dir.name] = target
+
     tractcloud_root_map = {
         "AnatomicalTracts": layout.bundles_tractcloud / "AnatomicalTracts",
         "AnatomicalTracts_separated": layout.bundles_tractcloud / "AnatomicalTracts_separated",
@@ -426,5 +465,17 @@ def archive_development_outputs(subject_root: Path, *, output_root: Optional[Pat
         for child in connectome.iterdir():
             if child.name.endswith("_check") or child.name.endswith("_smoke") or child.name.endswith("_dryrun"):
                 _move_if_exists(child, debug_root / "04_tractography" / "connectome")
+            else:
+                parsed = _parse_legacy_connectome_dir_name(child.name) if child.is_dir() else None
+                if parsed is not None:
+                    legacy_run_name, metric = parsed
+                    canonical_target = canonical_connectome_output_dir(
+                        layout.subject_root,
+                        legacy_run_name,
+                        metric,
+                        output_root=output_root,
+                    )
+                    if canonical_target != child and canonical_target.exists():
+                        _move_if_exists(child, debug_root / "04_tractography" / "connectome_legacy_layout")
 
     return moved

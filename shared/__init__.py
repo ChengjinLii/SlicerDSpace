@@ -17,9 +17,11 @@ from .validation import InputValidationConfig, InputValidationResult, Validation
 from .io_layout import (
     SubjectIOLayout,
     archive_development_outputs,
+    canonical_connectome_output_dir,
     default_task_output_dir,
     default_task_output_dir_for_dependency,
     materialize_canonical_output_tree,
+    normalize_run_name,
     subject_layout,
 )
 from .orchestrator import ProductOrchestratorConfig, ProductOrchestratorResult, ProductTaskRecord, run_subject_products
@@ -32,6 +34,7 @@ __all__ = [
     "RegisteredDTIBundle",
     "SubjectIOLayout",
     "archive_development_outputs",
+    "canonical_connectome_output_dir",
     "ProductOrchestratorConfig",
     "ProductOrchestratorResult",
     "ProductTaskRecord",
@@ -44,6 +47,7 @@ __all__ = [
     "inspect_subject_directory",
     "is_raw_subject_root",
     "materialize_canonical_output_tree",
+    "normalize_run_name",
     "resolve_cli_executable",
     "resolve_launcher_executable",
     "resolve_pythonslicer_executable",

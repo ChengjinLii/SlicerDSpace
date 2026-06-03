@@ -13,7 +13,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
-from shared.io_layout import materialize_canonical_output_tree, subject_layout
+from shared.io_layout import (
+    canonical_connectome_output_dir,
+    materialize_canonical_output_tree,
+    normalize_run_name,
+    subject_layout,
+)
 from shared.validation import InputValidationConfig, validate_subject_inputs
 
 
@@ -266,7 +271,7 @@ def run_subject_products(
     subject_root = config.subject_root.expanduser().resolve()
     output_root = config.output_root.expanduser().resolve() if config.output_root is not None else None
     layout = subject_layout(subject_root, output_root=output_root)
-    run_name = config.run_name.strip().replace("/", "_") or "csd_act"
+    run_name = normalize_run_name(config.run_name)
     tasks: list[ProductTaskRecord] = []
     start = time.monotonic()
 
@@ -302,8 +307,13 @@ def run_subject_products(
     csd_dir = layout.csd if run_name == "csd_act" else layout.csd / run_name
     tractogram_dir = layout.tractograms / run_name
     wmql_dir = layout.bundles_wmql / run_name
-    connectome_dir = layout.connectome / run_name
-    sift2_connectome_dir = layout.connectome / f"{run_name}_sift2"
+    connectome_dir = canonical_connectome_output_dir(subject_root, run_name, "streamline_count", output_root=output_root)
+    sift2_connectome_dir = canonical_connectome_output_dir(
+        subject_root,
+        run_name,
+        "sift2_weighted_streamline_count",
+        output_root=output_root,
+    )
     csd_qc = csd_dir / "csd_act_qc.json"
     tractogram = tractogram_dir / f"{config.subject_id}_csd_act_ifod2.tck"
     tractogram_trk = tractogram.with_suffix(".trk")

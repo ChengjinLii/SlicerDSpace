@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -69,12 +70,7 @@ def _file_record(path: Path) -> dict[str, Any]:
 
 
 def _connectome_qc_path(connectome_root: Path, subject_id: str, run_name: str, metric: str) -> Path:
-    if metric == "streamline_count":
-        output_dir = connectome_root / run_name
-    elif metric == "sift2_weighted_streamline_count":
-        output_dir = connectome_root / f"{run_name}_sift2"
-    else:
-        output_dir = connectome_root / f"{run_name}_{metric}"
+    output_dir = connectome_root / run_name / metric
     return output_dir / f"{subject_id}-connectome-{metric}_qc.json"
 
 
@@ -107,9 +103,14 @@ def _summarize_connectomes(connectome_root: Path, subject_id: str, run_name: str
 
 def main() -> int:
     args = parse_args()
+    repo_root = Path(__file__).resolve().parents[2]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from shared import normalize_run_name
+
     subject_root = Path(args.subject_root).expanduser().resolve()
     subject_id = args.subject_id
-    run_name = args.run_name.strip().replace("/", "_")
+    run_name = normalize_run_name(args.run_name)
     outputs = subject_root / "outputs"
     tractography_root = outputs / "04_tractography"
     metadata_root = outputs / "00_run_metadata"

@@ -68,7 +68,7 @@ def main() -> int:
         sys.path.insert(0, str(repo_root))
 
     from connectome import ConnectomeConfig, run_connectome
-    from shared import materialize_canonical_output_tree, subject_layout
+    from shared import canonical_connectome_output_dir, materialize_canonical_output_tree, normalize_run_name, subject_layout
     from tractography.act_prep import ACTPrepConfig, run_act_prep
     from tractography.csd import CSDActConfig, run_csd_act
     from tractography.wmql import WMQLConfig, run_wmql_bundle_segmentation
@@ -76,12 +76,12 @@ def main() -> int:
     subject_root = Path(args.subject_root).expanduser().resolve()
     subject_id = args.subject_id
     layout = subject_layout(subject_root)
-    run_name = args.run_name.strip() or "csd_act"
+    run_name = normalize_run_name(args.run_name)
     csd_dir = layout.csd if run_name == "csd_act" else layout.csd / run_name.replace("/", "_")
     tractogram_dir = layout.tractograms / run_name.replace("/", "_")
     wmql_dir = layout.bundles_wmql / run_name.replace("/", "_")
-    connectome_dir = layout.connectome / run_name.replace("/", "_")
-    sift2_connectome_dir = layout.connectome / f"{run_name.replace('/', '_')}_sift2"
+    connectome_dir = canonical_connectome_output_dir(subject_root, run_name, "streamline_count")
+    sift2_connectome_dir = canonical_connectome_output_dir(subject_root, run_name, "sift2_weighted_streamline_count")
     if args.clean:
         for output_dir in (
             csd_dir,
@@ -205,7 +205,7 @@ def main() -> int:
                 subject_id=subject_id,
                 tractography_path=csd.tractogram_path,
                 parcellation_path=parcellation,
-                output_dir=layout.connectome / f"{run_name.replace('/', '_')}_{metric}",
+                output_dir=canonical_connectome_output_dir(subject_root, run_name, metric),
                 metric=metric,
                 scalar_map_path=scalar_path,
                 backend="python",
@@ -230,7 +230,7 @@ def main() -> int:
                 subject_id=subject_id,
                 tractography_path=csd.tractogram_path,
                 parcellation_path=parcellation,
-                output_dir=layout.connectome / f"{run_name.replace('/', '_')}_{metric}",
+                output_dir=canonical_connectome_output_dir(subject_root, run_name, metric),
                 metric=metric,
                 backend="python",
                 execute=True,
@@ -282,7 +282,7 @@ def main() -> int:
         },
         "extra_connectomes": extra_connectomes,
     }
-    summary_path = layout.run_metadata / f"{run_name.replace('/', '_')}_real_subject_smoke.json"
+    summary_path = layout.run_metadata / f"{run_name}_real_subject_smoke.json"
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(summary, indent=2, sort_keys=True))
