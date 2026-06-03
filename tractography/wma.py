@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -283,9 +284,14 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
     transformed_dir = cluster_dir / "TransformedClusters" / case_id
     separated_dir = cluster_dir / "SeparatedClusters"
     tracts = sorted(anatomical_dir.glob("*.vtp")) if anatomical_dir.is_dir() else []
+    registration_dir = case_dir / "TractRegistration" / case_id
+    progress_file = registration_dir / "progress.txt"
+    iteration_dirs = sorted(path.name for path in registration_dir.glob("iteration_*") if path.is_dir())
 
     def _count_vtp(path: Path) -> int:
         return len(list(path.glob("*.vtp"))) if path.is_dir() else 0
+
+    progress_summary = _parse_wma_progress(progress_file)
 
     commissural_dir = separated_dir / "tracts_commissural"
     left_hemi_dir = separated_dir / "tracts_left_hemisphere"
@@ -318,7 +324,44 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
         "separated_right_hemisphere_count": _count_vtp(right_hemi_dir),
         "diffusion_measurements_csv": (anatomical_dir / "diffusion_measurements_anatomical_tracts.csv").as_posix(),
         "diffusion_measurements_csv_exists": (anatomical_dir / "diffusion_measurements_anatomical_tracts.csv").is_file(),
+        "registration_dir": registration_dir.as_posix(),
+        "registration_dir_exists": registration_dir.is_dir(),
+        "registration_iteration_dir_count": len(iteration_dirs),
+        "registration_iteration_dirs": iteration_dirs,
+        "progress_file": progress_file.as_posix(),
+        "progress_file_exists": progress_file.is_file(),
+        "progress": progress_summary,
     }
+
+
+def _parse_wma_progress(progress_file: Path) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "exists": progress_file.is_file(),
+        "last_nonempty_line": None,
+        "completed_iterations": 0,
+        "total_iterations": None,
+        "latest_percent_finished": None,
+        "latest_elapsed_minutes": None,
+    }
+    if not progress_file.is_file():
+        return summary
+    text = progress_file.read_text(encoding="utf-8", errors="replace")
+    last_line = _last_nonempty_line(text)
+    summary["last_nonempty_line"] = last_line
+    matches = list(
+        re.finditer(
+            r"Done iteration\s+(\d+)\s*/\s*(\d+)\.\s*Percent finished approx:\s*([0-9.]+)\.\s*Time:.*Minutes Elapsed:\s*([0-9.]+)",
+            text,
+        )
+    )
+    if not matches:
+        return summary
+    latest = matches[-1]
+    summary["completed_iterations"] = int(latest.group(1))
+    summary["total_iterations"] = int(latest.group(2))
+    summary["latest_percent_finished"] = float(latest.group(3))
+    summary["latest_elapsed_minutes"] = float(latest.group(4))
+    return summary
 
 
 def _last_nonempty_line(text: Optional[str]) -> Optional[str]:

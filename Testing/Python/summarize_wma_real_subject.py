@@ -40,6 +40,15 @@ def main() -> int:
     manifest = _read_json(manifest_path) if manifest_path.is_file() else None
     qc = _read_json(qc_path) if qc_path.is_file() else None
     summary = summarize_wma_outputs(output_dir, input_tractography)
+    effective_status = (
+        qc.get("status")
+        if qc
+        else manifest.get("status")
+        if manifest
+        else "running"
+        if summary.get("progress_file_exists") or summary.get("registration_dir_exists")
+        else "unknown"
+    )
 
     report = {
         "kind": "wma_real_subject_summary",
@@ -50,6 +59,7 @@ def main() -> int:
         "qc_path": qc_path.as_posix() if qc_path.is_file() else None,
         "manifest_status": manifest.get("status") if manifest else None,
         "qc_status": qc.get("status") if qc else None,
+        "effective_status": effective_status,
         "qc_error": qc.get("error") if qc else None,
         "summary": summary,
     }

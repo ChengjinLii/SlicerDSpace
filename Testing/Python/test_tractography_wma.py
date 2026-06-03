@@ -300,6 +300,31 @@ exit 0
         with mock.patch.dict(os.environ, {"DISPLAY": ":99", "SLICERDDSURFER_DISPLAY": ":88"}, clear=True):
             self.assertEqual(_resolve_runtime_display(), ":88")
 
+    def test_summarize_wma_outputs_includes_registration_progress(self) -> None:
+        from tractography.wma import summarize_wma_outputs
+
+        case_id = self.tractography.stem
+        registration_dir = self.output_dir / case_id / "TractRegistration" / case_id / "iteration_00001_sigma_00030"
+        registration_dir.mkdir(parents=True)
+        progress = registration_dir.parent / "progress.txt"
+        progress.write_text(
+            (
+                "Beginning registration. Total iterations will be: 10\n"
+                "Done iteration 1 / 10. Percent finished approx: 0.57. Time: 11:06:08. Minutes Elapsed: 2.37\n"
+                "Done iteration 2 / 10. Percent finished approx: 1.14. Time: 11:08:31. Minutes Elapsed: 2.38\n"
+            ),
+            encoding="utf-8",
+        )
+
+        summary = summarize_wma_outputs(self.output_dir, self.tractography)
+
+        self.assertTrue(summary["registration_dir_exists"])
+        self.assertTrue(summary["progress_file_exists"])
+        self.assertEqual(summary["registration_iteration_dir_count"], 1)
+        self.assertEqual(summary["progress"]["completed_iterations"], 2)
+        self.assertEqual(summary["progress"]["total_iterations"], 10)
+        self.assertAlmostEqual(summary["progress"]["latest_percent_finished"], 1.14)
+
 
 if __name__ == "__main__":
     unittest.main()
