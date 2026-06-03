@@ -131,6 +131,24 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _link_or_copy(src: Path, dest: Path) -> None:
+    src = src.expanduser().resolve()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        return
+    try:
+        dest.symlink_to(src)
+        return
+    except OSError:
+        pass
+    try:
+        os.link(src, dest)
+        return
+    except OSError:
+        pass
+    shutil.copy2(src, dest)
+
+
 def _file_record(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {"path": path.as_posix(), "exists": False}
@@ -252,12 +270,12 @@ def _materialize_dirs(paths: dict[str, Path]) -> None:
 
 
 def _copy_input_sidecars(raw: RawInputBundle, paths: dict[str, Path]) -> None:
-    shutil.copy2(raw.dwi_path, paths["import_dir"] / raw.dwi_path.name)
-    shutil.copy2(raw.bval_path, paths["import_dir"] / raw.bval_path.name)
-    shutil.copy2(raw.bvec_path, paths["import_dir"] / raw.bvec_path.name)
-    shutil.copy2(raw.mask_path, paths["import_dir"] / raw.mask_path.name)
-    shutil.copy2(raw.bval_path, paths["gradients_dir"] / f"{raw.subject_id}_gradients_checked.bval")
-    shutil.copy2(raw.bvec_path, paths["gradients_dir"] / f"{raw.subject_id}_gradients_checked.bvec")
+    _link_or_copy(raw.dwi_path, paths["import_dir"] / raw.dwi_path.name)
+    _link_or_copy(raw.bval_path, paths["import_dir"] / raw.bval_path.name)
+    _link_or_copy(raw.bvec_path, paths["import_dir"] / raw.bvec_path.name)
+    _link_or_copy(raw.mask_path, paths["import_dir"] / raw.mask_path.name)
+    _link_or_copy(raw.bval_path, paths["gradients_dir"] / f"{raw.subject_id}_gradients_checked.bval")
+    _link_or_copy(raw.bvec_path, paths["gradients_dir"] / f"{raw.subject_id}_gradients_checked.bvec")
 
 
 def _load_bvecs(path: Path) -> list[list[float]]:
