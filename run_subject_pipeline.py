@@ -25,7 +25,12 @@ DEFAULT_PRODUCT_TARGETS = (
     "bundles",
     "connectome",
 )
-ALL_CLI_TARGETS = ("validation",) + DEFAULT_PRODUCT_TARGETS
+OPTIONAL_ALGORITHM_TARGETS = (
+    "saf",
+    "wma",
+    "tractcloud",
+)
+ALL_CLI_TARGETS = ("validation",) + DEFAULT_PRODUCT_TARGETS + OPTIONAL_ALGORITHM_TARGETS
 
 
 def _split_csv_or_repeat(values: list[str] | None) -> tuple[str, ...]:
@@ -138,6 +143,23 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print only the orchestration manifest path instead of the full JSON result.",
     )
+    parser.add_argument("--saf-fs-dir", type=Path, help="FreeSurfer/FastSurfer directory for SAF.")
+    parser.add_argument("--saf-pregenerated-tractogram", type=Path, help="Optional pregenerated tractogram for SAF.")
+    parser.add_argument("--saf-noregister", action="store_true", help="Run SAF without registration.")
+    parser.add_argument("--saf-mrtrix-prefix", default="", help="Optional command prefix for SAF MRtrix calls.")
+    parser.add_argument("--wma-input-tractography", type=Path, help="Optional VTK/VTP tractography input for WMA.")
+    parser.add_argument("--wma-atlas-dir", type=Path, help="ORG atlas directory for WMA.")
+    parser.add_argument("--wma-root", type=Path, help="Optional WhiteMatterAnalysis checkout root.")
+    parser.add_argument("--slicer-executable", type=Path, help="Slicer executable used by WMA.")
+    parser.add_argument("--wma-use-virtual-x", action="store_true", help="Enable xvfb-run mode for WMA.")
+    parser.add_argument("--wma-export-diffusion-measures", action="store_true", help="Enable WMA diffusion measurements export.")
+    parser.add_argument("--fiber-tract-measurements-cli", type=Path, help="Optional SlicerDMRI FiberTractMeasurements CLI for WMA.")
+    parser.add_argument("--tractcloud-input-tractography", type=Path, help="Optional VTK/VTP tractography input for TractCloud.")
+    parser.add_argument("--tractcloud-root", type=Path, help="Optional TractCloud source checkout root.")
+    parser.add_argument("--tractcloud-python-executable", type=Path, help="Optional Python executable for TractCloud.")
+    parser.add_argument("--tractcloud-data-dir", type=Path, help="Optional model/data directory for TractCloud.")
+    parser.add_argument("--tractcloud-device", default="auto", choices=("auto", "cpu", "cuda"), help="TractCloud device.")
+    parser.add_argument("--tractcloud-batch-size", type=int, default=2048, help="TractCloud batch size.")
     return parser
 
 
@@ -175,6 +197,23 @@ def main(argv: list[str] | None = None) -> int:
         tract_querier_root=args.tract_querier_root,
         connectome_backend=args.connectome_backend,
         connectome_compress_mrtrix_dense=bool(args.compress_mrtrix_dense),
+        saf_fs_dir=args.saf_fs_dir,
+        saf_pregenerated_tractogram=args.saf_pregenerated_tractogram,
+        saf_noregister=bool(args.saf_noregister),
+        saf_mrtrix_prefix=args.saf_mrtrix_prefix,
+        wma_input_tractography=args.wma_input_tractography,
+        wma_atlas_dir=args.wma_atlas_dir,
+        wma_root=args.wma_root,
+        slicer_executable=args.slicer_executable,
+        wma_use_virtual_x=bool(args.wma_use_virtual_x),
+        wma_export_diffusion_measures=bool(args.wma_export_diffusion_measures),
+        fiber_tract_measurements_cli=args.fiber_tract_measurements_cli,
+        tractcloud_input_tractography=args.tractcloud_input_tractography,
+        tractcloud_root=args.tractcloud_root,
+        tractcloud_python_executable=args.tractcloud_python_executable,
+        tractcloud_data_dir=args.tractcloud_data_dir,
+        tractcloud_device=args.tractcloud_device,
+        tractcloud_batch_size=args.tractcloud_batch_size,
     )
 
     result = run_subject_products(config, log=print)

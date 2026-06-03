@@ -82,6 +82,35 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
             self.assertEqual(manifest["targets"], ["validation", "microstructure", "tractography"])
             self.assertEqual(manifest["tractography_backend"], "dti_det")
 
+    def test_cli_accepts_optional_algorithm_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "149741"
+            input_dir = subject_root / "input"
+            tractography_dir = subject_root / "tractography"
+            input_dir.mkdir(parents=True)
+            tractography_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+            (tractography_dir / "149741_ukf_pp_downsampled.vtk").write_text("vtk", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "saf,wma,tractcloud",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            payload = json.loads(completed.stdout)
+            task_names = [task["name"] for task in payload["tasks"]]
+            self.assertEqual(task_names, ["tractography.saf", "bundles.wma", "bundles.tractcloud"])
+
 
 if __name__ == "__main__":
     unittest.main()

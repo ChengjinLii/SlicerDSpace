@@ -8,6 +8,7 @@ own scientific details and manifest/QC files.
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -31,6 +32,9 @@ SUPPORTED_TARGETS = {
     "tractography",
     "bundles",
     "connectome",
+    "saf",
+    "wma",
+    "tractcloud",
 }
 
 
@@ -54,6 +58,23 @@ class ProductOrchestratorConfig:
     tract_querier_root: Optional[Path] = None
     connectome_backend: str = "python"
     connectome_compress_mrtrix_dense: bool = False
+    saf_fs_dir: Optional[Path] = None
+    saf_pregenerated_tractogram: Optional[Path] = None
+    saf_noregister: bool = False
+    saf_mrtrix_prefix: str = ""
+    wma_input_tractography: Optional[Path] = None
+    wma_atlas_dir: Optional[Path] = None
+    wma_root: Optional[Path] = None
+    slicer_executable: Optional[Path] = None
+    wma_use_virtual_x: bool = False
+    wma_export_diffusion_measures: bool = False
+    fiber_tract_measurements_cli: Optional[Path] = None
+    tractcloud_input_tractography: Optional[Path] = None
+    tractcloud_root: Optional[Path] = None
+    tractcloud_python_executable: Optional[Path] = None
+    tractcloud_data_dir: Optional[Path] = None
+    tractcloud_device: str = "auto"
+    tractcloud_batch_size: int = 2048
 
 
 @dataclass(frozen=True)
@@ -90,6 +111,52 @@ def _qc_completed(path: Path) -> bool:
         return _read_json(path).get("status") == "completed"
     except Exception:
         return False
+
+
+def _find_first_existing(candidates: list[Path]) -> Optional[Path]:
+    return next((path for path in candidates if path.is_file()), None)
+
+
+def _resolve_optional_path(path: Optional[Path]) -> Optional[Path]:
+    return path.expanduser().resolve() if path is not None else None
+
+
+def _resolve_slicer_executable(config: ProductOrchestratorConfig) -> Optional[Path]:
+    explicit = _resolve_optional_path(config.slicer_executable)
+    if explicit is not None:
+        return explicit if explicit.is_file() else None
+    env_value = Path(os.environ["SLICERDDSURFER_SLICER_EXECUTABLE"]).expanduser().resolve() if os.environ.get("SLICERDDSURFER_SLICER_EXECUTABLE") else None
+    if env_value is not None and env_value.is_file():
+        return env_value
+    candidates = [
+        Path("/data/chengjin/software/Slicer-5.10.0-linux-amd64/Slicer"),
+        Path("/data/chengjin/software/Slicer/Slicer"),
+    ]
+    return _find_first_existing(candidates)
+
+
+def _resolve_bundle_input_tractography(subject_root: Path, explicit_path: Optional[Path]) -> Optional[Path]:
+    resolved_explicit = _resolve_optional_path(explicit_path)
+    if resolved_explicit is not None:
+        return resolved_explicit if resolved_explicit.is_file() else None
+    candidates = sorted(subject_root.glob("tractography/**/*.vt*")) + sorted(subject_root.glob("tractography/*.vt*"))
+    return next((path.resolve() for path in candidates if path.suffix.lower() in {".vtk", ".vtp"} and path.is_file()), None)
+
+
+def _saf_output_dir(layout, run_name: str) -> Path:
+    return layout.saf if run_name == "saf" else (layout.saf / run_name)
+
+
+def _wma_output_dir(layout, run_name: str) -> Path:
+    return layout.bundles_wma / run_name
+
+
+def _tractcloud_output_dir(layout, run_name: str) -> Path:
+    return layout.bundles_tractcloud / run_name
+
+
+def _wma_anatomical_tract_count(output_dir: Path) -> int:
+    return len(list(output_dir.glob("**/AnatomicalTracts/*.vtp"))) if output_dir.is_dir() else 0
 
 
 def _normalize_targets(targets: tuple[str, ...]) -> tuple[str, ...]:
@@ -311,6 +378,9 @@ def run_subject_products(
     tractogram_dir = layout.tractograms / run_name
     dti_tractogram_dir = layout.tractograms_dti_det / run_name
     wmql_dir = layout.bundles_wmql / run_name
+    saf_dir = _saf_output_dir(layout, run_name)
+    wma_dir = _wma_output_dir(layout, run_name)
+    tractcloud_dir = _tractcloud_output_dir(layout, run_name)
     connectome_dir = canonical_connectome_output_dir(subject_root, run_name, "streamline_count", output_root=output_root)
     sift2_connectome_dir = canonical_connectome_output_dir(
         subject_root,
@@ -328,6 +398,10 @@ def run_subject_products(
     dti_tractogram_trk = dti_tractogram_dir / f"{dti_stem}.trk"
     tractogram = csd_tractogram if config.tractography_backend == "csd_act" else dti_tractogram_trk
     tractogram_trk = csd_tractogram_trk if config.tractography_backend == "csd_act" else dti_tractogram_trk
+    saf_tractogram = saf_dir / "SAF.tck"
+    wma_input_tractography = _resolve_bundle_input_tractography(subject_root, config.wma_input_tractography)
+    tractcloud_input_tractography = _resolve_bundle_input_tractography(subject_root, config.tractcloud_input_tractography)
+    slicer_executable = _resolve_slicer_executable(config)
 
     if "segmentation" in targets:
         if config.resume and _segmentation_complete(subject_root):
@@ -685,6 +759,151 @@ def run_subject_products(
             )
             tasks.append(_task_from_result("bundles.wmql", result))
 
+    if "saf" in targets:
+        saf_qc = saf_dir / "saf_qc.json"
+        if config.resume and _qc_completed(saf_qc) and saf_tractogram.is_file():
+            tasks.append(
+                ProductTaskRecord(
+                    name="tractography.saf",
+                    status="skipped",
+                    reason="completed outputs found",
+                    qc_path=saf_qc,
+                    manifest_path=saf_dir / "saf_manifest.json",
+                    outputs={"tractogram": saf_tractogram.as_posix()},
+                )
+            )
+        elif not config.execute:
+            tasks.append(ProductTaskRecord(name="tractography.saf", status="planned", reason="execute=False"))
+        else:
+            fod_candidate = csd_dir / f"{config.subject_id}_wmfod_norm.mif"
+            fod_path = fod_candidate if fod_candidate.is_file() else (csd_dir / f"{config.subject_id}_wmfod.mif")
+            fs_dir = _resolve_optional_path(config.saf_fs_dir)
+            pregenerated_tractogram = _resolve_optional_path(config.saf_pregenerated_tractogram)
+            if fs_dir is None:
+                tasks.append(ProductTaskRecord(name="tractography.saf", status="blocked", reason="missing --saf-fs-dir"))
+            elif not fod_path.is_file():
+                tasks.append(ProductTaskRecord(name="tractography.saf", status="blocked", reason="missing CSD FOD output for SAF"))
+            elif not config.saf_noregister and not micro_outputs["fa"].is_file():
+                tasks.append(ProductTaskRecord(name="tractography.saf", status="blocked", reason="missing FA map for SAF registration"))
+            else:
+                from tractography import SAFConfig, run_saf
+
+                _emit(f"[Orchestrator] Running SAF {run_name}", log)
+                result = run_saf(
+                    SAFConfig(
+                        subject_id=config.subject_id,
+                        input_root=subject_root,
+                        fs_dir=fs_dir,
+                        fod_path=fod_path,
+                        output_dir=saf_dir,
+                        fa_path=None if config.saf_noregister else micro_outputs["fa"],
+                        pregenerated_tractogram=pregenerated_tractogram,
+                        mrtrix_bin_dir=config.mrtrix_bin_dir,
+                        mrtrix_prefix=config.saf_mrtrix_prefix,
+                        noregister=config.saf_noregister,
+                        execute=True,
+                    ),
+                    log=log,
+                )
+                tasks.append(
+                    ProductTaskRecord(
+                        name="tractography.saf",
+                        status="completed",
+                        qc_path=result.qc_path,
+                        manifest_path=result.manifest_path,
+                        outputs={"tractogram": result.saf_tractogram.as_posix()},
+                    )
+                )
+
+    if "wma" in targets:
+        wma_qc = wma_dir / "wma_org_atlas_qc.json"
+        if config.resume and _qc_completed(wma_qc):
+            anatomical_tract_count = _wma_anatomical_tract_count(wma_dir)
+            if anatomical_tract_count > 0:
+                tasks.append(
+                    ProductTaskRecord(
+                        name="bundles.wma",
+                        status="skipped",
+                        reason="completed outputs found",
+                        qc_path=wma_qc,
+                        manifest_path=wma_dir / "wma_org_atlas_manifest.json",
+                        outputs={"anatomical_tract_count": str(anatomical_tract_count)},
+                    )
+                )
+            else:
+                tasks.append(ProductTaskRecord(name="bundles.wma", status="planned", reason="existing QC present but anatomical tracts missing"))
+        elif not config.execute:
+            tasks.append(ProductTaskRecord(name="bundles.wma", status="planned", reason="execute=False"))
+        elif wma_input_tractography is None:
+            tasks.append(ProductTaskRecord(name="bundles.wma", status="blocked", reason="missing VTK/VTP input tractography for WMA"))
+        elif config.wma_atlas_dir is None:
+            tasks.append(ProductTaskRecord(name="bundles.wma", status="blocked", reason="missing --wma-atlas-dir"))
+        elif slicer_executable is None:
+            tasks.append(ProductTaskRecord(name="bundles.wma", status="blocked", reason="missing Slicer executable for WMA"))
+        else:
+            from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
+
+            _emit(f"[Orchestrator] Running WMA {run_name}", log)
+            result = run_wma_org_atlas(
+                WMAOrgAtlasConfig(
+                    subject_id=config.subject_id,
+                    input_tractography=wma_input_tractography,
+                    atlas_dir=config.wma_atlas_dir,
+                    output_dir=wma_dir,
+                    slicer_executable=slicer_executable,
+                    wma_root=config.wma_root,
+                    use_virtual_x=config.wma_use_virtual_x,
+                    export_diffusion_measures=config.wma_export_diffusion_measures,
+                    fiber_tract_measurements_cli=config.fiber_tract_measurements_cli,
+                    execute=True,
+                ),
+                log=log,
+            )
+            tasks.append(_task_from_result("bundles.wma", result))
+
+    if "tractcloud" in targets:
+        tractcloud_qc = tractcloud_dir / "tractcloud_qc.json"
+        if config.resume and _qc_completed(tractcloud_qc):
+            from tractography.tractcloud import summarize_tractcloud_outputs
+
+            output_summary = summarize_tractcloud_outputs(tractcloud_dir)
+            if output_summary.get("bundle_count", 0) > 0:
+                tasks.append(
+                    ProductTaskRecord(
+                        name="bundles.tractcloud",
+                        status="skipped",
+                        reason="completed outputs found",
+                        qc_path=tractcloud_qc,
+                        manifest_path=tractcloud_dir / "tractcloud_manifest.json",
+                        outputs={"bundle_count": str(output_summary.get("bundle_count"))},
+                    )
+                )
+            else:
+                tasks.append(ProductTaskRecord(name="bundles.tractcloud", status="planned", reason="existing QC present but no bundle outputs found"))
+        elif not config.execute:
+            tasks.append(ProductTaskRecord(name="bundles.tractcloud", status="planned", reason="execute=False"))
+        elif tractcloud_input_tractography is None:
+            tasks.append(ProductTaskRecord(name="bundles.tractcloud", status="blocked", reason="missing VTK/VTP input tractography for TractCloud"))
+        else:
+            from tractography import TractCloudConfig, run_tractcloud_parcellation
+
+            _emit(f"[Orchestrator] Running TractCloud {run_name}", log)
+            result = run_tractcloud_parcellation(
+                TractCloudConfig(
+                    subject_id=config.subject_id,
+                    input_tractography=tractcloud_input_tractography,
+                    output_dir=tractcloud_dir,
+                    tractcloud_root=config.tractcloud_root,
+                    python_executable=config.tractcloud_python_executable,
+                    data_dir=config.tractcloud_data_dir,
+                    device=config.tractcloud_device,
+                    batch_size=config.tractcloud_batch_size,
+                    execute=True,
+                ),
+                log=log,
+            )
+            tasks.append(_task_from_result("bundles.tractcloud", result))
+
     if "connectome" in targets:
         weighted_connectome_handled = False
         conn_qc = connectome_dir / f"{config.subject_id}-connectome-streamline_count_qc.json"
@@ -795,6 +1014,23 @@ def run_subject_products(
         "select_streamlines": config.select_streamlines,
         "connectome_backend": config.connectome_backend,
         "connectome_compress_mrtrix_dense": config.connectome_compress_mrtrix_dense,
+        "saf_fs_dir": config.saf_fs_dir.expanduser().resolve().as_posix() if config.saf_fs_dir else None,
+        "saf_pregenerated_tractogram": config.saf_pregenerated_tractogram.expanduser().resolve().as_posix() if config.saf_pregenerated_tractogram else None,
+        "saf_noregister": config.saf_noregister,
+        "saf_mrtrix_prefix": config.saf_mrtrix_prefix,
+        "wma_input_tractography": wma_input_tractography.as_posix() if wma_input_tractography else None,
+        "wma_atlas_dir": config.wma_atlas_dir.expanduser().resolve().as_posix() if config.wma_atlas_dir else None,
+        "wma_root": config.wma_root.expanduser().resolve().as_posix() if config.wma_root else None,
+        "slicer_executable": slicer_executable.as_posix() if slicer_executable else None,
+        "wma_use_virtual_x": config.wma_use_virtual_x,
+        "wma_export_diffusion_measures": config.wma_export_diffusion_measures,
+        "fiber_tract_measurements_cli": config.fiber_tract_measurements_cli.expanduser().resolve().as_posix() if config.fiber_tract_measurements_cli else None,
+        "tractcloud_input_tractography": tractcloud_input_tractography.as_posix() if tractcloud_input_tractography else None,
+        "tractcloud_root": config.tractcloud_root.expanduser().resolve().as_posix() if config.tractcloud_root else None,
+        "tractcloud_python_executable": config.tractcloud_python_executable.expanduser().resolve().as_posix() if config.tractcloud_python_executable else None,
+        "tractcloud_data_dir": config.tractcloud_data_dir.expanduser().resolve().as_posix() if config.tractcloud_data_dir else None,
+        "tractcloud_device": config.tractcloud_device,
+        "tractcloud_batch_size": config.tractcloud_batch_size,
         "elapsed_seconds": time.monotonic() - start,
         "tasks": [
             {

@@ -184,6 +184,35 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertTrue(manifest["microstructure_run_free_water"])
             self.assertTrue(manifest["microstructure_run_noddi"])
 
+    def test_dry_run_supports_optional_algorithm_targets(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "149741"
+            input_dir = subject_root / "input"
+            tractography_dir = subject_root / "tractography"
+            input_dir.mkdir(parents=True)
+            tractography_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+            (tractography_dir / "149741_ukf_pp_downsampled.vtk").write_text("vtk", encoding="utf-8")
+
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="149741",
+                    subject_root=subject_root,
+                    targets=("saf", "wma", "tractcloud"),
+                    execute=False,
+                )
+            )
+
+            statuses = {task.name: task.status for task in result.tasks}
+            self.assertEqual(statuses["tractography.saf"], "planned")
+            self.assertEqual(statuses["bundles.wma"], "planned")
+            self.assertEqual(statuses["bundles.tractcloud"], "planned")
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["targets"], ["saf", "wma", "tractcloud"])
+
     def test_resume_skips_completed_existing_outputs(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products, subject_layout
 

@@ -55,12 +55,21 @@ python3 run_subject_pipeline.py \
 - `--run-free-water` / `--run-noddi`：打开较慢的微结构阶段
 - `--tractography-backend csd_act|dti_det`
 - `--connectome-backend python|mrtrix`
+- `--targets saf,wma,tractcloud`：也可以直接把 SAF、WMA、TractCloud 作为算法级 target 接到统一命令里
+- `--wma-input-tractography` / `--wma-atlas-dir` / `--wma-root`
+- `--tractcloud-input-tractography` / `--tractcloud-root`
+- `--saf-fs-dir` / `--saf-pregenerated-tractogram`
 
 当前如果不显式传 `--targets`，默认会规划：
 - `microstructure`
 - `tractography`
 - `bundles`
 - `connectome`
+
+`resume` 行为默认开启。统一命令会先扫描每个算法对应的核心产物和 QC/manifest：
+- 如果核心结果已存在且 QC 为 `completed`，会自动 `skipped`
+- 如果结果不完整，会继续执行或标记 `blocked`
+- 用 `--no-resume` 可以强制不复用已有结果
 
 ---
 
