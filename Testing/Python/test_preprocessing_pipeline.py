@@ -163,6 +163,31 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
             self.assertEqual(qc["backend_details"]["denoise"]["status"], "skipped")
             self.assertEqual(qc["backend_details"]["motion"]["status"], "skipped")
 
+    def test_execute_dipy_fast_path_links_raw_outputs(self) -> None:
+        from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = _write_subject(Path(tmp))
+            result = run_dwi_preprocessing(
+                DwiPreprocessingConfig(
+                    subject_id="100307",
+                    input_root=subject,
+                    backend="dipy",
+                    execute=True,
+                    dipy_denoise_method="none",
+                    dipy_run_gibbs=False,
+                    dipy_run_motion_correction=False,
+                    force=True,
+                )
+            )
+
+            manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+            qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(result.status, "completed")
+            self.assertTrue(result.final_dwi_path.exists())
+            self.assertEqual(manifest["status"], "completed")
+            self.assertTrue(qc["backend_details"]["fast_path"])
+
 
 if __name__ == "__main__":
     unittest.main()

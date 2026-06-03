@@ -364,6 +364,39 @@ def _run_dipy_backend(
             log("[Preproc:DIPY] " + message)
 
     subject = raw.subject_id
+    denoise_method = config.dipy_denoise_method.lower()
+    if denoise_method in {"none", "skip", ""} and not config.dipy_run_gibbs and not config.dipy_run_motion_correction:
+        emit("Fast path: linking raw DWI/gradients directly to final preprocessing outputs")
+        denoised_path = paths["denoise_dir"] / f"{subject}_dwi_denoised.nii.gz"
+        degibbs_path = paths["denoise_dir"] / f"{subject}_dwi_degibbs.nii.gz"
+        corrected_path = paths["motion_dir"] / f"{subject}_dwi_preproc.nii.gz"
+        _link_or_copy(raw.dwi_path, denoised_path)
+        _link_or_copy(denoised_path, degibbs_path)
+        _link_or_copy(degibbs_path, corrected_path)
+        _link_or_copy(corrected_path, paths["final_dwi"])
+        _link_or_copy(raw.bval_path, paths["final_bval"])
+        _link_or_copy(raw.bvec_path, paths["final_bvec"])
+        _link_or_copy(raw.mask_path, paths["final_mask"])
+        return {
+            "denoise": {"method": denoise_method, "status": "skipped"},
+            "gibbs": {"status": "skipped"},
+            "motion": {"status": "skipped", "bvec_rotation": {"status": "copied"}},
+            "bias_correction": {
+                "status": "not_run",
+                "reason": "fast path requested with no denoise/gibbs/motion operations",
+            },
+            "susceptibility_distortion_correction": {
+                "status": "not_supported_by_dipy_backend",
+                "recommended_backend": "mrtrix_fsl",
+            },
+            "files": {
+                "denoised": denoised_path.as_posix(),
+                "degibbs": degibbs_path.as_posix(),
+                "motion_corrected": corrected_path.as_posix(),
+            },
+            "fast_path": True,
+        }
+
     emit(f"Loading source DWI from {raw.dwi_path}")
     source_img = nib.load(str(raw.dwi_path))
     emit("Materializing DWI array into memory")
@@ -380,7 +413,6 @@ def _run_dipy_backend(
     gtab = gradient_table(bvals, bvecs=bvecs, b0_threshold=config.b0_threshold)
     emit(f"Gradient table prepared with {int(len(bvals))} volumes")
 
-    denoise_method = config.dipy_denoise_method.lower()
     denoised = data
     noise_path = paths["denoise_dir"] / f"{subject}_dwi_noise.nii.gz"
     denoise_status: dict[str, Any] = {"method": denoise_method}
@@ -577,6 +609,7 @@ def run_dwi_preprocessing(
         ],
         "backend_details": backend_details,
     }
+    manifest["status"] = "completed"
     _write_json(paths["manifest"], manifest)
     _write_json(paths["qc"], qc_payload)
 
