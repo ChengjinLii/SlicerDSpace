@@ -41,6 +41,7 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
             self.assertEqual(payload["subject_id"], "100307")
             self.assertTrue(payload["run_manifest_path"].endswith("_orchestration_manifest.json"))
             task_names = [task["name"] for task in payload["tasks"]]
+            self.assertIn("preprocessing.dwi", task_names)
             self.assertIn("segmentation.ddseg", task_names)
             self.assertIn("parcellation.ddparcel", task_names)
             self.assertIn("surface.ddsurfer", task_names)

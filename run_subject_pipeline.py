@@ -17,6 +17,7 @@ from shared import ProductOrchestratorConfig, run_subject_products
 
 
 DEFAULT_PRODUCT_TARGETS = (
+    "preprocessing",
     "segmentation",
     "parcellation",
     "surface",
@@ -109,6 +110,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--execute", action="store_true", help="Actually execute workflows. Default is dry-run planning only.")
     parser.add_argument("--no-resume", action="store_true", help="Disable resume/skip of completed outputs.")
     parser.add_argument(
+        "--preprocessing-backend",
+        default="dipy",
+        choices=("dipy", "mrtrix_fsl"),
+        help="Optional DWI preprocessing backend.",
+    )
+    parser.add_argument("--preprocessing-force", action="store_true", help="Force rerun preprocessing even if outputs exist.")
+    parser.add_argument("--preprocessing-mrtrix-bin-dir", type=Path, help="Optional MRtrix3 bin dir for preprocessing.")
+    parser.add_argument("--preprocessing-fsl-bin-dir", type=Path, help="Optional FSL bin dir for preprocessing.")
+    parser.add_argument("--preprocessing-reverse-phase-b0", type=Path, help="Optional reverse phase-encoding b0 for MRtrix/FSL preprocessing.")
+    parser.add_argument("--preprocessing-phase-encoding-direction", help="Optional phase encoding direction for MRtrix/FSL preprocessing.")
+    parser.add_argument("--preprocessing-readout-time", type=float, help="Optional readout time for MRtrix/FSL preprocessing.")
+    parser.add_argument(
         "--tractography-backend",
         default="csd_act",
         choices=("csd_act", "dti_det"),
@@ -187,6 +200,13 @@ def main(argv: list[str] | None = None) -> int:
         tractography_backend=args.tractography_backend,
         execute=bool(args.execute),
         resume=not args.no_resume,
+        preprocessing_backend=args.preprocessing_backend,
+        preprocessing_force=bool(args.preprocessing_force),
+        preprocessing_mrtrix_bin_dir=args.preprocessing_mrtrix_bin_dir,
+        preprocessing_fsl_bin_dir=args.preprocessing_fsl_bin_dir,
+        preprocessing_reverse_phase_b0=args.preprocessing_reverse_phase_b0,
+        preprocessing_phase_encoding_direction=args.preprocessing_phase_encoding_direction,
+        preprocessing_readout_time=args.preprocessing_readout_time,
         microstructure_fit_method=args.micro_fit_method,
         microstructure_run_free_water=bool(args.run_free_water),
         microstructure_run_noddi=bool(args.run_noddi),

@@ -23,6 +23,7 @@ python3 run_subject_pipeline.py \
   --subject-id 100307 \
   --all \
   --execute \
+  --preprocessing-backend dipy \
   --tractography-backend csd_act \
   --connectome-backend mrtrix \
   --select-streamlines 100000 \
@@ -51,6 +52,8 @@ python3 run_subject_pipeline.py \
 - `--skip-targets ...`：显式跳过某些产品
 - `--execute`：真正执行；不加时只是 dry-run 规划
 - `--no-resume`：关闭已有结果复用
+- `--preprocessing-backend dipy|mrtrix_fsl`
+- `--preprocessing-force`
 - `--output-root ...`：把输出写到自定义目录
 - `--run-free-water` / `--run-noddi`：打开较慢的微结构阶段
 - `--tractography-backend csd_act|dti_det`
@@ -61,6 +64,7 @@ python3 run_subject_pipeline.py \
 - `--saf-fs-dir` / `--saf-pregenerated-tractogram`
 
 当前如果不显式传 `--targets`，默认会规划：
+- `preprocessing`
 - `microstructure`
 - `tractography`
 - `bundles`

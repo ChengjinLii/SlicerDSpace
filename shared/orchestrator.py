@@ -25,6 +25,7 @@ from shared.validation import InputValidationConfig, validate_subject_inputs
 
 SUPPORTED_TARGETS = {
     "validation",
+    "preprocessing",
     "segmentation",
     "parcellation",
     "surface",
@@ -48,6 +49,13 @@ class ProductOrchestratorConfig:
     tractography_backend: str = "csd_act"
     execute: bool = False
     resume: bool = True
+    preprocessing_backend: str = "dipy"
+    preprocessing_force: bool = False
+    preprocessing_mrtrix_bin_dir: Optional[Path] = None
+    preprocessing_fsl_bin_dir: Optional[Path] = None
+    preprocessing_reverse_phase_b0: Optional[Path] = None
+    preprocessing_phase_encoding_direction: Optional[str] = None
+    preprocessing_readout_time: Optional[float] = None
     microstructure_fit_method: str = "wls"
     microstructure_run_free_water: bool = False
     microstructure_run_noddi: bool = False
@@ -175,6 +183,24 @@ def _resolve_raw_inputs(subject_root: Path) -> dict[str, Path]:
         "bvec": input_dir / "bvecs",
         "mask": input_dir / "nodif_brain_mask.nii.gz",
     }
+
+
+def _preprocessing_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
+    layout = subject_layout(subject_root, output_root=output_root)
+    preproc_dir = layout.preproc
+    return {
+        "dwi": preproc_dir / f"{subject_id}_dwi_final.nii.gz",
+        "bval": preproc_dir / f"{subject_id}_dwi_final.bval",
+        "bvec": preproc_dir / f"{subject_id}_dwi_final.bvec",
+        "mask": preproc_dir / f"{subject_id}_brain_mask_final.nii.gz",
+        "manifest": preproc_dir / f"{subject_id}_preproc_manifest.json",
+        "qc": preproc_dir / "05_qc" / f"{subject_id}_preproc_qc.json",
+    }
+
+
+def _preprocessing_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+    outputs = _preprocessing_outputs(subject_root, subject_id, output_root)
+    return all(path.is_file() for key, path in outputs.items() if key != "qc") and _qc_completed(outputs["qc"])
 
 
 def _resolve_segmentation(subject_root: Path) -> Optional[Path]:
@@ -346,6 +372,7 @@ def run_subject_products(
     start = time.monotonic()
 
     materialize_canonical_output_tree(subject_root, output_root=output_root, mode="symlink", archive_legacy=False)
+    raw = _resolve_raw_inputs(subject_root)
 
     if "validation" in targets:
         validation = validate_subject_inputs(
@@ -366,7 +393,61 @@ def run_subject_products(
             )
         )
 
-    raw = _resolve_raw_inputs(subject_root)
+    if "preprocessing" in targets:
+        if config.resume and _preprocessing_complete(subject_root, config.subject_id, output_root):
+            tasks.append(
+                ProductTaskRecord(
+                    name="preprocessing.dwi",
+                    status="skipped",
+                    reason="completed outputs found",
+                    manifest_path=preprocessing_outputs["manifest"],
+                    qc_path=preprocessing_outputs["qc"],
+                    outputs={key: path.as_posix() for key, path in preprocessing_outputs.items() if key not in {"manifest", "qc"}},
+                )
+            )
+        elif not config.execute:
+            tasks.append(ProductTaskRecord(name="preprocessing.dwi", status="planned", reason="execute=False"))
+        elif any(not path.is_file() for path in raw.values()):
+            missing = [label for label, path in raw.items() if not path.is_file()]
+            tasks.append(ProductTaskRecord(name="preprocessing.dwi", status="blocked", reason="missing raw input: " + ", ".join(missing)))
+        else:
+            from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
+
+            _emit("[Orchestrator] Running DWI preprocessing", log)
+            result = run_dwi_preprocessing(
+                DwiPreprocessingConfig(
+                    subject_id=config.subject_id,
+                    input_root=subject_root,
+                    output_dir=layout.preproc,
+                    backend=config.preprocessing_backend,
+                    execute=True,
+                    skip=False,
+                    force=config.preprocessing_force or (not config.resume),
+                    mrtrix_bin_dir=config.preprocessing_mrtrix_bin_dir,
+                    fsl_bin_dir=config.preprocessing_fsl_bin_dir,
+                    reverse_phase_b0=config.preprocessing_reverse_phase_b0,
+                    phase_encoding_direction=config.preprocessing_phase_encoding_direction,
+                    readout_time=config.preprocessing_readout_time,
+                ),
+                log=log,
+            )
+            tasks.append(
+                ProductTaskRecord(
+                    name="preprocessing.dwi",
+                    status="completed" if result.status in {"completed", "cached"} else result.status,
+                    reason="cached outputs reused" if result.status == "cached" else "",
+                    manifest_path=result.manifest_path,
+                    qc_path=result.qc_path,
+                    outputs={
+                        "dwi": result.final_dwi_path.as_posix(),
+                        "bval": result.final_bval_path.as_posix(),
+                        "bvec": result.final_bvec_path.as_posix(),
+                        "mask": result.final_mask_path.as_posix(),
+                    },
+                )
+            )
+
+    preprocessing_outputs = _preprocessing_outputs(subject_root, config.subject_id, output_root)
     segmentation = _resolve_segmentation(subject_root)
     parcellation = _resolve_parcellation(subject_root, config.subject_id)
     atlas_t2 = config.atlas_t2.expanduser().resolve() if config.atlas_t2 is not None else _default_atlas_t2()
@@ -1006,6 +1087,13 @@ def run_subject_products(
         "tractography_backend": config.tractography_backend,
         "execute": config.execute,
         "resume": config.resume,
+        "preprocessing_backend": config.preprocessing_backend,
+        "preprocessing_force": config.preprocessing_force,
+        "preprocessing_mrtrix_bin_dir": config.preprocessing_mrtrix_bin_dir.as_posix() if config.preprocessing_mrtrix_bin_dir else None,
+        "preprocessing_fsl_bin_dir": config.preprocessing_fsl_bin_dir.as_posix() if config.preprocessing_fsl_bin_dir else None,
+        "preprocessing_reverse_phase_b0": config.preprocessing_reverse_phase_b0.as_posix() if config.preprocessing_reverse_phase_b0 else None,
+        "preprocessing_phase_encoding_direction": config.preprocessing_phase_encoding_direction,
+        "preprocessing_readout_time": config.preprocessing_readout_time,
         "microstructure_fit_method": config.microstructure_fit_method,
         "microstructure_run_free_water": config.microstructure_run_free_water,
         "microstructure_run_noddi": config.microstructure_run_noddi,

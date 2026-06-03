@@ -63,6 +63,29 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(statuses["parcellation.ddparcel"], "planned")
             self.assertEqual(statuses["surface.ddsurfer"], "planned")
 
+    def test_dry_run_plans_preprocessing_target(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("preprocessing",),
+                    execute=False,
+                )
+            )
+
+            self.assertEqual(len(result.tasks), 1)
+            self.assertEqual(result.tasks[0].name, "preprocessing.dwi")
+            self.assertEqual(result.tasks[0].status, "planned")
+
     def test_dry_run_plans_selected_tractography_bundle_connectome_targets(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 
