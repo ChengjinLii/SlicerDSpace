@@ -255,6 +255,51 @@ exit 0
         self.assertEqual(manifest["status"], "partial_failed")
         self.assertIn("runtime_seconds", manifest)
 
+    def test_runtime_library_paths_include_slicerdmri_extension_dirs(self) -> None:
+        from tractography.wma import _slicer_runtime_library_paths
+
+        slicer_root = self.tmp_path / "SlicerRoot"
+        slicer_exec = slicer_root / "Slicer"
+        qt_loadable = (
+            slicer_root
+            / "slicer.org"
+            / "Extensions-99999"
+            / "SlicerDMRI"
+            / "lib"
+            / "Slicer-5.10"
+            / "qt-loadable-modules"
+        )
+        qt_loadable.mkdir(parents=True)
+        (slicer_root / "lib" / "Slicer-5.10").mkdir(parents=True)
+        (slicer_root / "lib").mkdir(exist_ok=True)
+        slicer_exec.write_text("#!/bin/sh\n", encoding="utf-8")
+        slicer_exec.chmod(0o755)
+
+        paths = _slicer_runtime_library_paths(slicer_exec)
+        self.assertIn((slicer_root / "lib" / "Slicer-5.10").resolve(), paths)
+        self.assertIn(qt_loadable.resolve(), paths)
+        self.assertIn(qt_loadable.parent.resolve(), paths)
+
+    def test_resolve_slicer_launcher_prefers_run_slicer_sh_when_present(self) -> None:
+        from tractography.wma import _resolve_slicer_launcher
+
+        software_root = self.tmp_path / "software"
+        slicer_exec = software_root / "Slicer-5.10.0-linux-amd64" / "Slicer"
+        slicer_exec.parent.mkdir(parents=True)
+        slicer_exec.write_text("#!/bin/sh\n", encoding="utf-8")
+        launcher = software_root / "run-slicer.sh"
+        launcher.write_text("#!/bin/sh\n", encoding="utf-8")
+
+        self.assertEqual(_resolve_slicer_launcher(slicer_exec), launcher.resolve())
+
+    def test_runtime_display_prefers_explicit_env_then_display(self) -> None:
+        from tractography.wma import _resolve_runtime_display
+
+        with mock.patch.dict(os.environ, {"DISPLAY": ":99"}, clear=True):
+            self.assertEqual(_resolve_runtime_display(), ":99")
+        with mock.patch.dict(os.environ, {"DISPLAY": ":99", "SLICERDDSURFER_DISPLAY": ":88"}, clear=True):
+            self.assertEqual(_resolve_runtime_display(), ":88")
+
 
 if __name__ == "__main__":
     unittest.main()

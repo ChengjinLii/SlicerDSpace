@@ -167,8 +167,32 @@ def _slicer_runtime_library_paths(slicer_executable: Path) -> tuple[Path, ...]:
         slicer_root / "lib" / "Slicer-5.10",
         slicer_root / "lib",
     ]
+    slicerdmri_paths = _slicerdmri_module_paths(slicer_executable)
+    for path in slicerdmri_paths:
+        candidates.append(path)
+        candidates.append(path.parent)
     candidates.extend(path for path in EXTRA_LIBRARY_DIRS)
-    return tuple(path.resolve() for path in candidates if path.is_dir())
+    unique: list[Path] = []
+    for path in candidates:
+        if path.is_dir():
+            resolved = path.resolve()
+            if resolved not in unique:
+                unique.append(resolved)
+    return tuple(unique)
+
+
+def _resolve_slicer_launcher(slicer_executable: Path) -> Path:
+    slicer_executable = slicer_executable.expanduser().resolve()
+    launcher = slicer_executable.parent.parent / "run-slicer.sh"
+    return launcher if launcher.is_file() else slicer_executable
+
+
+def _resolve_runtime_display() -> Optional[str]:
+    for env_name in ("SLICERDDSURFER_DISPLAY", "DISPLAY"):
+        value = os.environ.get(env_name)
+        if value:
+            return value
+    return None
 
 
 def inspect_wma_backend(
@@ -477,6 +501,7 @@ def run_wma_org_atlas(
         ]
         path_entries.extend(tool_dir.as_posix() for tool_dir in EXTRA_TOOL_DIRS if tool_dir.is_dir())
         library_entries = [path.as_posix() for path in _slicer_runtime_library_paths(slicer_executable)]
+        runtime_display = _resolve_runtime_display()
         temp_python_dir: Optional[tempfile.TemporaryDirectory[str]] = None
         try:
             slicerdmri_paths = _slicerdmri_module_paths(slicer_executable)
@@ -496,17 +521,20 @@ def run_wma_org_atlas(
                         xvfb_shim.chmod(0o755)
                 if slicerdmri_paths:
                     slicer_shim = Path(temp_python_dir.name) / "Slicer"
+                    slicer_launcher = _resolve_slicer_launcher(slicer_executable)
                     module_args = " ".join(
                         f"--additional-module-paths '{path.as_posix()}'" for path in slicerdmri_paths
                     )
                     slicer_shim.write_text(
-                        f"#!/bin/sh\nexec '{slicer_executable.as_posix()}' {module_args} \"$@\"\n",
+                        f"#!/bin/sh\nexec '{slicer_launcher.as_posix()}' {module_args} \"$@\"\n",
                         encoding="utf-8",
                     )
                     slicer_shim.chmod(0o755)
                     runtime_command = list(command)
                     if "-s" in runtime_command:
                         runtime_command[runtime_command.index("-s") + 1] = slicer_shim.as_posix()
+                    if runtime_display and "-x" in runtime_command:
+                        runtime_command[runtime_command.index("-x") + 1] = "0"
                     command_to_run = tuple(runtime_command)
                 else:
                     command_to_run = command
@@ -518,6 +546,8 @@ def run_wma_org_atlas(
                 env["LD_LIBRARY_PATH"] = os.pathsep.join(
                     library_entries + ([env["LD_LIBRARY_PATH"]] if env.get("LD_LIBRARY_PATH") else [])
                 )
+            if runtime_display:
+                env["DISPLAY"] = runtime_display
             completed = subprocess.run(
                 command_to_run,
                 check=True,
@@ -576,8 +606,10 @@ def run_wma_org_atlas(
     manifest["runtime_seconds"] = elapsed_seconds
     manifest["environment"] = {
         "use_virtual_x": config.use_virtual_x,
+        "runtime_display": _resolve_runtime_display(),
         "resolved_wma_root": wma_root.as_posix(),
         "resolved_slicer_executable": config.slicer_executable.expanduser().resolve().as_posix(),
+        "resolved_slicer_launcher": _resolve_slicer_launcher(config.slicer_executable).as_posix(),
     }
     manifest["outputs"]["summary"] = output_summary
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
