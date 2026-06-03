@@ -299,7 +299,7 @@ def run_subject_products(
     parcellation_outputs = _parcellation_outputs(subject_root, config.subject_id)
     surface_outputs = _surface_outputs(subject_root, config.subject_id)
     micro_outputs = _microstructure_dti_outputs(subject_root, config.subject_id, output_root)
-    csd_dir = layout.csd if run_name == "csd_act" else layout.tractography / run_name
+    csd_dir = layout.csd if run_name == "csd_act" else layout.csd / run_name
     tractogram_dir = layout.tractograms / run_name
     wmql_dir = layout.bundles_wmql / run_name
     connectome_dir = layout.connectome / run_name

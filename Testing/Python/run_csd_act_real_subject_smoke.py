@@ -77,7 +77,7 @@ def main() -> int:
     subject_id = args.subject_id
     layout = subject_layout(subject_root)
     run_name = args.run_name.strip() or "csd_act"
-    csd_dir = layout.csd if run_name == "csd_act" else layout.tractography / run_name.replace("/", "_")
+    csd_dir = layout.csd if run_name == "csd_act" else layout.csd / run_name.replace("/", "_")
     tractogram_dir = layout.tractograms / run_name.replace("/", "_")
     wmql_dir = layout.bundles_wmql / run_name.replace("/", "_")
     connectome_dir = layout.connectome / run_name.replace("/", "_")

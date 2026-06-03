@@ -91,6 +91,68 @@ class IOLayoutTest(unittest.TestCase):
             self.assertTrue((subject_root / ".legacy_flat_outputs" / "AnatomicalTracts").is_dir())
             self.assertIn("100307-dti-FractionalAnisotropy.nii.gz", created)
 
+    def test_development_outputs_can_be_archived_outside_canonical_tree(self) -> None:
+        from shared import archive_development_outputs, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            probe_dir = layout.bundles / "wmql_probe_af_cst"
+            check_dir = layout.connectome / "csd_act_mean_fa_check"
+            saf_dir = layout.tractography / "saf_python_execute_fastsurfer"
+            smoke_dir = layout.outputs / "connectome_execute_smoke"
+            for path in (probe_dir, check_dir, saf_dir, smoke_dir):
+                path.mkdir(parents=True)
+                (path / "marker.txt").write_text("x", encoding="utf-8")
+
+            moved = archive_development_outputs(subject_root)
+
+            self.assertFalse(probe_dir.exists())
+            self.assertFalse(check_dir.exists())
+            self.assertFalse(saf_dir.exists())
+            self.assertFalse(smoke_dir.exists())
+            self.assertTrue((subject_root / ".debug_outputs" / "04_tractography" / "bundles" / "wmql_probe_af_cst").is_dir())
+            self.assertTrue((subject_root / ".debug_outputs" / "04_tractography" / "connectome" / "csd_act_mean_fa_check").is_dir())
+            self.assertTrue((subject_root / ".debug_outputs" / "04_tractography" / "saf_python_execute_fastsurfer").is_dir())
+            self.assertTrue((subject_root / ".debug_outputs" / "legacy_outputs_root" / "connectome_execute_smoke").is_dir())
+            self.assertGreaterEqual(len(moved), 4)
+
+    def test_legacy_wma_runs_can_be_materialized_under_canonical_bundles_tree(self) -> None:
+        from shared import materialize_canonical_output_tree, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "149741"
+            legacy_wma = subject_root / ".debug_outputs" / "legacy_outputs_root" / "wma_org_execute_20260531_ldfix"
+            case_dir = legacy_wma / "149741_ukf_pp_downsampled" / "FiberClustering"
+            case_dir.mkdir(parents=True)
+            (legacy_wma / "wma_org_atlas_qc.json").write_text("{}", encoding="utf-8")
+
+            created = materialize_canonical_output_tree(subject_root, mode="copy", archive_legacy=False)
+            layout = subject_layout(subject_root)
+
+            self.assertTrue((layout.bundles_wma / "wma_org_execute_20260531_ldfix").is_dir())
+            self.assertTrue((layout.bundles_wma / "wma_org_execute_20260531_ldfix" / "wma_org_atlas_qc.json").is_file())
+            self.assertIn("wma_org_execute_20260531_ldfix", created)
+
+    def test_legacy_csd_run_dirs_can_be_materialized_under_canonical_csd_tree(self) -> None:
+        from shared import archive_development_outputs, materialize_canonical_output_tree, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            legacy_csd = subject_root / "outputs" / "04_tractography" / "csd_act_100k"
+            legacy_csd.mkdir(parents=True)
+            (legacy_csd / "csd_act_qc.json").write_text("{}", encoding="utf-8")
+
+            created = materialize_canonical_output_tree(subject_root, mode="copy", archive_legacy=False)
+            layout = subject_layout(subject_root)
+            self.assertTrue((layout.csd / "csd_act_100k" / "csd_act_qc.json").is_file())
+            self.assertIn("csd_act_100k", created)
+
+            moved = archive_development_outputs(subject_root)
+            self.assertFalse(legacy_csd.exists())
+            self.assertTrue((subject_root / ".debug_outputs" / "04_tractography" / "legacy_csd_runs" / "csd_act_100k").is_dir())
+            self.assertIn(legacy_csd.as_posix(), moved)
+
 
 if __name__ == "__main__":
     unittest.main()

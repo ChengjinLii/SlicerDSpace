@@ -35,6 +35,10 @@ OPTIONAL_WMA_COMMANDS = ("wm_diffusion_measurements.py", "xvfb-run")
 EXTRA_TOOL_DIRS = (
     Path("/data/chengjin/software/xvfb/usr/bin"),
 )
+EXTRA_LIBRARY_DIRS = (
+    Path("/data/chengjin/software/libpcre2-16-0/usr/lib/x86_64-linux-gnu"),
+    Path("/data/chengjin/software/libxcb-xinerama0/usr/lib/x86_64-linux-gnu"),
+)
 
 
 @dataclass(frozen=True)
@@ -155,6 +159,18 @@ def _slicerdmri_module_paths(slicer_executable: Path) -> tuple[Path, ...]:
     return tuple(path for path in paths if path.is_dir())
 
 
+def _slicer_runtime_library_paths(slicer_executable: Path) -> tuple[Path, ...]:
+    """Return library directories needed by Slicer/PythonSlicer shims."""
+
+    slicer_root = slicer_executable.expanduser().resolve().parent
+    candidates = [
+        slicer_root / "lib" / "Slicer-5.10",
+        slicer_root / "lib",
+    ]
+    candidates.extend(path for path in EXTRA_LIBRARY_DIRS)
+    return tuple(path.resolve() for path in candidates if path.is_dir())
+
+
 def inspect_wma_backend(
     wma_root: Optional[Path] = None,
     *,
@@ -238,7 +254,18 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
     case_dir = output_dir / case_id
     anatomical_dir = case_dir / "AnatomicalTracts"
     cluster_dir = case_dir / "FiberClustering"
+    initial_dir = cluster_dir / "InitialClusters" / f"{case_id}_reg"
+    outlier_dir = cluster_dir / "OutlierRemovedClusters" / f"{case_id}_reg_outlier_removed"
+    transformed_dir = cluster_dir / "TransformedClusters" / case_id
+    separated_dir = cluster_dir / "SeparatedClusters"
     tracts = sorted(anatomical_dir.glob("*.vtp")) if anatomical_dir.is_dir() else []
+
+    def _count_vtp(path: Path) -> int:
+        return len(list(path.glob("*.vtp"))) if path.is_dir() else 0
+
+    commissural_dir = separated_dir / "tracts_commissural"
+    left_hemi_dir = separated_dir / "tracts_left_hemisphere"
+    right_hemi_dir = separated_dir / "tracts_right_hemisphere"
     return {
         "case_id": case_id,
         "case_dir": case_dir.as_posix(),
@@ -248,6 +275,23 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
         "anatomical_tract_count": len(tracts),
         "fiber_clustering_dir": cluster_dir.as_posix(),
         "fiber_clustering_dir_exists": cluster_dir.is_dir(),
+        "initial_clusters_dir": initial_dir.as_posix(),
+        "initial_clusters_dir_exists": initial_dir.is_dir(),
+        "initial_cluster_count": _count_vtp(initial_dir),
+        "outlier_removed_dir": outlier_dir.as_posix(),
+        "outlier_removed_dir_exists": outlier_dir.is_dir(),
+        "outlier_removed_cluster_count": _count_vtp(outlier_dir),
+        "transformed_clusters_dir": transformed_dir.as_posix(),
+        "transformed_clusters_dir_exists": transformed_dir.is_dir(),
+        "transformed_cluster_count": _count_vtp(transformed_dir),
+        "separated_clusters_dir": separated_dir.as_posix(),
+        "separated_clusters_dir_exists": separated_dir.is_dir(),
+        "separated_commissural_dir": commissural_dir.as_posix(),
+        "separated_commissural_count": _count_vtp(commissural_dir),
+        "separated_left_hemisphere_dir": left_hemi_dir.as_posix(),
+        "separated_left_hemisphere_count": _count_vtp(left_hemi_dir),
+        "separated_right_hemisphere_dir": right_hemi_dir.as_posix(),
+        "separated_right_hemisphere_count": _count_vtp(right_hemi_dir),
         "diffusion_measurements_csv": (anatomical_dir / "diffusion_measurements_anatomical_tracts.csv").as_posix(),
         "diffusion_measurements_csv_exists": (anatomical_dir / "diffusion_measurements_anatomical_tracts.csv").is_file(),
     }
@@ -261,6 +305,20 @@ def _last_nonempty_line(text: Optional[str]) -> Optional[str]:
         if stripped:
             return stripped
     return None
+
+
+def _derive_wma_status(output_summary: dict[str, Any], execution_error: Optional[str], executed: bool) -> str:
+    if not executed:
+        return "planned"
+    if output_summary.get("anatomical_tract_count", 0) > 0:
+        return "completed"
+    if output_summary.get("transformed_cluster_count", 0) > 0:
+        return "partial_failed"
+    if output_summary.get("outlier_removed_cluster_count", 0) > 0:
+        return "partial_failed"
+    if output_summary.get("initial_cluster_count", 0) > 0:
+        return "partial_failed"
+    return "failed" if execution_error else "completed"
 
 
 def build_wma_org_atlas_command(config: WMAOrgAtlasConfig) -> tuple[str, ...]:
@@ -418,6 +476,7 @@ def run_wma_org_atlas(
             (wma_root / "utilities").as_posix(),
         ]
         path_entries.extend(tool_dir.as_posix() for tool_dir in EXTRA_TOOL_DIRS if tool_dir.is_dir())
+        library_entries = [path.as_posix() for path in _slicer_runtime_library_paths(slicer_executable)]
         temp_python_dir: Optional[tempfile.TemporaryDirectory[str]] = None
         try:
             slicerdmri_paths = _slicerdmri_module_paths(slicer_executable)
@@ -455,6 +514,10 @@ def run_wma_org_atlas(
             else:
                 command_to_run = command
             env["PATH"] = os.pathsep.join(path_entries + ([env["PATH"]] if env.get("PATH") else []))
+            if library_entries:
+                env["LD_LIBRARY_PATH"] = os.pathsep.join(
+                    library_entries + ([env["LD_LIBRARY_PATH"]] if env.get("LD_LIBRARY_PATH") else [])
+                )
             completed = subprocess.run(
                 command_to_run,
                 check=True,
@@ -476,14 +539,7 @@ def run_wma_org_atlas(
             if temp_python_dir is not None:
                 temp_python_dir.cleanup()
             output_summary = summarize_wma_outputs(output_dir, config.input_tractography.expanduser().resolve())
-            if (
-                execution_error is None
-                and config.execute
-                and (
-                    not output_summary["fiber_clustering_dir_exists"]
-                    or not output_summary["anatomical_tracts_dir_exists"]
-                )
-            ):
+            if execution_error is None and config.execute and not output_summary["anatomical_tracts_dir_exists"]:
                 log_hint = _last_nonempty_line(stderr_log.read_text(encoding="utf-8") if stderr_log.is_file() else "")
                 if log_hint is None:
                     log_hint = _last_nonempty_line(stdout_log.read_text(encoding="utf-8") if stdout_log.is_file() else "")
@@ -492,11 +548,12 @@ def run_wma_org_atlas(
                     execution_error += f" Last log line: {log_hint}"
 
     elapsed_seconds = time.monotonic() - start_time
+    status = _derive_wma_status(output_summary, execution_error, bool(config.execute))
     qc = {
         "kind": "wma_org_atlas_qc",
         "version": 1,
         "subject_id": config.subject_id,
-        "status": "failed" if execution_error else ("completed" if config.execute else "planned"),
+        "status": status,
         "executed": bool(config.execute),
         "return_code": return_code,
         "elapsed_seconds": elapsed_seconds,
@@ -513,9 +570,15 @@ def run_wma_org_atlas(
     }
     qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-    manifest["status"] = qc["status"]
+    manifest["status"] = status
     manifest["executed"] = bool(config.execute)
     manifest["return_code"] = return_code
+    manifest["runtime_seconds"] = elapsed_seconds
+    manifest["environment"] = {
+        "use_virtual_x": config.use_virtual_x,
+        "resolved_wma_root": wma_root.as_posix(),
+        "resolved_slicer_executable": config.slicer_executable.expanduser().resolve().as_posix(),
+    }
     manifest["outputs"]["summary"] = output_summary
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 

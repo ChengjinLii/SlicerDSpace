@@ -114,7 +114,7 @@ def main() -> int:
     tractography_root = outputs / "04_tractography"
     metadata_root = outputs / "00_run_metadata"
 
-    csd_dir = tractography_root / run_name
+    csd_dir = (tractography_root / "csd") if run_name == "csd_act" else (tractography_root / "csd" / run_name)
     tractogram_dir = tractography_root / "tractograms" / run_name
     wmql_dir = tractography_root / "bundles" / "wmql" / run_name
     connectome_root = tractography_root / "connectome"

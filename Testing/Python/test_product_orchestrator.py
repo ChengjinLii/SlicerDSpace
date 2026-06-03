@@ -160,7 +160,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             subject_root = Path(tmp) / "100307"
             layout = subject_layout(subject_root)
             run_name = "csd_act_test"
-            csd_dir = layout.tractography / run_name
+            csd_dir = layout.csd / run_name
             tract_dir = layout.tractograms / run_name
             wmql_dir = layout.bundles_wmql / run_name
             conn_dir = layout.connectome / run_name

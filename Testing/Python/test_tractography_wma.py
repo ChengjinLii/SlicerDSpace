@@ -213,6 +213,48 @@ exit 0
         self.assertTrue(Path(qc["logs"]["stdout"]).is_file())
         self.assertTrue(Path(qc["logs"]["stderr"]).is_file())
 
+    def test_execute_true_marks_partial_failed_when_clusters_exist_but_anatomical_tracts_do_not(self) -> None:
+        from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
+
+        self.wma_script.write_text(
+            """#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -i) input="$2"; shift 2 ;;
+    -o) out="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+case_id=$(basename "$input")
+case_id=${case_id%.*}
+mkdir -p "$out/$case_id/FiberClustering/InitialClusters/${case_id}_reg"
+printf '' > "$out/$case_id/FiberClustering/InitialClusters/${case_id}_reg/cluster_00001.vtp"
+exit 0
+""",
+            encoding="utf-8",
+        )
+        self.wma_script.chmod(0o755)
+
+        result = run_wma_org_atlas(
+            WMAOrgAtlasConfig(
+                subject_id="100307",
+                input_tractography=self.tractography,
+                atlas_dir=self.atlas_dir,
+                output_dir=self.output_dir,
+                slicer_executable=self.slicer_executable,
+                wma_root=self.wma_root,
+                execute=True,
+            )
+        )
+
+        qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+        self.assertEqual(qc["status"], "partial_failed")
+        self.assertEqual(qc["output_summary"]["initial_cluster_count"], 1)
+        self.assertEqual(qc["output_summary"]["anatomical_tract_count"], 0)
+        manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["status"], "partial_failed")
+        self.assertIn("runtime_seconds", manifest)
+
 
 if __name__ == "__main__":
     unittest.main()

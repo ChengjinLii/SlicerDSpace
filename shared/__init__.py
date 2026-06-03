@@ -16,6 +16,7 @@ from .pipeline import (
 from .validation import InputValidationConfig, InputValidationResult, ValidationIssue, validate_subject_inputs
 from .io_layout import (
     SubjectIOLayout,
+    archive_development_outputs,
     default_task_output_dir,
     default_task_output_dir_for_dependency,
     materialize_canonical_output_tree,
@@ -30,6 +31,7 @@ __all__ = [
     "NativeDTIBundle",
     "RegisteredDTIBundle",
     "SubjectIOLayout",
+    "archive_development_outputs",
     "ProductOrchestratorConfig",
     "ProductOrchestratorResult",
     "ProductTaskRecord",

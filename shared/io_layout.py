@@ -239,6 +239,20 @@ def _archive_legacy_path(src: Path, archive_root: Path) -> None:
     shutil.move(src.as_posix(), dest.as_posix())
 
 
+def _archive_debug_path(src: Path, archive_root: Path) -> Optional[Path]:
+    if not src.exists() or src.is_symlink():
+        return None
+    archive_root.mkdir(parents=True, exist_ok=True)
+    dest = archive_root / src.name
+    if dest.exists():
+        suffix = 1
+        while (archive_root / f"{src.name}.{suffix}").exists():
+            suffix += 1
+        dest = archive_root / f"{src.name}.{suffix}"
+    shutil.move(src.as_posix(), dest.as_posix())
+    return dest
+
+
 def materialize_canonical_output_tree(
     subject_root: Path,
     *,
@@ -313,6 +327,26 @@ def materialize_canonical_output_tree(
                 _safe_link_or_copy(legacy_path, layout.tractograms_dti_det / legacy_path.name, mode=mode)
                 created[f"tractography/{legacy_path.name}"] = layout.tractograms_dti_det / legacy_path.name
 
+    if layout.tractography.is_dir():
+        for legacy_csd_run in sorted(
+            path
+            for path in layout.tractography.iterdir()
+            if path.is_dir() and path.name.startswith("csd_act") and path.name != "csd"
+        ):
+            target = layout.csd / legacy_csd_run.name
+            _safe_link_or_copy(legacy_csd_run, target, mode=mode)
+            created[legacy_csd_run.name] = target
+
+    legacy_roots = [outputs]
+    debug_legacy_root = layout.subject_root / ".debug_outputs" / "legacy_outputs_root"
+    if debug_legacy_root.is_dir():
+        legacy_roots.append(debug_legacy_root)
+    for legacy_root in legacy_roots:
+        for legacy_wma_run in sorted(path for path in legacy_root.glob("wma_org_execute*") if path.is_dir()):
+            target = layout.bundles_wma / legacy_wma_run.name
+            _safe_link_or_copy(legacy_wma_run, target, mode=mode)
+            created[legacy_wma_run.name] = target
+
     tractcloud_root_map = {
         "AnatomicalTracts": layout.bundles_tractcloud / "AnatomicalTracts",
         "AnatomicalTracts_separated": layout.bundles_tractcloud / "AnatomicalTracts_separated",
@@ -330,3 +364,67 @@ def materialize_canonical_output_tree(
             _archive_legacy_path(layout.subject_root / legacy_name, archive_root)
 
     return created
+
+
+def archive_development_outputs(subject_root: Path, *, output_root: Optional[Path] = None) -> dict[str, Path]:
+    """Move development-only output folders out of the canonical product tree.
+
+    This keeps ``outputs/`` aligned with the documented user-facing layout while
+    preserving exploratory artifacts under ``.debug_outputs`` for later audits.
+    """
+
+    layout = subject_layout(subject_root, output_root=output_root)
+    outputs = layout.outputs
+    debug_root = layout.subject_root / ".debug_outputs"
+    moved: dict[str, Path] = {}
+
+    def _move_if_exists(path: Path, dest_root: Path) -> None:
+        dest = _archive_debug_path(path, dest_root)
+        if dest is not None:
+            moved[path.as_posix()] = dest
+
+    allowed_top_level = {
+        "00_run_metadata",
+        "01_preproc",
+        "02_microstructure",
+        "03_structural",
+        "04_tractography",
+        "05_statistics",
+        "06_slicer_scene_report",
+    }
+    if outputs.is_dir():
+        for child in outputs.iterdir():
+            if child.name not in allowed_top_level:
+                _move_if_exists(child, debug_root / "legacy_outputs_root")
+
+    structural = layout.structural
+    if structural.is_dir():
+        for child in structural.iterdir():
+            if child.name.endswith("_dryrun") or child.name.endswith("_smoke"):
+                _move_if_exists(child, debug_root / "03_structural")
+
+    tractography = layout.tractography
+    if tractography.is_dir():
+        for child in tractography.iterdir():
+            if child.name.startswith("saf_") and child.name != "saf":
+                _move_if_exists(child, debug_root / "04_tractography")
+            elif child.name.endswith("_smoke") or child.name.endswith("_dryrun"):
+                _move_if_exists(child, debug_root / "04_tractography")
+            elif child.is_dir() and child.name.startswith("csd_act") and child.name != "csd":
+                canonical_target = layout.csd / child.name
+                if canonical_target.exists():
+                    _move_if_exists(child, debug_root / "04_tractography" / "legacy_csd_runs")
+
+    bundles = layout.bundles
+    if bundles.is_dir():
+        for child in bundles.iterdir():
+            if child.name.startswith("wmql_probe_"):
+                _move_if_exists(child, debug_root / "04_tractography" / "bundles")
+
+    connectome = layout.connectome
+    if connectome.is_dir():
+        for child in connectome.iterdir():
+            if child.name.endswith("_check") or child.name.endswith("_smoke") or child.name.endswith("_dryrun"):
+                _move_if_exists(child, debug_root / "04_tractography" / "connectome")
+
+    return moved
