@@ -368,16 +368,43 @@
          </widget>
         </item>
         <item row="1" column="0">
+         <widget class="QLabel" name="orchestrationTractographyBackendLabel">
+          <property name="text">
+           <string>Tractography backend</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="orchestrationTractographyBackendComboBox">
+          <property name="toolTip">
+           <string>csd_act runs MRtrix CSD/FOD/ACT plus optional SIFT2. dti_det runs in-plugin DIPY deterministic tracking and is lighter but does not produce SIFT2 weights.</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>orchestrationTractographyBackend</string>
+          </property>
+          <item>
+           <property name="text">
+            <string>csd_act</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>dti_det</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="2" column="0">
          <widget class="QLabel" name="orchestrationSelectStreamlinesLabel">
           <property name="text">
            <string>ACT streamlines</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
+        <item row="2" column="1">
          <widget class="QSpinBox" name="orchestrationSelectStreamlinesSpinBox">
           <property name="toolTip">
-           <string>Number of selected streamlines requested from MRtrix ACT. Use 100000 or more for analysis-scale bundle/connectome tests.</string>
+           <string>Number of selected streamlines requested from MRtrix ACT. Used only when tractography backend is csd_act. Use 100000 or more for analysis-scale bundle/connectome tests.</string>
           </property>
           <property name="minimum">
            <number>1</number>
@@ -393,14 +420,14 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="0">
+        <item row="3" column="0">
          <widget class="QLabel" name="orchestrationRunFreeWaterLabel">
           <property name="text">
            <string>Microstructure Free Water</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
+        <item row="3" column="1">
          <widget class="QCheckBox" name="orchestrationRunFreeWaterCheckBox">
           <property name="text">
            <string>Include Free Water maps when Microstructure is selected</string>
@@ -413,14 +440,14 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
+        <item row="4" column="0">
          <widget class="QLabel" name="orchestrationRunNoddiLabel">
           <property name="text">
            <string>Microstructure NODDI</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
+        <item row="4" column="1">
          <widget class="QCheckBox" name="orchestrationRunNoddiCheckBox">
           <property name="text">
            <string>Include AMICO NODDI maps when Microstructure is selected</string>
@@ -433,14 +460,14 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="0">
+        <item row="5" column="0">
          <widget class="QLabel" name="connectomeBackendLabel">
           <property name="text">
            <string>Connectome backend</string>
           </property>
          </widget>
         </item>
-        <item row="4" column="1">
+        <item row="5" column="1">
          <widget class="QComboBox" name="connectomeBackendComboBox">
           <property name="toolTip">
            <string>Python writes compact endpoint-label edge lists. MRtrix uses tck2connectome and can optionally compress dense matrices back to ROI-label edge lists.</string>
@@ -460,14 +487,14 @@
           </item>
          </widget>
         </item>
-        <item row="5" column="0">
+        <item row="6" column="0">
          <widget class="QLabel" name="connectomeCompressMrtrixDenseLabel">
           <property name="text">
            <string>Compress MRtrix dense</string>
           </property>
          </widget>
         </item>
-        <item row="5" column="1">
+        <item row="6" column="1">
          <widget class="QCheckBox" name="connectomeCompressMrtrixDenseCheckBox">
           <property name="text">
            <string>Keep raw dense CSV and also write compact ROI-label edge-list</string>

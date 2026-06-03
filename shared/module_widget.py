@@ -310,6 +310,11 @@ class SharedWidgetMixin:
                 via_index=False,
             )
             self._sync_line_edit(getattr(self.ui, "orchestrationRunNameLineEdit", None), node.orchestrationRunName or "")
+            self._sync_combo_text(
+                getattr(self.ui, "orchestrationTractographyBackendComboBox", None),
+                node.orchestrationTractographyBackend or "csd_act",
+                via_index=False,
+            )
             self._sync_spinbox(
                 getattr(self.ui, "orchestrationSelectStreamlinesSpinBox", None),
                 int(node.orchestrationSelectStreamlines),
@@ -456,6 +461,7 @@ class SharedWidgetMixin:
                     output_root=Path(output_root_text).expanduser() if output_root_text else None,
                     targets=orchestrator_targets,
                     run_name=run_name,
+                    tractography_backend=(self._parameterNode.orchestrationTractographyBackend or "csd_act").strip(),
                     execute=True,
                     resume=True,
                     microstructure_run_free_water=bool(self._parameterNode.orchestrationRunFreeWater),

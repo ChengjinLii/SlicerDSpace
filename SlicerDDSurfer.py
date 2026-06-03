@@ -92,6 +92,7 @@ class SlicerDDSurferParameterNode:
     targetPreprocessing: bool = False
     preprocessingBackend: Annotated[str, Choice(["dipy", "mrtrix_fsl"])] = "dipy"
     orchestrationRunName: str = "csd_act_ui"
+    orchestrationTractographyBackend: Annotated[str, Choice(["csd_act", "dti_det"])] = "csd_act"
     orchestrationSelectStreamlines: int = 1000
     orchestrationRunFreeWater: bool = False
     orchestrationRunNoddi: bool = False

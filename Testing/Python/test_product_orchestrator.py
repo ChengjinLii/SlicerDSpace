@@ -89,6 +89,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(statuses["connectome.streamline_count"], "planned")
             manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["run_name"], "csd_act_test")
+            self.assertEqual(manifest["tractography_backend"], "csd_act")
             self.assertFalse(manifest["execute"])
             self.assertEqual(manifest["select_streamlines"], 1000)
             self.assertEqual(manifest["connectome_backend"], "python")
@@ -121,9 +122,39 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertTrue(result.run_manifest_path.is_relative_to(output_root))
             manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["output_root"], output_root.resolve().as_posix())
+            self.assertEqual(manifest["tractography_backend"], "csd_act")
             self.assertEqual(manifest["select_streamlines"], 100000)
             self.assertEqual(manifest["connectome_backend"], "mrtrix")
             self.assertTrue(manifest["connectome_compress_mrtrix_dense"])
+
+    def test_dry_run_supports_dti_tractography_backend(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("tractography", "bundles", "connectome"),
+                    run_name="dti_det_test",
+                    tractography_backend="dti_det",
+                    connectome_backend="python",
+                    execute=False,
+                )
+            )
+
+            statuses = {task.name: task.status for task in result.tasks}
+            self.assertEqual(statuses["tractography.dti_det"], "planned")
+            self.assertEqual(statuses["bundles.wmql"], "planned")
+            self.assertEqual(statuses["connectome.streamline_count"], "planned")
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["tractography_backend"], "dti_det")
 
     def test_microstructure_optional_stage_gates_are_explicit(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products

@@ -41,6 +41,7 @@ class ProductOrchestratorConfig:
     targets: tuple[str, ...]
     output_root: Optional[Path] = None
     run_name: str = "csd_act"
+    tractography_backend: str = "csd_act"
     execute: bool = False
     resume: bool = True
     microstructure_fit_method: str = "wls"
@@ -264,6 +265,8 @@ def run_subject_products(
         raise ValueError("subject_id is required.")
     if config.select_streamlines <= 0:
         raise ValueError("select_streamlines must be > 0.")
+    if config.tractography_backend not in {"csd_act", "dti_det"}:
+        raise ValueError("tractography_backend must be one of: csd_act, dti_det.")
     if config.connectome_backend not in {"python", "mrtrix"}:
         raise ValueError("connectome_backend must be one of: python, mrtrix.")
 
@@ -306,6 +309,7 @@ def run_subject_products(
     micro_outputs = _microstructure_dti_outputs(subject_root, config.subject_id, output_root)
     csd_dir = layout.csd if run_name == "csd_act" else layout.csd / run_name
     tractogram_dir = layout.tractograms / run_name
+    dti_tractogram_dir = layout.tractograms_dti_det / run_name
     wmql_dir = layout.bundles_wmql / run_name
     connectome_dir = canonical_connectome_output_dir(subject_root, run_name, "streamline_count", output_root=output_root)
     sift2_connectome_dir = canonical_connectome_output_dir(
@@ -315,9 +319,15 @@ def run_subject_products(
         output_root=output_root,
     )
     csd_qc = csd_dir / "csd_act_qc.json"
-    tractogram = tractogram_dir / f"{config.subject_id}_csd_act_ifod2.tck"
-    tractogram_trk = tractogram.with_suffix(".trk")
-    sift2_weights = tractogram.with_name(f"{tractogram.stem}_sift2_weights.txt")
+    dti_stem = f"{config.subject_id}-dti-deterministic"
+    dti_qc = dti_tractogram_dir / f"{dti_stem}_qc.json"
+    dti_manifest = dti_tractogram_dir / f"{dti_stem}_manifest.json"
+    csd_tractogram = tractogram_dir / f"{config.subject_id}_csd_act_ifod2.tck"
+    csd_tractogram_trk = csd_tractogram.with_suffix(".trk")
+    sift2_weights = csd_tractogram.with_name(f"{csd_tractogram.stem}_sift2_weights.txt")
+    dti_tractogram_trk = dti_tractogram_dir / f"{dti_stem}.trk"
+    tractogram = csd_tractogram if config.tractography_backend == "csd_act" else dti_tractogram_trk
+    tractogram_trk = csd_tractogram_trk if config.tractography_backend == "csd_act" else dti_tractogram_trk
 
     if "segmentation" in targets:
         if config.resume and _segmentation_complete(subject_root):
@@ -552,70 +562,101 @@ def run_subject_products(
             )
 
     if "tractography" in targets:
-        if config.resume and _qc_completed(csd_qc) and tractogram.is_file() and tractogram_trk.is_file():
+        tractography_qc = csd_qc if config.tractography_backend == "csd_act" else dti_qc
+        tractography_manifest = csd_dir / "csd_act_manifest.json" if config.tractography_backend == "csd_act" else dti_manifest
+        tractography_task_name = "tractography.csd_act" if config.tractography_backend == "csd_act" else "tractography.dti_det"
+        if config.resume and _qc_completed(tractography_qc) and tractogram_trk.is_file() and (
+            config.tractography_backend != "csd_act" or csd_tractogram.is_file()
+        ):
             tasks.append(
                 ProductTaskRecord(
-                    name="tractography.csd_act",
+                    name=tractography_task_name,
                     status="skipped",
                     reason="completed outputs found",
-                    qc_path=csd_qc,
-                    manifest_path=csd_dir / "csd_act_manifest.json",
+                    qc_path=tractography_qc,
+                    manifest_path=tractography_manifest,
                     outputs={"tractogram": tractogram.as_posix(), "tractogram_trk": tractogram_trk.as_posix()},
                 )
             )
         elif not config.execute:
-            tasks.append(ProductTaskRecord(name="tractography.csd_act", status="planned", reason="execute=False"))
-        elif segmentation is None:
-            tasks.append(ProductTaskRecord(name="tractography.csd_act", status="blocked", reason="missing DDSeg segmentation"))
+            tasks.append(ProductTaskRecord(name=tractography_task_name, status="planned", reason="execute=False"))
         elif any(not path.is_file() for path in raw.values()):
             missing = [label for label, path in raw.items() if not path.is_file()]
-            tasks.append(ProductTaskRecord(name="tractography.csd_act", status="blocked", reason="missing raw input: " + ", ".join(missing)))
+            tasks.append(ProductTaskRecord(name=tractography_task_name, status="blocked", reason="missing raw input: " + ", ".join(missing)))
+        elif config.tractography_backend == "csd_act" and segmentation is None:
+            tasks.append(ProductTaskRecord(name=tractography_task_name, status="blocked", reason="missing DDSeg segmentation"))
         else:
-            from tractography.act_prep import ACTPrepConfig, run_act_prep
-            from tractography.csd import CSDActConfig, run_csd_act
+            if config.tractography_backend == "csd_act":
+                from tractography.act_prep import ACTPrepConfig, run_act_prep
+                from tractography.csd import CSDActConfig, run_csd_act
 
-            _emit(f"[Orchestrator] Running CSD/ACT {run_name}", log)
-            act_prep = run_act_prep(
-                ACTPrepConfig(
-                    subject_id=config.subject_id,
-                    segmentation_path=segmentation,
-                    output_dir=layout.act_prep,
-                    execute=True,
-                ),
-                log=log,
-            )
-            result = run_csd_act(
-                CSDActConfig(
-                    subject_id=config.subject_id,
-                    dwi_path=raw["dwi"],
-                    bval_path=raw["bval"],
-                    bvec_path=raw["bvec"],
-                    mask_path=raw["mask"],
-                    five_tt_path=act_prep.five_tt_path,
-                    gmwmi_path=act_prep.gmwmi_path,
-                    output_dir=csd_dir,
-                    tractogram_dir=tractogram_dir,
-                    select_streamlines=config.select_streamlines,
-                    use_sift2=True,
-                    export_trk=True,
-                    mrtrix_bin_dir=config.mrtrix_bin_dir,
-                    execute=True,
-                ),
-                log=log,
-            )
-            tasks.append(
-                ProductTaskRecord(
-                    name="tractography.csd_act",
-                    status="completed",
-                    manifest_path=result.manifest_path,
-                    qc_path=result.qc_path,
-                    outputs={
-                        "tractogram": result.tractogram_path.as_posix(),
-                        "tractogram_trk": result.tractogram_trk_path.as_posix() if result.tractogram_trk_path else None,
-                        "sift2_weights": result.sift2_weights_path.as_posix() if result.sift2_weights_path else None,
-                    },
+                _emit(f"[Orchestrator] Running CSD/ACT {run_name}", log)
+                act_prep = run_act_prep(
+                    ACTPrepConfig(
+                        subject_id=config.subject_id,
+                        segmentation_path=segmentation,
+                        output_dir=layout.act_prep,
+                        execute=True,
+                    ),
+                    log=log,
                 )
-            )
+                result = run_csd_act(
+                    CSDActConfig(
+                        subject_id=config.subject_id,
+                        dwi_path=raw["dwi"],
+                        bval_path=raw["bval"],
+                        bvec_path=raw["bvec"],
+                        mask_path=raw["mask"],
+                        five_tt_path=act_prep.five_tt_path,
+                        gmwmi_path=act_prep.gmwmi_path,
+                        output_dir=csd_dir,
+                        tractogram_dir=tractogram_dir,
+                        select_streamlines=config.select_streamlines,
+                        use_sift2=True,
+                        export_trk=True,
+                        mrtrix_bin_dir=config.mrtrix_bin_dir,
+                        execute=True,
+                    ),
+                    log=log,
+                )
+                tasks.append(
+                    ProductTaskRecord(
+                        name=tractography_task_name,
+                        status="completed",
+                        manifest_path=result.manifest_path,
+                        qc_path=result.qc_path,
+                        outputs={
+                            "tractogram": result.tractogram_path.as_posix(),
+                            "tractogram_trk": result.tractogram_trk_path.as_posix() if result.tractogram_trk_path else None,
+                            "sift2_weights": result.sift2_weights_path.as_posix() if result.sift2_weights_path else None,
+                        },
+                    )
+                )
+            else:
+                from tractography.dti import DTITrackingConfig, run_dti_tracking
+
+                _emit(f"[Orchestrator] Running DTI tractography {run_name}", log)
+                result = run_dti_tracking(
+                    DTITrackingConfig(
+                        subject_id=config.subject_id,
+                        input_root=subject_root,
+                        output_dir=dti_tractogram_dir,
+                        fit_method=config.microstructure_fit_method,
+                        tracking_method="deterministic",
+                        output_format="trk",
+                        execute=True,
+                    ),
+                    log=log,
+                )
+                tasks.append(
+                    ProductTaskRecord(
+                        name=tractography_task_name,
+                        status="completed",
+                        manifest_path=result.manifest_path,
+                        qc_path=result.qc_path,
+                        outputs={"tractogram_trk": result.streamlines_path.as_posix()},
+                    )
+                )
 
     if "bundles" in targets:
         wmql_qc = wmql_dir / "wmql_qc.json"
@@ -653,8 +694,12 @@ def run_subject_products(
             tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="planned", reason="execute=False"))
         elif parcellation is None:
             tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="blocked", reason="missing parcellation"))
-        elif not tractogram.is_file():
+        elif config.tractography_backend == "csd_act" and not tractogram.is_file():
             tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="blocked", reason="missing TCK tractogram"))
+        elif config.tractography_backend != "csd_act" and config.connectome_backend == "mrtrix":
+            tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="blocked", reason="DTI tractography currently supports python connectome backend only"))
+        elif not tractogram.is_file():
+            tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="blocked", reason="missing tractogram"))
         else:
             from connectome import ConnectomeConfig, run_connectome
 
@@ -739,6 +784,7 @@ def run_subject_products(
         "output_root": output_root.as_posix() if output_root is not None else layout.outputs.as_posix(),
         "targets": list(targets),
         "run_name": run_name,
+        "tractography_backend": config.tractography_backend,
         "execute": config.execute,
         "resume": config.resume,
         "microstructure_fit_method": config.microstructure_fit_method,
