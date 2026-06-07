@@ -175,6 +175,7 @@ outputs/
     regional_microstructure/
   06_slicer_scene_report/
     report.html
+    summary.md
     provenance.json
     qc_summary.json
 ```
@@ -197,6 +198,7 @@ Key release-candidate outputs verified on `100307-release-candidate`:
 - `outputs/04_tractography/connectome/rc_csd_act/*streamline_count.csv`
 - `outputs/04_tractography/connectome/rc_csd_act/sift2_weighted_streamline_count/*sift2_weighted_streamline_count.csv`
 - `outputs/06_slicer_scene_report/report.html`
+- `outputs/06_slicer_scene_report/summary.md`
 - `outputs/06_slicer_scene_report/provenance.json`
 - `outputs/06_slicer_scene_report/qc_summary.json`
 

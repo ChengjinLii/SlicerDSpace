@@ -22,6 +22,7 @@ After each orchestrated run, SlicerDDSurfer writes:
 - `outputs/00_run_metadata/<run_name>_orchestration_manifest.json`
 - `outputs/00_run_metadata/output_tree_audit.json`
 - `outputs/06_slicer_scene_report/report.html`
+- `outputs/06_slicer_scene_report/summary.md`
 - `outputs/06_slicer_scene_report/provenance.json`
 - `outputs/06_slicer_scene_report/qc_summary.json`
 

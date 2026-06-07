@@ -54,17 +54,24 @@ class SubjectReportingTest(unittest.TestCase):
                 paths.report_html,
                 paths.provenance_json,
                 paths.qc_summary_json,
+                paths.summary_md,
                 paths.report_html_latest,
                 paths.provenance_json_latest,
                 paths.qc_summary_json_latest,
+                paths.summary_md_latest,
             ):
                 self.assertTrue(path.is_file(), path)
             provenance = json.loads(paths.provenance_json.read_text(encoding="utf-8"))
             qc_summary = json.loads(paths.qc_summary_json.read_text(encoding="utf-8"))
             self.assertEqual(provenance["subject_id"], "100307")
             self.assertEqual(provenance["task_summary"]["skipped"], 1)
+            self.assertEqual(qc_summary["summary"]["status"], "completed")
             self.assertEqual(qc_summary["qc_files"][0]["status"], "completed")
-            self.assertIn("SlicerDDSurfer Report", paths.report_html.read_text(encoding="utf-8"))
+            report_html = paths.report_html.read_text(encoding="utf-8")
+            self.assertIn("SlicerDDSurfer Report", report_html)
+            self.assertIn("Task Status", report_html)
+            self.assertIn("Key Outputs", report_html)
+            self.assertIn("SlicerDDSurfer Run Summary", paths.summary_md.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

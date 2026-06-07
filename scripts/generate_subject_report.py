@@ -40,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
         run_name=args.run_name,
     )
     print(paths.report_html.as_posix())
+    print(paths.summary_md.as_posix())
     print(paths.provenance_json.as_posix())
     print(paths.qc_summary_json.as_posix())
     return 0
