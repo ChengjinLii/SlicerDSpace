@@ -6,7 +6,9 @@ import csv
 import json
 import logging
 import shutil
+import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -141,6 +143,21 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _write_progress(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    enriched = {
+        **payload,
+        "updated_at": _utc_now(),
+    }
+    tmp_path = path.with_name(path.name + ".tmp")
+    tmp_path.write_text(json.dumps(enriched, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp_path.replace(path)
+
+
 def _copy_if_needed(src: Path, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     if src.resolve() == dest.resolve():
@@ -256,7 +273,9 @@ def _output_paths(
         "roi_stats_csv": roi_dir / f"{subject_id}_ROIWise-Microstructure.csv",
         "roi_stats_json": roi_dir / f"{subject_id}_ROIWise-Microstructure.json",
         "free_water_manifest": freewater_dir / "freewater_manifest.json",
+        "free_water_progress": freewater_dir / "freewater_progress.json",
         "noddi_manifest": noddi_dir / "noddi_manifest.json",
+        "noddi_progress": noddi_dir / "noddi_progress.json",
         "manifest": output_dir / "manifest.json",
     }
 
@@ -459,6 +478,8 @@ def _compute_free_water_maps(
     raw = config.raw_input_bundle
     fit_method = config.free_water_fit_method.upper()
     chunk_size = max(1, int(config.free_water_chunk_size))
+    progress_path = paths["free_water_progress"]
+    started = time.monotonic()
 
     bvals, bvecs = _load_bvals_bvecs(raw)
     gtab = gradient_table(bvals, bvecs=bvecs, b0_threshold=50)
@@ -486,17 +507,71 @@ def _compute_free_water_maps(
     z_size = mask.shape[2]
     chunk_count = (z_size + chunk_size - 1) // chunk_size
     gradient_count = dwi_img.shape[3]
+    total_voxels = int(mask.sum())
+    completed_chunks = 0
+    completed_voxels = 0
+
+    progress_base: dict[str, object] = {
+        "kind": "microstructure_stage_progress",
+        "version": 1,
+        "subject_id": config.subject_id,
+        "stage": "freewater",
+        "status": "running",
+        "fit_method": fit_method,
+        "chunk_size": chunk_size,
+        "chunk_count": chunk_count,
+        "total_voxels": total_voxels,
+        "gradient_count": int(gradient_count),
+        "shells": rounded_shells,
+    }
+    _write_progress(
+        progress_path,
+        {
+            **progress_base,
+            "completed_chunks": completed_chunks,
+            "completed_voxels": completed_voxels,
+            "current_chunk": None,
+            "elapsed_seconds": 0.0,
+        },
+    )
 
     for chunk_index, z_start in enumerate(range(0, z_size, chunk_size), start=1):
         z_stop = min(z_size, z_start + chunk_size)
         mask_chunk = mask[:, :, z_start:z_stop]
         voxel_count = int(mask_chunk.sum())
         if voxel_count == 0:
+            completed_chunks += 1
+            _write_progress(
+                progress_path,
+                {
+                    **progress_base,
+                    "completed_chunks": completed_chunks,
+                    "completed_voxels": completed_voxels,
+                    "current_chunk": chunk_index,
+                    "z_start": z_start,
+                    "z_stop": z_stop,
+                    "voxel_count": voxel_count,
+                    "elapsed_seconds": round(time.monotonic() - started, 3),
+                },
+            )
             continue
 
         _emit(
             f"[Microstructure] Free Water chunk {chunk_index}/{chunk_count}: z={z_start}:{z_stop}, voxels={voxel_count}",
             log,
+        )
+        _write_progress(
+            progress_path,
+            {
+                **progress_base,
+                "completed_chunks": completed_chunks,
+                "completed_voxels": completed_voxels,
+                "current_chunk": chunk_index,
+                "z_start": z_start,
+                "z_stop": z_stop,
+                "voxel_count": voxel_count,
+                "elapsed_seconds": round(time.monotonic() - started, 3),
+            },
         )
 
         data_chunk = np.asarray(dwi_img.dataobj[:, :, z_start:z_stop, :], dtype=np.float32)
@@ -519,10 +594,41 @@ def _compute_free_water_maps(
         fwf_map[:, :, z_start:z_stop] = fwf_chunk
         fw_tissue_fa_map[:, :, z_start:z_stop] = fw_fa_chunk
         fw_tissue_md_map[:, :, z_start:z_stop] = fw_md_chunk
+        completed_chunks += 1
+        completed_voxels += voxel_count
+        _write_progress(
+            progress_path,
+            {
+                **progress_base,
+                "completed_chunks": completed_chunks,
+                "completed_voxels": completed_voxels,
+                "current_chunk": chunk_index,
+                "z_start": z_start,
+                "z_stop": z_stop,
+                "voxel_count": voxel_count,
+                "elapsed_seconds": round(time.monotonic() - started, 3),
+            },
+        )
 
     _save_scalar_nifti(fwf_map, mask_img, paths["fwf"])
     _save_scalar_nifti(fw_tissue_fa_map, mask_img, paths["fw_tissue_fa"])
     _save_scalar_nifti(fw_tissue_md_map, mask_img, paths["fw_tissue_md"])
+    _write_progress(
+        progress_path,
+        {
+            **progress_base,
+            "status": "completed",
+            "completed_chunks": completed_chunks,
+            "completed_voxels": completed_voxels,
+            "current_chunk": None,
+            "elapsed_seconds": round(time.monotonic() - started, 3),
+            "outputs": {
+                "fwf": paths["fwf"].as_posix(),
+                "fw_tissue_fa": paths["fw_tissue_fa"].as_posix(),
+                "fw_tissue_md": paths["fw_tissue_md"].as_posix(),
+            },
+        },
+    )
 
 
 def _amico_cache_root(config: MicrostructureConfig) -> Path:
@@ -576,6 +682,30 @@ def _compute_noddi_maps(
 ) -> None:
     if amico is None:
         raise RuntimeError("AMICO is required for NODDI modeling.")
+    progress_path = paths["noddi_progress"]
+    started = time.monotonic()
+
+    def write_noddi_progress(status: str, step: str, **extra: object) -> None:
+        _write_progress(
+            progress_path,
+            {
+                "kind": "microstructure_stage_progress",
+                "version": 1,
+                "subject_id": config.subject_id,
+                "stage": "noddi",
+                "status": status,
+                "current_step": step,
+                "elapsed_seconds": round(time.monotonic() - started, 3),
+                "directional_average": bool(config.noddi_directional_average),
+                "b0_threshold": int(config.noddi_b0_threshold),
+                "lmax": int(config.noddi_lmax),
+                "ndirs": int(config.noddi_ndirs),
+                "nthreads": int(config.noddi_nthreads),
+                **extra,
+            },
+        )
+
+    write_noddi_progress("running", "checking_shells")
 
     bvals, _ = _load_bvals_bvecs(config.raw_input_bundle)
     nonzero_shells = sorted(
@@ -590,6 +720,7 @@ def _compute_noddi_maps(
             "NODDI requires multi-shell diffusion data with at least two non-zero shells."
         )
 
+    write_noddi_progress("running", "preparing_amico_inputs", nonzero_shells=nonzero_shells)
     study_dir, dwi_path, mask_path, _, scheme_path = _prepare_amico_inputs(config=config, log=log)
     amico_output_dir = _amico_output_dir(config)
     amico_output_dir.mkdir(parents=True, exist_ok=True)
@@ -602,6 +733,13 @@ def _compute_noddi_maps(
         log,
     )
     amico.set_verbose(2)
+    write_noddi_progress(
+        "running",
+        "loading_data",
+        nonzero_shells=nonzero_shells,
+        study_dir=study_dir.as_posix(),
+        amico_output_dir=amico_output_dir.as_posix(),
+    )
     evaluation = amico.Evaluation(
         study_path=str(_amico_cache_root(config)),
         subject=config.subject_id,
@@ -624,6 +762,7 @@ def _compute_noddi_maps(
         lambda1=float(config.noddi_solver_lambda1),
         lambda2=float(config.noddi_solver_lambda2),
     )
+    write_noddi_progress("running", "generating_kernels", nonzero_shells=nonzero_shells)
     try:
         evaluation.generate_kernels(
             regenerate=False,
@@ -641,8 +780,11 @@ def _compute_noddi_maps(
             lmax=int(config.noddi_lmax),
             ndirs=int(config.noddi_ndirs),
         )
+    write_noddi_progress("running", "loading_kernels", nonzero_shells=nonzero_shells)
     evaluation.load_kernels()
+    write_noddi_progress("running", "fitting_model", nonzero_shells=nonzero_shells)
     evaluation.fit()
+    write_noddi_progress("running", "saving_results", nonzero_shells=nonzero_shells)
     evaluation.save_results()
 
     source_dir = amico_output_dir
@@ -655,6 +797,16 @@ def _compute_noddi_maps(
         if not src.is_file():
             raise FileNotFoundError(f"AMICO did not produce expected NODDI map: {src}")
         _copy_if_needed(src, paths[key])
+    write_noddi_progress(
+        "completed",
+        "completed",
+        nonzero_shells=nonzero_shells,
+        outputs={
+            "noddi_ndi": paths["noddi_ndi"].as_posix(),
+            "noddi_odi": paths["noddi_odi"].as_posix(),
+            "noddi_fwf": paths["noddi_fwf"].as_posix(),
+        },
+    )
 
 
 def _compute_roi_stats(
@@ -826,7 +978,21 @@ def run_microstructure(
             _ensure_base_imports_ready()
             _ensure_dipy_ready()
             _emit("[Microstructure] Running Free Water stage", log)
-            _compute_free_water_maps(config=config, paths=paths, log=log)
+            try:
+                _compute_free_water_maps(config=config, paths=paths, log=log)
+            except Exception as exc:
+                _write_progress(
+                    paths["free_water_progress"],
+                    {
+                        "kind": "microstructure_stage_progress",
+                        "version": 1,
+                        "subject_id": subject_id,
+                        "stage": "freewater",
+                        "status": "failed",
+                        "error": str(exc),
+                    },
+                )
+                raise
             _write_json(paths["free_water_manifest"], expected_free_water_manifest)
     else:
         _emit("[Microstructure] Free Water stage disabled; DTI-only outputs will not include Free Water maps", log)
@@ -844,7 +1010,21 @@ def run_microstructure(
             _ensure_base_imports_ready()
             _ensure_amico_ready()
             _emit("[Microstructure] Running NODDI stage", log)
-            _compute_noddi_maps(config=config, paths=paths, log=log)
+            try:
+                _compute_noddi_maps(config=config, paths=paths, log=log)
+            except Exception as exc:
+                _write_progress(
+                    paths["noddi_progress"],
+                    {
+                        "kind": "microstructure_stage_progress",
+                        "version": 1,
+                        "subject_id": subject_id,
+                        "stage": "noddi",
+                        "status": "failed",
+                        "error": str(exc),
+                    },
+                )
+                raise
             _write_json(paths["noddi_manifest"], expected_noddi_manifest)
     else:
         _emit("[Microstructure] NODDI stage disabled; DTI-only outputs will not include NODDI maps", log)

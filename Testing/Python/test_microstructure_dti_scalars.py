@@ -31,6 +31,8 @@ class MicrostructureDTIScalarsTest(unittest.TestCase):
             self.assertEqual(paths["l2"].name, "100307_dti_L2.nii.gz")
             self.assertEqual(paths["l3"].name, "100307_dti_L3.nii.gz")
             self.assertEqual(paths["trace"].name, "100307_dti_Trace.nii.gz")
+            self.assertEqual(paths["free_water_progress"].name, "freewater_progress.json")
+            self.assertEqual(paths["noddi_progress"].name, "noddi_progress.json")
 
     def test_rd_is_computed_from_l2_l3_average(self) -> None:
         from microstructure.pipeline import _compute_rd_map

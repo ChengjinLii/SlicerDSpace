@@ -40,6 +40,27 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(result.tasks[0].name, "microstructure.dti")
             self.assertEqual(result.tasks[0].status, "planned")
 
+    def test_rejects_invalid_microstructure_free_water_chunk_size(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "microstructure_free_water_chunk_size"):
+                run_subject_products(
+                    ProductOrchestratorConfig(
+                        subject_id="100307",
+                        subject_root=subject_root,
+                        targets=("microstructure",),
+                        execute=False,
+                        microstructure_free_water_chunk_size=0,
+                    )
+                )
+
     def test_dry_run_plans_structural_targets(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 

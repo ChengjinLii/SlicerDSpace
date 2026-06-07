@@ -402,6 +402,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--run-free-water", action="store_true", help="Enable Free Water stage under microstructure.")
     parser.add_argument("--run-noddi", action="store_true", help="Enable NODDI stage under microstructure.")
+    parser.add_argument(
+        "--microstructure-free-water-chunk-size",
+        type=int,
+        default=2,
+        help=(
+            "Z-slice chunk size for DIPY Free Water fitting. Smaller values write progress more often; "
+            "defaults to 2."
+        ),
+    )
     parser.add_argument("--postprocess-native-dir", type=Path, help="DDSurfer native STL directory for postprocess.")
     parser.add_argument("--postprocess-mri-dir", type=Path, help="MRI directory containing brain.mgz and DDSurfer-wmparc.nii.gz.")
     parser.add_argument("--postprocess-backend-root", type=Path, help="Optional override for bundled DDSurfer postprocess backend.")
@@ -559,6 +568,7 @@ def main(argv: list[str] | None = None) -> int:
         microstructure_fit_method=args.micro_fit_method,
         microstructure_run_free_water=bool(args.run_free_water),
         microstructure_run_noddi=bool(args.run_noddi),
+        microstructure_free_water_chunk_size=args.microstructure_free_water_chunk_size,
         postprocess_native_dir=args.postprocess_native_dir,
         postprocess_mri_dir=args.postprocess_mri_dir,
         postprocess_backend_root=args.postprocess_backend_root,

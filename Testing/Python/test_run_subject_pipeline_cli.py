@@ -172,6 +172,38 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
             self.assertTrue(manifest["microstructure_run_free_water"])
             self.assertTrue(manifest["microstructure_run_noddi"])
 
+    def test_cli_records_microstructure_free_water_chunk_size(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "microstructure",
+                    "--microstructure-stages",
+                    "freewater",
+                    "--microstructure-free-water-chunk-size",
+                    "1",
+                    "--print-manifest-only",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            manifest_path = Path(completed.stdout.strip())
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["microstructure_free_water_chunk_size"], 1)
+            self.assertEqual(manifest["microstructure_stages"], ["dti", "freewater"])
+
     def test_cli_accepts_surface_postprocess_target(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = Path(tmp) / "877168"

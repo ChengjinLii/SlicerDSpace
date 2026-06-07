@@ -90,6 +90,7 @@ class ProductOrchestratorConfig:
     microstructure_fit_method: str = "wls"
     microstructure_run_free_water: bool = False
     microstructure_run_noddi: bool = False
+    microstructure_free_water_chunk_size: int = 2
     postprocess_native_dir: Optional[Path] = None
     postprocess_mri_dir: Optional[Path] = None
     postprocess_backend_root: Optional[Path] = None
@@ -603,11 +604,13 @@ def _microstructure_freewater_outputs(subject_root: Path, subject_id: str, outpu
         "fw_fa": freewater_dir / f"{subject_id}_fw_FA.nii.gz",
         "fw_md": freewater_dir / f"{subject_id}_fw_MD.nii.gz",
         "manifest": freewater_dir / "freewater_manifest.json",
+        "progress": freewater_dir / "freewater_progress.json",
     }
 
 
 def _microstructure_freewater_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
-    return all(path.is_file() for path in _microstructure_freewater_outputs(subject_root, subject_id, output_root).values())
+    outputs = _microstructure_freewater_outputs(subject_root, subject_id, output_root)
+    return all(outputs[key].is_file() for key in ("fwf", "fw_fa", "fw_md", "manifest"))
 
 
 def _microstructure_noddi_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -618,11 +621,13 @@ def _microstructure_noddi_outputs(subject_root: Path, subject_id: str, output_ro
         "odi": noddi_dir / f"{subject_id}_noddi_ODI.nii.gz",
         "isovf": noddi_dir / f"{subject_id}_noddi_IsoVF.nii.gz",
         "manifest": noddi_dir / "noddi_manifest.json",
+        "progress": noddi_dir / "noddi_progress.json",
     }
 
 
 def _microstructure_noddi_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
-    return all(path.is_file() for path in _microstructure_noddi_outputs(subject_root, subject_id, output_root).values())
+    outputs = _microstructure_noddi_outputs(subject_root, subject_id, output_root)
+    return all(outputs[key].is_file() for key in ("ndi", "odi", "isovf", "manifest"))
 
 
 def _microstructure_requested_outputs_complete(
@@ -677,6 +682,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         raise ValueError("subject_id is required.")
     if config.select_streamlines <= 0:
         raise ValueError("select_streamlines must be > 0.")
+    if config.microstructure_free_water_chunk_size <= 0:
+        raise ValueError("microstructure_free_water_chunk_size must be > 0.")
     if config.tractography_backend not in TRACTOGRAPHY_BACKENDS:
         raise ValueError("tractography_backend must be one of: csd_act, dti_det, saf.")
     bundle_backends = _normalize_bundle_backends(config.bundle_backend)
@@ -1246,6 +1253,8 @@ def run_subject_products(
         raise ValueError("subject_id is required.")
     if config.select_streamlines <= 0:
         raise ValueError("select_streamlines must be > 0.")
+    if config.microstructure_free_water_chunk_size <= 0:
+        raise ValueError("microstructure_free_water_chunk_size must be > 0.")
     if config.tractography_backend not in TRACTOGRAPHY_BACKENDS:
         raise ValueError("tractography_backend must be one of: csd_act, dti_det, saf.")
     bundle_backends = _normalize_bundle_backends(config.bundle_backend)
@@ -1652,6 +1661,7 @@ def run_subject_products(
                     roi_label_map=parcellation,
                     run_free_water=False,
                     run_noddi=False,
+                    free_water_chunk_size=config.microstructure_free_water_chunk_size,
                     force_recompute=not config.resume,
                 ),
                 log=log,
@@ -1714,6 +1724,7 @@ def run_subject_products(
                     roi_label_map=parcellation,
                     run_free_water=True,
                     run_noddi=False,
+                    free_water_chunk_size=config.microstructure_free_water_chunk_size,
                     force_recompute=not config.resume,
                 ),
                 log=log,
@@ -1769,6 +1780,7 @@ def run_subject_products(
                     roi_label_map=parcellation,
                     run_free_water=config.microstructure_run_free_water,
                     run_noddi=True,
+                    free_water_chunk_size=config.microstructure_free_water_chunk_size,
                     force_recompute=not config.resume,
                 ),
                 log=log,
@@ -2278,6 +2290,7 @@ def run_subject_products(
         "microstructure_fit_method": config.microstructure_fit_method,
         "microstructure_run_free_water": config.microstructure_run_free_water,
         "microstructure_run_noddi": config.microstructure_run_noddi,
+        "microstructure_free_water_chunk_size": config.microstructure_free_water_chunk_size,
         "microstructure_stages": [
             stage
             for stage, enabled in (
