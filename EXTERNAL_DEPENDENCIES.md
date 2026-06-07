@@ -111,6 +111,7 @@ SlicerDDSurfer 需要区分三件事：
 
 - Slicer GUI 使用的是 Slicer Python。
 - `run_subject_pipeline.py` 默认检查和运行的是当前 shell 的 Python。
+- 完整 subject pipeline 需要 Slicer CLI 模块时，应通过 `Slicer --launch PythonSlicer` 启动统一入口。
 - 外部后端，例如 TractCloud，可以使用单独的 Python。
 
 因此，如果目标是让 Slicer 插件内运行，请优先用 Slicer Python 做检查和安装：
@@ -123,6 +124,18 @@ python3 run_subject_pipeline.py \
   --doctor-python-executable /path/to/Slicer/bin/PythonSlicer
 ```
 
+完整执行推荐命令形式：
+
+```bash
+/path/to/Slicer --launch PythonSlicer \
+  /path/to/SlicerDDSurfer/run_subject_pipeline.py \
+  --subject-root /path/to/subject \
+  --targets validation,preprocessing,segmentation,parcellation,surface,microstructure,tractography,bundles,connectome \
+  --execute
+```
+
+直接用系统 `python3 run_subject_pipeline.py --execute` 可能无法解析 Slicer CLI，例如 `DWIConvert`、`DWIToDTIEstimation`、`BRAINSFit` 和 `ResampleScalarVectorDWIVolume`。
+
 设备策略：
 
 - 默认使用 `auto`，即有可用 CUDA GPU 时使用 GPU，否则回退 CPU。
@@ -130,6 +143,13 @@ python3 run_subject_pipeline.py \
 - 如果用户选择 `cuda` 或 `cuda:0`，dependency doctor 会在目标 Python 中检查 `torch.cuda.is_available()` 和 GPU 数量。
 - 如果 CUDA 不可用，目标会在运行前被标记为 `blocked`，而不是运行到深度学习推理阶段才失败。
 - MRtrix3、FSL、FreeSurfer、ANTs 通常仍是 CPU 命令行工具；GPU 检查主要影响 PyTorch/DDSurfer/DDSeg/TractCloud。
+
+MRtrix3 特别说明：
+
+- MRtrix3 仍作为外部 backend，不打包进 SlicerDDSurfer。
+- `dwi2response` 等 MRtrix Python 脚本通过 `#!/usr/bin/env python` 启动；如果继承 Slicer 的 `PYTHONHOME` / `PYTHONPATH`，会在 `PythonSlicer` 里出现 Python 标准库冲突。
+- SlicerDDSurfer 的 MRtrix CSD/ACT backend 会在执行 MRtrix 命令前隔离这些 Slicer Python 变量，并把用户配置的 MRtrix `bin` 放到 `PATH` 最前面。
+- 用户仍需要通过 `--mrtrix-bin-dir`、`SLICERDDSURFER_MRTRIX_BIN_DIR` 或 `PATH` 提供本机 MRtrix3。
 
 ## 0.3 外部路径发现顺序
 

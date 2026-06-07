@@ -7,6 +7,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -109,6 +110,39 @@ def _emit(message: str, log: Optional[Callable[[str], None]] = None) -> None:
 def _require_slicer() -> None:
     if SLICER_IMPORT_ERROR is not None or slicer is None:
         raise RuntimeError("Shared DTI bundle generation requires the Slicer Python environment.") from SLICER_IMPORT_ERROR
+
+
+def _slicer_home_candidates() -> list[Path]:
+    candidates: list[Path] = []
+    if slicer is not None and hasattr(slicer, "app"):
+        try:
+            slicer_home = getattr(slicer.app, "slicerHome", "")
+            if slicer_home:
+                candidates.append(Path(str(slicer_home)).expanduser().resolve())
+        except Exception:
+            pass
+    for env_key in ("SLICER_HOME", "Slicer_HOME"):
+        env_value = os.environ.get(env_key)
+        if env_value:
+            candidates.append(Path(env_value).expanduser().resolve())
+    executable = Path(sys.executable).expanduser().resolve()
+    if executable.name in {"python-real", "PythonSlicer", "python"}:
+        candidates.append(executable.parent.parent)
+    if executable.name.startswith("Slicer"):
+        candidates.append(executable.parent)
+    unique: list[Path] = []
+    for candidate in candidates:
+        if candidate.exists() and candidate not in unique:
+            unique.append(candidate)
+    return unique
+
+
+def _resolve_slicer_home() -> Path:
+    for candidate in _slicer_home_candidates():
+        if (candidate / "lib").is_dir() or (candidate / "bin").is_dir():
+            return candidate
+    searched = ", ".join(path.as_posix() for path in _slicer_home_candidates()) or "none"
+    raise RuntimeError(f"Failed to resolve Slicer home. Candidate paths: {searched}")
 
 
 def is_raw_subject_root(path: Path) -> bool:
@@ -238,22 +272,23 @@ def _get_cli_executable(module_name: str) -> str:
 
 def resolve_launcher_executable() -> str:
     _require_slicer()
-    launcher = getattr(slicer.app, "launcherExecutableFilePath", None)
-    if callable(launcher):
-        launcher = launcher()
-    if isinstance(launcher, str) and launcher:
-        return Path(launcher).resolve().as_posix()
+    if hasattr(slicer, "app"):
+        launcher = getattr(slicer.app, "launcherExecutableFilePath", None)
+        if callable(launcher):
+            launcher = launcher()
+        if isinstance(launcher, str) and launcher:
+            return Path(launcher).resolve().as_posix()
 
-    slicer_home = Path(str(slicer.app.slicerHome)).resolve()
-    fallback = slicer_home / "Slicer"
-    if fallback.is_file():
-        return fallback.as_posix()
+    slicer_home = _resolve_slicer_home()
+    for fallback in (slicer_home / "Slicer", slicer_home / "bin" / "Slicer"):
+        if fallback.is_file():
+            return fallback.as_posix()
     raise RuntimeError("Failed to resolve the Slicer launcher executable path.")
 
 
 def resolve_pythonslicer_executable() -> str:
     _require_slicer()
-    slicer_home = Path(str(slicer.app.slicerHome)).resolve()
+    slicer_home = _resolve_slicer_home()
     candidates = [
         slicer_home / "bin" / "PythonSlicer",
         slicer_home / "PythonSlicer",
@@ -290,7 +325,7 @@ def build_cli_environment(cli_executable: str) -> dict[str, str]:
 @lru_cache(maxsize=1)
 def _cli_search_dirs() -> tuple[Path, ...]:
     _require_slicer()
-    slicer_home = Path(str(slicer.app.slicerHome)).resolve()
+    slicer_home = _resolve_slicer_home()
     candidates: list[Path] = []
     patterns = [
         "lib/Slicer-*/cli-modules",

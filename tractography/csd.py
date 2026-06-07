@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
-from shared.external_process import startup_environment
+from shared.external_process import external_python_environment
 
 
 REQUIRED_MRTRIX_COMMANDS = (
@@ -360,10 +360,13 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
             missing = ", ".join(str(item) for item in backend_status["missing_commands"])
             raise RuntimeError(f"MRtrix3 CSD/ACT backend is incomplete. Missing command(s): {missing}")
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        command_env = external_python_environment(
+            path_prepend=[config.mrtrix_bin_dir] if config.mrtrix_bin_dir is not None else None
+        )
         try:
             for command in commands:
                 _emit(f"[Tractography] Running MRtrix CSD/ACT command: {' '.join(command)}", log)
-                completed = subprocess.run(command, check=True, env=startup_environment())
+                completed = subprocess.run(command, check=True, env=command_env)
                 return_code = completed.returncode
             if config.export_trk and tractogram_trk is not None:
                 _emit(f"[Tractography] Exporting ACT TCK to TRK for WMQL: {tractogram_trk}", log)

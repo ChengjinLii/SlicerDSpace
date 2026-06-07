@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import qt
 import slicer
 
 
-SUBJECT_ROOT = Path("/data/chengjin/SlicerDDSurfer-test/100307")
+SUBJECT_ROOT = Path(os.environ.get("SLICERDDSURFER_SMOKE_SUBJECT_ROOT", "/data/chengjin/SlicerDDSurfer-test/100307"))
+SUBJECT_ID = os.environ.get("SLICERDDSURFER_SMOKE_SUBJECT_ID", SUBJECT_ROOT.name)
+RUN_NAME = os.environ.get("SLICERDDSURFER_SMOKE_RUN_NAME", "csd_act")
+TRACTOGRAPHY_BACKEND = os.environ.get("SLICERDDSURFER_SMOKE_TRACTOGRAPHY_BACKEND", "saf")
+BUNDLE_BACKEND = os.environ.get("SLICERDDSURFER_SMOKE_BUNDLE_BACKEND", "all")
+MICROSTRUCTURE_STAGES = os.environ.get("SLICERDDSURFER_SMOKE_MICROSTRUCTURE_STAGES", "dti,freewater,noddi")
 
 
 def _module_widget():
@@ -29,7 +35,7 @@ def _run() -> None:
         )
         node = widget._parameterNode
         with slicer.util.NodeModify(node):
-            node.subjectId = "100307"
+            node.subjectId = SUBJECT_ID
             node.inputDirectory = SUBJECT_ROOT.as_posix()
             node.outputDirectory = ""
             node.targetPreprocessing = True
@@ -40,10 +46,10 @@ def _run() -> None:
             node.targetTractography = True
             node.targetBundles = True
             node.targetConnectome = True
-            node.orchestrationRunName = "csd_act"
-            node.orchestrationTractographyBackend = "saf"
-            node.orchestrationBundleBackend = "all"
-            node.orchestrationMicrostructureStages = "dti,freewater,noddi"
+            node.orchestrationRunName = RUN_NAME
+            node.orchestrationTractographyBackend = TRACTOGRAPHY_BACKEND
+            node.orchestrationBundleBackend = BUNDLE_BACKEND
+            node.orchestrationMicrostructureStages = MICROSTRUCTURE_STAGES
             node.connectomeBackend = "python"
             node.autoInstallPythonDependencies = False
         widget._checkCanApply()
@@ -84,8 +90,8 @@ def _check() -> None:
     hint_text = hint.text if hint else ""
     report_button = getattr(widget, "_runReportButton", None)
     latest_report = getattr(widget, "_latestReportPath", None)
-    manifest = SUBJECT_ROOT / "outputs" / "00_run_metadata" / "csd_act_orchestration_manifest.json"
-    plan = SUBJECT_ROOT / "outputs" / "00_run_metadata" / "csd_act_run_plan.json"
+    manifest = SUBJECT_ROOT / "outputs" / "00_run_metadata" / f"{RUN_NAME}_orchestration_manifest.json"
+    plan = SUBJECT_ROOT / "outputs" / "00_run_metadata" / f"{RUN_NAME}_run_plan.json"
     print(f"SLICERDDSURFER_RUN_PANEL_STATUS_LABEL={status_label}", flush=True)
     print(f"SLICERDDSURFER_RUN_PANEL_HINT={hint_text}", flush=True)
     print(f"SLICERDDSURFER_RUN_PANEL_ROW_COUNT={row_count}", flush=True)

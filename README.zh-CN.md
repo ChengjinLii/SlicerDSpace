@@ -12,6 +12,8 @@ SlicerDDSurfer 是一个 3D Slicer 扩展模块，整合了多条基于扩散 MR
 
 **外部环境与本地配置说明：** [EXTERNAL_DEPENDENCIES.md](EXTERNAL_DEPENDENCIES.md)
 
+**Release-candidate 安装/运行验证：** [RELEASE_CANDIDATE_VALIDATION.md](RELEASE_CANDIDATE_VALIDATION.md)
+
 Slicer UI 和 CLI 都支持外部依赖路径覆盖：Slicer 中在 `Environment & Dependencies` 里设置，并可导入/导出与 CLI 兼容的 JSON 配置；命令行使用对应路径参数，或用 `--dependency-config` / `--save-dependency-config` 复用配置。
 
 每次统一 orchestrator run 结束会自动写：

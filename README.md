@@ -14,6 +14,8 @@ SlicerDDSurfer is a 3D Slicer scripted module that bundles multiple diffusion-MR
 
 **External dependencies and local configuration:** [EXTERNAL_DEPENDENCIES.md](EXTERNAL_DEPENDENCIES.md)
 
+**Release-candidate install/run validation:** [RELEASE_CANDIDATE_VALIDATION.md](RELEASE_CANDIDATE_VALIDATION.md)
+
 The Slicer UI and CLI both support external dependency path overrides. In Slicer, use `Environment & Dependencies` to import/export a CLI-compatible dependency config; on the CLI, use explicit path flags or `--dependency-config` / `--save-dependency-config`.
 
 After each orchestrated run, SlicerDDSurfer writes:
@@ -190,14 +192,16 @@ Outputs:
 
 ## Tractography (`tractography/`)
 
-Current entries: `tractography.run_dti_tracking`, `tractography.run_act_tracking`, `tractography.pipeline.run_wma_org_atlas_pipeline`, and `tractography.wma.run_wma_org_atlas`.
+Current entries: `tractography.run_dti_tracking`, `tractography.csd.run_csd_act`, `tractography.wmql.run_wmql_bundles`, `tractography.pipeline.run_wma_org_atlas_pipeline`, and `tractography.wma.run_wma_org_atlas`.
 
 Implemented scaffold:
 - Prepares DTI tractography manifests and QC placeholders from `subject_root/input`.
 - Scans `cache/native_dti/<fit_method>` and records whether FA/MD/DTI cache can be reused.
 - Reserves stable output paths under `outputs/tractography/` without launching long tracking jobs by default.
 - Prepares ACT manifests/QC around an optional MRtrix3 backend.
-- Builds the MRtrix3 ACT command chain (`mrconvert`, `dwi2response`, `dwi2fod`, `tckgen`, `tcksift2`) and can execute it when all required external inputs are present.
+- Builds and executes the MRtrix3 CSD/FOD/ACT command chain (`mrconvert`, `dwi2response`, `dwi2fod`, `mtnormalise`, `tckgen`, `tcksift2`) when MRtrix3 and ACT prep inputs are available.
+- Launches MRtrix Python scripts with a Slicer-isolated environment so `PythonSlicer` does not leak `PYTHONHOME`/`PYTHONPATH` into external backends.
+- Exports ACT tractograms as TCK and TRK so WMQL / TractQuerier can consume the same run output.
 - Records DDParcel/parcellation as the required node dependency and checks 5TT/GMWMI readiness for standard ACT.
 - Does not treat DDParcel alone as a complete ACT tissue model.
 - Wraps WMA ORG atlas clustering as an optional external backend.
@@ -207,9 +211,8 @@ Implemented scaffold:
 - Checks the expected ORG atlas folders: `ORG-RegAtlas-100HCP` and `ORG-800FC-100HCP`.
 - Defaults to dry-run mode; real WMA execution requires `execute=True` and valid VTK/VTP tractography plus ORG atlas paths.
 
-Planned:
-- CSD tractography.
-- Real ACT execution after MRtrix3 command invocation, 5TT/GMWMI generation, and small-data validation.
+Validated:
+- `100307-release-candidate` quick gate runs DTI microstructure, MRtrix CSD/FOD/ACT, WMQL AF/CST bundles, and connectome matrices from one command. See [RELEASE_CANDIDATE_VALIDATION.md](RELEASE_CANDIDATE_VALIDATION.md).
 
 100307 smoke command:
 ```bash

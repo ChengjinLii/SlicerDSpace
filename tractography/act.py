@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
-from shared.external_process import startup_environment
+from shared.external_process import external_python_environment
 
 
 SUPPORTED_ACT_OUTPUT_FORMATS = {"tck"}
@@ -284,10 +284,11 @@ def run_act_tracking(config: ACTTrackingConfig, *, log: Optional[Callable[[str],
         manifest["status"] = "running"
         manifest["executed"] = True
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        command_env = external_python_environment()
         try:
             for command in commands:
                 _emit(f"[Tractography] Running ACT command: {' '.join(command)}", log)
-                completed = subprocess.run(command, check=True, env=startup_environment())
+                completed = subprocess.run(command, check=True, env=command_env)
                 return_code = completed.returncode
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode
