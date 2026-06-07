@@ -409,6 +409,12 @@ class SharedWidgetMixin:
         hint.setStyleSheet("QLabel { color: #546E7A; }")
         panel_layout.addWidget(hint)
 
+        report_button = qt.QPushButton("Open latest report")
+        report_button.enabled = False
+        report_button.setToolTip("Open the latest generated SlicerDDSurfer HTML report.")
+        report_button.connect("clicked()", self._on_open_latest_report_clicked)
+        panel_layout.addWidget(report_button)
+
         table = qt.QTableWidget()
         table.setColumnCount(6)
         table.setHorizontalHeaderLabels(["Target", "State", "Reason", "Manifest", "QC", "Logs"])
@@ -433,6 +439,8 @@ class SharedWidgetMixin:
 
         self._runStatusPanel = panel
         self._runStatusHintLabel = hint
+        self._runReportButton = report_button
+        self._latestReportPath = None
         self._runStatusTable = table
 
     def _set_run_progress_message(self, message: str) -> None:
@@ -440,6 +448,28 @@ class SharedWidgetMixin:
         if label:
             label.setText(message)
         slicer.util.showStatusMessage(message, 3000)
+
+    def _set_latest_report_path(self, report_path: str | Path | None) -> None:
+        path = Path(str(report_path)).expanduser() if report_path else None
+        if path is not None and not path.is_file():
+            path = None
+        self._latestReportPath = path
+        button = getattr(self, "_runReportButton", None)
+        if button:
+            button.enabled = bool(path)
+
+    def _on_open_latest_report_clicked(self) -> None:
+        report_path = getattr(self, "_latestReportPath", None)
+        if not report_path:
+            slicer.util.infoDisplay("No generated report is available yet.", parent=self.parent)
+            return
+        try:
+            opened = qt.QDesktopServices.openUrl(qt.QUrl.fromLocalFile(Path(report_path).as_posix()))
+        except Exception as exc:
+            slicer.util.errorDisplay(f"Failed to open report:\n{exc}", parent=self.parent)
+            return
+        if not opened:
+            slicer.util.infoDisplay(f"Report path: {report_path}", parent=self.parent)
 
     def _table_item(self, text: str, state: str = ""):
         item = qt.QTableWidgetItem(text or "")
@@ -1376,12 +1406,14 @@ class SharedWidgetMixin:
         elif process_failed:
             self._mark_unfinished_rows("failed", f"Background process exited with code {exit_code}")
             self._setStatus("error", f"Pipeline failed: exit code {exit_code}")
+            self._set_latest_report_path(None)
             self._set_run_progress_message(f"Pipeline failed: exit code {exit_code}")
         elif manifest_path and manifest_path.is_file():
             self._load_background_manifest_result(manifest_path)
         else:
             self._mark_unfinished_rows("failed", "Background process finished without a manifest path.")
             self._setStatus("error", "Pipeline failed: no manifest")
+            self._set_latest_report_path(None)
             self._set_run_progress_message("Pipeline failed: no manifest path was reported.")
         self._backgroundProcess = None
         self._backgroundCancelRequested = False
@@ -1419,6 +1451,11 @@ class SharedWidgetMixin:
             self._setStatus("error", f"Completed with {blocked} blocked task(s)")
         else:
             self._setStatus("ready", "Pipeline completed")
+        report_path = ""
+        report_paths = manifest.get("report_paths") or {}
+        if isinstance(report_paths, dict):
+            report_path = str(report_paths.get("report_html_latest") or report_paths.get("report_html") or "")
+        self._set_latest_report_path(report_path)
         loaded_count = 0
         if self.logic:
             try:
@@ -1426,10 +1463,6 @@ class SharedWidgetMixin:
                 loaded_count = len(loaded.get("loaded", []))
             except Exception as exc:
                 self.appendLog(f"[Slicer] Auto-load skipped: {exc}")
-        report_path = ""
-        report_paths = manifest.get("report_paths") or {}
-        if isinstance(report_paths, dict):
-            report_path = str(report_paths.get("report_html_latest") or report_paths.get("report_html") or "")
         message = f"Run finished. Manifest: {manifest_path}"
         if loaded_count:
             message += f" Auto-loaded {loaded_count} result node(s)."

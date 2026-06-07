@@ -82,6 +82,8 @@ def _check() -> None:
     status_label = widget.ui.statusLabel.text if hasattr(widget.ui, "statusLabel") else ""
     hint = getattr(widget, "_runStatusHintLabel", None)
     hint_text = hint.text if hint else ""
+    report_button = getattr(widget, "_runReportButton", None)
+    latest_report = getattr(widget, "_latestReportPath", None)
     manifest = SUBJECT_ROOT / "outputs" / "00_run_metadata" / "csd_act_orchestration_manifest.json"
     plan = SUBJECT_ROOT / "outputs" / "00_run_metadata" / "csd_act_run_plan.json"
     print(f"SLICERDDSURFER_RUN_PANEL_STATUS_LABEL={status_label}", flush=True)
@@ -91,11 +93,16 @@ def _check() -> None:
     print(f"SLICERDDSURFER_RUN_PANEL_STATUSES={statuses}", flush=True)
     print(f"SLICERDDSURFER_RUN_PANEL_MANIFEST_EXISTS={manifest.is_file()}", flush=True)
     print(f"SLICERDDSURFER_RUN_PANEL_PLAN_EXISTS={plan.is_file()}", flush=True)
+    print(f"SLICERDDSURFER_RUN_PANEL_REPORT_BUTTON_ENABLED={bool(report_button and report_button.enabled)}", flush=True)
+    print(f"SLICERDDSURFER_RUN_PANEL_LATEST_REPORT={latest_report}", flush=True)
     bad = (
         row_count < 4
         or not any(status in {"blocked", "skipped", "passed", "completed"} for status in statuses)
         or not manifest.is_file()
         or not plan.is_file()
+        or not (report_button and report_button.enabled)
+        or not latest_report
+        or not latest_report.is_file()
     )
     slicer.app.exit(2 if bad else 0)
 
