@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from shared import ensure_native_dti_bundle, find_subject_root, resolve_pythonslicer_executable
+from shared.environment import resolve_auto_torch_device
 
 DDSEG_PYTHON_REQUIREMENTS: tuple[tuple[str, str], ...] = (
     ("numpy", "numpy"),
@@ -41,6 +42,9 @@ class SegmentationLogicMixin:
         subject_id: Optional[str] = None,
     ) -> None:
         self._ensure_ddseg_on_path()
+        python_slicer = resolve_pythonslicer_executable()
+        resolved_device = resolve_auto_torch_device(device or "auto", Path(python_slicer))
+        self.log(f"[DDSeg] Using torch device: {resolved_device} (requested: {device or 'auto'})")
 
         if not self.segmentation_dir.exists():
             raise FileNotFoundError(f"DDSeg package not found at {self.segmentation_dir}")
@@ -88,7 +92,6 @@ class SegmentationLogicMixin:
         if not runner_script.is_file():
             raise FileNotFoundError(f"DDSeg runner script not found: {runner_script}")
 
-        python_slicer = resolve_pythonslicer_executable()
         weights_dir = weights_dir.expanduser().resolve()
         cmd = [
             python_slicer,
@@ -102,7 +105,7 @@ class SegmentationLogicMixin:
             "--parameter-type",
             "DTI",
             "--device",
-            device,
+            resolved_device,
         ]
         if apply_softmax:
             cmd.append("--apply-softmax")

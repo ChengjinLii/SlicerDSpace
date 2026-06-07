@@ -113,6 +113,14 @@ def run_act_prep(config: ACTPrepConfig, *, log: Optional[Callable[[str], None]] 
 
         img = nib.load(segmentation_path.as_posix())
         labels = img.get_fdata().astype(int)
+        unique_labels = set(int(value) for value in np.unique(labels))
+        expected_labels = {0, int(config.wm_label), int(config.gm_label), int(config.csf_label)}
+        if not unique_labels.issubset(expected_labels):
+            raise ValueError(
+                "ACT prep expects a compact DDSeg-style segmentation with labels "
+                f"{sorted(expected_labels)}; got unexpected labels {sorted(unique_labels - expected_labels)} "
+                f"from {segmentation_path}"
+            )
         wm = labels == int(config.wm_label)
         gm = labels == int(config.gm_label)
         csf = labels == int(config.csf_label)
@@ -124,8 +132,14 @@ def run_act_prep(config: ACTPrepConfig, *, log: Optional[Callable[[str], None]] 
 
         header = img.header.copy()
         header.set_data_dtype(np.float32)
-        nib.save(nib.Nifti1Image(five_tt, img.affine, header), five_tt_path.as_posix())
-        nib.save(nib.Nifti1Image(gmwmi.astype(np.float32), img.affine, header), gmwmi_path.as_posix())
+        five_tt_img = nib.Nifti1Image(five_tt, img.affine, header)
+        five_tt_img.set_qform(img.affine, code=int(img.header["qform_code"]) or 1)
+        five_tt_img.set_sform(img.affine, code=int(img.header["sform_code"]) or 1)
+        gmwmi_img = nib.Nifti1Image(gmwmi.astype(np.float32), img.affine, header)
+        gmwmi_img.set_qform(img.affine, code=int(img.header["qform_code"]) or 1)
+        gmwmi_img.set_sform(img.affine, code=int(img.header["sform_code"]) or 1)
+        nib.save(five_tt_img, five_tt_path.as_posix())
+        nib.save(gmwmi_img, gmwmi_path.as_posix())
         qc.update(
             {
                 "status": "completed",

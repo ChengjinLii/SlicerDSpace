@@ -88,6 +88,110 @@
     </widget>
    </item>
    <item>
+    <widget class="ctkCollapsibleButton" name="environmentCollapsibleButton">
+     <property name="text">
+      <string>0. Environment &amp;&amp; Dependencies</string>
+     </property>
+     <layout class="QVBoxLayout" name="environmentLayout">
+      <item>
+       <widget class="QLabel" name="environmentHintLabel">
+        <property name="styleSheet">
+         <string notr="true">QLabel#environmentHintLabel { color: #546E7A; }</string>
+        </property>
+        <property name="text">
+         <string>Run a preflight check before execution. Missing Python packages can be installed automatically; external tools such as MRtrix3, FSL, FreeSurfer, WMA, and TractCloud are reported with install notes.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QFormLayout" name="environmentFormLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="unifiedTorchDeviceLabel">
+          <property name="text">
+           <string>Torch device</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="unifiedTorchDeviceComboBox">
+          <property name="toolTip">
+           <string>auto uses cuda:0 when the selected Python/Slicer environment can see CUDA, otherwise CPU. Only one device path is run.</string>
+          </property>
+          <item>
+           <property name="text">
+            <string>auto</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>cpu</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>cuda:0</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="autoInstallPythonDependenciesLabel">
+          <property name="text">
+           <string>Missing Python deps</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QCheckBox" name="autoInstallPythonDependenciesCheckBox">
+          <property name="text">
+           <string>Install missing Python packages before running</string>
+          </property>
+          <property name="toolTip">
+           <string>Only Python packages are installed automatically. External tools are reported in the environment notes.</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>autoInstallPythonDependencies</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QPushButton" name="validateButton">
+         <property name="toolTip">
+           <string>Check dependency availability and write the install plan for the currently selected products. Subject inputs are checked automatically before running.</string>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton#validateButton { border: 1px solid #00ACC1; color: #00ACC1; border-radius: 6px; padding: 4px 10px; background: transparent; } QPushButton#validateButton:hover { background-color: rgba(0,172,193,0.1); }</string>
+          </property>
+         <property name="text">
+           <string>Check environment dependencies</string>
+         </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="environmentResultLabel">
+        <property name="styleSheet">
+         <string notr="true">QLabel#environmentResultLabel { color: #546E7A; padding-top: 4px; }</string>
+        </property>
+        <property name="text">
+         <string>No environment check has been run yet.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="ctkCollapsibleButton" name="configurationCollapsibleButton">
      <property name="text">
       <string>1. Subject Setup</string>
@@ -179,8 +283,11 @@
           <property name="text">
            <string>Optional DWI denoise / Gibbs / eddy-motion correction</string>
           </property>
-          <property name="toolTip">
+         <property name="toolTip">
            <string>Optional. Leave unchecked to run downstream workflows from the original subject input folder.</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>targetPreprocessing</string>
@@ -243,8 +350,11 @@
         </item>
         <item row="3" column="1">
          <widget class="QCheckBox" name="targetParcellationCheckBox">
-          <property name="text">
+         <property name="text">
            <string>DDParcel aparc / wmparc labels</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>targetParcellation</string>
@@ -260,8 +370,11 @@
         </item>
         <item row="4" column="1">
          <widget class="QCheckBox" name="targetSegmentationCheckBox">
-          <property name="text">
+         <property name="text">
            <string>DDSeg WM / GM / CSF</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>targetSegmentation</string>
@@ -277,8 +390,11 @@
         </item>
         <item row="5" column="1">
          <widget class="QCheckBox" name="targetMicrostructureCheckBox">
-          <property name="text">
+         <property name="text">
            <string>FA / MD, ROI stats, Free Water, NODDI</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>targetMicrostructure</string>
@@ -294,8 +410,11 @@
         </item>
         <item row="6" column="1">
          <widget class="QCheckBox" name="targetTractographyCheckBox">
-          <property name="text">
+         <property name="text">
            <string>DTI tractogram, MRtrix CSD / FOD / ACT when backend is available</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>targetTractography</string>
@@ -311,8 +430,11 @@
         </item>
         <item row="7" column="1">
          <widget class="QCheckBox" name="targetBundlesCheckBox">
-          <property name="text">
+         <property name="text">
            <string>WMQL AF / CST, WMA or TractCloud bundle extraction</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>targetBundles</string>
@@ -328,8 +450,11 @@
         </item>
         <item row="8" column="1">
          <widget class="QCheckBox" name="targetConnectomeCheckBox">
-          <property name="text">
+         <property name="text">
            <string>Streamline-count and scalar-weighted connectivity matrices</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>targetConnectome</string>
@@ -376,8 +501,8 @@
         </item>
         <item row="1" column="1">
          <widget class="QComboBox" name="orchestrationTractographyBackendComboBox">
-          <property name="toolTip">
-           <string>csd_act runs MRtrix CSD/FOD/ACT plus optional SIFT2. dti_det runs in-plugin DIPY deterministic tracking and is lighter but does not produce SIFT2 weights.</string>
+         <property name="toolTip">
+           <string>csd_act runs MRtrix CSD/FOD/ACT plus optional SIFT2. dti_det runs in-plugin DIPY deterministic tracking. saf runs CSD/ACT first and then applies SAF surface filtering.</string>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>orchestrationTractographyBackend</string>
@@ -392,16 +517,58 @@
             <string>dti_det</string>
            </property>
           </item>
+          <item>
+           <property name="text">
+            <string>saf</string>
+           </property>
+          </item>
          </widget>
         </item>
         <item row="2" column="0">
+         <widget class="QLabel" name="orchestrationBundleBackendLabel">
+          <property name="text">
+           <string>Bundle backend</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QComboBox" name="orchestrationBundleBackendComboBox">
+          <property name="toolTip">
+           <string>WMQL runs AF/CST rule-based bundle queries. WMA and TractCloud use optional external backends. all expands Bundles into all available backend tasks; missing backends are blocked without stopping other targets.</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>orchestrationBundleBackend</string>
+          </property>
+          <item>
+           <property name="text">
+            <string>wmql</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>wma</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>tractcloud</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>all</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="3" column="0">
          <widget class="QLabel" name="orchestrationSelectStreamlinesLabel">
           <property name="text">
            <string>ACT streamlines</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
+        <item row="3" column="1">
          <widget class="QSpinBox" name="orchestrationSelectStreamlinesSpinBox">
           <property name="toolTip">
            <string>Number of selected streamlines requested from MRtrix ACT. Used only when tractography backend is csd_act. Use 100000 or more for analysis-scale bundle/connectome tests.</string>
@@ -413,95 +580,43 @@
            <number>10000000</number>
           </property>
           <property name="value">
-           <number>1000</number>
+           <number>100000</number>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>orchestrationSelectStreamlines</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="orchestrationRunFreeWaterLabel">
-          <property name="text">
-           <string>Microstructure Free Water</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="1">
-         <widget class="QCheckBox" name="orchestrationRunFreeWaterCheckBox">
-          <property name="text">
-           <string>Include Free Water maps when Microstructure is selected</string>
-          </property>
-          <property name="toolTip">
-           <string>Optional long-running stage. Leave unchecked for DTI FA/MD/AD/RD/L1/L2/L3 and ROI-wise stats only.</string>
-          </property>
-          <property name="SlicerParameterName" stdset="0">
-           <string>orchestrationRunFreeWater</string>
-          </property>
-         </widget>
-        </item>
         <item row="4" column="0">
-         <widget class="QLabel" name="orchestrationRunNoddiLabel">
+         <widget class="QLabel" name="orchestrationMicrostructureStagesLabel">
           <property name="text">
-           <string>Microstructure NODDI</string>
+           <string>Microstructure stages</string>
           </property>
          </widget>
         </item>
         <item row="4" column="1">
-         <widget class="QCheckBox" name="orchestrationRunNoddiCheckBox">
-          <property name="text">
-           <string>Include AMICO NODDI maps when Microstructure is selected</string>
-          </property>
+         <widget class="QComboBox" name="orchestrationMicrostructureStagesComboBox">
           <property name="toolTip">
-           <string>Optional long-running multi-shell stage. Requires AMICO/dmri-amico and suitable DWI shells.</string>
+           <string>dti generates FA/MD/AD/RD/L1/L2/L3 and ROI-wise stats. Add freewater and noddi only when those optional stages are desired and dependencies are available.</string>
           </property>
           <property name="SlicerParameterName" stdset="0">
-           <string>orchestrationRunNoddi</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="0">
-         <widget class="QLabel" name="connectomeBackendLabel">
-          <property name="text">
-           <string>Connectome backend</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="1">
-         <widget class="QComboBox" name="connectomeBackendComboBox">
-          <property name="toolTip">
-           <string>Python writes compact endpoint-label edge lists. MRtrix uses tck2connectome and can optionally compress dense matrices back to ROI-label edge lists.</string>
-          </property>
-          <property name="SlicerParameterName" stdset="0">
-           <string>connectomeBackend</string>
+           <string>orchestrationMicrostructureStages</string>
           </property>
           <item>
            <property name="text">
-            <string>python</string>
+            <string>dti</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>mrtrix</string>
+            <string>dti,freewater</string>
            </property>
           </item>
-         </widget>
-        </item>
-        <item row="6" column="0">
-         <widget class="QLabel" name="connectomeCompressMrtrixDenseLabel">
-          <property name="text">
-           <string>Compress MRtrix dense</string>
-          </property>
-         </widget>
-        </item>
-        <item row="6" column="1">
-         <widget class="QCheckBox" name="connectomeCompressMrtrixDenseCheckBox">
-          <property name="text">
-           <string>Keep raw dense CSV and also write compact ROI-label edge-list</string>
-          </property>
-          <property name="SlicerParameterName" stdset="0">
-           <string>connectomeCompressMrtrixDense</string>
-          </property>
+          <item>
+           <property name="text">
+            <string>dti,freewater,noddi</string>
+           </property>
+          </item>
          </widget>
         </item>
        </layout>
@@ -514,125 +629,25 @@
            <string notr="true">QPushButton#runSelectedButton { background-color: #1565C0; color: white; font-weight: 700; border-radius: 6px; padding: 7px 14px; } QPushButton#runSelectedButton:hover { background-color: #0D47A1; }</string>
           </property>
           <property name="text">
-           <string>Run selected products</string>
+           <string>Check, install Python deps, and run</string>
           </property>
           <property name="toolTip">
-           <string>Run enabled products using the shared Subject ID and Subject root. Empty product-specific subject/input fields are filled automatically.</string>
+           <string>Run enabled products from the shared Subject root. The module checks dependencies first, installs missing Python packages when enabled, then runs the selected products.</string>
           </property>
          </widget>
         </item>
        </layout>
       </item>
-      <item>
-       <widget class="QLabel" name="surfaceOptionsSectionLabel">
-        <property name="text">
-         <string>&lt;b&gt;Surface options&lt;/b&gt;</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QFormLayout" name="surfaceOptionsFormLayout">
-        <item row="0" column="0">
-         <widget class="QLabel" name="predictModeLabel">
-          <property name="text">
-           <string>Predict surfaces</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="1">
-         <widget class="QComboBox" name="predictModeComboBox">
-          <item>
-           <property name="text">
-            <string>all</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>wm</string>
-           </property>
-          </item>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="deviceLabel">
-          <property name="text">
-           <string>Torch device</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QComboBox" name="deviceComboBox">
-          <item>
-           <property name="text">
-            <string>cpu</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>cuda:0</string>
-           </property>
-          </item>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="cleanupLabel">
-          <property name="text">
-           <string>Clean intermediates</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QCheckBox" name="cleanupCheckBox">
-          <property name="text">
-           <string>Delete temporary folders after success</string>
-          </property>
-          <property name="SlicerParameterName" stdset="0">
-           <string>cleanupIntermediates</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="configurationActionsLayout">
-        <item>
-         <widget class="QPushButton" name="validateButton">
-          <property name="toolTip">
-           <string>Check subject directories and required files before running.</string>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">QPushButton#validateButton { border: 1px solid #00ACC1; color: #00ACC1; border-radius: 6px; padding: 4px 10px; background: transparent; } QPushButton#validateButton:hover { background-color: rgba(0,172,193,0.1); }</string>
-          </property>
-          <property name="text">
-           <string>Validate inputs</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-     </item>
-     <item>
-      <widget class="QPushButton" name="applyButton">
-       <property name="enabled">
-        <bool>false</bool>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">QPushButton#applyButton { background-color: #00ACC1; color: white; font-weight: 600; border-radius: 6px; padding: 6px 14px; } QPushButton#applyButton:disabled { background-color: #CFD8DC; color: #90A4AE; } QPushButton#applyButton:hover:!disabled { background-color: #00838F; }</string>
-        </property>
-        <property name="text">
-         <string>Run DDSurfer</string>
-        </property>
-        <property name="shortcut">
-         <string>Ctrl+Return</string>
-        </property>
-      </widget>
-     </item>
     </layout>
    </widget>
   </item>
   <item>
    <widget class="ctkCollapsibleButton" name="dockerPostprocessCollapsibleButton">
+    <property name="visible">
+     <bool>false</bool>
+    </property>
     <property name="text">
-     <string>Surface Advanced: FreeSurfer Postprocess (Docker)</string>
+     <string>Surface Advanced: DDSurfer Postprocess</string>
     </property>
     <property name="collapsed">
      <bool>true</bool>
@@ -651,7 +666,7 @@
         <string notr="true">QLabel#dockerHintLabel { color: #546E7A; }</string>
        </property>
        <property name="text">
-        <string>Stage DDSurfer outputs and launch postprocess-release via Docker (requires Docker engine and a valid FreeSurfer license).</string>
+        <string>Stage DDSurfer surfaces plus MRI inputs and run the bundled FreeSurfer-style postprocess backend locally.</string>
        </property>
        <property name="wordWrap">
         <bool>true</bool>
@@ -711,7 +726,7 @@
        <item row="3" column="0">
         <widget class="QLabel" name="dockerRepoLabel">
          <property name="text">
-          <string>postprocess-release</string>
+          <string>Backend root</string>
          </property>
         </widget>
        </item>
@@ -721,14 +736,14 @@
           <set>ctkPathLineEdit::Dirs</set>
          </property>
          <property name="placeholderText" stdset="0">
-          <string>Path to postprocess-release repo</string>
+          <string>Optional override for bundled backend</string>
          </property>
         </widget>
        </item>
        <item row="4" column="0">
         <widget class="QLabel" name="dockerLicenseLabel">
          <property name="text">
-          <string>License file</string>
+          <string>License file (legacy)</string>
          </property>
         </widget>
        </item>
@@ -738,7 +753,7 @@
           <set>ctkPathLineEdit::Files</set>
          </property>
          <property name="placeholderText" stdset="0">
-          <string>FreeSurfer license.txt</string>
+          <string>Unused for local backend</string>
          </property>
         </widget>
        </item>
@@ -771,14 +786,14 @@
        <item row="6" column="0">
         <widget class="QLabel" name="dockerImageLabel">
          <property name="text">
-          <string>Docker image tag</string>
+          <string>Image tag (legacy)</string>
          </property>
         </widget>
        </item>
        <item row="6" column="1">
         <widget class="QLineEdit" name="postprocessImageLineEdit">
          <property name="placeholderText">
-          <string>Optional (defaults to dds_postprocess:latest)</string>
+          <string>Unused for local backend</string>
          </property>
         </widget>
        </item>
@@ -804,10 +819,10 @@
      <item>
       <widget class="QPushButton" name="runPostprocessButton">
        <property name="text">
-        <string>Run Docker Postprocess</string>
+        <string>Run DDSurfer Postprocess</string>
        </property>
        <property name="toolTip">
-        <string>Stage inputs and launch docker/run_container.sh</string>
+        <string>Stage inputs and launch the bundled DDSurfer postprocess backend</string>
        </property>
        <property name="styleSheet">
         <string notr="true">QPushButton#runPostprocessButton { background-color: #00ACC1; color: white; font-weight: 600; border-radius: 6px; padding: 6px 14px; } QPushButton#runPostprocessButton:disabled { background-color: #CFD8DC; color: #90A4AE; } QPushButton#runPostprocessButton:hover:!disabled { background-color: #00838F; }</string>
@@ -819,6 +834,9 @@
   </item>
   <item>
    <widget class="ctkCollapsibleButton" name="ddparcelCollapsibleButton">
+    <property name="visible">
+     <bool>false</bool>
+    </property>
     <property name="text">
      <string>2. Parcellation: DDParcel</string>
     </property>
@@ -953,6 +971,9 @@
   </item>
   <item>
    <widget class="ctkCollapsibleButton" name="microstructureCollapsibleButton">
+   <property name="visible">
+    <bool>false</bool>
+   </property>
    <property name="text">
      <string>4. Microstructure</string>
     </property>
@@ -1148,6 +1169,9 @@
   </item>
   <item>
    <widget class="ctkCollapsibleButton" name="ddsegCollapsibleButton">
+    <property name="visible">
+     <bool>false</bool>
+    </property>
     <property name="text">
      <string>3. Segmentation: DDSeg</string>
     </property>
@@ -1321,7 +1345,12 @@
         </widget>
        </item>
        <item row="8" column="1">
-        <widget class="QComboBox" name="ddsegDeviceComboBox">
+       <widget class="QComboBox" name="ddsegDeviceComboBox">
+         <item>
+          <property name="text">
+           <string>auto</string>
+          </property>
+         </item>
          <item>
           <property name="text">
            <string>cpu</string>

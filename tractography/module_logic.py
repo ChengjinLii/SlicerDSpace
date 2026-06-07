@@ -302,7 +302,7 @@ class TractographyLogicMixin:
         tckgen_options: str = "",
         mrtrix_bin_dir: Optional[Path] = None,
         mrtrix_prefix: str = "",
-        noregister: bool = False,
+        noregister: bool = True,
         notrunc: bool = False,
         fast_intersection: bool = True,
         gwg_hard: bool = False,
@@ -342,8 +342,9 @@ class TractographyLogicMixin:
         self.log(f"[SAF] Manifest: {result.manifest_path}")
         self.log(f"[SAF] QC: {result.qc_path}")
         self.log(f"[SAF] Tractogram: {result.saf_tractogram}")
-        if result.saf_tractogram.is_file():
-            self._load_fiber_bundle_node(result.saf_tractogram, f"{subject_id}_SAF")
+        load_path = result.saf_vtk_path if result.saf_vtk_path and result.saf_vtk_path.is_file() else result.saf_tractogram
+        if load_path.is_file():
+            self._load_fiber_bundle_node(load_path, f"{subject_id}_SAF")
         return result
 
     def runBundleParcellationPipeline(

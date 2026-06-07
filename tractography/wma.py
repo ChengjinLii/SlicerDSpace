@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from shared.external_process import merged_startup_environment
+
 
 WMA_APPLY_ORG_SCRIPT = Path("bin") / "wm_apply_ORG_atlas_to_subject.sh"
 WMA_APPLY_ORG_SCRIPT_NAME = "wm_apply_ORG_atlas_to_subject.sh"
@@ -527,7 +529,7 @@ def run_wma_org_atlas(
     execution_error: Optional[str] = None
     if config.execute:
         log_dir.mkdir(parents=True, exist_ok=True)
-        env = os.environ.copy()
+        env = merged_startup_environment()
         python_path = wma_root.as_posix()
         env["PYTHONPATH"] = (
             python_path if not env.get("PYTHONPATH") else python_path + os.pathsep + env["PYTHONPATH"]

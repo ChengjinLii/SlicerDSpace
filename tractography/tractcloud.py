@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from shared.external_process import merged_startup_environment
+
 
 TRACTCLOUD_REPOSITORY = "https://github.com/SlicerDMRI/TractCloud"
 VALID_TRACTCLOUD_DEVICES = {"auto", "cpu", "cuda"}
@@ -63,7 +65,12 @@ def resolve_tractcloud_python(python_executable: Optional[Path] = None) -> Path:
             raise FileNotFoundError(f"TractCloud Python executable not found: {candidate}")
         return candidate
 
-    env_value = os.environ.get("SLICERDDSURFER_TRACTCLOUD_PYTHON") or os.environ.get("TRACTCLOUD_PYTHON")
+    env_value = (
+        os.environ.get("SLICERDDSURFER_TRACTCLOUD_PYTHON_EXECUTABLE")
+        or os.environ.get("TRACTCLOUD_PYTHON_EXECUTABLE")
+        or os.environ.get("SLICERDDSURFER_TRACTCLOUD_PYTHON")
+        or os.environ.get("TRACTCLOUD_PYTHON")
+    )
     if env_value:
         candidate = Path(env_value).expanduser().resolve()
         if not candidate.is_file():
@@ -129,11 +136,11 @@ def _tractcloud_source_info(root: Optional[Path]) -> dict[str, Any] | None:
 
 
 def _tractcloud_env(config: "TractCloudConfig", backend_status: Optional[dict[str, Any]] = None) -> dict[str, str]:
-    env = os.environ.copy()
+    env: dict[str, str] = {}
     source = backend_status.get("source") if backend_status else None
     root_value = source.get("pythonpath") if isinstance(source, dict) else None
     if root_value:
-        env["PYTHONPATH"] = root_value + os.pathsep + env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = root_value
     if config.data_dir is not None:
         env["TRACTCLOUD_DATA_DIR"] = config.data_dir.expanduser().resolve().as_posix()
     return env
@@ -166,7 +173,7 @@ def inspect_tractcloud_backend(
         "}))"
     )
     try:
-        env = os.environ.copy()
+        env = merged_startup_environment()
         source_pythonpath = _tractcloud_pythonpath(root)
         if source_pythonpath:
             env["PYTHONPATH"] = source_pythonpath + os.pathsep + env.get("PYTHONPATH", "")
@@ -296,7 +303,7 @@ def run_tractcloud_parcellation(
     return_code: Optional[int] = None
     execution_error: Optional[str] = None
     if config.execute:
-        env = _tractcloud_env(config, backend_status)
+        env = merged_startup_environment(_tractcloud_env(config, backend_status))
         try:
             completed = subprocess.run(command, check=True, env=env)
             return_code = completed.returncode

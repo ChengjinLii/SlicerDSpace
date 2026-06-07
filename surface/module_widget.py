@@ -17,11 +17,16 @@ class SurfaceWidgetMixin:
     """Widget handlers for the surface workflow and its post-processing tools."""
 
     def _connect_surface_ui(self) -> None:
-        self.ui.applyButton.connect("clicked()", self.onApplyButton)
-        self.ui.inputDirectoryPath.currentPathChanged.connect(self._onInputDirectoryChanged)
-        self.ui.outputDirectoryPath.currentPathChanged.connect(self._onOutputDirectoryChanged)
-        self.ui.predictModeComboBox.currentTextChanged.connect(self._onPredictModeChanged)
-        self.ui.deviceComboBox.currentTextChanged.connect(self._onDeviceChanged)
+        if hasattr(self.ui, "applyButton"):
+            self.ui.applyButton.connect("clicked()", self.onApplyButton)
+        if hasattr(self.ui, "inputDirectoryPath"):
+            self.ui.inputDirectoryPath.currentPathChanged.connect(self._onInputDirectoryChanged)
+        if hasattr(self.ui, "outputDirectoryPath"):
+            self.ui.outputDirectoryPath.currentPathChanged.connect(self._onOutputDirectoryChanged)
+        if hasattr(self.ui, "predictModeComboBox"):
+            self.ui.predictModeComboBox.currentTextChanged.connect(self._onPredictModeChanged)
+        if hasattr(self.ui, "deviceComboBox"):
+            self.ui.deviceComboBox.currentTextChanged.connect(self._onDeviceChanged)
 
         if hasattr(self.ui, "postprocessSubjectLineEdit"):
             self.ui.postprocessSubjectLineEdit.textChanged.connect(self._onPostprocessSubjectChanged)
@@ -40,7 +45,7 @@ class SurfaceWidgetMixin:
         if hasattr(self.ui, "postprocessForceCheckBox"):
             self.ui.postprocessForceCheckBox.toggled.connect(self._onPostprocessForceToggled)
         if hasattr(self.ui, "runPostprocessButton"):
-            self.ui.runPostprocessButton.connect("clicked()", self._onRunDockerPostprocess)
+            self.ui.runPostprocessButton.connect("clicked()", self._onRunLocalPostprocess)
 
     def _onOutputDirectoryChanged(self, newPath: str) -> None:
         if not self._update_parameter_node("outputDirectory", newPath or ""):
@@ -58,7 +63,7 @@ class SurfaceWidgetMixin:
         self._checkCanApply()
 
     def _onDeviceChanged(self, newText: str) -> None:
-        if not self._update_parameter_node("device", newText or "cpu"):
+        if not self._update_parameter_node("device", newText or "auto"):
             return
         self._checkCanApply()
 
@@ -86,7 +91,7 @@ class SurfaceWidgetMixin:
     def _onPostprocessForceToggled(self, state: bool) -> None:
         self._update_parameter_node("postprocessForce", bool(state))
 
-    def _onRunDockerPostprocess(self) -> None:
+    def _onRunLocalPostprocess(self) -> None:
         if not self._parameterNode or not self.logic:
             return
 
@@ -94,9 +99,7 @@ class SurfaceWidgetMixin:
         native_dir = (self._parameterNode.postprocessNativeDir or "").strip()
         mri_dir = (self._parameterNode.postprocessMriDir or "").strip()
         repo_dir = (self._parameterNode.postprocessRepoDir or "").strip()
-        license_path = (self._parameterNode.postprocessLicensePath or "").strip()
         mode = (self._parameterNode.postprocessMode or "whole").strip() or "whole"
-        image_tag = (self._parameterNode.postprocessDockerImage or "").strip()
         force = bool(self._parameterNode.postprocessForce)
 
         missing: List[str] = []
@@ -105,13 +108,12 @@ class SurfaceWidgetMixin:
         paths_to_check: List[tuple[str, str, bool]] = [
             (native_dir, "Native output directory", False),
             (mri_dir, "MRI directory", False),
-            (repo_dir, "postprocess-release directory", False),
-            (license_path, "FreeSurfer license", True),
         ]
+        if repo_dir:
+            paths_to_check.append((repo_dir, "DDSurfer postprocess backend directory", False))
         resolved_paths: dict[str, Path] = {}
         for path_str, label, require_file in paths_to_check:
             if not path_str:
-                missing.append(label)
                 continue
             path = Path(path_str).expanduser()
             if require_file and not path.is_file():
@@ -124,31 +126,29 @@ class SurfaceWidgetMixin:
 
         if missing:
             slicer.util.errorDisplay(
-                "Cannot run Docker postprocess. Please provide the following:\n- " + "\n- ".join(missing),
+                "Cannot run DDSurfer postprocess. Please provide the following:\n- " + "\n- ".join(missing),
                 parent=self.parent,
             )
             return
 
-        def docker_log(message: str) -> None:
-            self.appendLog(f"[Docker] {message}")
+        def local_log(message: str) -> None:
+            self.appendLog(f"[DDSurfer Postprocess] {message}")
 
-        slicer.util.showStatusMessage("Running Docker postprocess...", 0)
-        self._setStatus("running", "Docker postprocess in progress")
-        with slicer.util.tryWithErrorDisplay("Docker postprocess failed.", waitCursor=True):
-            self.appendLog("Starting Docker postprocess...")
-            self.logic.runDockerPostprocess(
+        slicer.util.showStatusMessage("Running DDSurfer postprocess...", 0)
+        self._setStatus("running", "DDSurfer postprocess in progress")
+        with slicer.util.tryWithErrorDisplay("DDSurfer postprocess failed.", waitCursor=True):
+            self.appendLog("Starting DDSurfer postprocess...")
+            self.logic.runLocalPostprocess(
                 subject_id=subject,
                 native_dir=resolved_paths["Native output directory"],
                 mri_dir=resolved_paths["MRI directory"],
-                repo_path=resolved_paths["postprocess-release directory"],
-                license_path=resolved_paths["FreeSurfer license"],
+                repo_path=resolved_paths.get("DDSurfer postprocess backend directory"),
                 mode=mode,
-                docker_image=image_tag or None,
                 force=force,
-                log_callback=docker_log,
+                log_callback=local_log,
             )
-            self.appendLog("Docker postprocess completed.")
-            slicer.util.showStatusMessage("Docker postprocess completed.", 5000)
+            self.appendLog("DDSurfer postprocess completed.")
+            slicer.util.showStatusMessage("DDSurfer postprocess completed.", 5000)
         self._setStatus("ready", "Pipeline ready")
 
     def onApplyButton(self) -> None:

@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+from shared.external_process import startup_environment
+
 
 REQUIRED_MRTRIX_COMMANDS = (
     "mrconvert",
@@ -361,7 +363,7 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
         try:
             for command in commands:
                 _emit(f"[Tractography] Running MRtrix CSD/ACT command: {' '.join(command)}", log)
-                completed = subprocess.run(command, check=True)
+                completed = subprocess.run(command, check=True, env=startup_environment())
                 return_code = completed.returncode
             if config.export_trk and tractogram_trk is not None:
                 _emit(f"[Tractography] Exporting ACT TCK to TRK for WMQL: {tractogram_trk}", log)

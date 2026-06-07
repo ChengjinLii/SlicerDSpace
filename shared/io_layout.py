@@ -62,6 +62,10 @@ class SubjectIOLayout:
         return self.structural / "ddsurfer"
 
     @property
+    def ddsurfer_postprocess(self) -> Path:
+        return self.ddsurfer / "postprocess"
+
+    @property
     def ddparcel(self) -> Path:
         return self.structural / "ddparcel"
 
@@ -128,6 +132,10 @@ class SubjectIOLayout:
     @property
     def statistics(self) -> Path:
         return self.outputs / "05_statistics"
+
+    @property
+    def ddsurfer_postprocess_stats(self) -> Path:
+        return self.statistics / "ddsurfer" / "postprocess"
 
     @property
     def regional_microstructure(self) -> Path:
@@ -199,6 +207,8 @@ def default_task_output_dir(subject_root: Path, task_name: str) -> Path:
         "ddseg": layout.ddseg,
         "surface": layout.ddsurfer,
         "ddsurfer": layout.ddsurfer,
+        "surface_postprocess": layout.ddsurfer_postprocess,
+        "ddsurfer_postprocess": layout.ddsurfer_postprocess,
         "parcellation": layout.ddparcel,
         "ddparcel": layout.ddparcel,
         "tractography": layout.tractography,
@@ -308,6 +318,20 @@ def _merge_directory_contents(src: Path, dest: Path, *, mode: str, files_only: b
         _safe_link_or_copy(child, dest / child.name, mode=mode)
 
 
+def _remove_self_referential_connectome_links(layout: SubjectIOLayout) -> None:
+    if not layout.connectome.is_dir():
+        return
+    for run_dir in sorted(path for path in layout.connectome.iterdir() if path.is_dir()):
+        candidate = run_dir / "streamline_count"
+        if not candidate.is_symlink():
+            continue
+        try:
+            if candidate.resolve(strict=True) == run_dir.resolve(strict=True):
+                candidate.unlink()
+        except (FileNotFoundError, OSError):
+            candidate.unlink(missing_ok=True)
+
+
 def _refresh_microstructure_manifest_flags(
     manifest_path: Path,
     *,
@@ -343,12 +367,12 @@ def _legacy_csd_run_sources(layout: SubjectIOLayout) -> list[Path]:
             sorted(
                 path
                 for path in layout.tractography.iterdir()
-                if path.is_dir() and path.name.startswith("csd_act") and path.name != "csd"
+                if path.is_dir() and path.name == "csd_act"
             )
         )
     debug_legacy_runs = layout.subject_root / ".debug_outputs" / "04_tractography" / "legacy_csd_runs"
     if debug_legacy_runs.is_dir():
-        sources.extend(sorted(path for path in debug_legacy_runs.iterdir() if path.is_dir()))
+        sources.extend(sorted(path for path in debug_legacy_runs.iterdir() if path.is_dir() and path.name == "csd_act"))
     return sources
 
 
@@ -448,8 +472,9 @@ def materialize_canonical_output_tree(
             created["microstructure_manifest"] = layout.microstructure / "manifest.json"
         amico_dir = legacy_microstructure / "_amico_noddi"
         if amico_dir.exists():
-            _safe_link_or_copy(amico_dir, layout.microstructure_noddi / "_amico_noddi", mode=mode)
-            created["_amico_noddi"] = layout.microstructure_noddi / "_amico_noddi"
+            amico_cache_dir = layout.microstructure / "cache" / "noddi" / "_amico_noddi"
+            _safe_link_or_copy(amico_dir, amico_cache_dir, mode=mode)
+            created["_amico_noddi"] = amico_cache_dir
 
     legacy_tractography = outputs / "tractography"
     if legacy_tractography.exists():
@@ -486,6 +511,8 @@ def materialize_canonical_output_tree(
         if parsed is None:
             continue
         legacy_run_name, metric = parsed
+        if legacy_run_name != "csd_act":
+            continue
         target = canonical_connectome_output_dir(layout.subject_root, legacy_run_name, metric, output_root=output_root)
         if legacy_connectome_dir == target:
             continue
@@ -506,6 +533,8 @@ def materialize_canonical_output_tree(
             _safe_link_or_copy(root_file, target, mode=mode)
             created[f"csd_act/{root_file.name}"] = target
 
+    _remove_self_referential_connectome_links(layout)
+
     tractcloud_root_map = {
         "AnatomicalTracts": layout.bundles_tractcloud / "AnatomicalTracts",
         "AnatomicalTracts_separated": layout.bundles_tractcloud / "AnatomicalTracts_separated",
@@ -525,7 +554,13 @@ def materialize_canonical_output_tree(
     return created
 
 
-def archive_development_outputs(subject_root: Path, *, output_root: Optional[Path] = None) -> dict[str, Path]:
+def archive_development_outputs(
+    subject_root: Path,
+    *,
+    output_root: Optional[Path] = None,
+    current_run_name: str = "csd_act",
+    current_tractography_backend: str = "csd_act",
+) -> dict[str, Path]:
     """Move development-only output folders out of the canonical product tree.
 
     This keeps ``outputs/`` aligned with the documented user-facing layout while
@@ -573,6 +608,22 @@ def archive_development_outputs(subject_root: Path, *, output_root: Optional[Pat
                 canonical_target = layout.csd / child.name
                 if canonical_target.exists():
                     _move_if_exists(child, debug_root / "04_tractography" / "legacy_csd_runs")
+
+    tractograms = layout.tractograms
+    if tractograms.is_dir():
+        backend = (current_tractography_backend or "csd_act").strip().lower()
+        run_name = (current_run_name or "csd_act").strip() or "csd_act"
+        allowed_top_dirs = {"dti_det"} if backend == "dti_det" else {run_name}
+        for child in tractograms.iterdir():
+            if not child.is_dir() or child.name in allowed_top_dirs:
+                continue
+            _move_if_exists(child, layout.tractography / "cache" / "alternate_runs" / "tractograms")
+        if backend == "dti_det":
+            dti_root = layout.tractograms_dti_det
+            if dti_root.is_dir():
+                for child in dti_root.iterdir():
+                    if child.is_dir() and child.name != run_name:
+                        _move_if_exists(child, layout.tractography / "cache" / "alternate_runs" / "tractograms" / "dti_det")
 
     bundles = layout.bundles
     if bundles.is_dir():

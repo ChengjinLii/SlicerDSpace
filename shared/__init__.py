@@ -14,6 +14,14 @@ from .pipeline import (
     resolve_pythonslicer_executable,
 )
 from .validation import InputValidationConfig, InputValidationResult, ValidationIssue, validate_subject_inputs
+from .environment import (
+    EnvironmentDoctorConfig,
+    EnvironmentDoctorResult,
+    blocked_target_reasons,
+    run_environment_doctor,
+    summarize_environment_doctor,
+    write_environment_report,
+)
 from .io_layout import (
     SubjectIOLayout,
     archive_development_outputs,
@@ -24,20 +32,36 @@ from .io_layout import (
     normalize_run_name,
     subject_layout,
 )
-from .orchestrator import ProductOrchestratorConfig, ProductOrchestratorResult, ProductTaskRecord, run_subject_products
+from .reporting import SubjectReportPaths, write_subject_reports
+from .orchestrator import (
+    ProductOrchestratorConfig,
+    ProductOrchestratorResult,
+    ProductTaskRecord,
+    RunPlanItem,
+    RunPlanResult,
+    normalize_orchestrator_targets,
+    plan_subject_products,
+    run_subject_products,
+)
 
 __all__ = [
     "InputValidationConfig",
     "InputValidationResult",
+    "EnvironmentDoctorConfig",
+    "EnvironmentDoctorResult",
     "RawInputBundle",
     "NativeDTIBundle",
     "RegisteredDTIBundle",
     "SubjectIOLayout",
+    "SubjectReportPaths",
     "archive_development_outputs",
+    "blocked_target_reasons",
     "canonical_connectome_output_dir",
     "ProductOrchestratorConfig",
     "ProductOrchestratorResult",
     "ProductTaskRecord",
+    "RunPlanItem",
+    "RunPlanResult",
     "ValidationIssue",
     "default_task_output_dir",
     "default_task_output_dir_for_dependency",
@@ -48,10 +72,16 @@ __all__ = [
     "is_raw_subject_root",
     "materialize_canonical_output_tree",
     "normalize_run_name",
+    "normalize_orchestrator_targets",
     "resolve_cli_executable",
     "resolve_launcher_executable",
     "resolve_pythonslicer_executable",
     "subject_layout",
+    "plan_subject_products",
+    "run_environment_doctor",
     "run_subject_products",
+    "summarize_environment_doctor",
     "validate_subject_inputs",
+    "write_environment_report",
+    "write_subject_reports",
 ]

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import TYPE_CHECKING, Dict, Iterable, List
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,7 +33,8 @@ except ImportError as exc:  # pragma: no cover
 else:
     TRIMESH_IMPORT_ERROR = None
 
-from .prediction import PredictionResult
+if TYPE_CHECKING:
+    from .prediction import PredictionResult
 
 
 @dataclass(frozen=True)

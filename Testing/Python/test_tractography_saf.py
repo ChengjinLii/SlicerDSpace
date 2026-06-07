@@ -10,13 +10,29 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
+from unittest import mock
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+SAF_BACKEND_ROOT = REPO_ROOT / "tractography" / "saf_backend"
+if str(SAF_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(SAF_BACKEND_ROOT))
 
 
 class SAFIntegrationTest(unittest.TestCase):
+    def test_gg_hh_endpoint_pairing_matches_matlab_layout(self) -> None:
+        from tractography.saf_backend.Filters.filters_GG_HH import _pair_streamline_endpoint_values
+
+        starts_then_ends = [10, 20, 30, 40, 1, 2, 3, 4]
+        paired = _pair_streamline_endpoint_values(
+            values=np.array(starts_then_ends),
+            nsl=4,
+        )
+        self.assertEqual(paired.tolist(), [[10, 20, 30, 40], [1, 2, 3, 4]])
+
     def _make_subject(self, root: Path, subject_id: str = "100307") -> Path:
         subject = root / subject_id
         input_dir = subject / "input"
@@ -78,6 +94,113 @@ class SAFIntegrationTest(unittest.TestCase):
             self.assertNotIn("mrtrix:tckgen", manifest["backend"]["missing_required"])
             self.assertEqual(qc["status"], "planned")
             self.assertFalse(result.executed)
+            self.assertIn("saf_vtk", manifest["outputs"])
+            self.assertIn("saf_vtk", manifest["outputs"]["summary"])
+
+    def test_saf_execute_records_streamline_count_and_vtk(self) -> None:
+        from tractography import saf as saf_module
+        from tractography.saf import SAFConfig, run_saf
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subject = self._make_subject(root)
+            fs_dir = self._make_fs_dir(root)
+            fod = root / "wmfod.mif"
+            fod.write_text("stub", encoding="utf-8")
+            bin_dir = root / "mrtrix-bin"
+            bin_dir.mkdir()
+            for command, body in {
+                "mrconvert": "#!/bin/sh\nexit 0\n",
+                "tckgen": "#!/bin/sh\nexit 0\n",
+                "tckstats": "#!/bin/sh\nprintf '42\\n'\n",
+                "tckconvert": "#!/bin/sh\ncp \"$1\" \"$2\"\n",
+            }.items():
+                path = bin_dir / command
+                path.write_text(body, encoding="utf-8")
+                path.chmod(0o755)
+
+            # Use a fake bundled backend so the facade can exercise its
+            # post-processing contract without running the full SAF algorithm.
+            backend = root / "fake_saf_backend"
+            backend.mkdir()
+            (backend / "SAF_pipeline.py").write_text(
+                "from pathlib import Path\n"
+                "def SAF_pipeline(*args):\n"
+                "    out = Path(args[args.index('outf') + 1])\n"
+                "    out.mkdir(parents=True, exist_ok=True)\n"
+                "    (out / 'SAF.tck').write_text('tractogram')\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(saf_module, "bundled_saf_backend_dir", return_value=backend):
+                result = run_saf(
+                    SAFConfig(
+                        subject_id=subject.name,
+                        input_root=subject,
+                        fs_dir=fs_dir,
+                        fod_path=fod,
+                        mrtrix_bin_dir=bin_dir,
+                        noregister=True,
+                        execute=True,
+                    )
+                )
+            sys.modules.pop("SAF_pipeline", None)
+
+            manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+            qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(result.streamline_count, 42)
+            self.assertEqual(manifest["streamline_count"], 42)
+            self.assertEqual(qc["streamline_count"], 42)
+            self.assertTrue((result.output_dir / "SAF.vtk").is_file())
+            self.assertEqual(result.saf_vtk_path, result.output_dir / "SAF.vtk")
+
+    def test_slicer_logic_prefers_loading_saf_vtk(self) -> None:
+        from tractography.module_logic import TractographyLogicMixin
+        from tractography.saf import SAFResult
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output_dir = root / "saf"
+            output_dir.mkdir()
+            tck = output_dir / "SAF.tck"
+            vtk = output_dir / "SAF.vtk"
+            manifest = output_dir / "saf_manifest.json"
+            qc = output_dir / "saf_qc.json"
+            for path in (tck, vtk, manifest, qc):
+                path.write_text(path.name, encoding="utf-8")
+
+            class _Logic(TractographyLogicMixin):
+                def __init__(self) -> None:
+                    self.loaded = []
+
+                def log(self, message: str) -> None:
+                    pass
+
+                def _load_fiber_bundle_node(self, fiber_path: Path, node_name: str) -> None:
+                    self.loaded.append((fiber_path, node_name))
+
+            fake_result = SAFResult(
+                subject_id="100307",
+                output_dir=output_dir,
+                saf_tractogram=tck,
+                manifest_path=manifest,
+                qc_path=qc,
+                executed=True,
+                backend_status={},
+                saf_vtk_path=vtk,
+                streamline_count=63589,
+                return_code=0,
+            )
+            logic = _Logic()
+            with mock.patch("tractography.module_logic.run_saf", return_value=fake_result):
+                logic.runSAFPipeline(
+                    subject_id="100307",
+                    input_root=root,
+                    fs_dir=root,
+                    fod_path=root / "fod.mif",
+                    execute=True,
+                )
+
+            self.assertEqual(logic.loaded, [(vtk, "100307_SAF")])
 
     def test_mrtrix_bin_dir_is_used_for_backend_discovery(self) -> None:
         from tractography import inspect_saf_backend

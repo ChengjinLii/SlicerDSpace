@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from shared import ensure_registered_dti_bundle, find_subject_root
+from shared.environment import resolve_auto_torch_device
 
 
 @dataclass
@@ -61,6 +62,8 @@ class SurfaceLogicMixin:
             self.logCallback = logCallback
 
         self._validate_resources()
+        resolved_device = resolve_auto_torch_device(parameters.device or "auto")
+        self.log(f"Using torch device: {resolved_device} (requested: {parameters.device or 'auto'})")
         self.log("Checking Python dependencies...")
         try:
             self.setupPythonRequirements()
@@ -187,7 +190,7 @@ class SurfaceLogicMixin:
                 subject_id=subject_id,
                 hemisphere=hemisphere,
                 predict_mode=parameters.predictMode,
-                device=parameters.device,
+            device=resolved_device,
                 step_size=0.02,
                 n_svf=2,
                 n_res=3,
@@ -231,52 +234,47 @@ class SurfaceLogicMixin:
 
         return PipelineResult(generated_models=ras_models)
 
-    def runDockerPostprocess(
+    def runLocalPostprocess(
         self,
         *,
         subject_id: str,
         native_dir: Path,
         mri_dir: Path,
-        repo_path: Path,
-        license_path: Path,
+        repo_path: Optional[Path],
         mode: str,
-        docker_image: Optional[str],
         force: bool,
         log_callback=None,
     ) -> None:
         if not subject_id:
-            raise ValueError("Subject ID must be provided for Docker postprocess.")
+            raise ValueError("Subject ID must be provided for DDSurfer postprocess.")
         if not native_dir.is_dir():
             raise FileNotFoundError(f"Native output directory not found: {native_dir}")
         if not mri_dir.is_dir():
             raise FileNotFoundError(f"MRI directory not found: {mri_dir}")
-        if not repo_path.is_dir():
-            raise FileNotFoundError(f"postprocess-release directory not found: {repo_path}")
-        if not license_path.is_file():
-            raise FileNotFoundError(f"FreeSurfer license not found: {license_path}")
+        if repo_path is not None and not repo_path.is_dir():
+            raise FileNotFoundError(f"DDSurfer postprocess backend directory not found: {repo_path}")
 
-        if str(self.module_dir) not in sys.path:
-            sys.path.insert(0, str(self.module_dir))
+        from surface import DDSurferPostprocessConfig, run_ddsurfer_postprocess
 
-        try:
-            import run_postprocess_docker as docker_helper
-        except ImportError as exc:  # pragma: no cover - runtime environment guard
-            raise RuntimeError(
-                "Unable to import run_postprocess_docker.py. Ensure it is located in the SlicerDDSurfer module directory."
-            ) from exc
+        output_root = native_dir
+        for parent in native_dir.parents:
+            if parent.name == "outputs" and parent.parent.exists():
+                output_root = parent
+                break
 
-        docker_helper.run_postprocess(
-            subject_id=subject_id,
-            native_dir=native_dir,
-            mri_dir=mri_dir,
-            postprocess_repo=repo_path,
-            mode=mode,
-            license_path=license_path,
-            image_tag=docker_image,
-            inputs_dir=None,
-            outputs_dir=None,
-            force=force,
-            log_callback=log_callback,
+        run_ddsurfer_postprocess(
+            DDSurferPostprocessConfig(
+                subject_id=subject_id,
+                subject_root=output_root.parent if output_root.name == "outputs" else None,
+                native_dir=native_dir,
+                mri_dir=mri_dir,
+                output_root=output_root,
+                backend_root=repo_path,
+                mode=mode,
+                python_bin=Path(sys.executable),
+                force=force,
+            ),
+            log=log_callback,
         )
 
     def _cleanup_intermediates(self, work_root: Path, keep_native: bool, log) -> None:

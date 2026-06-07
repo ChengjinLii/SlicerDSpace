@@ -19,6 +19,16 @@ def wholebrain_operations(PS, SD):
 
         PS, sl_lenfilt = filters_length(PS)
         if sl_lenfilt is not None:
-            SD.DWI.saf.ml[valid_sl] = sl_lenfilt
+            sl_lenfilt = np.asarray(sl_lenfilt, dtype=bool).reshape(-1)
+            if sl_lenfilt.size == SD.DWI.saf.ml.size:
+                SD.DWI.saf.ml = sl_lenfilt
+            elif sl_lenfilt.size == int(valid_sl.sum()):
+                SD.DWI.saf.ml[valid_sl] = sl_lenfilt
+            else:
+                raise ValueError(
+                    "Length-filter mask size mismatch: "
+                    f"got {sl_lenfilt.size}, expected {SD.DWI.saf.ml.size} "
+                    f"or {int(valid_sl.sum())}."
+                )
 
     return PS, SD

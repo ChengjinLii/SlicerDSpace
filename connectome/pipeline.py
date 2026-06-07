@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from shared import default_task_output_dir_for_dependency
+from shared.external_process import startup_environment
 
 
 SUPPORTED_TRACTOGRAPHY_EXTENSIONS = {".trk", ".tck", ".vtk", ".vtp"}
@@ -798,7 +799,7 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
                     manifest["outputs"]["dense_matrix"] = mrtrix_matrix_path.as_posix()  # type: ignore[index]
                 command = build_tck2connectome_command(config, mrtrix_matrix_path)
                 manifest["command"] = list(command)
-                completed = subprocess.run(command, check=True)
+                completed = subprocess.run(command, check=True, env=startup_environment())
                 return_code = completed.returncode
                 unique_labels: list[int] = []
                 try:

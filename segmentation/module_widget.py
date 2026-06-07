@@ -60,7 +60,7 @@ class SegmentationWidgetMixin:
         self._update_parameter_node("ddsegSlicerExt", path or "")
 
     def _onDDSegDeviceChanged(self, value: str) -> None:
-        self._update_parameter_node("ddsegDevice", value or "cpu")
+        self._update_parameter_node("ddsegDevice", value or "auto")
 
     def _onDDSegSoftmaxChanged(self, value: bool) -> None:
         self._update_parameter_node("ddsegApplySoftmax", bool(value))
@@ -77,7 +77,7 @@ class SegmentationWidgetMixin:
         weights_dir = (self._parameterNode.ddsegWeightsDir or "").strip()
         slicer_base = (self._parameterNode.ddsegSlicerBase or "").strip()
         slicer_ext = (self._parameterNode.ddsegSlicerExt or "").strip()
-        device = (self._parameterNode.ddsegDevice or "cpu").strip()
+        device = (self._parameterNode.ddsegDevice or "auto").strip()
         apply_softmax = bool(self._parameterNode.ddsegApplySoftmax)
         subject = (self._parameterNode.subjectId or "").strip()
 

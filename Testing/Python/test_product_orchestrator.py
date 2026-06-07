@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -114,8 +115,107 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(manifest["run_name"], "csd_act_test")
             self.assertEqual(manifest["tractography_backend"], "csd_act")
             self.assertFalse(manifest["execute"])
-            self.assertEqual(manifest["select_streamlines"], 1000)
+            self.assertEqual(manifest["select_streamlines"], 100000)
             self.assertEqual(manifest["connectome_backend"], "python")
+
+    def test_preflight_blocked_targets_are_recorded_but_do_not_stop_other_targets(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("microstructure", "tractography", "connectome"),
+                    execute=False,
+                    preflight_blocked_targets={"tractography": "preflight missing dependencies: MRtrix3"},
+                )
+            )
+
+            statuses = {task.name: task.status for task in result.tasks}
+            self.assertEqual(statuses["tractography.csd_act"], "blocked")
+            self.assertEqual(statuses["microstructure.dti"], "planned")
+            self.assertEqual(statuses["connectome.streamline_count"], "planned")
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["preflight_blocked_targets"]["tractography"], "preflight missing dependencies: MRtrix3")
+            self.assertNotIn("tractography", manifest["run_targets"])
+
+    def test_run_plan_distinguishes_upstream_and_environment_blockers(self) -> None:
+        from shared import ProductOrchestratorConfig, plan_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            plan = plan_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("segmentation", "parcellation", "tractography", "bundles", "connectome"),
+                    execute=True,
+                    preflight_blocked_targets={"tractography": "preflight missing dependencies: MRtrix3"},
+                )
+            )
+
+            statuses = {item.target: item.status for item in plan.items}
+            categories = {item.target: item.reason_category for item in plan.items}
+            self.assertEqual(statuses["segmentation"], "will_run")
+            self.assertEqual(statuses["parcellation"], "will_run")
+            self.assertEqual(statuses["tractography"], "blocked")
+            self.assertEqual(categories["tractography"], "environment")
+            self.assertEqual(statuses["bundles"], "blocked")
+            self.assertEqual(categories["bundles"], "upstream")
+            self.assertEqual(statuses["connectome"], "blocked")
+            self.assertEqual(categories["connectome"], "upstream")
+            self.assertTrue(plan.run_plan_path.is_file())
+
+    def test_orchestrator_writes_normalized_task_manifest_qc_and_logs(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("microstructure", "tractography"),
+                    execute=False,
+                    preflight_blocked_targets={"tractography": "preflight missing dependencies: MRtrix3"},
+                )
+            )
+
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertTrue(Path(manifest["run_plan_path"]).is_file())
+            self.assertTrue(Path(manifest["output_tree_audit_path"]).is_file())
+            self.assertIsInstance(manifest["output_tree_warnings"], list)
+            self.assertEqual(manifest["run_plan_summary"]["will_run"], 1)
+            for task in manifest["tasks"]:
+                normalized_manifest = Path(task["normalized_manifest_path"])
+                normalized_qc = Path(task["normalized_qc_path"])
+                normalized_logs = Path(task["normalized_logs_dir"])
+                self.assertTrue(normalized_manifest.is_file())
+                self.assertTrue(normalized_qc.is_file())
+                self.assertTrue(normalized_logs.is_dir())
+                task_manifest = json.loads(normalized_manifest.read_text(encoding="utf-8"))
+                self.assertEqual(task_manifest["schema"], "slicerddsurfer.task.v1")
+                self.assertIn("inputs", task_manifest)
+                self.assertIn("outputs", task_manifest)
+                self.assertIn("dependencies", task_manifest)
+                self.assertIn("runtime_seconds", task_manifest)
 
     def test_dry_run_honors_output_root_and_advanced_connectome_options(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
@@ -200,12 +300,62 @@ class ProductOrchestratorTest(unittest.TestCase):
                 )
             )
 
-            self.assertEqual(result.tasks[0].status, "planned")
-            self.assertIn("Free Water", result.tasks[0].reason)
-            self.assertIn("NODDI", result.tasks[0].reason)
+            self.assertEqual([task.name for task in result.tasks], ["microstructure.dti", "microstructure.freewater", "microstructure.noddi"])
+            self.assertEqual([task.status for task in result.tasks], ["planned", "planned", "planned"])
             manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
             self.assertTrue(manifest["microstructure_run_free_water"])
             self.assertTrue(manifest["microstructure_run_noddi"])
+            self.assertEqual(manifest["microstructure_stages"], ["dti", "freewater", "noddi"])
+
+    def test_bundle_backend_expands_product_target_to_concrete_backends(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "149741"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="149741",
+                    subject_root=subject_root,
+                    targets=("bundles",),
+                    bundle_backend="all",
+                    execute=False,
+                )
+            )
+
+            self.assertEqual([task.name for task in result.tasks], ["bundles.wmql", "bundles.wma", "bundles.tractcloud"])
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["targets"], ["bundles", "wma", "tractcloud"])
+            self.assertEqual(manifest["bundle_backends"], ["wmql", "wma", "tractcloud"])
+
+    def test_saf_tractography_backend_expands_surface_postprocess_and_saf(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("tractography",),
+                    tractography_backend="saf",
+                    execute=False,
+                )
+            )
+
+            self.assertEqual([task.name for task in result.tasks], ["surface.ddsurfer_postprocess", "tractography.csd_act", "tractography.saf"])
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["tractography_backend"], "saf")
+            self.assertEqual(manifest["primary_tractography_backend"], "csd_act")
 
     def test_dry_run_supports_optional_algorithm_targets(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
@@ -235,6 +385,118 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(statuses["bundles.tractcloud"], "planned")
             manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["targets"], ["saf", "wma", "tractcloud"])
+
+    def test_execute_saf_defaults_to_1m_mask_seeding(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            layout = subject_layout(subject_root)
+            csd_dir = layout.csd
+            csd_dir.mkdir(parents=True)
+            (csd_dir / "100307_wmfod_norm.mif").write_text("fod", encoding="utf-8")
+
+            post_dir = layout.ddsurfer_postprocess
+            (post_dir / "mri").mkdir(parents=True)
+            (post_dir / "surf").mkdir()
+            for name in ("brain.mgz",):
+                (post_dir / "mri" / name).write_text(name, encoding="utf-8")
+            for name in (
+                "lh.white",
+                "rh.white",
+                "lh.pial",
+                "rh.pial",
+                "lh.inflated",
+                "rh.inflated",
+                "lh.sphere",
+                "rh.sphere",
+                "lh.curv",
+                "rh.curv",
+            ):
+                (post_dir / "surf" / name).write_text(name, encoding="utf-8")
+            (post_dir / "manifest.json").write_text("{}\n", encoding="utf-8")
+            (post_dir / "qc.json").write_text('{"status":"completed"}\n', encoding="utf-8")
+
+            captured = {}
+
+            class _FakeResult:
+                def __init__(self, output_dir: Path) -> None:
+                    self.qc_path = output_dir / "saf_qc.json"
+                    self.manifest_path = output_dir / "saf_manifest.json"
+                    self.saf_tractogram = output_dir / "SAF.tck"
+                    self.saf_vtk_path = output_dir / "SAF.vtk"
+                    self.streamline_count = 63589
+                    self.qc_path.parent.mkdir(parents=True, exist_ok=True)
+                    self.qc_path.write_text('{"status":"completed"}\n', encoding="utf-8")
+                    self.manifest_path.write_text("{}\n", encoding="utf-8")
+                    self.saf_tractogram.write_text("tck", encoding="utf-8")
+                    self.saf_vtk_path.write_text("vtk", encoding="utf-8")
+
+            def _fake_run_saf(config, *, log=None):
+                captured["tckgen_options"] = config.tckgen_options
+                captured["noregister"] = config.noregister
+                return _FakeResult(config.output_dir)
+
+            with mock.patch("tractography.run_saf", side_effect=_fake_run_saf):
+                result = run_subject_products(
+                    ProductOrchestratorConfig(
+                        subject_id="100307",
+                        subject_root=subject_root,
+                        targets=("saf",),
+                        execute=True,
+                        saf_noregister=True,
+                    )
+                )
+
+            self.assertIn("-select 1000000", captured["tckgen_options"])
+            self.assertIn("-seed_image", captured["tckgen_options"])
+            self.assertTrue(captured["noregister"])
+            self.assertEqual(result.tasks[0].outputs["streamline_count"], "63589")
+            self.assertTrue(result.tasks[0].outputs["tractogram_vtk"].endswith("SAF.vtk"))
+
+    def test_dry_run_supports_surface_postprocess_target(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "877168"
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="877168",
+                    subject_root=subject_root,
+                    targets=("surface_postprocess",),
+                    execute=False,
+                )
+            )
+
+            self.assertEqual(len(result.tasks), 1)
+            self.assertEqual(result.tasks[0].name, "surface.ddsurfer_postprocess")
+            self.assertEqual(result.tasks[0].status, "planned")
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["targets"], ["surface_postprocess"])
+
+    def test_surface_postprocess_execute_false_preserves_requested_atlases(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "877168"
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="877168",
+                    subject_root=subject_root,
+                    targets=("surface_postprocess",),
+                    execute=False,
+                    postprocess_atlases=("aparc", "aparc.a2009s"),
+                )
+            )
+
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["targets"], ["surface_postprocess"])
+            self.assertEqual(manifest["postprocess_atlases"], ["aparc", "aparc.a2009s"])
 
     def test_resume_skips_completed_existing_outputs(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products, subject_layout
@@ -326,6 +588,80 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(statuses["tractography.csd_act"], "blocked")
             self.assertEqual(statuses["bundles.wmql"], "blocked")
             self.assertEqual(statuses["connectome.streamline_count"], "blocked")
+
+    def test_execute_saf_auto_discovers_completed_ddsurfer_postprocess_outputs(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "877168"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            layout = subject_layout(subject_root)
+            csd_dir = layout.csd
+            csd_dir.mkdir(parents=True)
+            (csd_dir / "877168_wmfod_norm.mif").write_text("fod", encoding="utf-8")
+
+            micro_dir = layout.microstructure_dti
+            micro_dir.mkdir(parents=True)
+            (micro_dir / "877168_dti_FA.nii.gz").write_text("fa", encoding="utf-8")
+
+            post_dir = layout.ddsurfer_postprocess
+            (post_dir / "mri").mkdir(parents=True)
+            (post_dir / "surf").mkdir()
+            (post_dir / "label").mkdir()
+            (layout.ddsurfer_postprocess_stats / "stats").mkdir(parents=True)
+            for name in ("brain.mgz",):
+                (post_dir / "mri" / name).write_text(name, encoding="utf-8")
+            for name in (
+                "lh.white",
+                "rh.white",
+                "lh.pial",
+                "rh.pial",
+                "lh.inflated",
+                "rh.inflated",
+                "lh.sphere",
+                "rh.sphere",
+                "lh.curv",
+                "rh.curv",
+            ):
+                (post_dir / "surf" / name).write_text(name, encoding="utf-8")
+            (post_dir / "manifest.json").write_text("{}\n", encoding="utf-8")
+            (post_dir / "qc.json").write_text('{"status":"completed"}\n', encoding="utf-8")
+
+            captured: dict[str, Path] = {}
+
+            class _FakeResult:
+                def __init__(self, output_dir: Path) -> None:
+                    self.qc_path = output_dir / "saf_qc.json"
+                    self.manifest_path = output_dir / "saf_manifest.json"
+                    self.saf_tractogram = output_dir / "SAF.tck"
+                    self.saf_vtk_path = None
+                    self.streamline_count = None
+                    self.qc_path.parent.mkdir(parents=True, exist_ok=True)
+                    self.qc_path.write_text('{"status":"completed"}\n', encoding="utf-8")
+                    self.manifest_path.write_text("{}\n", encoding="utf-8")
+                    self.saf_tractogram.write_text("tck", encoding="utf-8")
+
+            def _fake_run_saf(config, *, log=None):
+                captured["fs_dir"] = config.fs_dir
+                return _FakeResult(config.output_dir)
+
+            with mock.patch("tractography.run_saf", side_effect=_fake_run_saf):
+                result = run_subject_products(
+                    ProductOrchestratorConfig(
+                        subject_id="877168",
+                        subject_root=subject_root,
+                        targets=("saf",),
+                        execute=True,
+                    )
+                )
+
+            self.assertEqual(result.tasks[0].name, "tractography.saf")
+            self.assertEqual(result.tasks[0].status, "completed")
+            self.assertEqual(captured["fs_dir"], post_dir)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from shared.external_process import merged_startup_environment
+
 LOGGER = logging.getLogger(__name__)
 
 try:  # pragma: no cover - imported inside Slicer at runtime
@@ -216,7 +218,7 @@ def _run_cli(cmd: list[str], log: Optional[Callable[[str], None]] = None) -> Non
     _emit(f"[Shared] Running: {' '.join(cmd)}", log)
     process = subprocess.Popen(
         cmd,
-        env=build_cli_environment(cmd[0]),
+        env=merged_startup_environment(build_cli_environment(cmd[0])),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,

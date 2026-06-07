@@ -14,6 +14,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--subject-root", required=True)
     parser.add_argument("--mode", choices=("symlink", "copy"), default="symlink")
     parser.add_argument("--archive-legacy", action="store_true")
+    parser.add_argument("--current-run-name", default="csd_act")
+    parser.add_argument("--current-tractography-backend", default="csd_act", choices=("csd_act", "dti_det", "saf"))
     return parser.parse_args()
 
 
@@ -32,7 +34,11 @@ def main() -> int:
         mode=args.mode,
         archive_legacy=args.archive_legacy,
     )
-    moved = archive_development_outputs(subject_root)
+    moved = archive_development_outputs(
+        subject_root,
+        current_run_name=args.current_run_name,
+        current_tractography_backend=args.current_tractography_backend,
+    )
     summary = {
         "subject_root": subject_root.as_posix(),
         "outputs_root": layout.outputs.as_posix(),

@@ -1,0 +1,1375 @@
+"""Environment doctor and install-plan helpers for SlicerDDSurfer."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import os
+import platform
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Iterable, Optional
+
+
+@dataclass(frozen=True)
+class DependencySpec:
+    """One Python package, external command, environment variable, or resource."""
+
+    key: str
+    kind: str
+    label: str
+    required: bool
+    targets: tuple[str, ...]
+    python_import: Optional[str] = None
+    python_package: Optional[str] = None
+    python_executable: Optional[Path] = None
+    python_path_entries: tuple[Path, ...] = ()
+    device: Optional[str] = None
+    command: Optional[str] = None
+    bin_dir: Optional[Path] = None
+    env_vars: tuple[str, ...] = ()
+    path: Optional[Path] = None
+    path_kind: str = "file"
+    discovery_source: str = ""
+    common_paths: tuple[Path, ...] = ()
+    install_group: str = "python"
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class DependencyStatus:
+    key: str
+    kind: str
+    label: str
+    status: str
+    required: bool
+    targets: tuple[str, ...]
+    details: dict[str, Any] = field(default_factory=dict)
+    install_hint: str = ""
+
+
+@dataclass(frozen=True)
+class TargetEnvironmentStatus:
+    target: str
+    status: str
+    missing_required: tuple[str, ...] = ()
+    missing_optional: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class EnvironmentDoctorConfig:
+    """Options needed to evaluate selected products and backend choices."""
+
+    targets: tuple[str, ...]
+    repo_root: Path
+    output_dir: Optional[Path] = None
+    python_executable: Optional[Path] = None
+    preprocessing_backend: str = "dipy"
+    tractography_backend: str = "csd_act"
+    connectome_backend: str = "python"
+    ddseg_device: str = "cpu"
+    surface_device: str = "cpu"
+    tractcloud_device: str = "auto"
+    run_free_water: bool = False
+    run_noddi: bool = False
+    mrtrix_bin_dir: Optional[Path] = None
+    preprocessing_mrtrix_bin_dir: Optional[Path] = None
+    preprocessing_fsl_bin_dir: Optional[Path] = None
+    postprocess_freesurfer_home: Optional[Path] = None
+    wma_root: Optional[Path] = None
+    wma_atlas_dir: Optional[Path] = None
+    slicer_executable: Optional[Path] = None
+    fiber_tract_measurements_cli: Optional[Path] = None
+    tract_querier_root: Optional[Path] = None
+    tractcloud_root: Optional[Path] = None
+    tractcloud_python_executable: Optional[Path] = None
+    tractcloud_data_dir: Optional[Path] = None
+
+
+@dataclass(frozen=True)
+class EnvironmentDoctorResult:
+    platform: str
+    python_executable: str
+    targets: tuple[str, ...]
+    statuses: tuple[DependencyStatus, ...]
+    target_statuses: tuple[TargetEnvironmentStatus, ...]
+    blocker_count: int
+    missing_python_packages: tuple[str, ...]
+    missing_external_groups: tuple[str, ...]
+
+    @property
+    def runnable_targets(self) -> tuple[str, ...]:
+        return tuple(item.target for item in self.target_statuses if item.status == "runnable")
+
+    @property
+    def blocked_targets(self) -> tuple[str, ...]:
+        return tuple(item.target for item in self.target_statuses if item.status == "blocked")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": "environment_doctor",
+            "version": 1,
+            "platform": self.platform,
+            "python_executable": self.python_executable,
+            "targets": list(self.targets),
+            "summary": {
+                "blocker_count": self.blocker_count,
+                "runnable_targets": list(self.runnable_targets),
+                "blocked_targets": list(self.blocked_targets),
+                "missing_python_packages": list(self.missing_python_packages),
+                "missing_external_groups": list(self.missing_external_groups),
+            },
+            "target_statuses": [
+                {
+                    "target": item.target,
+                    "status": item.status,
+                    "missing_required": list(item.missing_required),
+                    "missing_optional": list(item.missing_optional),
+                }
+                for item in self.target_statuses
+            ],
+            "dependencies": [
+                {
+                    "key": item.key,
+                    "kind": item.kind,
+                    "label": item.label,
+                    "status": item.status,
+                    "required": item.required,
+                    "targets": list(item.targets),
+                    "details": item.details,
+                    "install_hint": item.install_hint,
+                }
+                for item in self.statuses
+            ],
+        }
+
+
+def _clean_targets(targets: Iterable[str]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(target.strip().lower() for target in targets if target and target.strip()))
+
+
+def _resolve_path(path: Optional[Path]) -> Optional[Path]:
+    return path.expanduser().resolve() if path is not None else None
+
+
+def _merge_spec(existing: DependencySpec, incoming: DependencySpec) -> DependencySpec:
+    targets = tuple(dict.fromkeys((*existing.targets, *incoming.targets)))
+    return DependencySpec(
+        key=existing.key,
+        kind=existing.kind,
+        label=existing.label,
+        required=existing.required or incoming.required,
+        targets=targets,
+        python_import=existing.python_import or incoming.python_import,
+        python_package=existing.python_package or incoming.python_package,
+        python_executable=existing.python_executable or incoming.python_executable,
+        python_path_entries=tuple(dict.fromkeys((*existing.python_path_entries, *incoming.python_path_entries))),
+        device=existing.device or incoming.device,
+        command=existing.command or incoming.command,
+        bin_dir=existing.bin_dir or incoming.bin_dir,
+        env_vars=tuple(dict.fromkeys((*existing.env_vars, *incoming.env_vars))),
+        path=existing.path or incoming.path,
+        path_kind=existing.path_kind,
+        discovery_source=existing.discovery_source or incoming.discovery_source,
+        common_paths=tuple(dict.fromkeys((*existing.common_paths, *incoming.common_paths))),
+        install_group=existing.install_group or incoming.install_group,
+        notes=existing.notes or incoming.notes,
+    )
+
+
+def _put(specs: dict[str, DependencySpec], spec: DependencySpec) -> None:
+    existing = specs.get(spec.key)
+    specs[spec.key] = _merge_spec(existing, spec) if existing else spec
+
+
+def _python(
+    specs: dict[str, DependencySpec],
+    *,
+    target: str,
+    import_name: str,
+    package: str,
+    required: bool = True,
+    python_executable: Optional[Path] = None,
+    python_path_entries: tuple[Path, ...] = (),
+    notes: str = "",
+) -> None:
+    _put(
+        specs,
+        DependencySpec(
+            key=f"python:{import_name}",
+            kind="python",
+            label=import_name,
+            required=required,
+            targets=(target,),
+            python_import=import_name,
+            python_package=package,
+            python_executable=_resolve_path(python_executable),
+            python_path_entries=tuple(path.expanduser().resolve() for path in python_path_entries),
+            discovery_source="python",
+            install_group="python",
+            notes=notes,
+        ),
+    )
+
+
+def _command(
+    specs: dict[str, DependencySpec],
+    *,
+    target: str,
+    command: str,
+    group: str,
+    bin_dir: Optional[Path] = None,
+    required: bool = True,
+    notes: str = "",
+) -> None:
+    _put(
+        specs,
+        DependencySpec(
+            key=f"command:{command}",
+            kind="command",
+            label=command,
+            required=required,
+            targets=(target,),
+            command=command,
+            bin_dir=_resolve_path(bin_dir),
+            discovery_source="user setting" if bin_dir is not None else "",
+            install_group=group,
+            notes=notes,
+        ),
+    )
+
+
+def _device(
+    specs: dict[str, DependencySpec],
+    *,
+    target: str,
+    device: str,
+    python_executable: Optional[Path] = None,
+    required: bool = True,
+) -> None:
+    normalized = (device or "cpu").strip().lower()
+    if normalized in {"", "cpu"}:
+        return
+    _put(
+        specs,
+        DependencySpec(
+            key=f"device:{target}:{normalized}",
+            kind="device",
+            label=f"{target} requested device {normalized}",
+            required=required,
+            targets=(target,),
+            python_executable=_resolve_path(python_executable),
+            device=normalized,
+            discovery_source="device",
+            install_group="device",
+            notes="Requested CUDA device must be visible to the selected Python torch runtime.",
+        ),
+    )
+
+
+def _env(
+    specs: dict[str, DependencySpec],
+    *,
+    target: str,
+    key: str,
+    label: str,
+    env_vars: tuple[str, ...],
+    group: str,
+    required: bool = True,
+    notes: str = "",
+) -> None:
+    _put(
+        specs,
+        DependencySpec(
+            key=f"env:{key}",
+            kind="env",
+            label=label,
+            required=required,
+            targets=(target,),
+            env_vars=env_vars,
+            discovery_source="environment",
+            install_group=group,
+            notes=notes,
+        ),
+    )
+
+
+def _setting(
+    specs: dict[str, DependencySpec],
+    *,
+    target: str,
+    key: str,
+    label: str,
+    group: str,
+    required: bool = True,
+    notes: str = "",
+) -> None:
+    _put(
+        specs,
+        DependencySpec(
+            key=f"setting:{key}",
+            kind="setting",
+            label=label,
+            required=required,
+            targets=(target,),
+            discovery_source="setting",
+            install_group=group,
+            notes=notes,
+        ),
+    )
+
+
+def _path(
+    specs: dict[str, DependencySpec],
+    *,
+    target: str,
+    key: str,
+    label: str,
+    path: Path,
+    path_kind: str,
+    group: str,
+    required: bool = True,
+    notes: str = "",
+    discovery_source: str = "user setting",
+) -> None:
+    _put(
+        specs,
+        DependencySpec(
+            key=f"path:{key}",
+            kind="path",
+            label=label,
+            required=required,
+            targets=(target,),
+            path=path.expanduser().resolve(),
+            path_kind=path_kind,
+            discovery_source=discovery_source,
+            install_group=group,
+            notes=notes,
+        ),
+    )
+
+
+def _add_core_python(specs: dict[str, DependencySpec], target: str) -> None:
+    for import_name, package in (
+        ("numpy", "numpy"),
+        ("nibabel", "nibabel>=5.0"),
+    ):
+        _python(specs, target=target, import_name=import_name, package=package)
+
+
+def _add_dipy_stack(specs: dict[str, DependencySpec], target: str) -> None:
+    _add_core_python(specs, target)
+    _python(specs, target=target, import_name="dipy", package="dipy>=1.11,<1.13")
+
+
+def _add_deep_learning_stack(specs: dict[str, DependencySpec], target: str) -> None:
+    for import_name, package in (
+        ("torch", "torch>=2.0.0"),
+        ("torchvision", "torchvision"),
+    ):
+        _python(
+            specs,
+            target=target,
+            import_name=import_name,
+            package=package,
+            notes="Inside Slicer, prefer installing torch via the Slicer PyTorch extension.",
+        )
+
+
+def _add_mrtrix_commands(
+    specs: dict[str, DependencySpec],
+    target: str,
+    commands: tuple[str, ...],
+    bin_dir: Optional[Path],
+) -> None:
+    for name in commands:
+        _command(specs, target=target, command=name, group="mrtrix", bin_dir=bin_dir)
+
+
+def _env_path(*names: str) -> Optional[Path]:
+    for name in names:
+        value = os.environ.get(name)
+        if value:
+            return Path(value).expanduser().resolve()
+    return None
+
+
+def _env_path_with_source(*names: str) -> tuple[Optional[Path], str]:
+    for name in names:
+        value = os.environ.get(name)
+        if value:
+            return Path(value).expanduser().resolve(), f"env:{name}"
+    return None, ""
+
+
+def _env_command_dirs(group: str) -> tuple[tuple[Path, str], ...]:
+    candidates: list[tuple[Path, str]] = []
+
+    def add_dir(env_name: str, *, child: Optional[str] = None) -> None:
+        value = os.environ.get(env_name)
+        if not value:
+            return
+        path = Path(value).expanduser().resolve()
+        candidates.append(((path / child).resolve() if child else path, f"env:{env_name}"))
+
+    if group == "mrtrix":
+        for env_name in ("SLICERDDSURFER_MRTRIX_BIN_DIR", "MRTRIX_BIN_DIR"):
+            add_dir(env_name)
+        for env_name in ("SLICERDDSURFER_MRTRIX_HOME", "MRTRIX_HOME", "MRTRIX3_HOME"):
+            add_dir(env_name, child="bin")
+    elif group == "fsl":
+        for env_name in ("SLICERDDSURFER_FSL_BIN_DIR", "FSL_BIN_DIR"):
+            add_dir(env_name)
+        add_dir("FSLDIR", child="bin")
+    elif group == "freesurfer":
+        for env_name in ("SLICERDDSURFER_FREESURFER_HOME", "FREESURFER_HOME"):
+            add_dir(env_name, child="bin")
+    elif group == "wma":
+        for env_name in ("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT"):
+            add_dir(env_name, child="bin")
+            add_dir(env_name, child="utilities")
+    return tuple(candidates)
+
+
+def _common_command_dirs(group: str, platform_name: str) -> tuple[Path, ...]:
+    candidates: list[Path] = []
+    if group == "mrtrix":
+        candidates.extend(
+            [
+                Path("/usr/local/mrtrix3/bin"),
+                Path("/opt/mrtrix3/bin"),
+                Path("/usr/local/bin"),
+                Path("/opt/homebrew/bin"),
+            ]
+        )
+    elif group == "fsl":
+        candidates.extend(
+            [
+                Path("/usr/local/fsl/bin"),
+                Path("/opt/fsl/bin"),
+                Path("/usr/share/fsl/6.0/bin"),
+            ]
+        )
+    elif group == "freesurfer":
+        candidates.extend(
+            [
+                Path("/usr/local/freesurfer/bin"),
+                Path("/opt/freesurfer/bin"),
+                Path("/Applications/freesurfer/bin"),
+            ]
+        )
+    elif group == "wma":
+        candidates.extend(
+            [
+                Path("/usr/local/whitematteranalysis/bin"),
+                Path("/opt/whitematteranalysis/bin"),
+            ]
+        )
+    if platform_name == "Darwin":
+        candidates.extend([Path("/opt/homebrew/bin"), Path("/usr/local/bin")])
+    return tuple(dict.fromkeys(path for path in candidates if path))
+
+
+def _resolve_command_with_source(spec: DependencySpec, platform_name: str) -> tuple[Optional[str], str, list[str]]:
+    assert spec.command
+    checked: list[str] = []
+
+    if spec.bin_dir is not None:
+        user_candidate = spec.bin_dir / spec.command
+        checked.append(user_candidate.as_posix())
+        if user_candidate.is_file():
+            return user_candidate.as_posix(), "user setting", checked
+
+    for directory, source in _env_command_dirs(spec.install_group):
+        candidate = directory / spec.command
+        checked.append(candidate.as_posix())
+        if candidate.is_file():
+            return candidate.as_posix(), source, checked
+
+    found = shutil.which(spec.command)
+    if found is not None:
+        return found, "PATH", checked
+
+    for directory in (*spec.common_paths, *_common_command_dirs(spec.install_group, platform_name)):
+        candidate = directory / spec.command
+        checked.append(candidate.as_posix())
+        if candidate.is_file():
+            return candidate.as_posix(), "common path", checked
+
+    return None, "not found", checked
+
+
+def _tractcloud_pythonpath(root: Path) -> Path:
+    src_dir = root / "src"
+    return src_dir if (src_dir / "tractcloud").is_dir() else root
+
+
+def _resource_root(config: EnvironmentDoctorConfig) -> Path:
+    return config.repo_root.expanduser().resolve()
+
+
+def _apply_default_python(specs: Iterable[DependencySpec], python_executable: Optional[Path]) -> tuple[DependencySpec, ...]:
+    default_python = _resolve_path(python_executable)
+    if default_python is None:
+        return tuple(specs)
+    updated: list[DependencySpec] = []
+    for spec in specs:
+        if spec.kind in {"python", "device"} and spec.python_executable is None:
+            updated.append(
+                DependencySpec(
+                    key=spec.key,
+                    kind=spec.kind,
+                    label=spec.label,
+                    required=spec.required,
+                    targets=spec.targets,
+                    python_import=spec.python_import,
+                    python_package=spec.python_package,
+                    python_executable=default_python,
+                    python_path_entries=spec.python_path_entries,
+                    device=spec.device,
+                    command=spec.command,
+                    bin_dir=spec.bin_dir,
+                    env_vars=spec.env_vars,
+                    path=spec.path,
+                    path_kind=spec.path_kind,
+                    discovery_source=spec.discovery_source,
+                    common_paths=spec.common_paths,
+                    install_group=spec.install_group,
+                    notes=spec.notes,
+                )
+            )
+        else:
+            updated.append(spec)
+    return tuple(updated)
+
+
+def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencySpec, ...]:
+    targets = _clean_targets(config.targets)
+    specs: dict[str, DependencySpec] = {}
+    repo_root = _resource_root(config)
+
+    for target in targets:
+        if target == "validation":
+            _add_core_python(specs, target)
+            _python(specs, target=target, import_name="SimpleITK", package="SimpleITK")
+
+        if target == "preprocessing":
+            if config.preprocessing_backend == "mrtrix_fsl":
+                _add_mrtrix_commands(
+                    specs,
+                    target,
+                    ("dwidenoise", "mrdegibbs", "dwifslpreproc"),
+                    config.preprocessing_mrtrix_bin_dir or config.mrtrix_bin_dir,
+                )
+                for command in ("eddy", "topup"):
+                    _command(
+                        specs,
+                        target=target,
+                        command=command,
+                        group="fsl",
+                        bin_dir=config.preprocessing_fsl_bin_dir,
+                    )
+            else:
+                _add_dipy_stack(specs, target)
+
+        if target in {"microstructure", "microstructure_freewater", "tractography"} and (
+            target in {"microstructure", "microstructure_freewater"} or config.tractography_backend == "dti_det"
+        ):
+            _add_dipy_stack(specs, target)
+
+        if target == "microstructure_noddi":
+            _add_core_python(specs, target)
+            _python(specs, target=target, import_name="amico", package="dmri-amico")
+
+        if target == "segmentation":
+            _add_core_python(specs, target)
+            for import_name, package in (("scipy", "scipy"), ("nrrd", "pynrrd")):
+                _python(specs, target=target, import_name=import_name, package=package)
+            _add_deep_learning_stack(specs, target)
+            _device(specs, target=target, device=config.ddseg_device, python_executable=config.python_executable)
+            _path(
+                specs,
+                target=target,
+                key="ddseg_weights",
+                label="DDSeg weights directory",
+                path=repo_root / "segmentation" / "weights",
+                path_kind="nonempty_dir",
+                group="model-resources",
+                discovery_source="bundled resource",
+            )
+
+        if target == "parcellation":
+            _add_core_python(specs, target)
+            for import_name, package in (
+                ("SimpleITK", "SimpleITK"),
+                ("scipy", "scipy"),
+                ("nrrd", "pynrrd"),
+                ("skimage", "scikit-image"),
+                ("h5py", "h5py"),
+                ("plumbum", "plumbum"),
+            ):
+                _python(specs, target=target, import_name=import_name, package=package)
+            _add_deep_learning_stack(specs, target)
+            _path(
+                specs,
+                target=target,
+                key="ddparcel_weights",
+                label="DDParcel weights directory",
+                path=repo_root / "parcellation" / "weights",
+                path_kind="nonempty_dir",
+                group="model-resources",
+                discovery_source="bundled resource",
+            )
+
+        if target == "surface":
+            _add_core_python(specs, target)
+            for import_name, package in (("SimpleITK", "SimpleITK"), ("scipy", "scipy"), ("trimesh", "trimesh")):
+                _python(specs, target=target, import_name=import_name, package=package)
+            _add_deep_learning_stack(specs, target)
+            _device(specs, target=target, device=config.surface_device, python_executable=config.python_executable)
+            _path(
+                specs,
+                target=target,
+                key="ddsurfer_template",
+                label="DDSurfer template 100307-FA.nii.gz",
+                path=repo_root / "Resources" / "Data" / "template" / "100307-FA.nii.gz",
+                path_kind="file",
+                group="model-resources",
+                discovery_source="bundled resource",
+            )
+            _path(
+                specs,
+                target=target,
+                key="ddsurfer_atlas_t2",
+                label="DDSurfer registration atlas",
+                path=repo_root / "Resources" / "Data" / "100HCP-population-mean-T2.nii.gz",
+                path_kind="file",
+                group="model-resources",
+                discovery_source="bundled resource",
+            )
+            _path(
+                specs,
+                target=target,
+                key="ddsurfer_checkpoints",
+                label="DDSurfer HCP checkpoints",
+                path=repo_root / "Resources" / "Data" / "ckpts" / "hcp",
+                path_kind="nonempty_dir",
+                group="model-resources",
+                discovery_source="bundled resource",
+            )
+
+        if target == "surface_postprocess":
+            _add_core_python(specs, target)
+            _python(specs, target=target, import_name="SimpleITK", package="SimpleITK")
+            _python(specs, target=target, import_name="trimesh", package="trimesh")
+            freesurfer_home = _resolve_path(config.postprocess_freesurfer_home)
+            _env(
+                specs,
+                target=target,
+                key="freesurfer_home",
+                label="FREESURFER_HOME",
+                env_vars=("FREESURFER_HOME",),
+                group="freesurfer",
+                required=config.postprocess_freesurfer_home is None,
+                notes="Can also be supplied with --postprocess-freesurfer-home.",
+            )
+            for command in (
+                "recon-all",
+                "mris_sphere",
+                "mris_curvature",
+                "mris_inflate",
+                "mris_register",
+                "mri_label2label",
+                "mri_surf2surf",
+                "mri_annotation2label",
+                "mri_segstats",
+            ):
+                _command(
+                    specs,
+                    target=target,
+                    command=command,
+                    group="freesurfer",
+                    bin_dir=freesurfer_home / "bin" if freesurfer_home else None,
+                )
+
+        if target == "tractography" and config.tractography_backend in {"csd_act", "saf"}:
+            _add_core_python(specs, target)
+            _add_mrtrix_commands(
+                specs,
+                target,
+                ("mrconvert", "dwi2response", "dwi2fod", "mtnormalise", "tckgen", "tcksift2"),
+                config.mrtrix_bin_dir,
+            )
+
+        if target == "bundles":
+            _add_core_python(specs, target)
+            tract_querier_root_source = "user setting"
+            tract_querier_root = _resolve_path(config.tract_querier_root)
+            if tract_querier_root is None:
+                tract_querier_root, tract_querier_root_source = _env_path_with_source(
+                    "SLICERDDSURFER_TRACT_QUERIER_ROOT",
+                    "TRACT_QUERIER_ROOT",
+                )
+            if tract_querier_root is not None:
+                _path(
+                    specs,
+                    target=target,
+                    key="tract_querier_root",
+                    label="Tract Querier checkout",
+                    path=tract_querier_root,
+                    path_kind="dir",
+                    group="wmql",
+                    discovery_source=tract_querier_root_source,
+                )
+                _path(
+                    specs,
+                    target=target,
+                    key="tract_querier_root_script",
+                    label="Tract Querier root CLI script",
+                    path=tract_querier_root / "scripts" / "cli_tract_querier.py",
+                    path_kind="file",
+                    group="wmql",
+                    discovery_source=tract_querier_root_source,
+                )
+                _python(
+                    specs,
+                    target=target,
+                    import_name="tract_querier",
+                    package="tract_querier",
+                    python_path_entries=(tract_querier_root,),
+                    notes="Checked by adding the configured Tract Querier checkout to PYTHONPATH.",
+                )
+            else:
+                _python(specs, target=target, import_name="tract_querier", package="tract_querier")
+
+        if target == "connectome":
+            _add_core_python(specs, target)
+            if config.connectome_backend == "mrtrix":
+                _add_mrtrix_commands(specs, target, ("tck2connectome",), config.mrtrix_bin_dir)
+
+        if target == "saf":
+            _add_core_python(specs, target)
+            for import_name, package in (("scipy", "scipy"), ("sklearn", "scikit-learn")):
+                _python(specs, target=target, import_name=import_name, package=package)
+            _add_mrtrix_commands(specs, target, ("tckgen", "tckstats", "tckconvert"), config.mrtrix_bin_dir)
+
+        if target == "wma":
+            _add_core_python(specs, target)
+            _env(
+                specs,
+                target=target,
+                key="wma_root",
+                label="WhiteMatterAnalysis checkout",
+                env_vars=("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT"),
+                group="wma",
+                required=False,
+                notes="Can also be supplied with --wma-root or by putting wm_apply_ORG_atlas_to_subject.sh on PATH.",
+            )
+            wma_root_source = "user setting"
+            wma_root = _resolve_path(config.wma_root)
+            if wma_root is None:
+                wma_root, wma_root_source = _env_path_with_source("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT")
+            if wma_root is not None:
+                _path(
+                    specs,
+                    target=target,
+                    key="wma_root_path",
+                    label="WhiteMatterAnalysis checkout path",
+                    path=wma_root,
+                    path_kind="dir",
+                    group="wma",
+                    discovery_source=wma_root_source,
+                )
+            _command(
+                specs,
+                target=target,
+                command="wm_apply_ORG_atlas_to_subject.sh",
+                group="wma",
+                bin_dir=wma_root / "bin" if config.wma_root is not None and wma_root is not None else None,
+            )
+            wma_atlas_dir_source = "user setting"
+            wma_atlas_dir = _resolve_path(config.wma_atlas_dir)
+            if wma_atlas_dir is None:
+                wma_atlas_dir, wma_atlas_dir_source = _env_path_with_source(
+                    "SLICERDDSURFER_WMA_ATLAS_DIR",
+                    "WMA_ATLAS_DIR",
+                )
+            if wma_atlas_dir is not None:
+                _path(
+                    specs,
+                    target=target,
+                    key="wma_org_atlas",
+                    label="WMA ORG atlas directory",
+                    path=wma_atlas_dir,
+                    path_kind="dir",
+                    group="wma",
+                    discovery_source=wma_atlas_dir_source,
+                )
+                for child in ("ORG-RegAtlas-100HCP", "ORG-800FC-100HCP"):
+                    _path(
+                        specs,
+                        target=target,
+                        key=f"wma_org_atlas_{child}",
+                        label=f"WMA atlas subdirectory {child}",
+                        path=wma_atlas_dir / child,
+                        path_kind="dir",
+                        group="wma",
+                        discovery_source=wma_atlas_dir_source,
+                    )
+            else:
+                _setting(
+                    specs,
+                    target=target,
+                    key="wma_org_atlas",
+                    label="WMA ORG atlas directory",
+                    group="wma",
+                    notes="Pass --wma-atlas-dir. The directory must contain ORG-RegAtlas-100HCP and ORG-800FC-100HCP.",
+                )
+            _env(
+                specs,
+                target=target,
+                key="slicer_executable",
+                label="Slicer executable for WMA",
+                env_vars=("SLICERDDSURFER_SLICER_EXECUTABLE",),
+                group="slicer",
+                required=config.slicer_executable is None,
+                notes="Can also be supplied with --slicer-executable.",
+            )
+            slicer_executable_source = "user setting"
+            slicer_executable = _resolve_path(config.slicer_executable)
+            if slicer_executable is None:
+                slicer_executable, slicer_executable_source = _env_path_with_source(
+                    "SLICERDDSURFER_SLICER_EXECUTABLE",
+                )
+            if slicer_executable is not None:
+                _path(
+                    specs,
+                    target=target,
+                    key="slicer_executable_path",
+                    label="Slicer executable path",
+                    path=slicer_executable,
+                    path_kind="file",
+                    group="slicer",
+                    discovery_source=slicer_executable_source,
+                )
+            fiber_cli_source = "user setting"
+            fiber_cli = _resolve_path(config.fiber_tract_measurements_cli)
+            if fiber_cli is None:
+                fiber_cli, fiber_cli_source = _env_path_with_source(
+                    "SLICERDDSURFER_FIBER_TRACT_MEASUREMENTS_CLI",
+                )
+            if fiber_cli is not None:
+                _path(
+                    specs,
+                    target=target,
+                    key="fiber_tract_measurements_cli",
+                    label="SlicerDMRI FiberTractMeasurements CLI",
+                    path=fiber_cli,
+                    path_kind="file",
+                    group="slicer-dmri",
+                    required=False,
+                    discovery_source=fiber_cli_source,
+                )
+
+        if target == "tractcloud":
+            _add_core_python(specs, target)
+            tractcloud_root_source = "user setting"
+            tractcloud_root = _resolve_path(config.tractcloud_root)
+            if tractcloud_root is None:
+                tractcloud_root, tractcloud_root_source = _env_path_with_source(
+                    "SLICERDDSURFER_TRACTCLOUD_ROOT",
+                    "TRACTCLOUD_ROOT",
+                )
+            tractcloud_python_source = "user setting"
+            tractcloud_python = _resolve_path(config.tractcloud_python_executable)
+            if tractcloud_python is None:
+                tractcloud_python, tractcloud_python_source = _env_path_with_source(
+                    "SLICERDDSURFER_TRACTCLOUD_PYTHON_EXECUTABLE",
+                    "TRACTCLOUD_PYTHON_EXECUTABLE",
+                )
+            if tractcloud_python is not None:
+                _path(
+                    specs,
+                    target=target,
+                    key="tractcloud_python",
+                    label="TractCloud Python executable",
+                    path=tractcloud_python,
+                    path_kind="file",
+                    group="tractcloud",
+                    discovery_source=tractcloud_python_source,
+                )
+            _env(
+                specs,
+                target=target,
+                key="tractcloud_root",
+                label="TractCloud checkout/package",
+                env_vars=("SLICERDDSURFER_TRACTCLOUD_ROOT", "TRACTCLOUD_ROOT"),
+                group="tractcloud",
+                required=False,
+                notes="Can also be supplied with --tractcloud-root.",
+            )
+            if tractcloud_root is not None:
+                _path(
+                    specs,
+                    target=target,
+                    key="tractcloud_root_path",
+                    label="TractCloud checkout path",
+                    path=tractcloud_root,
+                    path_kind="dir",
+                    group="tractcloud",
+                    discovery_source=tractcloud_root_source,
+                )
+                python_path_entries = (_tractcloud_pythonpath(tractcloud_root),)
+            else:
+                python_path_entries = ()
+            _python(
+                specs,
+                target=target,
+                import_name="tractcloud",
+                package="tractcloud",
+                python_executable=tractcloud_python,
+                python_path_entries=python_path_entries,
+            )
+            _python(
+                specs,
+                target=target,
+                import_name="torch",
+                package="torch>=2.0.0",
+                python_executable=tractcloud_python,
+                notes="Inside Slicer, prefer installing torch via the Slicer PyTorch extension.",
+            )
+            _device(
+                specs,
+                target=target,
+                device=config.tractcloud_device,
+                python_executable=tractcloud_python or config.python_executable,
+            )
+            tractcloud_data_dir_source = "user setting"
+            tractcloud_data_dir = _resolve_path(config.tractcloud_data_dir)
+            if tractcloud_data_dir is None:
+                tractcloud_data_dir, tractcloud_data_dir_source = _env_path_with_source(
+                    "SLICERDDSURFER_TRACTCLOUD_DATA_DIR",
+                    "TRACTCLOUD_DATA_DIR",
+                )
+            if tractcloud_data_dir is not None:
+                _path(
+                    specs,
+                    target=target,
+                    key="tractcloud_data_dir",
+                    label="TractCloud model/data directory",
+                    path=tractcloud_data_dir,
+                    path_kind="dir",
+                    group="tractcloud",
+                    discovery_source=tractcloud_data_dir_source,
+                )
+
+    return tuple(sorted(_apply_default_python(specs.values(), config.python_executable), key=lambda item: item.key))
+
+
+def _install_hint(spec: DependencySpec, platform_name: str) -> str:
+    if spec.kind == "python" and spec.python_package:
+        python_bin = spec.python_executable.as_posix() if spec.python_executable else "python"
+        return f"Install in the checked Python/Slicer Python: {python_bin} -m pip install '{spec.python_package}'"
+    if spec.kind == "setting":
+        return spec.notes or "Provide the required CLI/GUI setting before running this target."
+    if spec.install_group == "mrtrix":
+        if platform_name == "Darwin":
+            return "Install MRtrix3, for example: brew install mrtrix3, or use a conda environment."
+        if platform_name == "Windows":
+            return "Use WSL2/Linux or a conda/container backend for MRtrix3; native Windows support is not recommended."
+        return "Install MRtrix3 and add its bin directory to PATH, or pass --mrtrix-bin-dir."
+    if spec.install_group == "fsl":
+        return "Install FSL/eddy/topup via the official FSL installer, then add $FSLDIR/bin to PATH or pass --preprocessing-fsl-bin-dir."
+    if spec.install_group == "freesurfer":
+        return "Install FreeSurfer, set FREESURFER_HOME, source SetUpFreeSurfer.sh, and provide a FreeSurfer license."
+    if spec.install_group == "wma":
+        return "Install/configure external WhiteMatterAnalysis and ORG atlas; pass --wma-root/--wma-atlas-dir or set SLICERDDSURFER_WMA_ROOT."
+    if spec.install_group == "tractcloud":
+        return "Install/configure external TractCloud package/check-out and model data; pass --tractcloud-root/--tractcloud-data-dir."
+    if spec.install_group == "model-resources":
+        return "Fetch model resources with git lfs pull, or set the documented resource override environment variables."
+    if spec.install_group == "slicer":
+        return "Pass --slicer-executable or set SLICERDDSURFER_SLICER_EXECUTABLE to the local Slicer executable."
+    if spec.install_group == "slicer-dmri":
+        return "Install SlicerDMRI in Slicer and point to the required CLI if this optional export is enabled."
+    if spec.install_group == "device":
+        return "Use CPU, or install a CUDA-capable PyTorch runtime and NVIDIA driver visible to the selected Python/Slicer environment."
+    return spec.notes
+
+
+def _check_cuda_device(device: str, python_executable: Optional[Path]) -> tuple[bool, dict[str, Any]]:
+    python_path = python_executable or Path(sys.executable)
+    probe = (
+        "import json; "
+        "payload = {'torch_importable': False, 'cuda_available': False, 'device_count': 0, 'torch_version': None, 'error': None}; "
+        "\ntry:\n"
+        "    import torch\n"
+        "    payload['torch_importable'] = True\n"
+        "    payload['torch_version'] = getattr(torch, '__version__', None)\n"
+        "    payload['cuda_available'] = bool(torch.cuda.is_available())\n"
+        "    payload['device_count'] = int(torch.cuda.device_count()) if payload['cuda_available'] else 0\n"
+        "except Exception as exc:\n"
+        "    payload['error'] = str(exc)\n"
+        "print(json.dumps(payload))"
+    )
+    try:
+        completed = subprocess.run(
+            [python_path.as_posix(), "-c", probe],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        details = json.loads(completed.stdout.strip() or "{}")
+    except Exception as exc:
+        details = {
+            "torch_importable": False,
+            "cuda_available": False,
+            "device_count": 0,
+            "torch_version": None,
+            "error": str(exc),
+        }
+
+    requested_index: Optional[int] = None
+    if ":" in device:
+        try:
+            requested_index = int(device.split(":", 1)[1])
+        except ValueError:
+            requested_index = None
+    available = bool(details.get("cuda_available"))
+    if requested_index is not None:
+        available = available and int(details.get("device_count") or 0) > requested_index
+    details["requested_device"] = device
+    details["requested_index"] = requested_index
+    details["python_executable"] = python_path.as_posix()
+    return available, details
+
+
+def resolve_auto_torch_device(device: str = "auto", python_executable: Optional[Path] = None) -> str:
+    """Resolve ``auto`` to one concrete torch device without running both CPU and GPU paths."""
+
+    normalized = (device or "auto").strip().lower()
+    if normalized in {"", "auto"}:
+        available, details = _check_cuda_device("cuda:0", python_executable)
+        return "cuda:0" if available and int(details.get("device_count") or 0) > 0 else "cpu"
+    if normalized == "cuda":
+        return "cuda:0"
+    return normalized
+
+
+def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
+    details: dict[str, Any] = {}
+    available = False
+
+    if spec.kind == "python":
+        assert spec.python_import
+        python_executable = spec.python_executable
+        python_path_entries = tuple(path for path in spec.python_path_entries if path)
+        if python_executable is None and not python_path_entries:
+            available = importlib.util.find_spec(spec.python_import) is not None
+            details = {
+                "import": spec.python_import,
+                "package": spec.python_package,
+                "python_executable": sys.executable,
+                "pythonpath": [],
+                "detected_source": "current Python" if available else "not found",
+            }
+        else:
+            python_path = python_executable or Path(sys.executable)
+            env = os.environ.copy()
+            if python_path_entries:
+                env["PYTHONPATH"] = os.pathsep.join(path.as_posix() for path in python_path_entries) + os.pathsep + env.get("PYTHONPATH", "")
+            probe = (
+                "import importlib.util, json; "
+                f"print(json.dumps({{'available': importlib.util.find_spec({spec.python_import!r}) is not None}}))"
+            )
+            try:
+                completed = subprocess.run(
+                    [python_path.as_posix(), "-c", probe],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                )
+                available = bool(json.loads(completed.stdout.strip() or "{}").get("available"))
+                error = None
+            except Exception as exc:
+                available = False
+                error = str(exc)
+            details = {
+                "import": spec.python_import,
+                "package": spec.python_package,
+                "python_executable": python_path.as_posix(),
+                "pythonpath": [path.as_posix() for path in python_path_entries],
+                "detected_source": "configured Python/PYTHONPATH" if available else "not found",
+                "error": error,
+            }
+    elif spec.kind == "command":
+        assert spec.command
+        found, detected_source, checked_locations = _resolve_command_with_source(spec, platform_name)
+        available = found is not None
+        details = {
+            "command": spec.command,
+            "resolved": found,
+            "bin_dir": spec.bin_dir.as_posix() if spec.bin_dir else None,
+            "detected_source": detected_source,
+            "checked_locations": checked_locations,
+        }
+    elif spec.kind == "env":
+        values = {name: os.environ.get(name) for name in spec.env_vars}
+        available = any(value for value in values.values())
+        detected_source = next((f"env:{name}" for name, value in values.items() if value), "not found")
+        details = {"env": values, "notes": spec.notes, "detected_source": detected_source}
+    elif spec.kind == "device":
+        requested_device = spec.device or "cpu"
+        if requested_device in {"cpu", ""}:
+            available = True
+            details = {
+                "requested_device": requested_device,
+                "python_executable": (spec.python_executable or Path(sys.executable)).as_posix(),
+                "detected_source": "configured device",
+            }
+        elif requested_device == "auto":
+            resolved = resolve_auto_torch_device(requested_device, spec.python_executable)
+            available = True
+            details = {
+                "requested_device": requested_device,
+                "resolved_device": resolved,
+                "python_executable": (spec.python_executable or Path(sys.executable)).as_posix(),
+                "detected_source": "auto",
+            }
+        elif requested_device.startswith("cuda"):
+            available, details = _check_cuda_device(requested_device, spec.python_executable)
+            details["detected_source"] = "CUDA runtime" if available else "not found"
+        else:
+            available = False
+            details = {
+                "requested_device": requested_device,
+                "python_executable": (spec.python_executable or Path(sys.executable)).as_posix(),
+                "detected_source": "not found",
+                "error": "Only cpu, auto, cuda, and cuda:N are supported by the environment doctor.",
+            }
+    elif spec.kind == "path":
+        assert spec.path
+        if spec.path_kind == "dir":
+            available = spec.path.is_dir()
+        elif spec.path_kind == "nonempty_dir":
+            available = spec.path.is_dir() and any(spec.path.iterdir())
+        else:
+            available = spec.path.is_file()
+        details = {
+            "path": spec.path.as_posix(),
+            "path_kind": spec.path_kind,
+            "notes": spec.notes,
+            "detected_source": spec.discovery_source if available else "not found",
+        }
+    elif spec.kind == "setting":
+        available = False
+        details = {"notes": spec.notes, "detected_source": "not configured"}
+    else:
+        details = {"notes": spec.notes, "detected_source": spec.discovery_source or "unknown"}
+
+    return DependencyStatus(
+        key=spec.key,
+        kind=spec.kind,
+        label=spec.label,
+        status="available" if available else "missing",
+        required=spec.required,
+        targets=spec.targets,
+        details=details,
+        install_hint="" if available else _install_hint(spec, platform_name),
+    )
+
+
+def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctorResult:
+    platform_name = platform.system() or "unknown"
+    targets = _clean_targets(config.targets)
+    checked_python = (_resolve_path(config.python_executable) or Path(sys.executable)).as_posix()
+    specs = build_dependency_specs(config)
+    statuses = tuple(_check_spec(spec, platform_name) for spec in specs)
+    status_by_key = {item.key: item for item in statuses}
+
+    target_statuses: list[TargetEnvironmentStatus] = []
+    for target in targets:
+        related = [item for item in statuses if target in item.targets]
+        missing_required = tuple(item.key for item in related if item.required and item.status == "missing")
+        missing_optional = tuple(item.key for item in related if not item.required and item.status == "missing")
+        target_statuses.append(
+            TargetEnvironmentStatus(
+                target=target,
+                status="blocked" if missing_required else "runnable",
+                missing_required=missing_required,
+                missing_optional=missing_optional,
+            )
+        )
+
+    missing_python_packages = tuple(
+        dict.fromkeys(
+            item.details.get("package")
+            for item in statuses
+            if item.kind == "python" and item.status == "missing" and item.details.get("package")
+        )
+    )
+    missing_external_groups = tuple(
+        sorted(
+            {
+                specs_by_key.install_group
+                for specs_by_key in specs
+                if status_by_key[specs_by_key.key].status == "missing" and specs_by_key.kind != "python"
+            }
+        )
+    )
+    blocker_count = sum(1 for item in statuses if item.required and item.status == "missing")
+
+    return EnvironmentDoctorResult(
+        platform=platform_name,
+        python_executable=checked_python,
+        targets=targets,
+        statuses=statuses,
+        target_statuses=tuple(target_statuses),
+        blocker_count=blocker_count,
+        missing_python_packages=missing_python_packages,
+        missing_external_groups=missing_external_groups,
+    )
+
+
+def summarize_environment_doctor(result: EnvironmentDoctorResult) -> str:
+    lines = [
+        f"Environment doctor: {len(result.runnable_targets)} runnable target(s), "
+        f"{len(result.blocked_targets)} blocked target(s), {result.blocker_count} missing required item(s).",
+    ]
+    if result.runnable_targets:
+        lines.append("Runnable: " + ", ".join(result.runnable_targets))
+    if result.blocked_targets:
+        lines.append("Blocked: " + ", ".join(result.blocked_targets))
+    for target in result.target_statuses:
+        if target.missing_required:
+            lines.append(f"- {target.target}: missing {', '.join(target.missing_required)}")
+    return "\n".join(lines)
+
+
+def blocked_target_reasons(result: EnvironmentDoctorResult) -> dict[str, str]:
+    """Return target -> human-readable preflight blocker reason."""
+
+    status_by_key = {item.key: item for item in result.statuses}
+    reasons: dict[str, str] = {}
+    for target in result.target_statuses:
+        if target.status != "blocked":
+            continue
+        missing = []
+        for key in target.missing_required:
+            dependency = status_by_key.get(key)
+            if dependency is None:
+                missing.append(key)
+                continue
+            source = dependency.details.get("detected_source")
+            source_suffix = f" ({source})" if source else ""
+            missing.append(f"{dependency.label}{source_suffix}")
+        reasons[target.target] = "preflight missing dependencies: " + ", ".join(missing)
+    return reasons
+
+
+def _shell_quote(value: str) -> str:
+    return "'" + value.replace("'", "'\"'\"'") + "'"
+
+
+def write_environment_report(result: EnvironmentDoctorResult, output_dir: Path) -> dict[str, Path]:
+    """Write JSON report plus user-editable install helper scripts."""
+
+    output_dir = output_dir.expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    report_path = output_dir / "environment_doctor.json"
+    report_path.write_text(json.dumps(result.to_dict(), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    packages = result.missing_python_packages
+    sh_path = output_dir / "install_missing_python.sh"
+    ps1_path = output_dir / "install_missing_python.ps1"
+    notes_path = output_dir / "install_external_tools.md"
+    default_python = result.python_executable or "python3"
+
+    if packages:
+        sh_lines = [
+            "#!/usr/bin/env bash",
+            "set -euo pipefail",
+            f'PYTHON_BIN="${{PYTHON_BIN:-{default_python}}}"',
+            '"$PYTHON_BIN" -m pip install ' + " ".join(_shell_quote(pkg) for pkg in packages),
+            "",
+        ]
+        ps1_lines = [
+            '$ErrorActionPreference = "Stop"',
+            f'if (-not $env:PYTHON_BIN) {{ $env:PYTHON_BIN = "{default_python}" }}',
+            "& $env:PYTHON_BIN -m pip install " + " ".join(f'"{pkg}"' for pkg in packages),
+            "",
+        ]
+    else:
+        sh_lines = [
+            "#!/usr/bin/env bash",
+            "set -euo pipefail",
+            f'PYTHON_BIN="${{PYTHON_BIN:-{default_python}}}"',
+            'echo "No missing Python packages were detected for the selected targets."',
+            "",
+        ]
+        ps1_lines = [
+            '$ErrorActionPreference = "Stop"',
+            f'if (-not $env:PYTHON_BIN) {{ $env:PYTHON_BIN = "{default_python}" }}',
+            'Write-Host "No missing Python packages were detected for the selected targets."',
+            "",
+        ]
+    sh_path.write_text("\n".join(sh_lines), encoding="utf-8")
+    ps1_path.write_text("\n".join(ps1_lines), encoding="utf-8")
+
+    missing_external = [
+        item
+        for item in result.statuses
+        if item.status == "missing" and item.kind != "python"
+    ]
+    note_lines = [
+        "# SlicerDDSurfer External Tool Install Notes",
+        "",
+        "These items cannot be installed safely without user/platform-specific choices such as admin access, license files, model data, or conda/container policy.",
+        "",
+    ]
+    if not missing_external:
+        note_lines.append("No missing external tools/resources were detected for the selected targets.")
+    for item in missing_external:
+        note_lines.extend(
+            [
+                f"## {item.label}",
+                "",
+                f"- Key: `{item.key}`",
+                f"- Required: `{item.required}`",
+                f"- Targets: `{', '.join(item.targets)}`",
+                f"- Detected source: `{item.details.get('detected_source', 'not found')}`",
+                f"- Suggested fix: {item.install_hint or 'See EXTERNAL_DEPENDENCIES.md.'}",
+                "",
+            ]
+        )
+        checked_locations = item.details.get("checked_locations") or ()
+        if checked_locations:
+            note_lines.extend(["Checked locations:", ""])
+            note_lines.extend(f"- `{location}`" for location in checked_locations)
+            note_lines.append("")
+    notes_path.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
+    try:
+        sh_path.chmod(0o755)
+    except OSError:
+        pass
+
+    return {"json": report_path, "python_sh": sh_path, "python_ps1": ps1_path, "external_notes": notes_path}
+
+
+__all__ = [
+    "DependencySpec",
+    "DependencyStatus",
+    "EnvironmentDoctorConfig",
+    "EnvironmentDoctorResult",
+    "TargetEnvironmentStatus",
+    "build_dependency_specs",
+    "blocked_target_reasons",
+    "run_environment_doctor",
+    "resolve_auto_torch_device",
+    "summarize_environment_doctor",
+    "write_environment_report",
+]

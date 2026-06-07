@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from shared.io_layout import default_task_output_dir
+from shared.external_process import merged_startup_environment
 from shared.pipeline import RawInputBundle, find_subject_root
 
 
@@ -166,7 +167,7 @@ def _run_command(cmd: list[str], *, env: dict[str, str], log: Optional[Callable[
         log("[Preproc] Running: " + " ".join(cmd))
     process = subprocess.Popen(
         cmd,
-        env=env,
+        env=merged_startup_environment(env),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -573,8 +574,7 @@ def run_dwi_preprocessing(
     if backend.get("backend") == "dipy":
         backend_details = _run_dipy_backend(raw, config, paths, log=log)
     else:
-        env = os.environ.copy()
-        env["PATH"] = _command_search_path(config)
+        env = merged_startup_environment({"PATH": _command_search_path(config)})
         for command in commands:
             if command[0] == "copy":
                 shutil.copy2(command[1], command[2])

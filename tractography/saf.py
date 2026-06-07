@@ -12,6 +12,7 @@ import importlib.util
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 from contextlib import contextmanager
@@ -20,6 +21,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, Optional
 
 from shared import default_task_output_dir, find_subject_root
+from shared.external_process import startup_environment
 
 
 REQUIRED_SAF_PYTHON_PACKAGES = ("numpy", "scipy", "sklearn", "nibabel")
@@ -29,6 +31,24 @@ LENGTH_FILTER_MRTRIX_COMMANDS = ("tckstats",)
 OPTIONAL_MRTRIX_COMMANDS = ("tcksample",)
 REGISTRATION_COMMANDS = ("antsIntermodalityIntrasubject.sh", "antsApplyTransforms", "antsApplyTransformsToPoints")
 FREESURFER_COMMANDS = ("recon-all",)
+SAF_INTERMEDIATE_NAMES = (
+    "DWI_lh_pial.txt",
+    "DWI_lh_white.txt",
+    "DWI_rh_pial.txt",
+    "DWI_rh_white.txt",
+    "DWI_seeds_out.tck",
+    "DWI_seeds_out.txt",
+    "PS.mat",
+    "SD.mat",
+    "WSM_coords.txt",
+    "brain_T1.nii.gz",
+    "lengths.txt",
+    "mcc.tck",
+    "mgn.tck",
+    "rej.tck",
+    "surf_data",
+    "surf_tracks.tck",
+)
 
 
 @dataclass(frozen=True)
@@ -46,7 +66,7 @@ class SAFConfig:
     tckgen_options: str = ""
     mrtrix_bin_dir: Optional[Path] = None
     mrtrix_prefix: str = ""
-    noregister: bool = False
+    noregister: bool = True
     notrunc: bool = False
     fast_intersection: bool = True
     gwg_hard: bool = False
@@ -70,6 +90,8 @@ class SAFResult:
     qc_path: Path
     executed: bool
     backend_status: dict[str, Any]
+    saf_vtk_path: Optional[Path] = None
+    streamline_count: Optional[int] = None
     return_code: Optional[int] = None
 
 
@@ -235,6 +257,44 @@ def _effective_mrtrix_prefix(config: SAFConfig) -> str:
     return f"PATH={bin_dir.as_posix()}:$PATH "
 
 
+def _resolved_mrtrix_command(config: SAFConfig, command: str) -> Optional[str]:
+    bin_dir = _configured_mrtrix_bin_dir(config.mrtrix_bin_dir)
+    return _resolve_command(command, bin_dir=bin_dir)
+
+
+def _run_mrtrix_command(args: list[str], *, log: Optional[Callable[[str], None]] = None) -> subprocess.CompletedProcess[str]:
+    _emit("[SAF] " + " ".join(args), log)
+    return subprocess.run(args, check=True, capture_output=True, text=True, env=startup_environment())
+
+
+def _count_tck_streamlines(tck_path: Path, *, config: SAFConfig, log: Optional[Callable[[str], None]] = None) -> tuple[Optional[int], Optional[str]]:
+    tckstats = _resolved_mrtrix_command(config, "tckstats")
+    if tckstats is None:
+        return None, "mrtrix:tckstats not found"
+    try:
+        completed = _run_mrtrix_command([tckstats, "-output", "count", tck_path.as_posix()], log=log)
+        return int(completed.stdout.strip().split()[0]), None
+    except Exception as exc:
+        return None, str(exc)
+
+
+def _export_tck_to_vtk(
+    tck_path: Path,
+    vtk_path: Path,
+    *,
+    config: SAFConfig,
+    log: Optional[Callable[[str], None]] = None,
+) -> tuple[bool, Optional[str]]:
+    tckconvert = _resolved_mrtrix_command(config, "tckconvert")
+    if tckconvert is None:
+        return False, "mrtrix:tckconvert not found"
+    try:
+        _run_mrtrix_command([tckconvert, tck_path.as_posix(), vtk_path.as_posix(), "-force"], log=log)
+        return vtk_path.is_file(), None if vtk_path.is_file() else "tckconvert finished without VTK output"
+    except Exception as exc:
+        return False, str(exc)
+
+
 def _build_saf_args(config: SAFConfig, output_dir: Path) -> list[Any]:
     args: list[Any] = [
         "fs_dir",
@@ -297,15 +357,56 @@ def _saf_backend_import_path() -> Iterator[None]:
                 pass
 
 
+def _saf_cache_dir(output_dir: Path) -> Path:
+    return output_dir / "cache"
+
+
+def _saf_output_or_cache_path(output_dir: Path, name: str) -> Path:
+    direct = output_dir / name
+    if direct.exists() or direct.is_symlink():
+        return direct
+    return _saf_cache_dir(output_dir) / name
+
+
+def _unique_cache_destination(cache_dir: Path, name: str) -> Path:
+    dest = cache_dir / name
+    if not dest.exists() and not dest.is_symlink():
+        return dest
+    suffix = 1
+    while True:
+        candidate = cache_dir / f"{name}.{suffix}"
+        if not candidate.exists() and not candidate.is_symlink():
+            return candidate
+        suffix += 1
+
+
+def _cache_saf_intermediates(output_dir: Path) -> dict[str, str]:
+    """Move non-product SAF artifacts out of the user-facing run directory."""
+
+    moved: dict[str, str] = {}
+    cache_dir = _saf_cache_dir(output_dir)
+    for name in SAF_INTERMEDIATE_NAMES:
+        src = output_dir / name
+        if not src.exists() and not src.is_symlink():
+            continue
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        dest = _unique_cache_destination(cache_dir, name)
+        shutil.move(src.as_posix(), dest.as_posix())
+        moved[name] = dest.as_posix()
+    return moved
+
+
 def _summarize_saf_outputs(output_dir: Path) -> dict[str, Any]:
     saf_tractogram = output_dir / "SAF.tck"
-    surf_data = output_dir / "surf_data"
+    saf_vtk = output_dir / "SAF.vtk"
+    surf_data = _saf_output_or_cache_path(output_dir, "surf_data")
     return {
         "saf_tractogram": _file_info(saf_tractogram),
+        "saf_vtk": _file_info(saf_vtk),
         "weights": _file_info(output_dir / "SAF.wts"),
         "log": _file_info(output_dir / "log.txt"),
-        "ps_mat": _file_info(output_dir / "PS.mat"),
-        "sd_mat": _file_info(output_dir / "SD.mat"),
+        "ps_mat": _file_info(_saf_output_or_cache_path(output_dir, "PS.mat")),
+        "sd_mat": _file_info(_saf_output_or_cache_path(output_dir, "SD.mat")),
         "surface_data_dir": _file_info(surf_data),
         "surface_data_files": sorted(path.name for path in surf_data.iterdir()) if surf_data.is_dir() else [],
     }
@@ -329,6 +430,7 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
     manifest_path = output_dir / "saf_manifest.json"
     qc_path = output_dir / "saf_qc.json"
     saf_tractogram = output_dir / "SAF.tck"
+    saf_vtk_path = output_dir / "SAF.vtk"
     backend_status = inspect_saf_backend(
         mrtrix_bin_dir=config.mrtrix_bin_dir,
         mrtrix_prefix=config.mrtrix_prefix,
@@ -407,6 +509,18 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
     if config.execute and execution_error is None and not saf_tractogram.is_file():
         execution_error = "SAF backend finished without SAF.tck."
         return_code = 1
+    streamline_count: Optional[int] = None
+    streamline_count_error: Optional[str] = None
+    vtk_export_error: Optional[str] = None
+    cached_intermediates: dict[str, str] = {}
+    if config.execute and execution_error is None and saf_tractogram.is_file():
+        streamline_count, streamline_count_error = _count_tck_streamlines(saf_tractogram, config=config, log=log)
+        vtk_ok, vtk_export_error = _export_tck_to_vtk(saf_tractogram, saf_vtk_path, config=config, log=log)
+        if vtk_ok:
+            vtk_export_error = None
+        if not config.diagnostics:
+            cached_intermediates = _cache_saf_intermediates(output_dir)
+        output_summary = _summarize_saf_outputs(output_dir)
     qc = {
         "kind": "saf_qc",
         "version": 1,
@@ -416,13 +530,22 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
         "return_code": return_code,
         "elapsed_seconds": elapsed_seconds,
         "backend_available": bool(backend_status["available"]),
+        "streamline_count": streamline_count,
+        "streamline_count_error": streamline_count_error,
+        "vtk_export_error": vtk_export_error,
+        "cached_intermediates": cached_intermediates,
         "output_summary": output_summary,
         "error": execution_error,
     }
     qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     manifest["status"] = qc["status"]
     manifest["return_code"] = return_code
+    manifest["streamline_count"] = streamline_count
+    manifest["streamline_count_error"] = streamline_count_error
+    manifest["vtk_export_error"] = vtk_export_error
+    manifest["cached_intermediates"] = cached_intermediates
     manifest["outputs"]["summary"] = output_summary
+    manifest["outputs"]["saf_vtk"] = saf_vtk_path.as_posix()
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if execution_error is not None:
         raise RuntimeError(f"SAF execution failed: {execution_error}")
@@ -435,5 +558,7 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
         qc_path=qc_path,
         executed=bool(config.execute),
         backend_status=backend_status,
+        saf_vtk_path=saf_vtk_path if saf_vtk_path.is_file() else None,
+        streamline_count=streamline_count,
         return_code=return_code,
     )

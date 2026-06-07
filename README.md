@@ -6,11 +6,28 @@ SlicerDDSurfer is a 3D Slicer scripted module that bundles multiple diffusion-MR
 - **DDParcel**: 101-region parcellation pipeline built on diffusion features.
 - **DDSeg**: WM/GM/CSF segmentation from DWI using multi-view CNNs.
 - **Microstructure**: FA/MD, ROI-wise statistics, Free Water, and AMICO NODDI.
-- **Tractography**: DTI tracking scaffold, ACT dependency scaffold, and WMA ORG atlas clustering scaffold, with CSD planned.
-- **Connectome**: tractography + DDParcel dependency checks and optional streamline-count matrix execution.
-- **Surface post-process**: Docker-based refinement using the `postprocess-release` repo.
+- **Tractography**: DTI tracking, MRtrix CSD/FOD/ACT, WMQL bundles, WMA, TractCloud wrapper, and SAF short association fibres.
+- **Connectome**: tractography + DDParcel streamline-count, SIFT2, length, and scalar-weighted matrix execution.
+- **Surface post-process**: bundled DDSurfer postprocess backend for FreeSurfer-style surf/label/stats refinement.
 
 **Chinese version:** [README.zh-CN.md](README.zh-CN.md)
+
+**External dependencies and local configuration:** [EXTERNAL_DEPENDENCIES.md](EXTERNAL_DEPENDENCIES.md)
+
+The Slicer UI and CLI both support external dependency path overrides. In Slicer, use `Environment & Dependencies` to import/export a CLI-compatible dependency config; on the CLI, use explicit path flags or `--dependency-config` / `--save-dependency-config`.
+
+After each orchestrated run, SlicerDDSurfer writes:
+- `outputs/00_run_metadata/<run_name>_orchestration_manifest.json`
+- `outputs/00_run_metadata/output_tree_audit.json`
+- `outputs/06_slicer_scene_report/report.html`
+- `outputs/06_slicer_scene_report/provenance.json`
+- `outputs/06_slicer_scene_report/qc_summary.json`
+
+Before pushing a release branch, run:
+
+```bash
+python3 scripts/release_audit.py
+```
 
 ---
 
@@ -29,7 +46,7 @@ Resources/
 # Final product-area packages
 
 shared/                       # Shared subject-root / DTI / registration caches
-surface/                      # DDSurfer preprocessing / prediction / postprocessing / sculpting
+surface/                      # DDSurfer preprocessing / prediction / postprocessing
 parcellation/                 # DDParcel pipeline, conversion, data loader, weights
 segmentation/                 # DDSeg package, runner, weights
 microstructure/               # FA/MD, ROI-wise stats, Free Water, NODDI
@@ -38,7 +55,7 @@ connectome/                   # Tractography + DDParcel connectome planning/exec
 workflow_catalog.py           # Product taxonomy and navigation metadata
 PRODUCT_ARCHITECTURE.md       # Product-level mapping and design notes
 
-run_postprocess_docker.py     # Docker post-process helper
+surface/ddsurfer_postprocess_release/  # bundled DDSurfer postprocess backend
 ```
 
 ---
@@ -46,26 +63,22 @@ run_postprocess_docker.py     # Docker post-process helper
 ## Slicer integration (SlicerDDSurfer.py)
 
 ### UI and navigation
-- A **top navigation bar** provides quick jumps to:
-  - Parcellation
-  - Microstructure
-  - Segmentation
-  - Surface
-  - Surface post-process
-- The main DDSurfer panel is a collapsible section labeled **"DDSurfer"**.
-- Additional panels exist for DDParcel, DDSeg, and Docker post-process.
+- The current Slicer UI is organized around one shared `Subject root` and `Output directory`.
+- Users select target products and a small set of run parameters: `run_name`, tractography backend, bundle backend, microstructure stages, and streamlines.
+- Advanced external paths live under `Environment & Dependencies` and can be imported/exported as JSON.
 
 ### Parameter node
 `SlicerDDSurferParameterNode` stores all UI state for:
 - DDSurfer inputs/outputs
 - DDParcel inputs/outputs/atlas
 - DDSeg inputs/weights/device
-- Docker post-process configuration
+- DDSurfer post-process configuration
 
 ### Runtime behaviors
-- Validates required inputs before running each pipeline.
-- Uses Slicer’s Python package installer and/or the **PyTorch extension** when needed.
-- Loads output meshes into the scene once DDSurfer completes.
+- Runs dependency preflight before execution and continues runnable targets when optional targets are blocked.
+- Installs only missing Python packages into the active Slicer Python environment when requested.
+- Writes per-task manifest/QC/log records and a subject-level HTML/provenance/QC report.
+- Auto-loads key output volumes, surfaces, tables, and tractography bundles into the Slicer scene when loaders are available.
 
 ---
 
@@ -89,12 +102,6 @@ run_postprocess_docker.py     # Docker post-process helper
 - Converts meshes from template space back to subject-native space.
 - Uses transform file and SimpleITK.
 - Outputs STL meshes (native space).
-
-### 4) Sculptor (`sculpting/surface_sculptor.py`)
-- Brush-based, topology-preserving surface editing.
-- Works in slice and 3D views.
-- Tools: Smooth / Paint (Grow) / Erase (Shrink) / Flatten.
-- Supports undo and STL export.
 
 ---
 
@@ -298,11 +305,77 @@ git lfs pull
 - Python packages: `nibabel`, `SimpleITK`, `trimesh`, `tqdm`, `networkx`
 - For Docker post-process: Docker, FreeSurfer license, postprocess-release repo
 
+This is only a minimal summary. Full optional backend requirements, environment
+variables, and per-target dependency notes are documented in
+[EXTERNAL_DEPENDENCIES.md](EXTERNAL_DEPENDENCIES.md).
+
+Before running on a new machine, use the environment doctor:
+
+```bash
+python3 run_subject_pipeline.py \
+  --subject-root /path/to/subject \
+  --targets microstructure,tractography,bundles,connectome \
+  --microstructure-stages dti \
+  --tractography-backend csd_act \
+  --bundle-backend wmql \
+  --doctor
+```
+
+It reports runnable/blocked targets and writes install helpers under
+`outputs/00_run_metadata/environment/`.
+
+When executing, environment preflight is target-aware. Missing optional backend
+dependencies block only the affected target by default; runnable targets still
+run and blocked targets are recorded in the orchestration manifest. Use
+`--strict-environment` only when you want any selected missing dependency to
+abort the whole run.
+
+Useful high-level selectors:
+
+- `--microstructure-stages dti|dti,freewater|dti,freewater,noddi|all`
+- `--tractography-backend csd_act|dti_det|saf`
+- `--bundle-backend wmql|wma|tractcloud|all`
+- `--select-streamlines <N>` and `--run-name <name>`
+
+To preview execution without running algorithms:
+
+```bash
+python3 run_subject_pipeline.py \
+  --subject-root /path/to/subject \
+  --targets validation,preprocessing,microstructure,tractography,bundles,connectome \
+  --microstructure-stages all \
+  --bundle-backend all \
+  --plan
+```
+
+The run plan records `will_run`, `skipped`, and `blocked` targets with blocker
+categories such as `environment`, `data`, `upstream`, and `configuration`.
+Executed runs also write normalized per-task records under
+`outputs/00_run_metadata/tasks/<run_name>/<task>/manifest.json`, `qc.json`, and
+`logs/`.
+Each orchestrator run also writes
+`outputs/00_run_metadata/output_tree_audit.json` to report missing canonical
+directories, legacy top-level outputs, or unexpected nested subject outputs.
+The Slicer UI mirrors the same information in the `Run Plan & Progress` table
+and lets users open manifest/QC/log paths from the result rows.
+Long UI runs are submitted through a background `QProcess` that calls the
+unified CLI, so the Slicer main thread stays responsive. The `Cancel running
+job` button terminates the background process and writes a
+`*_cancelled_orchestration_manifest.json` record.
+
+100307 regression command:
+
+```bash
+PYTHON_BIN="/data/chengjin/software/run-slicer.sh --launch PythonSlicer" \
+  scripts/run_100307_regression.sh
+```
+
+Set `DRY_RUN=1` to only generate the plan.
+
 ---
 
 ## Notes
 
 - DDSurfer expects DTI-derived scalar volumes and a transform from subject to atlas space.
 - DDSeg and DDParcel rely on DTI feature extraction via Slicer CLI modules.
-- Surface sculpting is topology-preserving (only vertex positions change).
 - Product architecture notes are summarized in [PRODUCT_ARCHITECTURE.md](PRODUCT_ARCHITECTURE.md).

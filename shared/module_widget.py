@@ -3,14 +3,88 @@
 from __future__ import annotations
 
 import os
+import json
+import sys
 from pathlib import Path
+from datetime import datetime
 from typing import Any, List, Optional
 
+import qt
 import slicer
 import vtk
-from qt import QFrame, QHBoxLayout, QLabel, QPixmap, QPushButton, QSignalBlocker
+from qt import QPixmap, QSignalBlocker
 
-from workflow_catalog import NAVIGATION_WORKFLOW_AREAS
+from shared import blocked_target_reasons, normalize_orchestrator_targets
+
+
+ENVIRONMENT_DEPENDENCY_PATHS: tuple[dict[str, str], ...] = (
+    {
+        "id": "mrtrix_bin_dir",
+        "label": "MRtrix3 bin dir",
+        "mode": "dir",
+        "tooltip": "Optional. Directory containing mrconvert, dwi2response, dwi2fod, tckgen, tcksift2.",
+    },
+    {
+        "id": "preprocessing_fsl_bin_dir",
+        "label": "FSL bin dir",
+        "mode": "dir",
+        "tooltip": "Optional. Directory containing eddy and topup for MRtrix/FSL preprocessing.",
+    },
+    {
+        "id": "postprocess_freesurfer_home",
+        "label": "FreeSurfer home",
+        "mode": "dir",
+        "tooltip": "Optional. FreeSurfer installation root. FREESURFER_HOME is also detected.",
+    },
+    {
+        "id": "tract_querier_root",
+        "label": "TractQuerier root",
+        "mode": "dir",
+        "tooltip": "Optional. Checkout root used by WMQL when tract_querier is not installed in Slicer Python.",
+    },
+    {
+        "id": "wma_root",
+        "label": "WMA root",
+        "mode": "dir",
+        "tooltip": "Optional. External WhiteMatterAnalysis checkout root.",
+    },
+    {
+        "id": "wma_atlas_dir",
+        "label": "WMA ORG atlas dir",
+        "mode": "dir",
+        "tooltip": "Optional. Directory containing ORG-RegAtlas-100HCP and ORG-800FC-100HCP.",
+    },
+    {
+        "id": "slicer_executable",
+        "label": "Slicer executable",
+        "mode": "file",
+        "tooltip": "Optional. Slicer executable used by WMA/SlicerDMRI helper calls.",
+    },
+    {
+        "id": "fiber_tract_measurements_cli",
+        "label": "FiberTractMeasurements CLI",
+        "mode": "file",
+        "tooltip": "Optional. SlicerDMRI FiberTractMeasurements CLI path.",
+    },
+    {
+        "id": "tractcloud_root",
+        "label": "TractCloud root",
+        "mode": "dir",
+        "tooltip": "Optional. TractCloud package/check-out root.",
+    },
+    {
+        "id": "tractcloud_python_executable",
+        "label": "TractCloud Python",
+        "mode": "file",
+        "tooltip": "Optional. Dedicated Python executable for TractCloud if not using Slicer Python.",
+    },
+    {
+        "id": "tractcloud_data_dir",
+        "label": "TractCloud data/model dir",
+        "mode": "dir",
+        "tooltip": "Optional. TractCloud model/data directory.",
+    },
+)
 
 
 class SharedWidgetMixin:
@@ -23,6 +97,8 @@ class SharedWidgetMixin:
             self.ui.validateButton.connect("clicked()", self._onValidateClicked)
         if hasattr(self.ui, "clearLogButton"):
             self.ui.clearLogButton.connect("clicked()", self._onClearLogClicked)
+        if hasattr(self.ui, "unifiedTorchDeviceComboBox"):
+            self.ui.unifiedTorchDeviceComboBox.currentTextChanged.connect(self._onUnifiedTorchDeviceChanged)
 
     def _initialize_common_ui_state(self) -> None:
         self._populateDeviceCombo()
@@ -30,6 +106,25 @@ class SharedWidgetMixin:
             self.ui.subjectIdLineEdit.setClearButtonEnabled(True)
         if hasattr(self.ui, "applyButton"):
             self.ui.applyButton.setAutoDefault(True)
+            self.ui.applyButton.visible = False
+
+        self._hide_legacy_product_panels()
+        self._initialize_environment_dependency_path_controls()
+        self._initialize_run_status_panel()
+        self._initialize_background_run_controls()
+
+        for widget_name in (
+            "surfaceOptionsSectionLabel",
+            "predictModeLabel",
+            "predictModeComboBox",
+            "deviceLabel",
+            "deviceComboBox",
+            "cleanupLabel",
+            "cleanupCheckBox",
+        ):
+            widget = getattr(self.ui, widget_name, None)
+            if widget:
+                widget.visible = False
 
         logo_label = getattr(self.ui, "logoLabel", None)
         if logo_label:
@@ -48,34 +143,588 @@ class SharedWidgetMixin:
         self._setStatus("error", "Waiting for input")
         self.initializeParameterNode()
 
-    def _add_navigation_panel(self) -> None:
-        """Add top-level navigation buttons for quick jumps to related modules."""
-        frame = QFrame()
-        frame.setObjectName("navigationFrame")
-        frame.setStyleSheet(
-            "QFrame#navigationFrame { background: #f7f9fc; border: 1px solid #d7dce5; border-radius: 8px; padding: 8px; } "
-            "QPushButton.navBtn { background-color: #1565C0; color: white; border-radius: 6px; padding: 6px 10px; } "
-            "QPushButton.navBtn:hover { background-color: #0d47a1; } "
-            "QPushButton.navBtn:disabled { background-color: #9e9e9e; } "
+    def _initialize_background_run_controls(self) -> None:
+        if getattr(self, "_cancelRunButton", None) is not None:
+            return
+        actions_layout = getattr(self.ui, "selectedActionsLayout", None)
+        if not actions_layout:
+            return
+        cancel_button = qt.QPushButton("Cancel running job")
+        cancel_button.enabled = False
+        cancel_button.setToolTip("Stop the background SlicerDDSurfer pipeline process and write a cancellation manifest.")
+        cancel_button.setStyleSheet(
+            "QPushButton { border: 1px solid #C62828; color: #C62828; border-radius: 6px; padding: 7px 14px; background: transparent; } "
+            "QPushButton:hover:!disabled { background-color: rgba(198,40,40,0.1); }"
         )
-        layout = QHBoxLayout(frame)
-        layout.setContentsMargins(8, 4, 8, 4)
-        layout.setSpacing(8)
-        label = QLabel("Choose product workflow:")
-        label.setStyleSheet("font-weight: 600; color: #263238;")
-        layout.addWidget(label)
+        cancel_button.connect("clicked()", self._onCancelRunClicked)
+        actions_layout.addWidget(cancel_button)
+        self._cancelRunButton = cancel_button
+        self._backgroundProcess = None
+        self._backgroundOutputBuffer = ""
+        self._backgroundManifestPath = None
+        self._backgroundCancelRequested = False
+        self._backgroundRunContext = {}
 
-        buttons = [(area.navigation_label, area.navigation_target) for area in NAVIGATION_WORKFLOW_AREAS]
-        for text, target in buttons:
-            btn = QPushButton(text)
-            btn.setObjectName("navBtn")
-            btn.setProperty("class", "navBtn")
-            btn.setToolTip("Jump to module")
-            btn.setStyleSheet("")
-            btn.clicked.connect(lambda _=False, tgt=target: self._jump_to_module(tgt))
-            layout.addWidget(btn)
-        layout.addStretch(1)
-        self.layout.insertWidget(0, frame)
+    def _hide_legacy_product_panels(self) -> None:
+        """Hide old per-product forms; unified subject parameters now drive all runs."""
+        for widget_name in (
+            "dockerPostprocessCollapsibleButton",
+            "ddparcelCollapsibleButton",
+            "microstructureCollapsibleButton",
+            "ddsegCollapsibleButton",
+            "infoCollapsibleButton",
+        ):
+            widget = getattr(self.ui, widget_name, None)
+            if widget:
+                widget.visible = False
+
+    def _environment_settings_key(self, dependency_id: str) -> str:
+        return f"SlicerDDSurfer/ExternalDependencies/{dependency_id}"
+
+    def _read_environment_path_setting(self, dependency_id: str) -> str:
+        settings = slicer.app.userSettings()
+        value = settings.value(self._environment_settings_key(dependency_id), "")
+        return str(value or "").strip()
+
+    def _save_environment_path_setting(self, dependency_id: str, value: str) -> None:
+        settings = slicer.app.userSettings()
+        clean_value = (value or "").strip()
+        if clean_value:
+            settings.setValue(self._environment_settings_key(dependency_id), clean_value)
+        else:
+            settings.remove(self._environment_settings_key(dependency_id))
+
+    def _line_edit_text(self, line_edit) -> str:
+        text_attr = getattr(line_edit, "text", "")
+        return str(text_attr() if callable(text_attr) else text_attr).strip()
+
+    def _initialize_environment_dependency_path_controls(self) -> None:
+        if getattr(self, "_environmentPathLineEdits", None) is not None:
+            return
+        environment_layout = getattr(self.ui, "environmentLayout", None)
+        if not environment_layout:
+            return
+
+        self._environmentPathLineEdits = {}
+        self._environmentPathStatusLabels = {}
+        python_target_label = qt.QLabel(self._python_install_target_text())
+        python_target_label.wordWrap = True
+        python_target_label.setStyleSheet(
+            "QLabel { background: #F5F7F9; color: #455A64; padding: 6px; border-radius: 4px; }"
+        )
+        self._environmentPythonTargetLabel = python_target_label
+        try:
+            import ctk
+
+            group_box = ctk.ctkCollapsibleButton()
+            group_box.text = "Advanced external paths"
+            group_box.collapsed = True
+            group_box.setToolTip(
+                "Discovery order: saved path, environment variables, PATH, then common install paths. "
+                "Leave fields empty to rely on automatic discovery."
+            )
+            form_layout = qt.QFormLayout(group_box)
+        except Exception:
+            group_box = qt.QGroupBox("Advanced external paths")
+            group_box.setToolTip(
+                "Discovery order: saved path, environment variables, PATH, then common install paths. "
+                "Leave fields empty to rely on automatic discovery."
+            )
+            form_layout = qt.QFormLayout(group_box)
+        self._environmentAdvancedPathsWidget = group_box
+        group_box.setToolTip(
+            "Discovery order: saved path, environment variables, PATH, then common install paths. "
+            "Leave fields empty to rely on automatic discovery."
+        )
+
+        for item in ENVIRONMENT_DEPENDENCY_PATHS:
+            dependency_id = item["id"]
+            row = qt.QWidget()
+            row_layout = qt.QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+
+            line_edit = qt.QLineEdit()
+            line_edit.setText(self._read_environment_path_setting(dependency_id))
+            line_edit.setPlaceholderText("Auto-detect if empty")
+            line_edit.setToolTip(item["tooltip"])
+            line_edit.editingFinished.connect(
+                lambda dependency_id=dependency_id, line_edit=line_edit: self._on_environment_dependency_path_edited(
+                    dependency_id,
+                    line_edit,
+                )
+            )
+            row_layout.addWidget(line_edit, 1)
+
+            browse_button = qt.QPushButton("Browse...")
+            browse_button.setToolTip(item["tooltip"])
+            browse_button.connect(
+                "clicked()",
+                lambda item=item, line_edit=line_edit: self._browse_environment_dependency_path(item, line_edit),
+            )
+            row_layout.addWidget(browse_button)
+
+            clear_button = qt.QPushButton("Clear")
+            clear_button.connect(
+                "clicked()",
+                lambda dependency_id=dependency_id, line_edit=line_edit: self._clear_environment_dependency_path(
+                    dependency_id,
+                    line_edit,
+                ),
+            )
+            row_layout.addWidget(clear_button)
+
+            status_label = qt.QLabel("not checked")
+            status_label.setMinimumWidth(130)
+            status_label.setStyleSheet("QLabel { color: #78909C; }")
+            row_layout.addWidget(status_label)
+
+            form_layout.addRow(item["label"], row)
+            self._environmentPathLineEdits[dependency_id] = line_edit
+            self._environmentPathStatusLabels[dependency_id] = status_label
+
+        config_buttons = qt.QHBoxLayout()
+        import_button = qt.QPushButton("Import dependency config")
+        import_button.setToolTip("Load a SlicerDDSurfer dependency config JSON and save the external paths into Slicer settings.")
+        import_button.connect("clicked()", self._on_import_dependency_config_clicked)
+        export_button = qt.QPushButton("Export dependency config")
+        export_button.setToolTip("Save the currently configured external paths as a CLI-compatible JSON config.")
+        export_button.connect("clicked()", self._on_export_dependency_config_clicked)
+        self._environmentImportConfigButton = import_button
+        self._environmentExportConfigButton = export_button
+        config_buttons.addWidget(import_button)
+        config_buttons.addWidget(export_button)
+        config_buttons.addStretch(1)
+        form_layout.addRow("Config", config_buttons)
+
+        try:
+            insert_index = max(0, environment_layout.count() - 1)
+            environment_layout.insertWidget(insert_index, python_target_label)
+            insert_index += 1
+            environment_layout.insertWidget(insert_index, group_box)
+        except Exception:
+            environment_layout.addWidget(python_target_label)
+            environment_layout.addWidget(group_box)
+
+    def _python_install_target_text(self) -> str:
+        executable = sys.executable or "unknown"
+        return (
+            "Python install target: current Slicer Python environment "
+            f"({executable}). External tools are never installed silently."
+        )
+
+    def _environment_dependency_config_payload(self) -> dict[str, object]:
+        widgets = getattr(self, "_environmentPathLineEdits", {}) or {}
+        external_dependencies = {}
+        for item in ENVIRONMENT_DEPENDENCY_PATHS:
+            dependency_id = item["id"]
+            widget = widgets.get(dependency_id)
+            value = self._line_edit_text(widget) if widget else self._read_environment_path_setting(dependency_id)
+            if value:
+                external_dependencies[dependency_id] = value
+        return {
+            "kind": "slicerdsurfer_dependency_config",
+            "version": 1,
+            "python_install_target": sys.executable or "",
+            "external_dependencies": external_dependencies,
+        }
+
+    def _apply_environment_dependency_config(self, payload: dict[str, object]) -> int:
+        data = payload.get("external_dependencies", payload)
+        if not isinstance(data, dict):
+            raise ValueError("Dependency config must contain an external_dependencies object.")
+        widgets = getattr(self, "_environmentPathLineEdits", {}) or {}
+        applied = 0
+        for item in ENVIRONMENT_DEPENDENCY_PATHS:
+            dependency_id = item["id"]
+            value = str(data.get(dependency_id) or "").strip()
+            widget = widgets.get(dependency_id)
+            if widget:
+                widget.setText(value)
+            self._save_environment_path_setting(dependency_id, value)
+            status_label = (getattr(self, "_environmentPathStatusLabels", {}) or {}).get(dependency_id)
+            if status_label:
+                self._set_environment_path_status_label(status_label, "check pending", "pending" if value else "unchecked")
+            if value:
+                applied += 1
+        return applied
+
+    def _on_export_dependency_config_clicked(self) -> None:
+        selected = qt.QFileDialog.getSaveFileName(
+            slicer.util.mainWindow(),
+            "Export SlicerDDSurfer dependency config",
+            str(Path.home() / "slicerdsurfer-deps.json"),
+            "JSON files (*.json)",
+        )
+        path_text = selected[0] if isinstance(selected, tuple) else selected
+        path_text = str(path_text or "").strip()
+        if not path_text:
+            return
+        path = Path(path_text).expanduser()
+        payload = self._environment_dependency_config_payload()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        self.appendLog(f"[Environment] Exported dependency config: {path}")
+        slicer.util.infoDisplay(f"Dependency config exported:\n{path}", parent=self.parent)
+
+    def _on_import_dependency_config_clicked(self) -> None:
+        selected = qt.QFileDialog.getOpenFileName(
+            slicer.util.mainWindow(),
+            "Import SlicerDDSurfer dependency config",
+            str(Path.home()),
+            "JSON files (*.json)",
+        )
+        path_text = selected[0] if isinstance(selected, tuple) else selected
+        path_text = str(path_text or "").strip()
+        if not path_text:
+            return
+        path = Path(path_text).expanduser()
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            applied = self._apply_environment_dependency_config(payload)
+        except Exception as exc:
+            slicer.util.errorDisplay(f"Failed to import dependency config:\n{exc}", parent=self.parent)
+            return
+        self.appendLog(f"[Environment] Imported dependency config: {path} ({applied} path(s))")
+        slicer.util.infoDisplay(f"Imported {applied} dependency path(s). Run Check environment dependencies next.", parent=self.parent)
+
+    def _initialize_run_status_panel(self) -> None:
+        if getattr(self, "_runStatusTable", None) is not None:
+            return
+        configuration_layout = getattr(self.ui, "configurationLayout", None)
+        if not configuration_layout:
+            return
+        try:
+            import ctk
+
+            panel = ctk.ctkCollapsibleButton()
+            panel.text = "Run Plan & Progress"
+            panel.collapsed = False
+            panel_layout = qt.QVBoxLayout(panel)
+        except Exception:
+            panel = qt.QGroupBox("Run Plan & Progress")
+            panel_layout = qt.QVBoxLayout(panel)
+
+        hint = qt.QLabel("Run plan has not been generated yet.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("QLabel { color: #546E7A; }")
+        panel_layout.addWidget(hint)
+
+        table = qt.QTableWidget()
+        table.setColumnCount(6)
+        table.setHorizontalHeaderLabels(["Target", "State", "Reason", "Manifest", "QC", "Logs"])
+        table.setMinimumHeight(150)
+        table.setAlternatingRowColors(True)
+        table.setEditTriggers(qt.QAbstractItemView.NoEditTriggers)
+        table.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
+        try:
+            table.horizontalHeader().setStretchLastSection(True)
+            table.horizontalHeader().setSectionResizeMode(0, qt.QHeaderView.ResizeToContents)
+            table.horizontalHeader().setSectionResizeMode(1, qt.QHeaderView.ResizeToContents)
+        except Exception:
+            pass
+        table.cellDoubleClicked.connect(self._on_run_status_table_double_clicked)
+        panel_layout.addWidget(table)
+
+        try:
+            insert_index = max(0, configuration_layout.count() - 1)
+            configuration_layout.insertWidget(insert_index, panel)
+        except Exception:
+            configuration_layout.addWidget(panel)
+
+        self._runStatusPanel = panel
+        self._runStatusHintLabel = hint
+        self._runStatusTable = table
+
+    def _set_run_progress_message(self, message: str) -> None:
+        label = getattr(self, "_runStatusHintLabel", None)
+        if label:
+            label.setText(message)
+        slicer.util.showStatusMessage(message, 3000)
+
+    def _table_item(self, text: str, state: str = ""):
+        item = qt.QTableWidgetItem(text or "")
+        if state:
+            colors = {
+                "queued": qt.QColor("#546E7A"),
+                "running": qt.QColor("#1565C0"),
+                "will_run": qt.QColor("#1565C0"),
+                "completed": qt.QColor("#2E7D32"),
+                "passed": qt.QColor("#2E7D32"),
+                "skipped": qt.QColor("#546E7A"),
+                "blocked": qt.QColor("#C62828"),
+                "failed": qt.QColor("#C62828"),
+                "cancelled": qt.QColor("#EF6C00"),
+            }
+            color = colors.get(state)
+            if color:
+                item.setForeground(color)
+        return item
+
+    def _set_run_status_table_rows(self, rows: list[dict[str, str]]) -> None:
+        table = getattr(self, "_runStatusTable", None)
+        if not table:
+            return
+        table.setRowCount(len(rows))
+        for row_index, row in enumerate(rows):
+            state = row.get("status", "")
+            values = [
+                row.get("target") or row.get("name") or "",
+                state,
+                row.get("reason", ""),
+                row.get("manifest_path", ""),
+                row.get("qc_path", ""),
+                row.get("logs_dir", ""),
+            ]
+            for col, value in enumerate(values):
+                table.setItem(row_index, col, self._table_item(str(value or ""), state))
+        table.resizeRowsToContents()
+
+    def _update_run_status_table_item(self, key_candidates: tuple[str, ...], status: str, reason: str = "") -> None:
+        table = getattr(self, "_runStatusTable", None)
+        if not table:
+            return
+        keys = {key for key in key_candidates if key}
+        for row in range(table.rowCount):
+            target_item = table.item(row, 0)
+            if not target_item:
+                continue
+            target = str(target_item.text() if callable(getattr(target_item, "text", None)) else target_item.text)
+            if target not in keys:
+                continue
+            table.setItem(row, 1, self._table_item(status, status))
+            if reason:
+                table.setItem(row, 2, self._table_item(reason, status))
+            table.resizeRowsToContents()
+            return
+
+    def _task_keys_for_running_line(self, line: str) -> tuple[str, ...]:
+        lowered = line.lower()
+        if "dwi preprocessing" in lowered:
+            return ("preprocessing", "preprocessing.dwi")
+        if "ddseg" in lowered:
+            return ("segmentation", "segmentation.ddseg")
+        if "ddparcel" in lowered:
+            return ("parcellation", "parcellation.ddparcel")
+        if "ddsurfer surface" in lowered:
+            return ("surface", "surface.ddsurfer")
+        if "ddsurfer postprocess" in lowered:
+            return ("surface_postprocess", "surface.ddsurfer_postprocess")
+        if "microstructure" in lowered:
+            return ("microstructure", "microstructure.dti")
+        if "csd/act" in lowered:
+            return ("tractography", "tractography.csd_act")
+        if "dti tractography" in lowered:
+            return ("tractography", "tractography.dti_det")
+        if "wmql" in lowered:
+            return ("bundles", "bundles.wmql")
+        if "saf" in lowered:
+            return ("saf", "tractography.saf")
+        if "wma" in lowered:
+            return ("wma", "bundles.wma")
+        if "tractcloud" in lowered:
+            return ("tractcloud", "bundles.tractcloud")
+        if "connectome" in lowered:
+            return ("connectome", "connectome.streamline_count")
+        return ()
+
+    def _update_run_plan_table(self, plan) -> None:
+        rows = []
+        for item in getattr(plan, "items", ()) or ():
+            status = "queued" if item.status == "will_run" else item.status
+            rows.append(
+                {
+                    "target": item.target,
+                    "status": status,
+                    "reason": item.reason,
+                    "manifest_path": "",
+                    "qc_path": "",
+                    "logs_dir": "",
+                }
+            )
+        summary = getattr(plan, "to_dict", lambda: {"summary": {}})().get("summary", {})
+        self._set_run_status_table_rows(rows)
+        self._set_run_progress_message(
+            f"Run plan ready: {summary.get('will_run', 0)} will run, "
+            f"{summary.get('skipped', 0)} skipped, {summary.get('blocked', 0)} blocked."
+        )
+
+    def _update_run_result_table(self, result) -> None:
+        rows = []
+        manifest_data = {}
+        try:
+            manifest_data = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            manifest_data = {}
+        manifest_tasks = {task.get("name"): task for task in manifest_data.get("tasks", []) if isinstance(task, dict)}
+        for task in getattr(result, "tasks", ()) or ():
+            manifest_task = manifest_tasks.get(task.name, {})
+            rows.append(
+                {
+                    "target": task.name,
+                    "status": task.status,
+                    "reason": task.reason,
+                    "manifest_path": manifest_task.get("normalized_manifest_path") or (task.manifest_path.as_posix() if task.manifest_path else ""),
+                    "qc_path": manifest_task.get("normalized_qc_path") or (task.qc_path.as_posix() if task.qc_path else ""),
+                    "logs_dir": manifest_task.get("normalized_logs_dir", ""),
+                }
+            )
+        self._set_run_status_table_rows(rows)
+        self._set_run_progress_message(f"Run finished. Manifest: {result.run_manifest_path}")
+
+    def _on_run_status_table_double_clicked(self, row: int, column: int) -> None:
+        table = getattr(self, "_runStatusTable", None)
+        if not table or column < 3:
+            return
+        item = table.item(row, column)
+        if not item:
+            return
+        path_text = str(item.text() if callable(getattr(item, "text", None)) else item.text).strip()
+        if not path_text:
+            return
+        path = Path(path_text).expanduser()
+        if not path.exists():
+            return
+        qt.QDesktopServices.openUrl(qt.QUrl.fromLocalFile(path.as_posix()))
+
+    def _browse_environment_dependency_path(self, item: dict[str, str], line_edit) -> None:
+        current = self._line_edit_text(line_edit)
+        start_dir = current if current else os.path.expanduser("~")
+        if item.get("mode") == "file":
+            selected = qt.QFileDialog.getOpenFileName(
+                slicer.util.mainWindow(),
+                f"Select {item['label']}",
+                start_dir,
+            )
+        else:
+            selected = qt.QFileDialog.getExistingDirectory(
+                slicer.util.mainWindow(),
+                f"Select {item['label']}",
+                start_dir,
+            )
+        selected_text = selected[0] if isinstance(selected, tuple) else selected
+        selected_text = str(selected_text or "").strip()
+        if not selected_text:
+            return
+        line_edit.setText(selected_text)
+        self._save_environment_path_setting(item["id"], selected_text)
+        status_label = (getattr(self, "_environmentPathStatusLabels", {}) or {}).get(item["id"])
+        if status_label:
+            self._set_environment_path_status_label(status_label, "check pending", "pending")
+
+    def _clear_environment_dependency_path(self, dependency_id: str, line_edit) -> None:
+        line_edit.setText("")
+        self._save_environment_path_setting(dependency_id, "")
+        status_label = (getattr(self, "_environmentPathStatusLabels", {}) or {}).get(dependency_id)
+        if status_label:
+            self._set_environment_path_status_label(status_label, "check pending", "pending")
+
+    def _on_environment_dependency_path_edited(self, dependency_id: str, line_edit) -> None:
+        self._save_environment_path_setting(dependency_id, self._line_edit_text(line_edit))
+        status_label = (getattr(self, "_environmentPathStatusLabels", {}) or {}).get(dependency_id)
+        if status_label:
+            self._set_environment_path_status_label(status_label, "check pending", "pending")
+
+    def _environment_dependency_path_kwargs(self) -> dict[str, Optional[Path]]:
+        widgets = getattr(self, "_environmentPathLineEdits", {}) or {}
+        kwargs: dict[str, Optional[Path]] = {}
+        for item in ENVIRONMENT_DEPENDENCY_PATHS:
+            dependency_id = item["id"]
+            widget = widgets.get(dependency_id)
+            value = self._line_edit_text(widget) if widget else self._read_environment_path_setting(dependency_id)
+            kwargs[dependency_id] = Path(value).expanduser() if value else None
+        return kwargs
+
+    def _set_environment_path_status_label(self, label, text: str, state: str) -> None:
+        colors = {
+            "available": "#2E7D32",
+            "missing": "#C62828",
+            "pending": "#EF6C00",
+            "unchecked": "#78909C",
+        }
+        label.setText(text)
+        label.setStyleSheet(f"QLabel {{ color: {colors.get(state, colors['unchecked'])}; font-weight: 600; }}")
+
+    def _path_status_dependencies(self, result, dependency_id: str) -> list:
+        statuses = list(getattr(result, "statuses", ()) or ())
+        command_groups = {
+            "mrtrix_bin_dir": {
+                "command:mrconvert",
+                "command:dwi2response",
+                "command:dwi2fod",
+                "command:mtnormalise",
+                "command:tckgen",
+                "command:tcksift2",
+                "command:tckstats",
+                "command:tckconvert",
+                "command:tck2connectome",
+                "command:dwidenoise",
+                "command:mrdegibbs",
+                "command:dwifslpreproc",
+            },
+            "preprocessing_fsl_bin_dir": {"command:eddy", "command:topup"},
+            "postprocess_freesurfer_home": {
+                "env:freesurfer_home",
+                "command:recon-all",
+                "command:mris_sphere",
+                "command:mris_curvature",
+                "command:mris_inflate",
+                "command:mris_register",
+                "command:mri_label2label",
+                "command:mri_surf2surf",
+                "command:mri_annotation2label",
+                "command:mri_segstats",
+            },
+            "tract_querier_root": {"path:tract_querier_root", "path:tract_querier_root_script", "python:tract_querier"},
+            "wma_root": {"env:wma_root", "path:wma_root_path", "command:wm_apply_ORG_atlas_to_subject.sh"},
+            "wma_atlas_dir": {"setting:wma_org_atlas", "path:wma_org_atlas", "path:wma_org_atlas_ORG-RegAtlas-100HCP", "path:wma_org_atlas_ORG-800FC-100HCP"},
+            "slicer_executable": {"env:slicer_executable", "path:slicer_executable_path"},
+            "fiber_tract_measurements_cli": {"path:fiber_tract_measurements_cli"},
+            "tractcloud_root": {"env:tractcloud_root", "path:tractcloud_root_path", "python:tractcloud"},
+            "tractcloud_python_executable": {"path:tractcloud_python"},
+            "tractcloud_data_dir": {"path:tractcloud_data_dir"},
+        }
+        keys = command_groups.get(dependency_id, set())
+        return [item for item in statuses if item.key in keys]
+
+    def _format_detected_source(self, source: str) -> str:
+        if not source or source in {"not found", "not configured"}:
+            return "not found"
+        if source == "user setting":
+            return "using saved path"
+        if source.startswith("env:"):
+            return "detected from " + source
+        if source == "PATH":
+            return "detected from PATH"
+        if source == "common path":
+            return "detected from common path"
+        return source
+
+    def _update_environment_path_status_labels(self, result=None) -> None:
+        labels = getattr(self, "_environmentPathStatusLabels", {}) or {}
+        if not labels:
+            return
+        for item in ENVIRONMENT_DEPENDENCY_PATHS:
+            dependency_id = item["id"]
+            label = labels.get(dependency_id)
+            if not label:
+                continue
+            if result is None:
+                self._set_environment_path_status_label(label, "not checked", "unchecked")
+                continue
+            dependencies = self._path_status_dependencies(result, dependency_id)
+            if not dependencies:
+                self._set_environment_path_status_label(label, "not checked", "unchecked")
+                continue
+            available = [dependency for dependency in dependencies if dependency.status == "available"]
+            if available:
+                source = available[0].details.get("detected_source", "")
+                self._set_environment_path_status_label(
+                    label,
+                    self._format_detected_source(source),
+                    "available",
+                )
+            else:
+                self._set_environment_path_status_label(label, "not found", "missing")
 
     def cleanup(self) -> None:
         self.removeObservers()
@@ -239,7 +888,7 @@ class SharedWidgetMixin:
             self._sync_path_widget(getattr(self.ui, "inputDirectoryPath", None), node.inputDirectory or "")
             self._sync_path_widget(getattr(self.ui, "outputDirectoryPath", None), node.outputDirectory or "")
             self._sync_combo_text(getattr(self.ui, "predictModeComboBox", None), node.predictMode or "all")
-            self._sync_combo_text(getattr(self.ui, "deviceComboBox", None), node.device or "cpu")
+            self._sync_combo_text(getattr(self.ui, "deviceComboBox", None), node.device or "auto")
 
             self._sync_line_edit(getattr(self.ui, "postprocessSubjectLineEdit", None), node.postprocessSubjectId or "")
             self._sync_path_widget(getattr(self.ui, "postprocessNativePath", None), node.postprocessNativeDir or "")
@@ -299,7 +948,7 @@ class SharedWidgetMixin:
             self._sync_path_widget(getattr(self.ui, "ddsegSlicerExtPath", None), node.ddsegSlicerExt or "")
             self._sync_combo_text(
                 getattr(self.ui, "ddsegDeviceComboBox", None),
-                node.ddsegDevice or "cpu",
+                node.ddsegDevice or "auto",
                 via_index=False,
             )
             self._sync_checkbox(getattr(self.ui, "ddsegSoftmaxCheckBox", None), bool(node.ddsegApplySoftmax))
@@ -315,17 +964,19 @@ class SharedWidgetMixin:
                 node.orchestrationTractographyBackend or "csd_act",
                 via_index=False,
             )
+            self._sync_combo_text(
+                getattr(self.ui, "orchestrationBundleBackendComboBox", None),
+                getattr(node, "orchestrationBundleBackend", "wmql") or "wmql",
+                via_index=False,
+            )
             self._sync_spinbox(
                 getattr(self.ui, "orchestrationSelectStreamlinesSpinBox", None),
                 int(node.orchestrationSelectStreamlines),
             )
-            self._sync_checkbox(
-                getattr(self.ui, "orchestrationRunFreeWaterCheckBox", None),
-                bool(node.orchestrationRunFreeWater),
-            )
-            self._sync_checkbox(
-                getattr(self.ui, "orchestrationRunNoddiCheckBox", None),
-                bool(node.orchestrationRunNoddi),
+            self._sync_combo_text(
+                getattr(self.ui, "orchestrationMicrostructureStagesComboBox", None),
+                self._microstructure_stages_text(),
+                via_index=False,
             )
             self._sync_combo_text(
                 getattr(self.ui, "connectomeBackendComboBox", None),
@@ -335,6 +986,15 @@ class SharedWidgetMixin:
             self._sync_checkbox(
                 getattr(self.ui, "connectomeCompressMrtrixDenseCheckBox", None),
                 bool(node.connectomeCompressMrtrixDense),
+            )
+            self._sync_combo_text(
+                getattr(self.ui, "unifiedTorchDeviceComboBox", None),
+                node.device or node.ddsegDevice or "auto",
+                via_index=False,
+            )
+            self._sync_checkbox(
+                getattr(self.ui, "autoInstallPythonDependenciesCheckBox", None),
+                bool(node.autoInstallPythonDependencies),
             )
             self._sync_checkbox(getattr(self.ui, "targetSurfaceCheckBox", None), bool(node.targetSurface))
             self._sync_checkbox(getattr(self.ui, "targetParcellationCheckBox", None), bool(node.targetParcellation))
@@ -353,10 +1013,25 @@ class SharedWidgetMixin:
             setattr(self._parameterNode, attribute, value)
         return True
 
+    def _onUnifiedTorchDeviceChanged(self, value: str) -> None:
+        if not self._parameterNode:
+            return
+        device = (value or "auto").strip() or "auto"
+        with slicer.util.NodeModify(self._parameterNode):
+            self._parameterNode.device = device
+            self._parameterNode.ddsegDevice = device
+        self._checkCanApply()
+
     def appendLog(self, text: str) -> None:
         if hasattr(self.ui, "logPlainTextEdit"):
             self.ui.logPlainTextEdit.appendPlainText(text)
             self.ui.logPlainTextEdit.ensureCursorVisible()
+        if text.startswith("[Orchestrator] Running "):
+            self._set_run_progress_message(text.replace("[Orchestrator] ", "", 1))
+        try:
+            slicer.app.processEvents()
+        except Exception:
+            pass
 
     def _onClearLogClicked(self) -> None:
         if hasattr(self.ui, "logPlainTextEdit"):
@@ -404,6 +1079,69 @@ class SharedWidgetMixin:
             targets.append("connectome")
         return tuple(targets)
 
+    def _selected_product_targets(self) -> tuple[str, ...]:
+        node = self._parameterNode
+        if not node:
+            return ()
+        product_targets = ["validation"]
+        if bool(node.targetPreprocessing):
+            product_targets.append("preprocessing")
+        if bool(node.targetSegmentation):
+            product_targets.append("segmentation")
+        if bool(node.targetParcellation):
+            product_targets.append("parcellation")
+        if bool(node.targetSurface):
+            product_targets.append("surface")
+        if bool(node.targetMicrostructure):
+            product_targets.append("microstructure")
+        if bool(node.targetTractography):
+            product_targets.append("tractography")
+        if bool(node.targetBundles):
+            product_targets.append("bundles")
+        if bool(node.targetConnectome):
+            product_targets.append("connectome")
+        return normalize_orchestrator_targets(
+            tuple(product_targets),
+            tractography_backend=self._tractography_backend_text(),
+            bundle_backend=self._bundle_backend_text(),
+            microstructure_run_free_water=self._microstructure_stage_flags()[0],
+            microstructure_run_noddi=self._microstructure_stage_flags()[1],
+        )
+
+    def _tractography_backend_text(self) -> str:
+        node = self._parameterNode
+        return ((node.orchestrationTractographyBackend if node else "") or "csd_act").strip() or "csd_act"
+
+    def _bundle_backend_text(self) -> str:
+        node = self._parameterNode
+        return ((getattr(node, "orchestrationBundleBackend", "") if node else "") or "wmql").strip() or "wmql"
+
+    def _microstructure_stages_text(self) -> str:
+        node = self._parameterNode
+        if not node:
+            return "dti"
+        text = (getattr(node, "orchestrationMicrostructureStages", "") or "").strip().lower()
+        if text:
+            return text
+        stages = ["dti"]
+        if bool(getattr(node, "orchestrationRunFreeWater", False)):
+            stages.append("freewater")
+        if bool(getattr(node, "orchestrationRunNoddi", False)):
+            stages.append("noddi")
+        return ",".join(stages)
+
+    def _microstructure_stage_flags(self) -> tuple[bool, bool]:
+        stages = {stage.strip().lower() for stage in self._microstructure_stages_text().replace("+", ",").split(",") if stage.strip()}
+        if "all" in stages:
+            stages.update({"dti", "freewater", "noddi"})
+        return "freewater" in stages, "noddi" in stages
+
+    def _selected_environment_targets(self) -> tuple[str, ...]:
+        node = self._parameterNode
+        if not node:
+            return ()
+        return tuple(dict.fromkeys(target for target in self._selected_product_targets() if target))
+
     def _apply_shared_inputs_to_workflow_fields(self) -> None:
         """Populate empty product-specific fields from the shared subject setup."""
         node = self._parameterNode
@@ -425,6 +1163,343 @@ class SharedWidgetMixin:
                 if not (node.ddsegDwiPath or "").strip():
                     node.ddsegDwiPath = subject_root
 
+    def _slicer_launcher_program(self) -> str:
+        launcher_path = getattr(slicer.app, "launcherExecutableFilePath", "")
+        launcher_path = launcher_path() if callable(launcher_path) else launcher_path
+        launcher_path = str(launcher_path or "").strip()
+        if launcher_path and Path(launcher_path).name != "SlicerApp-real":
+            return launcher_path
+        app_path = getattr(slicer.app, "applicationFilePath", "")
+        app_path = app_path() if callable(app_path) else app_path
+        app_path = str(app_path or "").strip()
+        if app_path:
+            app_candidate = Path(app_path)
+            if app_candidate.name == "SlicerApp-real":
+                for candidate in (
+                    app_candidate.parent.parent / "Slicer",
+                    app_candidate.parent / "Slicer",
+                ):
+                    if candidate.is_file():
+                        return candidate.as_posix()
+            return app_path
+        slicer_home = str(getattr(slicer.app, "slicerHome", "") or "").strip()
+        if slicer_home:
+            for candidate in (Path(slicer_home) / "Slicer", Path(slicer_home).parent / "Slicer"):
+                if candidate.is_file():
+                    return candidate.as_posix()
+        return "Slicer"
+
+    def _add_cli_path_arg(self, args: list[str], flag: str, value: Optional[Path]) -> None:
+        if value is not None:
+            args.extend([flag, value.expanduser().as_posix()])
+
+    def _build_background_cli_args(self, common_run_kwargs: dict[str, Any], external_paths: dict[str, Optional[Path]]) -> list[str]:
+        node = self._parameterNode
+        repo_root = Path(__file__).resolve().parent.parent
+        cli_script = repo_root / "shared" / "run_subject_pipeline_cli.py"
+        if not cli_script.is_file():
+            cli_script = repo_root / "run_subject_pipeline.py"
+        output_root = common_run_kwargs.get("output_root")
+        args = [
+            "--launch",
+            "PythonSlicer",
+            cli_script.as_posix(),
+            "--subject-root",
+            common_run_kwargs["subject_root"].expanduser().as_posix(),
+            "--subject-id",
+            str(common_run_kwargs["subject_id"]),
+            "--run-name",
+            str(common_run_kwargs["run_name"]),
+            "--targets",
+            ",".join(common_run_kwargs["targets"]),
+            "--execute",
+            "--print-manifest-only",
+            "--preprocessing-backend",
+            (node.preprocessingBackend or "dipy").strip() if node else "dipy",
+            "--tractography-backend",
+            str(common_run_kwargs["tractography_backend"]),
+            "--bundle-backend",
+            str(common_run_kwargs["bundle_backend"]),
+            "--connectome-backend",
+            str(common_run_kwargs["connectome_backend"]),
+            "--select-streamlines",
+            str(common_run_kwargs["select_streamlines"]),
+            "--ddseg-device",
+            str(common_run_kwargs["ddseg_device"]),
+            "--surface-device",
+            str(common_run_kwargs["surface_device"]),
+        ]
+        if output_root is not None:
+            args.extend(["--output-root", output_root.expanduser().as_posix()])
+        microstructure_stages = ["dti"]
+        if common_run_kwargs.get("microstructure_run_free_water"):
+            microstructure_stages.append("freewater")
+        if common_run_kwargs.get("microstructure_run_noddi"):
+            microstructure_stages.append("noddi")
+        args.extend(["--microstructure-stages", ",".join(microstructure_stages)])
+        if common_run_kwargs.get("connectome_compress_mrtrix_dense"):
+            args.append("--compress-mrtrix-dense")
+        self._add_cli_path_arg(args, "--mrtrix-bin-dir", external_paths.get("mrtrix_bin_dir"))
+        self._add_cli_path_arg(args, "--preprocessing-mrtrix-bin-dir", external_paths.get("mrtrix_bin_dir"))
+        self._add_cli_path_arg(args, "--preprocessing-fsl-bin-dir", external_paths.get("preprocessing_fsl_bin_dir"))
+        self._add_cli_path_arg(args, "--postprocess-freesurfer-home", external_paths.get("postprocess_freesurfer_home"))
+        self._add_cli_path_arg(args, "--tract-querier-root", external_paths.get("tract_querier_root"))
+        self._add_cli_path_arg(args, "--wma-root", external_paths.get("wma_root"))
+        self._add_cli_path_arg(args, "--wma-atlas-dir", external_paths.get("wma_atlas_dir"))
+        self._add_cli_path_arg(args, "--slicer-executable", external_paths.get("slicer_executable"))
+        self._add_cli_path_arg(args, "--fiber-tract-measurements-cli", external_paths.get("fiber_tract_measurements_cli"))
+        self._add_cli_path_arg(args, "--tractcloud-root", external_paths.get("tractcloud_root"))
+        self._add_cli_path_arg(args, "--tractcloud-python-executable", external_paths.get("tractcloud_python_executable"))
+        self._add_cli_path_arg(args, "--tractcloud-data-dir", external_paths.get("tractcloud_data_dir"))
+        return args
+
+    def _startBackgroundPipeline(
+        self,
+        common_run_kwargs: dict[str, Any],
+        external_paths: dict[str, Optional[Path]],
+        selected_workflows: list[str],
+    ) -> None:
+        if getattr(self, "_backgroundProcess", None) is not None:
+            process = self._backgroundProcess
+            try:
+                if process and process.state() != qt.QProcess.NotRunning:
+                    slicer.util.infoDisplay("A SlicerDDSurfer job is already running.", parent=self.parent)
+                    return
+            except Exception:
+                pass
+
+        process = qt.QProcess(self.parent)
+        process.setWorkingDirectory(Path(__file__).resolve().parent.parent.as_posix())
+        process.setProcessChannelMode(qt.QProcess.MergedChannels)
+        process.connect("readyReadStandardOutput()", self._onBackgroundProcessReadyRead)
+        process.connect("finished(int,QProcess::ExitStatus)", self._onBackgroundProcessFinished)
+        process.connect("errorOccurred(QProcess::ProcessError)", self._onBackgroundProcessError)
+
+        program = self._slicer_launcher_program()
+        args = self._build_background_cli_args(common_run_kwargs, external_paths)
+        self._backgroundProcess = process
+        self._backgroundOutputBuffer = ""
+        self._backgroundManifestPath = None
+        self._backgroundCancelRequested = False
+        self._backgroundRunContext = {
+            "subject_id": common_run_kwargs["subject_id"],
+            "subject_root": common_run_kwargs["subject_root"],
+            "output_root": common_run_kwargs.get("output_root"),
+            "run_name": common_run_kwargs["run_name"],
+            "targets": common_run_kwargs["targets"],
+            "started_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "selected_workflows": selected_workflows,
+        }
+        self.appendLog("[Background] Starting: " + program + " " + " ".join(args))
+        self._setPipelineActive(True)
+        self._set_run_progress_message("Background execution submitted.")
+        process.start(program, args)
+        if not process.waitForStarted(5000):
+            self._setPipelineActive(False)
+            self._setStatus("error", "Failed to start background job")
+            self.appendLog("[Background] Failed to start process.")
+
+    def _onBackgroundProcessReadyRead(self) -> None:
+        process = getattr(self, "_backgroundProcess", None)
+        if process is None:
+            return
+        data = self._qbytearray_to_text(process.readAllStandardOutput())
+        self._backgroundOutputBuffer += data
+        while "\n" in self._backgroundOutputBuffer:
+            line, self._backgroundOutputBuffer = self._backgroundOutputBuffer.split("\n", 1)
+            self._handleBackgroundOutputLine(line.rstrip())
+
+    def _qbytearray_to_text(self, value) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        if isinstance(value, bytearray):
+            return bytes(value).decode("utf-8", errors="replace")
+        try:
+            return bytes(value).decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        try:
+            raw = value.data()
+        except Exception:
+            return ""
+        if isinstance(raw, bytes):
+            return raw.decode("utf-8", errors="replace")
+        if isinstance(raw, bytearray):
+            return bytes(raw).decode("utf-8", errors="replace")
+        if isinstance(raw, str):
+            return raw
+        return ""
+
+    def _handleBackgroundOutputLine(self, line: str) -> None:
+        if not line:
+            return
+        self.appendLog(line)
+        if line.startswith("[Orchestrator] Running "):
+            keys = self._task_keys_for_running_line(line)
+            self._update_run_status_table_item(keys, "running", line.replace("[Orchestrator] ", "", 1))
+        if line.endswith("_orchestration_manifest.json"):
+            path = Path(line.strip())
+            if path.is_file():
+                self._backgroundManifestPath = path
+
+    def _extract_background_manifest_path(self) -> Optional[Path]:
+        if getattr(self, "_backgroundManifestPath", None):
+            return self._backgroundManifestPath
+        candidates = []
+        text = getattr(self, "_backgroundOutputBuffer", "") or ""
+        for line in text.splitlines():
+            line = line.strip()
+            if line.endswith("_orchestration_manifest.json"):
+                candidates.append(Path(line))
+        return next((path for path in reversed(candidates) if path.is_file()), None)
+
+    def _onBackgroundProcessFinished(self, exit_code: int, exit_status) -> None:
+        if getattr(self, "_backgroundOutputBuffer", ""):
+            tail = self._backgroundOutputBuffer
+            self._backgroundOutputBuffer = ""
+            for line in tail.splitlines():
+                self._handleBackgroundOutputLine(line.rstrip())
+        cancelled = bool(getattr(self, "_backgroundCancelRequested", False))
+        process_failed = exit_code != 0 and not cancelled
+        manifest_path = self._extract_background_manifest_path()
+        self._setPipelineActive(False)
+        if cancelled:
+            cancel_manifest = self._write_cancelled_manifest()
+            self._mark_unfinished_rows("cancelled", "User cancelled the background job.")
+            self.appendLog(f"[Background] Cancelled. Manifest: {cancel_manifest}")
+            self._setStatus("error", "Pipeline cancelled")
+            self._set_run_progress_message(f"Pipeline cancelled. Manifest: {cancel_manifest}")
+        elif process_failed:
+            self._mark_unfinished_rows("failed", f"Background process exited with code {exit_code}")
+            self._setStatus("error", f"Pipeline failed: exit code {exit_code}")
+            self._set_run_progress_message(f"Pipeline failed: exit code {exit_code}")
+        elif manifest_path and manifest_path.is_file():
+            self._load_background_manifest_result(manifest_path)
+        else:
+            self._mark_unfinished_rows("failed", "Background process finished without a manifest path.")
+            self._setStatus("error", "Pipeline failed: no manifest")
+            self._set_run_progress_message("Pipeline failed: no manifest path was reported.")
+        self._backgroundProcess = None
+        self._backgroundCancelRequested = False
+
+    def _load_background_manifest_result(self, manifest_path: Path) -> None:
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            self._mark_unfinished_rows("failed", f"Unable to read manifest: {exc}")
+            self._setStatus("error", "Pipeline failed: invalid manifest")
+            return
+        rows = []
+        blocked = 0
+        failed = 0
+        for task in manifest.get("tasks", []):
+            status = str(task.get("status") or "")
+            if status == "blocked":
+                blocked += 1
+            if status == "failed":
+                failed += 1
+            rows.append(
+                {
+                    "target": str(task.get("name") or ""),
+                    "status": status,
+                    "reason": str(task.get("reason") or ""),
+                    "manifest_path": str(task.get("normalized_manifest_path") or task.get("manifest_path") or ""),
+                    "qc_path": str(task.get("normalized_qc_path") or task.get("qc_path") or ""),
+                    "logs_dir": str(task.get("normalized_logs_dir") or ""),
+                }
+            )
+        self._set_run_status_table_rows(rows)
+        if failed:
+            self._setStatus("error", f"Completed with {failed} failed task(s)")
+        elif blocked:
+            self._setStatus("error", f"Completed with {blocked} blocked task(s)")
+        else:
+            self._setStatus("ready", "Pipeline completed")
+        loaded_count = 0
+        if self.logic:
+            try:
+                loaded = self.logic.loadKeyResultsFromManifest(manifest_path)
+                loaded_count = len(loaded.get("loaded", []))
+            except Exception as exc:
+                self.appendLog(f"[Slicer] Auto-load skipped: {exc}")
+        report_path = ""
+        report_paths = manifest.get("report_paths") or {}
+        if isinstance(report_paths, dict):
+            report_path = str(report_paths.get("report_html_latest") or report_paths.get("report_html") or "")
+        message = f"Run finished. Manifest: {manifest_path}"
+        if loaded_count:
+            message += f" Auto-loaded {loaded_count} result node(s)."
+        if report_path:
+            message += f" Report: {report_path}"
+        self._set_run_progress_message(message)
+
+    def _onBackgroundProcessError(self, error) -> None:
+        self.appendLog(f"[Background] QProcess error: {error}")
+
+    def _mark_unfinished_rows(self, status: str, reason: str) -> None:
+        table = getattr(self, "_runStatusTable", None)
+        if not table:
+            return
+        for row in range(table.rowCount):
+            status_item = table.item(row, 1)
+            current = str(status_item.text() if status_item else "")
+            if current in {"completed", "passed", "skipped", "blocked", "failed", "cancelled"}:
+                continue
+            table.setItem(row, 1, self._table_item(status, status))
+            table.setItem(row, 2, self._table_item(reason, status))
+        table.resizeRowsToContents()
+
+    def _write_cancelled_manifest(self) -> Path:
+        context = getattr(self, "_backgroundRunContext", {}) or {}
+        subject_root = Path(context.get("subject_root") or ".").expanduser().resolve()
+        output_root = context.get("output_root")
+        outputs = Path(output_root).expanduser().resolve() if output_root else subject_root / "outputs"
+        run_name = str(context.get("run_name") or "slicerdsurfer")
+        run_metadata = outputs / "00_run_metadata"
+        run_metadata.mkdir(parents=True, exist_ok=True)
+        manifest_path = run_metadata / f"{run_name}_cancelled_orchestration_manifest.json"
+        payload = {
+            "kind": "slicerddsurfer_product_orchestration",
+            "version": 1,
+            "status": "cancelled",
+            "subject_id": str(context.get("subject_id") or ""),
+            "subject_root": subject_root.as_posix(),
+            "output_root": outputs.as_posix(),
+            "run_name": run_name,
+            "targets": list(context.get("targets") or []),
+            "started_at": context.get("started_at"),
+            "cancelled_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "reason": "User cancelled the background SlicerDDSurfer job from the UI.",
+        }
+        manifest_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return manifest_path
+
+    def _onCancelRunClicked(self) -> None:
+        process = getattr(self, "_backgroundProcess", None)
+        if process is None:
+            return
+        try:
+            if process.state() == qt.QProcess.NotRunning:
+                return
+        except Exception:
+            return
+        self._backgroundCancelRequested = True
+        self.appendLog("[Background] Cancellation requested by user.")
+        self._set_run_progress_message("Cancelling background job...")
+        process.terminate()
+        qt.QTimer.singleShot(3000, lambda: self._kill_background_process_if_running(process))
+
+    def _kill_background_process_if_running(self, process) -> None:
+        try:
+            if process and process.state() != qt.QProcess.NotRunning:
+                process.kill()
+        except Exception:
+            pass
+
     def _onRunSelectedClicked(self) -> None:
         if not self._parameterNode or not self.logic:
             return
@@ -434,44 +1509,138 @@ class SharedWidgetMixin:
             return
 
         self._apply_shared_inputs_to_workflow_fields()
-        self.appendLog("Running selected products: " + ", ".join(selected))
-        self._setPipelineActive(True)
+        subject_root_text = (self._parameterNode.inputDirectory or "").strip()
+        subject_id = (self._parameterNode.subjectId or "").strip()
+        if not subject_root_text or not subject_id:
+            slicer.util.errorDisplay("Subject ID and subject root are required before running.", parent=self.parent)
+            return
+        output_root_text = (self._parameterNode.outputDirectory or "").strip()
+        surface_device = (self._parameterNode.device or "auto").strip() or "auto"
+        ddseg_device = (self._parameterNode.ddsegDevice or "auto").strip() or "auto"
+        run_free_water, run_noddi = self._microstructure_stage_flags()
+        doctor_targets = list(self._selected_environment_targets())
+        selected_targets = self._selected_product_targets()
+        auto_install_python = bool(self._parameterNode.autoInstallPythonDependencies)
+        external_paths = self._environment_dependency_path_kwargs()
         try:
-            if bool(self._parameterNode.targetPreprocessing):
-                output_dir_text = (self._parameterNode.outputDirectory or "").strip()
-                self.logic.runDwiPreprocessingPipeline(
-                    subject_id=(self._parameterNode.subjectId or "").strip(),
-                    input_root=Path((self._parameterNode.inputDirectory or "").strip()).expanduser(),
-                    output_dir=Path(output_dir_text).expanduser() if output_dir_text else None,
-                    backend=(self._parameterNode.preprocessingBackend or "dipy").strip(),
-                    execute=True,
-                    skip=False,
-                )
-            if bool(self._parameterNode.targetSurface):
-                self.onApplyButton()
-            orchestrator_targets = self._selected_orchestrator_targets()
-            if any(target != "validation" for target in orchestrator_targets):
-                subject_root = Path((self._parameterNode.inputDirectory or "").strip()).expanduser()
-                output_root_text = (self._parameterNode.outputDirectory or "").strip()
-                subject_id = (self._parameterNode.subjectId or "").strip()
-                run_name = (self._parameterNode.orchestrationRunName or "csd_act_ui").strip() or "csd_act_ui"
-                self.logic.runSelectedProductOrchestration(
-                    subject_id=subject_id,
-                    subject_root=subject_root,
+            doctor_result = self.logic.runEnvironmentDoctor(
+                targets=tuple(doctor_targets),
+                subject_root=Path(subject_root_text).expanduser(),
+                output_root=Path(output_root_text).expanduser() if output_root_text else None,
+                preprocessing_backend=(self._parameterNode.preprocessingBackend or "dipy").strip(),
+                tractography_backend=self._tractography_backend_text(),
+                connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
+                ddseg_device=ddseg_device,
+                surface_device=surface_device,
+                microstructure_run_free_water=run_free_water,
+                microstructure_run_noddi=run_noddi,
+                **external_paths,
+            )
+        except Exception as exc:
+            self.appendLog(f"Environment check failed: {exc}")
+            slicer.util.errorDisplay(f"Environment check failed:\n{exc}", parent=self.parent)
+            self._setStatus("error", "Environment check failed")
+            return
+        self._update_environment_result_label(doctor_result)
+        self._update_environment_path_status_labels(doctor_result)
+        if doctor_result.blocker_count and auto_install_python and doctor_result.missing_python_packages:
+            self.appendLog(
+                "Missing Python packages detected; installing before run: "
+                + ", ".join(doctor_result.missing_python_packages)
+            )
+            self._setPipelineActive(True)
+            self._setStatus("running", "Installing Python dependencies...")
+            slicer.util.showStatusMessage("Installing missing Python dependencies...", 0)
+            try:
+                self.logic.installMissingPythonDependencies(tuple(doctor_result.missing_python_packages))
+                doctor_result = self.logic.runEnvironmentDoctor(
+                    targets=tuple(doctor_targets),
+                    subject_root=Path(subject_root_text).expanduser(),
                     output_root=Path(output_root_text).expanduser() if output_root_text else None,
-                    targets=orchestrator_targets,
-                    run_name=run_name,
-                    tractography_backend=(self._parameterNode.orchestrationTractographyBackend or "csd_act").strip(),
-                    execute=True,
-                    resume=True,
-                    microstructure_run_free_water=bool(self._parameterNode.orchestrationRunFreeWater),
-                    microstructure_run_noddi=bool(self._parameterNode.orchestrationRunNoddi),
-                    select_streamlines=max(1, int(self._parameterNode.orchestrationSelectStreamlines)),
+                    preprocessing_backend=(self._parameterNode.preprocessingBackend or "dipy").strip(),
+                    tractography_backend=self._tractography_backend_text(),
                     connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
-                    connectome_compress_mrtrix_dense=bool(self._parameterNode.connectomeCompressMrtrixDense),
+                    ddseg_device=ddseg_device,
+                    surface_device=surface_device,
+                    microstructure_run_free_water=run_free_water,
+                    microstructure_run_noddi=run_noddi,
+                    **external_paths,
                 )
-        finally:
-            self._setPipelineActive(False)
+                self._update_environment_result_label(doctor_result)
+                self._update_environment_path_status_labels(doctor_result)
+            except Exception as exc:
+                self.appendLog(f"Dependency installation failed: {exc}")
+                slicer.util.errorDisplay(f"Dependency installation failed:\n{exc}", parent=self.parent)
+                self._setPipelineActive(False)
+                self._setStatus("error", "Dependency installation failed")
+                return
+
+        preflight_blockers = {
+            target: reason
+            for target, reason in blocked_target_reasons(doctor_result).items()
+            if target in selected_targets
+        }
+
+        subject_root = Path(subject_root_text).expanduser()
+        run_name = (self._parameterNode.orchestrationRunName or "csd_act_ui").strip() or "csd_act_ui"
+        common_run_kwargs = dict(
+            subject_id=subject_id,
+            subject_root=subject_root,
+            output_root=Path(output_root_text).expanduser() if output_root_text else None,
+            targets=selected_targets,
+            run_name=run_name,
+            tractography_backend=self._tractography_backend_text(),
+            bundle_backend=self._bundle_backend_text(),
+            resume=True,
+            microstructure_run_free_water=run_free_water,
+            microstructure_run_noddi=run_noddi,
+            select_streamlines=max(1, int(self._parameterNode.orchestrationSelectStreamlines)),
+            ddseg_device=ddseg_device,
+            surface_device=surface_device,
+            mrtrix_bin_dir=external_paths.get("mrtrix_bin_dir"),
+            preprocessing_mrtrix_bin_dir=external_paths.get("mrtrix_bin_dir"),
+            preprocessing_fsl_bin_dir=external_paths.get("preprocessing_fsl_bin_dir"),
+            tract_querier_root=external_paths.get("tract_querier_root"),
+            connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
+            connectome_compress_mrtrix_dense=bool(self._parameterNode.connectomeCompressMrtrixDense),
+            preflight_blocked_targets=preflight_blockers,
+        )
+        try:
+            plan = self.logic.planSelectedProductOrchestration(**common_run_kwargs)
+            self._update_run_plan_table(plan)
+            blocked_plan_items = [item for item in plan.items if item.status == "blocked"]
+            if blocked_plan_items:
+                self.appendLog(
+                    "Run plan blocked target(s): "
+                    + "; ".join(f"{item.target}: {item.reason}" for item in blocked_plan_items)
+                )
+                environment_blockers = {
+                    item.target: item.reason
+                    for item in blocked_plan_items
+                    if item.reason_category == "environment"
+                }
+                if environment_blockers:
+                    runnable_targets = tuple(item.target for item in plan.items if item.status != "blocked")
+                    self._show_partial_run_notice(environment_blockers, runnable_targets)
+        except Exception as exc:
+            self.appendLog(f"Run planning failed: {exc}")
+            slicer.util.errorDisplay(f"Run planning failed:\n{exc}", parent=self.parent)
+            self._setStatus("error", "Run planning failed")
+            return
+
+        self.appendLog("Submitting selected products to background runner: " + ", ".join(selected))
+        self._startBackgroundPipeline(common_run_kwargs, external_paths, selected)
+
+    def _show_partial_run_notice(self, blockers: dict[str, str], runnable_targets: tuple[str, ...]) -> None:
+        blocked_text = "\n".join(f"- {target}: {reason}" for target, reason in blockers.items())
+        runnable_text = ", ".join(target for target in runnable_targets if target != "validation") or "none"
+        message = (
+            "Some selected products are blocked by missing dependencies. "
+            "Runnable targets will still run.\n\n"
+            f"Blocked:\n{blocked_text}\n\n"
+            f"Runnable targets: {runnable_text}"
+        )
+        slicer.util.infoDisplay(message, windowTitle="SlicerDDSurfer partial run", parent=self.parent)
 
     def _setStatus(self, kind: str, message: str) -> None:
         label = getattr(self.ui, "statusLabel", None)
@@ -521,94 +1690,319 @@ class SharedWidgetMixin:
         combo = getattr(self.ui, "deviceComboBox", None)
         if not combo:
             return
-        current = combo.currentText if combo.count else "cpu"
+        current = combo.currentText if combo.count else "auto"
         combo.clear()
+        combo.addItem("auto")
         combo.addItem("cpu")
-        try:
-            import torch
-
-            if torch.cuda.is_available():
-                combo.addItem("cuda:0")
-        except Exception:
-            pass
+        combo.addItem("cuda:0")
         index = combo.findText(current)
         if index >= 0:
             combo.setCurrentIndex(index)
 
     def _onValidateClicked(self) -> None:
-        ui_ready = self.validateInputs(manual=False)
+        result = self._run_environment_dependency_check()
+        if result is None:
+            return
+        self._update_environment_result_label(result)
+        self._update_environment_path_status_labels(result)
+        self._show_environment_results_dialog(result)
+        self._update_environment_status(result)
+
+    def _run_environment_dependency_check(self):
         node = self._parameterNode
         if not node or not self.logic:
-            self.appendLog("Validation failed. Parameter node or logic is unavailable.")
-            self._setStatus("error", "Validation failed")
-            return
+            self.appendLog("Environment check failed. Parameter node or logic is unavailable.")
+            self._setStatus("error", "Environment check failed")
+            self._update_environment_result_label(None, error="Parameter node or logic is unavailable.")
+            return None
 
-        subject_id = (node.subjectId or "").strip()
-        input_root = (node.inputDirectory or "").strip()
         output_dir = (node.outputDirectory or "").strip()
-        if not subject_id or not input_root:
-            self.appendLog("Validation failed. Subject ID and subject directory are required.")
-            self._setStatus("error", "Validation failed")
-            return
+        subject_root_text = (node.inputDirectory or "").strip()
+        subject_root = Path(subject_root_text).expanduser() if subject_root_text else None
+        if subject_root is not None and not subject_root.exists():
+            self.appendLog(
+                "[Environment] Subject root is not available yet; dependency report will be written outside the subject tree."
+            )
 
+        self.appendLog("Starting environment dependency check...")
+        external_paths = self._environment_dependency_path_kwargs()
         try:
-            inspected = self.logic._resolve_subject_input(Path(input_root).expanduser(), subject_id)
-        except Exception as exc:
-            self.appendLog(f"Validation failed. Unable to resolve input layout: {exc}")
-            self._setStatus("error", "Validation failed")
-            return
-
-        if inspected.get("mode") != "subject_root":
-            if ui_ready:
-                self.appendLog(
-                    "Validation succeeded for legacy registered input. "
-                    "Shared DWI import QC is only available for subject-root/input layouts."
-                )
-                self._setStatus("ready", "Validation passed")
-            else:
-                self.appendLog("Validation failed. Legacy registered input is incomplete.")
-                self._setStatus("error", "Validation failed")
-            return
-
-        self.appendLog("Starting shared input validation / QC...")
-        try:
-            result = self.logic.runInputValidation(
-                subject_id=subject_id,
-                input_root=Path(input_root).expanduser(),
-                output_dir=Path(output_dir).expanduser() if output_dir else None,
-                dependency_groups=("core", "microstructure", "tractography"),
-                require_phase_encoding=False,
+            result = self.logic.runEnvironmentDependencyCheck(
+                targets=self._selected_environment_targets(),
+                subject_root=subject_root,
+                output_root=Path(output_dir).expanduser() if output_dir else None,
+                preprocessing_backend=(node.preprocessingBackend or "dipy").strip(),
+                tractography_backend=self._tractography_backend_text(),
+                connectome_backend=(node.connectomeBackend or "python").strip(),
+                ddseg_device=(node.ddsegDevice or "auto").strip() or "auto",
+                surface_device=(node.device or "auto").strip() or "auto",
+                microstructure_run_free_water=self._microstructure_stage_flags()[0],
+                microstructure_run_noddi=self._microstructure_stage_flags()[1],
+                **external_paths,
             )
         except Exception as exc:
-            self.appendLog(f"Validation failed: {exc}")
-            self._setStatus("error", "Validation failed")
+            self.appendLog(f"Environment check failed: {exc}")
+            self._setStatus("error", "Environment check failed")
+            self._update_environment_result_label(None, error=str(exc))
+            return None
+
+        self._lastEnvironmentResult = result
+        return result
+
+    def _update_environment_status(self, result) -> None:
+        if result.blocker_count:
+            self._setStatus("error", f"Environment: {result.blocker_count} missing required item(s)")
+        else:
+            self._setStatus("ready", "Environment ready")
+
+    def _missing_environment_items(self, result) -> list:
+        missing = [item for item in result.statuses if item.status == "missing"]
+        return sorted(missing, key=lambda item: (not item.required, item.kind, item.label.lower()))
+
+    def _environment_summary_text(self, result) -> str:
+        missing_items = self._missing_environment_items(result)
+        optional_count = sum(1 for item in missing_items if not item.required)
+        lines = [
+            f"Checked targets: {', '.join(result.targets) if result.targets else 'none'}",
+            (
+                f"Runnable targets: {len(result.runnable_targets)}; "
+                f"blocked targets: {len(result.blocked_targets)}; "
+                f"missing required items: {result.blocker_count}; "
+                f"missing optional items: {optional_count}"
+            ),
+        ]
+        if result.blocked_targets:
+            lines.append("Blocked: " + ", ".join(result.blocked_targets))
+        if result.missing_python_packages:
+            lines.append("Auto-installable Python packages: " + ", ".join(result.missing_python_packages))
+        if result.missing_external_groups:
+            lines.append("Manual setup groups: " + ", ".join(result.missing_external_groups))
+        if not missing_items:
+            lines.append("No missing dependencies detected for the selected targets.")
+        else:
+            preview = ", ".join(item.label for item in missing_items[:4])
+            if len(missing_items) > 4:
+                preview += f", ... ({len(missing_items)} total)"
+            lines.append("Missing: " + preview)
+        return "\n".join(lines)
+
+    def _update_environment_result_label(self, result, *, error: Optional[str] = None) -> None:
+        label = getattr(self.ui, "environmentResultLabel", None)
+        if not label:
+            return
+        if error:
+            label.setText(f"Environment check failed: {error}")
+            label.setStyleSheet("QLabel#environmentResultLabel { color: #C62828; padding-top: 4px; }")
+            return
+        if result is None:
+            label.setText("No environment check has been run yet.")
+            label.setStyleSheet("QLabel#environmentResultLabel { color: #546E7A; padding-top: 4px; }")
+            return
+        color = "#C62828" if result.blocker_count else "#2E7D32"
+        label.setText(self._environment_summary_text(result))
+        label.setStyleSheet(f"QLabel#environmentResultLabel {{ color: {color}; padding-top: 4px; }}")
+
+    def _show_environment_results_dialog(self, result) -> None:
+        previous = getattr(self, "_environmentDialog", None)
+        if previous:
+            try:
+                previous.close()
+            except Exception:
+                pass
+
+        dialog = qt.QDialog(slicer.util.mainWindow())
+        dialog.setWindowTitle("SlicerDDSurfer Environment Dependencies")
+        dialog.resize(900, 640)
+        self._environmentDialog = dialog
+
+        layout = qt.QVBoxLayout(dialog)
+        summary_label = qt.QLabel(self._environment_summary_text(result))
+        summary_label.wordWrap = True
+        summary_label.setStyleSheet(
+            "QLabel { background: #ECEFF1; color: #263238; padding: 10px; border-radius: 6px; }"
+        )
+        layout.addWidget(summary_label)
+        python_label = qt.QLabel(self._python_install_target_text())
+        python_label.wordWrap = True
+        python_label.setStyleSheet("QLabel { color: #455A64; padding: 4px; }")
+        layout.addWidget(python_label)
+
+        button_row = qt.QHBoxLayout()
+        install_all_button = qt.QPushButton("Install all auto-installable items")
+        install_all_button.toolTip = (
+            "Installs missing Python packages into the active Slicer Python environment. "
+            "External tools, licenses, and model resources require manual setup."
+        )
+        install_all_button.enabled = bool(result.missing_python_packages)
+        install_all_button.connect("clicked()", self._onInstallAllEnvironmentItemsClicked)
+        button_row.addWidget(install_all_button)
+
+        notes_button = qt.QPushButton("Show manual setup notes")
+        notes_button.enabled = any(item.status == "missing" and item.kind != "python" for item in result.statuses)
+        notes_button.connect("clicked()", lambda: self._show_environment_install_notes(result))
+        button_row.addWidget(notes_button)
+        button_row.addStretch(1)
+
+        close_button = qt.QPushButton("Close")
+        close_button.connect("clicked()", dialog.close)
+        button_row.addWidget(close_button)
+        layout.addLayout(button_row)
+
+        missing_items = self._missing_environment_items(result)
+        if missing_items:
+            scroll = qt.QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll_widget = qt.QWidget()
+            scroll_layout = qt.QVBoxLayout(scroll_widget)
+            for item in missing_items:
+                scroll_layout.addWidget(self._build_environment_item_row(item))
+            scroll_layout.addStretch(1)
+            scroll.setWidget(scroll_widget)
+            layout.addWidget(scroll)
+        else:
+            ready_label = qt.QLabel("All selected targets are runnable with the currently detected environment.")
+            ready_label.wordWrap = True
+            ready_label.setStyleSheet("QLabel { color: #2E7D32; padding: 12px; }")
+            layout.addWidget(ready_label)
+
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _build_environment_item_row(self, item):
+        frame = qt.QFrame()
+        frame.setFrameShape(qt.QFrame.StyledPanel)
+        frame.setStyleSheet(
+            "QFrame { border: 1px solid #CFD8DC; border-radius: 6px; background: #FAFAFA; } "
+            "QLabel { border: none; background: transparent; color: #263238; } "
+            "QPushButton { padding: 4px 10px; }"
+        )
+        layout = qt.QHBoxLayout(frame)
+
+        text = qt.QLabel(self._environment_item_text(item))
+        text.wordWrap = True
+        try:
+            text.setTextInteractionFlags(qt.Qt.TextSelectableByMouse | qt.Qt.TextSelectableByKeyboard)
+        except Exception:
+            pass
+        layout.addWidget(text, 1)
+
+        button = qt.QPushButton("Install" if item.kind == "python" else "Install / setup")
+        button.toolTip = item.install_hint or "Show setup instructions."
+        button.connect("clicked()", lambda: self._onInstallEnvironmentItemClicked(item))
+        layout.addWidget(button)
+        return frame
+
+    def _environment_item_text(self, item) -> str:
+        required = "required" if item.required else "optional"
+        targets = ", ".join(item.targets) if item.targets else "none"
+        lines = [
+            f"{item.label} ({required})",
+            f"Key: {item.key}",
+            f"Targets: {targets}",
+        ]
+        details = item.details or {}
+        if details.get("detected_source"):
+            lines.append(f"Detected source: {details.get('detected_source')}")
+        if item.kind == "python":
+            lines.append(f"Package: {details.get('package') or item.label}")
+            lines.append(f"Python: {details.get('python_executable') or 'current Slicer Python'}")
+        elif item.kind == "command":
+            lines.append(f"Command: {details.get('command') or item.label}")
+            if details.get("bin_dir"):
+                lines.append(f"Configured bin dir: {details.get('bin_dir')}")
+        elif item.kind == "path":
+            lines.append(f"Path: {details.get('path') or ''}")
+            lines.append(f"Expected type: {details.get('path_kind') or 'file'}")
+        elif item.kind == "env":
+            env_names = ", ".join((details.get("env") or {}).keys())
+            lines.append(f"Environment variable(s): {env_names}")
+        elif item.kind == "device":
+            lines.append(f"Requested device: {details.get('requested_device') or ''}")
+        elif item.kind == "setting":
+            lines.append(details.get("notes") or "Provide the required setting before running.")
+        if item.install_hint:
+            lines.append(f"Suggested fix: {item.install_hint}")
+        checked_locations = details.get("checked_locations") or []
+        if checked_locations:
+            preview = ", ".join(checked_locations[:3])
+            if len(checked_locations) > 3:
+                preview += f", ... ({len(checked_locations)} checked)"
+            lines.append(f"Checked locations: {preview}")
+        return "\n".join(line for line in lines if line)
+
+    def _onInstallAllEnvironmentItemsClicked(self) -> None:
+        result = getattr(self, "_lastEnvironmentResult", None)
+        if result is None:
+            slicer.util.infoDisplay("Run the environment check first.", parent=self.parent)
+            return
+        self._install_python_packages_from_environment_dialog(tuple(result.missing_python_packages))
+
+    def _onInstallEnvironmentItemClicked(self, item) -> None:
+        package = (item.details or {}).get("package")
+        if item.kind == "python" and package:
+            self._install_python_packages_from_environment_dialog((package,))
+            return
+        self._show_environment_install_notes_for_item(item)
+
+    def _install_python_packages_from_environment_dialog(self, packages: tuple[str, ...]) -> None:
+        unique_packages = tuple(dict.fromkeys(package for package in packages if package and package.strip()))
+        if not unique_packages:
+            slicer.util.infoDisplay("No auto-installable Python packages are missing.", parent=self.parent)
+            return
+        if not self.logic:
+            slicer.util.errorDisplay("Logic is unavailable; cannot install dependencies.", parent=self.parent)
             return
 
-        report = result.report_path.as_posix() if result.report_path else "not written"
-        self.appendLog(
-            f"Validation {result.status}: {result.error_count} error(s), "
-            f"{result.warning_count} warning(s)."
-        )
-        self.appendLog(f"Validation report: {report}")
-        for issue in result.messages:
-            detail = f" {issue.details}" if issue.details else ""
-            self.appendLog(f"[{issue.level.upper()}] {issue.category}: {issue.message}{detail}")
+        self.appendLog("[Environment] Installing from UI: " + ", ".join(unique_packages))
+        self._setStatus("running", "Installing Python dependencies...")
+        try:
+            self.logic.installMissingPythonDependencies(unique_packages)
+        except Exception as exc:
+            self.appendLog(f"[Environment] Dependency installation failed: {exc}")
+            self._setStatus("error", "Dependency installation failed")
+            slicer.util.errorDisplay(f"Dependency installation failed:\n{exc}", parent=self.parent)
+            return
 
-        if result.passed and ui_ready:
-            self._setStatus("ready", "Validation passed")
-        elif result.passed:
-            self._setStatus("error", "Validation passed with legacy input warning")
-        else:
-            self._setStatus("error", "Validation failed")
+        result = self._run_environment_dependency_check()
+        if result is None:
+            return
+        self._update_environment_result_label(result)
+        self._update_environment_path_status_labels(result)
+        self._update_environment_status(result)
+        self._show_environment_results_dialog(result)
+
+    def _show_environment_install_notes(self, result) -> None:
+        missing = [item for item in self._missing_environment_items(result) if item.kind != "python"]
+        if not missing:
+            slicer.util.infoDisplay("No manual setup items are missing.", parent=self.parent)
+            return
+        message = "\n\n".join(self._environment_item_text(item) for item in missing)
+        slicer.util.infoDisplay(message, windowTitle="SlicerDDSurfer manual setup notes", parent=self.parent)
+
+    def _show_environment_install_notes_for_item(self, item) -> None:
+        slicer.util.infoDisplay(
+            self._environment_item_text(item),
+            windowTitle=f"Install / setup: {item.label}",
+            parent=self.parent,
+        )
 
     def _setPipelineActive(self, active: bool) -> None:
         self._pipelineActive = active
         if active:
             if hasattr(self.ui, "applyButton"):
                 self.ui.applyButton.enabled = False
+            if hasattr(self.ui, "runSelectedButton"):
+                self.ui.runSelectedButton.enabled = False
             if hasattr(self.ui, "validateButton"):
                 self.ui.validateButton.enabled = False
+            if getattr(self, "_cancelRunButton", None):
+                self._cancelRunButton.enabled = True
             self._setStatus("running", "Running pipeline...")
             self._lastStatusMessage = "Running pipeline..."
         else:
+            if hasattr(self.ui, "runSelectedButton"):
+                self.ui.runSelectedButton.enabled = True
             self.validateInputs(manual=False)
+            if getattr(self, "_cancelRunButton", None):
+                self._cancelRunButton.enabled = False

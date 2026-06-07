@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -112,6 +113,114 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
             task_names = [task["name"] for task in payload["tasks"]]
             self.assertEqual(task_names, ["tractography.saf", "bundles.wma", "bundles.tractcloud"])
 
+    def test_cli_expands_bundle_backend_from_product_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "149741"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "bundles",
+                    "--bundle-backend",
+                    "all",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            payload = json.loads(completed.stdout)
+            task_names = [task["name"] for task in payload["tasks"]]
+            self.assertEqual(task_names, ["bundles.wmql", "bundles.wma", "bundles.tractcloud"])
+
+    def test_cli_microstructure_stages_drive_freewater_noddi_gates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "microstructure",
+                    "--microstructure-stages",
+                    "all",
+                    "--print-manifest-only",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            manifest_path = Path(completed.stdout.strip())
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["microstructure_stages"], ["dti", "freewater", "noddi"])
+            self.assertTrue(manifest["microstructure_run_free_water"])
+            self.assertTrue(manifest["microstructure_run_noddi"])
+
+    def test_cli_accepts_surface_postprocess_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "877168"
+            subject_root.mkdir(parents=True)
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "surface_postprocess",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual([task["name"] for task in payload["tasks"]], ["surface.ddsurfer_postprocess"])
+            self.assertEqual(payload["tasks"][0]["status"], "planned")
+
+    def test_cli_records_surface_postprocess_atlases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "877168"
+            subject_root.mkdir(parents=True)
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "surface_postprocess",
+                    "--postprocess-atlases",
+                    "aparc,aparc.a2009s",
+                    "--print-manifest-only",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            manifest_path = Path(completed.stdout.strip())
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["postprocess_atlases"], ["aparc", "aparc.a2009s"])
+
     def test_cli_records_preprocessing_dipy_options(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = Path(tmp) / "100307"
@@ -147,6 +256,152 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
             self.assertEqual(manifest["preprocessing_dipy_denoise_method"], "none")
             self.assertFalse(manifest["preprocessing_dipy_run_gibbs"])
             self.assertFalse(manifest["preprocessing_dipy_run_motion_correction"])
+
+    def test_doctor_writes_environment_report_and_install_helpers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "validation",
+                    "--doctor",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["environment"]["kind"], "environment_doctor")
+            report_paths = payload["report_paths"]
+            self.assertTrue(Path(report_paths["json"]).is_file())
+            self.assertTrue(Path(report_paths["python_sh"]).is_file())
+            self.assertTrue(Path(report_paths["python_ps1"]).is_file())
+            self.assertTrue(Path(report_paths["external_notes"]).is_file())
+
+    def test_doctor_records_requested_cuda_device(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "segmentation",
+                    "--ddseg-device",
+                    "cuda",
+                    "--doctor",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            payload = json.loads(completed.stdout)
+            dependency_keys = {item["key"] for item in payload["environment"]["dependencies"]}
+            self.assertIn("device:segmentation:cuda", dependency_keys)
+
+    def test_plan_writes_target_plan_without_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "validation,tractography",
+                    "--plan",
+                    "--skip-environment-check",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            payload = json.loads(completed.stdout)
+            plan = payload["run_plan"]
+            self.assertEqual(plan["kind"], "slicerddsurfer_run_plan")
+            self.assertTrue(Path(payload["run_plan_path"]).is_file())
+            items = {item["target"]: item for item in plan["items"]}
+            self.assertEqual(items["validation"]["status"], "will_run")
+            self.assertEqual(items["tractography"]["status"], "blocked")
+            self.assertEqual(items["tractography"]["reason_category"], "upstream")
+
+    def test_execute_allows_partial_run_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "subjectA"
+            subject_root.mkdir(parents=True)
+            env = {key: value for key, value in os.environ.items() if "WMA" not in key and "SLICERDDSURFER_WMA" not in key}
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "wma",
+                    "--execute",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["tasks"][0]["status"], "blocked")
+            self.assertIn("preflight missing dependencies", payload["tasks"][0]["reason"])
+            manifest = json.loads(Path(payload["run_manifest_path"]).read_text(encoding="utf-8"))
+            self.assertIn("wma", manifest["preflight_blocked_targets"])
+
+    def test_strict_environment_aborts_on_preflight_blockers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "subjectA"
+            subject_root.mkdir(parents=True)
+            env = {key: value for key, value in os.environ.items() if "WMA" not in key and "SLICERDDSURFER_WMA" not in key}
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "wma",
+                    "--execute",
+                    "--strict-environment",
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+            self.assertEqual(completed.returncode, 2)
+            self.assertIn("Aborting before execution", completed.stderr)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""Tests for subject report/provenance generation."""
+
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+
+class SubjectReportingTest(unittest.TestCase):
+    def test_write_subject_reports_from_manifest(self) -> None:
+        from shared import subject_layout, write_subject_reports
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            layout.run_metadata.mkdir(parents=True)
+            (layout.microstructure_dti).mkdir(parents=True)
+            (layout.microstructure_dti / "100307_dti_FA.nii.gz").write_text("fa", encoding="utf-8")
+            qc_path = layout.microstructure_dti / "dti_qc.json"
+            qc_path.write_text('{"kind": "dti_qc", "status": "completed"}\n', encoding="utf-8")
+            manifest_path = layout.run_metadata / "csd_act_orchestration_manifest.json"
+            manifest = {
+                "kind": "slicerddsurfer_product_orchestration",
+                "subject_id": "100307",
+                "subject_root": subject_root.as_posix(),
+                "output_root": layout.outputs.as_posix(),
+                "run_name": "csd_act",
+                "targets": ["microstructure"],
+                "run_targets": ["microstructure"],
+                "run_plan_summary": {"skipped": 1},
+                "tasks": [
+                    {
+                        "name": "microstructure.dti",
+                        "status": "skipped",
+                        "reason": "completed outputs found",
+                        "qc_path": qc_path.as_posix(),
+                    }
+                ],
+            }
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            paths = write_subject_reports(subject_root=subject_root, manifest_path=manifest_path, run_name="csd_act")
+
+            for path in (
+                paths.report_html,
+                paths.provenance_json,
+                paths.qc_summary_json,
+                paths.report_html_latest,
+                paths.provenance_json_latest,
+                paths.qc_summary_json_latest,
+            ):
+                self.assertTrue(path.is_file(), path)
+            provenance = json.loads(paths.provenance_json.read_text(encoding="utf-8"))
+            qc_summary = json.loads(paths.qc_summary_json.read_text(encoding="utf-8"))
+            self.assertEqual(provenance["subject_id"], "100307")
+            self.assertEqual(provenance["task_summary"]["skipped"], 1)
+            self.assertEqual(qc_summary["qc_files"][0]["status"], "completed")
+            self.assertIn("SlicerDDSurfer Report", paths.report_html.read_text(encoding="utf-8"))
+
+
+if __name__ == "__main__":
+    unittest.main()

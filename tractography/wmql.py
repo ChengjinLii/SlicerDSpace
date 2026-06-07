@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from shared.external_process import merged_startup_environment
+
 
 TRACT_QUERIER_REPOSITORY = "https://github.com/demianw/tract_querier"
 VALID_TRACT_EXTENSIONS = {".vtk", ".vtp", ".trk"}
@@ -72,7 +74,7 @@ def _resolve_python(python_executable: Optional[Path]) -> Path:
 
 
 def _probe_python_package(python_path: Path, tract_querier_root: Optional[Path]) -> dict[str, Any]:
-    env = os.environ.copy()
+    env = merged_startup_environment()
     if tract_querier_root is not None:
         env["PYTHONPATH"] = tract_querier_root.expanduser().resolve().as_posix() + os.pathsep + env.get("PYTHONPATH", "")
     probe = (
@@ -301,7 +303,7 @@ def run_wmql_bundle_segmentation(
     return_code: Optional[int] = None
     execution_error: Optional[str] = None
     if config.execute:
-        env = os.environ.copy()
+        env = merged_startup_environment()
         if config.tract_querier_root is not None:
             root = config.tract_querier_root.expanduser().resolve()
             env["PYTHONPATH"] = root.as_posix() + os.pathsep + env.get("PYTHONPATH", "")

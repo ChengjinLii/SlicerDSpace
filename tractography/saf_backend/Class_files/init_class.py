@@ -15,7 +15,7 @@ class init_class:
         self.work_dir = ''
         self.logt = []
         self.slab = 'cortex'
-        self.surfseed = True
+        self.surfseed = False
         self.tckgen = ''
         self.noseed = ''
         self.sl_weights = ''

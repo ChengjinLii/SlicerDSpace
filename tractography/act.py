@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+from shared.external_process import startup_environment
+
 
 SUPPORTED_ACT_OUTPUT_FORMATS = {"tck"}
 REQUIRED_MRTRIX_COMMANDS = ("mrconvert", "dwi2response", "dwi2fod", "tckgen", "tcksift2", "tck2connectome")
@@ -285,7 +287,7 @@ def run_act_tracking(config: ACTTrackingConfig, *, log: Optional[Callable[[str],
         try:
             for command in commands:
                 _emit(f"[Tractography] Running ACT command: {' '.join(command)}", log)
-                completed = subprocess.run(command, check=True)
+                completed = subprocess.run(command, check=True, env=startup_environment())
                 return_code = completed.returncode
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode

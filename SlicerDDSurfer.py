@@ -35,6 +35,10 @@ class SlicerDDSurfer(ScriptedLoadableModule):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = "SlicerDDSurfer"
         self.parent.categories = ["Diffusion"]
+        # Do not set Slicer module-level dependencies here. Missing optional
+        # extensions must not prevent the UI from loading; the dependency doctor
+        # reports runnable and blocked targets after the module opens. Release
+        # packaging declares recommended extension dependencies in CMake/.s4ext.
         self.parent.dependencies = []
         self.parent.contributors = ["SlicerDDSurfer Team"]
         self.parent.helpText = (
@@ -56,7 +60,7 @@ class SlicerDDSurferParameterNode:
     outputDirectory: str = ""
     inputDirectory: str = ""
     predictMode: Annotated[str, Choice(["all", "wm"])] = "all"
-    device: Annotated[str, Choice(["cpu", "cuda:0"])] = "cpu"
+    device: Annotated[str, Choice(["auto", "cpu", "cuda:0"])] = "auto"
     cleanupIntermediates: bool = False
     postprocessSubjectId: str = ""
     postprocessNativeDir: str = ""
@@ -79,32 +83,35 @@ class SlicerDDSurferParameterNode:
     ddsegWeightsDir: str = ""
     ddsegSlicerBase: str = ""
     ddsegSlicerExt: str = ""
-    ddsegDevice: Annotated[str, Choice(["cpu", "cuda:0"])] = "cpu"
+    ddsegDevice: Annotated[str, Choice(["auto", "cpu", "cuda:0"])] = "auto"
     ddsegApplySoftmax: bool = False
     microstructureSubjectId: str = ""
     microstructureInputRoot: str = ""
     microstructureOutputDir: str = ""
     microstructureRoiPath: str = ""
     microstructureFitMethod: Annotated[str, Choice(["wls", "ls"])] = "wls"
-    microstructureRunFreeWater: bool = True
-    microstructureRunNoddi: bool = True
+    microstructureRunFreeWater: bool = False
+    microstructureRunNoddi: bool = False
     microstructureForceRecompute: bool = False
-    targetPreprocessing: bool = False
+    targetPreprocessing: bool = True
     preprocessingBackend: Annotated[str, Choice(["dipy", "mrtrix_fsl"])] = "dipy"
     orchestrationRunName: str = "csd_act_ui"
-    orchestrationTractographyBackend: Annotated[str, Choice(["csd_act", "dti_det"])] = "csd_act"
-    orchestrationSelectStreamlines: int = 1000
+    orchestrationTractographyBackend: Annotated[str, Choice(["csd_act", "dti_det", "saf"])] = "csd_act"
+    orchestrationBundleBackend: Annotated[str, Choice(["wmql", "wma", "tractcloud", "all"])] = "wmql"
+    orchestrationSelectStreamlines: int = 100000
+    orchestrationMicrostructureStages: Annotated[str, Choice(["dti", "dti,freewater", "dti,freewater,noddi"])] = "dti"
     orchestrationRunFreeWater: bool = False
     orchestrationRunNoddi: bool = False
     connectomeBackend: Annotated[str, Choice(["python", "mrtrix"])] = "python"
     connectomeCompressMrtrixDense: bool = False
+    autoInstallPythonDependencies: bool = True
     targetSurface: bool = True
-    targetParcellation: bool = False
-    targetSegmentation: bool = False
-    targetMicrostructure: bool = False
-    targetTractography: bool = False
-    targetBundles: bool = False
-    targetConnectome: bool = False
+    targetParcellation: bool = True
+    targetSegmentation: bool = True
+    targetMicrostructure: bool = True
+    targetTractography: bool = True
+    targetBundles: bool = True
+    targetConnectome: bool = True
 
 
 class SlicerDDSurferWidget(
@@ -129,7 +136,6 @@ class SlicerDDSurferWidget(
 
     def setup(self) -> None:
         ScriptedLoadableModuleWidget.setup(self)
-        self._add_navigation_panel()
         uiWidget = slicer.util.loadUI(self.resourcePath("UI/SlicerDDSurfer.ui"))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)

@@ -8,6 +8,17 @@ from Support.verb_msg import verb_msg
 from Support.pts_to_tck import pts_to_tck
 
 
+def _pair_streamline_endpoint_values(values: np.ndarray, nsl: int) -> np.ndarray:
+    """Pair SAF endpoint vectors as ``[starts; ends]``.
+
+    SAF stores all streamline starts first and all streamline ends second.
+    MATLAB's ``reshape(..., [], 2)'`` respects that column-major layout.
+    NumPy's default row-major reshape does not, so we pair explicitly.
+    """
+
+    return np.vstack([values[:nsl], values[nsl:]])
+
+
 def filters_GG_HH(PS, SD):
     verb_msg(f"Preparing for streamline-cortex filters. Current time: {time.strftime('%H:%M')}", PS)
 
@@ -93,9 +104,12 @@ def filters_GG_HH(PS, SD):
         pts_to_tck(pts[ggdd >= 0], os.path.join(PS.work_dir, 'mcc.tck'))
         pts_to_tck(pts[mm_idx > 0], os.path.join(PS.work_dir, 'mgn.tck'))
 
-    SD.DWI.saf.t_gghh = gg_idx.reshape(-1, 2).T
-    SD.DWI.saf.m = mm_idx.reshape(-1, 2).T
-    SD.DWI.saf.h = hh_idx.reshape(-1, 2).T
+    # MATLAB stores the first n entries as streamline starts and the next n as
+    # streamline ends. NumPy's default row-major reshape would interleave them,
+    # corrupting start/end pairing for GG/HH bookkeeping.
+    SD.DWI.saf.t_gghh = _pair_streamline_endpoint_values(gg_idx, nsl)
+    SD.DWI.saf.m = _pair_streamline_endpoint_values(mm_idx, nsl)
+    SD.DWI.saf.h = _pair_streamline_endpoint_values(hh_idx, nsl)
 
     t = time.time() - filtert
     PS.logt.append(['Time spent on GG & HH filtering:', _format_elapsed(t)])

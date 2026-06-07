@@ -12,8 +12,6 @@ from typing import Callable, Optional
 
 from shared import ensure_registered_dti_bundle, find_subject_root, inspect_subject_directory
 
-from .postprocessing import PostprocessingConfig, convert_meshes_to_native_space
-from .prediction import PredictionStageConfig, predict_subject
 from .preprocessing import SubjectPreprocessingConfig, preprocess_subject
 
 
@@ -244,6 +242,9 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
         manifest["status"] = "running"
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         try:
+            from .postprocessing import PostprocessingConfig, convert_meshes_to_native_space
+            from .prediction import PredictionStageConfig, predict_subject
+
             template_dir = Path(str(resources["template_dir"]))
             checkpoint_root = Path(str(resources["checkpoint_root"]))
             registration_atlas = Path(str(resources["registration_atlas"]))

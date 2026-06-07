@@ -1,0 +1,12 @@
+# SlicerDDSurfer extension description for Slicer ExtensionsIndex submission.
+# Keep `depends` synchronized with top-level CMakeLists.txt EXTENSION_DEPENDS.
+scm git
+scmurl https://github.com/ChengjinLii/SlicerDDSurfer.git
+scmrevision main
+depends SlicerDMRI PyTorch
+build_subdirectory .
+homepage https://github.com/ChengjinLii/SlicerDDSurfer
+category Diffusion
+contributors SlicerDDSurfer Team
+description Multi-workflow diffusion MRI extension for surface reconstruction, parcellation, segmentation, microstructure, tractography, bundles, and connectome analysis.
+enabled 1

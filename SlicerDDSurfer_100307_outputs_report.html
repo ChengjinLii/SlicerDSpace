@@ -163,7 +163,7 @@
         <div>Subject：<code>100307</code></div>
         <div>扫描时间：<code>2026-06-04</code></div>
         <div>范围：<code>outputs/00_run_metadata</code> 到 <code>outputs/05_statistics</code></div>
-        <div>说明：当前还未看到 <code>02_microstructure/freewater</code> 和最终 <code>02_microstructure/noddi</code> 图谱文件</div>
+        <div>说明：当前标准树里已经包含 <code>DTI + Free Water + NODDI</code> 图谱；其中一部分来自 legacy 输出回填</div>
       </div>
     </section>
 
@@ -217,7 +217,7 @@
 
             <li class="dir"><span class="label">02_microstructure/</span>
               <ul>
-                <li class="file"><span class="label">manifest.json</span><span class="comment">当前微结构阶段 manifest；当前主要反映 DTI 状态</span></li>
+                <li class="file"><span class="label">manifest.json</span><span class="comment">当前微结构总 manifest；当前已标记 Free Water 与 NODDI 为启用状态</span></li>
                 <li class="dir"><span class="label">dti/</span>
                   <ul>
                     <li class="file"><span class="label">100307_dti_FA.nii.gz</span><span class="comment">FA，各向异性分数图</span></li>
@@ -228,6 +228,29 @@
                     <li class="file"><span class="label">100307_dti_L2.nii.gz</span><span class="comment">第二特征值图</span></li>
                     <li class="file"><span class="label">100307_dti_L3.nii.gz</span><span class="comment">第三特征值图</span></li>
                     <li class="file"><span class="label">100307_dti_Trace.nii.gz</span><span class="comment">Trace 图；三个特征值之和</span></li>
+                  </ul>
+                </li>
+                <li class="dir"><span class="label">freewater/</span>
+                  <ul>
+                    <li class="file"><span class="label">100307_fw_fraction.nii.gz</span><span class="comment">Free Water fraction 图；自由水体积分数</span></li>
+                    <li class="file"><span class="label">100307_fw_FA.nii.gz</span><span class="comment">自由水校正后的 tissue FA 图</span></li>
+                    <li class="file"><span class="label">100307_fw_MD.nii.gz</span><span class="comment">自由水校正后的 tissue MD 图</span></li>
+                    <li class="file"><span class="label">freewater_manifest.json</span><span class="comment">Free Water 阶段 manifest；当前来自 legacy 输出回填</span></li>
+                  </ul>
+                </li>
+                <li class="dir"><span class="label">noddi/</span>
+                  <ul>
+                    <li class="file"><span class="label">100307_noddi_NDI.nii.gz</span><span class="comment">NODDI NDI 图；neurite density index</span></li>
+                    <li class="file"><span class="label">100307_noddi_ODI.nii.gz</span><span class="comment">NODDI ODI 图；orientation dispersion index</span></li>
+                    <li class="file"><span class="label">100307_noddi_IsoVF.nii.gz</span><span class="comment">NODDI IsoVF 图；isotropic volume fraction</span></li>
+                    <li class="file"><span class="label">noddi_manifest.json</span><span class="comment">NODDI 阶段 manifest；当前来自 legacy 输出回填</span></li>
+                  </ul>
+                </li>
+                <li class="dir"><span class="label">cache/noddi/_amico_noddi/</span>
+                  <ul>
+                    <li class="file"><span class="label">config.pickle</span><span class="comment">AMICO NODDI 拟合配置缓存；不是最终产品</span></li>
+                    <li class="file"><span class="label">fit_dir.nii.gz</span><span class="comment">AMICO 输出的方向相关辅助图；保留用于追溯和调试</span></li>
+                    <li class="file"><span class="label">fit_NDI.nii.gz / fit_ODI.nii.gz / fit_FWF.nii.gz</span><span class="comment">AMICO 原始拟合图，正式视图已同步到 noddi/ 下</span></li>
                   </ul>
                 </li>
               </ul>
@@ -362,35 +385,10 @@
                       </ul>
                     </li>
 
-                    <li class="dir"><span class="label">csd_act_100k/</span>
+                    <li class="dir"><span class="label">cache/alternate_runs/bundles/wmql/</span>
                       <ul>
-                        <li class="file"><span class="label">100307_desc-wmql_af.left.trk</span><span class="comment">WMQL 抽取的左侧 arcuate fasciculus</span></li>
-                        <li class="file"><span class="label">100307_desc-wmql_af.right.trk</span><span class="comment">WMQL 抽取的右侧 arcuate fasciculus</span></li>
-                        <li class="file"><span class="label">100307_desc-wmql_cst.left.trk</span><span class="comment">WMQL 抽取的左侧 corticospinal tract</span></li>
-                        <li class="file"><span class="label">100307_desc-wmql_cst.right.trk</span><span class="comment">WMQL 抽取的右侧 corticospinal tract</span></li>
-                        <li class="file"><span class="label">wmql_manifest.json</span><span class="comment">100k tractogram 上的 WMQL manifest</span></li>
-                        <li class="file"><span class="label">wmql_qc.json</span><span class="comment">100k tractogram 上的 WMQL 命中统计</span></li>
-                        <li class="dir"><span class="label">queries/</span>
-                          <ul>
-                            <li class="file"><span class="label">AF_CST.qry</span><span class="comment">100k 运行使用的 AF/CST 查询文件副本</span></li>
-                          </ul>
-                        </li>
-                      </ul>
-                    </li>
-
-                    <li class="dir"><span class="label">csd_act_100k_default_fixed/</span>
-                      <ul>
-                        <li class="file"><span class="label">100307_desc-wmql_af.left.trk</span><span class="comment">修订查询/标签映射后的左侧 AF bundle</span></li>
-                        <li class="file"><span class="label">100307_desc-wmql_af.right.trk</span><span class="comment">修订查询/标签映射后的右侧 AF bundle</span></li>
-                        <li class="file"><span class="label">100307_desc-wmql_cst.left.trk</span><span class="comment">修订查询/标签映射后的左侧 CST bundle</span></li>
-                        <li class="file"><span class="label">100307_desc-wmql_cst.right.trk</span><span class="comment">修订查询/标签映射后的右侧 CST bundle</span></li>
-                        <li class="file"><span class="label">wmql_manifest.json</span><span class="comment">修订版 100k WMQL manifest</span></li>
-                        <li class="file"><span class="label">wmql_qc.json</span><span class="comment">修订版 100k WMQL QC</span></li>
-                        <li class="dir"><span class="label">queries/</span>
-                          <ul>
-                            <li class="file"><span class="label">AF_CST.qry</span><span class="comment">修订版 AF/CST 查询文件副本</span></li>
-                          </ul>
-                        </li>
+                        <li class="dir"><span class="label">csd_act_100k/</span><span class="comment">历史 100k WMQL run；已移出正式产品树</span></li>
+                        <li class="dir"><span class="label">csd_act_100k_default_fixed/</span><span class="comment">历史修订版 100k WMQL run；已移出正式产品树</span></li>
                       </ul>
                     </li>
                   </ul>
@@ -414,6 +412,24 @@
                   </ul>
                 </li>
 
+                <li class="dir"><span class="label">saf/csd_act/</span>
+                  <ul>
+                    <li class="file"><span class="label">SAF.tck</span><span class="comment">修复 GG/HH endpoint 配对后的 SAF 短联合纤维结果，当前 63589 条 streamline</span></li>
+                    <li class="file"><span class="label">SAF.vtk</span><span class="comment">由 SAF.tck 自动转换的 VTK 版本，便于 Slicer 加载和检查</span></li>
+                    <li class="file"><span class="label">saf_manifest.json</span><span class="comment">SAF 运行 manifest，记录 CSD/FOD、DDSurfer postprocess surface、mask seeding 和 streamline_count</span></li>
+                    <li class="file"><span class="label">saf_qc.json</span><span class="comment">SAF QC，当前 status=completed，streamline_count=63589</span></li>
+                    <li class="file"><span class="label">log.txt</span><span class="comment">SAF 后端日志，包含 GG / HH / GWG 过滤统计</span></li>
+                    <li class="dir"><span class="label">cache/</span><span class="comment">SAF 大型中间文件；正式结果不依赖用户直接查看这些文件</span>
+                      <ul>
+                        <li class="file"><span class="label">SD.mat</span><span class="comment">SAF 内部 DWI/surface/filter 状态，调试用</span></li>
+                        <li class="file"><span class="label">PS.mat</span><span class="comment">SAF 参数状态，调试用</span></li>
+                        <li class="file"><span class="label">DWI_seeds_out.txt</span><span class="comment">初始候选 streamline 采样坐标缓存</span></li>
+                        <li class="dir"><span class="label">surf_data/</span><span class="comment">surface mask 与过滤辅助数据缓存</span></li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
+
                 <li class="dir"><span class="label">tractograms/</span>
                   <ul>
                     <li class="dir"><span class="label">csd_act/</span>
@@ -421,13 +437,6 @@
                         <li class="file"><span class="label">100307_csd_act_ifod2.tck</span><span class="comment">默认规模 CSD/ACT 全脑 tractogram，MRtrix TCK</span></li>
                         <li class="file"><span class="label">100307_csd_act_ifod2.trk</span><span class="comment">默认规模 CSD/ACT tractogram，TrackVis TRK</span></li>
                         <li class="file"><span class="label">100307_csd_act_ifod2_sift2_weights.txt</span><span class="comment">默认规模 tractogram 的 SIFT2 权重</span></li>
-                      </ul>
-                    </li>
-                    <li class="dir"><span class="label">csd_act_100k/</span>
-                      <ul>
-                        <li class="file"><span class="label">100307_csd_act_ifod2.tck</span><span class="comment">100k streamline 的 CSD/ACT tractogram，MRtrix TCK</span></li>
-                        <li class="file"><span class="label">100307_csd_act_ifod2.trk</span><span class="comment">100k streamline 的 CSD/ACT tractogram，TrackVis TRK</span></li>
-                        <li class="file"><span class="label">100307_csd_act_ifod2_sift2_weights.txt</span><span class="comment">100k streamline tractogram 的 SIFT2 权重</span></li>
                       </ul>
                     </li>
                     <li class="dir"><span class="label">dti_det/</span>
