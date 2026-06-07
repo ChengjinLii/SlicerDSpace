@@ -192,6 +192,12 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
                     "freewater",
                     "--microstructure-free-water-chunk-size",
                     "1",
+                    "--microstructure-free-water-engine",
+                    "joblib",
+                    "--microstructure-free-water-n-jobs",
+                    "4",
+                    "--microstructure-free-water-vox-per-chunk",
+                    "128",
                     "--print-manifest-only",
                 ],
                 check=True,
@@ -202,6 +208,9 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
             manifest_path = Path(completed.stdout.strip())
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["microstructure_free_water_chunk_size"], 1)
+            self.assertEqual(manifest["microstructure_free_water_engine"], "joblib")
+            self.assertEqual(manifest["microstructure_free_water_n_jobs"], 4)
+            self.assertEqual(manifest["microstructure_free_water_vox_per_chunk"], 128)
             self.assertEqual(manifest["microstructure_stages"], ["dti", "freewater"])
 
     def test_cli_accepts_surface_postprocess_target(self) -> None:

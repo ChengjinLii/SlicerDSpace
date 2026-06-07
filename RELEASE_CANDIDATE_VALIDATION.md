@@ -115,7 +115,9 @@ Free Water and NODDI are not part of the quick release gate because they are lon
   --targets microstructure \
   --microstructure-stages dti,freewater,noddi \
   --run-name rc_microstructure_long \
-  --microstructure-free-water-chunk-size 1 \
+  --microstructure-free-water-chunk-size 4 \
+  --microstructure-free-water-engine joblib \
+  --microstructure-free-water-n-jobs 8 \
   --execute \
   --print-manifest-only
 ```

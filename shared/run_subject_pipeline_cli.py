@@ -411,6 +411,22 @@ def build_parser() -> argparse.ArgumentParser:
             "defaults to 2."
         ),
     )
+    parser.add_argument(
+        "--microstructure-free-water-engine",
+        default="serial",
+        choices=("serial", "joblib", "dask", "ray"),
+        help="DIPY Free Water fit engine. Use joblib/dask/ray for explicit parallel long regressions.",
+    )
+    parser.add_argument(
+        "--microstructure-free-water-n-jobs",
+        type=int,
+        help="Worker count passed to DIPY Free Water parallel engines. Omit for DIPY default.",
+    )
+    parser.add_argument(
+        "--microstructure-free-water-vox-per-chunk",
+        type=int,
+        help="Voxel chunk size passed to DIPY Free Water parallel engines. Omit for DIPY default.",
+    )
     parser.add_argument("--postprocess-native-dir", type=Path, help="DDSurfer native STL directory for postprocess.")
     parser.add_argument("--postprocess-mri-dir", type=Path, help="MRI directory containing brain.mgz and DDSurfer-wmparc.nii.gz.")
     parser.add_argument("--postprocess-backend-root", type=Path, help="Optional override for bundled DDSurfer postprocess backend.")
@@ -569,6 +585,9 @@ def main(argv: list[str] | None = None) -> int:
         microstructure_run_free_water=bool(args.run_free_water),
         microstructure_run_noddi=bool(args.run_noddi),
         microstructure_free_water_chunk_size=args.microstructure_free_water_chunk_size,
+        microstructure_free_water_engine=args.microstructure_free_water_engine,
+        microstructure_free_water_n_jobs=args.microstructure_free_water_n_jobs,
+        microstructure_free_water_vox_per_chunk=args.microstructure_free_water_vox_per_chunk,
         postprocess_native_dir=args.postprocess_native_dir,
         postprocess_mri_dir=args.postprocess_mri_dir,
         postprocess_backend_root=args.postprocess_backend_root,

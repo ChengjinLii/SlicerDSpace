@@ -61,6 +61,17 @@ class ProductOrchestratorTest(unittest.TestCase):
                     )
                 )
 
+            with self.assertRaisesRegex(ValueError, "microstructure_free_water_engine"):
+                run_subject_products(
+                    ProductOrchestratorConfig(
+                        subject_id="100307",
+                        subject_root=subject_root,
+                        targets=("microstructure",),
+                        execute=False,
+                        microstructure_free_water_engine="invalid",
+                    )
+                )
+
     def test_dry_run_plans_structural_targets(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 

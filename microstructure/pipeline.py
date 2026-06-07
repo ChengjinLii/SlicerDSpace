@@ -15,6 +15,7 @@ from typing import Callable, Optional
 from shared.pipeline import NativeDTIBundle, RawInputBundle
 
 LOGGER = logging.getLogger(__name__)
+FREE_WATER_ENGINES = {"serial", "joblib", "dask", "ray"}
 
 try:
     import nibabel as nib
@@ -57,6 +58,9 @@ class MicrostructureConfig:
     lut_path: Path | None = None
     free_water_fit_method: str = "WLS"
     free_water_chunk_size: int = 2
+    free_water_engine: str = "serial"
+    free_water_n_jobs: int | None = None
+    free_water_vox_per_chunk: int | None = None
     run_free_water: bool = True
     run_noddi: bool = True
     force_recompute: bool = False
@@ -308,6 +312,9 @@ def _expected_manifest(
         "free_water_model": {
             "fit_method": config.free_water_fit_method.upper(),
             "chunk_size": int(config.free_water_chunk_size),
+            "engine": config.free_water_engine,
+            "n_jobs": config.free_water_n_jobs,
+            "vox_per_chunk": config.free_water_vox_per_chunk,
             "run_enabled": bool(config.run_free_water),
         },
         "noddi_model": {
@@ -342,6 +349,9 @@ def _expected_free_water_manifest(config: MicrostructureConfig) -> dict[str, obj
         "free_water_model": {
             "fit_method": config.free_water_fit_method.upper(),
             "chunk_size": int(config.free_water_chunk_size),
+            "engine": config.free_water_engine,
+            "n_jobs": config.free_water_n_jobs,
+            "vox_per_chunk": config.free_water_vox_per_chunk,
         },
     }
 
@@ -478,6 +488,9 @@ def _compute_free_water_maps(
     raw = config.raw_input_bundle
     fit_method = config.free_water_fit_method.upper()
     chunk_size = max(1, int(config.free_water_chunk_size))
+    engine = (config.free_water_engine or "serial").lower()
+    n_jobs = config.free_water_n_jobs
+    vox_per_chunk = config.free_water_vox_per_chunk
     progress_path = paths["free_water_progress"]
     started = time.monotonic()
 
@@ -487,7 +500,8 @@ def _compute_free_water_maps(
 
     rounded_shells = np.unique(np.round(bvals / 100.0) * 100.0).astype(int).tolist()
     _emit(
-        f"[Microstructure] Free Water model: fit={fit_method}, chunk_size={chunk_size}, shells={rounded_shells}",
+        f"[Microstructure] Free Water model: fit={fit_method}, chunk_size={chunk_size}, "
+        f"engine={engine}, n_jobs={n_jobs}, vox_per_chunk={vox_per_chunk}, shells={rounded_shells}",
         log,
     )
 
@@ -519,6 +533,9 @@ def _compute_free_water_maps(
         "status": "running",
         "fit_method": fit_method,
         "chunk_size": chunk_size,
+        "engine": engine,
+        "n_jobs": n_jobs,
+        "vox_per_chunk": vox_per_chunk,
         "chunk_count": chunk_count,
         "total_voxels": total_voxels,
         "gradient_count": int(gradient_count),
@@ -576,7 +593,12 @@ def _compute_free_water_maps(
 
         data_chunk = np.asarray(dwi_img.dataobj[:, :, z_start:z_stop, :], dtype=np.float32)
         voxel_signals = data_chunk.reshape(-1, gradient_count)[mask_chunk.reshape(-1)]
-        fit = fw_model.fit(voxel_signals)
+        fit_kwargs: dict[str, object] = {"engine": engine}
+        if n_jobs is not None:
+            fit_kwargs["n_jobs"] = int(n_jobs)
+        if vox_per_chunk is not None:
+            fit_kwargs["vox_per_chunk"] = int(vox_per_chunk)
+        fit = fw_model.fit(voxel_signals, **fit_kwargs)
 
         fwf = np.clip(np.nan_to_num(np.asarray(fit.f, dtype=np.float32), nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0)
         fw_fa = np.clip(np.nan_to_num(np.asarray(fit.fa, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0), 0.0, 1.0)
@@ -915,6 +937,12 @@ def run_microstructure(
         raise ValueError("Subject ID does not match the provided native DTI bundle.")
     if config.raw_input_bundle.subject_root != config.native_bundle.subject_root:
         raise ValueError("Raw input bundle and native DTI bundle must belong to the same subject root.")
+    if config.free_water_chunk_size <= 0:
+        raise ValueError("free_water_chunk_size must be > 0.")
+    if (config.free_water_engine or "serial").lower() not in FREE_WATER_ENGINES:
+        raise ValueError("free_water_engine must be one of: serial, joblib, dask, ray.")
+    if config.free_water_vox_per_chunk is not None and config.free_water_vox_per_chunk <= 0:
+        raise ValueError("free_water_vox_per_chunk must be > 0 when provided.")
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 

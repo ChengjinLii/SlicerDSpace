@@ -91,6 +91,9 @@ class ProductOrchestratorConfig:
     microstructure_run_free_water: bool = False
     microstructure_run_noddi: bool = False
     microstructure_free_water_chunk_size: int = 2
+    microstructure_free_water_engine: str = "serial"
+    microstructure_free_water_n_jobs: Optional[int] = None
+    microstructure_free_water_vox_per_chunk: Optional[int] = None
     postprocess_native_dir: Optional[Path] = None
     postprocess_mri_dir: Optional[Path] = None
     postprocess_backend_root: Optional[Path] = None
@@ -684,6 +687,10 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         raise ValueError("select_streamlines must be > 0.")
     if config.microstructure_free_water_chunk_size <= 0:
         raise ValueError("microstructure_free_water_chunk_size must be > 0.")
+    if config.microstructure_free_water_engine not in {"serial", "joblib", "dask", "ray"}:
+        raise ValueError("microstructure_free_water_engine must be one of: serial, joblib, dask, ray.")
+    if config.microstructure_free_water_vox_per_chunk is not None and config.microstructure_free_water_vox_per_chunk <= 0:
+        raise ValueError("microstructure_free_water_vox_per_chunk must be > 0.")
     if config.tractography_backend not in TRACTOGRAPHY_BACKENDS:
         raise ValueError("tractography_backend must be one of: csd_act, dti_det, saf.")
     bundle_backends = _normalize_bundle_backends(config.bundle_backend)
@@ -1255,6 +1262,10 @@ def run_subject_products(
         raise ValueError("select_streamlines must be > 0.")
     if config.microstructure_free_water_chunk_size <= 0:
         raise ValueError("microstructure_free_water_chunk_size must be > 0.")
+    if config.microstructure_free_water_engine not in {"serial", "joblib", "dask", "ray"}:
+        raise ValueError("microstructure_free_water_engine must be one of: serial, joblib, dask, ray.")
+    if config.microstructure_free_water_vox_per_chunk is not None and config.microstructure_free_water_vox_per_chunk <= 0:
+        raise ValueError("microstructure_free_water_vox_per_chunk must be > 0.")
     if config.tractography_backend not in TRACTOGRAPHY_BACKENDS:
         raise ValueError("tractography_backend must be one of: csd_act, dti_det, saf.")
     bundle_backends = _normalize_bundle_backends(config.bundle_backend)
@@ -1662,6 +1673,9 @@ def run_subject_products(
                     run_free_water=False,
                     run_noddi=False,
                     free_water_chunk_size=config.microstructure_free_water_chunk_size,
+                    free_water_engine=config.microstructure_free_water_engine,
+                    free_water_n_jobs=config.microstructure_free_water_n_jobs,
+                    free_water_vox_per_chunk=config.microstructure_free_water_vox_per_chunk,
                     force_recompute=not config.resume,
                 ),
                 log=log,
@@ -1725,6 +1739,9 @@ def run_subject_products(
                     run_free_water=True,
                     run_noddi=False,
                     free_water_chunk_size=config.microstructure_free_water_chunk_size,
+                    free_water_engine=config.microstructure_free_water_engine,
+                    free_water_n_jobs=config.microstructure_free_water_n_jobs,
+                    free_water_vox_per_chunk=config.microstructure_free_water_vox_per_chunk,
                     force_recompute=not config.resume,
                 ),
                 log=log,
@@ -1781,6 +1798,9 @@ def run_subject_products(
                     run_free_water=config.microstructure_run_free_water,
                     run_noddi=True,
                     free_water_chunk_size=config.microstructure_free_water_chunk_size,
+                    free_water_engine=config.microstructure_free_water_engine,
+                    free_water_n_jobs=config.microstructure_free_water_n_jobs,
+                    free_water_vox_per_chunk=config.microstructure_free_water_vox_per_chunk,
                     force_recompute=not config.resume,
                 ),
                 log=log,
@@ -2291,6 +2311,9 @@ def run_subject_products(
         "microstructure_run_free_water": config.microstructure_run_free_water,
         "microstructure_run_noddi": config.microstructure_run_noddi,
         "microstructure_free_water_chunk_size": config.microstructure_free_water_chunk_size,
+        "microstructure_free_water_engine": config.microstructure_free_water_engine,
+        "microstructure_free_water_n_jobs": config.microstructure_free_water_n_jobs,
+        "microstructure_free_water_vox_per_chunk": config.microstructure_free_water_vox_per_chunk,
         "microstructure_stages": [
             stage
             for stage, enabled in (
