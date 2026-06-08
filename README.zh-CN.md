@@ -12,6 +12,8 @@ SlicerDDSurfer 是一个 3D Slicer 扩展模块，整合了多条基于扩散 MR
 
 **外部环境与本地配置说明：** [EXTERNAL_DEPENDENCIES.md](EXTERNAL_DEPENDENCIES.md)
 
+**模型权重与模板下载：** [MODEL_ASSETS.md](MODEL_ASSETS.md)
+
 **Release-candidate 安装/运行验证：** [RELEASE_CANDIDATE_VALIDATION.md](RELEASE_CANDIDATE_VALIDATION.md)
 
 Slicer UI 和 CLI 都支持外部依赖路径覆盖：Slicer 中在 `Environment & Dependencies` 里设置，并可导入/导出与 CLI 兼容的 JSON 配置；命令行使用对应路径参数，或用 `--dependency-config` / `--save-dependency-config` 复用配置。
@@ -29,6 +31,26 @@ Slicer UI 和 CLI 都支持外部依赖路径覆盖：Slicer 中在 `Environment
 ```bash
 python3 scripts/release_audit.py
 ```
+
+---
+
+## 模型权重与模板资源
+
+DDSurfer、DDSeg、DDParcel 的模型权重和模板资源通过 Git LFS 管理。先安装 Git LFS；克隆仓库后，推荐用统一下载入口拉取核心资源：
+
+```bash
+scripts/download_model_assets.sh --profile core
+```
+
+如果只需要某个后端，可以按需下载：
+
+```bash
+scripts/download_model_assets.sh --profile surface
+scripts/download_model_assets.sh --profile segmentation
+scripts/download_model_assets.sh --profile parcellation
+```
+
+完整 profile、路径和环境变量覆盖方式见 [MODEL_ASSETS.md](MODEL_ASSETS.md)。
 
 ---
 

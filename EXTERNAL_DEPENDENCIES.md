@@ -198,12 +198,16 @@ python3 run_subject_pipeline.py \
   - 插件代码会通过 Slicer 的 `PyTorchUtils` 检查/安装 `torch>=2.0.0`，但用户仍需要先在 Slicer Extension Manager 安装 PyTorch 扩展。
 - Git LFS
   - 模型权重和部分大文件走 Git LFS。
-  - 克隆后需要执行：
+  - 克隆后推荐用统一资源下载脚本，而不是手动记路径：
 
 ```bash
 git lfs install
-git lfs pull
+scripts/download_model_assets.sh --profile core
 ```
+
+  - `core` 会下载 DDSurfer / DDSeg / DDParcel 所需模型权重和模板。
+  - 只跑某个深度学习后端时，可改用 `--profile surface`、`--profile segmentation` 或 `--profile parcellation`。
+  - 详细 profile、路径和外部 asset 覆盖方式见 [MODEL_ASSETS.md](MODEL_ASSETS.md)。
 
 ## 2. Python 包依赖
 
@@ -546,6 +550,22 @@ Docker 不是当前主线必需项。
 当前内置 DDSurfer postprocess backend 默认不要求 Docker。
 
 ## 12. 模型权重与资源文件
+
+推荐入口：
+
+```bash
+scripts/download_model_assets.sh --profile core
+```
+
+也可以按需下载：
+
+```bash
+scripts/download_model_assets.sh --profile surface
+scripts/download_model_assets.sh --profile segmentation
+scripts/download_model_assets.sh --profile parcellation
+```
+
+完整说明见 [MODEL_ASSETS.md](MODEL_ASSETS.md)。
 
 以下资源必须存在，否则对应深度学习流程会报错：
 

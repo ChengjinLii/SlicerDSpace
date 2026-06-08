@@ -14,6 +14,8 @@ SlicerDDSurfer is a 3D Slicer scripted module that bundles multiple diffusion-MR
 
 **External dependencies and local configuration:** [EXTERNAL_DEPENDENCIES.md](EXTERNAL_DEPENDENCIES.md)
 
+**Model weights and template downloads:** [MODEL_ASSETS.md](MODEL_ASSETS.md)
+
 **Release-candidate install/run validation:** [RELEASE_CANDIDATE_VALIDATION.md](RELEASE_CANDIDATE_VALIDATION.md)
 
 The Slicer UI and CLI both support external dependency path overrides. In Slicer, use `Environment & Dependencies` to import/export a CLI-compatible dependency config; on the CLI, use explicit path flags or `--dependency-config` / `--save-dependency-config`.
@@ -31,6 +33,26 @@ Before pushing a release branch, run:
 ```bash
 python3 scripts/release_audit.py
 ```
+
+---
+
+## Model Weights And Templates
+
+Model weights and template assets are stored with Git LFS. Install Git LFS first, then download the recommended core asset profile before running DDSurfer, DDSeg, or DDParcel:
+
+```bash
+scripts/download_model_assets.sh --profile core
+```
+
+For targeted downloads:
+
+```bash
+scripts/download_model_assets.sh --profile surface
+scripts/download_model_assets.sh --profile segmentation
+scripts/download_model_assets.sh --profile parcellation
+```
+
+See [MODEL_ASSETS.md](MODEL_ASSETS.md) for profiles, expected paths, verification behavior, and external DDSurfer asset environment variables.
 
 ---
 
