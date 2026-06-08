@@ -929,6 +929,56 @@ python3 run_subject_pipeline.py \
             </div>
           </div>
 
+          <div class="card" style="margin-top: 15px;">
+            <h3>用户不填写 Advanced external paths 时，具体怎么发现？</h3>
+            <p>
+              空字段表示“不提供用户覆盖路径”，不是让程序全盘递归搜索磁盘。doctor 会按固定规则做确定性发现：
+            </p>
+            <table>
+              <thead>
+                <tr><th>优先级</th><th>扫描来源</th><th>例子</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td>Slicer user settings 或 CLI dependency config 里的显式路径。</td>
+                  <td>UI 保存的 MRtrix3 bin dir；CLI `--dependency-config ~/.slicerdsurfer-deps.json`。</td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td>环境变量。</td>
+                  <td>`SLICERDDSURFER_MRTRIX_BIN_DIR`、`MRTRIX_HOME`、`FSLDIR`、`FREESURFER_HOME`、`SLICERDDSURFER_WMA_ROOT`。</td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td>当前进程的 `PATH`。</td>
+                  <td>用 `shutil.which()` 查 `mrconvert`、`tckgen`、`eddy`、`topup`、`recon-all`、`wm_apply_ORG_atlas_to_subject.sh`。</td>
+                </tr>
+                <tr>
+                  <td>4</td>
+                  <td>常见安装目录。</td>
+                  <td>`/usr/local/mrtrix3/bin`、`/opt/mrtrix3/bin`、`/usr/local/fsl/bin`、`/opt/fsl/bin`、`/usr/local/freesurfer/bin`、`/opt/homebrew/bin`。</td>
+                </tr>
+                <tr>
+                  <td>5</td>
+                  <td>仓库内固定模型资源路径。</td>
+                  <td>`segmentation/weights`、`parcellation/weights`、`Resources/Data/ckpts/hcp`、`Resources/Data/template`。</td>
+                </tr>
+                <tr>
+                  <td>6</td>
+                  <td>目标 Python 的 import / CUDA probe。</td>
+                  <td>Python 包用 import probe；CUDA 用 `torch.cuda.is_available()` 和 `torch.cuda.device_count()` 检查。</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="callout warn" style="margin-top: 14px;">
+              <p>
+                结论：如果用户把 MRtrix3、FSL、WMA、TractCloud 等装在自定义目录，但没有加入 `PATH` 或环境变量，
+                doctor 不会自己扫出来；需要在 UI 填路径，或导入 dependency config。
+              </p>
+            </div>
+          </div>
+
           <table>
             <thead>
               <tr><th>依赖类别</th><th>检测方式</th><th>缺失时如何处理</th></tr>
