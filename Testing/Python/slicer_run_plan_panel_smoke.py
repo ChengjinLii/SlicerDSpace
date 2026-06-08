@@ -70,7 +70,30 @@ def _poll(count: int) -> None:
                 return
         except Exception:
             pass
+    if not _ui_result_ready(widget) and count < 240:
+        qt.QTimer.singleShot(1000, lambda: _poll(count + 1))
+        return
     _check()
+
+
+def _ui_result_ready(widget) -> bool:
+    summary = getattr(widget, "_runSummaryLabel", None)
+    summary_text = summary.text if summary else ""
+    report_button = getattr(widget, "_runReportButton", None)
+    latest_report = getattr(widget, "_latestReportPath", None)
+    table = getattr(widget, "_runStatusTable", None)
+    statuses = []
+    if table:
+        for row in range(table.rowCount):
+            status_item = table.item(row, 1)
+            statuses.append(status_item.text() if status_item else "")
+    unfinished = {"queued", "running", "will_run"}
+    return (
+        summary_text.startswith("Status:")
+        and bool(report_button and report_button.enabled)
+        and bool(latest_report and latest_report.is_file())
+        and not any(status in unfinished for status in statuses)
+    )
 
 
 def _check() -> None:
@@ -88,12 +111,17 @@ def _check() -> None:
     status_label = widget.ui.statusLabel.text if hasattr(widget.ui, "statusLabel") else ""
     hint = getattr(widget, "_runStatusHintLabel", None)
     hint_text = hint.text if hint else ""
+    summary = getattr(widget, "_runSummaryLabel", None)
+    summary_text = summary.text if summary else ""
+    auto_load_limit = getattr(widget, "_autoLoadResultLimit", None)
     report_button = getattr(widget, "_runReportButton", None)
     latest_report = getattr(widget, "_latestReportPath", None)
     manifest = SUBJECT_ROOT / "outputs" / "00_run_metadata" / f"{RUN_NAME}_orchestration_manifest.json"
     plan = SUBJECT_ROOT / "outputs" / "00_run_metadata" / f"{RUN_NAME}_run_plan.json"
     print(f"SLICERDDSURFER_RUN_PANEL_STATUS_LABEL={status_label}", flush=True)
     print(f"SLICERDDSURFER_RUN_PANEL_HINT={hint_text}", flush=True)
+    print(f"SLICERDDSURFER_RUN_PANEL_SUMMARY={summary_text}", flush=True)
+    print(f"SLICERDDSURFER_RUN_PANEL_AUTO_LOAD_LIMIT={auto_load_limit}", flush=True)
     print(f"SLICERDDSURFER_RUN_PANEL_ROW_COUNT={row_count}", flush=True)
     print(f"SLICERDDSURFER_RUN_PANEL_TARGETS={targets}", flush=True)
     print(f"SLICERDDSURFER_RUN_PANEL_STATUSES={statuses}", flush=True)
@@ -103,9 +131,12 @@ def _check() -> None:
     print(f"SLICERDDSURFER_RUN_PANEL_LATEST_REPORT={latest_report}", flush=True)
     bad = (
         row_count < 4
+        or status_label == "Ready to run."
         or not any(status in {"blocked", "skipped", "passed", "completed"} for status in statuses)
         or not manifest.is_file()
         or not plan.is_file()
+        or not summary_text
+        or auto_load_limit != 12
         or not (report_button and report_button.enabled)
         or not latest_report
         or not latest_report.is_file()

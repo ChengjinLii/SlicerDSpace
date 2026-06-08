@@ -105,6 +105,7 @@ class SharedWidgetMixin:
         self._populateDeviceCombo()
         self._lastProcessEventsAt = 0.0
         self._logLineLimit = 4000
+        self._autoLoadResultLimit = 12
         self._logAppendCount = 0
         self._environmentCacheTtlSeconds = 300.0
         self._lastEnvironmentSignature = None
@@ -419,6 +420,11 @@ class SharedWidgetMixin:
         hint.setStyleSheet("QLabel { color: #546E7A; }")
         panel_layout.addWidget(hint)
 
+        summary = qt.QLabel("Run summary will appear after a plan or run completes.")
+        summary.wordWrap = True
+        summary.setObjectName("runSummaryLabel")
+        panel_layout.addWidget(summary)
+
         report_button = qt.QPushButton("Open latest report")
         report_button.enabled = False
         report_button.setToolTip("Open the latest generated SlicerDDSurfer HTML report.")
@@ -449,6 +455,7 @@ class SharedWidgetMixin:
 
         self._runStatusPanel = panel
         self._runStatusHintLabel = hint
+        self._runSummaryLabel = summary
         self._runReportButton = report_button
         self._latestReportPath = None
         self._runStatusTable = table
@@ -556,6 +563,15 @@ class SharedWidgetMixin:
           font-family: "Menlo", "Consolas", monospace;
           font-size: 11px;
         }
+        QLabel#runSummaryLabel {
+          background-color: #F7FAF8;
+          border: 1px solid #D8E4DD;
+          border-left: 4px solid #6B7E73;
+          border-radius: 7px;
+          color: #2F4038;
+          padding: 7px 9px;
+          font-size: 11px;
+        }
         QPushButton#runSelectedButton {
           background-color: #1D6C45;
           border: 1px solid #155336;
@@ -624,6 +640,67 @@ class SharedWidgetMixin:
         if label:
             label.setText(message)
         slicer.util.showStatusMessage(message, 3000)
+
+    def _set_run_summary_message(self, message: str, state: str = "") -> None:
+        label = getattr(self, "_runSummaryLabel", None)
+        if not label:
+            return
+        palette = {
+            "completed": ("#F0FAF3", "#1D6C45", "#174D32"),
+            "passed": ("#F0FAF3", "#1D6C45", "#174D32"),
+            "skipped": ("#F3F7F4", "#6B7E73", "#2F4038"),
+            "planned": ("#EEF6FF", "#2D7C92", "#163E50"),
+            "running": ("#EEF6FF", "#2D7C92", "#163E50"),
+            "partial": ("#FFF8EA", "#E28A11", "#6B3F00"),
+            "blocked": ("#FFF3E8", "#EF6C00", "#6B3F00"),
+            "failed": ("#FDECEC", "#C62828", "#6B1A1A"),
+            "cancelled": ("#FFF3E8", "#EF6C00", "#6B3F00"),
+            "unknown": ("#F3F7F4", "#6B7E73", "#2F4038"),
+        }
+        background, accent, text = palette.get(state, palette["unknown"])
+        label.setText(message or "Run summary is not available yet.")
+        label.setStyleSheet(
+            "QLabel#runSummaryLabel { "
+            f"background-color: {background}; border: 1px solid #D8E4DD; "
+            f"border-left: 4px solid {accent}; border-radius: 7px; color: {text}; "
+            "padding: 7px 9px; font-size: 11px; }"
+        )
+
+    def _run_summary_from_manifest(self, manifest: dict[str, Any]) -> tuple[str, str]:
+        report_paths = manifest.get("report_paths") or {}
+        qc_path = ""
+        if isinstance(report_paths, dict):
+            qc_path = str(report_paths.get("qc_summary_json_latest") or report_paths.get("qc_summary_json") or "")
+        if not qc_path:
+            return "", ""
+        path = Path(qc_path).expanduser()
+        if not path.is_file():
+            return "", ""
+        try:
+            qc_summary = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return f"Report summary unavailable: {exc}", "unknown"
+        summary = qc_summary.get("summary") if isinstance(qc_summary, dict) else {}
+        if not isinstance(summary, dict):
+            return "", ""
+        status = str(summary.get("status") or "unknown")
+        interpretation = str(summary.get("interpretation") or "").strip()
+        elapsed = str(summary.get("elapsed_time") or "").strip()
+        tasks = summary.get("tasks") if isinstance(summary.get("tasks"), dict) else {}
+        task_text = ", ".join(f"{key}={value}" for key, value in sorted(tasks.items())) if tasks else "no task counts"
+        parts = [f"Status: {status}", f"Tasks: {task_text}"]
+        if elapsed:
+            parts.append(f"Elapsed: {elapsed}")
+        if interpretation:
+            parts.append(interpretation)
+        return " | ".join(parts), status
+
+    def _set_run_summary_from_manifest(self, manifest: dict[str, Any], fallback: str = "") -> None:
+        message, status = self._run_summary_from_manifest(manifest)
+        if message:
+            self._set_run_summary_message(message, status)
+        elif fallback:
+            self._set_run_summary_message(fallback, "unknown")
 
     def _set_latest_report_path(self, report_path: str | Path | None) -> None:
         path = Path(str(report_path)).expanduser() if report_path else None
@@ -774,6 +851,14 @@ class SharedWidgetMixin:
             )
         summary = getattr(plan, "to_dict", lambda: {"summary": {}})().get("summary", {})
         self._set_run_status_table_rows(rows)
+        blocked = int(summary.get("blocked", 0) or 0)
+        will_run = int(summary.get("will_run", 0) or 0)
+        skipped = int(summary.get("skipped", 0) or 0)
+        plan_state = "blocked" if blocked and not (will_run or skipped) else ("partial" if blocked else "planned")
+        self._set_run_summary_message(
+            f"Plan: {will_run} will run, {skipped} skipped/reused, {blocked} blocked.",
+            plan_state,
+        )
         self._set_run_progress_message(
             f"Run plan ready: {summary.get('will_run', 0)} will run, "
             f"{summary.get('skipped', 0)} skipped, {summary.get('blocked', 0)} blocked."
@@ -800,6 +885,8 @@ class SharedWidgetMixin:
                 }
             )
         self._set_run_status_table_rows(rows)
+        if manifest_data:
+            self._set_run_summary_from_manifest(manifest_data, fallback=f"Run finished. Manifest: {result.run_manifest_path}")
         self._set_run_progress_message(f"Run finished. Manifest: {result.run_manifest_path}")
 
     def _on_run_status_table_double_clicked(self, row: int, column: int) -> None:
@@ -1681,13 +1768,16 @@ class SharedWidgetMixin:
             cancel_manifest = self._write_cancelled_manifest()
             self._mark_unfinished_rows("cancelled", "User cancelled the background job.")
             self.appendLog(f"[Background] Cancelled. Manifest: {cancel_manifest}")
-            self._setStatus("error", "Pipeline cancelled")
+            self._setStatus("warning", "Pipeline cancelled")
+            self._set_latest_report_path(None)
             self._set_run_progress_message(f"Pipeline cancelled. Manifest: {cancel_manifest}")
+            self._set_run_summary_message("Status: cancelled | User cancelled the background job.", "cancelled")
         elif process_failed:
             self._mark_unfinished_rows("failed", f"Background process exited with code {exit_code}")
             self._setStatus("error", f"Pipeline failed: exit code {exit_code}")
             self._set_latest_report_path(None)
             self._set_run_progress_message(f"Pipeline failed: exit code {exit_code}")
+            self._set_run_summary_message(f"Status: failed | Background process exited with code {exit_code}.", "failed")
         elif manifest_path and manifest_path.is_file():
             self._load_background_manifest_result(manifest_path)
         else:
@@ -1695,6 +1785,7 @@ class SharedWidgetMixin:
             self._setStatus("error", "Pipeline failed: no manifest")
             self._set_latest_report_path(None)
             self._set_run_progress_message("Pipeline failed: no manifest path was reported.")
+            self._set_run_summary_message("Status: failed | Background process finished without a manifest path.", "failed")
         self._backgroundProcess = None
         self._backgroundCancelRequested = False
 
@@ -1708,12 +1799,15 @@ class SharedWidgetMixin:
         rows = []
         blocked = 0
         failed = 0
+        completed_like = 0
         for task in manifest.get("tasks", []):
             status = str(task.get("status") or "")
             if status == "blocked":
                 blocked += 1
             if status == "failed":
                 failed += 1
+            if status in {"completed", "passed", "skipped"}:
+                completed_like += 1
             rows.append(
                 {
                     "target": str(task.get("name") or ""),
@@ -1727,6 +1821,8 @@ class SharedWidgetMixin:
         self._set_run_status_table_rows(rows)
         if failed:
             self._setStatus("error", f"Completed with {failed} failed task(s)")
+        elif blocked and completed_like:
+            self._setStatus("warning", f"Partial results: {blocked} blocked task(s)")
         elif blocked:
             self._setStatus("error", f"Completed with {blocked} blocked task(s)")
         else:
@@ -1736,16 +1832,25 @@ class SharedWidgetMixin:
         if isinstance(report_paths, dict):
             report_path = str(report_paths.get("report_html_latest") or report_paths.get("report_html") or "")
         self._set_latest_report_path(report_path)
+        self._set_run_summary_from_manifest(manifest, fallback=f"Run finished. Manifest: {manifest_path}")
+        auto_load_limit = int(getattr(self, "_autoLoadResultLimit", 12))
+        self._set_run_progress_message(f"Run finished. Loading up to {auto_load_limit} key result node(s)...")
         loaded_count = 0
         if self.logic:
             try:
-                loaded = self.logic.loadKeyResultsFromManifest(manifest_path)
+                loaded = self.logic.loadKeyResultsFromManifest(
+                    manifest_path,
+                    max_items=auto_load_limit,
+                )
                 loaded_count = len(loaded.get("loaded", []))
             except Exception as exc:
                 self.appendLog(f"[Slicer] Auto-load skipped: {exc}")
         message = f"Run finished. Manifest: {manifest_path}"
         if loaded_count:
-            message += f" Auto-loaded {loaded_count} result node(s)."
+            message += (
+                f" Auto-loaded {loaded_count} key result node(s)"
+                f" (limit {auto_load_limit})."
+            )
         if report_path:
             message += f" Report: {report_path}"
         self._set_run_progress_message(message)
