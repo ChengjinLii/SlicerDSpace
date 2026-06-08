@@ -73,6 +73,37 @@ class SubjectReportingTest(unittest.TestCase):
             self.assertIn("Key Outputs", report_html)
             self.assertIn("SlicerDDSurfer Run Summary", paths.summary_md.read_text(encoding="utf-8"))
 
+    def test_planned_manifest_reports_planned_overall_status(self) -> None:
+        from shared import subject_layout, write_subject_reports
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            layout.run_metadata.mkdir(parents=True)
+            manifest_path = layout.run_metadata / "preview_orchestration_manifest.json"
+            manifest = {
+                "kind": "slicerddsurfer_product_orchestration",
+                "subject_id": "100307",
+                "subject_root": subject_root.as_posix(),
+                "output_root": layout.outputs.as_posix(),
+                "run_name": "preview",
+                "targets": ["segmentation", "surface"],
+                "run_targets": ["segmentation", "surface"],
+                "run_plan_summary": {"will_run": 2, "skipped": 0, "blocked": 0},
+                "tasks": [
+                    {"name": "segmentation.ddseg", "status": "planned", "reason": "execute=False"},
+                    {"name": "surface.ddsurfer", "status": "planned", "reason": "execute=False"},
+                ],
+            }
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            paths = write_subject_reports(subject_root=subject_root, manifest_path=manifest_path, run_name="preview")
+
+            qc_summary = json.loads(paths.qc_summary_json.read_text(encoding="utf-8"))
+            self.assertEqual(qc_summary["summary"]["status"], "planned")
+            self.assertIn("planned", qc_summary["summary"]["interpretation"])
+            self.assertIn("badge-planned", paths.report_html.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

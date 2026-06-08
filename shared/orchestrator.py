@@ -264,6 +264,29 @@ def _resolve_slicer_executable(config: ProductOrchestratorConfig) -> Optional[Pa
     return _find_first_existing(candidates)
 
 
+def _resolved_device_for_execution(requested: str, *, execute: bool, target_will_run: bool) -> str:
+    normalized = (requested or "auto").strip().lower() or "auto"
+    if normalized not in {"", "auto"}:
+        return resolve_auto_torch_device(normalized)
+    if not target_will_run:
+        return "not_resolved_target_not_run"
+    if not execute:
+        return "not_resolved_execute_false"
+    return resolve_auto_torch_device(normalized)
+
+
+def _resolved_tractcloud_device_for_execution(requested: str, *, execute: bool, target_will_run: bool) -> str:
+    normalized = (requested or "auto").strip().lower() or "auto"
+    if normalized not in {"", "auto"}:
+        return normalized
+    resolved = _resolved_device_for_execution(normalized, execute=execute, target_will_run=target_will_run)
+    if resolved.startswith("cuda"):
+        return "cuda"
+    if resolved == "cpu":
+        return "cpu"
+    return resolved
+
+
 def _normalize_bundle_backends(bundle_backend: str) -> tuple[str, ...]:
     value = (bundle_backend or "wmql").strip().lower()
     if value in {"", "default"}:
@@ -1551,13 +1574,21 @@ def run_subject_products(
     wma_input_tractography = _resolve_bundle_input_tractography(subject_root, config.wma_input_tractography, output_root=output_root, run_name=run_name)
     tractcloud_input_tractography = _resolve_bundle_input_tractography(subject_root, config.tractcloud_input_tractography, output_root=output_root, run_name=run_name)
     slicer_executable = _resolve_slicer_executable(config)
-    ddseg_device = resolve_auto_torch_device(config.ddseg_device)
-    surface_device = resolve_auto_torch_device(config.surface_device)
-    if config.tractcloud_device == "auto":
-        resolved_tractcloud_torch_device = resolve_auto_torch_device(config.tractcloud_device)
-        tractcloud_device = "cuda" if resolved_tractcloud_torch_device.startswith("cuda") else "cpu"
-    else:
-        tractcloud_device = config.tractcloud_device
+    ddseg_device = _resolved_device_for_execution(
+        config.ddseg_device,
+        execute=config.execute,
+        target_will_run="segmentation" in run_targets,
+    )
+    surface_device = _resolved_device_for_execution(
+        config.surface_device,
+        execute=config.execute,
+        target_will_run="surface" in run_targets,
+    )
+    tractcloud_device = _resolved_tractcloud_device_for_execution(
+        config.tractcloud_device,
+        execute=config.execute,
+        target_will_run="tractcloud" in run_targets,
+    )
 
     if "segmentation" in run_targets:
         if config.resume and _segmentation_complete(subject_root, output_root):

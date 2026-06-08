@@ -294,6 +294,37 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(qc_summary["performance_profile"]["schema"], "slicerddsurfer.performance_profile.v1")
             self.assertIn("00_run_metadata", qc_summary["output_tree"]["top_dirs"])
 
+    def test_dry_run_does_not_probe_auto_torch_devices(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            with mock.patch(
+                "shared.orchestrator.resolve_auto_torch_device",
+                side_effect=AssertionError("dry-run must not probe torch devices"),
+            ):
+                result = run_subject_products(
+                    ProductOrchestratorConfig(
+                        subject_id="100307",
+                        subject_root=subject_root,
+                        targets=("segmentation", "surface", "tractcloud"),
+                        ddseg_device="auto",
+                        surface_device="auto",
+                        tractcloud_device="auto",
+                        execute=False,
+                    )
+                )
+
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["resolved_ddseg_device"], "not_resolved_execute_false")
+            self.assertEqual(manifest["resolved_surface_device"], "not_resolved_execute_false")
+            self.assertEqual(manifest["resolved_tractcloud_device"], "not_resolved_execute_false")
+
     def test_dry_run_supports_dti_tractography_backend(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 

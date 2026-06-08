@@ -196,13 +196,27 @@ def _task_status_for_humans(status: Any) -> str:
 def _overall_status(task_counts: dict[str, int]) -> tuple[str, str]:
     failed = task_counts.get("failed", 0)
     blocked = task_counts.get("blocked", 0)
+    planned = task_counts.get("planned", 0) + task_counts.get("will_run", 0)
+    running = task_counts.get("running", 0)
     completed_like = sum(task_counts.get(key, 0) for key in ("completed", "passed", "skipped"))
+    total = sum(task_counts.values())
+    unknown = total - failed - blocked - planned - running - completed_like
     if failed:
         return "failed", f"{failed} task(s) failed. Review failed task QC/logs first."
+    if running:
+        return "running", f"{running} task(s) are still running."
     if blocked and completed_like:
         return "partial", f"Core results are available; {blocked} optional task(s) are blocked."
     if blocked:
         return "blocked", f"{blocked} task(s) are blocked before execution."
+    if planned and completed_like:
+        return "planned", f"{planned} task(s) are planned; {completed_like} task(s) completed or reused."
+    if planned:
+        return "planned", f"{planned} task(s) are planned. Run with execution enabled to generate outputs."
+    if unknown:
+        return "unknown", f"{unknown} task(s) have unrecognized status. Review task QC/logs."
+    if not total:
+        return "unknown", "No task records were found in the orchestration manifest."
     return "completed", "All selected tasks completed or reused existing outputs."
 
 
@@ -758,6 +772,7 @@ def _build_html_report(
     .status-line {{ display: inline-flex; align-items: center; gap: 10px; margin: 12px 0 0; font-weight: 700; }}
     .badge {{ display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 9px; font-size: 12px; font-weight: 750; white-space: nowrap; }}
     .badge-completed, .badge-passed, .badge-skipped {{ color: var(--ok); background: #dcfce7; }}
+    .badge-planned, .badge-running {{ color: var(--blue); background: #dbeafe; }}
     .badge-blocked {{ color: var(--warning); background: #ffedd5; }}
     .badge-failed {{ color: var(--danger); background: #fee2e2; }}
     .badge-partial {{ color: var(--warning); background: #ffedd5; }}
