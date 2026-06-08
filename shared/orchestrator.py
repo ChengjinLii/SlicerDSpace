@@ -1315,6 +1315,26 @@ def _declared_task_output_stats(task: ProductTaskRecord) -> tuple[int, int]:
     return total_files, total_bytes
 
 
+def _top_dir_stats(output_root: Path) -> list[dict[str, object]]:
+    stats: dict[str, dict[str, object]] = {}
+    if not output_root.is_dir():
+        return []
+    for path in output_root.rglob("*"):
+        if not path.is_file():
+            continue
+        try:
+            top_name = path.relative_to(output_root).parts[0]
+        except (IndexError, ValueError):
+            continue
+        row = stats.setdefault(top_name, {"path": top_name, "file_count": 0, "size_bytes": 0})
+        row["file_count"] = int(row["file_count"]) + 1
+        try:
+            row["size_bytes"] = int(row["size_bytes"]) + path.stat().st_size
+        except OSError:
+            pass
+    return [stats[name] for name in sorted(stats)]
+
+
 def _build_performance_profile(
     *,
     layout,
@@ -1336,20 +1356,8 @@ def _build_performance_profile(
             }
         )
 
-    top_dirs = []
     output_root = layout.outputs
-    if output_root.is_dir():
-        for child in sorted(output_root.iterdir()):
-            if not child.is_dir():
-                continue
-            file_count, size_bytes = _path_stats(child)
-            top_dirs.append(
-                {
-                    "path": child.name,
-                    "file_count": file_count,
-                    "size_bytes": size_bytes,
-                }
-            )
+    top_dirs = _top_dir_stats(output_root)
 
     profile = {
         "kind": "slicerddsurfer_performance_profile",

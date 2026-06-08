@@ -77,9 +77,6 @@ def _collect_output_tree(output_root: Path, *, max_files: int = 2500) -> dict[st
             "total_bytes": 0,
             "truncated": False,
         }
-    for child in sorted(output_root.iterdir()):
-        if child.is_dir():
-            top_dirs[child.name] = sum(1 for item in child.rglob("*") if item.is_file())
     for path in sorted(output_root.rglob("*")):
         if not path.is_file():
             continue
@@ -89,6 +86,12 @@ def _collect_output_tree(output_root: Path, *, max_files: int = 2500) -> dict[st
         except OSError:
             size = 0
         total_bytes += size
+        try:
+            top_name = path.relative_to(output_root).parts[0]
+        except (IndexError, ValueError):
+            top_name = ""
+        if top_name:
+            top_dirs[top_name] = top_dirs.get(top_name, 0) + 1
         if len(files) < max_files:
             files.append(
                 {
