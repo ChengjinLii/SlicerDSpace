@@ -70,6 +70,11 @@ def _git_lines(args: list[str]) -> list[str]:
     return [line for line in completed.stdout.splitlines() if line]
 
 
+def _git_stdout(args: list[str]) -> str:
+    completed = _run_git(args)
+    return completed.stdout if completed.returncode == 0 else ""
+
+
 def _status_entries() -> list[dict[str, str]]:
     entries = []
     for line in _git_lines(["status", "--porcelain=v1"]):
@@ -94,6 +99,27 @@ def _file_size(path: str) -> int:
         return (REPO_ROOT / path).stat().st_size
     except OSError:
         return 0
+
+
+def _index_blob_size(path: str) -> int | None:
+    completed = _run_git(["cat-file", "-s", f":{path}"])
+    if completed.returncode != 0:
+        return None
+    try:
+        return int(completed.stdout.strip())
+    except ValueError:
+        return None
+
+
+def _index_blob_is_lfs_pointer(path: str) -> bool:
+    size = _index_blob_size(path)
+    if size is None or size > 1024:
+        return False
+    return _git_stdout(["show", f":{path}"]).startswith("version https://git-lfs.github.com/spec/v1\n")
+
+
+def _path_uses_lfs_filter(path: str) -> bool:
+    return ": filter: lfs" in _git_stdout(["check-attr", "filter", "--", path])
 
 
 def _matches_suffix(path: str, suffixes: Iterable[str]) -> bool:
@@ -269,6 +295,15 @@ def audit_repository(*, large_file_mb: float = 20.0) -> dict[str, object]:
                     category="tracked_forbidden_path",
                     path=path,
                     message="Generated outputs or third_party content should not be tracked.",
+                )
+            )
+        if _matches_suffix(path, LFS_REQUIRED_SUFFIXES) and _path_uses_lfs_filter(path) and not _index_blob_is_lfs_pointer(path):
+            issues.append(
+                AuditIssue(
+                    severity="blocker",
+                    category="lfs_pointer",
+                    path=path,
+                    message="Tracked file matches a Git LFS rule but the index stores a normal Git blob instead of an LFS pointer.",
                 )
             )
         size = _file_size(path)
