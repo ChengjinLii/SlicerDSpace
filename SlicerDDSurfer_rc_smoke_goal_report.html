@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SlicerDDSurfer RC Smoke Goal Report</title>
+  <style>
+    :root {
+      --ink: #18201a;
+      --muted: #5d6b5f;
+      --paper: #f5f0e6;
+      --paper-deep: #e2d4bd;
+      --panel: rgba(255, 250, 239, 0.88);
+      --line: rgba(24, 32, 26, 0.16);
+      --green: #1d6c45;
+      --green-dark: #123d2a;
+      --amber: #bf7a20;
+      --red: #a84635;
+      --blueprint: #203a44;
+      --shadow: 0 24px 70px rgba(31, 43, 35, 0.18);
+      --mono: "Cascadia Mono", "SFMono-Regular", "Liberation Mono", Consolas, monospace;
+      --serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      --sans: "Avenir Next", "Trebuchet MS", Verdana, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(29, 108, 69, 0.20), transparent 32rem),
+        radial-gradient(circle at 88% 3%, rgba(191, 122, 32, 0.22), transparent 28rem),
+        linear-gradient(135deg, var(--paper) 0%, #efe5d2 45%, var(--paper-deep) 100%);
+      font-family: var(--sans);
+      line-height: 1.58;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.16;
+      background-image:
+        linear-gradient(rgba(24, 32, 26, 0.16) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(24, 32, 26, 0.16) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, #000, transparent 78%);
+    }
+
+    .page {
+      width: min(1180px, calc(100vw - 36px));
+      margin: 0 auto;
+      padding: 48px 0 64px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 36px;
+      padding: 42px;
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      background:
+        linear-gradient(120deg, rgba(255, 250, 239, 0.94), rgba(245, 240, 230, 0.72)),
+        linear-gradient(90deg, rgba(29, 108, 69, 0.12), rgba(191, 122, 32, 0.10));
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "RC";
+      position: absolute;
+      right: -34px;
+      bottom: -86px;
+      color: rgba(32, 58, 68, 0.08);
+      font-family: var(--serif);
+      font-size: clamp(11rem, 25vw, 22rem);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.08em;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--green-dark);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 780px;
+      font-family: var(--serif);
+      font-size: clamp(2.7rem, 7vw, 6.2rem);
+      line-height: 0.92;
+      letter-spacing: -0.06em;
+    }
+
+    .lead {
+      margin: 24px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: clamp(1.02rem, 1.8vw, 1.24rem);
+    }
+
+    .hero-card {
+      position: relative;
+      z-index: 1;
+      align-self: end;
+      padding: 24px;
+      border: 1px solid rgba(18, 61, 42, 0.18);
+      border-radius: 26px;
+      background: rgba(18, 61, 42, 0.92);
+      color: #f5f0e6;
+      box-shadow: 0 18px 42px rgba(18, 61, 42, 0.24);
+    }
+
+    .stamp {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(245, 240, 230, 0.24);
+      border-radius: 999px;
+      color: #e8f2db;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .stamp::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: #77d48b;
+      box-shadow: 0 0 18px rgba(119, 212, 139, 0.92);
+    }
+
+    .meta-grid {
+      display: grid;
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .meta-row {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 12px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(245, 240, 230, 0.16);
+    }
+
+    .meta-row span:first-child {
+      color: rgba(245, 240, 230, 0.62);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+    }
+
+    .meta-row span:last-child {
+      font-weight: 700;
+    }
+
+    .section {
+      margin-top: 28px;
+      padding: 32px;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: var(--panel);
+      box-shadow: 0 12px 42px rgba(31, 43, 35, 0.10);
+      backdrop-filter: blur(8px);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    h2 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: clamp(1.8rem, 4vw, 3.15rem);
+      line-height: 0.96;
+      letter-spacing: -0.045em;
+    }
+
+    .section-kicker {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .metric {
+      min-height: 136px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255, 252, 245, 0.78);
+    }
+
+    .metric strong {
+      display: block;
+      font-family: var(--serif);
+      font-size: 2.5rem;
+      line-height: 0.9;
+      letter-spacing: -0.06em;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .metric.good strong {
+      color: var(--green);
+    }
+
+    .metric.warn strong {
+      color: var(--amber);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 0.92fr 1.08fr;
+      gap: 20px;
+    }
+
+    .rail {
+      position: relative;
+      display: grid;
+      gap: 14px;
+    }
+
+    .step {
+      position: relative;
+      padding: 18px 18px 18px 52px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255, 252, 245, 0.68);
+    }
+
+    .step::before {
+      content: attr(data-step);
+      position: absolute;
+      top: 18px;
+      left: 16px;
+      display: grid;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: var(--blueprint);
+      color: #f5f0e6;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .step h3,
+    .finding h3 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+      line-height: 1.24;
+    }
+
+    .step p,
+    .finding p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .finding-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .finding {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255, 252, 245, 0.72);
+    }
+
+    .finding[data-state="pass"] {
+      border-color: rgba(29, 108, 69, 0.28);
+    }
+
+    .finding[data-state="blocked"] {
+      border-color: rgba(191, 122, 32, 0.34);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(29, 108, 69, 0.12);
+      color: var(--green-dark);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .badge.warn {
+      background: rgba(191, 122, 32, 0.14);
+      color: #7a4a13;
+    }
+
+    .code {
+      display: block;
+      overflow-x: auto;
+      margin: 12px 0 0;
+      padding: 16px;
+      border: 1px solid rgba(32, 58, 68, 0.16);
+      border-radius: 18px;
+      background: #18201a;
+      color: #e7efd9;
+      font-family: var(--mono);
+      font-size: 0.86rem;
+      line-height: 1.54;
+      white-space: pre;
+    }
+
+    .commit-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .commit-list li {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 12px;
+      padding: 13px 15px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 252, 245, 0.62);
+    }
+
+    .hash {
+      color: var(--green-dark);
+      font-family: var(--mono);
+      font-weight: 800;
+    }
+
+    .task-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255, 252, 245, 0.72);
+      font-size: 0.94rem;
+    }
+
+    .task-table th,
+    .task-table td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .task-table th {
+      background: rgba(32, 58, 68, 0.08);
+      color: var(--blueprint);
+      font-family: var(--mono);
+      font-size: 0.76rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .task-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .status {
+      display: inline-flex;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status.pass,
+    .status.completed,
+    .status.skipped {
+      background: rgba(29, 108, 69, 0.13);
+      color: var(--green-dark);
+    }
+
+    .status.blocked {
+      background: rgba(191, 122, 32, 0.16);
+      color: #7a4a13;
+    }
+
+    .notes {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .notes li {
+      padding: 14px 16px;
+      border-left: 4px solid var(--green);
+      border-radius: 14px;
+      background: rgba(255, 252, 245, 0.64);
+    }
+
+    .footer {
+      margin-top: 28px;
+      padding: 18px 6px 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 920px) {
+      .hero,
+      .split,
+      .metric-grid,
+      .finding-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding: 28px;
+      }
+
+      .section {
+        padding: 24px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        width: min(100vw - 22px, 1180px);
+        padding-top: 22px;
+      }
+
+      .hero,
+      .section {
+        border-radius: 22px;
+      }
+
+      .section-header {
+        display: block;
+      }
+
+      .metric {
+        min-height: auto;
+      }
+
+      .commit-list li,
+      .meta-row {
+        grid-template-columns: 1fr;
+      }
+
+      .task-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      body::before,
+      .hero::after {
+        display: none;
+      }
+
+      .page {
+        width: auto;
+        padding: 0;
+      }
+
+      .hero,
+      .section,
+      .metric,
+      .finding,
+      .step {
+        break-inside: avoid;
+        box-shadow: none;
+      }
+
+      .code {
+        white-space: pre-wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero" aria-labelledby="title">
+      <div>
+        <p class="eyebrow">SlicerDDSurfer release-candidate simulation</p>
+        <h1 id="title">Docker RC Smoke Goal Report</h1>
+        <p class="lead">
+          本报告总结最近完成的 goal：不使用现有实验容器，建立独立 Docker RC smoke 路径，验证 fresh clone、Git LFS、Slicer extension 安装 smoke，以及 100307-release-candidate 外部用户 quick gate。
+        </p>
+      </div>
+      <aside class="hero-card" aria-label="summary">
+        <span class="stamp">GOAL COMPLETE</span>
+        <div class="meta-grid">
+          <div class="meta-row"><span>日期</span><span>2026-06-08</span></div>
+          <div class="meta-row"><span>最终提交</span><span>c160378</span></div>
+          <div class="meta-row"><span>镜像</span><span>slicerddsurfer-rc-smoke:ubuntu22.04</span></div>
+          <div class="meta-row"><span>原则</span><span>fresh clone + 只读外部依赖 + 临时输出</span></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>结论</h2>
+        <span class="section-kicker">what changed</span>
+      </div>
+      <div class="metric-grid">
+        <div class="metric good">
+          <strong>2</strong>
+          <span>Docker 验证层已通过：install smoke 与 quick gate。</span>
+        </div>
+        <div class="metric good">
+          <strong>0</strong>
+          <span>release audit blockers 与 warnings。</span>
+        </div>
+        <div class="metric good">
+          <strong>21</strong>
+          <span>orchestrator 单元测试全部通过。</span>
+        </div>
+        <div class="metric warn">
+          <strong>2</strong>
+          <span>可选外部后端仍被预检阻断：WMA、TractCloud。</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>执行范围</h2>
+        <span class="section-kicker">scope</span>
+      </div>
+      <div class="split">
+        <div class="rail">
+          <article class="step" data-step="1">
+            <h3>安装/打包 smoke</h3>
+            <p>新建专用 Ubuntu 22.04 镜像，容器内 fresh clone GitHub repo，检查 Git LFS pointer，运行 release audit，copy-mode staging，并通过 Slicer scripted module smoke。</p>
+          </article>
+          <article class="step" data-step="2">
+            <h3>外部用户 quick gate</h3>
+            <p>用同一专用镜像运行 100307-release-candidate。输入通过只读挂载提供，输出写入容器 workdir 下的 /work/outputs，暴露隐藏依赖和 output_root 路径问题。</p>
+          </article>
+          <article class="step" data-step="3">
+            <h3>CMake build 单独处理</h3>
+            <p>真正 Extension Manager/CMake 构建需要 Slicer dev build tree 或 SlicerConfig.cmake。该层不混入 runtime smoke，后续应单独做 slicerddsurfer-extension-build 镜像。</p>
+          </article>
+        </div>
+        <div>
+          <div class="finding-grid">
+            <article class="finding" data-state="pass">
+              <span class="badge">passed</span>
+              <h3>没有使用现有实验容器</h3>
+              <p>只使用专用镜像和一次性 docker run --rm 容器。清理逻辑仅限制在 /tmp、/var/tmp 或仓库 .docker-smoke-work 路径。</p>
+            </article>
+            <article class="finding" data-state="pass">
+              <span class="badge">passed</span>
+              <h3>LFS 完整性已验证</h3>
+              <p>install stage 使用 quick LFS metadata audit；quick-gate stage 使用 full LFS pull，并得到 Git LFS fsck OK。</p>
+            </article>
+            <article class="finding" data-state="pass">
+              <span class="badge">passed</span>
+              <h3>output_root bug 已修复</h3>
+              <p>segmentation、parcellation、surface resolver 与 complete checks 已统一尊重独立 output_root，避免下游误报 missing DDSeg segmentation 或 missing parcellation。</p>
+            </article>
+            <article class="finding" data-state="blocked">
+              <span class="badge warn">known</span>
+              <h3>WMA / TractCloud 不在通过条件内</h3>
+              <p>WMA 仍缺少外部命令、Slicer executable 配置和 ORG atlas；TractCloud 仍缺少 python:tractcloud。当前 RC quick gate 验证的是 WMQL 主路径。</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>代码变更</h2>
+        <span class="section-kicker">commits</span>
+      </div>
+      <ul class="commit-list">
+        <li><span class="hash">07554c2</span><span>Add Docker release smoke runner</span></li>
+        <li><span class="hash">ec258de</span><span>Harden Docker RC smoke runner</span></li>
+        <li><span class="hash">67897d2</span><span>Extend Docker RC quick gate</span></li>
+        <li><span class="hash">c160378</span><span>Accept resumed quick-gate statuses</span></li>
+      </ul>
+      <div class="finding-grid" style="margin-top: 16px;">
+        <article class="finding">
+          <h3>scripts/docker/run_rc_smoke.sh</h3>
+          <p>新增 install / quick-gate stage、full LFS 模式、只读输入挂载、tract_querier 外部挂载、复用 checkout 的 fetch 逻辑，以及 manifest 成功条件校验。</p>
+        </article>
+        <article class="finding">
+          <h3>shared/orchestrator.py</h3>
+          <p>结构化输出解析与 resume 检查支持外部 output_root，覆盖 DDSeg、DDParcel、DDSurfer surface 等下游依赖。</p>
+        </article>
+        <article class="finding">
+          <h3>Testing/Python/test_product_orchestrator.py</h3>
+          <p>新增外部 output_root 的 resume/依赖回归测试，证明 plan 不再误判 segmentation/parcellation 缺失。</p>
+        </article>
+        <article class="finding">
+          <h3>scripts/docker/rc-smoke.Dockerfile</h3>
+          <p>专用 smoke 基础镜像基于 Ubuntu 22.04，只安装系统依赖、Git、Git LFS、xvfb、Slicer 所需运行库。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>验证记录</h2>
+        <span class="section-kicker">evidence</span>
+      </div>
+      <div class="finding-grid">
+        <article class="finding" data-state="pass">
+          <span class="badge">unit</span>
+          <h3>Python 单元测试</h3>
+          <p>Testing.Python.test_product_orchestrator 共 21 个测试通过。</p>
+          <code class="code">python3 -m unittest Testing.Python.test_product_orchestrator
+Ran 21 tests in 1.995s
+OK</code>
+        </article>
+        <article class="finding" data-state="pass">
+          <span class="badge">audit</span>
+          <h3>Release audit</h3>
+          <p>工作树干净后 release audit 无 blocker、无 warning。</p>
+          <code class="code">python3 scripts/release_audit.py --warn-only
+release_ready=True
+blockers=0 warnings=0</code>
+        </article>
+        <article class="finding" data-state="pass">
+          <span class="badge">install</span>
+          <h3>Docker install smoke</h3>
+          <p>fresh clone 到 c160378，copy-mode staging，Slicer module smoke 通过。</p>
+          <code class="code">HOST_WORK_ROOT=/tmp/slicerddsurfer-rc-smoke-current \
+scripts/docker/run_rc_smoke.sh
+
+SLICERDDSURFER_EXTENSION_TARGET_REGISTERED=True
+SLICERDDSURFER_EXTENSION_MODULE_FILE_SYMLINK=False
+SLICERDDSURFER_EXTENSION_RUN_PANEL_READY=True
+[container] RC_SMOKE_OK</code>
+        </article>
+        <article class="finding" data-state="pass">
+          <span class="badge">quick gate</span>
+          <h3>Docker quick gate</h3>
+          <p>full LFS fsck OK；100307-release-candidate 的 tractography、WMQL、connectome 产物已完成，复跑 manifest 校验通过。</p>
+          <code class="code">SMOKE_STAGE=quick-gate KEEP_WORK=1 \
+HOST_WORK_ROOT=/tmp/slicerddsurfer-rc-quick-gate \
+HOST_TRACT_QUERIER_ROOT=/data/chengjin/SlicerDDSurfer/third_party/tract_querier \
+scripts/docker/run_rc_smoke.sh
+
+Git LFS fsck OK
+[quick-gate] tasks=12 failed=0 required_not_completed=0
+[container] RC_QUICK_GATE_OK</code>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>最终 Manifest 摘要</h2>
+        <span class="section-kicker">100307 quick gate</span>
+      </div>
+      <table class="task-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Status</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>validation</td><td><span class="status pass">passed</span></td><td>errors=0; warnings=2</td></tr>
+          <tr><td>preprocessing.dwi</td><td><span class="status skipped">skipped</span></td><td>completed outputs found</td></tr>
+          <tr><td>segmentation.ddseg</td><td><span class="status skipped">skipped</span></td><td>completed outputs found</td></tr>
+          <tr><td>parcellation.ddparcel</td><td><span class="status skipped">skipped</span></td><td>completed outputs found</td></tr>
+          <tr><td>surface.ddsurfer</td><td><span class="status skipped">skipped</span></td><td>completed outputs found</td></tr>
+          <tr><td>microstructure.dti</td><td><span class="status skipped">skipped</span></td><td>completed DTI microstructure outputs found</td></tr>
+          <tr><td>tractography.csd_act</td><td><span class="status skipped">skipped</span></td><td>completed outputs found</td></tr>
+          <tr><td>bundles.wmql</td><td><span class="status skipped">skipped</span></td><td>completed outputs found</td></tr>
+          <tr><td>connectome.streamline_count</td><td><span class="status skipped">skipped</span></td><td>completed outputs found</td></tr>
+          <tr><td>connectome.sift2_weighted</td><td><span class="status skipped">skipped</span></td><td>completed outputs found</td></tr>
+          <tr><td>bundles.wma</td><td><span class="status blocked">blocked</span></td><td>缺少 wm_apply_ORG_atlas_to_subject.sh、Slicer executable 配置、WMA ORG atlas。</td></tr>
+          <tr><td>bundles.tractcloud</td><td><span class="status blocked">blocked</span></td><td>缺少 python:tractcloud。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>下一步建议</h2>
+        <span class="section-kicker">next</span>
+      </div>
+      <ul class="notes">
+        <li>如果要把 WMA 纳入 RC gate，需要配置 WMA 命令、Slicer executable 环境变量和 ORG atlas 目录，并决定 atlas 是否作为外部只读 mount。</li>
+        <li>如果要把 TractCloud 纳入 RC gate，需要明确 Python 环境、模型/数据依赖和安装方式，避免隐式依赖开发机环境。</li>
+        <li>如果要做真正 Extension Manager 构建，应新建 slicerddsurfer-extension-build 镜像，并提供 SlicerConfig.cmake 或 Slicer dev build tree。</li>
+        <li>建议保留 /tmp/slicerddsurfer-rc-quick-gate 直到最终发布确认完成；该目录包含复现实验输出、日志和 full LFS 缓存。</li>
+      </ul>
+    </section>
+
+    <footer class="footer">
+      报告文件：SlicerDDSurfer_rc_smoke_goal_report.html。生成于本地仓库 /data/chengjin/SlicerDDSurfer，面向 RC 发布前工程验证记录。
+    </footer>
+  </main>
+</body>
+</html>
