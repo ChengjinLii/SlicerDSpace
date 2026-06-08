@@ -722,7 +722,7 @@
                 <tr>
                   <td><span class="inline-code">Advanced external paths</span></td>
                   <td>配置 MRtrix3、FSL、FreeSurfer、TractQuerier、WMA、Slicer executable、TractCloud 等外部路径。</td>
-                  <td>留空表示自动发现。显式路径会保存到 Slicer user settings，下次打开自动恢复。</td>
+                  <td>留空表示不提供用户覆盖路径；doctor 会按环境变量、PATH 和常见安装目录做确定性发现，不会全盘递归搜索。显式路径会保存到 Slicer user settings，下次打开自动恢复。</td>
                 </tr>
                 <tr>
                   <td><span class="inline-code">Import / Export dependency config</span></td>
@@ -924,6 +924,7 @@ python3 run_subject_pipeline.py \
               <h3>发现顺序</h3>
               <p>外部工具路径按以下优先级解析：</p>
               <p>用户保存路径或 CLI config - 环境变量 - PATH - 常见系统路径。</p>
+              <p>这里的“自动发现”不是扫描整个磁盘；如果工具装在自定义目录且没有加入 PATH/环境变量，就需要在 UI 里填写路径或导入 dependency config。</p>
               <p>命令类依赖会记录 `detected_source`、`resolved` 和 `checked_locations`。</p>
             </div>
           </div>
