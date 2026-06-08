@@ -17,6 +17,7 @@ KEEP_WORK="${KEEP_WORK:-0}"
 HOST_SSH_DIR="${HOST_SSH_DIR:-$HOME/.ssh}"
 MOUNT_SSH="${MOUNT_SSH:-auto}"
 HOST_SSH_IDENTITY_FILE="${HOST_SSH_IDENTITY_FILE:-}"
+SMOKE_LFS_MODE="${SMOKE_LFS_MODE:-quick}"
 
 if [[ ! -f "$SCRIPT_DIR/rc-smoke.Dockerfile" ]]; then
   echo "Missing Dockerfile: $SCRIPT_DIR/rc-smoke.Dockerfile" >&2
@@ -30,6 +31,14 @@ if [[ ! -d "$HOST_MRTRIX_BIN" ]]; then
   echo "HOST_MRTRIX_BIN is not a directory: $HOST_MRTRIX_BIN" >&2
   exit 2
 fi
+case "$SMOKE_LFS_MODE" in
+  quick|full)
+    ;;
+  *)
+    echo "SMOKE_LFS_MODE must be quick or full, got: $SMOKE_LFS_MODE" >&2
+    exit 2
+    ;;
+esac
 
 case "$HOST_WORK_ROOT" in
   /tmp/*|/var/tmp/*|"$REPO_ROOT"/.docker-smoke-work*)
@@ -66,6 +75,7 @@ DOCKER_RUN_ARGS=(
   -e REPO_REF="$REPO_REF" \
   -e HOST_SLICER_LAUNCHER="$HOST_SLICER_LAUNCHER" \
   -e HOST_MRTRIX_BIN="$HOST_MRTRIX_BIN" \
+  -e SMOKE_LFS_MODE="$SMOKE_LFS_MODE" \
   -e GIT_TERMINAL_PROMPT=0 \
   -e HOME=/work/home \
   -e XDG_CACHE_HOME=/work/home/.cache \
@@ -102,14 +112,25 @@ mkdir -p /work/home /work/src /work/install /work/logs
 echo "[container] repo=$REPO_URL ref=$REPO_REF"
 echo "[container] slicer=$HOST_SLICER_LAUNCHER"
 echo "[container] mrtrix=$HOST_MRTRIX_BIN"
+echo "[container] lfs_mode=$SMOKE_LFS_MODE"
 test -x "$HOST_SLICER_LAUNCHER"
 test -x "$HOST_MRTRIX_BIN/mrconvert"
 GIT_LFS_SKIP_SMUDGE=1 git clone --filter=blob:none "$REPO_URL" /work/src/SlicerDDSurfer
 cd /work/src/SlicerDDSurfer
 git checkout "$REPO_REF"
 git lfs install --local
-git lfs pull
-git lfs fsck
+case "$SMOKE_LFS_MODE" in
+  quick)
+    echo "[container] Quick LFS mode: auditing pointer metadata without downloading large objects"
+    git lfs ls-files -s | tee /work/logs/git_lfs_ls_files.txt
+    python3 scripts/release_audit.py | tee /work/logs/release_audit.txt
+    ;;
+  full)
+    echo "[container] Full LFS mode: downloading all LFS objects; this can be slow on constrained networks"
+    GIT_LFS_PROGRESS=/work/logs/git-lfs-progress.log git lfs pull
+    git lfs fsck
+    ;;
+esac
 python3 scripts/stage_slicer_extension.py \
   --install-root /work/install \
   --clean \
