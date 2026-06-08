@@ -58,6 +58,8 @@ def _run() -> None:
         log_block_limit = _maximum_block_count(log_widget) if log_widget else 0
         configured_log_limit = int(getattr(widget, "_logLineLimit", 0) or 0)
         log_limit_ready = configured_log_limit == 4000
+        environment_cache_ttl = float(getattr(widget, "_environmentCacheTtlSeconds", 0.0) or 0.0)
+        environment_cache_ready = environment_cache_ttl > 0.0
         module_file = MODULE_DIR / "SlicerDDSurfer.py"
         module_file_is_symlink = module_file.is_symlink()
         print(f"SLICERDDSURFER_EXTENSION_MODULE_DIR={MODULE_DIR}", flush=True)
@@ -72,6 +74,7 @@ def _run() -> None:
         print(f"SLICERDDSURFER_EXTENSION_SELECTION_SUMMARY_READY={selection_summary_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_LOG_BLOCK_LIMIT={log_block_limit}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_CONFIGURED_LOG_LIMIT={configured_log_limit}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_ENV_CACHE_TTL={environment_cache_ttl}", flush=True)
         bad = (
             top_level_py != ["SlicerDDSurfer.py"]
             or not target_registered
@@ -83,6 +86,7 @@ def _run() -> None:
             or not env_paths_ready
             or not selection_summary_ready
             or not log_limit_ready
+            or not environment_cache_ready
         )
         slicer.app.exit(2 if bad else 0)
     except Exception as exc:

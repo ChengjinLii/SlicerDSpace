@@ -106,6 +106,9 @@ class SharedWidgetMixin:
         self._lastProcessEventsAt = 0.0
         self._logLineLimit = 4000
         self._logAppendCount = 0
+        self._environmentCacheTtlSeconds = 300.0
+        self._lastEnvironmentSignature = None
+        self._lastEnvironmentCheckedAt = 0.0
         if hasattr(self.ui, "subjectIdLineEdit"):
             self.ui.subjectIdLineEdit.setClearButtonEnabled(True)
         if hasattr(self.ui, "applyButton"):
@@ -861,6 +864,58 @@ class SharedWidgetMixin:
             value = self._line_edit_text(widget) if widget else self._read_environment_path_setting(dependency_id)
             kwargs[dependency_id] = Path(value).expanduser() if value else None
         return kwargs
+
+    def _environment_check_kwargs(
+        self,
+        *,
+        subject_root_text: str = "",
+        output_root_text: str = "",
+        external_paths: Optional[dict[str, Optional[Path]]] = None,
+    ) -> dict[str, Any]:
+        node = self._parameterNode
+        if not node:
+            return {}
+        external_paths = external_paths if external_paths is not None else self._environment_dependency_path_kwargs()
+        subject_root_text = (subject_root_text or (node.inputDirectory or "")).strip()
+        output_root_text = (output_root_text or (node.outputDirectory or "")).strip()
+        return {
+            "targets": self._selected_environment_targets(),
+            "subject_root": Path(subject_root_text).expanduser() if subject_root_text else None,
+            "output_root": Path(output_root_text).expanduser() if output_root_text else None,
+            "preprocessing_backend": (node.preprocessingBackend or "dipy").strip(),
+            "tractography_backend": self._tractography_backend_text(),
+            "connectome_backend": (node.connectomeBackend or "python").strip(),
+            "ddseg_device": (node.ddsegDevice or "auto").strip() or "auto",
+            "surface_device": (node.device or "auto").strip() or "auto",
+            "microstructure_run_free_water": self._microstructure_stage_flags()[0],
+            "microstructure_run_noddi": self._microstructure_stage_flags()[1],
+            **external_paths,
+        }
+
+    def _environment_check_signature(self, kwargs: dict[str, Any]) -> tuple:
+        normalized = []
+        for key, value in sorted(kwargs.items()):
+            if isinstance(value, Path):
+                normalized.append((key, value.expanduser().as_posix()))
+            elif isinstance(value, tuple):
+                normalized.append((key, tuple(str(item) for item in value)))
+            else:
+                normalized.append((key, value))
+        return tuple(normalized)
+
+    def _cache_environment_result(self, result, signature: tuple) -> None:
+        self._lastEnvironmentResult = result
+        self._lastEnvironmentSignature = signature
+        self._lastEnvironmentCheckedAt = monotonic()
+
+    def _cached_environment_result(self, signature: tuple):
+        result = getattr(self, "_lastEnvironmentResult", None)
+        if result is None or getattr(self, "_lastEnvironmentSignature", None) != signature:
+            return None
+        age = monotonic() - float(getattr(self, "_lastEnvironmentCheckedAt", 0.0) or 0.0)
+        if age > float(getattr(self, "_environmentCacheTtlSeconds", 300.0) or 300.0):
+            return None
+        return result
 
     def _set_environment_path_status_label(self, label, text: str, state: str) -> None:
         colors = {
@@ -1786,24 +1841,22 @@ class SharedWidgetMixin:
         surface_device = (self._parameterNode.device or "auto").strip() or "auto"
         ddseg_device = (self._parameterNode.ddsegDevice or "auto").strip() or "auto"
         run_free_water, run_noddi = self._microstructure_stage_flags()
-        doctor_targets = list(self._selected_environment_targets())
         selected_targets = self._selected_product_targets()
         auto_install_python = bool(self._parameterNode.autoInstallPythonDependencies)
         external_paths = self._environment_dependency_path_kwargs()
+        doctor_kwargs = self._environment_check_kwargs(
+            subject_root_text=subject_root_text,
+            output_root_text=output_root_text,
+            external_paths=external_paths,
+        )
+        doctor_signature = self._environment_check_signature(doctor_kwargs)
+        doctor_result = self._cached_environment_result(doctor_signature)
         try:
-            doctor_result = self.logic.runEnvironmentDoctor(
-                targets=tuple(doctor_targets),
-                subject_root=Path(subject_root_text).expanduser(),
-                output_root=Path(output_root_text).expanduser() if output_root_text else None,
-                preprocessing_backend=(self._parameterNode.preprocessingBackend or "dipy").strip(),
-                tractography_backend=self._tractography_backend_text(),
-                connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
-                ddseg_device=ddseg_device,
-                surface_device=surface_device,
-                microstructure_run_free_water=run_free_water,
-                microstructure_run_noddi=run_noddi,
-                **external_paths,
-            )
+            if doctor_result is None:
+                doctor_result = self.logic.runEnvironmentDoctor(**doctor_kwargs)
+                self._cache_environment_result(doctor_result, doctor_signature)
+            else:
+                self.appendLog("[Environment] Reusing recent dependency check; inputs and selected targets are unchanged.")
         except Exception as exc:
             self.appendLog(f"Environment check failed: {exc}")
             slicer.util.errorDisplay(f"Environment check failed:\n{exc}", parent=self.parent)
@@ -1821,19 +1874,8 @@ class SharedWidgetMixin:
             slicer.util.showStatusMessage("Installing missing Python dependencies...", 0)
             try:
                 self.logic.installMissingPythonDependencies(tuple(doctor_result.missing_python_packages))
-                doctor_result = self.logic.runEnvironmentDoctor(
-                    targets=tuple(doctor_targets),
-                    subject_root=Path(subject_root_text).expanduser(),
-                    output_root=Path(output_root_text).expanduser() if output_root_text else None,
-                    preprocessing_backend=(self._parameterNode.preprocessingBackend or "dipy").strip(),
-                    tractography_backend=self._tractography_backend_text(),
-                    connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
-                    ddseg_device=ddseg_device,
-                    surface_device=surface_device,
-                    microstructure_run_free_water=run_free_water,
-                    microstructure_run_noddi=run_noddi,
-                    **external_paths,
-                )
+                doctor_result = self.logic.runEnvironmentDoctor(**doctor_kwargs)
+                self._cache_environment_result(doctor_result, doctor_signature)
                 self._update_environment_result_label(doctor_result)
                 self._update_environment_path_status_labels(doctor_result)
             except Exception as exc:
@@ -1996,27 +2038,21 @@ class SharedWidgetMixin:
 
         self.appendLog("Starting environment dependency check...")
         external_paths = self._environment_dependency_path_kwargs()
+        kwargs = self._environment_check_kwargs(
+            subject_root_text=subject_root_text,
+            output_root_text=output_dir,
+            external_paths=external_paths,
+        )
+        signature = self._environment_check_signature(kwargs)
         try:
-            result = self.logic.runEnvironmentDependencyCheck(
-                targets=self._selected_environment_targets(),
-                subject_root=subject_root,
-                output_root=Path(output_dir).expanduser() if output_dir else None,
-                preprocessing_backend=(node.preprocessingBackend or "dipy").strip(),
-                tractography_backend=self._tractography_backend_text(),
-                connectome_backend=(node.connectomeBackend or "python").strip(),
-                ddseg_device=(node.ddsegDevice or "auto").strip() or "auto",
-                surface_device=(node.device or "auto").strip() or "auto",
-                microstructure_run_free_water=self._microstructure_stage_flags()[0],
-                microstructure_run_noddi=self._microstructure_stage_flags()[1],
-                **external_paths,
-            )
+            result = self.logic.runEnvironmentDependencyCheck(**kwargs)
         except Exception as exc:
             self.appendLog(f"Environment check failed: {exc}")
             self._setStatus("error", "Environment check failed")
             self._update_environment_result_label(None, error=str(exc))
             return None
 
-        self._lastEnvironmentResult = result
+        self._cache_environment_result(result, signature)
         return result
 
     def _update_environment_status(self, result) -> None:
