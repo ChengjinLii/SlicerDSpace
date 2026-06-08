@@ -24,6 +24,7 @@ After each orchestrated run, SlicerDDSurfer writes:
 - `outputs/00_run_metadata/<run_name>_orchestration_manifest.json`
 - `outputs/00_run_metadata/output_tree_audit.json`
 - `outputs/06_slicer_scene_report/report.html`
+- `outputs/06_slicer_scene_report/output_tree.html`
 - `outputs/06_slicer_scene_report/summary.md`
 - `outputs/06_slicer_scene_report/provenance.json`
 - `outputs/06_slicer_scene_report/qc_summary.json`
@@ -44,6 +45,12 @@ Model weights and template assets are stored with Git LFS. Install Git LFS first
 scripts/download_model_assets.sh --profile core
 ```
 
+Profiles and required paths are defined in `models/assets_manifest.json`. To inspect what a profile will download without touching the network:
+
+```bash
+python3 scripts/download_model_assets.py --profile core --print-plan
+```
+
 For targeted downloads:
 
 ```bash
@@ -52,7 +59,7 @@ scripts/download_model_assets.sh --profile segmentation
 scripts/download_model_assets.sh --profile parcellation
 ```
 
-See [MODEL_ASSETS.md](MODEL_ASSETS.md) for profiles, expected paths, verification behavior, and external DDSurfer asset environment variables.
+See [MODEL_ASSETS.md](MODEL_ASSETS.md) for the manifest format, profiles, expected paths, verification behavior, and external DDSurfer asset environment variables.
 
 ---
 
@@ -102,7 +109,7 @@ surface/ddsurfer_postprocess_release/  # bundled DDSurfer postprocess backend
 ### Runtime behaviors
 - Runs dependency preflight before execution and continues runnable targets when optional targets are blocked.
 - Installs only missing Python packages into the active Slicer Python environment when requested.
-- Writes per-task manifest/QC/log records and a subject-level HTML/provenance/QC report.
+- Writes per-task manifest/QC/log records, a subject-level HTML/provenance/QC report, and an annotated output-tree HTML report.
 - Auto-loads key output volumes, surfaces, tables, and tractography bundles into the Slicer scene when loaders are available.
 
 ---
@@ -311,15 +318,14 @@ Configurable fields:
 
 ## Model weights (Git LFS)
 
-Large weights are tracked via Git LFS:
+Large weights are tracked via Git LFS and downloaded through `models/assets_manifest.json`:
 - `Resources/Data/ckpts/hcp/*.pt` (DDSurfer)
 - `parcellation/weights/*.pkl` (DDParcel)
 - `segmentation/weights/*.pt` (DDSeg)
 
-To fetch them:
+Recommended fetch:
 ```bash
-git lfs install
-git lfs pull
+scripts/download_model_assets.sh --profile core
 ```
 
 ---

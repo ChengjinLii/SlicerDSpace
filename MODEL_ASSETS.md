@@ -8,7 +8,19 @@ Use the unified downloader instead of asking users to remember individual LFS pa
 scripts/download_model_assets.sh --profile core
 ```
 
-The script runs `git lfs install --local` for the checkout, downloads the selected profile, and verifies that the selected files are real downloaded objects rather than Git LFS pointer files.
+The downloader reads `models/assets_manifest.json`, runs `git lfs install --local` for the checkout, downloads the selected profile, and verifies that the selected files are real downloaded objects rather than Git LFS pointer files.
+
+To inspect the resolved profile without downloading anything:
+
+```bash
+python3 scripts/download_model_assets.py --profile core --print-plan
+```
+
+To verify an existing checkout without downloading:
+
+```bash
+python3 scripts/download_model_assets.py --profile core --verify-only
+```
 
 For a fast clone followed by a targeted model download:
 
@@ -19,6 +31,8 @@ scripts/download_model_assets.sh --profile core
 ```
 
 ## Profiles
+
+Profiles are configured in `models/assets_manifest.json`. Update that manifest when adding, removing, or moving model assets; `scripts/download_model_assets.sh` is a compatibility wrapper around the Python manifest reader.
 
 | Profile | Includes | Use when |
 | --- | --- | --- |
@@ -35,6 +49,9 @@ Examples:
 ```bash
 # Recommended after clone
 scripts/download_model_assets.sh --profile core
+
+# Equivalent explicit Python entrypoint
+python3 scripts/download_model_assets.py --profile core
 
 # Only run DDSeg
 scripts/download_model_assets.sh --profile segmentation
@@ -72,6 +89,19 @@ DDSeg and DDParcel currently use repository-local weights by default:
 segmentation/weights/
 parcellation/weights/
 ```
+
+## Manifest Format
+
+The manifest has one top-level `profiles` object. Each profile may define:
+
+| Field | Meaning |
+| --- | --- |
+| `include_patterns` | Git LFS include patterns passed to `git lfs pull --include=...`. |
+| `required_paths` | Concrete files that verification checks for existence and non-pointer contents. |
+| `include_profiles` | Other profiles to merge into this profile. |
+| `alias_for` | Profile alias, used by `quick-gate`. |
+| `all_lfs` | Pull every Git LFS object tracked by the checkout. |
+| `external_overrides` | Environment variables users may set instead of repository-local DDSurfer assets. |
 
 ## Recommended User Flow
 

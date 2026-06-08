@@ -431,6 +431,12 @@ class SharedWidgetMixin:
         report_button.connect("clicked()", self._on_open_latest_report_clicked)
         panel_layout.addWidget(report_button)
 
+        output_tree_button = qt.QPushButton("Open output tree")
+        output_tree_button.enabled = False
+        output_tree_button.setToolTip("Open the latest annotated SlicerDDSurfer output-tree HTML report.")
+        output_tree_button.connect("clicked()", self._on_open_output_tree_report_clicked)
+        panel_layout.addWidget(output_tree_button)
+
         table = qt.QTableWidget()
         table.setColumnCount(6)
         table.setHorizontalHeaderLabels(["Target", "State", "Reason", "Manifest", "QC", "Logs"])
@@ -457,7 +463,9 @@ class SharedWidgetMixin:
         self._runStatusHintLabel = hint
         self._runSummaryLabel = summary
         self._runReportButton = report_button
+        self._runOutputTreeButton = output_tree_button
         self._latestReportPath = None
+        self._latestOutputTreePath = None
         self._runStatusTable = table
 
     def _initialize_product_selection_summary(self) -> None:
@@ -711,6 +719,15 @@ class SharedWidgetMixin:
         if button:
             button.enabled = bool(path)
 
+    def _set_latest_output_tree_path(self, report_path: str | Path | None) -> None:
+        path = Path(str(report_path)).expanduser() if report_path else None
+        if path is not None and not path.is_file():
+            path = None
+        self._latestOutputTreePath = path
+        button = getattr(self, "_runOutputTreeButton", None)
+        if button:
+            button.enabled = bool(path)
+
     def _on_open_latest_report_clicked(self) -> None:
         report_path = getattr(self, "_latestReportPath", None)
         if not report_path:
@@ -723,6 +740,19 @@ class SharedWidgetMixin:
             return
         if not opened:
             slicer.util.infoDisplay(f"Report path: {report_path}", parent=self.parent)
+
+    def _on_open_output_tree_report_clicked(self) -> None:
+        report_path = getattr(self, "_latestOutputTreePath", None)
+        if not report_path:
+            slicer.util.infoDisplay("No generated output-tree report is available yet.", parent=self.parent)
+            return
+        try:
+            opened = qt.QDesktopServices.openUrl(qt.QUrl.fromLocalFile(Path(report_path).as_posix()))
+        except Exception as exc:
+            slicer.util.errorDisplay(f"Failed to open output-tree report:\n{exc}", parent=self.parent)
+            return
+        if not opened:
+            slicer.util.infoDisplay(f"Output-tree report path: {report_path}", parent=self.parent)
 
     def _table_item(self, text: str, state: str = ""):
         item = qt.QTableWidgetItem(text or "")
@@ -1770,12 +1800,14 @@ class SharedWidgetMixin:
             self.appendLog(f"[Background] Cancelled. Manifest: {cancel_manifest}")
             self._setStatus("warning", "Pipeline cancelled")
             self._set_latest_report_path(None)
+            self._set_latest_output_tree_path(None)
             self._set_run_progress_message(f"Pipeline cancelled. Manifest: {cancel_manifest}")
             self._set_run_summary_message("Status: cancelled | User cancelled the background job.", "cancelled")
         elif process_failed:
             self._mark_unfinished_rows("failed", f"Background process exited with code {exit_code}")
             self._setStatus("error", f"Pipeline failed: exit code {exit_code}")
             self._set_latest_report_path(None)
+            self._set_latest_output_tree_path(None)
             self._set_run_progress_message(f"Pipeline failed: exit code {exit_code}")
             self._set_run_summary_message(f"Status: failed | Background process exited with code {exit_code}.", "failed")
         elif manifest_path and manifest_path.is_file():
@@ -1784,6 +1816,7 @@ class SharedWidgetMixin:
             self._mark_unfinished_rows("failed", "Background process finished without a manifest path.")
             self._setStatus("error", "Pipeline failed: no manifest")
             self._set_latest_report_path(None)
+            self._set_latest_output_tree_path(None)
             self._set_run_progress_message("Pipeline failed: no manifest path was reported.")
             self._set_run_summary_message("Status: failed | Background process finished without a manifest path.", "failed")
         self._backgroundProcess = None
@@ -1832,6 +1865,11 @@ class SharedWidgetMixin:
         if isinstance(report_paths, dict):
             report_path = str(report_paths.get("report_html_latest") or report_paths.get("report_html") or "")
         self._set_latest_report_path(report_path)
+        output_tree_path = ""
+        output_tree_report_paths = manifest.get("output_tree_report_paths") or {}
+        if isinstance(output_tree_report_paths, dict):
+            output_tree_path = str(output_tree_report_paths.get("report_html_latest") or output_tree_report_paths.get("report_html") or "")
+        self._set_latest_output_tree_path(output_tree_path)
         self._set_run_summary_from_manifest(manifest, fallback=f"Run finished. Manifest: {manifest_path}")
         auto_load_limit = int(getattr(self, "_autoLoadResultLimit", 12))
         self._set_run_progress_message(f"Run finished. Loading up to {auto_load_limit} key result node(s)...")
@@ -1853,6 +1891,8 @@ class SharedWidgetMixin:
             )
         if report_path:
             message += f" Report: {report_path}"
+        if output_tree_path:
+            message += f" Output tree: {output_tree_path}"
         self._set_run_progress_message(message)
 
     def _onBackgroundProcessError(self, error) -> None:

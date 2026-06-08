@@ -33,6 +33,7 @@ from .io_layout import (
     subject_layout,
 )
 from .reporting import SubjectReportPaths, write_subject_reports
+from .output_tree_report import OutputTreeReportPaths, write_output_tree_report
 from .orchestrator import (
     ProductOrchestratorConfig,
     ProductOrchestratorResult,
@@ -54,6 +55,7 @@ __all__ = [
     "RegisteredDTIBundle",
     "SubjectIOLayout",
     "SubjectReportPaths",
+    "OutputTreeReportPaths",
     "archive_development_outputs",
     "blocked_target_reasons",
     "canonical_connectome_output_dir",
@@ -83,5 +85,6 @@ __all__ = [
     "summarize_environment_doctor",
     "validate_subject_inputs",
     "write_environment_report",
+    "write_output_tree_report",
     "write_subject_reports",
 ]

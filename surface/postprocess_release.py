@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+from shared.environment import resolve_freesurfer_home
 from shared.external_process import merged_startup_environment
 
 import nibabel as nib
@@ -92,16 +93,7 @@ def _default_backend_root() -> Path:
 
 
 def _default_freesurfer_home() -> Optional[Path]:
-    candidates = [
-        Path(os.environ["FREESURFER_HOME"]).expanduser().resolve()
-        for _ in [0]
-        if os.environ.get("FREESURFER_HOME")
-    ]
-    candidates += [
-        Path("/data/chengjin/software/freesurfer"),
-        Path("/data06/software/freesurfer"),
-    ]
-    return next((path for path in candidates if path.is_dir()), None)
+    return resolve_freesurfer_home()
 
 
 def _resolve_subject_root(config: DDSurferPostprocessConfig) -> Path:

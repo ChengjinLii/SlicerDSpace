@@ -434,6 +434,88 @@ def _env_command_dirs(group: str) -> tuple[tuple[Path, str], ...]:
     return tuple(candidates)
 
 
+def _current_user_names() -> tuple[str, ...]:
+    names: list[str] = []
+    for value in (os.environ.get("USER"), os.environ.get("USERNAME"), Path.home().name):
+        if value:
+            names.append(value)
+    return tuple(dict.fromkeys(names))
+
+
+def _local_software_roots() -> tuple[Path, ...]:
+    roots: list[Path] = [
+        Path.home(),
+        Path.home() / "software",
+        Path.home() / "Software",
+    ]
+    for user_name in _current_user_names():
+        roots.extend(
+            [
+                Path("/data") / user_name,
+                Path("/data") / user_name / "software",
+                Path("/data") / user_name / "Software",
+            ]
+        )
+    return tuple(dict.fromkeys(root.expanduser() for root in roots))
+
+
+def _common_freesurfer_homes() -> tuple[Path, ...]:
+    candidates: list[Path] = [
+        Path("/usr/local/freesurfer"),
+        Path("/opt/freesurfer"),
+        Path("/Applications/freesurfer"),
+    ]
+    for root in _local_software_roots():
+        candidates.extend(
+            [
+                root / "freesurfer",
+                root / "FreeSurfer",
+            ]
+        )
+    return tuple(dict.fromkeys(candidate.expanduser() for candidate in candidates))
+
+
+def _is_freesurfer_home(path: Path) -> bool:
+    return (
+        path.is_dir()
+        and (path / "bin" / "recon-all").is_file()
+        and (path / "subjects" / "fsaverage").is_dir()
+    )
+
+
+def _resolve_freesurfer_home_with_source() -> tuple[Optional[Path], str, list[str]]:
+    checked: list[str] = []
+    for env_name in ("SLICERDDSURFER_FREESURFER_HOME", "FREESURFER_HOME"):
+        value = os.environ.get(env_name)
+        if not value:
+            continue
+        candidate = Path(value).expanduser().resolve()
+        checked.append(candidate.as_posix())
+        if _is_freesurfer_home(candidate):
+            return candidate, f"env:{env_name}", checked
+
+    found = shutil.which("recon-all")
+    if found:
+        candidate = Path(found).expanduser().resolve().parent.parent
+        checked.append(candidate.as_posix())
+        if _is_freesurfer_home(candidate):
+            return candidate, "PATH", checked
+
+    for candidate in _common_freesurfer_homes():
+        checked.append(candidate.as_posix())
+        if _is_freesurfer_home(candidate):
+            return candidate.resolve(), "common path", checked
+
+    return None, "not found", checked
+
+
+def resolve_freesurfer_home() -> Optional[Path]:
+    """Return an auto-discovered FreeSurfer home, if one is available."""
+
+    resolved, _, _ = _resolve_freesurfer_home_with_source()
+    return resolved
+
+
 def _common_command_dirs(group: str, platform_name: str) -> tuple[Path, ...]:
     candidates: list[Path] = []
     if group == "mrtrix":
@@ -454,13 +536,7 @@ def _common_command_dirs(group: str, platform_name: str) -> tuple[Path, ...]:
             ]
         )
     elif group == "freesurfer":
-        candidates.extend(
-            [
-                Path("/usr/local/freesurfer/bin"),
-                Path("/opt/freesurfer/bin"),
-                Path("/Applications/freesurfer/bin"),
-            ]
-        )
+        candidates.extend(home / "bin" for home in _common_freesurfer_homes())
     elif group == "wma":
         candidates.extend(
             [
@@ -665,13 +741,14 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             _add_core_python(specs, target)
             _python(specs, target=target, import_name="SimpleITK", package="SimpleITK")
             _python(specs, target=target, import_name="trimesh", package="trimesh")
+            _python(specs, target=target, import_name="rtree", package="rtree")
             freesurfer_home = _resolve_path(config.postprocess_freesurfer_home)
             _env(
                 specs,
                 target=target,
                 key="freesurfer_home",
                 label="FREESURFER_HOME",
-                env_vars=("FREESURFER_HOME",),
+                env_vars=("SLICERDDSURFER_FREESURFER_HOME", "FREESURFER_HOME"),
                 group="freesurfer",
                 required=config.postprocess_freesurfer_home is None,
                 notes="Can also be supplied with --postprocess-freesurfer-home.",
@@ -1119,9 +1196,20 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
         }
     elif spec.kind == "env":
         values = {name: os.environ.get(name) for name in spec.env_vars}
-        available = any(value for value in values.values())
-        detected_source = next((f"env:{name}" for name, value in values.items() if value), "not found")
-        details = {"env": values, "notes": spec.notes, "detected_source": detected_source}
+        if spec.key == "env:freesurfer_home":
+            resolved, detected_source, checked_locations = _resolve_freesurfer_home_with_source()
+            available = resolved is not None
+            details = {
+                "env": values,
+                "resolved": resolved.as_posix() if resolved else None,
+                "notes": spec.notes,
+                "detected_source": detected_source,
+                "checked_locations": checked_locations,
+            }
+        else:
+            available = any(value for value in values.values())
+            detected_source = next((f"env:{name}" for name, value in values.items() if value), "not found")
+            details = {"env": values, "notes": spec.notes, "detected_source": detected_source}
     elif spec.kind == "device":
         requested_device = spec.device or "cpu"
         if requested_device in {"cpu", ""}:
@@ -1370,6 +1458,7 @@ __all__ = [
     "blocked_target_reasons",
     "run_environment_doctor",
     "resolve_auto_torch_device",
+    "resolve_freesurfer_home",
     "summarize_environment_doctor",
     "write_environment_report",
 ]

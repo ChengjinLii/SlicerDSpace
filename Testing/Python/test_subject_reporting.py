@@ -104,6 +104,42 @@ class SubjectReportingTest(unittest.TestCase):
             self.assertIn("planned", qc_summary["summary"]["interpretation"])
             self.assertIn("badge-planned", paths.report_html.read_text(encoding="utf-8"))
 
+    def test_write_output_tree_report_counts_files_symlinks_and_postprocess_qc(self) -> None:
+        from shared import subject_layout, write_output_tree_report
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            layout.microstructure_dti.mkdir(parents=True)
+            (layout.microstructure_dti / "100307_dti_FA.nii.gz").write_text("fa", encoding="utf-8")
+            layout.ddsurfer_postprocess.mkdir(parents=True)
+            (layout.ddsurfer_postprocess / "manifest.json").write_text(
+                json.dumps({"stage_status": {"validate_inputs": "completed", "sync_outputs": "completed"}}),
+                encoding="utf-8",
+            )
+            (layout.ddsurfer_postprocess / "qc.json").write_text(
+                json.dumps({"status": "completed", "core_outputs": {"annot_count": 2, "fsaverage_overlay_count": 1, "stats_count": 3}}),
+                encoding="utf-8",
+            )
+            (layout.outputs / "linked_fa.nii.gz").symlink_to(layout.microstructure_dti / "100307_dti_FA.nii.gz")
+
+            paths = write_output_tree_report(
+                output_root=layout.outputs,
+                destination=layout.slicer_scene_report / "unit_output_tree.html",
+                latest_destination=layout.slicer_scene_report / "output_tree.html",
+                subject_id="100307",
+                run_name="unit",
+            )
+
+            self.assertTrue(paths.report_html.is_file())
+            self.assertTrue(paths.report_html_latest and paths.report_html_latest.is_file())
+            self.assertEqual(paths.regular_file_count, 3)
+            self.assertEqual(paths.symlink_count, 1)
+            html = paths.report_html.read_text(encoding="utf-8")
+            self.assertIn("DTI scalar map", html)
+            self.assertIn("symlink", html)
+            self.assertIn("annot=2", html)
+
 
 if __name__ == "__main__":
     unittest.main()

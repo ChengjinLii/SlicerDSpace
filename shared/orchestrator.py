@@ -2540,6 +2540,20 @@ def run_subject_products(
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     try:
+        from shared.output_tree_report import write_output_tree_report
+
+        output_tree_report_paths = write_output_tree_report(
+            output_root=layout.outputs,
+            destination=layout.slicer_scene_report / f"{run_name}_output_tree.html",
+            latest_destination=layout.slicer_scene_report / "output_tree.html",
+            subject_id=config.subject_id,
+            run_name=run_name,
+        )
+        manifest["output_tree_report_paths"] = output_tree_report_paths.to_dict()
+    except Exception as exc:  # pragma: no cover - report generation must not break pipeline execution
+        manifest["output_tree_report_error"] = str(exc)
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
         from shared.reporting import write_subject_reports
 
         report_paths = write_subject_reports(

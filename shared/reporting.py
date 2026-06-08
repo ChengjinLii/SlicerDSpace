@@ -350,6 +350,7 @@ def _collect_key_outputs(manifest: dict[str, Any], output_tree: dict[str, Any], 
     add_parent("WMQL AF/CST bundles", "bundles", "bundles/wmql")
     add_first("Streamline-count connectome", "connectome", "connectome-streamline_count.csv")
     add_first("SIFT2-weighted connectome", "connectome", "sift2_weighted_streamline_count.csv")
+    add_first("Annotated output tree", "report", "06_slicer_scene_report/output_tree.html")
     add_first("Latest HTML report", "report", "06_slicer_scene_report/report.html")
     add_first("Latest Markdown summary", "report", "06_slicer_scene_report/summary.md")
 

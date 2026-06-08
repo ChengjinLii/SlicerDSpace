@@ -70,6 +70,7 @@ postprocess-release-optimize/
   - `nibabel`
   - `numpy`
   - `trimesh`
+  - `rtree`
 
 On this machine, a working FreeSurfer install is:
 

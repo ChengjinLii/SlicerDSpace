@@ -288,9 +288,13 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertIn("largest_top_dirs", profile)
             self.assertTrue(any(row["path"] == "00_run_metadata" for row in profile["top_dirs"]))
             report_paths = manifest["report_paths"]
+            output_tree_report_paths = manifest["output_tree_report_paths"]
             report_html = Path(report_paths["report_html"])
+            output_tree_html = Path(output_tree_report_paths["report_html_latest"])
             qc_summary = json.loads(Path(report_paths["qc_summary_json"]).read_text(encoding="utf-8"))
             self.assertIn("Performance Profile", report_html.read_text(encoding="utf-8"))
+            self.assertTrue(output_tree_html.is_file())
+            self.assertIn("Annotated output tree", report_html.read_text(encoding="utf-8"))
             self.assertEqual(qc_summary["performance_profile"]["schema"], "slicerddsurfer.performance_profile.v1")
             self.assertIn("00_run_metadata", qc_summary["output_tree"]["top_dirs"])
 

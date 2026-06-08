@@ -22,6 +22,7 @@ Slicer UI 和 CLI 都支持外部依赖路径覆盖：Slicer 中在 `Environment
 - `outputs/00_run_metadata/<run_name>_orchestration_manifest.json`
 - `outputs/00_run_metadata/output_tree_audit.json`
 - `outputs/06_slicer_scene_report/report.html`
+- `outputs/06_slicer_scene_report/output_tree.html`
 - `outputs/06_slicer_scene_report/summary.md`
 - `outputs/06_slicer_scene_report/provenance.json`
 - `outputs/06_slicer_scene_report/qc_summary.json`
@@ -42,6 +43,12 @@ DDSurfer、DDSeg、DDParcel 的模型权重和模板资源通过 Git LFS 管理�
 scripts/download_model_assets.sh --profile core
 ```
 
+profile 和必需文件路径统一写在 `models/assets_manifest.json`。如果只想查看某个 profile 会下载哪些路径，不触发网络下载：
+
+```bash
+python3 scripts/download_model_assets.py --profile core --print-plan
+```
+
 如果只需要某个后端，可以按需下载：
 
 ```bash
@@ -50,7 +57,7 @@ scripts/download_model_assets.sh --profile segmentation
 scripts/download_model_assets.sh --profile parcellation
 ```
 
-完整 profile、路径和环境变量覆盖方式见 [MODEL_ASSETS.md](MODEL_ASSETS.md)。
+完整 manifest 格式、profile、路径和环境变量覆盖方式见 [MODEL_ASSETS.md](MODEL_ASSETS.md)。
 
 ---
 
@@ -230,7 +237,7 @@ surface/ddsurfer_postprocess_release/  # 内置 DDSurfer 后处理后端
 ### 运行逻辑
 - 执行前做依赖 preflight；缺可选后端时只 block 对应 target，其他可运行 target 继续执行
 - 用户确认后只自动安装 Python 包到当前 Slicer Python；MRtrix3/FSL/FreeSurfer/WMA/TractCloud 等外部工具只生成安装说明
-- 每个 task 写统一 manifest/QC/logs，同时生成 subject-level HTML/provenance/QC summary
+- 每个 task 写统一 manifest/QC/logs，同时生成 subject-level HTML/provenance/QC summary 和带注释的输出树 HTML
 - 运行结束后自动加载关键 volume、surface、table 和 tractography bundle；缺 SlicerDMRI loader 时跳过 fiber 加载并记录日志
 
 ---
@@ -428,14 +435,15 @@ python3 Testing/Python/run_act_mrtrix_smoke.py \
 
 ## 权重（Git LFS）
 
+权重下载入口统一由 `models/assets_manifest.json` 配置。
+
 - `Resources/Data/ckpts/hcp/*.pt`
 - `parcellation/weights/*.pkl`
 - `segmentation/weights/*.pt`
 
-获取方式：
+推荐获取方式：
 ```bash
-git lfs install
-git lfs pull
+scripts/download_model_assets.sh --profile core
 ```
 
 ---

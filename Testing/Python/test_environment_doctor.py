@@ -24,6 +24,27 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             command_path.chmod(0o755)
         return bin_dir
 
+    def _make_freesurfer_home(self, root: Path) -> Path:
+        freesurfer_home = root / "software" / "freesurfer"
+        bin_dir = freesurfer_home / "bin"
+        bin_dir.mkdir(parents=True)
+        (freesurfer_home / "subjects" / "fsaverage").mkdir(parents=True)
+        for command in (
+            "recon-all",
+            "mris_sphere",
+            "mris_curvature",
+            "mris_inflate",
+            "mris_register",
+            "mri_label2label",
+            "mri_surf2surf",
+            "mri_annotation2label",
+            "mri_segstats",
+        ):
+            command_path = bin_dir / command
+            command_path.write_text("#!/usr/bin/env sh\n", encoding="utf-8")
+            command_path.chmod(0o755)
+        return freesurfer_home
+
     def test_user_path_source_overrides_environment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -120,6 +141,55 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             )
             self.assertEqual(status.status, "available")
             self.assertEqual(status.details["detected_source"], "common path")
+
+    def test_freesurfer_home_is_discovered_from_local_software_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            freesurfer_home = self._make_freesurfer_home(tmp_path)
+            old_home = os.environ.get("HOME")
+            old_user = os.environ.get("USER")
+            old_fs_home = os.environ.get("FREESURFER_HOME")
+            old_slicer_fs_home = os.environ.get("SLICERDDSURFER_FREESURFER_HOME")
+            os.environ["HOME"] = tmp_path.as_posix()
+            os.environ["USER"] = "slicerddsurfer-test-user"
+            os.environ.pop("FREESURFER_HOME", None)
+            os.environ.pop("SLICERDDSURFER_FREESURFER_HOME", None)
+            try:
+                result = run_environment_doctor(
+                    EnvironmentDoctorConfig(
+                        targets=("surface_postprocess",),
+                        repo_root=REPO_ROOT,
+                    )
+                )
+            finally:
+                if old_home is None:
+                    os.environ.pop("HOME", None)
+                else:
+                    os.environ["HOME"] = old_home
+                if old_user is None:
+                    os.environ.pop("USER", None)
+                else:
+                    os.environ["USER"] = old_user
+                if old_fs_home is None:
+                    os.environ.pop("FREESURFER_HOME", None)
+                else:
+                    os.environ["FREESURFER_HOME"] = old_fs_home
+                if old_slicer_fs_home is None:
+                    os.environ.pop("SLICERDDSURFER_FREESURFER_HOME", None)
+                else:
+                    os.environ["SLICERDDSURFER_FREESURFER_HOME"] = old_slicer_fs_home
+
+            freesurfer_env = next(item for item in result.statuses if item.key == "env:freesurfer_home")
+            recon_all = next(item for item in result.statuses if item.key == "command:recon-all")
+            rtree = next(item for item in result.statuses if item.key == "python:rtree")
+            self.assertEqual(freesurfer_env.status, "available")
+            self.assertEqual(freesurfer_env.details["detected_source"], "common path")
+            self.assertEqual(freesurfer_env.details["resolved"], freesurfer_home.as_posix())
+            self.assertEqual(recon_all.status, "available")
+            self.assertEqual(recon_all.details["detected_source"], "common path")
+            self.assertTrue(recon_all.details["resolved"].startswith((freesurfer_home / "bin").as_posix()))
+            self.assertTrue(rtree.required)
+            self.assertEqual(rtree.details["package"], "rtree")
 
     def test_cli_dependency_config_roundtrip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
