@@ -105,6 +105,7 @@ class SharedWidgetMixin:
         self._populateDeviceCombo()
         self._lastProcessEventsAt = 0.0
         self._logLineLimit = 4000
+        self._logAppendCount = 0
         if hasattr(self.ui, "subjectIdLineEdit"):
             self.ui.subjectIdLineEdit.setClearButtonEnabled(True)
         if hasattr(self.ui, "applyButton"):
@@ -507,6 +508,10 @@ class SharedWidgetMixin:
         log_widget.setToolTip(
             f"Live background log. The UI keeps the latest {self._logLineLimit} lines to avoid slowing long runs."
         )
+        try:
+            log_widget.maximumBlockCount = int(self._logLineLimit)
+        except Exception:
+            pass
         try:
             log_widget.setMaximumBlockCount(int(self._logLineLimit))
         except Exception:
@@ -1249,6 +1254,9 @@ class SharedWidgetMixin:
     def appendLog(self, text: str) -> None:
         if hasattr(self.ui, "logPlainTextEdit"):
             self.ui.logPlainTextEdit.appendPlainText(text)
+            self._logAppendCount = int(getattr(self, "_logAppendCount", 0) or 0) + 1
+            if self._logAppendCount % 100 == 0:
+                self._trim_log_widget(self.ui.logPlainTextEdit)
             self.ui.logPlainTextEdit.ensureCursorVisible()
         if text.startswith("[Orchestrator] Running "):
             self._set_run_progress_message(text.replace("[Orchestrator] ", "", 1))
@@ -1260,6 +1268,25 @@ class SharedWidgetMixin:
             slicer.app.processEvents()
         except Exception:
             pass
+
+    def _trim_log_widget(self, log_widget) -> None:
+        limit = int(getattr(self, "_logLineLimit", 4000) or 4000)
+        if limit <= 0:
+            return
+        block_count = 0
+        try:
+            block_count = int(log_widget.document().blockCount())
+        except Exception:
+            pass
+        if block_count and block_count <= limit + 200:
+            return
+        try:
+            lines = str(log_widget.toPlainText()).splitlines()
+        except Exception:
+            return
+        if len(lines) <= limit + 200:
+            return
+        log_widget.setPlainText("\n".join(lines[-limit:]))
 
     def _onClearLogClicked(self) -> None:
         if hasattr(self.ui, "logPlainTextEdit"):

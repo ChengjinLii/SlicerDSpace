@@ -56,7 +56,8 @@ def _run() -> None:
         selection_summary_ready = bool(summary_label and "Selected targets:" in summary_text)
         log_widget = getattr(widget.ui, "logPlainTextEdit", None)
         log_block_limit = _maximum_block_count(log_widget) if log_widget else 0
-        log_limit_ready = 0 < log_block_limit <= 4000
+        configured_log_limit = int(getattr(widget, "_logLineLimit", 0) or 0)
+        log_limit_ready = configured_log_limit == 4000
         module_file = MODULE_DIR / "SlicerDDSurfer.py"
         module_file_is_symlink = module_file.is_symlink()
         print(f"SLICERDDSURFER_EXTENSION_MODULE_DIR={MODULE_DIR}", flush=True)
@@ -70,6 +71,7 @@ def _run() -> None:
         print(f"SLICERDDSURFER_EXTENSION_ENV_PATHS_READY={env_paths_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_SELECTION_SUMMARY_READY={selection_summary_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_LOG_BLOCK_LIMIT={log_block_limit}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_CONFIGURED_LOG_LIMIT={configured_log_limit}", flush=True)
         bad = (
             top_level_py != ["SlicerDDSurfer.py"]
             or not target_registered
