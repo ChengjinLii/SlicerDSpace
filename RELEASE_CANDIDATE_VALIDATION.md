@@ -8,6 +8,7 @@ This document records the current release-candidate validation path: extension-l
 - Slicer: `/data/chengjin/software/Slicer-5.10.0-linux-amd64`
 - Test subject: `/data/chengjin/SlicerDDSurfer-test/100307-release-candidate`
 - Staged extension: `/data/chengjin/SlicerDDSurfer-test/extension-install-rc/SlicerDDSurfer`
+- Copy-mode staged package: `/data/chengjin/SlicerDDSurfer-test/extension-package-rc/SlicerDDSurfer`
 - Canonical outputs: `/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs`
 
 The clean subject input tree used for release-candidate testing is:
@@ -62,6 +63,17 @@ SLICERDDSURFER_EXTENSION_MODULE_FILE_SYMLINK=False
 SLICERDDSURFER_EXTENSION_RUN_PANEL_READY=True
 SLICERDDSURFER_EXTENSION_ENV_PATHS_READY=True
 ```
+
+Package-level validation was also repeated with a standalone copy-mode staging tree:
+
+```bash
+python3 scripts/stage_slicer_extension.py \
+  --install-root /data/chengjin/SlicerDDSurfer-test/extension-package-rc \
+  --clean \
+  --link-mode copy
+```
+
+The same Slicer smoke passed against the copy-mode tree. A true CMake/Extension Manager build was not possible on this host because `cmake` is not installed and the binary Slicer tree does not provide `SlicerConfig.cmake`.
 
 ## Run a Clean Subject from One Command
 
@@ -129,6 +141,59 @@ outputs/02_microstructure/freewater/freewater_progress.json
 outputs/02_microstructure/noddi/noddi_progress.json
 ```
 
+Validated result on `2026-06-08`:
+
+```text
+Free Water: completed, joblib engine, n_jobs=8, 37 chunks, 740916 voxels, 1308.749 seconds
+NODDI: completed, 1557.665 seconds
+Resume: Run plan: 0 will run, 3 skipped/reused, 0 blocked
+```
+
+The long-regression report was written to:
+
+```text
+outputs/06_slicer_scene_report/rc_microstructure_long_report.html
+```
+
+All DTI, Free Water, and NODDI maps were readable with shape `(145, 174, 145)` and finite voxel values.
+
+## SAF One-Command Closure
+
+SAF requires a FreeSurfer/FastSurfer-style surface directory. On this host the RC subject does not have completed DDSurfer postprocess outputs because FreeSurfer is not configured, so SAF was validated with the existing FastSurfer surface fixture and the RC ACT tractogram:
+
+```bash
+/data/chengjin/software/run-slicer.sh --launch PythonSlicer \
+  /data/chengjin/SlicerDDSurfer/run_subject_pipeline.py \
+  --subject-root /data/chengjin/SlicerDDSurfer-test/100307-release-candidate \
+  --subject-id 100307-release-candidate \
+  --targets saf \
+  --run-name rc_csd_act \
+  --mrtrix-bin-dir /data/chengjin/software/mrtrix3_env/bin \
+  --saf-fs-dir /data/chengjin/SlicerDDSurfer-test/100307-FastSurfer \
+  --saf-pregenerated-tractogram /data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/04_tractography/cache/alternate_runs/tractograms/rc_csd_act/100307-release-candidate_csd_act_ifod2.tck \
+  --saf-noregister \
+  --execute \
+  --print-manifest-only
+```
+
+Validated result:
+
+```text
+Run plan: 1 will run, 0 skipped/reused, 0 blocked
+SAF status: completed
+SAF streamline count: 1316
+Resume: Run plan: 0 will run, 1 skipped/reused, 0 blocked
+```
+
+Key SAF outputs:
+
+```text
+outputs/04_tractography/saf/rc_csd_act/SAF.tck
+outputs/04_tractography/saf/rc_csd_act/SAF.vtk
+outputs/04_tractography/saf/rc_csd_act/saf_manifest.json
+outputs/04_tractography/saf/rc_csd_act/saf_qc.json
+```
+
 ## Resume Check
 
 Run the same quick-gate command again. Expected run plan:
@@ -146,14 +211,22 @@ bundles: skipped
 connectome: skipped
 ```
 
-Blocked optional targets on the current machine are expected:
+Blocked optional targets on the current machine are expected unless their external paths are supplied:
 
 - `surface_postprocess`: FreeSurfer command-line tools and `FREESURFER_HOME` are not configured.
-- `wma`: WMA ORG atlas and WMA shell entrypoint are not configured.
-- `saf`: requires completed DDSurfer postprocess outputs or explicit `--saf-fs-dir`.
-- `tractcloud`: requires an explicit VTK/VTP tractogram and TractCloud backend configuration.
+- `saf`: requires completed DDSurfer postprocess outputs or explicit `--saf-fs-dir`; the explicit `--saf-fs-dir` closure above is validated.
+- `wma`: requires an external WhiteMatterAnalysis checkout, ORG atlas, and Slicer/SlicerDMRI runtime.
+- `tractcloud`: requires an explicit VTK/VTP tractogram plus a TractCloud Python/model runtime.
 
 These blockers do not stop runnable targets unless `--strict-environment` is used.
+
+WMA and TractCloud are therefore release-deliverable as explicit optional external backends, not as zero-configuration default features. Existing completed backend evidence is summarized in:
+
+```text
+/data/chengjin/SlicerDDSurfer-test/100307/outputs/00_run_metadata/bundle_backend_closure.json
+```
+
+That closure records WMA 800 clusters / 74 anatomical tracts and TractCloud 17 bundles / 5 categories.
 
 ## Output Audit
 
@@ -207,6 +280,14 @@ Key release-candidate outputs verified on `100307-release-candidate`:
 - `outputs/04_tractography/bundles/wmql/rc_csd_act/*_cst.left.trk`
 - `outputs/04_tractography/connectome/rc_csd_act/*streamline_count.csv`
 - `outputs/04_tractography/connectome/rc_csd_act/sift2_weighted_streamline_count/*sift2_weighted_streamline_count.csv`
+- `outputs/04_tractography/saf/rc_csd_act/SAF.tck`
+- `outputs/04_tractography/saf/rc_csd_act/SAF.vtk`
+- `outputs/02_microstructure/freewater/*_fw_fraction.nii.gz`
+- `outputs/02_microstructure/freewater/*_fw_FA.nii.gz`
+- `outputs/02_microstructure/freewater/*_fw_MD.nii.gz`
+- `outputs/02_microstructure/noddi/*_noddi_NDI.nii.gz`
+- `outputs/02_microstructure/noddi/*_noddi_ODI.nii.gz`
+- `outputs/02_microstructure/noddi/*_noddi_IsoVF.nii.gz`
 - `outputs/06_slicer_scene_report/report.html`
 - `outputs/06_slicer_scene_report/summary.md`
 - `outputs/06_slicer_scene_report/provenance.json`
@@ -246,5 +327,6 @@ The smoke test also verifies that key DTI maps, DDParcel/DDSSeg volumes, and DDS
 
 - MRtrix Python scripts must be launched with a Slicer-isolated environment. The CSD/ACT backend strips Slicer `PYTHONHOME`, `PYTHONPATH`, and Slicer runtime paths before calling `dwi2response`, `dwi2fod`, `tckgen`, and `tcksift2`.
 - If this isolation regresses, `dwi2response` can fail inside `PythonSlicer` with `AssertionError: SRE module mismatch`.
+- `scripts/release_audit.py --json --warn-only` passed with `release_ready=true`, `blocker_count=0`.
 - Slicer setting write warnings may appear under `xvfb-run` in this local environment. They are not treated as failures if the smoke assertions pass.
 - STL surface files currently trigger Slicer warnings that coordinate-system metadata is absent and Slicer assumes LPS. This does not block loading, but should remain a future metadata/QC cleanup item.
