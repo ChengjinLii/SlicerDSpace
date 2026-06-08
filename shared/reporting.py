@@ -162,6 +162,20 @@ def _format_bytes(value: Any) -> str:
     return f"{size:.1f} {units[unit]}"
 
 
+def _format_seconds(value: Any) -> str:
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        return "0.0 s"
+    if seconds < 60:
+        return f"{seconds:.1f} s"
+    minutes, rem = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{int(minutes)}m {rem:.0f}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{int(hours)}h {int(minutes)}m"
+
+
 def _task_status_for_humans(status: Any) -> str:
     value = str(status or "unknown")
     return {
@@ -347,6 +361,43 @@ def _large_output_rows(output_tree: dict[str, Any], *, max_items: int = 8) -> li
     ]
 
 
+def _performance_profile(manifest: dict[str, Any]) -> dict[str, Any]:
+    profile = manifest.get("performance_profile")
+    return profile if isinstance(profile, dict) else {}
+
+
+def _performance_task_rows(profile: dict[str, Any], key: str, *, max_items: int = 8) -> list[dict[str, Any]]:
+    rows = []
+    for item in profile.get(key, [])[:max_items]:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            {
+                "task": item.get("name"),
+                "status": item.get("status"),
+                "runtime": _format_seconds(item.get("runtime_seconds")),
+                "outputs": _format_bytes(item.get("declared_output_bytes")),
+                "files": item.get("declared_output_files", 0),
+            }
+        )
+    return rows
+
+
+def _performance_top_dir_rows(profile: dict[str, Any], *, max_items: int = 8) -> list[dict[str, Any]]:
+    rows = []
+    for item in profile.get("largest_top_dirs", [])[:max_items]:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            {
+                "path": item.get("path"),
+                "size": _format_bytes(item.get("size_bytes")),
+                "files": item.get("file_count", 0),
+            }
+        )
+    return rows
+
+
 def _build_executive_summary(
     *,
     manifest: dict[str, Any],
@@ -363,6 +414,8 @@ def _build_executive_summary(
         "tasks": task_counts,
         "output_files": output_tree.get("file_count", 0),
         "output_size": _format_bytes(output_tree.get("total_bytes", 0)),
+        "elapsed_seconds": manifest.get("elapsed_seconds", 0),
+        "elapsed_time": _format_seconds(manifest.get("elapsed_seconds", 0)),
         "qc_files": len(qc_records),
         "blocked_count": task_counts.get("blocked", 0),
     }
@@ -381,6 +434,7 @@ def _build_provenance(
         output_tree=output_tree,
         qc_records=qc_records,
     )
+    performance_profile = _performance_profile(manifest)
     return {
         "kind": "slicerddsurfer_subject_provenance",
         "version": 1,
@@ -394,6 +448,8 @@ def _build_provenance(
         "targets": manifest.get("targets", []),
         "run_targets": manifest.get("run_targets", []),
         "run_plan_summary": manifest.get("run_plan_summary", {}),
+        "performance_profile_path": manifest.get("performance_profile_path"),
+        "performance_profile": performance_profile,
         "task_summary": _task_summary(manifest),
         "preflight_blocked_targets": manifest.get("preflight_blocked_targets", {}),
         "archived_development_outputs": manifest.get("archived_development_outputs", {}),
@@ -423,6 +479,7 @@ def _build_qc_summary(
     task_rows = _collect_task_rows(manifest)
     blocked_items = _collect_blocked_items(manifest)
     key_outputs = _collect_key_outputs(manifest, output_tree)
+    performance_profile = _performance_profile(manifest)
     return {
         "kind": "slicerddsurfer_subject_qc_summary",
         "version": 1,
@@ -432,6 +489,11 @@ def _build_qc_summary(
         "run_name": manifest.get("run_name"),
         "orchestration_manifest": manifest_path.as_posix(),
         "run_plan_summary": manifest.get("run_plan_summary", {}),
+        "performance_profile_path": manifest.get("performance_profile_path"),
+        "performance_profile": performance_profile,
+        "performance_slowest_tasks": _performance_task_rows(performance_profile, "slowest_tasks"),
+        "performance_largest_task_outputs": _performance_task_rows(performance_profile, "largest_task_outputs"),
+        "performance_largest_top_dirs": _performance_top_dir_rows(performance_profile),
         "task_summary": _task_summary(manifest),
         "readable_task_table": task_rows,
         "blocked_items": blocked_items,
@@ -559,6 +621,8 @@ def _build_markdown_summary(
     blocked = qc_summary.get("blocked_items", [])
     task_rows = qc_summary.get("readable_task_table", [])
     key_outputs = qc_summary.get("key_outputs", [])
+    slowest_tasks = qc_summary.get("performance_slowest_tasks", [])
+    largest_top_dirs = qc_summary.get("performance_largest_top_dirs", [])
     lines = [
         f"# SlicerDDSurfer Run Summary: {manifest.get('subject_id') or 'subject'}",
         "",
@@ -566,6 +630,7 @@ def _build_markdown_summary(
         f"- Run name: `{manifest.get('run_name') or ''}`",
         f"- Generated at: `{provenance.get('generated_at') or ''}`",
         f"- Output root: `{manifest.get('output_root') or ''}`",
+        f"- Elapsed: {summary.get('elapsed_time') or '0.0 s'}",
         f"- Output files: {summary.get('output_files', 0)} ({summary.get('output_size', '0 B')})",
         f"- QC files: {summary.get('qc_files', 0)}",
         "",
@@ -581,6 +646,18 @@ def _build_markdown_summary(
     lines.extend(["", "## Task Status", ""])
     for row in task_rows:
         lines.append(f"- `{row.get('name')}`: {row.get('status_label')} - {row.get('reason')}")
+    lines.extend(["", "## Performance Profile", ""])
+    if slowest_tasks:
+        lines.append("Slowest tasks:")
+        for row in slowest_tasks[:8]:
+            lines.append(f"- `{row.get('task')}`: {row.get('runtime')} ({row.get('status')})")
+    else:
+        lines.append("- No task runtime data available.")
+    if largest_top_dirs:
+        lines.append("")
+        lines.append("Largest top-level output directories:")
+        for row in largest_top_dirs[:8]:
+            lines.append(f"- `{row.get('path')}`: {row.get('size')} across {row.get('files')} file(s)")
     lines.extend(["", "## Key Outputs", ""])
     for row in key_outputs[:16]:
         lines.append(f"- {row.get('label')}: `{row.get('path')}`")
@@ -614,6 +691,10 @@ def _build_html_report(
     blocked_rows = qc_summary.get("blocked_items", [])
     key_outputs = qc_summary.get("key_outputs", [])
     largest_outputs = qc_summary.get("largest_outputs", [])
+    performance_profile = qc_summary.get("performance_profile", {})
+    slowest_tasks = qc_summary.get("performance_slowest_tasks", [])
+    largest_task_outputs = qc_summary.get("performance_largest_task_outputs", [])
+    largest_top_dirs = qc_summary.get("performance_largest_top_dirs", [])
     status = str(summary.get("status") or "unknown")
     title = f"SlicerDDSurfer Report - {manifest.get('subject_id') or 'subject'}"
     return f"""<!doctype html>
@@ -705,6 +786,7 @@ def _build_html_report(
       {_render_cards([
           ('Run name', manifest.get('run_name') or '', 'Use this name for resume and report lookup.'),
           ('Tasks', ', '.join(f"{k}: {v}" for k, v in sorted((summary.get('tasks') or {}).items())) or '0', 'Skipped means existing outputs were reused.'),
+          ('Elapsed', summary.get('elapsed_time') or '0.0 s', 'Total product-orchestrator wall time.'),
           ('Outputs', f"{summary.get('output_files', 0)} files", str(summary.get('output_size') or '0 B')),
           ('QC files', summary.get('qc_files', 0), 'Machine-readable checks collected from each step.'),
       ])}
@@ -719,6 +801,24 @@ def _build_html_report(
   <section class=\"panel\">
     <h2>Task Status</h2>
     {_render_task_table(tasks)}
+  </section>
+
+  <section class=\"panel\">
+    <h2>Performance Profile</h2>
+    <p class=\"muted\">Use this section to identify the next optimization target. Skipped task runtimes measure resume detection overhead, not original compute time.</p>
+    <div class=\"grid\">
+      {_render_cards([
+          ('Elapsed', _format_seconds(performance_profile.get('orchestration_elapsed_seconds')), 'Total orchestrator wall time.'),
+          ('Task runtime sum', _format_seconds(performance_profile.get('task_runtime_seconds_total')), 'Sequential task timing captured by the orchestrator.'),
+          ('Profile JSON', performance_profile.get('path') or manifest.get('performance_profile_path') or '', 'Machine-readable profile artifact.'),
+      ])}
+    </div>
+    <h2>Slowest Tasks</h2>
+    {_html_table(slowest_tasks, ['task', 'status', 'runtime', 'outputs', 'files'])}
+    <h2>Largest Task Outputs</h2>
+    {_html_table(largest_task_outputs, ['task', 'status', 'runtime', 'outputs', 'files'])}
+    <h2>Largest Top-Level Output Directories</h2>
+    {_html_table(largest_top_dirs, ['path', 'size', 'files'])}
   </section>
 
   <section class=\"panel\">

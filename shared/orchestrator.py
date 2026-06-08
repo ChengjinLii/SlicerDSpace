@@ -1251,6 +1251,132 @@ def _audit_output_tree(layout, *, subject_id: str) -> dict[str, object]:
     return audit
 
 
+def _path_stats(path: Path) -> tuple[int, int]:
+    """Return (file_count, size_bytes) for an existing file or directory."""
+
+    if not path.exists():
+        return 0, 0
+    if path.is_file():
+        try:
+            return 1, path.stat().st_size
+        except OSError:
+            return 1, 0
+    if not path.is_dir():
+        return 0, 0
+    file_count = 0
+    size_bytes = 0
+    for child in path.rglob("*"):
+        if not child.is_file():
+            continue
+        file_count += 1
+        try:
+            size_bytes += child.stat().st_size
+        except OSError:
+            pass
+    return file_count, size_bytes
+
+
+def _path_within(child: Path, parent: Path) -> bool:
+    try:
+        child.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def _declared_task_output_stats(task: ProductTaskRecord) -> tuple[int, int]:
+    candidates: list[Path] = []
+    for value in (task.outputs or {}).values():
+        if not value:
+            continue
+        path = Path(str(value)).expanduser()
+        if not path.exists():
+            continue
+        try:
+            normalized_path = path.resolve()
+        except OSError:
+            normalized_path = path
+        candidates.append(normalized_path)
+
+    roots: list[Path] = []
+    for path in candidates:
+        if any(path == existing or _path_within(path, existing) for existing in roots):
+            continue
+        if path.is_dir():
+            roots = [existing for existing in roots if not _path_within(existing, path)]
+        roots.append(path)
+
+    total_files = 0
+    total_bytes = 0
+    for path in roots:
+        file_count, size_bytes = _path_stats(path)
+        total_files += file_count
+        total_bytes += size_bytes
+    return total_files, total_bytes
+
+
+def _build_performance_profile(
+    *,
+    layout,
+    run_name: str,
+    tasks: list[ProductTaskRecord],
+    orchestration_elapsed_seconds: float,
+) -> dict[str, object]:
+    task_rows = []
+    for task in tasks:
+        output_files, output_bytes = _declared_task_output_stats(task)
+        task_rows.append(
+            {
+                "name": task.name,
+                "status": task.status,
+                "runtime_seconds": float(task.runtime_seconds or 0.0),
+                "declared_output_files": output_files,
+                "declared_output_bytes": output_bytes,
+                "reason": task.reason,
+            }
+        )
+
+    top_dirs = []
+    output_root = layout.outputs
+    if output_root.is_dir():
+        for child in sorted(output_root.iterdir()):
+            if not child.is_dir():
+                continue
+            file_count, size_bytes = _path_stats(child)
+            top_dirs.append(
+                {
+                    "path": child.name,
+                    "file_count": file_count,
+                    "size_bytes": size_bytes,
+                }
+            )
+
+    profile = {
+        "kind": "slicerddsurfer_performance_profile",
+        "version": 1,
+        "schema": "slicerddsurfer.performance_profile.v1",
+        "run_name": run_name,
+        "output_root": output_root.as_posix(),
+        "created_at": _now_utc(),
+        "orchestration_elapsed_seconds": orchestration_elapsed_seconds,
+        "task_runtime_seconds_total": sum(float(row["runtime_seconds"]) for row in task_rows),
+        "profile_notes": [
+            "Task runtime_seconds are measured by the product orchestrator around each task append.",
+            "Skipped task runtimes measure resume detection overhead, not the original compute runtime.",
+            "Declared output sizes are computed from task output paths that exist when the manifest is written.",
+        ],
+        "slowest_tasks": sorted(task_rows, key=lambda row: float(row["runtime_seconds"]), reverse=True)[:8],
+        "largest_task_outputs": sorted(task_rows, key=lambda row: int(row["declared_output_bytes"]), reverse=True)[:8],
+        "largest_top_dirs": sorted(top_dirs, key=lambda row: int(row["size_bytes"]), reverse=True)[:8],
+        "top_dirs": top_dirs,
+    }
+    profile_path = layout.run_metadata / f"{run_name}_performance_profile.json"
+    profile_path.parent.mkdir(parents=True, exist_ok=True)
+    profile["path"] = profile_path.as_posix()
+    profile_path.write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return profile
+
+
 def run_subject_products(
     config: ProductOrchestratorConfig,
     *,
@@ -2278,6 +2404,14 @@ def run_subject_products(
         )
         task_payloads.append(payload)
 
+    elapsed_seconds = time.monotonic() - start
+    performance_profile = _build_performance_profile(
+        layout=layout,
+        run_name=run_name,
+        tasks=tasks,
+        orchestration_elapsed_seconds=elapsed_seconds,
+    )
+
     manifest = {
         "kind": "slicerddsurfer_product_orchestration",
         "version": 1,
@@ -2359,7 +2493,9 @@ def run_subject_products(
         "tractcloud_device": config.tractcloud_device,
         "resolved_tractcloud_device": tractcloud_device,
         "tractcloud_batch_size": config.tractcloud_batch_size,
-        "elapsed_seconds": time.monotonic() - start,
+        "elapsed_seconds": elapsed_seconds,
+        "performance_profile_path": performance_profile.get("path"),
+        "performance_profile": performance_profile,
         "tasks": task_payloads,
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True)

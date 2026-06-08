@@ -281,6 +281,16 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(manifest["select_streamlines"], 100000)
             self.assertEqual(manifest["connectome_backend"], "mrtrix")
             self.assertTrue(manifest["connectome_compress_mrtrix_dense"])
+            profile = manifest["performance_profile"]
+            self.assertEqual(profile["schema"], "slicerddsurfer.performance_profile.v1")
+            self.assertTrue(Path(manifest["performance_profile_path"]).is_file())
+            self.assertIn("slowest_tasks", profile)
+            self.assertIn("largest_top_dirs", profile)
+            report_paths = manifest["report_paths"]
+            report_html = Path(report_paths["report_html"])
+            qc_summary = json.loads(Path(report_paths["qc_summary_json"]).read_text(encoding="utf-8"))
+            self.assertIn("Performance Profile", report_html.read_text(encoding="utf-8"))
+            self.assertEqual(qc_summary["performance_profile"]["schema"], "slicerddsurfer.performance_profile.v1")
 
     def test_dry_run_supports_dti_tractography_backend(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
