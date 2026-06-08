@@ -598,6 +598,75 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual([task.status for task in result.tasks], ["skipped", "skipped", "skipped", "skipped", "skipped", "skipped", "skipped"])
             self.assertTrue(all("completed" in task.reason for task in result.tasks))
 
+    def test_plan_resume_uses_external_output_root_for_structural_dependencies(self) -> None:
+        from shared import ProductOrchestratorConfig, plan_subject_products, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            output_root = Path(tmp) / "external_outputs" / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            layout = subject_layout(subject_root, output_root=output_root)
+            layout.ddseg.mkdir(parents=True)
+            for name in (
+                "SegmentationMap_GMWMCSF.nii.gz",
+                "ProbabilisticMap_GM.nii.gz",
+                "ProbabilisticMap_WM.nii.gz",
+                "ProbabilisticMap_CSF.nii.gz",
+            ):
+                (layout.ddseg / name).write_text(name, encoding="utf-8")
+
+            layout.ddparcel.mkdir(parents=True)
+            for name in (
+                "100307-DDSurfer-wmparc.nii.gz",
+                "100307-DDSurfer-wmparc-Reg.mgz",
+                "100307-dti-FractionalAnisotropy-Reg-NormMasked.nii.gz",
+                "100307-dti-Trace-Reg-NormMasked.nii.gz",
+                "100307-dti-MinEigenvalue-Reg-NormMasked.nii.gz",
+                "100307-dti-MidEigenvalue-Reg-NormMasked.nii.gz",
+            ):
+                (layout.ddparcel / name).write_text(name, encoding="utf-8")
+
+            surface_dir = layout.ddsurfer / "pred_results_SlicerDDSurfer" / "native" / "100307"
+            surface_dir.mkdir(parents=True)
+            for name in (
+                "100307_predicted_wm_lh.stl",
+                "100307_predicted_wm_rh.stl",
+                "100307_predicted_pial_lh.stl",
+                "100307_predicted_pial_rh.stl",
+            ):
+                (surface_dir / name).write_text(name, encoding="utf-8")
+
+            plan = plan_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    output_root=output_root,
+                    targets=("segmentation", "parcellation", "surface", "tractography", "connectome"),
+                    execute=True,
+                    resume=True,
+                ),
+                write=False,
+            )
+
+            statuses = {item.target: item.status for item in plan.items}
+            reasons = {item.target: item.reason for item in plan.items}
+            dependencies = {item.target: item.dependencies for item in plan.items}
+            self.assertEqual(statuses["segmentation"], "skipped")
+            self.assertEqual(statuses["parcellation"], "skipped")
+            self.assertEqual(statuses["surface"], "skipped")
+            self.assertEqual(statuses["tractography"], "will_run")
+            self.assertEqual(statuses["connectome"], "will_run")
+            self.assertEqual(dependencies["tractography"]["segmentation"], "available")
+            self.assertEqual(dependencies["connectome"]["parcellation"], "available")
+            self.assertEqual(dependencies["connectome"]["tractogram"], "will_run")
+            self.assertNotIn("missing DDSeg", reasons["tractography"])
+            self.assertNotIn("missing parcellation", reasons["connectome"])
+            self.assertEqual(plan.output_root, output_root.resolve())
+
     def test_execute_blocks_missing_dependencies_instead_of_crashing(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 

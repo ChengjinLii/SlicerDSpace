@@ -456,19 +456,21 @@ def _preprocessing_complete(subject_root: Path, subject_id: str, output_root: Op
     return all(path.is_file() for key, path in outputs.items() if key != "qc") and _qc_completed(outputs["qc"])
 
 
-def _resolve_segmentation(subject_root: Path) -> Optional[Path]:
+def _resolve_segmentation(subject_root: Path, output_root: Optional[Path] = None) -> Optional[Path]:
+    layout = subject_layout(subject_root, output_root=output_root)
     candidates = [
-        subject_root / "outputs" / "03_structural" / "ddseg" / "SegmentationMap_GMWMCSF.nii.gz",
+        layout.ddseg / "SegmentationMap_GMWMCSF.nii.gz",
         subject_root / ".legacy_flat_outputs" / "ddseg" / "SegmentationMap_GMWMCSF.nii.gz",
         subject_root / "segmentation" / "SegmentationMap_GMWMCSF.nii.gz",
     ]
     return next((path for path in candidates if path.is_file()), None)
 
 
-def _resolve_parcellation(subject_root: Path, subject_id: str) -> Optional[Path]:
+def _resolve_parcellation(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> Optional[Path]:
+    layout = subject_layout(subject_root, output_root=output_root)
     candidates = [
-        subject_root / "outputs" / "03_structural" / "ddparcel" / f"{subject_id}_ddparcel_wmparc_labels.nii.gz",
-        subject_root / "outputs" / "03_structural" / "ddparcel" / f"{subject_id}-DDSurfer-wmparc.nii.gz",
+        layout.ddparcel / f"{subject_id}_ddparcel_wmparc_labels.nii.gz",
+        layout.ddparcel / f"{subject_id}-DDSurfer-wmparc.nii.gz",
         subject_root / ".legacy_flat_outputs" / "ddparcel" / f"{subject_id}-DDSurfer-wmparc.nii.gz",
         subject_root / "parcellation" / "wmparc.nii.gz",
     ]
@@ -479,8 +481,8 @@ def _default_atlas_t2() -> Path:
     return Path(__file__).resolve().parent.parent / "Resources" / "Data" / "100HCP-population-mean-T2.nii.gz"
 
 
-def _segmentation_outputs(subject_root: Path) -> dict[str, Path]:
-    layout = subject_layout(subject_root)
+def _segmentation_outputs(subject_root: Path, output_root: Optional[Path] = None) -> dict[str, Path]:
+    layout = subject_layout(subject_root, output_root=output_root)
     return {
         "segmentation": layout.ddseg / "SegmentationMap_GMWMCSF.nii.gz",
         "gm_probability": layout.ddseg / "ProbabilisticMap_GM.nii.gz",
@@ -489,12 +491,12 @@ def _segmentation_outputs(subject_root: Path) -> dict[str, Path]:
     }
 
 
-def _segmentation_complete(subject_root: Path) -> bool:
-    return all(path.is_file() for path in _segmentation_outputs(subject_root).values())
+def _segmentation_complete(subject_root: Path, output_root: Optional[Path] = None) -> bool:
+    return all(path.is_file() for path in _segmentation_outputs(subject_root, output_root).values())
 
 
-def _parcellation_outputs(subject_root: Path, subject_id: str) -> dict[str, Path]:
-    layout = subject_layout(subject_root)
+def _parcellation_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
+    layout = subject_layout(subject_root, output_root=output_root)
     return {
         "wmparc": layout.ddparcel / f"{subject_id}-DDSurfer-wmparc.nii.gz",
         "wmparc_reg": layout.ddparcel / f"{subject_id}-DDSurfer-wmparc-Reg.mgz",
@@ -505,12 +507,12 @@ def _parcellation_outputs(subject_root: Path, subject_id: str) -> dict[str, Path
     }
 
 
-def _parcellation_complete(subject_root: Path, subject_id: str) -> bool:
-    return all(path.is_file() for path in _parcellation_outputs(subject_root, subject_id).values())
+def _parcellation_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+    return all(path.is_file() for path in _parcellation_outputs(subject_root, subject_id, output_root).values())
 
 
-def _surface_outputs(subject_root: Path, subject_id: str) -> dict[str, Path]:
-    native_dir = subject_layout(subject_root).ddsurfer / "pred_results_SlicerDDSurfer" / "native" / subject_id
+def _surface_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
+    native_dir = subject_layout(subject_root, output_root=output_root).ddsurfer / "pred_results_SlicerDDSurfer" / "native" / subject_id
     return {
         "white_lh": native_dir / f"{subject_id}_predicted_wm_lh.stl",
         "white_rh": native_dir / f"{subject_id}_predicted_wm_rh.stl",
@@ -519,8 +521,8 @@ def _surface_outputs(subject_root: Path, subject_id: str) -> dict[str, Path]:
     }
 
 
-def _surface_complete(subject_root: Path, subject_id: str) -> bool:
-    return all(path.is_file() for path in _surface_outputs(subject_root, subject_id).values())
+def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+    return all(path.is_file() for path in _surface_outputs(subject_root, subject_id, output_root).values())
 
 
 def _surface_postprocess_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -714,9 +716,9 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     atlas_t2 = config.atlas_t2.expanduser().resolve() if config.atlas_t2 is not None else _default_atlas_t2()
 
     preprocessing_outputs = _preprocessing_outputs(subject_root, config.subject_id, output_root)
-    segmentation_outputs = _segmentation_outputs(subject_root)
-    parcellation_outputs = _parcellation_outputs(subject_root, config.subject_id)
-    surface_outputs = _surface_outputs(subject_root, config.subject_id)
+    segmentation_outputs = _segmentation_outputs(subject_root, output_root)
+    parcellation_outputs = _parcellation_outputs(subject_root, config.subject_id, output_root)
+    surface_outputs = _surface_outputs(subject_root, config.subject_id, output_root)
     micro_outputs = _microstructure_dti_outputs(subject_root, config.subject_id, output_root)
     freewater_outputs = _microstructure_freewater_outputs(subject_root, config.subject_id, output_root)
     noddi_outputs = _microstructure_noddi_outputs(subject_root, config.subject_id, output_root)
@@ -750,8 +752,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     wma_input_tractography = _resolve_bundle_input_tractography(subject_root, config.wma_input_tractography, output_root=output_root, run_name=run_name)
     tractcloud_input_tractography = _resolve_bundle_input_tractography(subject_root, config.tractcloud_input_tractography, output_root=output_root, run_name=run_name)
     slicer_executable = _resolve_slicer_executable(config)
-    segmentation = _resolve_segmentation(subject_root)
-    parcellation = _resolve_parcellation(subject_root, config.subject_id)
+    segmentation = _resolve_segmentation(subject_root, output_root)
+    parcellation = _resolve_parcellation(subject_root, config.subject_id, output_root)
 
     items: list[RunPlanItem] = []
     available: dict[str, bool] = {}
@@ -760,11 +762,11 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         if target == "preprocessing":
             return _preprocessing_complete(subject_root, config.subject_id, output_root)
         if target == "segmentation":
-            return _segmentation_complete(subject_root)
+            return _segmentation_complete(subject_root, output_root)
         if target == "parcellation":
-            return _parcellation_complete(subject_root, config.subject_id)
+            return _parcellation_complete(subject_root, config.subject_id, output_root)
         if target == "surface":
-            return _surface_complete(subject_root, config.subject_id)
+            return _surface_complete(subject_root, config.subject_id, output_root)
         if target == "surface_postprocess":
             return _surface_postprocess_complete(subject_root, config.subject_id, output_root)
         if target == "microstructure":
@@ -868,14 +870,14 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             continue
 
         if target == "segmentation":
-            if config.resume and _segmentation_complete(subject_root):
+            if config.resume and _segmentation_complete(subject_root, output_root):
                 add(target, "skipped", "completed outputs found", "reuse", inputs=raw, outputs=segmentation_outputs)
             elif not raw_input_block(target, segmentation_outputs):
                 add(target, "will_run", "ready to run DDSeg", "runnable", inputs=raw, outputs=segmentation_outputs)
             continue
 
         if target == "parcellation":
-            if config.resume and _parcellation_complete(subject_root, config.subject_id):
+            if config.resume and _parcellation_complete(subject_root, config.subject_id, output_root):
                 add(target, "skipped", "completed outputs found", "reuse", inputs=raw, outputs=parcellation_outputs)
             elif not atlas_t2.is_file():
                 add(
@@ -892,7 +894,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             continue
 
         if target == "surface":
-            if config.resume and _surface_complete(subject_root, config.subject_id):
+            if config.resume and _surface_complete(subject_root, config.subject_id, output_root):
                 add(target, "skipped", "completed outputs found", "reuse", inputs=raw, outputs=surface_outputs)
             elif not raw_input_block(target, surface_outputs):
                 add(target, "will_run", "ready to run DDSurfer surface", "runnable", inputs=raw, outputs=surface_outputs)
@@ -1380,12 +1382,12 @@ def run_subject_products(
             )
 
     preprocessing_outputs = _preprocessing_outputs(subject_root, config.subject_id, output_root)
-    segmentation = _resolve_segmentation(subject_root)
-    parcellation = _resolve_parcellation(subject_root, config.subject_id)
+    segmentation = _resolve_segmentation(subject_root, output_root)
+    parcellation = _resolve_parcellation(subject_root, config.subject_id, output_root)
     atlas_t2 = config.atlas_t2.expanduser().resolve() if config.atlas_t2 is not None else _default_atlas_t2()
-    segmentation_outputs = _segmentation_outputs(subject_root)
-    parcellation_outputs = _parcellation_outputs(subject_root, config.subject_id)
-    surface_outputs = _surface_outputs(subject_root, config.subject_id)
+    segmentation_outputs = _segmentation_outputs(subject_root, output_root)
+    parcellation_outputs = _parcellation_outputs(subject_root, config.subject_id, output_root)
+    surface_outputs = _surface_outputs(subject_root, config.subject_id, output_root)
     micro_outputs = _microstructure_dti_outputs(subject_root, config.subject_id, output_root)
     csd_dir = layout.csd if run_name == "csd_act" else layout.csd / run_name
     tractogram_dir = layout.tractograms / run_name
@@ -1424,7 +1426,7 @@ def run_subject_products(
         tractcloud_device = config.tractcloud_device
 
     if "segmentation" in run_targets:
-        if config.resume and _segmentation_complete(subject_root):
+        if config.resume and _segmentation_complete(subject_root, output_root):
             tasks.append(
                 ProductTaskRecord(
                     name="segmentation.ddseg",
@@ -1463,10 +1465,10 @@ def run_subject_products(
                     outputs={key: path.as_posix() for key, path in segmentation_outputs.items()},
                 )
             )
-            segmentation = _resolve_segmentation(subject_root)
+            segmentation = _resolve_segmentation(subject_root, output_root)
 
     if "parcellation" in run_targets:
-        if config.resume and _parcellation_complete(subject_root, config.subject_id):
+        if config.resume and _parcellation_complete(subject_root, config.subject_id, output_root):
             tasks.append(
                 ProductTaskRecord(
                     name="parcellation.ddparcel",
@@ -1511,10 +1513,10 @@ def run_subject_products(
                     outputs={key: path.as_posix() for key, path in parcellation_outputs.items()},
                 )
             )
-            parcellation = _resolve_parcellation(subject_root, config.subject_id)
+            parcellation = _resolve_parcellation(subject_root, config.subject_id, output_root)
 
     if "surface" in run_targets:
-        if config.resume and _surface_complete(subject_root, config.subject_id):
+        if config.resume and _surface_complete(subject_root, config.subject_id, output_root):
             tasks.append(
                 ProductTaskRecord(
                     name="surface.ddsurfer",
