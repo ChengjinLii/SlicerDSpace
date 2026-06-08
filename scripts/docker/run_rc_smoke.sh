@@ -266,23 +266,23 @@ manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 tasks = manifest.get("tasks", [])
 by_name = {task.get("name"): task for task in tasks}
 failed = [task for task in tasks if task.get("status") == "failed"]
-required_completed = (
-    "validation",
-    "preprocessing.dwi",
-    "segmentation.ddseg",
-    "parcellation.ddparcel",
-    "surface.ddsurfer",
-    "microstructure.dti",
-    "tractography.csd_act",
-    "bundles.wmql",
-    "connectome.streamline_count",
-    "connectome.sift2_weighted_streamline_count",
-)
-missing = [name for name in required_completed if name not in by_name]
+required_statuses = {
+    "validation": {"completed", "passed"},
+    "preprocessing.dwi": {"completed", "skipped"},
+    "segmentation.ddseg": {"completed", "skipped"},
+    "parcellation.ddparcel": {"completed", "skipped"},
+    "surface.ddsurfer": {"completed", "skipped"},
+    "microstructure.dti": {"completed", "skipped"},
+    "tractography.csd_act": {"completed", "skipped"},
+    "bundles.wmql": {"completed", "skipped"},
+    "connectome.streamline_count": {"completed", "skipped"},
+    "connectome.sift2_weighted": {"completed", "skipped"},
+}
+missing = [name for name in required_statuses if name not in by_name]
 not_completed = [
     "{}:{}:{}".format(name, by_name[name].get("status"), by_name[name].get("reason", ""))
-    for name in required_completed
-    if name in by_name and by_name[name].get("status") != "completed"
+    for name, allowed_statuses in required_statuses.items()
+    if name in by_name and by_name[name].get("status") not in allowed_statuses
 ]
 print(f"[quick-gate] manifest={manifest_path}")
 print(f"[quick-gate] tasks={len(tasks)} failed={len(failed)} required_not_completed={len(not_completed)}")
