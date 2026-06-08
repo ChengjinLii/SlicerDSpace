@@ -221,7 +221,7 @@ class SurfaceWidgetMixin:
         status_message = "Ready to run." if ok else self._summarise_missing(missing)
 
         if not self._pipelineActive:
-            self._setStatus("ready" if ok else "error", status_message)
+            self._setStatus("ready" if ok else "waiting", status_message)
             if hasattr(self.ui, "applyButton"):
                 tooltip = "Run the SlicerDDSurfer pipeline" if ok else "Waiting: " + ", ".join(missing)
                 self.ui.applyButton.setToolTip(tooltip)

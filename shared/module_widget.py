@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 from datetime import datetime
+from time import monotonic
 from typing import Any, List, Optional
 
 import qt
@@ -102,6 +103,8 @@ class SharedWidgetMixin:
 
     def _initialize_common_ui_state(self) -> None:
         self._populateDeviceCombo()
+        self._lastProcessEventsAt = 0.0
+        self._logLineLimit = 4000
         if hasattr(self.ui, "subjectIdLineEdit"):
             self.ui.subjectIdLineEdit.setClearButtonEnabled(True)
         if hasattr(self.ui, "applyButton"):
@@ -110,8 +113,11 @@ class SharedWidgetMixin:
 
         self._hide_legacy_product_panels()
         self._initialize_environment_dependency_path_controls()
+        self._initialize_product_selection_summary()
         self._initialize_run_status_panel()
         self._initialize_background_run_controls()
+        self._apply_slicerddsurfer_ui_style()
+        self._configure_log_widget()
 
         for widget_name in (
             "surfaceOptionsSectionLabel",
@@ -140,7 +146,7 @@ class SharedWidgetMixin:
             progress.setRange(0, 100)
             progress.setValue(0)
 
-        self._setStatus("error", "Waiting for input")
+        self._setStatus("waiting", "Waiting for input")
         self.initializeParameterNode()
 
     def _initialize_background_run_controls(self) -> None:
@@ -443,6 +449,168 @@ class SharedWidgetMixin:
         self._latestReportPath = None
         self._runStatusTable = table
 
+    def _initialize_product_selection_summary(self) -> None:
+        if getattr(self, "_selectedProductsSummaryLabel", None) is not None:
+            return
+        configuration_layout = getattr(self.ui, "configurationLayout", None)
+        if not configuration_layout:
+            return
+        summary = qt.QLabel("Selected products will appear here after the parameter node is ready.")
+        summary.wordWrap = True
+        summary.setObjectName("selectedProductsSummaryLabel")
+        try:
+            summary.setTextInteractionFlags(qt.Qt.TextSelectableByMouse | qt.Qt.TextSelectableByKeyboard)
+        except Exception:
+            pass
+        self._selectedProductsSummaryLabel = summary
+        try:
+            configuration_layout.insertWidget(2, summary)
+        except Exception:
+            configuration_layout.addWidget(summary)
+
+    def _refresh_selected_products_summary(self) -> None:
+        label = getattr(self, "_selectedProductsSummaryLabel", None)
+        if not label:
+            return
+        if not self._parameterNode:
+            label.setText("Selected products will appear here after the parameter node is ready.")
+            return
+        targets = [target for target in self._selected_product_targets() if target != "validation"]
+        if targets:
+            target_text = ", ".join(targets)
+        else:
+            target_text = "none"
+        freewater, noddi = self._microstructure_stage_flags()
+        micro_stages = ["dti"]
+        if freewater:
+            micro_stages.append("freewater")
+        if noddi:
+            micro_stages.append("noddi")
+        text = (
+            f"Selected targets: {target_text}\n"
+            f"Backends: preprocessing={(self._parameterNode.preprocessingBackend or 'dipy').strip() or 'dipy'}, "
+            f"tractography={self._tractography_backend_text()}, bundles={self._bundle_backend_text()}, "
+            f"microstructure={','.join(micro_stages)}, "
+            f"connectome={(self._parameterNode.connectomeBackend or 'python').strip() or 'python'}"
+        )
+        label.setText(text)
+        run_button = getattr(self.ui, "runSelectedButton", None)
+        if run_button:
+            run_button.setToolTip(
+                "Run selected products after environment preflight. Current selection: " + target_text
+            )
+
+    def _configure_log_widget(self) -> None:
+        log_widget = getattr(self.ui, "logPlainTextEdit", None)
+        if not log_widget:
+            return
+        log_widget.setToolTip(
+            f"Live background log. The UI keeps the latest {self._logLineLimit} lines to avoid slowing long runs."
+        )
+        try:
+            log_widget.setMaximumBlockCount(int(self._logLineLimit))
+        except Exception:
+            try:
+                log_widget.document().setMaximumBlockCount(int(self._logLineLimit))
+            except Exception:
+                pass
+        try:
+            log_widget.setLineWrapMode(qt.QPlainTextEdit.NoWrap)
+        except Exception:
+            pass
+
+    def _apply_slicerddsurfer_ui_style(self) -> None:
+        style = """
+        QFrame#headerFrame {
+          background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F2F8F4, stop:1 #E9F2F5);
+          border: 1px solid #CBD8D2;
+          border-radius: 10px;
+          padding: 14px;
+        }
+        QLabel#headlineLabel {
+          color: #163526;
+          font-size: 21px;
+          font-weight: 700;
+        }
+        QLabel#subtitleLabel,
+        QLabel#environmentHintLabel,
+        QLabel#logHintLabel {
+          color: #536B61;
+          font-size: 12px;
+        }
+        QLabel#selectedProductsSummaryLabel {
+          background-color: #F8FBF8;
+          border: 1px solid #D6E3DA;
+          border-left: 4px solid #1D6C45;
+          border-radius: 7px;
+          color: #294B3B;
+          padding: 8px 10px;
+          font-family: "Menlo", "Consolas", monospace;
+          font-size: 11px;
+        }
+        QPushButton#runSelectedButton {
+          background-color: #1D6C45;
+          border: 1px solid #155336;
+          border-radius: 7px;
+          color: white;
+          font-weight: 700;
+          padding: 8px 16px;
+        }
+        QPushButton#runSelectedButton:hover:!disabled {
+          background-color: #155336;
+        }
+        QPushButton#validateButton {
+          background-color: transparent;
+          border: 1px solid #2D7C92;
+          border-radius: 7px;
+          color: #2D7C92;
+          font-weight: 600;
+          padding: 6px 12px;
+        }
+        QPushButton#validateButton:hover:!disabled {
+          background-color: rgba(45, 124, 146, 0.10);
+        }
+        QPushButton#clearLogButton {
+          background-color: transparent;
+          border: 1px solid #B8C6C0;
+          border-radius: 6px;
+          color: #43594F;
+          padding: 4px 9px;
+        }
+        QPushButton#clearLogButton:hover:!disabled {
+          background-color: rgba(184, 198, 192, 0.28);
+        }
+        QPlainTextEdit#logPlainTextEdit {
+          background-color: #132018;
+          border: 1px solid #2E4B39;
+          border-radius: 8px;
+          color: #E5F0DF;
+          font-family: "Menlo", "Consolas", monospace;
+          font-size: 11px;
+          selection-background-color: #2D7C92;
+        }
+        """
+        root_widget = getattr(self, "_uiWidget", None)
+        try:
+            if root_widget:
+                root_widget.setStyleSheet(style)
+        except Exception:
+            try:
+                self.parent.setStyleSheet(style)
+            except Exception:
+                pass
+        table = getattr(self, "_runStatusTable", None)
+        if table:
+            table.setStyleSheet(
+                "QTableWidget { background: #FBFCFA; alternate-background-color: #F2F6F3; "
+                "gridline-color: #D7E0DA; selection-background-color: #DCEBE2; selection-color: #163526; } "
+                "QHeaderView::section { background: #E6EFE9; color: #294B3B; font-weight: 700; padding: 5px; border: 0; }"
+            )
+            try:
+                table.verticalHeader().setVisible(False)
+            except Exception:
+                pass
+
     def _set_run_progress_message(self, message: str) -> None:
         label = getattr(self, "_runStatusHintLabel", None)
         if label:
@@ -473,6 +641,8 @@ class SharedWidgetMixin:
 
     def _table_item(self, text: str, state: str = ""):
         item = qt.QTableWidgetItem(text or "")
+        if text:
+            item.setToolTip(text)
         if state:
             colors = {
                 "queued": qt.QColor("#546E7A"),
@@ -494,20 +664,30 @@ class SharedWidgetMixin:
         table = getattr(self, "_runStatusTable", None)
         if not table:
             return
-        table.setRowCount(len(rows))
-        for row_index, row in enumerate(rows):
-            state = row.get("status", "")
-            values = [
-                row.get("target") or row.get("name") or "",
-                state,
-                row.get("reason", ""),
-                row.get("manifest_path", ""),
-                row.get("qc_path", ""),
-                row.get("logs_dir", ""),
-            ]
-            for col, value in enumerate(values):
-                table.setItem(row_index, col, self._table_item(str(value or ""), state))
-        table.resizeRowsToContents()
+        try:
+            table.setUpdatesEnabled(False)
+        except Exception:
+            pass
+        try:
+            table.setRowCount(len(rows))
+            for row_index, row in enumerate(rows):
+                state = row.get("status", "")
+                values = [
+                    row.get("target") or row.get("name") or "",
+                    state,
+                    row.get("reason", ""),
+                    row.get("manifest_path", ""),
+                    row.get("qc_path", ""),
+                    row.get("logs_dir", ""),
+                ]
+                for col, value in enumerate(values):
+                    table.setItem(row_index, col, self._table_item(str(value or ""), state))
+            table.resizeRowsToContents()
+        finally:
+            try:
+                table.setUpdatesEnabled(True)
+            except Exception:
+                pass
 
     def _update_run_status_table_item(self, key_candidates: tuple[str, ...], status: str, reason: str = "") -> None:
         table = getattr(self, "_runStatusTable", None)
@@ -521,10 +701,23 @@ class SharedWidgetMixin:
             target = str(target_item.text() if callable(getattr(target_item, "text", None)) else target_item.text)
             if target not in keys:
                 continue
-            table.setItem(row, 1, self._table_item(status, status))
-            if reason:
-                table.setItem(row, 2, self._table_item(reason, status))
-            table.resizeRowsToContents()
+            try:
+                table.setUpdatesEnabled(False)
+            except Exception:
+                pass
+            try:
+                table.setItem(row, 1, self._table_item(status, status))
+                if reason:
+                    table.setItem(row, 2, self._table_item(reason, status))
+                try:
+                    table.resizeRowToContents(row)
+                except Exception:
+                    table.resizeRowsToContents()
+            finally:
+                try:
+                    table.setUpdatesEnabled(True)
+                except Exception:
+                    pass
             return
 
     def _task_keys_for_running_line(self, line: str) -> tuple[str, ...]:
@@ -1034,6 +1227,7 @@ class SharedWidgetMixin:
             self._sync_checkbox(getattr(self.ui, "targetBundlesCheckBox", None), bool(node.targetBundles))
             self._sync_checkbox(getattr(self.ui, "targetConnectomeCheckBox", None), bool(node.targetConnectome))
 
+        self._refresh_selected_products_summary()
         self.validateInputs(manual=False)
 
     def _update_parameter_node(self, attribute: str, value: Any) -> bool:
@@ -1058,6 +1252,10 @@ class SharedWidgetMixin:
             self.ui.logPlainTextEdit.ensureCursorVisible()
         if text.startswith("[Orchestrator] Running "):
             self._set_run_progress_message(text.replace("[Orchestrator] ", "", 1))
+        now = monotonic()
+        if now - float(getattr(self, "_lastProcessEventsAt", 0.0) or 0.0) < 0.15:
+            return
+        self._lastProcessEventsAt = now
         try:
             slicer.app.processEvents()
         except Exception:
@@ -1477,14 +1675,24 @@ class SharedWidgetMixin:
         table = getattr(self, "_runStatusTable", None)
         if not table:
             return
-        for row in range(table.rowCount):
-            status_item = table.item(row, 1)
-            current = str(status_item.text() if status_item else "")
-            if current in {"completed", "passed", "skipped", "blocked", "failed", "cancelled"}:
-                continue
-            table.setItem(row, 1, self._table_item(status, status))
-            table.setItem(row, 2, self._table_item(reason, status))
-        table.resizeRowsToContents()
+        try:
+            table.setUpdatesEnabled(False)
+        except Exception:
+            pass
+        try:
+            for row in range(table.rowCount):
+                status_item = table.item(row, 1)
+                current = str(status_item.text() if status_item else "")
+                if current in {"completed", "passed", "skipped", "blocked", "failed", "cancelled"}:
+                    continue
+                table.setItem(row, 1, self._table_item(status, status))
+                table.setItem(row, 2, self._table_item(reason, status))
+            table.resizeRowsToContents()
+        finally:
+            try:
+                table.setUpdatesEnabled(True)
+            except Exception:
+                pass
 
     def _write_cancelled_manifest(self) -> Path:
         context = getattr(self, "_backgroundRunContext", {}) or {}
@@ -1683,6 +1891,8 @@ class SharedWidgetMixin:
         palette = {
             "ready": "#2E7D32",
             "running": "#1565C0",
+            "waiting": "#EF6C00",
+            "warning": "#EF6C00",
             "error": "#C62828",
         }
         color = palette.get(kind, palette["error"])

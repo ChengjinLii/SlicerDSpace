@@ -138,6 +138,7 @@ class SlicerDDSurferWidget(
         ScriptedLoadableModuleWidget.setup(self)
         uiWidget = slicer.util.loadUI(self.resourcePath("UI/SlicerDDSurfer.ui"))
         self.layout.addWidget(uiWidget)
+        self._uiWidget = uiWidget
         self.ui = slicer.util.childWidgetVariables(uiWidget)
         uiWidget.setMRMLScene(slicer.mrmlScene)
 

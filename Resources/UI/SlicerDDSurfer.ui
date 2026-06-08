@@ -51,14 +51,14 @@
          <item>
          <widget class="QLabel" name="headlineLabel">
            <property name="text">
-            <string>SlicerDDSurfer Product Pipelines</string>
+            <string>SlicerDDSurfer Release Workbench</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QLabel" name="subtitleLabel">
            <property name="text">
-            <string>Use one subject-root input layout, choose the products you want, and reuse shared DTI / registration caches across Surface, Parcellation, Segmentation, and Microstructure workflows.</string>
+            <string>Prepare one subject root, preflight external dependencies, and run reusable diffusion products from one monitored pipeline.</string>
            </property>
            <property name="wordWrap">
             <bool>true</bool>
@@ -99,7 +99,7 @@
          <string notr="true">QLabel#environmentHintLabel { color: #546E7A; }</string>
         </property>
         <property name="text">
-         <string>Run a preflight check before execution. Missing Python packages can be installed automatically; external tools such as MRtrix3, FSL, FreeSurfer, WMA, and TractCloud are reported with install notes.</string>
+         <string>Run preflight before execution. Python packages can be installed on demand; external tools such as MRtrix3, FSL, FreeSurfer, WMA, and TractCloud are reported with setup notes and do not silently mutate your system.</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>
@@ -629,10 +629,10 @@
            <string notr="true">QPushButton#runSelectedButton { background-color: #1565C0; color: white; font-weight: 700; border-radius: 6px; padding: 7px 14px; } QPushButton#runSelectedButton:hover { background-color: #0D47A1; }</string>
           </property>
           <property name="text">
-           <string>Check, install Python deps, and run</string>
+           <string>Preflight and run selected products</string>
           </property>
           <property name="toolTip">
-           <string>Run enabled products from the shared Subject root. The module checks dependencies first, installs missing Python packages when enabled, then runs the selected products.</string>
+           <string>Run enabled products from the shared subject root. The module checks dependencies first, installs missing Python packages only when enabled, then starts a monitored background job.</string>
           </property>
          </widget>
         </item>
@@ -1437,7 +1437,7 @@
            <string notr="true">QLabel#logHintLabel { color: #607D8B; }</string>
           </property>
           <property name="text">
-           <string>Messages appear as the pipeline runs.</string>
+           <string>Live background log. Long runs keep the latest messages for UI responsiveness.</string>
           </property>
          </widget>
         </item>
