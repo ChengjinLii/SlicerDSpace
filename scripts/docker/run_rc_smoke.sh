@@ -304,8 +304,9 @@ case "$SMOKE_STAGE" in
     test -f "$MODULE_DIR/SlicerDDSurfer.py"
     env \
       SLICERDDSURFER_EXTENSION_MODULE_DIR="$MODULE_DIR" \
+      PYTHONUNBUFFERED=1 \
       PATH=/usr/bin:/bin \
-      xvfb-run -a -s "-screen 0 1280x1024x24" \
+      stdbuf -oL -eL xvfb-run -a -s "-screen 0 1280x1024x24" \
       "$HOST_SLICER_LAUNCHER" --no-splash \
       --additional-module-paths "$MODULE_DIR" \
       --python-script /work/src/SlicerDDSurfer/Testing/Python/slicer_extension_install_smoke.py \
@@ -339,7 +340,8 @@ case "$SMOKE_STAGE" in
     if [[ -n "${CONTAINER_TRACT_QUERIER_ROOT:-}" ]]; then
       QUICK_GATE_ARGS+=(--tract-querier-root "$CONTAINER_TRACT_QUERIER_ROOT")
     fi
-    "$HOST_SLICER_LAUNCHER" --launch PythonSlicer "${QUICK_GATE_ARGS[@]}" \
+    env PYTHONUNBUFFERED=1 stdbuf -oL -eL \
+      "$HOST_SLICER_LAUNCHER" --launch PythonSlicer "${QUICK_GATE_ARGS[@]}" \
       2>&1 | tee /work/logs/100307_quick_gate.log
     MANIFEST_PATH="$OUTPUT_ROOT/00_run_metadata/${SMOKE_RUN_NAME}_orchestration_manifest.json"
     python3 - "$MANIFEST_PATH" <<PY
