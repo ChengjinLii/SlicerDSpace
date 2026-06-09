@@ -135,9 +135,26 @@ def run_network(img_filename, orig_data, prediction_probability, plane, ckpts, p
 
     logger.info("  -{} model loaded.".format(plane))
     with torch.no_grad():
+        batch_count = len(test_data_loader)
+        progress_interval = max(1, batch_count // 8)
+        logger.info(
+            "  -%s inference started: batches=%d batch_size=%d",
+            plane,
+            batch_count,
+            params_model["batch_size"],
+        )
+        plane_start = time.time()
 
         start_index = 0
         for batch_idx, sample_batch in enumerate(test_data_loader):
+            if batch_idx == 0 or (batch_idx + 1) % progress_interval == 0 or (batch_idx + 1) == batch_count:
+                logger.info(
+                    "  -%s inference progress: batch %d/%d elapsed=%0.1fs",
+                    plane,
+                    batch_idx + 1,
+                    batch_count,
+                    time.time() - plane_start,
+                )
 
             images_batch = Variable(sample_batch["image"])
 
@@ -164,6 +181,8 @@ def run_network(img_filename, orig_data, prediction_probability, plane, ckpts, p
                     start_index_tmp += temp.shape[0]
 
             start_index = start_index_tmp
+
+        logger.info("  -%s inference finished in %0.1f seconds", plane, time.time() - plane_start)
 
     return prediction_probability
 
@@ -254,6 +273,7 @@ def fastsurfercnn(img_filename, save_as, logger, args):
 
     # Postprocessing
     # Get predictions and map to freesurfer label space
+    logger.info("Starting DDSurfer postprocessing and label remapping.")
     pred_prob = pred_prob[0]
     _, pred_prob = torch.max(pred_prob, 3)
     pred_prob = pred_prob.numpy()
@@ -334,6 +354,7 @@ def fastsurfercnn(img_filename, save_as, logger, args):
     print(f" pred_prob 3 : {pred_prob.shape}")
 
     # Saving image
+    logger.info("DDSurfer postprocessing complete; writing final segmentation.")
     header_info.set_data_dtype(np.int16)
     mapped_aseg_img = nib.MGHImage(pred_prob, affine_info, header_info)
     mapped_aseg_img.to_filename(save_as)

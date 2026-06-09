@@ -110,7 +110,12 @@ def _run_ddsurfer_pred(output_dir: Path, subject_id: str, weights_dir: Path, log
                 log(record.getMessage())
         logger.addHandler(CallbackHandler())
 
+    _log_message(
+        f"[DDParcel] Launching DDSurfer prediction for {subject_id} with weights from {weights_dir}",
+        log,
+    )
     ddsurfer_pred.fastsurfercnn(options.iname, options.oname, logger, options)
+    _log_message(f"[DDParcel] DDSurfer prediction finished for {subject_id}", log)
 
 
 def run_ddparcel_from_registered_bundle(
