@@ -184,6 +184,10 @@ else
   GIT_LFS_SKIP_SMUDGE=1 git clone --filter=blob:none "$REPO_URL" /work/src/SlicerDDSurfer
 fi
 cd /work/src/SlicerDDSurfer
+if [[ -f .git/index.lock ]]; then
+  echo "[container] Removing stale git lock: .git/index.lock"
+  rm -f .git/index.lock
+fi
 FETCHED_REF=0
 if [[ -d .git ]]; then
   git remote set-url origin "$REPO_URL"
@@ -205,10 +209,11 @@ case "$SMOKE_LFS_MODE" in
     ;;
   profile)
     echo "[container] Profile asset mode: downloading only assets required by profile=$SMOKE_ASSET_PROFILE"
-    python3 scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" --print-plan \
-      | tee /work/logs/model_assets_plan.json
-    python3 scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" \
-      | tee /work/logs/model_assets_download.log
+    python3 -u scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" --print-plan \
+      2>&1 | tee /work/logs/model_assets_plan.json
+    GIT_LFS_PROGRESS=/work/logs/git-lfs-progress.log \
+      python3 -u scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" \
+      2>&1 | tee /work/logs/model_assets_download.log
     ;;
   full)
     echo "[container] Full LFS mode: downloading all LFS objects; this can be slow on constrained networks"
