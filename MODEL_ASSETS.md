@@ -122,4 +122,4 @@ python3 run_subject_pipeline.py \
 
 - Do not commit large `.pt`, `.pkl`, `.nii.gz`, `.mgz`, `.obj`, `.stl`, `.trk`, `.tck`, `.vtk`, or `.vtp` assets as normal Git blobs.
 - Run `python3 scripts/release_audit.py` before pushing release changes; it checks the expected Git LFS patterns and pointer state.
-- `scripts/docker/run_rc_smoke.sh` uses `SMOKE_LFS_MODE=full` for `SMOKE_STAGE=quick-gate`, which is equivalent to needing the `core` model assets plus any tracked runtime fixtures required by that smoke.
+- `scripts/docker/run_rc_smoke.sh` defaults `SMOKE_STAGE=quick-gate` to `SMOKE_LFS_MODE=profile` with `SMOKE_ASSET_PROFILE=quick-gate`, so fresh-clone quick-gate runs download only the manifest-selected `core` assets by default. Use `SMOKE_LFS_MODE=full` if you explicitly want every tracked LFS object.

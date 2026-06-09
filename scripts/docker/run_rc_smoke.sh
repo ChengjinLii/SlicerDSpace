@@ -20,11 +20,12 @@ HOST_SSH_IDENTITY_FILE="${HOST_SSH_IDENTITY_FILE:-}"
 SMOKE_STAGE="${SMOKE_STAGE:-install}"
 if [[ -z "${SMOKE_LFS_MODE:-}" ]]; then
   if [[ "$SMOKE_STAGE" == "quick-gate" ]]; then
-    SMOKE_LFS_MODE="full"
+    SMOKE_LFS_MODE="profile"
   else
     SMOKE_LFS_MODE="quick"
   fi
 fi
+SMOKE_ASSET_PROFILE="${SMOKE_ASSET_PROFILE:-quick-gate}"
 SMOKE_SUBJECT_ID="${SMOKE_SUBJECT_ID:-100307-release-candidate}"
 SMOKE_RUN_NAME="${SMOKE_RUN_NAME:-rc_csd_act}"
 SMOKE_TARGETS="${SMOKE_TARGETS:-validation,preprocessing,segmentation,parcellation,surface,microstructure,tractography,bundles,connectome}"
@@ -54,16 +55,16 @@ case "$SMOKE_STAGE" in
     ;;
 esac
 case "$SMOKE_LFS_MODE" in
-  quick|full)
+  quick|profile|full)
     ;;
   *)
-    echo "SMOKE_LFS_MODE must be quick or full, got: $SMOKE_LFS_MODE" >&2
+    echo "SMOKE_LFS_MODE must be quick, profile, or full, got: $SMOKE_LFS_MODE" >&2
     exit 2
     ;;
 esac
 if [[ "$SMOKE_STAGE" == "quick-gate" ]]; then
-  if [[ "$SMOKE_LFS_MODE" != "full" ]]; then
-    echo "SMOKE_STAGE=quick-gate requires SMOKE_LFS_MODE=full so model/data LFS objects are available." >&2
+  if [[ "$SMOKE_LFS_MODE" == "quick" ]]; then
+    echo "SMOKE_STAGE=quick-gate requires SMOKE_LFS_MODE=profile or full so model/data assets are available." >&2
     exit 2
   fi
   if [[ ! -d "$HOST_SUBJECT_INPUT_ROOT" ]]; then
@@ -119,6 +120,7 @@ DOCKER_RUN_ARGS=(
   -e HOST_SLICER_LAUNCHER="$HOST_SLICER_LAUNCHER" \
   -e HOST_MRTRIX_BIN="$HOST_MRTRIX_BIN" \
   -e SMOKE_LFS_MODE="$SMOKE_LFS_MODE" \
+  -e SMOKE_ASSET_PROFILE="$SMOKE_ASSET_PROFILE" \
   -e SMOKE_SUBJECT_ID="$SMOKE_SUBJECT_ID" \
   -e SMOKE_RUN_NAME="$SMOKE_RUN_NAME" \
   -e SMOKE_TARGETS="$SMOKE_TARGETS" \
@@ -173,6 +175,7 @@ echo "[container] stage=$SMOKE_STAGE"
 echo "[container] slicer=$HOST_SLICER_LAUNCHER"
 echo "[container] mrtrix=$HOST_MRTRIX_BIN"
 echo "[container] lfs_mode=$SMOKE_LFS_MODE"
+echo "[container] asset_profile=$SMOKE_ASSET_PROFILE"
 test -x "$HOST_SLICER_LAUNCHER"
 test -x "$HOST_MRTRIX_BIN/mrconvert"
 if [[ -d /work/src/SlicerDDSurfer/.git ]]; then
@@ -199,6 +202,13 @@ case "$SMOKE_LFS_MODE" in
     echo "[container] Quick LFS mode: auditing pointer metadata without downloading large objects"
     git lfs ls-files -s | tee /work/logs/git_lfs_ls_files.txt
     python3 scripts/release_audit.py | tee /work/logs/release_audit.txt
+    ;;
+  profile)
+    echo "[container] Profile asset mode: downloading only assets required by profile=$SMOKE_ASSET_PROFILE"
+    python3 scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" --print-plan \
+      | tee /work/logs/model_assets_plan.json
+    python3 scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" \
+      | tee /work/logs/model_assets_download.log
     ;;
   full)
     echo "[container] Full LFS mode: downloading all LFS objects; this can be slow on constrained networks"

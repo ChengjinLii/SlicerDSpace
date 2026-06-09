@@ -38,6 +38,18 @@ class ModelAssetsTest(unittest.TestCase):
         self.assertIn("segmentation/weights/dti_axial.pt", plan.required_paths)
         self.assertIn("DDSURFER_CHECKPOINT_DIR", plan.external_overrides)
 
+    def test_quick_gate_alias_resolves_to_core_profile(self) -> None:
+        module = _load_downloader_module()
+
+        manifest = module.load_manifest(REPO_ROOT / "models" / "assets_manifest.json")
+        plan = module.resolve_asset_plan(manifest, "quick-gate")
+
+        self.assertEqual(plan.profile, "quick-gate")
+        self.assertIn("core", plan.resolved_profiles)
+        self.assertIn("surface", plan.resolved_profiles)
+        self.assertIn("parcellation/weights/**", plan.include_patterns)
+        self.assertIn("segmentation/weights/dti_sagittal.pt", plan.required_paths)
+
     def test_verify_asset_plan_reports_missing_and_lfs_pointer_files(self) -> None:
         module = _load_downloader_module()
 
