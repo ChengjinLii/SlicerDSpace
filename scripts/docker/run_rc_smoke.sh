@@ -17,6 +17,8 @@ KEEP_WORK="${KEEP_WORK:-0}"
 HOST_SSH_DIR="${HOST_SSH_DIR:-$HOME/.ssh}"
 MOUNT_SSH="${MOUNT_SSH:-auto}"
 HOST_SSH_IDENTITY_FILE="${HOST_SSH_IDENTITY_FILE:-}"
+HOST_ASSET_SEED_REPO="${HOST_ASSET_SEED_REPO:-$REPO_ROOT}"
+SMOKE_SEED_ASSETS_FROM_HOST="${SMOKE_SEED_ASSETS_FROM_HOST:-auto}"
 SMOKE_STAGE="${SMOKE_STAGE:-install}"
 if [[ -z "${SMOKE_LFS_MODE:-}" ]]; then
   if [[ "$SMOKE_STAGE" == "quick-gate" ]]; then
@@ -82,6 +84,14 @@ if [[ -n "$HOST_TRACT_QUERIER_ROOT" && ! -d "$HOST_TRACT_QUERIER_ROOT" ]]; then
   echo "HOST_TRACT_QUERIER_ROOT is not a directory: $HOST_TRACT_QUERIER_ROOT" >&2
   exit 2
 fi
+if [[ "$SMOKE_SEED_ASSETS_FROM_HOST" != "0" && "$SMOKE_SEED_ASSETS_FROM_HOST" != "1" && "$SMOKE_SEED_ASSETS_FROM_HOST" != "auto" ]]; then
+  echo "SMOKE_SEED_ASSETS_FROM_HOST must be 0, 1, or auto, got: $SMOKE_SEED_ASSETS_FROM_HOST" >&2
+  exit 2
+fi
+if [[ "$SMOKE_SEED_ASSETS_FROM_HOST" == "1" && ! -d "$HOST_ASSET_SEED_REPO" ]]; then
+  echo "HOST_ASSET_SEED_REPO is not a directory: $HOST_ASSET_SEED_REPO" >&2
+  exit 2
+fi
 
 case "$HOST_WORK_ROOT" in
   /tmp/*|/var/tmp/*|"$REPO_ROOT"/.docker-smoke-work*)
@@ -136,6 +146,13 @@ DOCKER_RUN_ARGS=(
 if [[ "$SMOKE_STAGE" == "quick-gate" ]]; then
   DOCKER_RUN_ARGS+=(
     -v "$HOST_SUBJECT_INPUT_ROOT:/inputs/$SMOKE_SUBJECT_ID/input:ro"
+  )
+fi
+if [[ "$SMOKE_SEED_ASSETS_FROM_HOST" == "1" || ( "$SMOKE_SEED_ASSETS_FROM_HOST" == "auto" && -d "$HOST_ASSET_SEED_REPO" ) ]]; then
+  echo "[rc-smoke] Mounting host asset seed repo read-only: $HOST_ASSET_SEED_REPO"
+  DOCKER_RUN_ARGS+=(
+    -v "$HOST_ASSET_SEED_REPO:/seed_repo:ro"
+    -e CONTAINER_ASSET_SEED_REPO=/seed_repo
   )
 fi
 if [[ -n "$HOST_TRACT_QUERIER_ROOT" ]]; then
@@ -211,9 +228,65 @@ case "$SMOKE_LFS_MODE" in
     echo "[container] Profile asset mode: downloading only assets required by profile=$SMOKE_ASSET_PROFILE"
     python3 -u scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" --print-plan \
       2>&1 | tee /work/logs/model_assets_plan.json
-    GIT_LFS_PROGRESS=/work/logs/git-lfs-progress.log \
-      python3 -u scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" \
-      2>&1 | tee /work/logs/model_assets_download.log
+    {
+      if [[ -n "${CONTAINER_ASSET_SEED_REPO:-}" && -d "${CONTAINER_ASSET_SEED_REPO}" ]]; then
+        python3 - "$SMOKE_ASSET_PROFILE" "$CONTAINER_ASSET_SEED_REPO" "/work/src/SlicerDDSurfer" <<'PY'
+import json
+import shutil
+import sys
+from pathlib import Path
+
+profile, seed_root_arg, repo_root_arg = sys.argv[1:4]
+repo_root = Path(repo_root_arg)
+seed_root = Path(seed_root_arg)
+manifest = json.loads((repo_root / "models" / "assets_manifest.json").read_text(encoding="utf-8"))
+profiles = manifest["profiles"]
+seen = set()
+required_paths = []
+
+def visit(name: str) -> None:
+    if name in seen:
+        return
+    seen.add(name)
+    profile_data = profiles[name]
+    alias = profile_data.get("alias_for")
+    if alias:
+        visit(str(alias))
+        return
+    for child in profile_data.get("include_profiles", []):
+        visit(str(child))
+    required_paths.extend(str(value) for value in profile_data.get("required_paths", []))
+
+visit(profile)
+required_paths = list(dict.fromkeys(required_paths))
+pointer_header = b"version https://git-lfs.github.com/spec/v1"
+seeded = 0
+skipped = 0
+for relative in required_paths:
+    source = seed_root / relative
+    if not source.is_file():
+        skipped += 1
+        continue
+    with source.open("rb") as stream:
+        if stream.read(256).startswith(pointer_header):
+            skipped += 1
+            continue
+    target = repo_root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+    seeded += 1
+
+print(f"[model-assets] Seeded {seeded} required file(s) from {seed_root}")
+print(f"[model-assets] Seed skipped {skipped} required file(s)")
+PY
+      fi
+      if python3 scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" --verify-only; then
+        echo "[model-assets] Seeded assets already satisfied profile=$SMOKE_ASSET_PROFILE."
+      else
+        GIT_LFS_PROGRESS=/work/logs/git-lfs-progress.log \
+          python3 -u scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE"
+      fi
+    } 2>&1 | tee /work/logs/model_assets_download.log
     ;;
   full)
     echo "[container] Full LFS mode: downloading all LFS objects; this can be slow on constrained networks"
