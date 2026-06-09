@@ -229,6 +229,16 @@ def _emit(message: str, log: Optional[Callable[[str], None]] = None) -> None:
         log(message)
 
 
+def _start_task_timer(label: str, log: Optional[Callable[[str], None]] = None) -> float:
+    started = time.monotonic()
+    _emit(f"[Orchestrator] {label} started", log)
+    return started
+
+
+def _finish_task_timer(label: str, started: float, log: Optional[Callable[[str], None]] = None) -> None:
+    _emit(f"[Orchestrator] {label} completed in {time.monotonic() - started:0.1f}s", log)
+
+
 def _read_json(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -1611,6 +1621,7 @@ def run_subject_products(
             from shared.pipeline import ensure_native_dti_bundle, find_subject_root
 
             _emit("[Orchestrator] Running DDSeg", log)
+            task_started = _start_task_timer("DDSeg", log)
             raw_bundle = find_subject_root(subject_root, config.subject_id)
             native_bundle = ensure_native_dti_bundle(raw_bundle, fit_method="ls", reuse=bool(config.resume), log=log)
             run_ddseg(
@@ -1623,6 +1634,7 @@ def run_subject_products(
                     device=ddseg_device,
                 )
             )
+            _finish_task_timer("DDSeg", task_started, log)
             tasks.append(
                 ProductTaskRecord(
                     name="segmentation.ddseg",
@@ -1654,6 +1666,7 @@ def run_subject_products(
             from shared.pipeline import ensure_registered_dti_bundle, find_subject_root
 
             _emit("[Orchestrator] Running DDParcel", log)
+            task_started = _start_task_timer("DDParcel", log)
             raw_bundle = find_subject_root(subject_root, config.subject_id)
             registered = ensure_registered_dti_bundle(
                 raw_bundle,
@@ -1671,6 +1684,7 @@ def run_subject_products(
                 ),
                 log=log,
             )
+            _finish_task_timer("DDParcel", task_started, log)
             tasks.append(
                 ProductTaskRecord(
                     name="parcellation.ddparcel",
@@ -1719,7 +1733,9 @@ def run_subject_products(
                 tasks.append(ProductTaskRecord(name="surface.ddsurfer", status="blocked", reason="missing raw input: " + ", ".join(missing)))
             else:
                 _emit("[Orchestrator] Running DDSurfer surface", log)
+                task_started = _start_task_timer("DDSurfer surface", log)
                 result = run_surface(surface_config, log=log)
+                _finish_task_timer("DDSurfer surface", task_started, log)
                 tasks.append(
                     ProductTaskRecord(
                         name="surface.ddsurfer",
@@ -1823,6 +1839,7 @@ def run_subject_products(
             from shared.pipeline import ensure_native_dti_bundle, find_subject_root
 
             _emit("[Orchestrator] Running Microstructure DTI", log)
+            task_started = _start_task_timer("Microstructure DTI", log)
             raw_bundle = find_subject_root(subject_root, config.subject_id)
             native_bundle = ensure_native_dti_bundle(
                 raw_bundle,
@@ -1847,6 +1864,7 @@ def run_subject_products(
                 ),
                 log=log,
             )
+            _finish_task_timer("Microstructure DTI", task_started, log)
             tasks.append(
                 ProductTaskRecord(
                     name="microstructure.dti",
@@ -2015,6 +2033,7 @@ def run_subject_products(
                 from tractography.csd import CSDActConfig, run_csd_act
 
                 _emit(f"[Orchestrator] Running CSD/ACT {run_name}", log)
+                task_started = _start_task_timer(f"CSD/ACT {run_name}", log)
                 act_prep = run_act_prep(
                     ACTPrepConfig(
                         subject_id=config.subject_id,
@@ -2043,6 +2062,7 @@ def run_subject_products(
                     ),
                     log=log,
                 )
+                _finish_task_timer(f"CSD/ACT {run_name}", task_started, log)
                 tasks.append(
                     ProductTaskRecord(
                         name=tractography_task_name,
@@ -2060,6 +2080,7 @@ def run_subject_products(
                 from tractography.dti import DTITrackingConfig, run_dti_tracking
 
                 _emit(f"[Orchestrator] Running DTI tractography {run_name}", log)
+                task_started = _start_task_timer(f"DTI tractography {run_name}", log)
                 result = run_dti_tracking(
                     DTITrackingConfig(
                         subject_id=config.subject_id,
@@ -2072,6 +2093,7 @@ def run_subject_products(
                     ),
                     log=log,
                 )
+                _finish_task_timer(f"DTI tractography {run_name}", task_started, log)
                 tasks.append(
                     ProductTaskRecord(
                         name=tractography_task_name,
@@ -2096,6 +2118,7 @@ def run_subject_products(
             from tractography.wmql import WMQLConfig, run_wmql_bundle_segmentation
 
             _emit(f"[Orchestrator] Running WMQL bundles {run_name}", log)
+            task_started = _start_task_timer(f"WMQL bundles {run_name}", log)
             result = run_wmql_bundle_segmentation(
                 WMQLConfig(
                     subject_id=config.subject_id,
@@ -2107,6 +2130,7 @@ def run_subject_products(
                 ),
                 log=log,
             )
+            _finish_task_timer(f"WMQL bundles {run_name}", task_started, log)
             tasks.append(_task_from_result("bundles.wmql", result))
 
     if "saf" in run_targets:
@@ -2334,6 +2358,7 @@ def run_subject_products(
             from connectome import ConnectomeConfig, run_connectome
 
             _emit(f"[Orchestrator] Running connectome {run_name}", log)
+            task_started = _start_task_timer(f"connectome {run_name}", log)
             result = run_connectome(
                 ConnectomeConfig(
                     subject_id=config.subject_id,
@@ -2348,6 +2373,7 @@ def run_subject_products(
                 ),
                 log=log,
             )
+            _finish_task_timer(f"connectome {run_name}", task_started, log)
             tasks.append(_task_from_result("connectome.streamline_count", result))
             if sift2_weights.is_file():
                 weighted = run_connectome(
