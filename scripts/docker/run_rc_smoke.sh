@@ -34,6 +34,7 @@ SMOKE_TARGETS="${SMOKE_TARGETS:-validation,preprocessing,segmentation,parcellati
 SMOKE_BUNDLE_BACKEND="${SMOKE_BUNDLE_BACKEND:-all}"
 SMOKE_SELECT_STREAMLINES="${SMOKE_SELECT_STREAMLINES:-100000}"
 HOST_SUBJECT_INPUT_ROOT="${HOST_SUBJECT_INPUT_ROOT:-/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/input}"
+HOST_SUBJECT_CACHE_ROOT="${HOST_SUBJECT_CACHE_ROOT:-$(dirname "$HOST_SUBJECT_INPUT_ROOT")/cache}"
 HOST_TRACT_QUERIER_ROOT="${HOST_TRACT_QUERIER_ROOT:-}"
 
 if [[ ! -f "$SCRIPT_DIR/rc-smoke.Dockerfile" ]]; then
@@ -79,6 +80,10 @@ if [[ "$SMOKE_STAGE" == "quick-gate" ]]; then
       exit 2
     fi
   done
+fi
+if [[ -n "$HOST_SUBJECT_CACHE_ROOT" && ! -d "$HOST_SUBJECT_CACHE_ROOT" ]]; then
+  echo "HOST_SUBJECT_CACHE_ROOT is not a directory: $HOST_SUBJECT_CACHE_ROOT" >&2
+  exit 2
 fi
 if [[ -n "$HOST_TRACT_QUERIER_ROOT" && ! -d "$HOST_TRACT_QUERIER_ROOT" ]]; then
   echo "HOST_TRACT_QUERIER_ROOT is not a directory: $HOST_TRACT_QUERIER_ROOT" >&2
@@ -146,6 +151,13 @@ DOCKER_RUN_ARGS=(
 if [[ "$SMOKE_STAGE" == "quick-gate" ]]; then
   DOCKER_RUN_ARGS+=(
     -v "$HOST_SUBJECT_INPUT_ROOT:/inputs/$SMOKE_SUBJECT_ID/input:ro"
+  )
+fi
+if [[ "$SMOKE_STAGE" == "quick-gate" && -d "$HOST_SUBJECT_CACHE_ROOT" ]]; then
+  echo "[rc-smoke] Mounting host subject cache read-only: $HOST_SUBJECT_CACHE_ROOT"
+  DOCKER_RUN_ARGS+=(
+    -v "$HOST_SUBJECT_CACHE_ROOT:/seed_subject_cache:ro"
+    -e CONTAINER_SUBJECT_CACHE_SEED_ROOT=/seed_subject_cache
   )
 fi
 if [[ "$SMOKE_SEED_ASSETS_FROM_HOST" == "1" || ( "$SMOKE_SEED_ASSETS_FROM_HOST" == "auto" && -d "$HOST_ASSET_SEED_REPO" ) ]]; then
@@ -319,6 +331,32 @@ case "$SMOKE_STAGE" in
     mkdir -p "$SUBJECT_ROOT" "$OUTPUT_ROOT"
     rm -f "$SUBJECT_ROOT/input"
     ln -s "/inputs/$SMOKE_SUBJECT_ID/input" "$SUBJECT_ROOT/input"
+    if [[ -n "${CONTAINER_SUBJECT_CACHE_SEED_ROOT:-}" && -d "${CONTAINER_SUBJECT_CACHE_SEED_ROOT}" ]]; then
+      mkdir -p "$SUBJECT_ROOT/cache"
+      python3 - "$CONTAINER_SUBJECT_CACHE_SEED_ROOT" "$SUBJECT_ROOT/cache" <<'PY'
+import shutil
+import sys
+from pathlib import Path
+
+seed_root = Path(sys.argv[1])
+target_root = Path(sys.argv[2])
+seeded = 0
+for relative in (
+    Path("native_dti/wls"),
+    Path("registered_dti/100HCP-population-mean-T2__wls"),
+):
+    source = seed_root / relative
+    if not source.exists():
+        continue
+    destination = target_root / relative
+    if destination.exists():
+        continue
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(source, destination)
+    seeded += 1
+print(f"[quick-gate] Seeded {seeded} cache subtree(s) from {seed_root}")
+PY
+    fi
     QUICK_GATE_ARGS=(
       /work/src/SlicerDDSurfer/run_subject_pipeline.py
       --subject-root "$SUBJECT_ROOT"
