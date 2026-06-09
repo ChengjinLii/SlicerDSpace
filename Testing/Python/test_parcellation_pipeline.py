@@ -61,9 +61,9 @@ class DDParcelPipelineTest(unittest.TestCase):
             )
 
         self.assertEqual(captured_calls, [(["fake-input.nii.gz"], "fake-output.mgz")])
-        self.assertTrue(any("Launching DDSurfer prediction for 100307" in message for message in log_messages))
-        self.assertTrue(any("mock inner progress" in message for message in log_messages))
-        self.assertTrue(any("DDSurfer prediction finished for 100307" in message for message in log_messages))
+        self.assertEqual(sum("Launching DDSurfer prediction for 100307" in message for message in log_messages), 1)
+        self.assertEqual(sum("mock inner progress" in message for message in log_messages), 1)
+        self.assertEqual(sum("DDSurfer prediction finished for 100307" in message for message in log_messages), 1)
 
 
 if __name__ == "__main__":

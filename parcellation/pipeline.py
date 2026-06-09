@@ -101,21 +101,30 @@ def _run_ddsurfer_pred(output_dir: Path, subject_id: str, weights_dir: Path, log
 
     logger = logging.getLogger("ddparcel.ddsurfer")
     logger.setLevel(logging.INFO)
-    if not logger.handlers:
-        handler = logging.StreamHandler(stream=sys.stdout)
-        logger.addHandler(handler)
+    local_handlers: list[logging.Handler] = []
     if log:
         class CallbackHandler(logging.Handler):
             def emit(self, record):
                 log(record.getMessage())
-        logger.addHandler(CallbackHandler())
 
-    _log_message(
-        f"[DDParcel] Launching DDSurfer prediction for {subject_id} with weights from {weights_dir}",
-        log,
-    )
-    ddsurfer_pred.fastsurfercnn(options.iname, options.oname, logger, options)
-    _log_message(f"[DDParcel] DDSurfer prediction finished for {subject_id}", log)
+        callback_handler = CallbackHandler()
+        logger.addHandler(callback_handler)
+        local_handlers.append(callback_handler)
+    elif not logger.handlers:
+        stream_handler = logging.StreamHandler(stream=sys.stdout)
+        logger.addHandler(stream_handler)
+        local_handlers.append(stream_handler)
+
+    try:
+        _log_message(
+            f"[DDParcel] Launching DDSurfer prediction for {subject_id} with weights from {weights_dir}",
+            log,
+        )
+        ddsurfer_pred.fastsurfercnn(options.iname, options.oname, logger, options)
+        _log_message(f"[DDParcel] DDSurfer prediction finished for {subject_id}", log)
+    finally:
+        for handler in local_handlers:
+            logger.removeHandler(handler)
 
 
 def run_ddparcel_from_registered_bundle(
