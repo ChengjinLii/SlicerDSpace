@@ -249,6 +249,33 @@ class ProductOrchestratorTest(unittest.TestCase):
                 self.assertIn("dependencies", task_manifest)
                 self.assertIn("runtime_seconds", task_manifest)
 
+    def test_output_tree_semantics_marks_unselected_directories(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            result = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("microstructure",),
+                    execute=False,
+                )
+            )
+
+            manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            audit = json.loads(Path(manifest["output_tree_audit_path"]).read_text(encoding="utf-8"))
+            semantics = json.loads(Path(manifest["output_tree_semantics_path"]).read_text(encoding="utf-8"))
+            self.assertNotIn("04_tractography", audit["expected_top_dirs"])
+            by_path = {entry["path"]: entry for entry in semantics["entries"]}
+            self.assertEqual(by_path["04_tractography"]["state"], "not_selected_absent")
+            self.assertTrue(by_path["02_microstructure"]["selected"])
+
     def test_dry_run_honors_output_root_and_advanced_connectome_options(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 

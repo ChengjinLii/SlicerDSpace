@@ -19,10 +19,12 @@ SlicerDDSurfer is a 3D Slicer scripted module that bundles multiple diffusion-MR
 **Release-candidate install/run validation:** [RELEASE_CANDIDATE_VALIDATION.md](RELEASE_CANDIDATE_VALIDATION.md)
 
 The Slicer UI and CLI both support external dependency path overrides. In Slicer, use `Environment & Dependencies` to import/export a CLI-compatible dependency config; on the CLI, use explicit path flags or `--dependency-config` / `--save-dependency-config`.
+Imported dependency profiles are re-scanned on the current machine; saved paths are treated as hints, not proof that another computer has the same environment.
 
 After each orchestrated run, SlicerDDSurfer writes:
 - `outputs/00_run_metadata/<run_name>_orchestration_manifest.json`
 - `outputs/00_run_metadata/output_tree_audit.json`
+- `outputs/00_run_metadata/output_tree_semantics.json`
 - `outputs/06_slicer_scene_report/report.html`
 - `outputs/06_slicer_scene_report/output_tree.html`
 - `outputs/06_slicer_scene_report/summary.md`
@@ -34,6 +36,22 @@ Before pushing a release branch, run:
 ```bash
 python3 scripts/release_audit.py
 ```
+
+For a fuller reproducibility check that plans the subject pipeline, batch path,
+WMQL/WMA/TractCloud bundle routes, output-tree HTML, release audit and optional
+Slicer smoke, run:
+
+```bash
+python3 scripts/release_validation.py \
+  --subject-root /path/to/subject \
+  --batch-root /path/to/study_subjects \
+  --run-name Test1 \
+  --warn-only
+```
+
+The default mode plans scientific workflows. Add `--execute` only for a
+prepared long-running validation host. The script writes
+`outputs/00_run_metadata/release_validation/release_validation_report.json`.
 
 ---
 
@@ -392,6 +410,10 @@ Executed runs also write normalized per-task records under
 Each orchestrator run also writes
 `outputs/00_run_metadata/output_tree_audit.json` to report missing canonical
 directories, legacy top-level outputs, or unexpected nested subject outputs.
+It also writes `outputs/00_run_metadata/output_tree_semantics.json`, which
+marks canonical directories as selected, blocked, not selected, empty, or
+containing outputs. Directories for products that were not selected are not
+treated as required in the audit.
 The Slicer UI mirrors the same information in the `Run Plan & Progress` table
 and lets users open manifest/QC/log paths from the result rows.
 Long UI runs are submitted through a background `QProcess` that calls the

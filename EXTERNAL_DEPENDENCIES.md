@@ -38,6 +38,7 @@ python3 run_subject_pipeline.py \
 ```text
 <subject-root>/outputs/00_run_metadata/environment/
   environment_doctor.json
+  dependency_profile.json
   install_missing_python.sh
   install_missing_python.ps1
   install_external_tools.md
@@ -105,6 +106,33 @@ python3 scripts/install_dependencies.py \
 - MRtrix3、FSL、FreeSurfer、ANTs、WMA、TractCloud、模型数据和 license 不会被脚本静默安装，因为它们涉及管理员权限、平台差异、license、模型下载或用户本地路径选择。
 - 这些外部项会写入 `install_external_tools.md`，用户按平台说明安装后重新运行 `--doctor` 即可。
 
+## 0.1.1 Dependency profile
+
+`dependency_profile.json` 是“路径配置 + 本机扫描结果”的组合，不是跨机器
+免检通行证。它包含：
+
+- 当前平台和 Python executable。
+- `environment_doctor.json` 的完整扫描结果。
+- Python 安装 helper 和外部工具 notes 路径。
+- portability policy：导入后必须在当前机器重新扫描。
+
+GUI 的 `Import dependency config` 会读取 `external_dependencies`，保存到
+Slicer user settings，然后自动重新运行环境扫描。这样换机器时可以复用路径
+提示，但不会把旧机器的扫描结果当作当前机器事实。
+
+CLI 仍然支持同一份 JSON：
+
+```bash
+python3 run_subject_pipeline.py \
+  --subject-root /path/to/subject \
+  --targets tractography,bundles \
+  --doctor \
+  --dependency-config ~/.slicerdsurfer-deps.json
+```
+
+如果导入 profile 后 doctor 仍显示 `not found`，以新的 doctor 结果为准，修正
+路径或环境变量后再次扫描。
+
 ## 0.2 用户设备与 Python 环境
 
 SlicerDDSurfer 需要区分三件事：
@@ -158,7 +186,7 @@ SlicerDDSurfer 不要求用户“上传依赖”。外部软件和数据采用�
 1. 用户保存的路径：Slicer UI 中 `Environment & Dependencies` 的路径输入框，或 CLI 的 `--dependency-config`。
 2. 环境变量：例如 `SLICERDDSURFER_MRTRIX_BIN_DIR`、`FSLDIR`、`FREESURFER_HOME`。
 3. `PATH`：适用于 `mrconvert`、`tckgen`、`eddy`、`recon-all` 等命令。
-4. 常见系统路径：例如 `/usr/local/mrtrix3/bin`、`/usr/local/fsl/bin`、`/usr/local/freesurfer/bin`、`/opt/homebrew/bin`。
+4. 常见系统路径：Linux、macOS 和 Windows/WSL 的 MRtrix3、FSL、FreeSurfer、Slicer、WMA、TractCloud 常见安装位置。
 
 体检结果会在 `environment_doctor.json` 的每个 dependency 下写出：
 

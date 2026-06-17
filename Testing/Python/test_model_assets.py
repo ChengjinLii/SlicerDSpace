@@ -81,6 +81,34 @@ class ModelAssetsTest(unittest.TestCase):
             result = module.verify_asset_plan(root, plan)
             self.assertTrue(result["ok"])
 
+    def test_asset_lockfile_records_sha256_and_terms(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            asset = root / "weights" / "model.pt"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("downloaded", encoding="utf-8")
+            plan = module.AssetPlan(
+                profile="unit",
+                resolved_profiles=("unit",),
+                all_lfs=False,
+                include_patterns=(),
+                required_paths=("weights/model.pt",),
+                external_overrides=(),
+                asset_groups=("unit weights",),
+                terms_notices=("confirm terms",),
+            )
+
+            lockfile = module.build_asset_lockfile(root, plan)
+
+            self.assertEqual(lockfile["schema"], "slicerddsurfer.model_assets.lockfile.v1")
+            self.assertEqual(lockfile["asset_groups"], ["unit weights"])
+            self.assertEqual(lockfile["terms_notices"], ["confirm terms"])
+            self.assertEqual(lockfile["records"][0]["path"], "weights/model.pt")
+            self.assertFalse(lockfile["records"][0]["lfs_pointer"])
+            self.assertIsNotNone(lockfile["records"][0]["sha256"])
+
 
 if __name__ == "__main__":
     unittest.main()

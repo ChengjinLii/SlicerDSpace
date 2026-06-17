@@ -25,6 +25,21 @@ To verify an existing checkout without downloading:
 python3 scripts/download_model_assets.py --profile core --verify-only
 ```
 
+To freeze a release or manuscript-validation asset state, write a lockfile
+after verification:
+
+```bash
+python3 scripts/download_model_assets.py \
+  --profile core \
+  --verify-only \
+  --write-lockfile outputs/00_run_metadata/model_assets_core.lock.json
+```
+
+The lockfile records the Git commit, resolved profile, asset groups, terms
+notices, required paths, file sizes, SHA256 checksums, and whether any file is
+still only a Git LFS pointer. Use it as the source of truth when building an
+offline archive or mirror.
+
 For a fast clone followed by a targeted model download:
 
 ```bash
@@ -107,6 +122,32 @@ The manifest has one top-level `profiles` object. Each profile may define:
 | `external_overrides` | Environment variables users may set instead of repository-local DDSurfer assets. |
 | `asset_groups` | Human-readable asset groups included by the profile, used for manuscript and release audits. |
 | `terms_notice` | Conservative license/redistribution notice printed by the downloader. This is not a license grant. |
+
+## Release Governance
+
+For public releases and manuscript supplements, treat model assets as a
+controlled dependency rather than as incidental files.
+
+Required release checks:
+
+1. Run `scripts/download_model_assets.sh --profile core` or the intended
+   profile.
+2. Run `python3 scripts/download_model_assets.py --profile <profile>
+   --verify-only --write-lockfile <path>`.
+3. Confirm the lockfile has no `exists=false` records and no
+   `lfs_pointer=true` records.
+4. Record the lockfile path in the release-validation report.
+5. Confirm redistribution terms for every `asset_groups` entry before DOI or
+   supplementary upload.
+
+Mirrors and offline packages:
+
+- A mirror must preserve the same relative paths, file sizes, SHA256 checksums
+  and terms notices as the lockfile.
+- Offline packages should be generated only from a verified checkout and should
+  include the lockfile next to the archive.
+- A mirror URL is not a license grant; keep the original source and terms
+  notice visible in release notes and manuscript availability statements.
 
 ## Recommended User Flow
 

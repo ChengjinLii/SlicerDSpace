@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import json
+import platform
 import sys
 from pathlib import Path
 from datetime import datetime
@@ -322,6 +323,27 @@ class SharedWidgetMixin:
         text_attr = getattr(line_edit, "text", "")
         return str(text_attr() if callable(text_attr) else text_attr).strip()
 
+    def _show_actionable_error(
+        self,
+        *,
+        title: str,
+        what: str,
+        why: str,
+        next_step: str,
+        auto_fix: str,
+        details: object,
+    ) -> None:
+        message = "\n\n".join(
+            [
+                f"What happened:\n{what}",
+                f"Why:\n{why}",
+                f"What to do next:\n{next_step}",
+                f"Automatic fix:\n{auto_fix}",
+                f"Details:\n{details}",
+            ]
+        )
+        slicer.util.errorDisplay(f"{title}\n\n{message}", parent=self.parent)
+
     def _initialize_environment_dependency_path_controls(self) -> None:
         if getattr(self, "_environmentPathLineEdits", None) is not None:
             return
@@ -629,9 +651,13 @@ class SharedWidgetMixin:
             if value:
                 external_dependencies[dependency_id] = value
         return {
-            "kind": "slicerdsurfer_dependency_config",
-            "version": 1,
+            "kind": "slicerdsurfer_dependency_profile",
+            "version": 2,
+            "schema": "slicerddsurfer.dependency_profile.v2",
+            "created_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "platform": platform.platform(),
             "python_install_target": sys.executable or "",
+            "revalidate_after_import": True,
             "external_dependencies": external_dependencies,
         }
 
@@ -689,10 +715,21 @@ class SharedWidgetMixin:
             payload = json.loads(path.read_text(encoding="utf-8"))
             applied = self._apply_environment_dependency_config(payload)
         except Exception as exc:
-            slicer.util.errorDisplay(f"Failed to import dependency config:\n{exc}", parent=self.parent)
+            self._show_actionable_error(
+                title="Dependency Config Import Failed",
+                what="SlicerDDSurfer could not read or apply the selected dependency profile.",
+                why="The file is not valid JSON, does not contain external_dependencies, or contains incompatible values.",
+                next_step="Select a SlicerDDSurfer dependency profile JSON exported by this module, then rerun the environment scan.",
+                auto_fix="Not available for malformed config files.",
+                details=exc,
+            )
             return
-        self.appendLog(f"[Environment] Imported dependency config: {path} ({applied} path(s))")
-        slicer.util.infoDisplay(f"Imported {applied} dependency path(s). Run Check environment dependencies next.", parent=self.parent)
+        self.appendLog(f"[Environment] Imported dependency config: {path} ({applied} path(s)); re-running environment scan.")
+        slicer.util.infoDisplay(
+            f"Imported {applied} dependency path(s). A fresh environment scan will verify this machine.",
+            parent=self.parent,
+        )
+        self._onValidateClicked()
 
     def _initialize_run_status_panel(self) -> None:
         if getattr(self, "_runStatusTable", None) is not None:
@@ -901,6 +938,40 @@ class SharedWidgetMixin:
           color: #294B3B;
           padding: 8px 10px;
           font-size: 11px;
+        }
+        QLabel#advancedRunSectionLabel {
+          color: #173126;
+          font-size: 13px;
+          padding: 10px 0 4px 0;
+        }
+        QLabel#batchModeLabel,
+        QLabel#batchRootLabel,
+        QLabel#batchSizeLabel,
+        QLabel#batchArrangeInputsLabel {
+          color: #244D3A;
+          font-weight: 700;
+          padding: 5px 0;
+        }
+        QCheckBox#batchModeCheckBox,
+        QSpinBox#batchSizeSpinBox,
+        QComboBox#batchArrangeInputsComboBox,
+        ctkPathLineEdit#batchRootPath {
+          background: #FBFEFC;
+          border: 1px solid #CFE0D5;
+          border-radius: 8px;
+          padding: 6px 8px;
+          min-height: 24px;
+        }
+        QCheckBox#batchModeCheckBox {
+          color: #243A31;
+          font-weight: 600;
+        }
+        QCheckBox#batchModeCheckBox:hover,
+        QSpinBox#batchSizeSpinBox:hover,
+        QComboBox#batchArrangeInputsComboBox:hover,
+        ctkPathLineEdit#batchRootPath:hover {
+          border: 1px solid #9EC6AD;
+          background: #F6FBF8;
         }
         QWidget#externalBackendsGroup QLineEdit {
           background: white;
@@ -2724,7 +2795,14 @@ class SharedWidgetMixin:
                 self.appendLog("[Environment] Reusing recent dependency check; inputs and selected targets are unchanged.")
         except Exception as exc:
             self.appendLog(f"Environment check failed: {exc}")
-            slicer.util.errorDisplay(f"Environment check failed:\n{exc}", parent=self.parent)
+            self._show_actionable_error(
+                title="Environment Check Failed",
+                what="SlicerDDSurfer could not complete the dependency preflight scan.",
+                why="A configured path, Python executable, environment variable, or external probe raised an exception.",
+                next_step="Check the External Runtime Paths values, clear stale paths, then run Check environment dependencies again.",
+                auto_fix="Python packages can be installed on demand after a successful scan; external tools are never changed silently.",
+                details=exc,
+            )
             self._setStatus("error", "Environment check failed")
             return
         self._update_environment_result_label(doctor_result)
@@ -2748,7 +2826,14 @@ class SharedWidgetMixin:
             except Exception as exc:
                 self._save_python_install_status(tuple(doctor_result.missing_python_packages), "failed", str(exc))
                 self.appendLog(f"Dependency installation failed: {exc}")
-                slicer.util.errorDisplay(f"Dependency installation failed:\n{exc}", parent=self.parent)
+                self._show_actionable_error(
+                    title="Python Dependency Installation Failed",
+                    what="SlicerDDSurfer could not install the missing Python packages into the selected Python environment.",
+                    why="pip returned an error, the Python executable is not writable, or the package is unavailable for this platform.",
+                    next_step="Open the generated install_missing_python script from the environment report and run it in a terminal to inspect the full pip output.",
+                    auto_fix="Automatic Python install was attempted and failed. External tools still require manual setup.",
+                    details=exc,
+                )
                 self._setPipelineActive(False)
                 self._setStatus("error", "Dependency installation failed")
                 return
@@ -2801,7 +2886,14 @@ class SharedWidgetMixin:
                     self._show_partial_run_notice(environment_blockers, runnable_targets)
         except Exception as exc:
             self.appendLog(f"Run planning failed: {exc}")
-            slicer.util.errorDisplay(f"Run planning failed:\n{exc}", parent=self.parent)
+            self._show_actionable_error(
+                title="Run Planning Failed",
+                what="SlicerDDSurfer could not build the selected product run plan.",
+                why="The selected targets, backend choices, or input/output paths are inconsistent.",
+                next_step="Review Subject Setup, selected products, backend choices, and the output directory, then run the plan again.",
+                auto_fix="Not available for invalid run configuration.",
+                details=exc,
+            )
             self._setStatus("error", "Run planning failed")
             return
 
@@ -3220,7 +3312,14 @@ class SharedWidgetMixin:
             self._save_python_install_status(tuple(unique_packages), "failed", str(exc))
             self.appendLog(f"[Environment] Dependency installation failed: {exc}")
             self._setStatus("error", "Dependency installation failed")
-            slicer.util.errorDisplay(f"Dependency installation failed:\n{exc}", parent=self.parent)
+            self._show_actionable_error(
+                title="Python Dependency Installation Failed",
+                what="SlicerDDSurfer could not install the selected Python package(s).",
+                why="pip returned an error, the selected Slicer Python is not writable, or the package is unavailable for this platform.",
+                next_step="Use the generated install_missing_python script from the environment report, or install the package manually into Slicer Python.",
+                auto_fix="Automatic Python install was attempted and failed. External tools are not installed automatically.",
+                details=exc,
+            )
             return
 
         result = self._run_environment_dependency_check()

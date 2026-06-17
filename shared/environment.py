@@ -1650,6 +1650,7 @@ def write_environment_report(result: EnvironmentDoctorResult, output_dir: Path) 
     output_dir.mkdir(parents=True, exist_ok=True)
     report_path = output_dir / "environment_doctor.json"
     report_path.write_text(json.dumps(result.to_dict(), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    profile_path = output_dir / "dependency_profile.json"
 
     packages = result.missing_python_packages
     sh_path = output_dir / "install_missing_python.sh"
@@ -1720,12 +1721,39 @@ def write_environment_report(result: EnvironmentDoctorResult, output_dir: Path) 
             note_lines.extend(f"- `{location}`" for location in checked_locations)
             note_lines.append("")
     notes_path.write_text("\n".join(note_lines) + "\n", encoding="utf-8")
+    profile_payload = {
+        "kind": "slicerdsurfer_dependency_profile",
+        "version": 1,
+        "schema": "slicerddsurfer.dependency_profile.v1",
+        "platform": result.platform,
+        "python_executable": result.python_executable,
+        "current_scan": result.to_dict(),
+        "install_helpers": {
+            "python_sh": sh_path.as_posix(),
+            "python_ps1": ps1_path.as_posix(),
+            "external_notes": notes_path.as_posix(),
+        },
+        "portability_policy": {
+            "paths_are_hints": True,
+            "revalidate_after_import": True,
+            "reason": (
+                "External tool paths may not exist or may point to incompatible installations on another machine. "
+                "Importing a profile should be followed by a fresh environment doctor scan."
+            ),
+        },
+        "platform_notes": {
+            "Linux": "Prefer distribution packages, conda modules, or documented local installs; never auto-install licensed tools silently.",
+            "Darwin": "Use Homebrew/conda where supported and verify app-bundle paths such as Slicer and MRtrix3.",
+            "Windows": "Prefer Slicer Python for Python packages and WSL2/conda/container backends for MRtrix/FSL-style tools.",
+        },
+    }
+    profile_path.write_text(json.dumps(profile_payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     try:
         sh_path.chmod(0o755)
     except OSError:
         pass
 
-    return {"json": report_path, "python_sh": sh_path, "python_ps1": ps1_path, "external_notes": notes_path}
+    return {"json": report_path, "profile": profile_path, "python_sh": sh_path, "python_ps1": ps1_path, "external_notes": notes_path}
 
 
 __all__ = [

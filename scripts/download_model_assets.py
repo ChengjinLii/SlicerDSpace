@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import hashlib
 import json
 import subprocess
 import sys
@@ -140,6 +141,22 @@ def _is_lfs_pointer(path: Path) -> bool:
         return False
 
 
+def _sha256(path: Path) -> str | None:
+    try:
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return None
+
+
+def _git_head(repo_root: Path) -> str:
+    result = _run(["git", "rev-parse", "HEAD"], cwd=repo_root, check=False)
+    return result.stdout.strip() if result.returncode == 0 else "unknown"
+
+
 def verify_asset_plan(repo_root: Path, plan: AssetPlan) -> dict[str, Any]:
     lfs_files = _git_lfs_files(repo_root)
     checked: list[str] = []
@@ -168,6 +185,38 @@ def verify_asset_plan(repo_root: Path, plan: AssetPlan) -> dict[str, Any]:
     }
 
 
+def build_asset_lockfile(repo_root: Path, plan: AssetPlan) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
+    for relative in plan.required_paths:
+        path = repo_root / relative
+        exists = path.is_file()
+        is_pointer = _is_lfs_pointer(path) if exists else False
+        records.append(
+            {
+                "path": relative,
+                "exists": exists,
+                "size_bytes": path.stat().st_size if exists else 0,
+                "sha256": _sha256(path) if exists and not is_pointer else None,
+                "lfs_pointer": is_pointer,
+                "source": "git-lfs",
+            }
+        )
+    return {
+        "kind": "slicerdsurfer_model_asset_lockfile",
+        "version": 1,
+        "schema": "slicerddsurfer.model_assets.lockfile.v1",
+        "git_commit": _git_head(repo_root),
+        "profile": plan.profile,
+        "resolved_profiles": list(plan.resolved_profiles),
+        "asset_groups": list(plan.asset_groups),
+        "terms_notices": list(plan.terms_notices),
+        "download_sources": ["git-lfs"],
+        "mirror_policy": "Optional mirrors must preserve path, size, SHA256, and terms notices from this lockfile.",
+        "offline_package_policy": "Offline archives should be built from files verified by this lockfile and distributed only after asset terms are confirmed.",
+        "records": records,
+    }
+
+
 def download_asset_plan(repo_root: Path, plan: AssetPlan) -> None:
     _check_git_checkout(repo_root)
     _check_git_lfs(repo_root)
@@ -190,6 +239,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-verify", action="store_true", help="Skip post-download pointer/missing-file verification.")
     parser.add_argument("--verify-only", action="store_true", help="Do not download; only verify selected assets already exist.")
     parser.add_argument("--print-plan", action="store_true", help="Print the resolved manifest plan as JSON and exit.")
+    parser.add_argument("--write-lockfile", type=Path, help="Write a SHA256 lockfile for required assets in the resolved profile.")
     return parser
 
 
@@ -211,6 +261,12 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps({"profile": plan.profile, "verification": result}, indent=2, sort_keys=True), file=sys.stderr)
                 return 3
             print(f"[model-assets] Verified {result['checked_count']} file(s) for profile={plan.profile}.")
+        if args.write_lockfile:
+            lockfile = build_asset_lockfile(repo_root, plan)
+            lockfile_path = args.write_lockfile.expanduser().resolve()
+            lockfile_path.parent.mkdir(parents=True, exist_ok=True)
+            lockfile_path.write_text(json.dumps(lockfile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            print(f"[model-assets] Wrote lockfile: {lockfile_path}")
         if plan.external_overrides:
             print("[model-assets] Optional external override env vars: " + ", ".join(plan.external_overrides))
         if plan.asset_groups:

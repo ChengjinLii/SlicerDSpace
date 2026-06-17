@@ -13,7 +13,7 @@ import time
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from shared.io_layout import (
     archive_development_outputs,
@@ -1233,16 +1233,23 @@ def _write_normalized_task_records(
     return normalized
 
 
-def _audit_output_tree(layout, *, subject_id: str) -> dict[str, object]:
-    expected_top_dirs = {
-        "00_run_metadata",
-        "01_preproc",
-        "02_microstructure",
-        "03_structural",
-        "04_tractography",
-        "05_statistics",
-        "06_slicer_scene_report",
-    }
+def _expected_output_top_dirs(targets: tuple[str, ...]) -> set[str]:
+    expected = {"00_run_metadata"}
+    selected = set(targets)
+    if "preprocessing" in selected:
+        expected.add("01_preproc")
+    if selected & {"microstructure", "microstructure_freewater", "microstructure_noddi"}:
+        expected.update({"02_microstructure", "05_statistics"})
+    if selected & {"segmentation", "parcellation", "surface", "surface_postprocess"}:
+        expected.add("03_structural")
+    if selected & {"tractography", "bundles", "saf", "wma", "tractcloud", "connectome"}:
+        expected.add("04_tractography")
+    expected.add("06_slicer_scene_report")
+    return expected
+
+
+def _audit_output_tree(layout, *, subject_id: str, selected_targets: tuple[str, ...] = ()) -> dict[str, object]:
+    expected_top_dirs = _expected_output_top_dirs(selected_targets)
     optional_missing = {"06_slicer_scene_report"}
     warnings: list[str] = []
     outputs = layout.outputs
@@ -1282,6 +1289,89 @@ def _audit_output_tree(layout, *, subject_id: str) -> dict[str, object]:
     audit_path.write_text(json.dumps(audit, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     audit["path"] = audit_path.as_posix()
     return audit
+
+
+def _write_output_tree_semantics(
+    *,
+    layout,
+    subject_id: str,
+    requested_targets: tuple[str, ...],
+    run_targets: tuple[str, ...],
+    tasks: list[ProductTaskRecord],
+) -> dict[str, object]:
+    """Write user-facing reasons for canonical output directory state."""
+
+    task_status_by_target = {
+        task.name.split(".", 1)[0]: {
+            "task_name": task.name,
+            "status": task.status,
+            "reason": task.reason,
+        }
+        for task in tasks
+    }
+    requested = set(requested_targets)
+    runnable = set(run_targets)
+    entries: list[dict[str, Any]] = []
+    directory_targets: list[tuple[str, tuple[str, ...], str]] = [
+        ("00_run_metadata", ("validation",), "Run metadata, validation, environment and task records."),
+        ("01_preproc", ("preprocessing",), "DWI preprocessing outputs."),
+        ("02_microstructure", ("microstructure", "microstructure_freewater", "microstructure_noddi"), "Microstructure model outputs."),
+        ("03_structural", ("segmentation", "parcellation", "surface", "surface_postprocess"), "Segmentation, parcellation and surface products."),
+        ("04_tractography", ("tractography", "bundles", "saf", "wma", "tractcloud", "connectome"), "Tractography, bundle extraction, SAF and connectome products."),
+        ("05_statistics", ("microstructure", "microstructure_freewater", "microstructure_noddi", "surface_postprocess"), "Regional summaries and post-process statistics."),
+        ("06_slicer_scene_report", tuple(TARGET_ORDER), "HTML/Markdown reports and output tree views."),
+    ]
+    for relative, targets, description in directory_targets:
+        path = layout.outputs / relative
+        selected_here = bool(requested & set(targets)) or relative == "00_run_metadata"
+        runnable_here = bool(runnable & set(targets)) or relative == "00_run_metadata"
+        file_count, size_bytes = _path_stats(path)
+        if not selected_here:
+            state = "not_selected_existing" if path.exists() else "not_selected_absent"
+        elif not runnable_here:
+            state = "blocked_existing" if path.exists() else "blocked_absent"
+        elif path.exists() and file_count:
+            state = "selected_has_outputs"
+        elif path.exists():
+            state = "selected_empty"
+        else:
+            state = "selected_not_created_yet"
+        related_tasks = [
+            task_status_by_target[target]
+            for target in targets
+            if target in task_status_by_target
+        ]
+        entries.append(
+            {
+                "path": relative,
+                "absolute_path": path.as_posix(),
+                "state": state,
+                "selected": selected_here,
+                "runnable": runnable_here,
+                "exists": path.exists(),
+                "file_count": file_count,
+                "size_bytes": size_bytes,
+                "related_targets": list(targets),
+                "related_tasks": related_tasks,
+                "description": description,
+            }
+        )
+    payload = {
+        "kind": "slicerddsurfer_output_tree_semantics",
+        "version": 1,
+        "schema": "slicerddsurfer.output_tree_semantics.v1",
+        "subject_id": subject_id,
+        "output_root": layout.outputs.as_posix(),
+        "requested_targets": list(requested_targets),
+        "run_targets": list(run_targets),
+        "entries": entries,
+        "created_at": _now_utc(),
+    }
+    path = layout.run_metadata / "output_tree_semantics.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload["path"] = path.as_posix()
+    return payload
 
 
 def _path_stats(path: Path) -> tuple[int, int]:
@@ -2447,7 +2537,14 @@ def run_subject_products(
         current_run_name=run_name,
         current_tractography_backend=primary_tractography_backend,
     )
-    output_tree_audit = _audit_output_tree(layout, subject_id=config.subject_id)
+    output_tree_audit = _audit_output_tree(layout, subject_id=config.subject_id, selected_targets=targets)
+    output_tree_semantics = _write_output_tree_semantics(
+        layout=layout,
+        subject_id=config.subject_id,
+        requested_targets=targets,
+        run_targets=run_targets,
+        tasks=tasks,
+    )
     task_payloads = []
     for task in tasks:
         payload = {
@@ -2489,6 +2586,13 @@ def run_subject_products(
         "run_plan_summary": plan.to_dict()["summary"],
         "output_tree_audit_path": output_tree_audit.get("path"),
         "output_tree_warnings": output_tree_audit.get("warnings", []),
+        "output_tree_semantics_path": output_tree_semantics.get("path"),
+        "output_tree_semantics_summary": {
+            "states": {
+                state: sum(1 for entry in output_tree_semantics.get("entries", []) if entry.get("state") == state)
+                for state in sorted({entry.get("state") for entry in output_tree_semantics.get("entries", [])})
+            }
+        },
         "archived_development_outputs": {key: value.as_posix() for key, value in archived_outputs.items()},
         "preflight_blocked_targets": preflight_blocked_targets,
         "run_name": run_name,
@@ -2589,9 +2693,27 @@ def run_subject_products(
             run_name=run_name,
         )
         manifest["report_paths"] = report_paths.to_dict()
-        refreshed_output_tree_audit = _audit_output_tree(layout, subject_id=config.subject_id)
+        refreshed_output_tree_audit = _audit_output_tree(layout, subject_id=config.subject_id, selected_targets=targets)
+        refreshed_output_tree_semantics = _write_output_tree_semantics(
+            layout=layout,
+            subject_id=config.subject_id,
+            requested_targets=targets,
+            run_targets=run_targets,
+            tasks=tasks,
+        )
         manifest["output_tree_audit_path"] = refreshed_output_tree_audit.get("path")
         manifest["output_tree_warnings"] = refreshed_output_tree_audit.get("warnings", [])
+        manifest["output_tree_semantics_path"] = refreshed_output_tree_semantics.get("path")
+        manifest["output_tree_semantics_summary"] = {
+            "states": {
+                state: sum(
+                    1
+                    for entry in refreshed_output_tree_semantics.get("entries", [])
+                    if entry.get("state") == state
+                )
+                for state in sorted({entry.get("state") for entry in refreshed_output_tree_semantics.get("entries", [])})
+            }
+        }
     except Exception as exc:  # pragma: no cover - reporting must not break pipeline execution
         manifest["report_error"] = str(exc)
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
