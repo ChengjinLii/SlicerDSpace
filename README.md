@@ -328,6 +328,10 @@ Recommended fetch:
 scripts/download_model_assets.sh --profile core
 ```
 
+See [MODEL_ASSETS.md](MODEL_ASSETS.md) for profile definitions, verification
+commands, external override environment variables, and the license or
+redistribution boundary for model weights and templates.
+
 ---
 
 ## Requirements

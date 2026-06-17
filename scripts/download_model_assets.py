@@ -26,6 +26,8 @@ class AssetPlan:
     include_patterns: tuple[str, ...]
     required_paths: tuple[str, ...]
     external_overrides: tuple[str, ...]
+    asset_groups: tuple[str, ...]
+    terms_notices: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -35,6 +37,8 @@ class AssetPlan:
             "include_patterns": list(self.include_patterns),
             "required_paths": list(self.required_paths),
             "external_overrides": list(self.external_overrides),
+            "asset_groups": list(self.asset_groups),
+            "terms_notices": list(self.terms_notices),
         }
 
 
@@ -56,6 +60,8 @@ def resolve_asset_plan(manifest: dict[str, Any], profile: str | None = None) -> 
     include_patterns: list[str] = []
     required_paths: list[str] = []
     external_overrides: list[str] = []
+    asset_groups: list[str] = []
+    terms_notices: list[str] = []
     all_lfs = False
 
     def visit(name: str) -> None:
@@ -80,6 +86,8 @@ def resolve_asset_plan(manifest: dict[str, Any], profile: str | None = None) -> 
         include_patterns.extend(str(value) for value in profile_data.get("include_patterns", []))
         required_paths.extend(str(value) for value in profile_data.get("required_paths", []))
         external_overrides.extend(str(value) for value in profile_data.get("external_overrides", []))
+        asset_groups.extend(str(value) for value in profile_data.get("asset_groups", []))
+        terms_notices.extend(str(value) for value in profile_data.get("terms_notice", []))
 
     visit(selected)
     return AssetPlan(
@@ -89,6 +97,8 @@ def resolve_asset_plan(manifest: dict[str, Any], profile: str | None = None) -> 
         include_patterns=_dedupe(include_patterns),
         required_paths=_dedupe(required_paths),
         external_overrides=_dedupe(external_overrides),
+        asset_groups=_dedupe(asset_groups),
+        terms_notices=_dedupe(terms_notices),
     )
 
 
@@ -203,6 +213,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[model-assets] Verified {result['checked_count']} file(s) for profile={plan.profile}.")
         if plan.external_overrides:
             print("[model-assets] Optional external override env vars: " + ", ".join(plan.external_overrides))
+        if plan.asset_groups:
+            print("[model-assets] Asset groups: " + "; ".join(plan.asset_groups))
+        for notice in plan.terms_notices:
+            print("[model-assets] Terms notice: " + notice)
         print("[model-assets] Done.")
         return 0
     except (RuntimeError, ValueError, subprocess.CalledProcessError) as exc:

@@ -9,6 +9,9 @@ scripts/download_model_assets.sh --profile core
 ```
 
 The downloader reads `models/assets_manifest.json`, runs `git lfs install --local` for the checkout, downloads the selected profile, and verifies that the selected files are real downloaded objects rather than Git LFS pointer files.
+It also prints profile-level asset groups and conservative terms notices so
+users know when model weights, templates, or subject-derived fixtures require
+separate license or redistribution confirmation.
 
 To inspect the resolved profile without downloading anything:
 
@@ -102,6 +105,8 @@ The manifest has one top-level `profiles` object. Each profile may define:
 | `alias_for` | Profile alias, used by `quick-gate`. |
 | `all_lfs` | Pull every Git LFS object tracked by the checkout. |
 | `external_overrides` | Environment variables users may set instead of repository-local DDSurfer assets. |
+| `asset_groups` | Human-readable asset groups included by the profile, used for manuscript and release audits. |
+| `terms_notice` | Conservative license/redistribution notice printed by the downloader. This is not a license grant. |
 
 ## Recommended User Flow
 
@@ -117,6 +122,15 @@ python3 run_subject_pipeline.py \
 ```
 
 4. If the doctor reports missing model assets, rerun the downloader for the relevant profile or configure the DDSurfer environment variables above.
+
+## Asset Terms Boundary
+
+The downloader proves that selected files are present and materialized from Git
+LFS. It does not prove that model weights, templates, or subject-derived test
+fixtures can be redistributed through GitHub, a DOI archive, or supplementary
+materials. Before submission or public archival release, confirm asset source,
+ownership, license, GitHub LFS redistribution permission, and DOI-archive
+permission for each asset group.
 
 ## Notes for Maintainers
 

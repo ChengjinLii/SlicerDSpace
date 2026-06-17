@@ -37,6 +37,8 @@ class ModelAssetsTest(unittest.TestCase):
         self.assertIn("parcellation/weights/**", plan.include_patterns)
         self.assertIn("segmentation/weights/dti_axial.pt", plan.required_paths)
         self.assertIn("DDSURFER_CHECKPOINT_DIR", plan.external_overrides)
+        self.assertIn("DDCSR surface model weights", plan.asset_groups)
+        self.assertTrue(any("redistribution" in notice for notice in plan.terms_notices))
 
     def test_quick_gate_alias_resolves_to_core_profile(self) -> None:
         module = _load_downloader_module()
@@ -64,6 +66,8 @@ class ModelAssetsTest(unittest.TestCase):
                 include_patterns=(),
                 required_paths=("weights/model.pt", "weights/missing.pt"),
                 external_overrides=(),
+                asset_groups=(),
+                terms_notices=(),
             )
 
             asset.write_text("version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 1\n", encoding="utf-8")

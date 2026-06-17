@@ -5,6 +5,15 @@
   "profiles": {
     "surface": {
       "description": "DDSurfer checkpoints, surface templates, and registration atlas.",
+      "asset_groups": [
+        "DDCSR surface model weights",
+        "HCP-like registration/template images",
+        "surface initialization meshes"
+      ],
+      "terms_notice": [
+        "DDCSR surface weights, HCP-like templates, surface initialization meshes, and subject-derived FA examples are distributed through Git LFS for this checkout, but public redistribution and DOI-archive terms require author confirmation before manuscript submission.",
+        "If redistribution terms cannot be confirmed, document an alternate access route in Data and Code Availability."
+      ],
       "include_patterns": [
         "Resources/Data/100HCP-population-mean-T2.nii.gz",
         "Resources/Data/ckpts/hcp/**",
@@ -32,6 +41,12 @@
     },
     "segmentation": {
       "description": "DDSeg DTI multi-view CNN weights.",
+      "asset_groups": [
+        "DDSeg tissue-segmentation weights"
+      ],
+      "terms_notice": [
+        "DDSeg weights are needed for segmentation. Confirm redistribution terms and cite the peer-reviewed DDSeg method paper before treating these weights as unrestricted public assets."
+      ],
       "include_patterns": [
         "segmentation/weights/**"
       ],
@@ -43,6 +58,12 @@
     },
     "parcellation": {
       "description": "DDParcel fused U-Net and diffusion-backbone weights.",
+      "asset_groups": [
+        "DDParcel parcellation weights"
+      ],
+      "terms_notice": [
+        "DDParcel weights are needed for parcellation. Confirm redistribution terms and cite the peer-reviewed DDParcel method paper before treating these weights as unrestricted public assets."
+      ],
       "include_patterns": [
         "parcellation/weights/**"
       ],
@@ -78,6 +99,12 @@
     },
     "test-fixtures": {
       "description": "Parcellation conversion test fixture data.",
+      "asset_groups": [
+        "conversion test NIfTI fixtures"
+      ],
+      "terms_notice": [
+        "Conversion test fixtures include a local LICENSE.txt derived from the dcm_qa_philips source; verify that all modified fixtures and DOI/archive uses remain covered before final submission."
+      ],
       "include_patterns": [
         "parcellation/conversion/tests/data/**"
       ],
