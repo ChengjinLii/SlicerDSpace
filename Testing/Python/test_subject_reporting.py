@@ -111,6 +111,8 @@ class SubjectReportingTest(unittest.TestCase):
             subject_root = Path(tmp) / "100307"
             layout = subject_layout(subject_root)
             layout.microstructure_dti.mkdir(parents=True)
+            layout.preproc.mkdir(parents=True)
+            (layout.preproc / "04_bias_normalize").mkdir(parents=True)
             (layout.microstructure_dti / "100307_dti_FA.nii.gz").write_text("fa", encoding="utf-8")
             layout.ddsurfer_postprocess.mkdir(parents=True)
             (layout.ddsurfer_postprocess / "manifest.json").write_text(
@@ -137,6 +139,8 @@ class SubjectReportingTest(unittest.TestCase):
             self.assertEqual(paths.symlink_count, 1)
             html = paths.report_html.read_text(encoding="utf-8")
             self.assertIn("DTI scalar map", html)
+            self.assertIn("04_bias_normalize/", html)
+            self.assertIn("DIPY backend", html)
             self.assertIn("symlink", html)
             self.assertIn("annot=2", html)
 

@@ -286,11 +286,25 @@ def _collect_entries(output_root: Path) -> tuple[list[tuple[str, str]], list[tup
     return regular, symlinks
 
 
+def _collect_dirs(output_root: Path) -> list[tuple[str, str]]:
+    return sorted(
+        ("dir", path.relative_to(output_root).as_posix())
+        for path in output_root.rglob("*")
+        if path.is_dir() and not path.is_symlink()
+    )
+
+
 def _build_tree(entries: list[tuple[str, str]]) -> dict[str, Any]:
     root: dict[str, Any] = {"kind": "dir", "children": {}}
     for kind, rel in entries:
         node = root
         parts = rel.split("/")
+        if kind == "dir":
+            cur: list[str] = []
+            for part in parts:
+                cur.append(part)
+                node = node["children"].setdefault(part, {"kind": "dir", "path": "/".join(cur), "children": {}})
+            continue
         cur: list[str] = []
         for part in parts[:-1]:
             cur.append(part)
@@ -511,7 +525,8 @@ def write_output_tree_report(
         raise FileNotFoundError(f"Output root not found: {output_root}")
     normalized_run = normalize_run_name(run_name or "run")
     regular, symlinks = _collect_entries(output_root)
-    tree = _build_tree(regular + symlinks)
+    dirs = _collect_dirs(output_root)
+    tree = _build_tree(dirs + regular + symlinks)
     html_text = _build_html(
         output_root=output_root,
         subject_id=subject_id,
