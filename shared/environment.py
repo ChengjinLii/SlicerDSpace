@@ -68,6 +68,7 @@ class EnvironmentDoctorConfig:
     repo_root: Path
     output_dir: Optional[Path] = None
     python_executable: Optional[Path] = None
+    platform_name: Optional[str] = None
     preprocessing_backend: str = "dipy"
     tractography_backend: str = "csd_act"
     connectome_backend: str = "python"
@@ -93,6 +94,7 @@ class EnvironmentDoctorConfig:
 @dataclass(frozen=True)
 class EnvironmentDoctorResult:
     platform: str
+    host_platform: str
     python_executable: str
     targets: tuple[str, ...]
     statuses: tuple[DependencyStatus, ...]
@@ -114,6 +116,7 @@ class EnvironmentDoctorResult:
             "kind": "environment_doctor",
             "version": 1,
             "platform": self.platform,
+            "host_platform": self.host_platform,
             "python_executable": self.python_executable,
             "targets": list(self.targets),
             "summary": {
@@ -479,7 +482,7 @@ def _local_software_roots() -> tuple[Path, ...]:
     return tuple(dict.fromkeys(root.expanduser() for root in roots))
 
 
-def _common_freesurfer_homes() -> tuple[Path, ...]:
+def _common_freesurfer_homes(platform_name: Optional[str] = None) -> tuple[Path, ...]:
     candidates: list[Path] = [
         Path("/usr/local/freesurfer"),
         Path("/opt/freesurfer"),
@@ -490,6 +493,24 @@ def _common_freesurfer_homes() -> tuple[Path, ...]:
             [
                 root / "freesurfer",
                 root / "FreeSurfer",
+            ]
+        )
+    if platform_name == "Darwin":
+        candidates.extend(
+            [
+                Path("/Applications/freesurfer"),
+                Path("/Applications/FreeSurfer"),
+                Path.home() / "Applications" / "freesurfer",
+                Path.home() / "Applications" / "FreeSurfer",
+            ]
+        )
+    if platform_name == "Windows":
+        candidates.extend(
+            [
+                Path("C:/freesurfer"),
+                Path("C:/FreeSurfer"),
+                Path("C:/Program Files/FreeSurfer"),
+                Path("C:/Program Files (x86)/FreeSurfer"),
             ]
         )
     return tuple(dict.fromkeys(candidate.expanduser() for candidate in candidates))
@@ -503,7 +524,7 @@ def _is_freesurfer_home(path: Path) -> bool:
     )
 
 
-def _resolve_freesurfer_home_with_source() -> tuple[Optional[Path], str, list[str]]:
+def _resolve_freesurfer_home_with_source(platform_name: Optional[str] = None) -> tuple[Optional[Path], str, list[str]]:
     checked: list[str] = []
     for env_name in ("SLICERDDSURFER_FREESURFER_HOME", "FREESURFER_HOME"):
         value = os.environ.get(env_name)
@@ -521,7 +542,7 @@ def _resolve_freesurfer_home_with_source() -> tuple[Optional[Path], str, list[st
         if _is_freesurfer_home(candidate):
             return candidate, "PATH", checked
 
-    for candidate in _common_freesurfer_homes():
+    for candidate in _common_freesurfer_homes(platform_name):
         checked.append(candidate.as_posix())
         if _is_freesurfer_home(candidate):
             return candidate.resolve(), "common path", checked
@@ -532,7 +553,7 @@ def _resolve_freesurfer_home_with_source() -> tuple[Optional[Path], str, list[st
 def resolve_freesurfer_home() -> Optional[Path]:
     """Return an auto-discovered FreeSurfer home, if one is available."""
 
-    resolved, _, _ = _resolve_freesurfer_home_with_source()
+    resolved, _, _ = _resolve_freesurfer_home_with_source(platform.system() or "unknown")
     return resolved
 
 
@@ -592,6 +613,14 @@ def _common_command_dirs(group: str, platform_name: str) -> tuple[Path, ...]:
                     root / "fsl" / "share" / "fsl" / "bin",
                 ]
             )
+        if platform_name == "Windows":
+            candidates.extend(
+                [
+                    Path("C:/fsl/bin"),
+                    Path("C:/Program Files/FSL/bin"),
+                    Path("C:/Program Files (x86)/FSL/bin"),
+                ]
+            )
         if platform_name == "Darwin":
             candidates.extend(
                 [
@@ -600,7 +629,7 @@ def _common_command_dirs(group: str, platform_name: str) -> tuple[Path, ...]:
                 ]
             )
     elif group == "freesurfer":
-        candidates.extend(home / "bin" for home in _common_freesurfer_homes())
+        candidates.extend(home / "bin" for home in _common_freesurfer_homes(platform_name))
     elif group == "wma":
         candidates.extend(
             [
@@ -821,6 +850,10 @@ def _resource_root(config: EnvironmentDoctorConfig) -> Path:
     return config.repo_root.expanduser().resolve()
 
 
+def _effective_platform_name(config: EnvironmentDoctorConfig) -> str:
+    return (config.platform_name or platform.system() or "unknown").strip() or "unknown"
+
+
 def _apply_default_python(specs: Iterable[DependencySpec], python_executable: Optional[Path]) -> tuple[DependencySpec, ...]:
     default_python = _resolve_path(python_executable)
     if default_python is None:
@@ -861,7 +894,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
     targets = _clean_targets(config.targets)
     specs: dict[str, DependencySpec] = {}
     repo_root = _resource_root(config)
-    platform_name = platform.system() or "unknown"
+    platform_name = _effective_platform_name(config)
 
     for target in targets:
         if target == "validation":
@@ -1472,7 +1505,7 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
     elif spec.kind == "env":
         values = {name: os.environ.get(name) for name in spec.env_vars}
         if spec.key == "env:freesurfer_home":
-            resolved, detected_source, checked_locations = _resolve_freesurfer_home_with_source()
+            resolved, detected_source, checked_locations = _resolve_freesurfer_home_with_source(platform_name)
             available = resolved is not None
             details = {
                 "env": values,
@@ -1558,7 +1591,8 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
 
 
 def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctorResult:
-    platform_name = platform.system() or "unknown"
+    platform_name = _effective_platform_name(config)
+    host_platform = platform.system() or "unknown"
     targets = _clean_targets(config.targets)
     checked_python = (_resolve_path(config.python_executable) or Path(sys.executable)).as_posix()
     specs = build_dependency_specs(config)
@@ -1601,6 +1635,7 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
 
     return EnvironmentDoctorResult(
         platform=platform_name,
+        host_platform=host_platform,
         python_executable=checked_python,
         targets=targets,
         statuses=statuses,
@@ -1734,6 +1769,7 @@ def write_environment_report(result: EnvironmentDoctorResult, output_dir: Path) 
         "version": 1,
         "schema": "slicerddsurfer.dependency_profile.v1",
         "platform": result.platform,
+        "host_platform": result.host_platform,
         "python_executable": result.python_executable,
         "current_scan": result.to_dict(),
         "install_helpers": {

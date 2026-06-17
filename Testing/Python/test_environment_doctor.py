@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from shared.environment import DependencySpec, EnvironmentDoctorConfig, _check_spec, run_environment_doctor
+from shared.environment import DependencySpec, EnvironmentDoctorConfig, _check_spec, run_environment_doctor, write_environment_report
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -22,6 +22,14 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             command_path = bin_dir / command
             command_path.write_text("#!/usr/bin/env sh\n", encoding="utf-8")
             command_path.chmod(0o755)
+        return bin_dir
+
+    def _make_windows_mrtrix_bin(self, root: Path) -> Path:
+        bin_dir = root / "MRtrix3" / "bin"
+        bin_dir.mkdir(parents=True)
+        for command in ("mrconvert", "dwi2response", "dwi2fod", "mtnormalise", "tckgen", "tcksift2"):
+            command_path = bin_dir / f"{command}.exe"
+            command_path.write_text("", encoding="utf-8")
         return bin_dir
 
     def _make_freesurfer_home(self, root: Path) -> Path:
@@ -165,6 +173,33 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             self.assertEqual(status.details["detected_source"], "common path")
             self.assertEqual(status.details["resolved"], fake_tool.as_posix())
             self.assertIn(fake_tool.as_posix(), status.details["checked_locations"])
+
+    def test_platform_override_is_reported_and_used_for_windows_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_bin = self._make_windows_mrtrix_bin(tmp_path)
+            result = run_environment_doctor(
+                EnvironmentDoctorConfig(
+                    targets=("tractography",),
+                    repo_root=REPO_ROOT,
+                    platform_name="Windows",
+                    tractography_backend="csd_act",
+                    mrtrix_bin_dir=user_bin,
+                )
+            )
+            self.assertEqual(result.platform, "Windows")
+            self.assertTrue(result.host_platform)
+            mrconvert = next(item for item in result.statuses if item.key == "command:mrconvert")
+            self.assertEqual(mrconvert.status, "available")
+            self.assertEqual(mrconvert.details["detected_source"], "user setting")
+            self.assertEqual(mrconvert.details["resolved"], (user_bin / "mrconvert.exe").as_posix())
+            self.assertIn((user_bin / "mrconvert.exe").as_posix(), mrconvert.details["checked_locations"])
+
+            written = write_environment_report(result, tmp_path / "report")
+            profile = json.loads(written["profile"].read_text(encoding="utf-8"))
+            self.assertEqual(profile["platform"], "Windows")
+            self.assertEqual(profile["host_platform"], result.host_platform)
+            self.assertTrue(profile["portability_policy"]["revalidate_after_import"])
 
     def test_python_install_requirement_survives_default_python_assignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -380,6 +380,18 @@ python3 run_subject_pipeline.py \
 It reports runnable/blocked targets and writes install helpers under
 `outputs/00_run_metadata/environment/`.
 
+For release checks or cross-platform support triage, generate a dependency
+profile matrix:
+
+```bash
+python3 scripts/dependency_profile_matrix.py \
+  --output-dir install_plan/dependency_profile_matrix
+```
+
+This writes Linux, macOS and Windows profile dry-runs plus per-platform install
+notes. Non-native rows are platform-rule dry-runs only; run the matching wrapper
+on a real host before claiming native Windows or macOS installation success.
+
 When executing, environment preflight is target-aware. Missing optional backend
 dependencies block only the affected target by default; runnable targets still
 run and blocked targets are recorded in the orchestration manifest. Use

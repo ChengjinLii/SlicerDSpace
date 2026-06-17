@@ -17,4 +17,4 @@ if (-not $env:PYTHON_BIN) {
     $env:PYTHON_BIN = "python"
 }
 
-& $env:PYTHON_BIN (Join-Path $ScriptDir "install_dependencies.py") --all @args
+& $env:PYTHON_BIN (Join-Path $ScriptDir "install_dependencies.py") --all --platform Windows @args

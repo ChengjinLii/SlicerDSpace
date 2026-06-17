@@ -14,8 +14,9 @@ The release-validation, dependency-profile, output-semantics, model-governance
 and manuscript-source-data work now has concrete repository evidence. The
 Slicer GUI has also been restructured around the requested three-step
 "choose input, choose products, run" flow, with advanced dependency and runtime
-controls folded by default. Cross-platform dependency logic exists, but Windows
-and macOS have not been executed on native Windows/macOS hosts in this audit.
+controls folded by default. Cross-platform dependency logic now includes a
+Linux/macOS/Windows profile matrix dry-run, but Windows and macOS have not been
+executed on native Windows/macOS hosts in this audit.
 
 The manuscript package is now versioned, the normal manuscript validation gate
 passes, and the validation source-data package is complete except for the
@@ -33,10 +34,12 @@ make -C manuscript_nature_protocols validate
 make -C manuscript_nature_protocols validation-package-check
 make -C manuscript_nature_protocols readiness-check
 make -C manuscript_nature_protocols release-metadata-check asset-availability-check
-python3 -m unittest Testing/Python/test_release_validation.py Testing/Python/test_model_assets.py Testing/Python/test_environment_doctor.py
+python3 -m unittest Testing/Python/test_release_validation.py Testing/Python/test_model_assets.py Testing/Python/test_environment_doctor.py Testing/Python/test_dependency_profile_matrix.py
 python3 -m unittest Testing/Python/test_release_validation.py Testing/Python/test_model_assets.py Testing/Python/test_product_orchestrator.py Testing/Python/test_run_batch_pipeline.py Testing/Python/test_run_subject_pipeline_cli.py Testing/Python/test_environment_doctor.py
 python3 -m unittest Testing/Python/test_slicer_ui_layout_contract.py
-python3 -m py_compile scripts/release_validation.py shared/orchestrator.py shared/environment.py shared/module_widget.py scripts/download_model_assets.py scripts/install_dependencies.py
+python3 -m py_compile scripts/release_validation.py shared/orchestrator.py shared/environment.py shared/module_widget.py scripts/download_model_assets.py scripts/install_dependencies.py scripts/dependency_profile_matrix.py
+python3 scripts/install_dependencies.py --targets validation --platform Windows --output-dir /tmp/slicerdsurfer_install_dependencies_windows_smoke
+python3 scripts/dependency_profile_matrix.py --output-dir /data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/dependency_profile_matrix
 python3 scripts/release_validation.py --subject-root /data/chengjin/SlicerDDSurfer-test/100307-release-candidate --batch-root /data/chengjin/SlicerDDSurfer-test/release-validation-batch --report-dir /data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/release_validation_with_smoke --run-name Test1 --timeout-seconds 300 --warn-only --skip-environment-check
 ```
 
@@ -135,6 +138,7 @@ Evidence:
 - `shared/environment.py`
 - `shared/module_widget.py`
 - `scripts/install_dependencies.py`
+- `scripts/dependency_profile_matrix.py`
 - `scripts/install_deps_linux.sh`
 - `scripts/install_deps_macos.sh`
 - `scripts/install_deps_windows.ps1`
@@ -151,12 +155,15 @@ Implemented behavior:
   the current machine.
 - Windows command scanning checks extensionless command names plus `.exe`,
   `.cmd` and `.bat` variants.
+- The dependency profile matrix writes per-platform `environment_doctor.json`,
+  `dependency_profile.json`, Python install helpers and external setup notes
+  for Linux, Darwin/macOS and Windows discovery rules.
 
 Boundary:
 
 - Native Windows and native macOS execution were not performed in this audit.
-  The code paths and wrappers are present and unit-tested where practical on
-  Linux.
+  The matrix rows for non-native platforms are platform-rule dry-runs on the
+  current host, not proof that those operating systems have the tools installed.
 
 ### Output directory semantics
 

@@ -79,6 +79,16 @@ scripts/install_deps_windows.ps1 --targets microstructure,tractography
 powershell -ExecutionPolicy Bypass -File scripts/install_deps_windows.ps1 --targets microstructure,tractography
 ```
 
+Each wrapper passes an explicit platform profile (`Linux`, `Darwin`, or
+`Windows`) into `scripts/install_dependencies.py`. You can also call the core
+planner directly:
+
+```bash
+python3 scripts/install_dependencies.py \
+  --all \
+  --platform Linux
+```
+
 默认行为是**只生成安装计划**。如果要自动安装缺失 Python 包，加 `--execute`：
 
 ```bash
@@ -135,6 +145,43 @@ python3 run_subject_pipeline.py \
 
 如果导入 profile 后 doctor 仍显示 `not found`，以新的 doctor 结果为准，修正
 路径或环境变量后再次扫描。
+
+## 0.1.2 Linux/macOS/Windows dependency profile matrix
+
+发布前或给用户排查环境时，可以生成三平台 dependency profile 矩阵：
+
+```bash
+python3 scripts/dependency_profile_matrix.py \
+  --output-dir install_plan/dependency_profile_matrix
+```
+
+默认矩阵覆盖完整依赖面，包括常规产品、`surface_postprocess`、
+`microstructure_freewater`、`microstructure_noddi`、`saf`、`wma` 和
+`tractcloud`。默认 backend profile 会选择更严格的外部依赖组合：
+`preprocessing=mrtrix_fsl`、`tractography=csd_act`、`connectome=mrtrix`。
+
+输出结构：
+
+```text
+install_plan/dependency_profile_matrix/
+  dependency_profile_matrix.json
+  linux/
+    environment_doctor.json
+    dependency_profile.json
+    install_missing_python.sh
+    install_missing_python.ps1
+    install_external_tools.md
+  darwin/
+    ...
+  windows/
+    ...
+```
+
+注意：如果在 Linux 主机上生成 Darwin/Windows 行，这些行是
+**platform-rule dry-run**，不是原生 macOS/Windows 通过证明。它们会使用对应
+平台的常见路径、命令后缀和 install hint，但文件系统可用性仍然只能反映当前
+主机。公开发布前仍应在真实 macOS/Windows 设备上运行对应 wrapper 或核心
+planner。
 
 ## 0.2 用户设备与 Python 环境
 

@@ -10,4 +10,4 @@ if [[ -z "${PYTHON_BIN:-}" && -n "${SLICER_EXECUTABLE:-}" ]]; then
 fi
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
-"$PYTHON_BIN" "$SCRIPT_DIR/install_dependencies.py" --all "$@"
+"$PYTHON_BIN" "$SCRIPT_DIR/install_dependencies.py" --all --platform Linux "$@"

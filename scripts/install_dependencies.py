@@ -118,6 +118,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dependency-config", type=Path, help="Optional JSON file containing saved external dependency paths.")
     parser.add_argument("--save-dependency-config", type=Path, help="Write resolved external dependency paths to this JSON file.")
     parser.add_argument("--python-executable", default=sys.executable, help="Python executable to use for pip installation.")
+    parser.add_argument(
+        "--platform",
+        dest="platform_name",
+        choices=("Linux", "Darwin", "Windows"),
+        help="Use platform-specific discovery rules for a dry-run/profile. Defaults to the current host platform.",
+    )
     parser.add_argument("--execute", action="store_true", help="Actually run pip install for missing Python packages.")
     parser.add_argument(
         "--strict-exit-code",
@@ -166,6 +172,7 @@ def main(argv: list[str] | None = None) -> int:
         repo_root=REPO_ROOT,
         output_dir=args.output_dir,
         python_executable=Path(args.python_executable).expanduser().resolve(),
+        platform_name=args.platform_name,
         preprocessing_backend=args.preprocessing_backend,
         tractography_backend=args.tractography_backend,
         connectome_backend=args.connectome_backend,
