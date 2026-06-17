@@ -275,7 +275,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--subject-root", required=True, type=Path, help="Subject root directory.")
     parser.add_argument("--subject-id", help="Optional subject id. Defaults to the subject-root directory name.")
     parser.add_argument("--output-root", type=Path, help="Optional output root. Defaults to <subject-root>/outputs.")
-    parser.add_argument("--run-name", default="csd_act", help="Run name used for tractography/connectome subtrees.")
+    parser.add_argument("--run-name", default="Test1", help="Run name used for tractography/connectome subtrees.")
     parser.add_argument(
         "--all",
         action="store_true",

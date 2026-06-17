@@ -215,6 +215,91 @@ class SharedWidgetMixin:
     def _environment_settings_key(self, dependency_id: str) -> str:
         return f"SlicerDDSurfer/ExternalDependencies/{dependency_id}"
 
+    def _user_settings_key(self, name: str) -> str:
+        return f"SlicerDDSurfer/UserSettings/{name}"
+
+    def _common_user_setting_specs(self) -> tuple[tuple[str, type], ...]:
+        return (
+            ("subjectId", str),
+            ("inputDirectory", str),
+            ("outputDirectory", str),
+            ("orchestrationRunName", str),
+            ("orchestrationTractographyBackend", str),
+            ("orchestrationBundleBackend", str),
+            ("orchestrationSelectStreamlines", int),
+            ("orchestrationMicrostructureStages", str),
+            ("connectomeBackend", str),
+            ("connectomeCompressMrtrixDense", bool),
+            ("autoInstallPythonDependencies", bool),
+            ("batchMode", bool),
+            ("batchRoot", str),
+            ("batchSize", int),
+            ("batchArrangeInputs", str),
+            ("targetPreprocessing", bool),
+            ("targetSurface", bool),
+            ("targetParcellation", bool),
+            ("targetSegmentation", bool),
+            ("targetMicrostructure", bool),
+            ("targetTractography", bool),
+            ("targetBundles", bool),
+            ("targetConnectome", bool),
+        )
+
+    def _coerce_user_setting_value(self, value: Any, value_type: type) -> Any:
+        if value_type is bool:
+            if isinstance(value, bool):
+                return value
+            return str(value).strip().lower() in {"1", "true", "yes", "on"}
+        if value_type is int:
+            return int(value)
+        return str(value or "")
+
+    def _restore_common_user_settings_to_node(self) -> None:
+        node = self._parameterNode
+        if not node:
+            return
+        settings = slicer.app.userSettings()
+        with slicer.util.NodeModify(node):
+            for attribute, value_type in self._common_user_setting_specs():
+                key = self._user_settings_key(attribute)
+                try:
+                    has_key = bool(settings.contains(key))
+                except Exception:
+                    has_key = settings.value(key, None) is not None
+                if not has_key:
+                    continue
+                try:
+                    setattr(node, attribute, self._coerce_user_setting_value(settings.value(key), value_type))
+                except Exception:
+                    continue
+
+    def _save_common_user_settings(self) -> None:
+        node = self._parameterNode
+        if not node:
+            return
+        settings = slicer.app.userSettings()
+        for attribute, _value_type in self._common_user_setting_specs():
+            try:
+                value = getattr(node, attribute)
+            except Exception:
+                continue
+            settings.setValue(self._user_settings_key(attribute), value)
+
+    def _save_python_install_status(self, packages: tuple[str, ...], status: str, detail: str = "") -> None:
+        try:
+            payload = {
+                "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                "packages": list(packages),
+                "status": status,
+                "detail": detail,
+            }
+            slicer.app.userSettings().setValue(
+                self._user_settings_key("lastPythonInstall"),
+                json.dumps(payload, ensure_ascii=False),
+            )
+        except Exception:
+            pass
+
     def _read_environment_path_setting(self, dependency_id: str) -> str:
         settings = slicer.app.userSettings()
         value = settings.value(self._environment_settings_key(dependency_id), "")
@@ -1286,6 +1371,18 @@ class SharedWidgetMixin:
         self._lastEnvironmentResult = result
         self._lastEnvironmentSignature = signature
         self._lastEnvironmentCheckedAt = monotonic()
+        try:
+            payload = {
+                "checked_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                "signature": signature,
+                "summary": result.to_dict() if hasattr(result, "to_dict") else {},
+            }
+            slicer.app.userSettings().setValue(
+                self._user_settings_key("lastEnvironmentCheck"),
+                json.dumps(payload, ensure_ascii=False),
+            )
+        except Exception:
+            pass
 
     def _cached_environment_result(self, signature: tuple):
         result = getattr(self, "_lastEnvironmentResult", None)
@@ -1500,6 +1597,7 @@ class SharedWidgetMixin:
         if self._parameterNode:
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
             self.addObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
+            self._restore_common_user_settings_to_node()
             self._checkCanApply()
 
     def _sync_path_widget(self, widget, desired: str) -> None:
@@ -1639,6 +1737,14 @@ class SharedWidgetMixin:
             self._sync_combo_text(
                 getattr(self.ui, "orchestrationMicrostructureStagesComboBox", None),
                 self._microstructure_stages_text(),
+                via_index=False,
+            )
+            self._sync_checkbox(getattr(self.ui, "batchModeCheckBox", None), bool(getattr(node, "batchMode", False)))
+            self._sync_path_widget(getattr(self.ui, "batchRootPath", None), getattr(node, "batchRoot", "") or "")
+            self._sync_spinbox(getattr(self.ui, "batchSizeSpinBox", None), int(getattr(node, "batchSize", 1) or 1))
+            self._sync_combo_text(
+                getattr(self.ui, "batchArrangeInputsComboBox", None),
+                getattr(node, "batchArrangeInputs", "none") or "none",
                 via_index=False,
             )
             self._sync_combo_text(
@@ -2038,6 +2144,73 @@ class SharedWidgetMixin:
         self._add_cli_path_arg(args, "--tractcloud-data-dir", external_paths.get("tractcloud_data_dir"))
         return args
 
+    def _build_batch_background_cli_args(
+        self,
+        common_run_kwargs: dict[str, Any],
+        external_paths: dict[str, Optional[Path]],
+        *,
+        batch_root: Path,
+        batch_size: int,
+        arrange_inputs: str,
+    ) -> list[str]:
+        node = self._parameterNode
+        repo_root = Path(__file__).resolve().parent.parent
+        batch_script = repo_root / "scripts" / "run_batch_pipeline.py"
+        output_root = common_run_kwargs.get("output_root")
+        args = [
+            "--launch",
+            "PythonSlicer",
+            batch_script.as_posix(),
+            "--batch-root",
+            batch_root.expanduser().as_posix(),
+            "--batch-size",
+            str(max(1, int(batch_size))),
+            "--run-name",
+            str(common_run_kwargs["run_name"]),
+            "--arrange-inputs",
+            arrange_inputs,
+            "--execute",
+            "--targets",
+            ",".join(common_run_kwargs["targets"]),
+            "--preprocessing-backend",
+            (node.preprocessingBackend or "dipy").strip() if node else "dipy",
+            "--tractography-backend",
+            str(common_run_kwargs["tractography_backend"]),
+            "--bundle-backend",
+            str(common_run_kwargs["bundle_backend"]),
+            "--connectome-backend",
+            str(common_run_kwargs["connectome_backend"]),
+            "--select-streamlines",
+            str(common_run_kwargs["select_streamlines"]),
+            "--ddseg-device",
+            str(common_run_kwargs["ddseg_device"]),
+            "--surface-device",
+            str(common_run_kwargs["surface_device"]),
+        ]
+        if output_root is not None:
+            args.extend(["--output-root", output_root.expanduser().as_posix()])
+        microstructure_stages = ["dti"]
+        if common_run_kwargs.get("microstructure_run_free_water"):
+            microstructure_stages.append("freewater")
+        if common_run_kwargs.get("microstructure_run_noddi"):
+            microstructure_stages.append("noddi")
+        args.extend(["--microstructure-stages", ",".join(microstructure_stages)])
+        if common_run_kwargs.get("connectome_compress_mrtrix_dense"):
+            args.append("--compress-mrtrix-dense")
+        self._add_cli_path_arg(args, "--mrtrix-bin-dir", external_paths.get("mrtrix_bin_dir"))
+        self._add_cli_path_arg(args, "--preprocessing-mrtrix-bin-dir", external_paths.get("mrtrix_bin_dir"))
+        self._add_cli_path_arg(args, "--preprocessing-fsl-bin-dir", external_paths.get("preprocessing_fsl_bin_dir"))
+        self._add_cli_path_arg(args, "--postprocess-freesurfer-home", external_paths.get("postprocess_freesurfer_home"))
+        self._add_cli_path_arg(args, "--tract-querier-root", external_paths.get("tract_querier_root"))
+        self._add_cli_path_arg(args, "--wma-root", external_paths.get("wma_root"))
+        self._add_cli_path_arg(args, "--wma-atlas-dir", external_paths.get("wma_atlas_dir"))
+        self._add_cli_path_arg(args, "--slicer-executable", external_paths.get("slicer_executable"))
+        self._add_cli_path_arg(args, "--fiber-tract-measurements-cli", external_paths.get("fiber_tract_measurements_cli"))
+        self._add_cli_path_arg(args, "--tractcloud-root", external_paths.get("tractcloud_root"))
+        self._add_cli_path_arg(args, "--tractcloud-python-executable", external_paths.get("tractcloud_python_executable"))
+        self._add_cli_path_arg(args, "--tractcloud-data-dir", external_paths.get("tractcloud_data_dir"))
+        return args
+
     def _startBackgroundPipeline(
         self,
         common_run_kwargs: dict[str, Any],
@@ -2083,6 +2256,63 @@ class SharedWidgetMixin:
             self._setPipelineActive(False)
             self._setStatus("error", "Failed to start background job")
             self.appendLog("[Background] Failed to start process.")
+
+    def _startBackgroundBatchPipeline(
+        self,
+        common_run_kwargs: dict[str, Any],
+        external_paths: dict[str, Optional[Path]],
+        selected_workflows: list[str],
+        *,
+        batch_root: Path,
+        batch_size: int,
+        arrange_inputs: str,
+    ) -> None:
+        if getattr(self, "_backgroundProcess", None) is not None:
+            process = self._backgroundProcess
+            try:
+                if process and process.state() != qt.QProcess.NotRunning:
+                    slicer.util.infoDisplay("A SlicerDDSurfer job is already running.", parent=self.parent)
+                    return
+            except Exception:
+                pass
+
+        process = qt.QProcess(self.parent)
+        process.setWorkingDirectory(Path(__file__).resolve().parent.parent.as_posix())
+        process.setProcessChannelMode(qt.QProcess.MergedChannels)
+        process.connect("readyReadStandardOutput()", self._onBackgroundProcessReadyRead)
+        process.connect("finished(int,QProcess::ExitStatus)", self._onBackgroundProcessFinished)
+        process.connect("errorOccurred(QProcess::ProcessError)", self._onBackgroundProcessError)
+
+        program = self._slicer_launcher_program()
+        args = self._build_batch_background_cli_args(
+            common_run_kwargs,
+            external_paths,
+            batch_root=batch_root,
+            batch_size=batch_size,
+            arrange_inputs=arrange_inputs,
+        )
+        self._backgroundProcess = process
+        self._backgroundOutputBuffer = ""
+        self._backgroundManifestPath = None
+        self._backgroundCancelRequested = False
+        self._backgroundRunContext = {
+            "subject_id": "batch",
+            "subject_root": batch_root,
+            "output_root": common_run_kwargs.get("output_root"),
+            "run_name": common_run_kwargs["run_name"],
+            "targets": common_run_kwargs["targets"],
+            "started_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "selected_workflows": selected_workflows,
+            "batch_size": batch_size,
+        }
+        self.appendLog("[Background] Starting batch: " + program + " " + " ".join(args))
+        self._setPipelineActive(True)
+        self._set_run_progress_message(f"Batch execution submitted for {batch_root}.")
+        process.start(program, args)
+        if not process.waitForStarted(5000):
+            self._setPipelineActive(False)
+            self._setStatus("error", "Failed to start batch job")
+            self.appendLog("[Background] Failed to start batch process.")
 
     def _onBackgroundProcessReadyRead(self) -> None:
         process = getattr(self, "_backgroundProcess", None)
@@ -2187,6 +2417,9 @@ class SharedWidgetMixin:
             self._mark_unfinished_rows("failed", f"Unable to read manifest: {exc}")
             self._setStatus("error", "Pipeline failed: invalid manifest")
             return
+        if manifest.get("kind") == "slicerdsurfer_batch_run":
+            self._load_background_batch_manifest_result(manifest_path, manifest)
+            return
         rows = []
         blocked = 0
         failed = 0
@@ -2252,6 +2485,56 @@ class SharedWidgetMixin:
         if output_tree_path:
             message += f" Output tree: {output_tree_path}"
         self._set_run_progress_message(message)
+
+    def _load_background_batch_manifest_result(self, manifest_path: Path, manifest: dict[str, Any]) -> None:
+        rows = []
+        failed = 0
+        completed = 0
+        for result in manifest.get("results", []):
+            returncode = int(result.get("returncode", 1))
+            status = "completed" if returncode == 0 else "failed"
+            if returncode == 0:
+                completed += 1
+            else:
+                failed += 1
+            rows.append(
+                {
+                    "target": str(result.get("subject_id") or ""),
+                    "status": status,
+                    "reason": f"return code {returncode}",
+                    "manifest_path": str(manifest_path),
+                    "qc_path": "",
+                    "logs_dir": str(Path(str(result.get("stdout_log") or "")).parent)
+                    if result.get("stdout_log")
+                    else "",
+                }
+            )
+        skipped = manifest.get("skipped", []) or []
+        for item in skipped:
+            rows.append(
+                {
+                    "target": str(item.get("subject_id") or item.get("path") or ""),
+                    "status": "skipped",
+                    "reason": str(item.get("reason") or "missing input"),
+                    "manifest_path": str(manifest_path),
+                    "qc_path": "",
+                    "logs_dir": "",
+                }
+            )
+        self._set_run_status_table_rows(rows)
+        total = len(manifest.get("subjects", []) or [])
+        if failed:
+            self._setStatus("error", f"Batch failed: {failed} subject(s)")
+        else:
+            self._setStatus("ready", "Batch completed")
+        self._set_latest_report_path(None)
+        self._set_latest_output_tree_path(None)
+        self._set_run_progress_message(f"Batch finished. Manifest: {manifest_path}")
+        self._set_run_summary_message(
+            f"Status: batch completed | Subjects: {total} | Completed: {completed} | "
+            f"Failed: {failed} | Skipped: {len(skipped)} | Manifest: {manifest_path}",
+            "failed" if failed else "completed",
+        )
 
     def _onBackgroundProcessError(self, error) -> None:
         self.appendLog(f"[Background] QProcess error: {error}")
@@ -2329,17 +2612,16 @@ class SharedWidgetMixin:
     def _onRunSelectedClicked(self) -> None:
         if not self._parameterNode or not self.logic:
             return
+        self._save_common_user_settings()
         selected = self._selected_workflows()
         if not selected:
             slicer.util.errorDisplay("Select at least one target product to run.", parent=self.parent)
             return
 
         self._apply_shared_inputs_to_workflow_fields()
+        batch_mode = bool(getattr(self._parameterNode, "batchMode", False))
         subject_root_text = (self._parameterNode.inputDirectory or "").strip()
         subject_id = (self._parameterNode.subjectId or "").strip()
-        if not subject_root_text or not subject_id:
-            slicer.util.errorDisplay("Subject ID and subject root are required before running.", parent=self.parent)
-            return
         output_root_text = (self._parameterNode.outputDirectory or "").strip()
         surface_device = (self._parameterNode.device or "auto").strip() or "auto"
         ddseg_device = (self._parameterNode.ddsegDevice or "auto").strip() or "auto"
@@ -2347,6 +2629,54 @@ class SharedWidgetMixin:
         selected_targets = self._selected_product_targets()
         auto_install_python = bool(self._parameterNode.autoInstallPythonDependencies)
         external_paths = self._environment_dependency_path_kwargs()
+        run_name = (self._parameterNode.orchestrationRunName or "Test1").strip() or "Test1"
+
+        if batch_mode:
+            batch_root_text = (getattr(self._parameterNode, "batchRoot", "") or subject_root_text).strip()
+            if not batch_root_text:
+                slicer.util.errorDisplay("Batch root is required in Batch mode.", parent=self.parent)
+                return
+            batch_root = Path(batch_root_text).expanduser()
+            if not batch_root.is_dir():
+                slicer.util.errorDisplay(f"Batch root does not exist:\n{batch_root}", parent=self.parent)
+                return
+            batch_size = max(1, int(getattr(self._parameterNode, "batchSize", 1) or 1))
+            arrange_inputs = (getattr(self._parameterNode, "batchArrangeInputs", "none") or "none").strip() or "none"
+            common_run_kwargs = dict(
+                subject_id="batch",
+                subject_root=batch_root,
+                output_root=Path(output_root_text).expanduser() if output_root_text else None,
+                targets=selected_targets,
+                run_name=run_name,
+                tractography_backend=self._tractography_backend_text(),
+                bundle_backend=self._bundle_backend_text(),
+                resume=True,
+                microstructure_run_free_water=run_free_water,
+                microstructure_run_noddi=run_noddi,
+                select_streamlines=max(1, int(self._parameterNode.orchestrationSelectStreamlines)),
+                ddseg_device=ddseg_device,
+                surface_device=surface_device,
+                connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
+                connectome_compress_mrtrix_dense=bool(self._parameterNode.connectomeCompressMrtrixDense),
+                preflight_blocked_targets={},
+            )
+            self.appendLog(
+                f"Submitting batch products to background runner: root={batch_root}, "
+                f"batch_size={batch_size}, targets={', '.join(selected)}"
+            )
+            self._startBackgroundBatchPipeline(
+                common_run_kwargs,
+                external_paths,
+                selected,
+                batch_root=batch_root,
+                batch_size=batch_size,
+                arrange_inputs=arrange_inputs,
+            )
+            return
+
+        if not subject_root_text or not subject_id:
+            slicer.util.errorDisplay("Subject ID and subject root are required before running.", parent=self.parent)
+            return
         doctor_kwargs = self._environment_check_kwargs(
             subject_root_text=subject_root_text,
             output_root_text=output_root_text,
@@ -2376,12 +2706,15 @@ class SharedWidgetMixin:
             self._setStatus("running", "Installing Python dependencies...")
             slicer.util.showStatusMessage("Installing missing Python dependencies...", 0)
             try:
-                self.logic.installMissingPythonDependencies(tuple(doctor_result.missing_python_packages))
+                packages = tuple(doctor_result.missing_python_packages)
+                self.logic.installMissingPythonDependencies(packages)
+                self._save_python_install_status(packages, "completed")
                 doctor_result = self.logic.runEnvironmentDoctor(**doctor_kwargs)
                 self._cache_environment_result(doctor_result, doctor_signature)
                 self._update_environment_result_label(doctor_result)
                 self._update_environment_path_status_labels(doctor_result)
             except Exception as exc:
+                self._save_python_install_status(tuple(doctor_result.missing_python_packages), "failed", str(exc))
                 self.appendLog(f"Dependency installation failed: {exc}")
                 slicer.util.errorDisplay(f"Dependency installation failed:\n{exc}", parent=self.parent)
                 self._setPipelineActive(False)
@@ -2395,7 +2728,6 @@ class SharedWidgetMixin:
         }
 
         subject_root = Path(subject_root_text).expanduser()
-        run_name = (self._parameterNode.orchestrationRunName or "Test1").strip() or "Test1"
         common_run_kwargs = dict(
             subject_id=subject_id,
             subject_root=subject_root,
@@ -2515,6 +2847,7 @@ class SharedWidgetMixin:
             combo.setCurrentIndex(index)
 
     def _onValidateClicked(self) -> None:
+        self._save_common_user_settings()
         result = self._run_environment_dependency_check()
         if result is None:
             return
@@ -2850,7 +3183,9 @@ class SharedWidgetMixin:
         self._setStatus("running", "Installing Python dependencies...")
         try:
             self.logic.installMissingPythonDependencies(unique_packages)
+            self._save_python_install_status(tuple(unique_packages), "completed")
         except Exception as exc:
+            self._save_python_install_status(tuple(unique_packages), "failed", str(exc))
             self.appendLog(f"[Environment] Dependency installation failed: {exc}")
             self._setStatus("error", "Dependency installation failed")
             slicer.util.errorDisplay(f"Dependency installation failed:\n{exc}", parent=self.parent)

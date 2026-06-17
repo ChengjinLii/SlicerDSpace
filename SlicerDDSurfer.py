@@ -102,6 +102,10 @@ class SlicerDDSurferParameterNode:
     orchestrationMicrostructureStages: Annotated[str, Choice(["dti", "dti,freewater", "dti,freewater,noddi"])] = "dti"
     orchestrationRunFreeWater: bool = False
     orchestrationRunNoddi: bool = False
+    batchMode: bool = False
+    batchRoot: str = ""
+    batchSize: int = 1
+    batchArrangeInputs: Annotated[str, Choice(["none", "symlink", "copy"])] = "none"
     connectomeBackend: Annotated[str, Choice(["python", "mrtrix"])] = "python"
     connectomeCompressMrtrixDense: bool = False
     autoInstallPythonDependencies: bool = True

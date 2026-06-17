@@ -367,7 +367,7 @@ Useful high-level selectors:
 - `--microstructure-stages dti|dti,freewater|dti,freewater,noddi|all`
 - `--tractography-backend csd_act|dti_det|saf`
 - `--bundle-backend wmql|wma|tractcloud|all`
-- `--select-streamlines <N>` and `--run-name <name>`
+- `--select-streamlines <N>` and `--run-name <name>`; the default run name is `Test1`
 
 To preview execution without running algorithms:
 
@@ -394,6 +394,28 @@ Long UI runs are submitted through a background `QProcess` that calls the
 unified CLI, so the Slicer main thread stays responsive. The `Cancel running
 job` button terminates the background process and writes a
 `*_cancelled_orchestration_manifest.json` record.
+
+Batch runs use the same subject CLI for each subject:
+
+```bash
+python3 scripts/run_batch_pipeline.py \
+  --batch-root /path/to/study_subjects \
+  --output-root /path/to/batch_outputs \
+  --batch-size 2 \
+  --run-name Test1 \
+  --all \
+  --execute
+```
+
+Expected input layout is one subject directory per child folder, each with
+`input/data.nii.gz`, `input/bvals`, `input/bvecs`, and
+`input/nodif_brain_mask.nii.gz`. If raw files are directly inside each subject
+folder, add `--arrange-inputs symlink` or `--arrange-inputs copy` to create the
+required `input/` folder without manually restructuring the study. Batch outputs
+are written under `<output-root>/<subject-id>/` when `--output-root` is set.
+All unknown options are forwarded to `run_subject_pipeline.py`, so selectors
+such as `--targets`, `--bundle-backend`, dependency path overrides, and
+`--skip-environment-check` behave identically in single-subject and batch mode.
 
 100307 regression command:
 

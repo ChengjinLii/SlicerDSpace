@@ -619,6 +619,104 @@
           </item>
          </widget>
         </item>
+        <item row="5" column="0">
+         <widget class="QLabel" name="batchModeLabel">
+          <property name="text">
+           <string>Batch mode</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1">
+         <widget class="QCheckBox" name="batchModeCheckBox">
+          <property name="toolTip">
+           <string>Run the selected product set for every detected subject under Batch root. Subject ID is inferred from each child directory.</string>
+          </property>
+          <property name="text">
+           <string>Process all subjects under a study root</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>batchMode</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="0">
+         <widget class="QLabel" name="batchRootLabel">
+          <property name="text">
+           <string>Batch root</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="1">
+         <widget class="ctkPathLineEdit" name="batchRootPath">
+          <property name="filters">
+           <set>ctkPathLineEdit::Dirs</set>
+          </property>
+          <property name="placeholderText" stdset="0">
+           <string>Directory containing one subject folder per child directory</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>batchRoot</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="0">
+         <widget class="QLabel" name="batchSizeLabel">
+          <property name="text">
+           <string>Batch size</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="1">
+         <widget class="QSpinBox" name="batchSizeSpinBox">
+          <property name="toolTip">
+           <string>Maximum number of subjects to run concurrently. Use 1 for safest GPU/CPU memory behavior.</string>
+          </property>
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>64</number>
+          </property>
+          <property name="value">
+           <number>1</number>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>batchSize</string>
+          </property>
+         </widget>
+        </item>
+        <item row="8" column="0">
+         <widget class="QLabel" name="batchArrangeInputsLabel">
+          <property name="text">
+           <string>Arrange inputs</string>
+          </property>
+         </widget>
+        </item>
+        <item row="8" column="1">
+         <widget class="QComboBox" name="batchArrangeInputsComboBox">
+          <property name="toolTip">
+           <string>Optional. If raw files are directly inside each subject folder, create the required input/ folder by symlink or copy before running.</string>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>batchArrangeInputs</string>
+          </property>
+          <item>
+           <property name="text">
+            <string>none</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>symlink</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>copy</string>
+           </property>
+          </item>
+         </widget>
+        </item>
        </layout>
       </item>
       <item>
