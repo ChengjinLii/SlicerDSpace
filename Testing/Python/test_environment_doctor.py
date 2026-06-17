@@ -142,6 +142,47 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             self.assertEqual(status.status, "available")
             self.assertEqual(status.details["detected_source"], "common path")
 
+    def test_windows_common_path_checks_executable_suffixes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            common_bin = Path(tmp) / "common"
+            common_bin.mkdir()
+            fake_tool = common_bin / "fake_tool.exe"
+            fake_tool.write_text("", encoding="utf-8")
+            status = _check_spec(
+                DependencySpec(
+                    key="command:fake_tool",
+                    kind="command",
+                    label="fake_tool",
+                    required=True,
+                    targets=("fake",),
+                    command="fake_tool",
+                    install_group="fake",
+                    common_paths=(common_bin,),
+                ),
+                "Windows",
+            )
+            self.assertEqual(status.status, "available")
+            self.assertEqual(status.details["detected_source"], "common path")
+            self.assertEqual(status.details["resolved"], fake_tool.as_posix())
+            self.assertIn(fake_tool.as_posix(), status.details["checked_locations"])
+
+    def test_python_install_requirement_survives_default_python_assignment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            missing_python = Path(tmp) / "missing-python"
+            result = run_environment_doctor(
+                EnvironmentDoctorConfig(
+                    targets=("bundles",),
+                    repo_root=REPO_ROOT,
+                    python_executable=missing_python,
+                )
+            )
+            tract_querier = next(item for item in result.statuses if item.key == "python:tract_querier")
+            self.assertEqual(
+                tract_querier.details["install_requirement"],
+                "git+https://github.com/demianw/tract_querier.git",
+            )
+            self.assertIn("git+https://github.com/demianw/tract_querier.git", result.missing_python_packages)
+
     def test_freesurfer_home_is_discovered_from_local_software_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

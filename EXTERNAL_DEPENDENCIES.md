@@ -74,6 +74,9 @@ scripts/install_deps_macos.sh --targets microstructure,tractography
 
 # Windows PowerShell
 scripts/install_deps_windows.ps1 --targets microstructure,tractography
+
+# If local policy blocks script execution:
+powershell -ExecutionPolicy Bypass -File scripts/install_deps_windows.ps1 --targets microstructure,tractography
 ```
 
 默认行为是**只生成安装计划**。如果要自动安装缺失 Python 包，加 `--execute`：
@@ -187,6 +190,10 @@ SlicerDDSurfer 不要求用户“上传依赖”。外部软件和数据采用�
 2. 环境变量：例如 `SLICERDDSURFER_MRTRIX_BIN_DIR`、`FSLDIR`、`FREESURFER_HOME`。
 3. `PATH`：适用于 `mrconvert`、`tckgen`、`eddy`、`recon-all` 等命令。
 4. 常见系统路径：Linux、macOS 和 Windows/WSL 的 MRtrix3、FSL、FreeSurfer、Slicer、WMA、TractCloud 常见安装位置。
+
+在 Windows 上，命令扫描会同时检查无扩展名命令和 `.exe`、`.cmd`、`.bat`
+变体。例如配置 `C:\Program Files\MRtrix3\bin` 后，`mrconvert.exe` 会被识别为
+`mrconvert`。
 
 体检结果会在 `environment_doctor.json` 的每个 dependency 下写出：
 

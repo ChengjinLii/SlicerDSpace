@@ -761,40 +761,47 @@ def _first_existing_path(candidates: Iterable[Path], *, kind: str) -> tuple[Opti
     return None, tuple(checked)
 
 
+def _command_path_candidates(directory: Path, command: str, platform_name: str) -> tuple[Path, ...]:
+    candidates = [directory / command]
+    if platform_name == "Windows" and not Path(command).suffix:
+        candidates.extend(directory / f"{command}{suffix}" for suffix in (".exe", ".cmd", ".bat"))
+    return tuple(dict.fromkeys(candidates))
+
+
 def _resolve_command_with_source(spec: DependencySpec, platform_name: str) -> tuple[Optional[str], str, list[str]]:
     assert spec.command
     checked: list[str] = []
 
     if spec.bin_dir is not None:
-        user_candidate = spec.bin_dir / spec.command
-        checked.append(user_candidate.as_posix())
-        try:
-            if user_candidate.is_file():
-                return user_candidate.as_posix(), "user setting", checked
-        except OSError:
-            pass
+        for user_candidate in _command_path_candidates(spec.bin_dir, spec.command, platform_name):
+            checked.append(user_candidate.as_posix())
+            try:
+                if user_candidate.is_file():
+                    return user_candidate.as_posix(), "user setting", checked
+            except OSError:
+                pass
 
     for directory, source in _env_command_dirs(spec.install_group):
-        candidate = directory / spec.command
-        checked.append(candidate.as_posix())
-        try:
-            if candidate.is_file():
-                return candidate.as_posix(), source, checked
-        except OSError:
-            continue
+        for candidate in _command_path_candidates(directory, spec.command, platform_name):
+            checked.append(candidate.as_posix())
+            try:
+                if candidate.is_file():
+                    return candidate.as_posix(), source, checked
+            except OSError:
+                continue
 
     found = shutil.which(spec.command)
     if found is not None:
         return found, "PATH", checked
 
     for directory in (*spec.common_paths, *_common_command_dirs(spec.install_group, platform_name)):
-        candidate = directory / spec.command
-        checked.append(candidate.as_posix())
-        try:
-            if candidate.is_file():
-                return candidate.as_posix(), "common path", checked
-        except OSError:
-            continue
+        for candidate in _command_path_candidates(directory, spec.command, platform_name):
+            checked.append(candidate.as_posix())
+            try:
+                if candidate.is_file():
+                    return candidate.as_posix(), "common path", checked
+            except OSError:
+                continue
 
     return None, "not found", checked
 
@@ -830,6 +837,7 @@ def _apply_default_python(specs: Iterable[DependencySpec], python_executable: Op
                     targets=spec.targets,
                     python_import=spec.python_import,
                     python_package=spec.python_package,
+                    python_install_requirement=spec.python_install_requirement,
                     python_executable=default_python,
                     python_path_entries=spec.python_path_entries,
                     device=spec.device,

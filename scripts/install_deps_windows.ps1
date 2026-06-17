@@ -1,19 +1,20 @@
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
 if (-not $env:PYTHON_BIN -and $env:SLICER_EXECUTABLE) {
-  $slicerDir = Split-Path -Parent $env:SLICER_EXECUTABLE
-  $pythonSlicerExe = Join-Path $slicerDir "PythonSlicer.exe"
-  $pythonSlicer = Join-Path $slicerDir "PythonSlicer"
-  if (Test-Path $pythonSlicerExe) {
-    $env:PYTHON_BIN = $pythonSlicerExe
-  }
-  elseif (Test-Path $pythonSlicer) {
-    $env:PYTHON_BIN = $pythonSlicer
-  }
-}
-if (-not $env:PYTHON_BIN) {
-  $env:PYTHON_BIN = "python"
+    $SlicerDir = Split-Path -Parent $env:SLICER_EXECUTABLE
+    $PythonSlicerExe = Join-Path $SlicerDir "PythonSlicer.exe"
+    $PythonSlicer = Join-Path $SlicerDir "PythonSlicer"
+    if (Test-Path $PythonSlicerExe) {
+        $env:PYTHON_BIN = $PythonSlicerExe
+    } elseif (Test-Path $PythonSlicer) {
+        $env:PYTHON_BIN = $PythonSlicer
+    }
 }
 
-& $env:PYTHON_BIN "$ScriptDir/install_dependencies.py" --all @args
+if (-not $env:PYTHON_BIN) {
+    $env:PYTHON_BIN = "python"
+}
+
+& $env:PYTHON_BIN (Join-Path $ScriptDir "install_dependencies.py") --all @args
