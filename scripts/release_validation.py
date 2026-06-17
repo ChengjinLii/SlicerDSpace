@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -213,7 +214,7 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
                     install_root.as_posix(),
                     "--clean",
                     "--link-mode",
-                    "hardlink",
+                    "copy",
                 ),
                 required=False,
             )
@@ -223,10 +224,14 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
                 ValidationStep(
                     "slicer_smoke",
                     (
+                        "env",
+                        f"SLICERDDSURFER_EXTENSION_MODULE_DIR={module_dir.as_posix()}",
+                        f"PATH={args.xvfb_run.parent.as_posix()}:{os.environ.get('PATH', '')}",
                         args.xvfb_run.as_posix(),
                         "-a",
                         args.slicer_launcher.as_posix(),
                         "--no-splash",
+                        "--disable-cli-modules",
                         "--additional-module-paths",
                         module_dir.as_posix(),
                         "--python-script",

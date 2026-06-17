@@ -59,6 +59,49 @@ class ReleaseValidationTest(unittest.TestCase):
             slicer_smoke = next(step for step in steps if step.name == "slicer_smoke")
             self.assertTrue(slicer_smoke.skipped)
 
+    def test_slicer_smoke_step_uses_staged_module_env_and_disable_cli(self) -> None:
+        from scripts.release_validation import build_validation_steps
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subject_root = root / "subject"
+            subject_root.mkdir()
+            launcher = root / "Slicer"
+            xvfb_run = root / "xvfb-run"
+            launcher.write_text("#!/usr/bin/env sh\n", encoding="utf-8")
+            xvfb_run.write_text("#!/usr/bin/env sh\n", encoding="utf-8")
+            args = SimpleNamespace(
+                subject_root=subject_root,
+                subject_id="sub-01",
+                output_root=root / "outputs",
+                batch_root=None,
+                report_dir=root / "report",
+                run_name="Test1",
+                execute=False,
+                dependency_config=None,
+                jobs=1,
+                arrange_inputs="none",
+                tractography_backend="csd_act",
+                connectome_backend="python",
+                skip_slicer_smoke=False,
+                slicer_launcher=launcher,
+                xvfb_run=xvfb_run,
+            )
+
+            steps = build_validation_steps(args, [])
+
+            stage = next(step for step in steps if step.name == "stage_slicer_extension")
+            self.assertIn("--link-mode", stage.command)
+            self.assertIn("copy", stage.command)
+            slicer_smoke = next(step for step in steps if step.name == "slicer_smoke")
+            self.assertFalse(slicer_smoke.skipped)
+            self.assertEqual(slicer_smoke.command[0], "env")
+            self.assertTrue(
+                any(part.startswith("SLICERDDSURFER_EXTENSION_MODULE_DIR=") for part in slicer_smoke.command)
+            )
+            self.assertTrue(any(part.startswith("PATH=") for part in slicer_smoke.command))
+            self.assertIn("--disable-cli-modules", slicer_smoke.command)
+
 
 if __name__ == "__main__":
     unittest.main()

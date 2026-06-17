@@ -38,8 +38,8 @@ python3 scripts/release_audit.py
 ```
 
 For a fuller reproducibility check that plans the subject pipeline, batch path,
-WMQL/WMA/TractCloud bundle routes, output-tree HTML, release audit and optional
-Slicer smoke, run:
+WMQL/WMA/TractCloud bundle routes, output-tree HTML, release audit and Slicer
+smoke when the configured Slicer launcher and `xvfb-run` are available, run:
 
 ```bash
 python3 scripts/release_validation.py \
@@ -50,8 +50,10 @@ python3 scripts/release_validation.py \
 ```
 
 The default mode plans scientific workflows. Add `--execute` only for a
-prepared long-running validation host. The script writes
-`outputs/00_run_metadata/release_validation/release_validation_report.json`.
+prepared long-running validation host. The script writes one machine-readable
+report at
+`outputs/00_run_metadata/release_validation/release_validation_report.json`,
+including staged-extension and Slicer-smoke step results when those checks run.
 
 ---
 

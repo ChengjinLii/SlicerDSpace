@@ -37,6 +37,7 @@ python3 -m unittest Testing/Python/test_release_validation.py Testing/Python/tes
 python3 -m unittest Testing/Python/test_release_validation.py Testing/Python/test_model_assets.py Testing/Python/test_product_orchestrator.py Testing/Python/test_run_batch_pipeline.py Testing/Python/test_run_subject_pipeline_cli.py Testing/Python/test_environment_doctor.py
 python3 -m unittest Testing/Python/test_slicer_ui_layout_contract.py
 python3 -m py_compile scripts/release_validation.py shared/orchestrator.py shared/environment.py shared/module_widget.py scripts/download_model_assets.py scripts/install_dependencies.py
+python3 scripts/release_validation.py --subject-root /data/chengjin/SlicerDDSurfer-test/100307-release-candidate --batch-root /data/chengjin/SlicerDDSurfer-test/release-validation-batch --report-dir /data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/release_validation_with_smoke --run-name Test1 --timeout-seconds 300 --warn-only --skip-environment-check
 ```
 
 The latest GUI layout change was also checked with a staged headless Slicer
@@ -119,15 +120,10 @@ Evidence:
 - `Testing/Python/test_release_validation.py`
 - `README.md` release validation section.
 - Generated example report path from the validation run:
-  `/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/release_validation/release_validation_report.json`.
+  `/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/release_validation_with_smoke/release_validation_report.json`.
+- The report summary is `status=passed`, `step_count=9`, with
+  `slicer_smoke=passed` and no skipped steps.
 - Unit tests for release validation pass.
-
-Boundary:
-
-- The committed release-validation script supports Slicer smoke, but the most
-  recent machine-readable dry-run report skipped Slicer smoke while a separate
-  staged Slicer smoke log passed and is included in the validation source-data
-  package.
 
 ### Dependency installation and dependency profile
 
@@ -269,6 +265,3 @@ Evidence:
    source-data package.
 3. Resolve external submission blockers only when author, license, release DOI
    and model-asset terms are ready.
-4. Generate a release-validation report with Slicer smoke included in the same
-   report, or keep the current split evidence and document that split in the
-   release notes.
