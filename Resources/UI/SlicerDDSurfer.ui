@@ -90,7 +90,10 @@
    <item>
     <widget class="ctkCollapsibleButton" name="environmentCollapsibleButton">
      <property name="text">
-      <string>0. Environment &amp;&amp; Dependencies</string>
+      <string>Advanced: Dependency profile</string>
+     </property>
+     <property name="collapsed">
+      <bool>true</bool>
      </property>
      <layout class="QVBoxLayout" name="environmentLayout">
       <item>
@@ -194,13 +197,13 @@
    <item>
     <widget class="ctkCollapsibleButton" name="configurationCollapsibleButton">
      <property name="text">
-      <string>1. Subject Setup</string>
+      <string>Run workflow</string>
      </property>
      <layout class="QVBoxLayout" name="configurationLayout">
       <item>
        <widget class="QLabel" name="configurationSectionLabel">
         <property name="text">
-         <string>&lt;b&gt;Required subject input&lt;/b&gt;</string>
+         <string>&lt;b&gt;1. Choose input&lt;/b&gt;</string>
         </property>
        </widget>
       </item>
@@ -265,7 +268,7 @@
       <item>
        <widget class="QLabel" name="targetsSectionLabel">
         <property name="text">
-         <string>&lt;b&gt;Target products&lt;/b&gt;</string>
+         <string>&lt;b&gt;2. Choose products&lt;/b&gt;</string>
         </property>
        </widget>
       </item>
@@ -464,14 +467,26 @@
        </layout>
       </item>
       <item>
-       <widget class="QLabel" name="advancedRunSectionLabel">
+       <widget class="ctkCollapsibleButton" name="advancedRunCollapsibleButton">
         <property name="text">
-         <string>&lt;b&gt;Advanced run settings&lt;/b&gt;</string>
+         <string>Advanced settings: backends, batch, streamlines</string>
         </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QFormLayout" name="advancedRunFormLayout">
+        <property name="collapsed">
+         <bool>true</bool>
+        </property>
+        <layout class="QVBoxLayout" name="advancedRunCollapsibleLayout">
+         <item>
+          <widget class="QLabel" name="advancedRunSectionLabel">
+           <property name="text">
+            <string>Change these only for non-default backends, batch runs, or optional microstructure stages.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QFormLayout" name="advancedRunFormLayout">
         <item row="0" column="0">
          <widget class="QLabel" name="orchestrationRunNameLabel">
           <property name="text">
@@ -714,7 +729,17 @@
           </item>
          </widget>
         </item>
-       </layout>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="runStepSectionLabel">
+        <property name="text">
+         <string>&lt;b&gt;3. Run&lt;/b&gt;</string>
+        </property>
+       </widget>
       </item>
       <item>
        <layout class="QHBoxLayout" name="selectedActionsLayout">
@@ -724,7 +749,7 @@
            <string notr="true">QPushButton#runSelectedButton { background-color: #1565C0; color: white; font-weight: 700; border-radius: 6px; padding: 7px 14px; } QPushButton#runSelectedButton:hover { background-color: #0D47A1; }</string>
           </property>
           <property name="text">
-           <string>Preflight and run selected products</string>
+           <string>Preflight and run</string>
           </property>
           <property name="toolTip">
            <string>Run enabled products from the shared subject root. The module checks dependencies first, installs missing Python packages only when enabled, then starts a monitored background job.</string>

@@ -12,11 +12,10 @@ Overall status: not fully complete.
 
 The release-validation, dependency-profile, output-semantics, model-governance
 and manuscript-source-data work now has concrete repository evidence. The
-remaining software-side gap is the larger Slicer GUI simplification requested in
-the goal: the interface has been polished and grouped, but it has not yet been
-fully redesigned into a strict three-step "choose input, choose products, run"
-flow. Cross-platform dependency logic exists, but Windows and macOS have not
-been executed on native Windows/macOS hosts in this audit.
+Slicer GUI has also been restructured around the requested three-step
+"choose input, choose products, run" flow, with advanced dependency and runtime
+controls folded by default. Cross-platform dependency logic exists, but Windows
+and macOS have not been executed on native Windows/macOS hosts in this audit.
 
 The manuscript package is now versioned, the normal manuscript validation gate
 passes, and the validation source-data package is complete except for the
@@ -36,10 +35,16 @@ make -C manuscript_nature_protocols readiness-check
 make -C manuscript_nature_protocols release-metadata-check asset-availability-check
 python3 -m unittest Testing/Python/test_release_validation.py Testing/Python/test_model_assets.py Testing/Python/test_environment_doctor.py
 python3 -m unittest Testing/Python/test_release_validation.py Testing/Python/test_model_assets.py Testing/Python/test_product_orchestrator.py Testing/Python/test_run_batch_pipeline.py Testing/Python/test_run_subject_pipeline_cli.py Testing/Python/test_environment_doctor.py
+python3 -m unittest Testing/Python/test_slicer_ui_layout_contract.py
 python3 -m py_compile scripts/release_validation.py shared/orchestrator.py shared/environment.py shared/module_widget.py scripts/download_model_assets.py scripts/install_dependencies.py
 ```
 
-Key current commits:
+The latest GUI layout change was also checked with a staged headless Slicer
+smoke test using `scripts/stage_slicer_extension.py --link-mode copy`,
+`xvfb-run`, `--disable-cli-modules` and
+`Testing/Python/slicer_extension_install_smoke.py`.
+
+Prior key commits before this audit update:
 
 - `d4e21c1 Add Nature Protocols manuscript package`
 - `828eab6 Improve dependency profile portability`
@@ -177,28 +182,38 @@ Implemented behavior:
 
 ### GUI usability
 
-Status: partially implemented.
+Status: implemented for the current Slicer panel.
 
 Evidence:
 
 - `shared/module_widget.py`
+- `Resources/UI/SlicerDDSurfer.ui`
+- `Testing/Python/test_slicer_ui_layout_contract.py`
 - `0011bee Polish Slicer external path UI`
+- Staged headless Slicer smoke on 2026-06-17:
+  `/tmp/slicerdsurfer_ui_layout_smoke.log`.
 - Earlier UI smoke evidence in the validation source-data package.
 
 Implemented behavior:
 
+- The primary panel now presents a three-step sequence: `1. Choose input`,
+  `2. Choose products`, and `3. Run`.
+- The run action is simplified to `Preflight and run`.
+- Dependency profile controls are under `Advanced: Dependency profile` and are
+  collapsed by default.
+- Backend, batch, streamlines and optional microstructure controls are under
+  `Advanced settings: backends, batch, streamlines` and are collapsed by
+  default.
 - External path groups were renamed and regrouped.
 - Model assets are handled as a unified model-assets concept.
 - Batch styling and dependency-dialog styling were improved.
 - Advanced dependency summaries are hidden behind detail controls.
 - Run name default was changed to `Test1`.
 
-Remaining gap:
+Boundary:
 
-- The whole Slicer panel has not been fully restructured into a strict
-  three-step workflow. Advanced dependencies, backends, batch options and
-  streamlines are improved, but the main UI is still partly an engineering
-  configuration panel.
+- This audit confirms module load and layout contract, not manual usability on
+  every screen size.
 
 ### Error messages
 
@@ -249,13 +264,11 @@ Evidence:
 
 ## Remaining Recommended Work
 
-1. Finish the GUI three-step restructuring if strict user-facing simplicity is
-   required before release.
-2. Run dependency doctor dry-runs on native Windows and native macOS machines.
-3. Decide whether the optional UI screenshot should be added to the validation
+1. Run dependency doctor dry-runs on native Windows and native macOS machines.
+2. Decide whether the optional UI screenshot should be added to the validation
    source-data package.
-4. Resolve external submission blockers only when author, license, release DOI
+3. Resolve external submission blockers only when author, license, release DOI
    and model-asset terms are ready.
-5. Generate a release-validation report with Slicer smoke included in the same
+4. Generate a release-validation report with Slicer smoke included in the same
    report, or keep the current split evidence and document that split in the
    release notes.

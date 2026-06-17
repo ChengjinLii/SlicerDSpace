@@ -144,6 +144,7 @@ class SharedWidgetMixin:
             self.ui.applyButton.setAutoDefault(True)
             self.ui.applyButton.visible = False
 
+        self._configure_workflow_shell()
         self._hide_legacy_product_panels()
         self._initialize_environment_dependency_path_controls()
         self._initialize_product_selection_summary()
@@ -182,6 +183,48 @@ class SharedWidgetMixin:
 
         self._setStatus("waiting", "Waiting for input")
         self.initializeParameterNode()
+
+    def _configure_workflow_shell(self) -> None:
+        """Keep the top-level UI focused on input, products, and execution."""
+
+        text_updates = {
+            "environmentCollapsibleButton": "Advanced: Dependency profile",
+            "configurationCollapsibleButton": "Run workflow",
+            "advancedRunCollapsibleButton": "Advanced settings: backends, batch, streamlines",
+            "runSelectedButton": "Preflight and run",
+        }
+        for widget_name, text in text_updates.items():
+            widget = getattr(self.ui, widget_name, None)
+            if widget:
+                try:
+                    widget.text = text
+                except Exception:
+                    try:
+                        widget.setText(text)
+                    except Exception:
+                        pass
+        label_updates = {
+            "configurationSectionLabel": "<b>1. Choose input</b>",
+            "targetsSectionLabel": "<b>2. Choose products</b>",
+            "runStepSectionLabel": "<b>3. Run</b>",
+        }
+        for widget_name, text in label_updates.items():
+            widget = getattr(self.ui, widget_name, None)
+            if widget:
+                widget.setText(text)
+        for widget_name in ("environmentCollapsibleButton", "advancedRunCollapsibleButton"):
+            widget = getattr(self.ui, widget_name, None)
+            if widget:
+                try:
+                    widget.collapsed = True
+                except Exception:
+                    pass
+        workflow = getattr(self.ui, "configurationCollapsibleButton", None)
+        if workflow:
+            try:
+                workflow.collapsed = False
+            except Exception:
+                pass
 
     def _initialize_background_run_controls(self) -> None:
         if getattr(self, "_cancelRunButton", None) is not None:
@@ -931,6 +974,25 @@ class SharedWidgetMixin:
           font-size: 11px;
           padding: 1px 8px 5px 9px;
         }
+        QLabel#configurationSectionLabel,
+        QLabel#targetsSectionLabel,
+        QLabel#runStepSectionLabel {
+          background: #ECF5EF;
+          border: 1px solid #CFE1D5;
+          border-left: 5px solid #1D6C45;
+          border-radius: 9px;
+          color: #173126;
+          font-size: 14px;
+          font-weight: 800;
+          padding: 9px 11px;
+        }
+        ctkCollapsibleButton#advancedRunCollapsibleButton,
+        QGroupBox#advancedRunCollapsibleButton {
+          background: #FBFDFB;
+          border: 1px solid #D7E4DC;
+          border-radius: 12px;
+          padding: 7px;
+        }
         QLabel#modelAssetsSummaryLabel {
           background-color: #F6FAF7;
           border: 1px solid #D6E3DA;
@@ -940,9 +1002,12 @@ class SharedWidgetMixin:
           font-size: 11px;
         }
         QLabel#advancedRunSectionLabel {
-          color: #173126;
-          font-size: 13px;
-          padding: 10px 0 4px 0;
+          background: #F7FAF8;
+          border: 1px solid #DFE9E2;
+          border-radius: 8px;
+          color: #42584D;
+          font-size: 12px;
+          padding: 8px 10px;
         }
         QLabel#batchModeLabel,
         QLabel#batchRootLabel,
