@@ -25,6 +25,7 @@ class DependencySpec:
     targets: tuple[str, ...]
     python_import: Optional[str] = None
     python_package: Optional[str] = None
+    python_install_requirement: Optional[str] = None
     python_executable: Optional[Path] = None
     python_path_entries: tuple[Path, ...] = ()
     device: Optional[str] = None
@@ -165,6 +166,7 @@ def _merge_spec(existing: DependencySpec, incoming: DependencySpec) -> Dependenc
         targets=targets,
         python_import=existing.python_import or incoming.python_import,
         python_package=existing.python_package or incoming.python_package,
+        python_install_requirement=existing.python_install_requirement or incoming.python_install_requirement,
         python_executable=existing.python_executable or incoming.python_executable,
         python_path_entries=tuple(dict.fromkeys((*existing.python_path_entries, *incoming.python_path_entries))),
         device=existing.device or incoming.device,
@@ -191,6 +193,7 @@ def _python(
     target: str,
     import_name: str,
     package: str,
+    install_requirement: Optional[str] = None,
     required: bool = True,
     python_executable: Optional[Path] = None,
     python_path_entries: tuple[Path, ...] = (),
@@ -206,6 +209,7 @@ def _python(
             targets=(target,),
             python_import=import_name,
             python_package=package,
+            python_install_requirement=install_requirement or package,
             python_executable=_resolve_path(python_executable),
             python_path_entries=tuple(path.expanduser().resolve() for path in python_path_entries),
             discovery_source="python",
@@ -334,6 +338,7 @@ def _path(
     required: bool = True,
     notes: str = "",
     discovery_source: str = "user setting",
+    common_paths: tuple[Path, ...] = (),
 ) -> None:
     _put(
         specs,
@@ -346,6 +351,7 @@ def _path(
             path=path.expanduser().resolve(),
             path_kind=path_kind,
             discovery_source=discovery_source,
+            common_paths=tuple(candidate.expanduser() for candidate in common_paths),
             install_group=group,
             notes=notes,
         ),
@@ -456,6 +462,20 @@ def _local_software_roots() -> tuple[Path, ...]:
                 Path("/data") / user_name / "Software",
             ]
         )
+    for shared_root in (Path("/data"), Path("/Users"), Path("C:/Users")):
+        try:
+            if not shared_root.exists() or not shared_root.is_dir():
+                continue
+            for child in shared_root.iterdir():
+                roots.extend(
+                    [
+                        child,
+                        child / "software",
+                        child / "Software",
+                    ]
+                )
+        except Exception:
+            continue
     return tuple(dict.fromkeys(root.expanduser() for root in roots))
 
 
@@ -522,19 +542,63 @@ def _common_command_dirs(group: str, platform_name: str) -> tuple[Path, ...]:
         candidates.extend(
             [
                 Path("/usr/local/mrtrix3/bin"),
+                Path("/usr/local/MRtrix3/bin"),
                 Path("/opt/mrtrix3/bin"),
+                Path("/opt/MRtrix3/bin"),
+                Path("/usr/lib/mrtrix3/bin"),
+                Path("/usr/libexec/mrtrix3/bin"),
                 Path("/usr/local/bin"),
                 Path("/opt/homebrew/bin"),
             ]
         )
+        for root in _local_software_roots():
+            candidates.extend(
+                [
+                    root / "mrtrix3" / "bin",
+                    root / "MRtrix3" / "bin",
+                    root / "mrtrix" / "bin",
+                    root / "mrtrix3_env" / "bin",
+                ]
+            )
+        if platform_name == "Darwin":
+            candidates.extend(
+                [
+                    Path("/Applications/MRtrix3.app/Contents/bin"),
+                    Path.home() / "Applications" / "MRtrix3.app" / "Contents" / "bin",
+                ]
+            )
+        if platform_name == "Windows":
+            candidates.extend(
+                [
+                    Path("C:/Program Files/MRtrix3/bin"),
+                    Path("C:/Program Files (x86)/MRtrix3/bin"),
+                ]
+            )
     elif group == "fsl":
         candidates.extend(
             [
                 Path("/usr/local/fsl/bin"),
                 Path("/opt/fsl/bin"),
+                Path("/usr/local/fsl/share/fsl/bin"),
+                Path("/opt/fsl/share/fsl/bin"),
                 Path("/usr/share/fsl/6.0/bin"),
             ]
         )
+        for root in _local_software_roots():
+            candidates.extend(
+                [
+                    root / "fsl" / "bin",
+                    root / "FSL" / "bin",
+                    root / "fsl" / "share" / "fsl" / "bin",
+                ]
+            )
+        if platform_name == "Darwin":
+            candidates.extend(
+                [
+                    Path("/Applications/fsl/bin"),
+                    Path.home() / "Applications" / "fsl" / "bin",
+                ]
+            )
     elif group == "freesurfer":
         candidates.extend(home / "bin" for home in _common_freesurfer_homes())
     elif group == "wma":
@@ -542,11 +606,159 @@ def _common_command_dirs(group: str, platform_name: str) -> tuple[Path, ...]:
             [
                 Path("/usr/local/whitematteranalysis/bin"),
                 Path("/opt/whitematteranalysis/bin"),
+                Path("/usr/local/WhiteMatterAnalysis/bin"),
+                Path("/opt/WhiteMatterAnalysis/bin"),
             ]
         )
+        for root in _local_software_roots():
+            candidates.extend(
+                [
+                    root / "whitematteranalysis" / "bin",
+                    root / "WhiteMatterAnalysis" / "bin",
+                    root / "whitematteranalysis" / "utilities",
+                    root / "WhiteMatterAnalysis" / "utilities",
+                ]
+            )
     if platform_name == "Darwin":
         candidates.extend([Path("/opt/homebrew/bin"), Path("/usr/local/bin")])
     return tuple(dict.fromkeys(path for path in candidates if path))
+
+
+def _common_checkout_roots(name: str, platform_name: str) -> tuple[Path, ...]:
+    candidates: list[Path] = []
+    work_roots = [
+        Path.home(),
+        Path.home() / "src",
+        Path.home() / "workspace",
+        Path.home() / "code",
+        Path.home() / "projects",
+    ]
+    for root in _local_software_roots():
+        work_roots.extend([root, root / "src", root / "workspace", root / "code", root / "projects"])
+    if platform_name == "Darwin":
+        work_roots.extend([Path("/Applications"), Path.home() / "Applications"])
+    if platform_name == "Windows":
+        work_roots.extend(
+            [
+                Path("C:/Program Files"),
+                Path("C:/Program Files (x86)"),
+                Path.home() / "AppData" / "Local",
+            ]
+        )
+    unique_roots = tuple(dict.fromkeys(path.expanduser() for path in work_roots))
+
+    if name == "tract_querier":
+        suffixes = ("tract_querier", "TractQuerier")
+    elif name == "wma":
+        suffixes = ("whitematteranalysis", "WhiteMatterAnalysis")
+    elif name == "tractcloud":
+        suffixes = ("TractCloud", "tractcloud")
+    else:
+        suffixes = ()
+    for root in unique_roots:
+        for suffix in suffixes:
+            candidates.append(root / suffix)
+    return tuple(dict.fromkeys(candidates))
+
+
+def _repo_checkout_roots(repo_root: Path, name: str) -> tuple[Path, ...]:
+    resolved_root = repo_root.expanduser().resolve()
+    if name == "tract_querier":
+        suffixes = (
+            ("third_party", "tract_querier"),
+            ("third_party", "TractQuerier"),
+        )
+    elif name == "wma":
+        suffixes = (
+            ("third_party", "whitematteranalysis"),
+            ("third_party", "WhiteMatterAnalysis"),
+        )
+    elif name == "tractcloud":
+        suffixes = (
+            ("third_party", "TractCloud"),
+            ("third_party", "tractcloud"),
+        )
+    else:
+        suffixes = ()
+
+    candidates: list[Path] = []
+    search_roots = [resolved_root, *resolved_root.parents[:4]]
+    for base in search_roots:
+        for suffix in suffixes:
+            candidates.append(base.joinpath(*suffix))
+    return tuple(dict.fromkeys(candidates))
+
+
+def _common_wma_atlas_dirs(platform_name: str) -> tuple[Path, ...]:
+    candidates: list[Path] = []
+    for root in _common_checkout_roots("wma", platform_name):
+        candidates.extend(
+            [
+                root / "ORG-Atlases",
+                root / "ORG_atlas",
+                root / "atlas",
+                root / "data",
+            ]
+        )
+    for root in _local_software_roots():
+        candidates.extend(
+            [
+                root / "ORG-Atlases",
+                root / "ORG_atlas",
+                root / "wma_atlas",
+                root / "WMA_atlas",
+            ]
+        )
+    return tuple(dict.fromkeys(candidates))
+
+
+def _common_slicer_executables(platform_name: str) -> tuple[Path, ...]:
+    candidates: list[Path] = [
+        Path("/data/chengjin/software/Slicer-5.10.0-linux-amd64/Slicer"),
+        Path("/usr/local/Slicer/Slicer"),
+        Path("/opt/Slicer/Slicer"),
+    ]
+    for root in _local_software_roots():
+        candidates.extend(
+            [
+                root / "Slicer" / "Slicer",
+                root / "Slicer-5.10.0-linux-amd64" / "Slicer",
+                root / "Slicer-5.8.1-linux-amd64" / "Slicer",
+            ]
+        )
+    if platform_name == "Darwin":
+        candidates.extend(
+            [
+                Path("/Applications/Slicer.app/Contents/MacOS/Slicer"),
+                Path.home() / "Applications" / "Slicer.app" / "Contents" / "MacOS" / "Slicer",
+            ]
+        )
+    if platform_name == "Windows":
+        candidates.extend(
+            [
+                Path("C:/Program Files/Slicer 5.10.0/Slicer.exe"),
+                Path("C:/Program Files/Slicer/Slicer.exe"),
+                Path("C:/Program Files (x86)/Slicer/Slicer.exe"),
+            ]
+        )
+    return tuple(dict.fromkeys(candidates))
+
+
+def _first_existing_path(candidates: Iterable[Path], *, kind: str) -> tuple[Optional[Path], tuple[str, ...]]:
+    checked: list[str] = []
+    for candidate in candidates:
+        resolved = candidate.expanduser()
+        checked.append(resolved.as_posix())
+        try:
+            if kind == "file" and resolved.is_file():
+                return resolved.resolve(), tuple(checked)
+            if kind == "dir" and resolved.is_dir():
+                return resolved.resolve(), tuple(checked)
+            if kind == "nonempty_dir" and resolved.is_dir() and any(resolved.iterdir()):
+                return resolved.resolve(), tuple(checked)
+        except OSError:
+            continue
+    return None, tuple(checked)
 
 
 def _resolve_command_with_source(spec: DependencySpec, platform_name: str) -> tuple[Optional[str], str, list[str]]:
@@ -556,14 +768,20 @@ def _resolve_command_with_source(spec: DependencySpec, platform_name: str) -> tu
     if spec.bin_dir is not None:
         user_candidate = spec.bin_dir / spec.command
         checked.append(user_candidate.as_posix())
-        if user_candidate.is_file():
-            return user_candidate.as_posix(), "user setting", checked
+        try:
+            if user_candidate.is_file():
+                return user_candidate.as_posix(), "user setting", checked
+        except OSError:
+            pass
 
     for directory, source in _env_command_dirs(spec.install_group):
         candidate = directory / spec.command
         checked.append(candidate.as_posix())
-        if candidate.is_file():
-            return candidate.as_posix(), source, checked
+        try:
+            if candidate.is_file():
+                return candidate.as_posix(), source, checked
+        except OSError:
+            continue
 
     found = shutil.which(spec.command)
     if found is not None:
@@ -572,8 +790,11 @@ def _resolve_command_with_source(spec: DependencySpec, platform_name: str) -> tu
     for directory in (*spec.common_paths, *_common_command_dirs(spec.install_group, platform_name)):
         candidate = directory / spec.command
         checked.append(candidate.as_posix())
-        if candidate.is_file():
-            return candidate.as_posix(), "common path", checked
+        try:
+            if candidate.is_file():
+                return candidate.as_posix(), "common path", checked
+        except OSError:
+            continue
 
     return None, "not found", checked
 
@@ -581,6 +802,12 @@ def _resolve_command_with_source(spec: DependencySpec, platform_name: str) -> tu
 def _tractcloud_pythonpath(root: Path) -> Path:
     src_dir = root / "src"
     return src_dir if (src_dir / "tractcloud").is_dir() else root
+
+
+def _python_install_requirement_for_import(import_name: str) -> str:
+    if import_name == "tract_querier":
+        return "git+https://github.com/demianw/tract_querier.git"
+    return import_name
 
 
 def _resource_root(config: EnvironmentDoctorConfig) -> Path:
@@ -626,6 +853,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
     targets = _clean_targets(config.targets)
     specs: dict[str, DependencySpec] = {}
     repo_root = _resource_root(config)
+    platform_name = platform.system() or "unknown"
 
     for target in targets:
         if target == "validation":
@@ -790,6 +1018,13 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     "SLICERDDSURFER_TRACT_QUERIER_ROOT",
                     "TRACT_QUERIER_ROOT",
                 )
+            if tract_querier_root is None:
+                tract_querier_root, _ = _first_existing_path(
+                    (*_repo_checkout_roots(config.repo_root, "tract_querier"), *_common_checkout_roots("tract_querier", platform_name)),
+                    kind="dir",
+                )
+                if tract_querier_root is not None:
+                    tract_querier_root_source = "common path"
             if tract_querier_root is not None:
                 _path(
                     specs,
@@ -816,11 +1051,18 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     target=target,
                     import_name="tract_querier",
                     package="tract_querier",
+                    install_requirement=_python_install_requirement_for_import("tract_querier"),
                     python_path_entries=(tract_querier_root,),
                     notes="Checked by adding the configured Tract Querier checkout to PYTHONPATH.",
                 )
             else:
-                _python(specs, target=target, import_name="tract_querier", package="tract_querier")
+                _python(
+                    specs,
+                    target=target,
+                    import_name="tract_querier",
+                    package="tract_querier",
+                    install_requirement=_python_install_requirement_for_import("tract_querier"),
+                )
 
         if target == "connectome":
             _add_core_python(specs, target)
@@ -849,6 +1091,13 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             wma_root = _resolve_path(config.wma_root)
             if wma_root is None:
                 wma_root, wma_root_source = _env_path_with_source("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT")
+            if wma_root is None:
+                wma_root, _ = _first_existing_path(
+                    (*_repo_checkout_roots(config.repo_root, "wma"), *_common_checkout_roots("wma", platform_name)),
+                    kind="dir",
+                )
+                if wma_root is not None:
+                    wma_root_source = "common path"
             if wma_root is not None:
                 _path(
                     specs,
@@ -874,6 +1123,10 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     "SLICERDDSURFER_WMA_ATLAS_DIR",
                     "WMA_ATLAS_DIR",
                 )
+            if wma_atlas_dir is None:
+                wma_atlas_dir, _ = _first_existing_path(_common_wma_atlas_dirs(platform_name), kind="dir")
+                if wma_atlas_dir is not None:
+                    wma_atlas_dir_source = "common path"
             if wma_atlas_dir is not None:
                 _path(
                     specs,
@@ -921,6 +1174,10 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 slicer_executable, slicer_executable_source = _env_path_with_source(
                     "SLICERDDSURFER_SLICER_EXECUTABLE",
                 )
+            if slicer_executable is None:
+                slicer_executable, _ = _first_existing_path(_common_slicer_executables(platform_name), kind="file")
+                if slicer_executable is not None:
+                    slicer_executable_source = "common path"
             if slicer_executable is not None:
                 _path(
                     specs,
@@ -960,6 +1217,13 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     "SLICERDDSURFER_TRACTCLOUD_ROOT",
                     "TRACTCLOUD_ROOT",
                 )
+            if tractcloud_root is None:
+                tractcloud_root, _ = _first_existing_path(
+                    (*_repo_checkout_roots(config.repo_root, "tractcloud"), *_common_checkout_roots("tractcloud", platform_name)),
+                    kind="dir",
+                )
+                if tractcloud_root is not None:
+                    tractcloud_root_source = "common path"
             tractcloud_python_source = "user setting"
             tractcloud_python = _resolve_path(config.tractcloud_python_executable)
             if tractcloud_python is None:
@@ -1049,7 +1313,8 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
 def _install_hint(spec: DependencySpec, platform_name: str) -> str:
     if spec.kind == "python" and spec.python_package:
         python_bin = spec.python_executable.as_posix() if spec.python_executable else "python"
-        return f"Install in the checked Python/Slicer Python: {python_bin} -m pip install '{spec.python_package}'"
+        requirement = spec.python_install_requirement or spec.python_package
+        return f"Install in the checked Python/Slicer Python: {python_bin} -m pip install '{requirement}'"
     if spec.kind == "setting":
         return spec.notes or "Provide the required CLI/GUI setting before running this target."
     if spec.install_group == "mrtrix":
@@ -1149,6 +1414,7 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
             details = {
                 "import": spec.python_import,
                 "package": spec.python_package,
+                "install_requirement": spec.python_install_requirement or spec.python_package,
                 "python_executable": sys.executable,
                 "pythonpath": [],
                 "detected_source": "current Python" if available else "not found",
@@ -1178,6 +1444,7 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
             details = {
                 "import": spec.python_import,
                 "package": spec.python_package,
+                "install_requirement": spec.python_install_requirement or spec.python_package,
                 "python_executable": python_path.as_posix(),
                 "pythonpath": [path.as_posix() for path in python_path_entries],
                 "detected_source": "configured Python/PYTHONPATH" if available else "not found",
@@ -1241,17 +1508,28 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
             }
     elif spec.kind == "path":
         assert spec.path
+        checked_locations = [spec.path.as_posix()]
+        resolved_path = spec.path
         if spec.path_kind == "dir":
             available = spec.path.is_dir()
         elif spec.path_kind == "nonempty_dir":
             available = spec.path.is_dir() and any(spec.path.iterdir())
         else:
             available = spec.path.is_file()
+        detected_source = spec.discovery_source if available else "not found"
+        if not available and spec.common_paths:
+            fallback, extra_checked = _first_existing_path(spec.common_paths, kind=spec.path_kind)
+            checked_locations.extend(location for location in extra_checked if location not in checked_locations)
+            if fallback is not None:
+                resolved_path = fallback
+                available = True
+                detected_source = "common path"
         details = {
-            "path": spec.path.as_posix(),
+            "path": resolved_path.as_posix(),
             "path_kind": spec.path_kind,
             "notes": spec.notes,
-            "detected_source": spec.discovery_source if available else "not found",
+            "detected_source": detected_source,
+            "checked_locations": checked_locations,
         }
     elif spec.kind == "setting":
         available = False
@@ -1295,9 +1573,11 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
 
     missing_python_packages = tuple(
         dict.fromkeys(
-            item.details.get("package")
+            item.details.get("install_requirement") or item.details.get("package")
             for item in statuses
-            if item.kind == "python" and item.status == "missing" and item.details.get("package")
+            if item.kind == "python"
+            and item.status == "missing"
+            and (item.details.get("install_requirement") or item.details.get("package"))
         )
     )
     missing_external_groups = tuple(

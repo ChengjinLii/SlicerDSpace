@@ -485,7 +485,7 @@
            <string>Used to group tractography, bundle, connectome, and run-metadata outputs. Example: csd_act_100k.</string>
           </property>
           <property name="placeholderText">
-           <string>csd_act_ui</string>
+           <string>Test1</string>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>orchestrationRunName</string>
@@ -502,7 +502,7 @@
         <item row="1" column="1">
          <widget class="QComboBox" name="orchestrationTractographyBackendComboBox">
          <property name="toolTip">
-           <string>csd_act runs MRtrix CSD/FOD/ACT plus optional SIFT2. dti_det runs in-plugin DIPY deterministic tracking. saf runs CSD/ACT first and then applies SAF surface filtering.</string>
+           <string>csd_act runs MRtrix CSD/FOD/ACT plus optional SIFT2. dti_det runs in-plugin DIPY deterministic tracking. saf runs CSD/ACT first and then applies SAF surface filtering. Streamline count below is only used by csd_act and saf.</string>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>orchestrationTractographyBackend</string>
@@ -563,15 +563,15 @@
         </item>
         <item row="3" column="0">
          <widget class="QLabel" name="orchestrationSelectStreamlinesLabel">
-          <property name="text">
-           <string>ACT streamlines</string>
+         <property name="text">
+           <string>ACT/SAF streamlines</string>
           </property>
          </widget>
         </item>
         <item row="3" column="1">
          <widget class="QSpinBox" name="orchestrationSelectStreamlinesSpinBox">
-          <property name="toolTip">
-           <string>Number of selected streamlines requested from MRtrix ACT. Used only when tractography backend is csd_act. Use 100000 or more for analysis-scale bundle/connectome tests.</string>
+         <property name="toolTip">
+           <string>Number of selected streamlines requested from MRtrix CSD/ACT. Used only when tractography backend is csd_act or saf.</string>
           </property>
           <property name="minimum">
            <number>1</number>

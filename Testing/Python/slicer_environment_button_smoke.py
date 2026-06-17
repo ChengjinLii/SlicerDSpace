@@ -86,7 +86,7 @@ def _check() -> None:
     bad = (
         "Subject ID and subject directory are required" in log
         or "Validation failed" in status
-        or "Checked targets:" not in environment_label
+        or "runnable" not in environment_label.lower()
         or len(path_widgets) < 8
         or len(status_widgets) < len(path_widgets)
         or not run_status_table
@@ -95,11 +95,11 @@ def _check() -> None:
         or not advanced_collapsed
         or not settings_roundtrip_ok
         or not dialog_visible
-        or not any("Install all auto-installable items" == text for text in dialog_button_texts)
+        or not any("Install Python packages" == text for text in dialog_button_texts)
         or not any(text in {"Install", "Install / setup"} for text in dialog_button_texts)
         or "Import dependency config" not in widget_button_texts
         or "Export dependency config" not in widget_button_texts
-        or not python_target_visible
+        or python_target_visible
     )
     slicer.app.exit(2 if bad else 0)
 

@@ -146,6 +146,110 @@
 
 - `/data/chengjin/software/Slicer-5.10.0-linux-amd64`
 
+## Slicer UI 部署教训
+
+这部分是后续 agent 必须遵守的经验结论，避免再次把 `SlicerDDSurfer` 和其他 Slicer 会话混在一起。
+
+### 1. 不要复用现有 `:99 / 5900 / 6081` 链路
+
+历史上这条链路经常已经被别的会话占用，尤其是：
+
+- 旧的 `DMRIAgentSlicer`
+- 旧版容器内 `Slicer 5.2.2`
+- 其他用户或先前实验残留的 `Xvfb/x11vnc/websockify`
+
+如果直接复用：
+
+- `6081` 可能仍然桥接到 `DMRIAgent`
+- 浏览器打开后看起来“能连上”，但实际显示的是错误应用
+- 很难从 noVNC 链接表面判断背后到底是哪一个 Slicer 进程
+
+结论：
+
+- 不要默认使用既有 `6081`
+- 优先起独立 viewer 端口，例如 `5903/6083`
+- 端口和容器名必须显式区分
+
+### 2. 不要把源码根目录直接作为 Slicer module path
+
+`SlicerDDSurfer` 不是“把仓库根目录扔给 `--additional-module-path` 就能稳定加载”的模块。
+
+直接这样做会导致两类问题：
+
+- Slicer 误扫描非模块脚本
+- `GetModuleHomeDirectory` / runtime import 计算失败
+
+已验证稳定的方法是：
+
+- 先运行 [scripts/stage_slicer_extension.py](/data/chengjin/SlicerDDSurfer/scripts/stage_slicer_extension.py:1)
+- 使用它生成的 extension-like 安装目录：
+  - `.../SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules`
+- 然后把这个 `qt-scripted-modules` 目录传给 `--additional-module-path`
+
+### 3. 不要把宿主机断链 symlink 直接挂进容器
+
+之前踩过的错误是：
+
+- 在宿主机创建一个指向 `/data/chengjin/SlicerDDSurfer/...` 的 symlink 目录
+- 再把这个 symlink 目录 mount 到容器
+
+结果：
+
+- 容器内 symlink 目标路径不存在
+- `SlicerDDSurfer.py` 在容器里变成断链
+- Slicer 表面上拿到了 module path，实际无法 import
+
+结论：
+
+- 挂到容器里的必须是实体 staging 目录
+- 最稳妥的做法是使用 `stage_slicer_extension.py --link-mode copy`
+
+### 4. `--python-script/--python-code` 只有在“独立新实例”里才可信
+
+在宿主机已有旧 Slicer 实例时：
+
+- 新命令有可能只激活旧窗口
+- `--python-script` / `--python-code` 可能根本不会重新执行
+
+所以如果要自动切换到 `SlicerDDSurfer`：
+
+- 优先在独立容器里起一个全新的 `Xvfb + Slicer`
+- 再通过 `--python-script` 定时切换模块
+
+### 5. 推荐的稳定方案
+
+后续默认采用下面这条链路：
+
+1. 用 `scripts/stage_slicer_extension.py` 生成最新 extension staging
+2. 起独立容器
+3. 容器内自己运行：
+   - `Xvfb`
+   - `x11vnc`
+   - `websockify`
+   - 本地 `Slicer 5.10`
+4. `Slicer` 使用 staged `qt-scripted-modules/`
+5. 用独立 noVNC 端口暴露，例如 `6083`
+
+已经验证通过的关键判据：
+
+- `SLICERDDSURFER_GUI_READY=1`
+- 日志里出现 `Switch to module:  "SlicerDDSurfer"`
+
+### 6. 已验证可复用脚本
+
+后续不要再手工拼一长串 `docker run + Xvfb + noVNC + Slicer` 命令。
+
+统一用：
+
+- [scripts/start_isolated_slicerdsurfer_viewer.sh](/data/chengjin/SlicerDDSurfer/scripts/start_isolated_slicerdsurfer_viewer.sh:1)
+
+这个脚本会：
+
+- 重新 stage 最新 extension-like 安装目录
+- 起独立容器 viewer
+- 自动切到 `SlicerDDSurfer`
+- 输出最终 noVNC 链接
+
 当前运行方式要点：
 
 - 直接启动 `Slicer` 时依赖本机包装脚本：

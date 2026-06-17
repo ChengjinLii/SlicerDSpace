@@ -22,66 +22,77 @@ ENVIRONMENT_DEPENDENCY_PATHS: tuple[dict[str, str], ...] = (
     {
         "id": "mrtrix_bin_dir",
         "label": "MRtrix3 bin dir",
+        "section": "core-runtime",
         "mode": "dir",
         "tooltip": "Optional. Directory containing mrconvert, dwi2response, dwi2fod, tckgen, tcksift2.",
     },
     {
         "id": "preprocessing_fsl_bin_dir",
         "label": "FSL bin dir",
+        "section": "core-runtime",
         "mode": "dir",
         "tooltip": "Optional. Directory containing eddy and topup for MRtrix/FSL preprocessing.",
     },
     {
         "id": "postprocess_freesurfer_home",
         "label": "FreeSurfer home",
+        "section": "core-runtime",
         "mode": "dir",
         "tooltip": "Optional. FreeSurfer installation root. FREESURFER_HOME is also detected.",
     },
     {
         "id": "tract_querier_root",
         "label": "TractQuerier root",
+        "section": "core-runtime",
         "mode": "dir",
         "tooltip": "Optional. Checkout root used by WMQL when tract_querier is not installed in Slicer Python.",
     },
     {
         "id": "wma_root",
         "label": "WMA root",
+        "section": "bundle-backends",
         "mode": "dir",
         "tooltip": "Optional. External WhiteMatterAnalysis checkout root.",
     },
     {
         "id": "wma_atlas_dir",
         "label": "WMA ORG atlas dir",
+        "section": "bundle-backends",
         "mode": "dir",
         "tooltip": "Optional. Directory containing ORG-RegAtlas-100HCP and ORG-800FC-100HCP.",
     },
     {
         "id": "slicer_executable",
-        "label": "Slicer executable",
+        "label": "Slicer executable for WMA",
+        "section": "bundle-backends",
         "mode": "file",
         "tooltip": "Optional. Slicer executable used by WMA/SlicerDMRI helper calls.",
     },
     {
         "id": "fiber_tract_measurements_cli",
         "label": "FiberTractMeasurements CLI",
+        "section": "bundle-backends",
         "mode": "file",
         "tooltip": "Optional. SlicerDMRI FiberTractMeasurements CLI path.",
     },
     {
         "id": "tractcloud_root",
         "label": "TractCloud root",
+        "section": "bundle-backends",
         "mode": "dir",
         "tooltip": "Optional. TractCloud package/check-out root.",
     },
     {
         "id": "tractcloud_python_executable",
         "label": "TractCloud Python",
+        "section": "bundle-backends",
         "mode": "file",
         "tooltip": "Optional. Dedicated Python executable for TractCloud if not using Slicer Python.",
     },
     {
         "id": "tractcloud_data_dir",
         "label": "TractCloud data/model dir",
+        "section": "bundle-backends",
         "mode": "dir",
         "tooltip": "Optional. TractCloud model/data directory.",
     },
@@ -100,6 +111,14 @@ class SharedWidgetMixin:
             self.ui.clearLogButton.connect("clicked()", self._onClearLogClicked)
         if hasattr(self.ui, "unifiedTorchDeviceComboBox"):
             self.ui.unifiedTorchDeviceComboBox.currentTextChanged.connect(self._onUnifiedTorchDeviceChanged)
+        if hasattr(self.ui, "orchestrationTractographyBackendComboBox"):
+            self.ui.orchestrationTractographyBackendComboBox.currentTextChanged.connect(
+                self._onTractographyBackendChanged
+            )
+        if hasattr(self.ui, "orchestrationBundleBackendComboBox"):
+            self.ui.orchestrationBundleBackendComboBox.currentTextChanged.connect(
+                self._onBundleBackendChanged
+            )
 
     def _initialize_common_ui_state(self) -> None:
         self._populateDeviceCombo()
@@ -112,6 +131,9 @@ class SharedWidgetMixin:
         self._lastEnvironmentCheckedAt = 0.0
         if hasattr(self.ui, "subjectIdLineEdit"):
             self.ui.subjectIdLineEdit.setClearButtonEnabled(True)
+        environment_hint = getattr(self.ui, "environmentHintLabel", None)
+        if environment_hint:
+            environment_hint.visible = False
         if hasattr(self.ui, "applyButton"):
             self.ui.applyButton.setAutoDefault(True)
             self.ui.applyButton.visible = False
@@ -123,6 +145,7 @@ class SharedWidgetMixin:
         self._initialize_background_run_controls()
         self._apply_slicerddsurfer_ui_style()
         self._configure_log_widget()
+        self._refresh_advanced_run_settings()
 
         for widget_name in (
             "surfaceOptionsSectionLabel",
@@ -218,17 +241,22 @@ class SharedWidgetMixin:
 
         self._environmentPathLineEdits = {}
         self._environmentPathStatusLabels = {}
+        self._environmentBackendSectionLabels = {}
+        self._environmentBackendSectionRows = {"wma": [], "tractcloud": []}
         python_target_label = qt.QLabel(self._python_install_target_text())
+        python_target_label.setObjectName("environmentPythonTargetLabel")
         python_target_label.wordWrap = True
         python_target_label.setStyleSheet(
             "QLabel { background: #F5F7F9; color: #455A64; padding: 6px; border-radius: 4px; }"
         )
+        python_target_label.visible = False
         self._environmentPythonTargetLabel = python_target_label
         try:
             import ctk
 
             group_box = ctk.ctkCollapsibleButton()
-            group_box.text = "Advanced external paths"
+            group_box.setObjectName("externalBackendsGroup")
+            group_box.text = "External Dependency Paths"
             group_box.collapsed = True
             group_box.setToolTip(
                 "Discovery order: saved path, environment variables, PATH, then common install paths. "
@@ -236,7 +264,8 @@ class SharedWidgetMixin:
             )
             form_layout = qt.QFormLayout(group_box)
         except Exception:
-            group_box = qt.QGroupBox("Advanced external paths")
+            group_box = qt.QGroupBox("External Dependency Paths")
+            group_box.setObjectName("externalBackendsGroup")
             group_box.setToolTip(
                 "Discovery order: saved path, environment variables, PATH, then common install paths. "
                 "Leave fields empty to rely on automatic discovery."
@@ -248,7 +277,15 @@ class SharedWidgetMixin:
             "Leave fields empty to rely on automatic discovery."
         )
 
+        self._add_environment_section_header(
+            form_layout,
+            "Core runtime tools",
+            "Configure the shared external toolchain used by preprocessing, post-process, and WMQL. "
+            "Leave empty to use saved settings, environment variables, PATH, and common install paths.",
+        )
         for item in ENVIRONMENT_DEPENDENCY_PATHS:
+            if item.get("section") != "core-runtime":
+                continue
             dependency_id = item["id"]
             row = qt.QWidget()
             row_layout = qt.QHBoxLayout(row)
@@ -293,6 +330,77 @@ class SharedWidgetMixin:
             self._environmentPathLineEdits[dependency_id] = line_edit
             self._environmentPathStatusLabels[dependency_id] = status_label
 
+        self._add_model_assets_row(form_layout)
+
+        self._add_environment_section_header(
+            form_layout,
+            "Optional bundle backends",
+            "WMA and TractCloud are optional bundle-extraction backends. Keep them grouped here instead of mixing "
+            "them with the core runtime toolchain.",
+        )
+        for item in ENVIRONMENT_DEPENDENCY_PATHS:
+            if item.get("section") != "bundle-backends":
+                continue
+            dependency_id = item["id"]
+            if item.get("section") == "bundle-backends" and dependency_id == "wma_root":
+                self._environmentBackendSectionLabels["wma"] = self._add_environment_subsection_label(
+                    form_layout,
+                    "WMA backend",
+                    "WhiteMatterAnalysis checkout, ORG atlas, and helper Slicer/CLI paths.",
+                )
+            if item.get("section") == "bundle-backends" and dependency_id == "tractcloud_root":
+                self._environmentBackendSectionLabels["tractcloud"] = self._add_environment_subsection_label(
+                    form_layout,
+                    "TractCloud backend",
+                    "TractCloud checkout, Python runtime, and model/data directory.",
+                )
+            row = qt.QWidget()
+            row_layout = qt.QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+
+            line_edit = qt.QLineEdit()
+            line_edit.setText(self._read_environment_path_setting(dependency_id))
+            line_edit.setPlaceholderText("Auto-detect if empty")
+            line_edit.setToolTip(item["tooltip"])
+            line_edit.editingFinished.connect(
+                lambda dependency_id=dependency_id, line_edit=line_edit: self._on_environment_dependency_path_edited(
+                    dependency_id,
+                    line_edit,
+                )
+            )
+            row_layout.addWidget(line_edit, 1)
+
+            browse_button = qt.QPushButton("Browse...")
+            browse_button.setToolTip(item["tooltip"])
+            browse_button.connect(
+                "clicked()",
+                lambda item=item, line_edit=line_edit: self._browse_environment_dependency_path(item, line_edit),
+            )
+            row_layout.addWidget(browse_button)
+
+            clear_button = qt.QPushButton("Clear")
+            clear_button.connect(
+                "clicked()",
+                lambda dependency_id=dependency_id, line_edit=line_edit: self._clear_environment_dependency_path(
+                    dependency_id,
+                    line_edit,
+                ),
+            )
+            row_layout.addWidget(clear_button)
+
+            status_label = qt.QLabel("not checked")
+            status_label.setMinimumWidth(130)
+            status_label.setStyleSheet("QLabel { color: #78909C; }")
+            row_layout.addWidget(status_label)
+
+            form_layout.addRow(item["label"], row)
+            self._environmentPathLineEdits[dependency_id] = line_edit
+            self._environmentPathStatusLabels[dependency_id] = status_label
+            if dependency_id.startswith("wma_") or dependency_id in {"slicer_executable", "fiber_tract_measurements_cli"}:
+                self._environmentBackendSectionRows["wma"].append((line_edit, browse_button, clear_button, status_label))
+            if dependency_id.startswith("tractcloud_"):
+                self._environmentBackendSectionRows["tractcloud"].append((line_edit, browse_button, clear_button, status_label))
+
         config_buttons = qt.QHBoxLayout()
         import_button = qt.QPushButton("Import dependency config")
         import_button.setToolTip("Load a SlicerDDSurfer dependency config JSON and save the external paths into Slicer settings.")
@@ -315,6 +423,96 @@ class SharedWidgetMixin:
         except Exception:
             environment_layout.addWidget(python_target_label)
             environment_layout.addWidget(group_box)
+
+    def _add_environment_section_header(self, form_layout, title: str, description: str) -> None:
+        title_label = qt.QLabel(title)
+        title_label.setObjectName("externalSectionTitleLabel")
+        title_label.setStyleSheet("QLabel { font-weight: 700; color: #294B3B; padding-top: 8px; }")
+        description_label = qt.QLabel(description)
+        description_label.setObjectName("externalSectionDescriptionLabel")
+        description_label.wordWrap = True
+        description_label.setStyleSheet("QLabel { color: #607D8B; padding-bottom: 4px; }")
+        form_layout.addRow(title_label)
+        form_layout.addRow("", description_label)
+
+    def _add_environment_subsection_label(self, form_layout, title: str, description: str):
+        title_label = qt.QLabel(title)
+        title_label.setObjectName("externalSubsectionTitleLabel")
+        title_label.setStyleSheet("QLabel { font-weight: 600; color: #365648; padding-top: 6px; }")
+        description_label = qt.QLabel(description)
+        description_label.setObjectName("externalSubsectionDescriptionLabel")
+        description_label.wordWrap = True
+        description_label.setStyleSheet("QLabel { color: #70848A; padding-bottom: 2px; }")
+        form_layout.addRow(title_label)
+        form_layout.addRow("", description_label)
+        return (title_label, description_label)
+
+    def _add_model_assets_row(self, form_layout) -> None:
+        self._add_environment_section_header(
+            form_layout,
+            "Model assets",
+            "DDSurfer, DDParcel, and DDSeg weights/templates are managed together from one manifest instead of "
+            "being configured as separate external paths.",
+        )
+        row = qt.QWidget()
+        row_layout = qt.QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+
+        summary = qt.QLabel(self._model_assets_summary_text())
+        summary.setObjectName("modelAssetsSummaryLabel")
+        summary.wordWrap = True
+        summary.setStyleSheet(
+            "QLabel { background: #F7FAF8; border: 1px solid #D8E4DD; border-radius: 6px; color: #355244; padding: 6px; }"
+        )
+        row_layout.addWidget(summary, 1)
+
+        guide_button = qt.QPushButton("Open guide")
+        guide_button.setToolTip("Open MODEL_ASSETS.md for unified model weights/template download and verification.")
+        guide_button.connect("clicked()", self._on_open_model_assets_guide_clicked)
+        row_layout.addWidget(guide_button)
+
+        manifest_button = qt.QPushButton("Open manifest")
+        manifest_button.setToolTip("Open models/assets_manifest.json.")
+        manifest_button.connect("clicked()", self._on_open_model_assets_manifest_clicked)
+        row_layout.addWidget(manifest_button)
+
+        form_layout.addRow("Model assets bundle", row)
+
+    def _model_assets_summary_text(self) -> str:
+        manifest = Path(__file__).resolve().parent.parent / "models" / "assets_manifest.json"
+        command = "python3 scripts/download_model_assets.py --profile core"
+        return (
+            "Unified source: models/assets_manifest.json. "
+            "Default bundled resources are auto-detected from the repository. "
+            f"Refresh or verify with `{command}`."
+            if manifest.is_file()
+            else f"Unified source expected at {manifest}. Refresh or verify with `{command}`."
+        )
+
+    def _open_local_path(self, path: Path, *, missing_message: str) -> None:
+        resolved = path.expanduser().resolve()
+        if not resolved.exists():
+            slicer.util.infoDisplay(missing_message, parent=self.parent)
+            return
+        try:
+            opened = qt.QDesktopServices.openUrl(qt.QUrl.fromLocalFile(resolved.as_posix()))
+        except Exception as exc:
+            slicer.util.errorDisplay(f"Failed to open path:\n{exc}", parent=self.parent)
+            return
+        if not opened:
+            slicer.util.infoDisplay(f"Path: {resolved}", parent=self.parent)
+
+    def _on_open_model_assets_guide_clicked(self) -> None:
+        self._open_local_path(
+            Path(__file__).resolve().parent.parent / "MODEL_ASSETS.md",
+            missing_message="MODEL_ASSETS.md is not available in the current repository checkout.",
+        )
+
+    def _on_open_model_assets_manifest_clicked(self) -> None:
+        self._open_local_path(
+            Path(__file__).resolve().parent.parent / "models" / "assets_manifest.json",
+            missing_message="models/assets_manifest.json is not available in the current repository checkout.",
+        )
 
     def _python_install_target_text(self) -> str:
         executable = sys.executable or "unknown"
@@ -481,6 +679,7 @@ class SharedWidgetMixin:
             summary.setTextInteractionFlags(qt.Qt.TextSelectableByMouse | qt.Qt.TextSelectableByKeyboard)
         except Exception:
             pass
+        summary.visible = False
         self._selectedProductsSummaryLabel = summary
         try:
             configuration_layout.insertWidget(2, summary)
@@ -555,11 +754,74 @@ class SharedWidgetMixin:
           font-size: 21px;
           font-weight: 700;
         }
+        QWidget#externalBackendsGroup,
+        ctkCollapsibleButton#externalBackendsGroup,
+        QGroupBox#externalBackendsGroup {
+          background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FCFDFC, stop:1 #F6FAF7);
+          border: 1px solid #D6E2DA;
+          border-radius: 12px;
+          padding: 6px;
+        }
         QLabel#subtitleLabel,
         QLabel#environmentHintLabel,
         QLabel#logHintLabel {
           color: #536B61;
           font-size: 12px;
+        }
+        QLabel#externalSectionTitleLabel {
+          color: #153B2B;
+          font-size: 14px;
+          font-weight: 700;
+          padding: 10px 0 2px 0;
+        }
+        QLabel#externalSectionDescriptionLabel {
+          color: #60786D;
+          font-size: 11px;
+          padding: 0 0 8px 0;
+        }
+        QLabel#externalSubsectionTitleLabel {
+          color: #2A5541;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 8px 8px 2px 8px;
+          background: #F2F7F3;
+          border: 1px solid #D9E6DD;
+          border-radius: 8px;
+        }
+        QLabel#externalSubsectionDescriptionLabel {
+          color: #6D8279;
+          font-size: 11px;
+          padding: 2px 8px 6px 8px;
+        }
+        QLabel#modelAssetsSummaryLabel {
+          background-color: #F6FAF7;
+          border: 1px solid #D6E3DA;
+          border-radius: 8px;
+          color: #294B3B;
+          padding: 8px 10px;
+          font-size: 11px;
+        }
+        QWidget#externalBackendsGroup QLineEdit {
+          background: white;
+          border: 1px solid #CBD8D0;
+          border-radius: 8px;
+          padding: 7px 10px;
+          min-height: 20px;
+        }
+        QWidget#externalBackendsGroup QLineEdit:focus {
+          border: 1px solid #2D7C92;
+          background: #FCFEFD;
+        }
+        QWidget#externalBackendsGroup QPushButton {
+          border: 1px solid #CFDCD4;
+          border-radius: 8px;
+          padding: 6px 12px;
+          background: #FFFFFF;
+          color: #31503F;
+        }
+        QWidget#externalBackendsGroup QPushButton:hover:!disabled {
+          background: #F0F6F2;
+          border: 1px solid #BCD3C4;
         }
         QLabel#selectedProductsSummaryLabel {
           background-color: #F8FBF8;
@@ -1040,6 +1302,7 @@ class SharedWidgetMixin:
             "missing": "#C62828",
             "pending": "#EF6C00",
             "unchecked": "#78909C",
+            "inactive": "#90A4AE",
         }
         label.setText(text)
         label.setStyleSheet(f"QLabel {{ color: {colors.get(state, colors['unchecked'])}; font-weight: 600; }}")
@@ -1113,7 +1376,7 @@ class SharedWidgetMixin:
                 continue
             dependencies = self._path_status_dependencies(result, dependency_id)
             if not dependencies:
-                self._set_environment_path_status_label(label, "not checked", "unchecked")
+                self._set_environment_path_status_label(label, "not used by current selection", "inactive")
                 continue
             available = [dependency for dependency in dependencies if dependency.status == "available"]
             if available:
@@ -1405,6 +1668,7 @@ class SharedWidgetMixin:
             self._sync_checkbox(getattr(self.ui, "targetConnectomeCheckBox", None), bool(node.targetConnectome))
 
         self._refresh_selected_products_summary()
+        self._refresh_advanced_run_settings()
         self.validateInputs(manual=False)
 
     def _update_parameter_node(self, attribute: str, value: Any) -> bool:
@@ -1422,6 +1686,100 @@ class SharedWidgetMixin:
             self._parameterNode.device = device
             self._parameterNode.ddsegDevice = device
         self._checkCanApply()
+
+    def _onTractographyBackendChanged(self, value: str) -> None:
+        self._refresh_advanced_run_settings(backend=(value or "").strip() or None)
+
+    def _onBundleBackendChanged(self, value: str) -> None:
+        self._refresh_bundle_backend_highlight(bundle_backend=(value or "").strip() or None)
+
+    def _default_run_name_for_backend(self, backend: str) -> str:
+        return "Test1"
+
+    def _refresh_advanced_run_settings(self, *, backend: Optional[str] = None) -> None:
+        backend = (backend or self._tractography_backend_text() or "csd_act").strip() or "csd_act"
+        run_name_edit = getattr(self.ui, "orchestrationRunNameLineEdit", None)
+        current_run_name = self._line_edit_text(run_name_edit) if run_name_edit else ""
+        known_defaults = {"", "Test1", "csd_act_ui", "tractography_ui", "saf_ui", "dti_det_ui"}
+        desired_default = self._default_run_name_for_backend(backend)
+        if run_name_edit and current_run_name in known_defaults and current_run_name != desired_default:
+            run_name_edit.setText(desired_default)
+            self._update_parameter_node("orchestrationRunName", desired_default)
+
+        streamline_label = getattr(self.ui, "orchestrationSelectStreamlinesLabel", None)
+        streamline_spinbox = getattr(self.ui, "orchestrationSelectStreamlinesSpinBox", None)
+        if not streamline_label or not streamline_spinbox:
+            self._refresh_bundle_backend_highlight()
+            return
+
+        uses_act_streamlines = backend in {"csd_act", "saf"}
+        streamline_spinbox.enabled = uses_act_streamlines
+        streamline_label.text = "ACT/SAF streamlines" if uses_act_streamlines else "Streamline count"
+
+        if backend == "csd_act":
+            description = (
+                "Number of streamlines requested from MRtrix CSD/ACT. "
+                "Use 100000 or more for analysis-scale bundle/connectome tests."
+            )
+        elif backend == "saf":
+            description = (
+                "Number of streamlines generated during the MRtrix CSD/ACT stage before SAF filtering. "
+                "Use 100000 or more for analysis-scale SAF tests."
+            )
+        else:
+            description = (
+                "DTI deterministic tracking does not use MRtrix ACT streamline selection. "
+                "This setting is ignored for the current tractography backend."
+            )
+
+        streamline_label.toolTip = description
+        streamline_spinbox.toolTip = description
+        self._refresh_bundle_backend_highlight()
+
+    def _refresh_bundle_backend_highlight(self, *, bundle_backend: Optional[str] = None) -> None:
+        backend = (bundle_backend or self._bundle_backend_text() or "wmql").strip().lower() or "wmql"
+        active_sections = set()
+        if backend in {"wma", "all"}:
+            active_sections.add("wma")
+        if backend in {"tractcloud", "all"}:
+            active_sections.add("tractcloud")
+
+        label_groups = getattr(self, "_environmentBackendSectionLabels", {}) or {}
+        row_groups = getattr(self, "_environmentBackendSectionRows", {}) or {}
+        for key in ("wma", "tractcloud"):
+            title_label, description_label = label_groups.get(key, (None, None))
+            active = key in active_sections
+            title_style = (
+                "QLabel { font-weight: 700; color: #1E5A3F; padding-top: 6px; "
+                "background: #EDF7F0; border: 1px solid #C8DFCF; border-radius: 6px; }"
+                if active
+                else "QLabel { font-weight: 600; color: #365648; padding-top: 6px; }"
+            )
+            description_style = (
+                "QLabel { color: #44685A; padding: 4px 6px 2px 6px; background: #F6FBF7; border-radius: 6px; }"
+                if active
+                else "QLabel { color: #70848A; padding-bottom: 2px; }"
+            )
+            if title_label:
+                title_label.setStyleSheet(title_style)
+            if description_label:
+                description_label.setStyleSheet(description_style)
+
+            for widgets in row_groups.get(key, []):
+                for widget in widgets:
+                    if widget is None:
+                        continue
+                    if hasattr(widget, "setStyleSheet"):
+                        if active and widget.__class__.__name__ in {"QLineEdit", "ctkPathLineEdit"}:
+                            widget.setStyleSheet("QLineEdit { border: 1px solid #7DBA91; background: #FCFEFC; }")
+                        elif active and widget.__class__.__name__ == "QPushButton":
+                            widget.setStyleSheet(
+                                "QPushButton { border: 1px solid #A8CDB2; background: #F7FBF8; color: #1E5A3F; border-radius: 6px; padding: 5px 12px; }"
+                            )
+                        elif not active and widget.__class__.__name__ == "QPushButton":
+                            widget.setStyleSheet("")
+                        elif not active and widget.__class__.__name__ in {"QLineEdit", "ctkPathLineEdit"}:
+                            widget.setStyleSheet("")
 
     def appendLog(self, text: str) -> None:
         if hasattr(self.ui, "logPlainTextEdit"):
@@ -2037,7 +2395,7 @@ class SharedWidgetMixin:
         }
 
         subject_root = Path(subject_root_text).expanduser()
-        run_name = (self._parameterNode.orchestrationRunName or "csd_act_ui").strip() or "csd_act_ui"
+        run_name = (self._parameterNode.orchestrationRunName or "Test1").strip() or "Test1"
         common_run_kwargs = dict(
             subject_id=subject_id,
             subject_root=subject_root,
@@ -2213,6 +2571,25 @@ class SharedWidgetMixin:
     def _environment_summary_text(self, result) -> str:
         missing_items = self._missing_environment_items(result)
         optional_count = sum(1 for item in missing_items if not item.required)
+        if not missing_items:
+            return "Environment ready. All selected targets are runnable with the detected setup."
+        status_text = (
+            f"{len(result.runnable_targets)} runnable, "
+            f"{len(result.blocked_targets)} need setup, "
+            f"{result.blocker_count} required missing"
+        )
+        if optional_count:
+            status_text += f", {optional_count} optional missing"
+        if result.missing_python_packages:
+            status_text += f". Python packages available for auto-install: {len(result.missing_python_packages)}"
+        preview = ", ".join(item.label for item in missing_items[:3])
+        if len(missing_items) > 3:
+            preview += f", +{len(missing_items) - 3} more"
+        return f"{status_text}.\nNeeds attention: {preview}"
+
+    def _environment_detail_lines(self, result) -> list[str]:
+        missing_items = self._missing_environment_items(result)
+        optional_count = sum(1 for item in missing_items if not item.required)
         lines = [
             f"Checked targets: {', '.join(result.targets) if result.targets else 'none'}",
             (
@@ -2223,7 +2600,7 @@ class SharedWidgetMixin:
             ),
         ]
         if result.blocked_targets:
-            lines.append("Blocked: " + ", ".join(result.blocked_targets))
+            lines.append("Blocked targets: " + ", ".join(result.blocked_targets))
         if result.missing_python_packages:
             lines.append("Auto-installable Python packages: " + ", ".join(result.missing_python_packages))
         if result.missing_external_groups:
@@ -2231,11 +2608,11 @@ class SharedWidgetMixin:
         if not missing_items:
             lines.append("No missing dependencies detected for the selected targets.")
         else:
-            preview = ", ".join(item.label for item in missing_items[:4])
-            if len(missing_items) > 4:
+            preview = ", ".join(item.label for item in missing_items[:6])
+            if len(missing_items) > 6:
                 preview += f", ... ({len(missing_items)} total)"
-            lines.append("Missing: " + preview)
-        return "\n".join(lines)
+            lines.append("Missing items: " + preview)
+        return lines
 
     def _update_environment_result_label(self, result, *, error: Optional[str] = None) -> None:
         label = getattr(self.ui, "environmentResultLabel", None)
@@ -2264,40 +2641,102 @@ class SharedWidgetMixin:
         dialog = qt.QDialog(slicer.util.mainWindow())
         dialog.setWindowTitle("SlicerDDSurfer Environment Dependencies")
         dialog.resize(900, 640)
+        dialog.setStyleSheet(
+            """
+            QDialog {
+              background: #F4F7F6;
+            }
+            QLabel#environmentSummaryLabel {
+              background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #EEF6F1, stop:1 #F7FBF9);
+              color: #173126;
+              padding: 14px 16px;
+              border: 1px solid #CADCD1;
+              border-radius: 10px;
+              font-weight: 600;
+            }
+            QFrame#environmentItemFrame {
+              border: 1px solid #D5DEDC;
+              border-radius: 10px;
+              background: #FFFFFF;
+            }
+            QLabel#environmentItemText {
+              color: #223238;
+              background: transparent;
+            }
+            QPushButton {
+              min-height: 30px;
+              padding: 6px 14px;
+              border: 1px solid #C8D4D1;
+              border-radius: 8px;
+              background: #FFFFFF;
+              color: #173126;
+            }
+            QPushButton:hover {
+              background: #F1F6F4;
+            }
+            QPushButton:pressed {
+              background: #E3EEE8;
+            }
+            QPlainTextEdit {
+              background: #FFFFFF;
+              color: #4A5C5F;
+              border: 1px solid #D7E0DE;
+              border-radius: 8px;
+              padding: 6px;
+            }
+            QScrollArea {
+              border: none;
+              background: transparent;
+            }
+            """
+        )
         self._environmentDialog = dialog
 
         layout = qt.QVBoxLayout(dialog)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
         summary_label = qt.QLabel(self._environment_summary_text(result))
+        summary_label.setObjectName("environmentSummaryLabel")
         summary_label.wordWrap = True
-        summary_label.setStyleSheet(
-            "QLabel { background: #ECEFF1; color: #263238; padding: 10px; border-radius: 6px; }"
-        )
         layout.addWidget(summary_label)
-        python_label = qt.QLabel(self._python_install_target_text())
-        python_label.wordWrap = True
-        python_label.setStyleSheet("QLabel { color: #455A64; padding: 4px; }")
-        layout.addWidget(python_label)
 
         button_row = qt.QHBoxLayout()
-        install_all_button = qt.QPushButton("Install all auto-installable items")
+        install_all_button = qt.QPushButton("Install Python packages")
         install_all_button.toolTip = (
-            "Installs missing Python packages into the active Slicer Python environment. "
-            "External tools, licenses, and model resources require manual setup."
+            self._python_install_target_text()
+            + " External tools, licenses, and model resources require manual setup."
         )
         install_all_button.enabled = bool(result.missing_python_packages)
         install_all_button.connect("clicked()", self._onInstallAllEnvironmentItemsClicked)
         button_row.addWidget(install_all_button)
 
-        notes_button = qt.QPushButton("Show manual setup notes")
+        notes_button = qt.QPushButton("Manual setup notes")
         notes_button.enabled = any(item.status == "missing" and item.kind != "python" for item in result.statuses)
         notes_button.connect("clicked()", lambda: self._show_environment_install_notes(result))
         button_row.addWidget(notes_button)
+
+        detail_button = qt.QPushButton("Show summary details")
+        detail_button.checkable = True
+        detail_button.checked = False
+        button_row.addWidget(detail_button)
         button_row.addStretch(1)
 
         close_button = qt.QPushButton("Close")
         close_button.connect("clicked()", dialog.close)
         button_row.addWidget(close_button)
         layout.addLayout(button_row)
+
+        details = qt.QPlainTextEdit()
+        details.setReadOnly(True)
+        details.visible = False
+        details.setMaximumHeight(120)
+        details.setPlainText("\n".join(self._environment_detail_lines(result)))
+        detail_button.connect("toggled(bool)", details.setVisible)
+        detail_button.connect(
+            "toggled(bool)",
+            lambda checked: detail_button.setText("Hide summary details" if checked else "Show summary details"),
+        )
+        layout.addWidget(details)
 
         missing_items = self._missing_environment_items(result)
         if missing_items:
@@ -2322,15 +2761,14 @@ class SharedWidgetMixin:
 
     def _build_environment_item_row(self, item):
         frame = qt.QFrame()
+        frame.setObjectName("environmentItemFrame")
         frame.setFrameShape(qt.QFrame.StyledPanel)
-        frame.setStyleSheet(
-            "QFrame { border: 1px solid #CFD8DC; border-radius: 6px; background: #FAFAFA; } "
-            "QLabel { border: none; background: transparent; color: #263238; } "
-            "QPushButton { padding: 4px 10px; }"
-        )
         layout = qt.QHBoxLayout(frame)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(14)
 
         text = qt.QLabel(self._environment_item_text(item))
+        text.setObjectName("environmentItemText")
         text.wordWrap = True
         try:
             text.setTextInteractionFlags(qt.Qt.TextSelectableByMouse | qt.Qt.TextSelectableByKeyboard)
@@ -2358,6 +2796,9 @@ class SharedWidgetMixin:
         if item.kind == "python":
             lines.append(f"Package: {details.get('package') or item.label}")
             lines.append(f"Python: {details.get('python_executable') or 'current Slicer Python'}")
+            install_requirement = details.get("install_requirement")
+            if install_requirement and install_requirement != details.get("package"):
+                lines.append(f"Install source: {install_requirement}")
         elif item.kind == "command":
             lines.append(f"Command: {details.get('command') or item.label}")
             if details.get("bin_dir"):

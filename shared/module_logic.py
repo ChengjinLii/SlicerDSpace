@@ -6,6 +6,8 @@ import logging
 import os
 import sys
 import json
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
@@ -122,25 +124,65 @@ class SharedLogicMixin:
     def _install_python_requirement(self, requirement: str) -> None:
         """Install one Python requirement in the active Slicer Python environment."""
 
+        env = os.environ.copy()
+        resolved_requirement = requirement
+        if requirement == "git+https://github.com/demianw/tract_querier.git":
+            for env_name in ("SLICERDDSURFER_TRACT_QUERIER_ROOT", "TRACT_QUERIER_ROOT"):
+                value = os.environ.get(env_name)
+                if not value:
+                    continue
+                candidate = Path(value).expanduser()
+                if candidate.is_dir() and (candidate / "pyproject.toml").is_file():
+                    resolved_requirement = candidate.as_posix()
+                    env["SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRACT_QUERIER"] = "0+local"
+                    self.log(f"[Environment] Using local TractQuerier checkout from {candidate}")
+                    break
+
+        if resolved_requirement.startswith("git+") and shutil.which("git") is None:
+            raise RuntimeError(
+                "Git is required to install this dependency automatically. "
+                "Install Git first, or configure a local checkout path instead."
+            )
+
         try:
             import slicer.packaging as slicer_packaging  # type: ignore[import-not-found]
 
             if hasattr(slicer_packaging, "pip_ensure"):
-                self.log(f"[Environment] Ensuring Python requirement with slicer.packaging: {requirement}")
-                slicer_packaging.pip_ensure(requirement, requester="SlicerDDSurfer")
+                self.log(f"[Environment] Ensuring Python requirement with slicer.packaging: {resolved_requirement}")
+                slicer_packaging.pip_ensure(resolved_requirement, requester="SlicerDDSurfer")
                 return
             if hasattr(slicer_packaging, "pip_install"):
-                self.log(f"[Environment] Installing Python requirement with slicer.packaging: {requirement}")
+                self.log(f"[Environment] Installing Python requirement with slicer.packaging: {resolved_requirement}")
                 try:
-                    slicer_packaging.pip_install(requirement, show_progress=True)
+                    slicer_packaging.pip_install(resolved_requirement, show_progress=True)
                 except TypeError:
-                    slicer_packaging.pip_install(requirement)
+                    slicer_packaging.pip_install(resolved_requirement)
                 return
         except Exception as exc:
-            self.log(f"[Environment] slicer.packaging unavailable or failed for {requirement}: {exc}")
+            self.log(f"[Environment] slicer.packaging unavailable or failed for {resolved_requirement}: {exc}")
 
-        self.log(f"[Environment] Installing Python requirement with slicer.util.pip_install: {requirement}")
-        slicer.util.pip_install(requirement)
+        python_bin = sys.executable or "python"
+        self.log(f"[Environment] Installing Python requirement with pip: {resolved_requirement}")
+        try:
+            completed = subprocess.run(
+                [python_bin, "-m", "pip", "install", resolved_requirement],
+                check=True,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            if completed.stdout.strip():
+                self.log("[Environment] pip stdout:\n" + completed.stdout.strip())
+            if completed.stderr.strip():
+                self.log("[Environment] pip stderr:\n" + completed.stderr.strip())
+            return
+        except subprocess.CalledProcessError as exc:
+            stderr = (exc.stderr or "").strip()
+            stdout = (exc.stdout or "").strip()
+            details = stderr or stdout or str(exc)
+            raise RuntimeError(
+                f"pip install failed for {resolved_requirement} using {python_bin}.\n{details}"
+            ) from exc
 
     def _ensure_torch_requirements(self, requirements: tuple[tuple[str, str], ...]) -> None:
         _ensure_torch_via_extension(min_version="2.0.0", log=self.log)
