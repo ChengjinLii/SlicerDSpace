@@ -119,6 +119,11 @@ class SharedWidgetMixin:
             self.ui.orchestrationBundleBackendComboBox.currentTextChanged.connect(
                 self._onBundleBackendChanged
             )
+        if hasattr(self.ui, "batchRootPath"):
+            try:
+                self.ui.batchRootPath.currentPathChanged.connect(self._onBatchRootPathChanged)
+            except Exception:
+                self.ui.batchRootPath.connect("currentPathChanged(QString)", self._onBatchRootPathChanged)
 
     def _initialize_common_ui_state(self) -> None:
         self._populateDeviceCombo()
@@ -341,7 +346,7 @@ class SharedWidgetMixin:
 
             group_box = ctk.ctkCollapsibleButton()
             group_box.setObjectName("externalBackendsGroup")
-            group_box.text = "External Dependency Paths"
+            group_box.text = "External Runtime Paths"
             group_box.collapsed = True
             group_box.setToolTip(
                 "Discovery order: saved path, environment variables, PATH, then common install paths. "
@@ -349,13 +354,15 @@ class SharedWidgetMixin:
             )
             form_layout = qt.QFormLayout(group_box)
         except Exception:
-            group_box = qt.QGroupBox("External Dependency Paths")
+            group_box = qt.QGroupBox("External Runtime Paths")
             group_box.setObjectName("externalBackendsGroup")
             group_box.setToolTip(
                 "Discovery order: saved path, environment variables, PATH, then common install paths. "
                 "Leave fields empty to rely on automatic discovery."
             )
             form_layout = qt.QFormLayout(group_box)
+        form_layout.setSpacing(8)
+        form_layout.setContentsMargins(10, 10, 10, 10)
         self._environmentAdvancedPathsWidget = group_box
         group_box.setToolTip(
             "Discovery order: saved path, environment variables, PATH, then common install paths. "
@@ -364,7 +371,7 @@ class SharedWidgetMixin:
 
         self._add_environment_section_header(
             form_layout,
-            "Core runtime tools",
+            "Core Runtime Paths",
             "Configure the shared external toolchain used by preprocessing, post-process, and WMQL. "
             "Leave empty to use saved settings, environment variables, PATH, and common install paths.",
         )
@@ -419,7 +426,7 @@ class SharedWidgetMixin:
 
         self._add_environment_section_header(
             form_layout,
-            "Optional bundle backends",
+            "Optional Backend Paths",
             "WMA and TractCloud are optional bundle-extraction backends. Keep them grouped here instead of mixing "
             "them with the core runtime toolchain.",
         )
@@ -430,13 +437,13 @@ class SharedWidgetMixin:
             if item.get("section") == "bundle-backends" and dependency_id == "wma_root":
                 self._environmentBackendSectionLabels["wma"] = self._add_environment_subsection_label(
                     form_layout,
-                    "WMA backend",
+                    "WMA Paths",
                     "WhiteMatterAnalysis checkout, ORG atlas, and helper Slicer/CLI paths.",
                 )
             if item.get("section") == "bundle-backends" and dependency_id == "tractcloud_root":
                 self._environmentBackendSectionLabels["tractcloud"] = self._add_environment_subsection_label(
                     form_layout,
-                    "TractCloud backend",
+                    "TractCloud Paths",
                     "TractCloud checkout, Python runtime, and model/data directory.",
                 )
             row = qt.QWidget()
@@ -512,22 +519,28 @@ class SharedWidgetMixin:
     def _add_environment_section_header(self, form_layout, title: str, description: str) -> None:
         title_label = qt.QLabel(title)
         title_label.setObjectName("externalSectionTitleLabel")
-        title_label.setStyleSheet("QLabel { font-weight: 700; color: #294B3B; padding-top: 8px; }")
+        title_label.setStyleSheet(
+            "QLabel { background: #EAF3ED; border: 1px solid #CFE1D5; border-radius: 8px; "
+            "color: #183F2E; font-weight: 700; padding: 8px 10px; }"
+        )
         description_label = qt.QLabel(description)
         description_label.setObjectName("externalSectionDescriptionLabel")
         description_label.wordWrap = True
-        description_label.setStyleSheet("QLabel { color: #607D8B; padding-bottom: 4px; }")
+        description_label.setStyleSheet("QLabel { color: #5C7168; padding: 2px 8px 8px 10px; }")
         form_layout.addRow(title_label)
         form_layout.addRow("", description_label)
 
     def _add_environment_subsection_label(self, form_layout, title: str, description: str):
         title_label = qt.QLabel(title)
         title_label.setObjectName("externalSubsectionTitleLabel")
-        title_label.setStyleSheet("QLabel { font-weight: 600; color: #365648; padding-top: 6px; }")
+        title_label.setStyleSheet(
+            "QLabel { background: #F4F8F5; border: 1px solid #DDEAE2; border-radius: 7px; "
+            "color: #315843; font-weight: 700; padding: 7px 9px; }"
+        )
         description_label = qt.QLabel(description)
         description_label.setObjectName("externalSubsectionDescriptionLabel")
         description_label.wordWrap = True
-        description_label.setStyleSheet("QLabel { color: #70848A; padding-bottom: 2px; }")
+        description_label.setStyleSheet("QLabel { color: #6A7D74; padding: 1px 8px 5px 9px; }")
         form_layout.addRow(title_label)
         form_layout.addRow("", description_label)
         return (title_label, description_label)
@@ -842,10 +855,10 @@ class SharedWidgetMixin:
         QWidget#externalBackendsGroup,
         ctkCollapsibleButton#externalBackendsGroup,
         QGroupBox#externalBackendsGroup {
-          background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FCFDFC, stop:1 #F6FAF7);
-          border: 1px solid #D6E2DA;
-          border-radius: 12px;
-          padding: 6px;
+          background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FCFEFC, stop:1 #F4F8F5);
+          border: 1px solid #CADBD0;
+          border-radius: 14px;
+          padding: 8px;
         }
         QLabel#subtitleLabel,
         QLabel#environmentHintLabel,
@@ -854,29 +867,32 @@ class SharedWidgetMixin:
           font-size: 12px;
         }
         QLabel#externalSectionTitleLabel {
-          color: #153B2B;
+          background: #EAF3ED;
+          border: 1px solid #CFE1D5;
+          border-radius: 8px;
+          color: #183F2E;
           font-size: 14px;
           font-weight: 700;
-          padding: 10px 0 2px 0;
+          padding: 8px 10px;
         }
         QLabel#externalSectionDescriptionLabel {
-          color: #60786D;
+          color: #5C7168;
           font-size: 11px;
-          padding: 0 0 8px 0;
+          padding: 2px 8px 8px 10px;
         }
         QLabel#externalSubsectionTitleLabel {
-          color: #2A5541;
+          background: #F4F8F5;
+          border: 1px solid #DDEAE2;
+          border-radius: 7px;
+          color: #315843;
           font-size: 12px;
           font-weight: 700;
-          padding: 8px 8px 2px 8px;
-          background: #F2F7F3;
-          border: 1px solid #D9E6DD;
-          border-radius: 8px;
+          padding: 7px 9px;
         }
         QLabel#externalSubsectionDescriptionLabel {
-          color: #6D8279;
+          color: #6A7D74;
           font-size: 11px;
-          padding: 2px 8px 6px 8px;
+          padding: 1px 8px 5px 9px;
         }
         QLabel#modelAssetsSummaryLabel {
           background-color: #F6FAF7;
@@ -1799,16 +1815,27 @@ class SharedWidgetMixin:
     def _onBundleBackendChanged(self, value: str) -> None:
         self._refresh_bundle_backend_highlight(bundle_backend=(value or "").strip() or None)
 
+    def _onBatchRootPathChanged(self, value: str) -> None:
+        self._update_parameter_node("batchRoot", str(value or "").strip())
+
     def _default_run_name_for_backend(self, backend: str) -> str:
         return "Test1"
+
+    def _is_auto_generated_run_name(self, run_name: str) -> bool:
+        normalized = (run_name or "").strip()
+        if normalized in {"", "Test1"}:
+            return True
+        if normalized.endswith("_ui"):
+            legacy_stem = normalized[:-3]
+            return legacy_stem in {"csd_act", "tractography", "saf", "dti_det"}
+        return False
 
     def _refresh_advanced_run_settings(self, *, backend: Optional[str] = None) -> None:
         backend = (backend or self._tractography_backend_text() or "csd_act").strip() or "csd_act"
         run_name_edit = getattr(self.ui, "orchestrationRunNameLineEdit", None)
         current_run_name = self._line_edit_text(run_name_edit) if run_name_edit else ""
-        known_defaults = {"", "Test1", "csd_act_ui", "tractography_ui", "saf_ui", "dti_det_ui"}
         desired_default = self._default_run_name_for_backend(backend)
-        if run_name_edit and current_run_name in known_defaults and current_run_name != desired_default:
+        if run_name_edit and self._is_auto_generated_run_name(current_run_name) and current_run_name != desired_default:
             run_name_edit.setText(desired_default)
             self._update_parameter_node("orchestrationRunName", desired_default)
 
@@ -1856,15 +1883,16 @@ class SharedWidgetMixin:
             title_label, description_label = label_groups.get(key, (None, None))
             active = key in active_sections
             title_style = (
-                "QLabel { font-weight: 700; color: #1E5A3F; padding-top: 6px; "
-                "background: #EDF7F0; border: 1px solid #C8DFCF; border-radius: 6px; }"
+                "QLabel { background: #E4F4EA; border: 1px solid #AFCDBA; border-left: 4px solid #287A4A; "
+                "border-radius: 8px; color: #173D2A; font-weight: 800; padding: 7px 10px; }"
                 if active
-                else "QLabel { font-weight: 600; color: #365648; padding-top: 6px; }"
+                else "QLabel { background: #F4F8F5; border: 1px solid #DDEAE2; border-radius: 7px; "
+                "color: #315843; font-weight: 700; padding: 7px 9px; }"
             )
             description_style = (
-                "QLabel { color: #44685A; padding: 4px 6px 2px 6px; background: #F6FBF7; border-radius: 6px; }"
+                "QLabel { background: #F7FCF8; border-radius: 7px; color: #3F6754; padding: 4px 9px 7px 10px; }"
                 if active
-                else "QLabel { color: #70848A; padding-bottom: 2px; }"
+                else "QLabel { color: #6A7D74; padding: 1px 8px 5px 9px; }"
             )
             if title_label:
                 title_label.setStyleSheet(title_style)
@@ -1877,10 +1905,14 @@ class SharedWidgetMixin:
                         continue
                     if hasattr(widget, "setStyleSheet"):
                         if active and widget.__class__.__name__ in {"QLineEdit", "ctkPathLineEdit"}:
-                            widget.setStyleSheet("QLineEdit { border: 1px solid #7DBA91; background: #FCFEFC; }")
+                            widget.setStyleSheet(
+                                "QLineEdit { background: #FCFEFC; border: 1px solid #7EB892; "
+                                "border-radius: 8px; padding: 7px 10px; }"
+                            )
                         elif active and widget.__class__.__name__ == "QPushButton":
                             widget.setStyleSheet(
-                                "QPushButton { border: 1px solid #A8CDB2; background: #F7FBF8; color: #1E5A3F; border-radius: 6px; padding: 5px 12px; }"
+                                "QPushButton { background: #F7FCF8; border: 1px solid #A9CBB4; "
+                                "color: #1E5A3F; border-radius: 8px; padding: 6px 12px; }"
                             )
                         elif not active and widget.__class__.__name__ == "QPushButton":
                             widget.setStyleSheet("")
