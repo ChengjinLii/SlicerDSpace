@@ -19,9 +19,9 @@ Linux/macOS/Windows profile matrix dry-run, but Windows and macOS have not been
 executed on native Windows/macOS hosts in this audit.
 
 The manuscript package is now versioned, the normal manuscript validation gate
-passes, and the validation source-data package is complete except for the
-optional UI screenshot. Full submission readiness remains intentionally open
-for author metadata, release DOI/license, LFS asset terms and final Word
+passes, and the validation source-data package is complete, including the
+optional UI screenshot record. Full submission readiness remains intentionally
+open for author metadata, release DOI/license, LFS asset terms and final Word
 production items; those are tracked but were explicitly not resolved in this
 goal pass.
 
@@ -92,14 +92,13 @@ Evidence:
 - `manuscript_nature_protocols/supplementary/source_data/validation_gap_snapshot.json`
 - `make -C manuscript_nature_protocols validation-package-check` reports:
   `validation_required_missing=0`,
-  `validation_optional_missing=1`,
-  `validation_missing_optional=ui_smoke_screenshot`,
+  `validation_optional_missing=0`,
   `validation_package_complete=True`.
 
 Remaining boundary:
 
-- The optional UI screenshot is not present. The UI smoke command/log evidence
-  is present.
+- The package is complete according to the current expected manifest. Manual
+  redaction and data-use review are still required before public submission.
 
 ### Final completion audit
 
@@ -268,7 +267,5 @@ Evidence:
 ## Remaining Recommended Work
 
 1. Run dependency doctor dry-runs on native Windows and native macOS machines.
-2. Decide whether the optional UI screenshot should be added to the validation
-   source-data package.
-3. Resolve external submission blockers only when author, license, release DOI
+2. Resolve external submission blockers only when author, license, release DOI
    and model-asset terms are ready.
