@@ -1,0 +1,31 @@
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["Testing/Python"]
+python_files = ["test_*.py"]
+python_classes = ["*Test", "Test*"]
+python_functions = ["test_*"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = [
+  ".git",
+  "__pycache__",
+  "third_party",
+  "manuscript_nature_protocols/build",
+  "manuscript_nature_protocols/tmp",
+]
+
+[tool.black]
+line-length = 120
+target-version = ["py310"]
+exclude = '''
+/(
+  \.git
+  | __pycache__
+  | third_party
+  | manuscript_nature_protocols/build
+  | manuscript_nature_protocols/tmp
+)/
+'''

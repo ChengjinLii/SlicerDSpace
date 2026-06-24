@@ -21,9 +21,6 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SUBJECT_ROOT = Path("/data/chengjin/SlicerDDSurfer-test/100307-release-candidate")
-DEFAULT_SLICER_LAUNCHER = Path("/data/chengjin/software/run-slicer.sh")
-DEFAULT_XVFB_RUN = Path("/data/chengjin/software/xvfb/usr/bin/xvfb-run")
 
 
 @dataclass(frozen=True)
@@ -40,6 +37,11 @@ class ValidationStep:
 
 def _path(value: Path | None) -> str | None:
     return value.expanduser().resolve().as_posix() if value is not None else None
+
+
+def _env_path(name: str) -> Path | None:
+    value = os.environ.get(name, "").strip()
+    return Path(value).expanduser() if value else None
 
 
 def _subject_id(subject_root: Path, explicit: str | None) -> str:
@@ -188,6 +190,20 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
     )
     steps.append(
         ValidationStep(
+            "representative_outputs",
+            (
+                sys.executable,
+                (REPO_ROOT / "scripts" / "collect_representative_outputs.py").as_posix(),
+                "--output-root",
+                output_root.as_posix(),
+                "--dest-dir",
+                (report_dir / "representative_outputs").as_posix(),
+            ),
+            required=False,
+        )
+    )
+    steps.append(
+        ValidationStep(
             "repository_release_audit",
             (
                 sys.executable,
@@ -219,7 +235,7 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
                 required=False,
             )
         )
-        if args.slicer_launcher.is_file() and args.xvfb_run.is_file():
+        if args.slicer_launcher and args.xvfb_run and args.slicer_launcher.is_file() and args.xvfb_run.is_file():
             steps.append(
                 ValidationStep(
                     "slicer_smoke",
@@ -341,7 +357,12 @@ def _write_report(args: argparse.Namespace, steps: list[ValidationStep], results
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--subject-root", type=Path, default=DEFAULT_SUBJECT_ROOT)
+    parser.add_argument(
+        "--subject-root",
+        type=Path,
+        default=_env_path("SLICERDDSURFER_RELEASE_SUBJECT_ROOT"),
+        help="Subject-root fixture for release validation. Can also be set with SLICERDDSURFER_RELEASE_SUBJECT_ROOT.",
+    )
     parser.add_argument("--subject-id")
     parser.add_argument("--output-root", type=Path)
     parser.add_argument("--batch-root", type=Path)
@@ -354,8 +375,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tractography-backend", default="csd_act", choices=("csd_act", "dti_det", "saf"))
     parser.add_argument("--connectome-backend", default="python", choices=("python", "mrtrix"))
     parser.add_argument("--skip-slicer-smoke", action="store_true")
-    parser.add_argument("--slicer-launcher", type=Path, default=DEFAULT_SLICER_LAUNCHER)
-    parser.add_argument("--xvfb-run", type=Path, default=DEFAULT_XVFB_RUN)
+    parser.add_argument(
+        "--slicer-launcher",
+        type=Path,
+        default=_env_path("SLICERDDSURFER_SLICER_LAUNCHER"),
+        help="Optional Slicer launcher for GUI smoke. Can also be set with SLICERDDSURFER_SLICER_LAUNCHER.",
+    )
+    parser.add_argument(
+        "--xvfb-run",
+        type=Path,
+        default=_env_path("SLICERDDSURFER_XVFB_RUN"),
+        help="Optional xvfb-run for headless GUI smoke. Can also be set with SLICERDDSURFER_XVFB_RUN.",
+    )
     parser.add_argument("--timeout-seconds", type=int, default=900)
     parser.add_argument("--warn-only", action="store_true", help="Always exit 0 after writing the report.")
     return parser
@@ -364,6 +395,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args, forwarded_args = parser.parse_known_args(argv)
+    if args.subject_root is None:
+        parser.error("Release validation requires --subject-root or SLICERDDSURFER_RELEASE_SUBJECT_ROOT.")
     subject_root = args.subject_root.expanduser().resolve()
     output_root = args.output_root.expanduser().resolve() if args.output_root else subject_root / "outputs"
     if args.report_dir is None:

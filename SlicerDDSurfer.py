@@ -43,7 +43,8 @@ class SlicerDDSurfer(ScriptedLoadableModule):
         self.parent.contributors = ["SlicerDDSurfer Team"]
         self.parent.helpText = (
             "Run multiple diffusion-MRI workflows inside one Slicer extension, including cortical "
-            "surface reconstruction, parcellation, segmentation, and microstructure analysis. "
+            "surface reconstruction, parcellation, segmentation, microstructure analysis, "
+            "tractography, bundle analysis, and connectome generation. "
             "The module reuses shared subject-root diffusion caches so related workflows can be "
             "combined without repeating the same DTI and registration preparation steps."
         )

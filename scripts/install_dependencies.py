@@ -13,6 +13,7 @@ import argparse
 import json
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -21,6 +22,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from shared.environment import EnvironmentDoctorConfig, run_environment_doctor, write_environment_report
+from shared.dependency_config import add_dependency_config_arguments, apply_dependency_config, write_dependency_config
+from shared.python_environment import resolve_python_executable
 
 
 DEFAULT_TARGETS = (
@@ -34,20 +37,15 @@ DEFAULT_TARGETS = (
     "bundles",
     "connectome",
 )
-DEPENDENCY_CONFIG_KEYS = (
-    "mrtrix_bin_dir",
-    "preprocessing_mrtrix_bin_dir",
-    "preprocessing_fsl_bin_dir",
-    "postprocess_freesurfer_home",
-    "wma_root",
-    "wma_atlas_dir",
-    "slicer_executable",
-    "fiber_tract_measurements_cli",
-    "tract_querier_root",
-    "tractcloud_root",
-    "tractcloud_python_executable",
-    "tractcloud_data_dir",
-)
+@dataclass(frozen=True)
+class PipInstallResult:
+    requirement: str
+    command: tuple[str, ...]
+    returncode: int
+    stdout_log: str
+    stderr_log: str
+    status: str
+    failure_category: str = ""
 
 
 def _split_csv(values: list[str] | None) -> tuple[str, ...]:
@@ -62,43 +60,66 @@ def _split_csv(values: list[str] | None) -> tuple[str, ...]:
     return tuple(dict.fromkeys(result))
 
 
-def _load_dependency_config(path: Path) -> dict[str, Path]:
-    data = json.loads(path.expanduser().read_text(encoding="utf-8"))
-    if "external_dependencies" in data and isinstance(data["external_dependencies"], dict):
-        data = data["external_dependencies"]
-    result: dict[str, Path] = {}
-    for key in DEPENDENCY_CONFIG_KEYS:
-        value = data.get(key)
-        if value:
-            result[key] = Path(str(value)).expanduser()
-    return result
-
-
 def _apply_dependency_config(args: argparse.Namespace) -> None:
-    if not args.dependency_config:
-        return
-    config_path = args.dependency_config.expanduser()
-    if not config_path.is_file():
-        raise FileNotFoundError(f"Dependency config not found: {config_path}")
-    for key, path in _load_dependency_config(config_path).items():
-        if getattr(args, key, None) is None:
-            setattr(args, key, path)
+    apply_dependency_config(args, args.dependency_config)
 
 
 def _write_dependency_config(args: argparse.Namespace, path: Path) -> Path:
-    payload = {
-        "kind": "slicerdsurfer_dependency_config",
-        "version": 1,
-        "external_dependencies": {
-            key: getattr(args, key).expanduser().as_posix()
-            for key in DEPENDENCY_CONFIG_KEYS
-            if getattr(args, key, None) is not None
-        },
-    }
-    path = path.expanduser().resolve()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    return path
+    return write_dependency_config(args, path)
+
+
+def _safe_log_name(requirement: str) -> str:
+    return "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in requirement)[:120] or "package"
+
+
+def _failure_category(returncode: int, stderr: str) -> str:
+    lower = stderr.lower()
+    if returncode == 0:
+        return ""
+    if "no matching distribution found" in lower or "could not find a version" in lower:
+        return "package_unavailable"
+    if "permission denied" in lower or "not permitted" in lower or "externally-managed-environment" in lower:
+        return "python_environment_not_writable"
+    if "temporary failure in name resolution" in lower or "connection" in lower or "timed out" in lower:
+        return "network"
+    return "pip_failed"
+
+
+def _install_python_packages(python_executable: str, requirements: tuple[str, ...], output_dir: Path) -> list[PipInstallResult]:
+    log_dir = output_dir.expanduser().resolve() / "python_install_logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    results: list[PipInstallResult] = []
+    for requirement in requirements:
+        command = (python_executable, "-m", "pip", "install", requirement)
+        completed = subprocess.run(
+            list(command),
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        safe_name = _safe_log_name(requirement)
+        stdout_path = log_dir / f"{safe_name}.stdout.log"
+        stderr_path = log_dir / f"{safe_name}.stderr.log"
+        stdout_path.write_text(completed.stdout, encoding="utf-8")
+        stderr_path.write_text(completed.stderr, encoding="utf-8")
+        results.append(
+            PipInstallResult(
+                requirement=requirement,
+                command=command,
+                returncode=completed.returncode,
+                stdout_log=stdout_path.as_posix(),
+                stderr_log=stderr_path.as_posix(),
+                status="passed" if completed.returncode == 0 else "failed",
+                failure_category=_failure_category(completed.returncode, completed.stderr),
+            )
+        )
+    summary_path = log_dir / "python_install_results.json"
+    summary_path.write_text(
+        json.dumps([result.__dict__ for result in results], indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return results
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -117,7 +138,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "install_plan", help="Where to write doctor/install reports.")
     parser.add_argument("--dependency-config", type=Path, help="Optional JSON file containing saved external dependency paths.")
     parser.add_argument("--save-dependency-config", type=Path, help="Write resolved external dependency paths to this JSON file.")
-    parser.add_argument("--python-executable", default=sys.executable, help="Python executable to use for pip installation.")
+    parser.add_argument("--python-executable", help="Python executable to use for pip installation. Defaults to the current Python.")
+    parser.add_argument("--python-environment", help="Conda environment name or Python executable path to use for dependency checks and pip installation.")
+    parser.add_argument("--conda-executable", type=Path, help="conda or mamba executable used to resolve --python-environment names.")
     parser.add_argument(
         "--platform",
         dest="platform_name",
@@ -138,18 +161,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tractcloud-device", default="auto", choices=("auto", "cpu", "cuda"))
     parser.add_argument("--run-free-water", action="store_true")
     parser.add_argument("--run-noddi", action="store_true")
-    parser.add_argument("--mrtrix-bin-dir", type=Path)
-    parser.add_argument("--preprocessing-mrtrix-bin-dir", type=Path)
-    parser.add_argument("--preprocessing-fsl-bin-dir", type=Path)
-    parser.add_argument("--postprocess-freesurfer-home", type=Path)
-    parser.add_argument("--wma-root", type=Path)
-    parser.add_argument("--wma-atlas-dir", type=Path)
-    parser.add_argument("--slicer-executable", type=Path)
-    parser.add_argument("--fiber-tract-measurements-cli", type=Path)
-    parser.add_argument("--tract-querier-root", type=Path)
-    parser.add_argument("--tractcloud-root", type=Path)
-    parser.add_argument("--tractcloud-python-executable", type=Path)
-    parser.add_argument("--tractcloud-data-dir", type=Path)
+    add_dependency_config_arguments(parser, exclude=("python_executable", "python_environment", "conda_executable"))
     return parser
 
 
@@ -158,6 +170,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         _apply_dependency_config(args)
+        resolved_python = resolve_python_executable(
+            python_executable=Path(args.python_executable).expanduser() if args.python_executable else None,
+            python_environment=args.python_environment,
+            conda_executable=args.conda_executable,
+        )
+        args.python_executable = resolved_python.as_posix()
     except Exception as exc:
         parser.error(str(exc))
     if args.save_dependency_config:
@@ -172,6 +190,8 @@ def main(argv: list[str] | None = None) -> int:
         repo_root=REPO_ROOT,
         output_dir=args.output_dir,
         python_executable=Path(args.python_executable).expanduser().resolve(),
+        python_environment=args.python_environment,
+        conda_executable=args.conda_executable,
         platform_name=args.platform_name,
         preprocessing_backend=args.preprocessing_backend,
         tractography_backend=args.tractography_backend,
@@ -197,15 +217,13 @@ def main(argv: list[str] | None = None) -> int:
     result = run_environment_doctor(config)
     written = write_environment_report(result, args.output_dir)
 
+    python_install_results: list[PipInstallResult] = []
     if args.execute and result.missing_python_packages:
-        cmd = [
+        python_install_results = _install_python_packages(
             args.python_executable,
-            "-m",
-            "pip",
-            "install",
-            *result.missing_python_packages,
-        ]
-        subprocess.run(cmd, check=True)
+            tuple(result.missing_python_packages),
+            args.output_dir,
+        )
         result = run_environment_doctor(config)
         written = write_environment_report(result, args.output_dir)
 
@@ -213,6 +231,10 @@ def main(argv: list[str] | None = None) -> int:
         "environment": result.to_dict(),
         "report_paths": {key: path.as_posix() for key, path in written.items()},
         "executed_python_install": bool(args.execute),
+        "python_install_results": [install_result.__dict__ for install_result in python_install_results],
+        "failed_python_installs": [
+            install_result.requirement for install_result in python_install_results if install_result.status == "failed"
+        ],
     }
     print(json.dumps(payload, indent=2, ensure_ascii=False))
     return 2 if args.strict_exit_code and result.blocker_count else 0

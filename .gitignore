@@ -10,3 +10,4 @@ Testing/**/Temporary/
 *.log
 *.tmp
 third_party/
+ignore/

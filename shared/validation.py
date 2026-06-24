@@ -390,11 +390,23 @@ def validate_subject_inputs(config: InputValidationConfig) -> InputValidationRes
 
     raw: Optional[RawInputBundle] = None
     if inspected["mode"] == "subject_root":
-        raw = find_subject_root(config.input_root.expanduser().resolve(), config.subject_id)
-        subject_root = raw.subject_root
-        _check_file_layout(raw, messages, metrics)
-        _check_gradients(raw, messages, metrics)
-        _check_metadata(raw, config, messages, metrics)
+        subject_root = Path(inspected["subject_root"])
+        try:
+            raw = find_subject_root(config.input_root.expanduser().resolve(), config.subject_id)
+        except Exception as exc:
+            _check_incomplete_file_layout(subject_root, messages, metrics)
+            _add_issue(
+                messages,
+                "error",
+                "file",
+                "Brain mask is missing and could not be generated with MRtrix3 dwi2mask.",
+                error=str(exc),
+            )
+        else:
+            subject_root = raw.subject_root
+            _check_file_layout(raw, messages, metrics)
+            _check_gradients(raw, messages, metrics)
+            _check_metadata(raw, config, messages, metrics)
     else:
         expanded_input = config.input_root.expanduser().resolve()
         candidate_subject_root = expanded_input
@@ -405,7 +417,7 @@ def validate_subject_inputs(config: InputValidationConfig) -> InputValidationRes
             messages,
             "error",
             "file",
-            "Could not resolve a subject root with input/data.nii.gz, bvals, bvecs, and nodif_brain_mask.nii.gz.",
+            "Could not resolve a subject root with input/data.nii.gz, bvals, and bvecs.",
             input_root=config.input_root.as_posix(),
             mode=inspected["mode"],
         )

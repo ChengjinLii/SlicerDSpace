@@ -26,6 +26,8 @@ from shared import (
     summarize_environment_doctor,
     write_environment_report,
 )
+from shared.dependency_config import apply_dependency_config, write_dependency_config
+from shared.python_environment import resolve_python_executable
 
 
 DEFAULT_PRODUCT_TARGETS = (
@@ -47,21 +49,6 @@ OPTIONAL_ALGORITHM_TARGETS = (
     "tractcloud",
 )
 ALL_CLI_TARGETS = ("validation",) + DEFAULT_PRODUCT_TARGETS + OPTIONAL_ALGORITHM_TARGETS
-DEPENDENCY_CONFIG_KEYS = (
-    "mrtrix_bin_dir",
-    "preprocessing_mrtrix_bin_dir",
-    "preprocessing_fsl_bin_dir",
-    "postprocess_freesurfer_home",
-    "wma_root",
-    "wma_atlas_dir",
-    "slicer_executable",
-    "fiber_tract_measurements_cli",
-    "tract_querier_root",
-    "tractcloud_root",
-    "tractcloud_python_executable",
-    "tractcloud_data_dir",
-)
-
 
 def _split_csv_or_repeat(values: list[str] | None) -> tuple[str, ...]:
     if not values:
@@ -123,44 +110,12 @@ def _infer_subject_id(subject_root: Path) -> str:
     return subject_root.resolve().name
 
 
-def _load_dependency_config(path: Path) -> dict[str, Path]:
-    data = json.loads(path.expanduser().read_text(encoding="utf-8"))
-    if "external_dependencies" in data and isinstance(data["external_dependencies"], dict):
-        data = data["external_dependencies"]
-    result: dict[str, Path] = {}
-    for key in DEPENDENCY_CONFIG_KEYS:
-        value = data.get(key)
-        if value:
-            result[key] = Path(str(value)).expanduser()
-    return result
-
-
 def _apply_dependency_config(args: argparse.Namespace) -> None:
-    if not args.dependency_config:
-        return
-    config_path = args.dependency_config.expanduser()
-    if not config_path.is_file():
-        raise FileNotFoundError(f"Dependency config not found: {config_path}")
-    config = _load_dependency_config(config_path)
-    for key, path in config.items():
-        if getattr(args, key, None) is None:
-            setattr(args, key, path)
+    apply_dependency_config(args, args.dependency_config)
 
 
 def _write_dependency_config(args: argparse.Namespace, path: Path) -> Path:
-    payload = {
-        "kind": "slicerdsurfer_dependency_config",
-        "version": 1,
-        "external_dependencies": {
-            key: getattr(args, key).expanduser().as_posix()
-            for key in DEPENDENCY_CONFIG_KEYS
-            if getattr(args, key, None) is not None
-        },
-    }
-    path = path.expanduser().resolve()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    return path
+    return write_dependency_config(args, path)
 
 
 def _resolve_targets(args: argparse.Namespace) -> tuple[str, ...]:
@@ -214,7 +169,9 @@ def _environment_config_from_args(
         output_dir=args.doctor_output_dir.expanduser().resolve()
         if args.doctor_output_dir
         else layout.run_metadata / "environment",
-        python_executable=args.doctor_python_executable,
+        python_executable=args.python_executable or args.doctor_python_executable,
+        python_environment=args.python_environment,
+        conda_executable=args.conda_executable,
         preprocessing_backend=args.preprocessing_backend,
         tractography_backend=args.tractography_backend,
         connectome_backend=args.connectome_backend,
@@ -324,9 +281,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write the resolved external dependency path configuration to this JSON file.",
     )
     parser.add_argument(
-        "--doctor-python-executable",
+        "--python-executable",
         type=Path,
         help="Optional Python executable to use for dependency checks. Defaults to the current Python.",
+    )
+    parser.add_argument(
+        "--python-environment",
+        help="Optional conda environment name or Python executable path for dependency checks.",
+    )
+    parser.add_argument(
+        "--conda-executable",
+        type=Path,
+        help="Optional conda or mamba executable used to resolve --python-environment names.",
+    )
+    parser.add_argument(
+        "--doctor-python-executable",
+        type=Path,
+        help="Deprecated alias for --python-executable.",
     )
     parser.add_argument(
         "--skip-environment-check",
@@ -483,6 +454,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         _apply_dependency_config(args)
+        if args.python_environment and args.python_executable is None:
+            args.python_executable = resolve_python_executable(
+                python_environment=args.python_environment,
+                conda_executable=args.conda_executable,
+            )
     except Exception as exc:
         parser.error(str(exc))
     if args.save_dependency_config:

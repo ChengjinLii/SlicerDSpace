@@ -18,8 +18,15 @@ SlicerDDSurfer is a 3D Slicer scripted module that bundles multiple diffusion-MR
 
 **Release-candidate install/run validation:** [RELEASE_CANDIDATE_VALIDATION.md](RELEASE_CANDIDATE_VALIDATION.md)
 
+**License and release archive process:** [LICENSE](LICENSE), [CITATION.cff](CITATION.cff), and [RELEASE.md](RELEASE.md)
+
 The Slicer UI and CLI both support external dependency path overrides. In Slicer, use `Environment & Dependencies` to import/export a CLI-compatible dependency config; on the CLI, use explicit path flags or `--dependency-config` / `--save-dependency-config`.
 Imported dependency profiles are re-scanned on the current machine; saved paths are treated as hints, not proof that another computer has the same environment.
+
+Core-route readiness and optional-backend readiness are separate. A subject can
+pass the core route while optional backends such as WMA, TractCloud, SAF or
+FreeSurfer-based post-processing remain blocked until the user explicitly
+selects and configures those runtimes.
 
 After each orchestrated run, SlicerDDSurfer writes:
 - `outputs/00_run_metadata/<run_name>_orchestration_manifest.json`
@@ -35,6 +42,22 @@ Before pushing a release branch, run:
 
 ```bash
 python3 scripts/release_audit.py
+```
+
+Developer and CI entry points are also available from the repository root:
+
+```bash
+# Pure Python unit tests; does not launch Slicer.
+make test-fast
+
+# Slicer extension smoke test; requires local launcher paths.
+SLICERDDSURFER_SLICER_LAUNCHER=/path/to/Slicer \
+SLICERDDSURFER_XVFB_RUN=/path/to/xvfb-run \
+make test-slicer
+
+# Release evidence chain; requires a subject-root fixture.
+SLICERDDSURFER_RELEASE_SUBJECT_ROOT=/path/to/subject-root \
+make release-check
 ```
 
 For a fuller reproducibility check that plans the subject pipeline, batch path,
@@ -188,7 +211,8 @@ Outputs (under output root):
 Entry: `shared.validate_subject_inputs`.
 
 Implemented checks:
-- Required subject-root files: `input/data.nii.gz`, `input/bvals`, `input/bvecs`, `input/nodif_brain_mask.nii.gz`.
+- Required subject-root files: `input/data.nii.gz`, `input/bvals`, `input/bvecs`.
+- Optional subject-root file: `input/nodif_brain_mask.nii.gz`. If absent, SlicerDDSurfer can generate it with MRtrix3 `dwi2mask` when MRtrix3 is available on `PATH` or through `SLICERDDSURFER_MRTRIX_BIN_DIR`; it writes `input/nodif_brain_mask.manifest.json`. Review generated masks before quantitative use.
 - Phase-encoding / readout-time metadata from BIDS sidecars such as `input/data.json`.
 - bval/bvec parsing, shape checks, b0 count, shell summary, and b-vector norm sanity checks.
 - Dependency status checks for Python modules and external commands by workflow group.
@@ -357,9 +381,42 @@ redistribution boundary for model weights and templates.
 ## Requirements
 
 - 3D Slicer (with Python environment)
+- SlicerDMRI extension (installed via Slicer Extension Manager)
 - PyTorch extension (installed via Slicer Extension Manager)
 - Python packages: `nibabel`, `SimpleITK`, `trimesh`, `tqdm`, `networkx`
 - For Docker post-process: Docker, FreeSurfer license, postprocess-release repo
+
+### Python and external dependency locations
+
+By default, SlicerDDSurfer checks and installs Python packages in the Python
+runtime that launched the command. In the Slicer UI this is normally the current
+Slicer Python, for example `/opt/Slicer-5.10.0-linux-amd64/bin/PythonSlicer`.
+External tools are not installed silently; their locations are discovered from
+saved settings, environment variables, `PATH`, and common platform-specific
+install paths.
+
+Users can override both Python and external software locations:
+
+```bash
+# Use a specific Python executable for dependency checks and pip installs.
+python3 scripts/install_dependencies.py --all \
+  --python-executable /path/to/PythonSlicer
+
+# Or resolve a conda/mamba environment by name.
+python3 scripts/install_dependencies.py --all \
+  --python-environment slicerdsurfer \
+  --conda-executable /path/to/conda
+
+# External tools remain explicit path hints, not silent installs.
+python3 run_subject_pipeline.py --subject-root /path/to/subject --doctor \
+  --python-environment slicerdsurfer \
+  --mrtrix-bin-dir /opt/mrtrix3/bin \
+  --preprocessing-fsl-bin-dir /opt/fsl/bin
+```
+
+The same values can be saved and reloaded with `--save-dependency-config` and
+`--dependency-config`, or imported/exported from the Slicer
+`Environment & Dependencies` panel. Saved paths are re-scanned on each machine.
 
 This is only a minimal summary. Full optional backend requirements, environment
 variables, and per-target dependency notes are documented in

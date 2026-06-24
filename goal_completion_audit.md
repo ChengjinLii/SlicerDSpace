@@ -1,271 +1,90 @@
 # Goal Completion Audit
 
-Date: 2026-06-17
+Date: 2026-06-24
 
-This audit maps the active thread goal to current repository evidence. It is
-not a submission-readiness declaration. It records what is implemented,
-validated and still incomplete.
+Scope: code, packaging, dependency handling, Slicer UI engineering and release
+readiness. Manuscript wording and Nature Protocols style edits are intentionally
+deferred per the current user instruction.
 
-## Summary
+Overall status: release-candidate code work is mostly complete; final release is
+not complete yet.
 
-Overall status: not fully complete.
+The code-side release infrastructure is now much stronger than the previous
+state: fast tests, CMake test registration, dependency schema, conservative
+installer behavior, Python/conda path configuration, Slicer extension metadata
+checks, representative-output collection, release metadata files, model-asset
+download governance and UI module extractions are in place. The goal should not
+be marked complete yet because the worktree is not committed, `make test-slicer`
+has not been run in this environment, and DOI/model-asset redistribution terms
+require external decisions outside this checkout.
 
-The release-validation, dependency-profile, output-semantics, model-governance
-and manuscript-source-data work now has concrete repository evidence. The
-Slicer GUI has also been restructured around the requested three-step
-"choose input, choose products, run" flow, with advanced dependency and runtime
-controls folded by default. Cross-platform dependency logic now includes a
-Linux/macOS/Windows profile matrix dry-run, but Windows and macOS have not been
-executed on native Windows/macOS hosts in this audit.
+## Verification
 
-The manuscript package is now versioned, the normal manuscript validation gate
-passes, and the validation source-data package is complete, including the
-optional UI screenshot record. Full submission readiness remains intentionally
-open for author metadata, release DOI/license, LFS asset terms and final Word
-production items; those are tracked but were explicitly not resolved in this
-goal pass.
-
-## Evidence Commands
-
-Last verified in this checkout:
+Commands run in this checkout:
 
 ```bash
-make -C manuscript_nature_protocols validate
-make -C manuscript_nature_protocols validation-package-check
-make -C manuscript_nature_protocols readiness-check
-make -C manuscript_nature_protocols release-metadata-check asset-availability-check
-python3 -m unittest Testing/Python/test_release_validation.py Testing/Python/test_model_assets.py Testing/Python/test_environment_doctor.py Testing/Python/test_dependency_profile_matrix.py
-python3 -m unittest Testing/Python/test_release_validation.py Testing/Python/test_model_assets.py Testing/Python/test_product_orchestrator.py Testing/Python/test_run_batch_pipeline.py Testing/Python/test_run_subject_pipeline_cli.py Testing/Python/test_environment_doctor.py
-python3 -m unittest Testing/Python/test_slicer_ui_layout_contract.py
-python3 -m py_compile scripts/release_validation.py shared/orchestrator.py shared/environment.py shared/module_widget.py scripts/download_model_assets.py scripts/install_dependencies.py scripts/dependency_profile_matrix.py
-python3 scripts/install_dependencies.py --targets validation --platform Windows --output-dir /tmp/slicerdsurfer_install_dependencies_windows_smoke
-python3 scripts/dependency_profile_matrix.py --output-dir /data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/dependency_profile_matrix
-python3 scripts/release_validation.py --subject-root /data/chengjin/SlicerDDSurfer-test/100307-release-candidate --batch-root /data/chengjin/SlicerDDSurfer-test/release-validation-batch --report-dir /data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/release_validation_with_smoke --run-name Test1 --timeout-seconds 300 --warn-only --skip-environment-check
+make test-fast
+python3 scripts/download_model_assets.py --profile core --verify-only
+python3 scripts/audit_slicer_extension_metadata.py --json
+python3 scripts/release_validation.py --warn-only
+SLICERDDSURFER_RELEASE_SUBJECT_ROOT=/data/chengjin/SlicerDDSurfer-test/100307-release-candidate make release-check
 ```
 
-The latest GUI layout change was also checked with a staged headless Slicer
-smoke test using `scripts/stage_slicer_extension.py --link-mode copy`,
-`xvfb-run`, `--disable-cli-modules` and
-`Testing/Python/slicer_extension_install_smoke.py`.
+Results:
 
-Prior key commits before this audit update:
-
-- `d4e21c1 Add Nature Protocols manuscript package`
-- `828eab6 Improve dependency profile portability`
-- `974ced4 Add release validation evidence workflow`
-- `0011bee Polish Slicer external path UI`
-- `7ecf182 Document model asset term boundaries`
+- `make test-fast`: passed, 207 Python tests.
+- `download_model_assets.py --profile core --verify-only`: passed; 29 core
+  files verified and terms notices were printed for DDCSR, DDSeg and DDParcel
+  assets.
+- `audit_slicer_extension_metadata.py`: passed, zero errors and zero warnings;
+  CMake and `.s4ext` both depend on `SlicerDMRI` and `PyTorch`.
+- `release_validation.py --warn-only`: exits with an explicit error because no
+  `--subject-root` or `SLICERDDSURFER_RELEASE_SUBJECT_ROOT` was provided. This is
+  expected and confirms it no longer silently defaults to a local dataset path.
+- `make release-check`: passed with
+  `SLICERDDSURFER_RELEASE_SUBJECT_ROOT=/data/chengjin/SlicerDDSurfer-test/100307-release-candidate`.
+  The release audit reported `release_ready=True`, `blockers=0`, and one dirty
+  worktree warning. Model asset verification checked 29 core files.
+- `make test-slicer`: not run because this checkout has a Slicer launcher at
+  `/data/chengjin/software/Slicer-5.10.0-linux-amd64/Slicer` but `xvfb-run` is
+  not available in the current environment.
 
 ## Requirement Audit
 
-### Manuscript content and Nature Protocols style
+| # | Requirement | Status | Evidence |
+|---|-------------|--------|----------|
+| 1 | Standard dev/CI entrypoints: `pyproject`, `make test-fast`, `test-slicer`, `release-check` | Complete | `pyproject.toml`; `Makefile`; `make test-fast` passed. |
+| 2 | Fix CMake test registration | Complete | `Testing/CMakeLists.txt` adds `Testing/Python`; registered Python tests in `Testing/Python/CMakeLists.txt`. |
+| 3 | Split `shared/module_widget.py` into focused UI modules | Mostly complete | Added `shared/ui_environment_panel.py`, `shared/ui_environment_paths.py`, `shared/ui_environment_dialog.py`, `shared/ui_run_controller.py`, `shared/ui_output_loading.py`, `shared/ui_error_dialogs.py`, `shared/ui_styles.py`, `shared/ui_parameter_sync.py`, `shared/ui_run_status_panel.py` and tests. Run-plan/result rows, manifest summaries, run kwargs builders, batch/single-subject input validation, plan-blocker extraction, partial-run text and background progress key mapping now live in `ui_run_controller.py`; environment path status mapping, detected-source text, backend highlight styles, model-assets summary text, Environment Paths schema iterator and environment-dialog render state now live in `ui_environment_panel.py`; Qt Environment Paths construction now lives in `ui_environment_paths.py`; environment-results dialog construction now lives in `ui_environment_dialog.py`; global UI styles, run-summary state styles and environment-dialog styles now live in `ui_styles.py`; parameter-node to widget synchronization now lives in `ui_parameter_sync.py`; run status panel construction/table updates now live in `ui_run_status_panel.py`. `shared/module_widget.py` is 1990 lines and its largest function is 112 lines. |
+| 4 | Remove local hardcoded defaults from `scripts/release_validation.py` | Complete | `release_validation.py` now requires `--subject-root` or `SLICERDDSURFER_RELEASE_SUBJECT_ROOT`; missing input fails explicitly. |
+| 5 | Unify dependency config schema | Complete | `shared/dependency_config.py` is the shared schema source; Python executable, Python/conda environment and external paths flow through this schema. |
+| 6 | Make pip installer conservative with per-package logs and failure categories | Complete | `scripts/install_dependencies.py`; `python_install_results.json`; categories include package unavailable, non-writable Python environment, network and pip failure. |
+| 7 | Schema-driven UI Environment Paths | Complete | UI grouping/highlighting uses dependency schema helpers in `shared/ui_environment_panel.py`; Qt rendering and config buttons now live in `shared/ui_environment_paths.py`; model assets are a single manifest-backed row rather than separate weight-path entries. |
+| 8 | Clarify optional backend versus core validity | Complete | Dependency checks distinguish runnable core targets from optional backend setup; external tools are reported with setup notes and not silently installed. |
+| 9 | Manuscript notes should not affect code release audit | Complete | Manuscript notes live under `manuscript_nature_protocols/notes/`; validation scripts ignore notes. |
+| 10 | Script representative outputs/source data/timing JSON for Figure 3/4 evidence | Code side complete, manuscript side deferred | `scripts/collect_representative_outputs.py` exists and is integrated into `scripts/release_validation.py`; final manuscript figure replacement audit is paused. |
+| 11 | Add LICENSE, CITATION and release tag/DOI flow | Partial | `LICENSE`, `CITATION.cff`, `codemeta.json`, `.zenodo.json`, `RELEASE.md` and `MODEL_ASSET_TERMS.md` are present. `CITATION.cff`, `codemeta.json` and `.zenodo.json` are set to version `0.1.0`. `make release-check` passes locally, but no DOI archive exists and final model-asset redistribution/DOI-archive terms remain external blockers. |
+| 12 | Clean manuscript WIP out of the release worktree | Complete | `.gitignore` ignores `ignore/`; manuscript WIP is archived under `ignore/manuscript_wip_2026-06-24/` with `manuscript_tracked_changes.patch`, notes and reference PDF. |
 
-Status: implemented for the repository draft, not final submission-ready.
+## Current Remaining Work
 
-Evidence:
+- Commit or otherwise finalize the current release-candidate worktree, then
+  create the local `v0.1.0` tag. The current `release-check` warning is the
+  dirty worktree.
+- Run `make test-slicer` after installing or providing `xvfb-run` for the local
+  Slicer launcher.
+- Resolve external release metadata: create the actual GitHub release tag and
+  DOI. Do not create an asset-inclusive DOI archive until model-asset
+  redistribution and DOI-archive terms are confirmed in `MODEL_ASSET_TERMS.md`.
+- When manuscript work resumes, audit and replace Figure 3/4 evidence from the
+  representative-output collector and manuscript source-data package.
+- Generate the final “all improvements summary” Markdown only after the above
+  completion boundary is reached, so it is not mistaken for a finished-goal
+  report.
 
-- `manuscript_nature_protocols/main.tex`
-- `manuscript_nature_protocols/sections/`
-- `manuscript_nature_protocols/figures/`
-- `manuscript_nature_protocols/tables/`
-- `manuscript_nature_protocols/guidance/nature_protocols_style_examples.md`
-- `manuscript_nature_protocols/guidance/source_guidelines.md`
-- `make -C manuscript_nature_protocols validate` passed.
+## Recommended Next Action
 
-Remaining boundary:
-
-- `make -C manuscript_nature_protocols readiness-check` reports 11 active
-  readiness blockers, mostly author metadata, supporting-paper status,
-  license/release/DOI, LFS asset terms and final Word production. These are
-  tracked in `manuscript_nature_protocols/guidance/completion_audit_manifest.csv`
-  and `manuscript_nature_protocols/guidance/submission_blockers.csv`.
-
-### Validation source data package
-
-Status: complete for required metadata-only validation artifacts.
-
-Evidence:
-
-- `manuscript_nature_protocols/supplementary/scripts/collect_validation_source_data.py`
-- `manuscript_nature_protocols/supplementary/source_data/validation/`
-- `manuscript_nature_protocols/supplementary/source_data/validation_expected_manifest.csv`
-- `manuscript_nature_protocols/supplementary/source_data/validation_gap_snapshot.json`
-- `make -C manuscript_nature_protocols validation-package-check` reports:
-  `validation_required_missing=0`,
-  `validation_optional_missing=0`,
-  `validation_package_complete=True`.
-
-Remaining boundary:
-
-- The package is complete according to the current expected manifest. Manual
-  redaction and data-use review are still required before public submission.
-
-### Final completion audit
-
-Status: implemented as manuscript readiness audit plus this thread-level audit.
-
-Evidence:
-
-- `manuscript_nature_protocols/guidance/completion_audit_manifest.csv`
-- `manuscript_nature_protocols/scripts/check_completion_audit.py`
-- `make -C manuscript_nature_protocols validate` includes
-  `completion_audit_status=passed`.
-- This file records the thread-level software/manuscript objective audit.
-
-### Release and reproducibility validation loop
-
-Status: implemented.
-
-Evidence:
-
-- `scripts/release_validation.py`
-- `Testing/Python/test_release_validation.py`
-- `README.md` release validation section.
-- Generated example report path from the validation run:
-  `/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/release_validation_with_smoke/release_validation_report.json`.
-- The report summary is `status=passed`, `step_count=9`, with
-  `slicer_smoke=passed` and no skipped steps.
-- Unit tests for release validation pass.
-
-### Dependency installation and dependency profile
-
-Status: implemented for scanning, export/import, Python auto-install planning
-and platform-specific wrapper entry points.
-
-Evidence:
-
-- `shared/environment.py`
-- `shared/module_widget.py`
-- `scripts/install_dependencies.py`
-- `scripts/dependency_profile_matrix.py`
-- `scripts/install_deps_linux.sh`
-- `scripts/install_deps_macos.sh`
-- `scripts/install_deps_windows.ps1`
-- `EXTERNAL_DEPENDENCIES.md`
-- `Testing/Python/test_environment_doctor.py`
-- `828eab6 Improve dependency profile portability`.
-
-Implemented behavior:
-
-- Python packages can be installed only when explicitly requested.
-- External tools such as MRtrix3, FSL, FreeSurfer, WMA and TractCloud are
-  detected and reported with setup notes instead of being silently installed.
-- Imported dependency configs are treated as path hints and are re-scanned on
-  the current machine.
-- Windows command scanning checks extensionless command names plus `.exe`,
-  `.cmd` and `.bat` variants.
-- The dependency profile matrix writes per-platform `environment_doctor.json`,
-  `dependency_profile.json`, Python install helpers and external setup notes
-  for Linux, Darwin/macOS and Windows discovery rules.
-
-Boundary:
-
-- Native Windows and native macOS execution were not performed in this audit.
-  The matrix rows for non-native platforms are platform-rule dry-runs on the
-  current host, not proof that those operating systems have the tools installed.
-
-### Output directory semantics
-
-Status: implemented.
-
-Evidence:
-
-- `shared/orchestrator.py`
-- `Testing/Python/test_product_orchestrator.py`
-- `outputs/00_run_metadata/output_tree_semantics.json` generated by the
-  orchestrator.
-
-Implemented behavior:
-
-- Expected top-level output directories are derived from selected targets.
-- Unselected stages are not treated as required missing output directories.
-- The semantics manifest distinguishes selected, unselected, blocked, reused,
-  empty and populated output states.
-
-### GUI usability
-
-Status: implemented for the current Slicer panel.
-
-Evidence:
-
-- `shared/module_widget.py`
-- `Resources/UI/SlicerDDSurfer.ui`
-- `Testing/Python/test_slicer_ui_layout_contract.py`
-- `0011bee Polish Slicer external path UI`
-- Staged headless Slicer smoke on 2026-06-17:
-  `/tmp/slicerdsurfer_ui_layout_smoke.log`.
-- Earlier UI smoke evidence in the validation source-data package.
-
-Implemented behavior:
-
-- The primary panel now presents a three-step sequence: `1. Choose input`,
-  `2. Choose products`, and `3. Run`.
-- The run action is simplified to `Preflight and run`.
-- Dependency profile controls are under `Advanced: Dependency profile` and are
-  collapsed by default.
-- Backend, batch, streamlines and optional microstructure controls are under
-  `Advanced settings: backends, batch, streamlines` and are collapsed by
-  default.
-- External path groups were renamed and regrouped.
-- Model assets are handled as a unified model-assets concept.
-- Batch styling and dependency-dialog styling were improved.
-- Advanced dependency summaries are hidden behind detail controls.
-- Run name default was changed to `Test1`.
-
-Boundary:
-
-- This audit confirms module load and layout contract, not manual usability on
-  every screen size.
-
-### Error messages
-
-Status: implemented for major user-facing paths.
-
-Evidence:
-
-- `shared/module_widget.py`
-- Key dialogs now use an actionable structure: what happened, why, what to do
-  next, automatic fix availability and details.
-
-Boundary:
-
-- This audit did not exhaustively click every possible error path in the GUI.
-  Unit and smoke evidence cover the main dependency and planning paths.
-
-### Model weight governance
-
-Status: implemented as workflow and documentation; final asset terms remain
-open for submission.
-
-Evidence:
-
-- `MODEL_ASSETS.md`
-- `scripts/download_model_assets.py`
-- `Testing/Python/test_model_assets.py`
-- `manuscript_nature_protocols/guidance/lfs_asset_terms_manifest.csv`
-- `manuscript_nature_protocols/guidance/lfs_asset_inventory.csv`
-- `make -C manuscript_nature_protocols asset-availability-check` reports no
-  manifest hard errors.
-
-Boundary:
-
-- Asset redistribution and DOI-archive terms remain unresolved and tracked as
-  `lfs_asset_terms`, as requested.
-
-### Terminology consistency
-
-Status: implemented for the committed manuscript and docs.
-
-Evidence:
-
-- `manuscript_nature_protocols/guidance/software_terminology_alignment.md`
-- `manuscript_nature_protocols/guidance/terminology_manifest.csv`
-- `manuscript_nature_protocols/scripts/check_terminology.py`
-- `make -C manuscript_nature_protocols validate` reports
-  `terminology_status=passed`.
-
-## Remaining Recommended Work
-
-1. Run dependency doctor dry-runs on native Windows and native macOS machines.
-2. Resolve external submission blockers only when author, license, release DOI
-   and model-asset terms are ready.
+The remaining locally actionable release step is to stage/commit the
+release-candidate changes and, if `xvfb-run` becomes available, run
+`make test-slicer`. DOI publication remains gated by external archive metadata
+and model-asset terms.

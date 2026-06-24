@@ -173,6 +173,10 @@ materials. Before submission or public archival release, confirm asset source,
 ownership, license, GitHub LFS redistribution permission, and DOI-archive
 permission for each asset group.
 
+The current release-facing asset terms status is tracked in
+`MODEL_ASSET_TERMS.md`. Treat that file as the decision record for whether a
+release may include model assets or must remain code/documentation-only.
+
 ## Notes for Maintainers
 
 - Do not commit large `.pt`, `.pkl`, `.nii.gz`, `.mgz`, `.obj`, `.stl`, `.trk`, `.tck`, `.vtk`, or `.vtp` assets as normal Git blobs.

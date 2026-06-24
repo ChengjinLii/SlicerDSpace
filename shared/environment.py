@@ -68,6 +68,8 @@ class EnvironmentDoctorConfig:
     repo_root: Path
     output_dir: Optional[Path] = None
     python_executable: Optional[Path] = None
+    python_environment: Optional[str] = None
+    conda_executable: Optional[Path] = None
     platform_name: Optional[str] = None
     preprocessing_backend: str = "dipy"
     tractography_backend: str = "csd_act"
@@ -890,6 +892,16 @@ def _apply_default_python(specs: Iterable[DependencySpec], python_executable: Op
     return tuple(updated)
 
 
+def resolve_config_python_executable(config: EnvironmentDoctorConfig) -> Path:
+    from shared.python_environment import resolve_python_executable
+
+    return resolve_python_executable(
+        python_executable=config.python_executable,
+        python_environment=config.python_environment,
+        conda_executable=config.conda_executable,
+    )
+
+
 def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencySpec, ...]:
     targets = _clean_targets(config.targets)
     specs: dict[str, DependencySpec] = {}
@@ -1348,7 +1360,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     discovery_source=tractcloud_data_dir_source,
                 )
 
-    return tuple(sorted(_apply_default_python(specs.values(), config.python_executable), key=lambda item: item.key))
+    return tuple(sorted(_apply_default_python(specs.values(), resolve_config_python_executable(config)), key=lambda item: item.key))
 
 
 def _install_hint(spec: DependencySpec, platform_name: str) -> str:
@@ -1594,7 +1606,8 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
     platform_name = _effective_platform_name(config)
     host_platform = platform.system() or "unknown"
     targets = _clean_targets(config.targets)
-    checked_python = (_resolve_path(config.python_executable) or Path(sys.executable)).as_posix()
+    checked_python_path = resolve_config_python_executable(config)
+    checked_python = checked_python_path.as_posix()
     specs = build_dependency_specs(config)
     statuses = tuple(_check_spec(spec, platform_name) for spec in specs)
     status_by_key = {item.key: item for item in statuses}

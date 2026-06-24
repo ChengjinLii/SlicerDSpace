@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from shared.external_process import merged_startup_environment
+from shared.brain_mask import generate_brain_mask_with_dwi2mask
 
 LOGGER = logging.getLogger(__name__)
 
@@ -40,6 +41,8 @@ RAW_INPUT_FILES = {
     "bvec": "bvecs",
     "mask": "nodif_brain_mask.nii.gz",
 }
+
+RAW_REQUIRED_INPUT_KEYS = ("dwi", "bval", "bvec")
 
 
 @dataclass(frozen=True)
@@ -147,7 +150,7 @@ def _resolve_slicer_home() -> Path:
 
 def is_raw_subject_root(path: Path) -> bool:
     input_dir = path / "input"
-    return input_dir.is_dir() and all((input_dir / filename).exists() for filename in RAW_INPUT_FILES.values())
+    return input_dir.is_dir() and all((input_dir / RAW_INPUT_FILES[key]).exists() for key in RAW_REQUIRED_INPUT_KEYS)
 
 
 def inspect_subject_directory(base_path: Path, subject_id: str) -> dict[str, Any]:
@@ -199,6 +202,14 @@ def find_subject_root(base_path: Path, subject_id: str) -> RawInputBundle:
 
     subject_root = Path(inspected["subject_root"])
     input_dir = subject_root / "input"
+    mask_path = input_dir / RAW_INPUT_FILES["mask"]
+    if not mask_path.exists():
+        generate_brain_mask_with_dwi2mask(
+            input_dir / RAW_INPUT_FILES["dwi"],
+            input_dir / RAW_INPUT_FILES["bval"],
+            input_dir / RAW_INPUT_FILES["bvec"],
+            mask_path,
+        )
     return RawInputBundle(
         subject_root=subject_root,
         subject_id=subject_id,
@@ -206,7 +217,7 @@ def find_subject_root(base_path: Path, subject_id: str) -> RawInputBundle:
         dwi_path=input_dir / RAW_INPUT_FILES["dwi"],
         bval_path=input_dir / RAW_INPUT_FILES["bval"],
         bvec_path=input_dir / RAW_INPUT_FILES["bvec"],
-        mask_path=input_dir / RAW_INPUT_FILES["mask"],
+        mask_path=mask_path,
     )
 
 

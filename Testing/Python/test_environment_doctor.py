@@ -318,6 +318,33 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             )
             self.assertEqual(mrconvert["details"]["detected_source"], "user setting")
 
+    def test_environment_doctor_resolves_conda_environment_name(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            expected_python = root / "envs" / "slicerdsurfer" / "bin" / "python"
+            expected_python.parent.mkdir(parents=True)
+            expected_python.write_text("", encoding="utf-8")
+            conda = root / "conda"
+            conda.write_text(
+                "#!/usr/bin/env python3\n"
+                "import sys\n"
+                "assert sys.argv[1:4] == ['run', '-n', 'slicerdsurfer']\n"
+                f"print({expected_python.as_posix()!r})\n",
+                encoding="utf-8",
+            )
+            conda.chmod(0o755)
+
+            result = run_environment_doctor(
+                EnvironmentDoctorConfig(
+                    targets=("validation",),
+                    repo_root=REPO_ROOT,
+                    python_environment="slicerdsurfer",
+                    conda_executable=conda,
+                )
+            )
+
+            self.assertEqual(result.python_executable, expected_python.resolve().as_posix())
+
 
 if __name__ == "__main__":
     unittest.main()

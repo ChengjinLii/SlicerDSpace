@@ -1,0 +1,111 @@
+# SlicerDDSurfer Release and Archive Checklist
+
+This checklist defines the release path for code, model assets, validation
+metadata, and DOI-backed archival records. It is intended for maintainers who
+prepare a public release or a manuscript-linked release.
+
+## Release Scope
+
+SlicerDDSurfer release artifacts are split into three classes:
+
+1. Source code and documentation in this repository.
+2. Git LFS-managed model weights, templates, meshes, neuroimaging fixtures, and
+   validation assets.
+3. External software installed separately by users, including 3D Slicer,
+   SlicerDMRI, MRtrix3, FSL, FreeSurfer-compatible tools, WMA, TractQuerier,
+   and TractCloud.
+
+The top-level BSD-3-Clause license applies to SlicerDDSurfer source code unless
+a file or bundled third-party component states different terms. It does not
+grant redistribution rights for external tools, model weights, templates, or
+subject-derived data whose terms must be reviewed separately.
+
+## Pre-Tag Checks
+
+Run these checks from a clean worktree:
+
+```bash
+make test-fast
+python3 scripts/release_audit.py
+python3 scripts/download_model_assets.py --profile core --verify-only
+SLICERDDSURFER_RELEASE_SUBJECT_ROOT=/path/to/subject-root \
+  SLICERDDSURFER_RELEASE_ARGS="--skip-slicer-smoke --warn-only" \
+  make release-plan
+```
+
+If Slicer is available, also run:
+
+```bash
+SLICERDDSURFER_SLICER_LAUNCHER=/path/to/Slicer \
+SLICERDDSURFER_XVFB_RUN=/path/to/xvfb-run \
+  make test-slicer
+```
+
+For manuscript-linked releases, also run the manuscript checks:
+
+```bash
+make -C manuscript_nature_protocols validate
+make -C manuscript_nature_protocols pdf
+```
+
+## Asset Terms Review
+
+Before archiving model or validation assets, review:
+
+- `MODEL_ASSETS.md`
+- `MODEL_ASSET_TERMS.md`
+- `models/assets_manifest.json`
+- `manuscript_nature_protocols/guidance/lfs_asset_availability_audit.md`
+- `manuscript_nature_protocols/guidance/lfs_asset_terms_manifest.csv`
+
+Do not include an LFS-managed asset in a DOI archive until its source,
+ownership, license, redistribution rights, and archive permissions are known.
+If an asset is restricted, document the restriction in the release notes and
+availability statement.
+
+If `MODEL_ASSET_TERMS.md` still marks redistribution or DOI-archive permission
+as unconfirmed, publish only a code/documentation release or exclude the affected
+assets from the DOI archive.
+
+## Tagging
+
+Use a semantic or manuscript-linked tag after the code, documentation, and
+validation route are frozen:
+
+```bash
+git tag -a vX.Y.Z -m "SlicerDDSurfer vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+For Nature Protocols preparation, use a stable manuscript-linked tag only after
+the manuscript scope, validation subject, timing evidence, source-data package,
+and asset terms are finalized.
+
+## DOI Archive
+
+Archive the release through Zenodo, Figshare, an institutional repository, or
+another DOI-backed service. The included `.zenodo.json` is a metadata starting
+point. Before publishing the DOI record:
+
+- Confirm the release tag being archived.
+- Confirm that restricted model weights, templates, and validation data are not
+  included unless redistribution is allowed.
+- Include `CITATION.cff`, `codemeta.json`, `LICENSE`, and the release
+  validation report.
+- Record the DOI in the release notes and manuscript Code Availability section.
+
+## Post-Release Updates
+
+After a release tag and DOI exist:
+
+1. Update `CITATION.cff` with the final version and DOI.
+2. Update `codemeta.json` with the final version and identifier.
+3. Update `manuscript_nature_protocols/guidance/release_metadata_manifest.csv`.
+4. Refresh the release snapshot:
+
+```bash
+make -C manuscript_nature_protocols release-metadata-check
+```
+
+5. Update `manuscript_nature_protocols/sections/07_data_code_availability.tex`
+   with the repository URL, release tag, DOI, license, and asset restrictions.
