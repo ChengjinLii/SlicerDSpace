@@ -80,7 +80,14 @@ The same gate is available in GitHub Actions through the manual
 request CI intentionally does not download the large model weights; it only
 checks the manifest plan and LFS metadata.
 
-To validate or create the draft GitHub Release page from a maintainer machine:
+The GitHub Release page can also be created from the same manual workflow by
+setting `create_github_release=true`. If `run_fresh_clone_smoke=true` is enabled
+in the same dispatch, the generated `fresh_clone_smoke_report.json` is attached
+to the draft release. The job uses the workflow `GITHUB_TOKEN` and does not
+require a local token on this machine.
+
+To validate or create the draft GitHub Release page from a maintainer machine
+instead:
 
 ```bash
 python3 scripts/create_github_release.py --dry-run

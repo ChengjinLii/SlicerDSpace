@@ -23,6 +23,10 @@ Date: 2026-06-25
 - Added `scripts/create_github_release.py`, a GitHub REST API helper that can
   validate the release plan in dry-run mode or create the draft release and
   upload artifacts when `GITHUB_TOKEN` or `GH_TOKEN` is available.
+- Extended the manual GitHub Actions workflow with `create_github_release=true`
+  so maintainers can create or update the draft GitHub Release from the GitHub
+  UI using the workflow `GITHUB_TOKEN`. If `run_fresh_clone_smoke=true` is used
+  in the same dispatch, the smoke report is attached to the release.
 - Updated `README.md`, `RELEASE.md` and `DOI_ARCHIVE_PREP.md` with the new
   smoke gate, Slicer smoke modes, release draft and DOI boundary.
 
@@ -46,9 +50,9 @@ Date: 2026-06-25
 
 ## Remaining Manual Boundary
 
-- The GitHub Release page itself was not created from this environment because
-  no `GITHUB_TOKEN`/`GH_TOKEN` is available. The draft release body and scripted
-  creation path are in `GITHUB_RELEASE_DRAFT_v0.1.0.md` and
+- The GitHub Release page itself was not created from this local shell because
+  no `GITHUB_TOKEN`/`GH_TOKEN` is available. It can now be created from GitHub
+  Actions with `create_github_release=true`, or from a maintainer machine with
   `scripts/create_github_release.py`.
 - DOI remains code-only unless every model/template/validation asset group has
   confirmed redistribution and DOI-archive permission.

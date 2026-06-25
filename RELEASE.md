@@ -54,6 +54,10 @@ The GitHub Actions workflow exposes the fresh-clone smoke gate only as a manual
 `workflow_dispatch` input. Push and pull request CI must not download the large
 Git LFS model assets by default.
 
+The same manual workflow can create or update the draft GitHub Release page by
+setting `create_github_release=true`. To attach fresh-clone evidence to the
+release in the same run, also set `run_fresh_clone_smoke=true`.
+
 For manuscript-linked releases, also run the manuscript checks:
 
 ```bash
@@ -116,7 +120,7 @@ ready-to-review GitHub Release body and attachment list. If post-tag changes on
 rather than moving `v0.1.0`.
 
 To create the draft GitHub Release page and upload the default code-only support
-files from a maintainer machine:
+files from a maintainer machine instead of GitHub Actions:
 
 ```bash
 python3 scripts/create_github_release.py --dry-run

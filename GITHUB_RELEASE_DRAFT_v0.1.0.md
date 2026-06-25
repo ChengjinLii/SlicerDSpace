@@ -86,9 +86,21 @@ ownership, license, redistribution permission and archive permission.
 
 ## Scripted Creation Command
 
-This repository includes a GitHub REST API helper that creates the draft
-release and uploads the default code-only support files. Validate the plan
-without credentials first:
+The repository CI workflow can create or update this draft release from the
+GitHub Actions page:
+
+1. Open the `CI` workflow.
+2. Select `Run workflow`.
+3. Set `create_github_release=true`.
+4. Optionally set `run_fresh_clone_smoke=true` to attach
+   `fresh_clone_smoke_report.json` to the release.
+5. Keep `release_tag=v0.1.0` unless preparing a new tag.
+
+This uses the workflow `GITHUB_TOKEN` with `contents: write` permission.
+
+This repository also includes a GitHub REST API helper that creates the draft
+release and uploads the default code-only support files from a maintainer
+machine. Validate the plan without credentials first:
 
 ```bash
 python3 scripts/create_github_release.py --dry-run

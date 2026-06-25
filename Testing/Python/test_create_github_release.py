@@ -44,6 +44,7 @@ class CreateGithubReleaseTest(unittest.TestCase):
                 draft=True,
                 prerelease=True,
                 reuse_existing=False,
+                replace_existing_assets=False,
             )
 
             payload = module.release_payload(plan)
@@ -70,6 +71,7 @@ class CreateGithubReleaseTest(unittest.TestCase):
                 draft=True,
                 prerelease=True,
                 reuse_existing=False,
+                replace_existing_assets=False,
             )
 
             with self.assertRaises(FileNotFoundError):
@@ -89,6 +91,7 @@ class CreateGithubReleaseTest(unittest.TestCase):
             publish=False,
             final=False,
             reuse_existing=True,
+            replace_existing_assets=True,
         )
 
         plan = module.build_release_plan(args)
@@ -98,6 +101,7 @@ class CreateGithubReleaseTest(unittest.TestCase):
         self.assertTrue(plan.draft)
         self.assertTrue(plan.prerelease)
         self.assertTrue(plan.reuse_existing)
+        self.assertTrue(plan.replace_existing_assets)
         self.assertIn(smoke_report, plan.assets)
 
 

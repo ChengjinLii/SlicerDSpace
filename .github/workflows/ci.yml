@@ -14,6 +14,19 @@ on:
         options:
           - "false"
           - "true"
+      create_github_release:
+        description: "Create or update the draft GitHub Release from release_artifacts"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      release_tag:
+        description: "Release tag used by scripts/create_github_release.py"
+        required: false
+        default: "v0.1.0"
+        type: string
 
 jobs:
   fast-checks:
@@ -73,3 +86,53 @@ jobs:
             /tmp/slicerdsurfer-fresh-clone-smoke/fresh_clone_smoke_report.json
             /tmp/slicerdsurfer-fresh-clone-smoke/logs/*.log
           if-no-files-found: warn
+
+  create-github-release:
+    if: >-
+      always() &&
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.create_github_release == 'true' &&
+      (github.event.inputs.run_fresh_clone_smoke != 'true' || needs.fresh-clone-smoke.result == 'success')
+    needs: [fresh-clone-smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release controller copy
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Download fresh-clone smoke report
+        if: github.event.inputs.run_fresh_clone_smoke == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: fresh-clone-smoke-report
+          path: /tmp/slicerdsurfer-fresh-clone-smoke-report
+
+      - name: Validate GitHub Release plan
+        run: |
+          extra_args=()
+          if [ -f /tmp/slicerdsurfer-fresh-clone-smoke-report/fresh_clone_smoke_report.json ]; then
+            extra_args+=(--fresh-clone-report /tmp/slicerdsurfer-fresh-clone-smoke-report/fresh_clone_smoke_report.json)
+          fi
+          python3 scripts/create_github_release.py \
+            --repository "${{ github.repository }}" \
+            --tag "${{ github.event.inputs.release_tag }}" \
+            --dry-run \
+            "${extra_args[@]}"
+
+      - name: Create or update draft GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          extra_args=()
+          if [ -f /tmp/slicerdsurfer-fresh-clone-smoke-report/fresh_clone_smoke_report.json ]; then
+            extra_args+=(--fresh-clone-report /tmp/slicerdsurfer-fresh-clone-smoke-report/fresh_clone_smoke_report.json)
+          fi
+          python3 scripts/create_github_release.py \
+            --repository "${{ github.repository }}" \
+            --tag "${{ github.event.inputs.release_tag }}" \
+            --reuse-existing \
+            --replace-existing-assets \
+            "${extra_args[@]}"

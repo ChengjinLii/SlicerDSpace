@@ -44,6 +44,7 @@ class ReleasePlan:
     draft: bool
     prerelease: bool
     reuse_existing: bool
+    replace_existing_assets: bool
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -55,6 +56,7 @@ class ReleasePlan:
             "draft": self.draft,
             "prerelease": self.prerelease,
             "reuse_existing": self.reuse_existing,
+            "replace_existing_assets": self.replace_existing_assets,
         }
 
 
@@ -79,6 +81,7 @@ def build_release_plan(args: argparse.Namespace) -> ReleasePlan:
         draft=not bool(args.publish),
         prerelease=not bool(args.final),
         reuse_existing=bool(args.reuse_existing),
+        replace_existing_assets=bool(args.replace_existing_assets),
     )
 
 
@@ -182,6 +185,21 @@ def upload_asset(release: dict[str, Any], asset: Path, *, token: str) -> dict[st
     )
 
 
+def list_release_assets(release: dict[str, Any], *, token: str) -> list[dict[str, Any]]:
+    assets_url = str(release.get("assets_url") or "")
+    if not assets_url:
+        return []
+    result = _api_request("GET", assets_url, token=token)
+    return result if isinstance(result, list) else []
+
+
+def delete_release_asset(asset: dict[str, Any], *, token: str) -> None:
+    url = str(asset.get("url") or "")
+    if not url:
+        raise RuntimeError(f"Release asset has no delete URL: {asset.get('name')}")
+    _api_request("DELETE", url, token=token)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Create the SlicerDDSurfer GitHub Release and upload artifacts.")
     parser.add_argument("--repository", default=DEFAULT_REPOSITORY, help="GitHub repository in owner/name form.")
@@ -193,6 +211,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--publish", action="store_true", help="Create a non-draft release. Default is draft.")
     parser.add_argument("--final", action="store_true", help="Do not mark the release as prerelease.")
     parser.add_argument("--reuse-existing", action="store_true", help="Upload assets to an existing release for the tag.")
+    parser.add_argument("--replace-existing-assets", action="store_true", help="Delete same-named release assets before uploading.")
     parser.add_argument("--dry-run", action="store_true", help="Validate inputs and print the planned GitHub API action.")
     return parser
 
@@ -223,8 +242,16 @@ def main(argv: list[str] | None = None) -> int:
         if not token:
             raise RuntimeError("Set GITHUB_TOKEN or GH_TOKEN, or run with --dry-run to validate the release plan.")
         release = create_release(plan, token=token)
+        existing_assets = {str(item.get("name") or ""): item for item in list_release_assets(release, token=token)}
         uploaded = []
         for asset in plan.assets:
+            existing = existing_assets.get(asset.name)
+            if existing is not None:
+                if not plan.replace_existing_assets:
+                    raise RuntimeError(
+                        f"Release asset already exists: {asset.name}. Use --replace-existing-assets to replace it."
+                    )
+                delete_release_asset(existing, token=token)
             uploaded.append(upload_asset(release, asset, token=token))
         print(
             json.dumps(
