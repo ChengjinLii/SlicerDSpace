@@ -79,11 +79,17 @@ from shared.ui_run_controller import (
     validate_batch_run_options,
     validate_single_subject_inputs,
 )
-from shared.ui_styles import (
-    RUN_STATUS_TABLE_STYLE,
-    SLICERDDSURFER_UI_STYLE,
-    run_summary_label_style,
+from shared.ui_settings import coerce_user_setting_value, common_user_setting_specs
+from shared.ui_status_log import (
+    append_log,
+    apply_widget_styles,
+    configure_log_widget,
+    set_existing_report_path,
+    set_run_progress_message,
+    set_run_summary_message,
+    set_status,
 )
+from shared.ui_background_process import build_background_run_context, qprocess_is_running
 from shared.ui_run_status_panel import (
     install_run_status_panel,
     mark_unfinished_rows,
@@ -264,40 +270,10 @@ class SharedWidgetMixin:
         return f"SlicerDDSurfer/UserSettings/{name}"
 
     def _common_user_setting_specs(self) -> tuple[tuple[str, type], ...]:
-        return (
-            ("subjectId", str),
-            ("inputDirectory", str),
-            ("outputDirectory", str),
-            ("orchestrationRunName", str),
-            ("orchestrationTractographyBackend", str),
-            ("orchestrationBundleBackend", str),
-            ("orchestrationSelectStreamlines", int),
-            ("orchestrationMicrostructureStages", str),
-            ("connectomeBackend", str),
-            ("connectomeCompressMrtrixDense", bool),
-            ("autoInstallPythonDependencies", bool),
-            ("batchMode", bool),
-            ("batchRoot", str),
-            ("batchSize", int),
-            ("batchArrangeInputs", str),
-            ("targetPreprocessing", bool),
-            ("targetSurface", bool),
-            ("targetParcellation", bool),
-            ("targetSegmentation", bool),
-            ("targetMicrostructure", bool),
-            ("targetTractography", bool),
-            ("targetBundles", bool),
-            ("targetConnectome", bool),
-        )
+        return common_user_setting_specs()
 
     def _coerce_user_setting_value(self, value: Any, value_type: type) -> Any:
-        if value_type is bool:
-            if isinstance(value, bool):
-                return value
-            return str(value).strip().lower() in {"1", "true", "yes", "on"}
-        if value_type is int:
-            return int(value)
-        return str(value or "")
+        return coerce_user_setting_value(value, value_type)
 
     def _restore_common_user_settings_to_node(self) -> None:
         node = self._parameterNode
@@ -580,58 +556,16 @@ class SharedWidgetMixin:
             )
 
     def _configure_log_widget(self) -> None:
-        log_widget = getattr(self.ui, "logPlainTextEdit", None)
-        if not log_widget:
-            return
-        log_widget.setToolTip(
-            f"Live background log. The UI keeps the latest {self._logLineLimit} lines to avoid slowing long runs."
-        )
-        try:
-            log_widget.maximumBlockCount = int(self._logLineLimit)
-        except Exception:
-            pass
-        try:
-            log_widget.setMaximumBlockCount(int(self._logLineLimit))
-        except Exception:
-            try:
-                log_widget.document().setMaximumBlockCount(int(self._logLineLimit))
-            except Exception:
-                pass
-        try:
-            log_widget.setLineWrapMode(qt.QPlainTextEdit.NoWrap)
-        except Exception:
-            pass
+        configure_log_widget(getattr(self.ui, "logPlainTextEdit", None), line_limit=int(self._logLineLimit))
 
     def _apply_slicerddsurfer_ui_style(self) -> None:
-        root_widget = getattr(self, "_uiWidget", None)
-        try:
-            if root_widget:
-                root_widget.setStyleSheet(SLICERDDSURFER_UI_STYLE)
-        except Exception:
-            try:
-                self.parent.setStyleSheet(SLICERDDSURFER_UI_STYLE)
-            except Exception:
-                pass
-        table = getattr(self, "_runStatusTable", None)
-        if table:
-            table.setStyleSheet(RUN_STATUS_TABLE_STYLE)
-            try:
-                table.verticalHeader().setVisible(False)
-            except Exception:
-                pass
+        apply_widget_styles(self)
 
     def _set_run_progress_message(self, message: str) -> None:
-        label = getattr(self, "_runStatusHintLabel", None)
-        if label:
-            label.setText(message)
-        slicer.util.showStatusMessage(message, 3000)
+        set_run_progress_message(self, message)
 
     def _set_run_summary_message(self, message: str, state: str = "") -> None:
-        label = getattr(self, "_runSummaryLabel", None)
-        if not label:
-            return
-        label.setText(message or "Run summary is not available yet.")
-        label.setStyleSheet(run_summary_label_style(state))
+        set_run_summary_message(self, message, state)
 
     def _run_summary_from_manifest(self, manifest: dict[str, Any]) -> tuple[str, str]:
         return run_summary_from_manifest(manifest)
@@ -644,22 +578,10 @@ class SharedWidgetMixin:
             self._set_run_summary_message(fallback, "unknown")
 
     def _set_latest_report_path(self, report_path: str | Path | None) -> None:
-        path = Path(str(report_path)).expanduser() if report_path else None
-        if path is not None and not path.is_file():
-            path = None
-        self._latestReportPath = path
-        button = getattr(self, "_runReportButton", None)
-        if button:
-            button.enabled = bool(path)
+        set_existing_report_path(self, "_latestReportPath", "_runReportButton", report_path)
 
     def _set_latest_output_tree_path(self, report_path: str | Path | None) -> None:
-        path = Path(str(report_path)).expanduser() if report_path else None
-        if path is not None and not path.is_file():
-            path = None
-        self._latestOutputTreePath = path
-        button = getattr(self, "_runOutputTreeButton", None)
-        if button:
-            button.enabled = bool(path)
+        set_existing_report_path(self, "_latestOutputTreePath", "_runOutputTreeButton", report_path)
 
     def _on_open_latest_report_clicked(self) -> None:
         report_path = getattr(self, "_latestReportPath", None)
@@ -1116,22 +1038,7 @@ class SharedWidgetMixin:
                             widget.setStyleSheet(style)
 
     def appendLog(self, text: str) -> None:
-        if hasattr(self.ui, "logPlainTextEdit"):
-            self.ui.logPlainTextEdit.appendPlainText(text)
-            self._logAppendCount = int(getattr(self, "_logAppendCount", 0) or 0) + 1
-            if self._logAppendCount % 100 == 0:
-                self._trim_log_widget(self.ui.logPlainTextEdit)
-            self.ui.logPlainTextEdit.ensureCursorVisible()
-        if text.startswith("[Orchestrator] Running "):
-            self._set_run_progress_message(text.replace("[Orchestrator] ", "", 1))
-        now = monotonic()
-        if now - float(getattr(self, "_lastProcessEventsAt", 0.0) or 0.0) < 0.15:
-            return
-        self._lastProcessEventsAt = now
-        try:
-            slicer.app.processEvents()
-        except Exception:
-            pass
+        append_log(self, text)
 
     def _trim_log_widget(self, log_widget) -> None:
         limit = int(getattr(self, "_logLineLimit", 4000) or 4000)
@@ -1318,12 +1225,9 @@ class SharedWidgetMixin:
     ) -> None:
         if getattr(self, "_backgroundProcess", None) is not None:
             process = self._backgroundProcess
-            try:
-                if process and process.state() != qt.QProcess.NotRunning:
-                    slicer.util.infoDisplay("A SlicerDDSurfer job is already running.", parent=self.parent)
-                    return
-            except Exception:
-                pass
+            if qprocess_is_running(process):
+                slicer.util.infoDisplay("A SlicerDDSurfer job is already running.", parent=self.parent)
+                return
 
         process = qt.QProcess(self.parent)
         process.setWorkingDirectory(Path(__file__).resolve().parent.parent.as_posix())
@@ -1338,15 +1242,7 @@ class SharedWidgetMixin:
         self._backgroundOutputBuffer = ""
         self._backgroundManifestPath = None
         self._backgroundCancelRequested = False
-        self._backgroundRunContext = {
-            "subject_id": common_run_kwargs["subject_id"],
-            "subject_root": common_run_kwargs["subject_root"],
-            "output_root": common_run_kwargs.get("output_root"),
-            "run_name": common_run_kwargs["run_name"],
-            "targets": common_run_kwargs["targets"],
-            "started_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-            "selected_workflows": selected_workflows,
-        }
+        self._backgroundRunContext = build_background_run_context(common_run_kwargs, selected_workflows)
         self.appendLog("[Background] Starting: " + program + " " + " ".join(args))
         self._setPipelineActive(True)
         self._set_run_progress_message("Background execution submitted.")
@@ -1368,12 +1264,9 @@ class SharedWidgetMixin:
     ) -> None:
         if getattr(self, "_backgroundProcess", None) is not None:
             process = self._backgroundProcess
-            try:
-                if process and process.state() != qt.QProcess.NotRunning:
-                    slicer.util.infoDisplay("A SlicerDDSurfer job is already running.", parent=self.parent)
-                    return
-            except Exception:
-                pass
+            if qprocess_is_running(process):
+                slicer.util.infoDisplay("A SlicerDDSurfer job is already running.", parent=self.parent)
+                return
 
         process = qt.QProcess(self.parent)
         process.setWorkingDirectory(Path(__file__).resolve().parent.parent.as_posix())
@@ -1394,16 +1287,12 @@ class SharedWidgetMixin:
         self._backgroundOutputBuffer = ""
         self._backgroundManifestPath = None
         self._backgroundCancelRequested = False
-        self._backgroundRunContext = {
-            "subject_id": "batch",
-            "subject_root": batch_root,
-            "output_root": common_run_kwargs.get("output_root"),
-            "run_name": common_run_kwargs["run_name"],
-            "targets": common_run_kwargs["targets"],
-            "started_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-            "selected_workflows": selected_workflows,
-            "batch_size": batch_size,
-        }
+        self._backgroundRunContext = build_background_run_context(
+            common_run_kwargs,
+            selected_workflows,
+            batch_root=batch_root,
+            batch_size=batch_size,
+        )
         self.appendLog("[Background] Starting batch: " + program + " " + " ".join(args))
         self._setPipelineActive(True)
         self._set_run_progress_message(f"Batch execution submitted for {batch_root}.")
@@ -1772,32 +1661,7 @@ class SharedWidgetMixin:
         slicer.util.infoDisplay(message, windowTitle="SlicerDDSurfer partial run", parent=self.parent)
 
     def _setStatus(self, kind: str, message: str) -> None:
-        label = getattr(self.ui, "statusLabel", None)
-        if not label:
-            return
-        progress = getattr(self.ui, "statusProgressBar", None)
-        palette = {
-            "ready": "#2E7D32",
-            "running": "#1565C0",
-            "waiting": "#EF6C00",
-            "warning": "#EF6C00",
-            "error": "#C62828",
-        }
-        color = palette.get(kind, palette["error"])
-        label.setText(message)
-        label.setStyleSheet(
-            f"background-color: {color}; color: white; padding: 4px 10px; border-radius: 6px; font-weight: 600;"
-        )
-        if not progress:
-            return
-        if kind == "running":
-            progress.setRange(0, 0)
-        elif kind == "ready":
-            progress.setRange(0, 100)
-            progress.setValue(100)
-        else:
-            progress.setRange(0, 100)
-            progress.setValue(0)
+        set_status(self, kind, message)
 
     def _summarise_missing(self, missing: List[str]) -> str:
         if not missing:
