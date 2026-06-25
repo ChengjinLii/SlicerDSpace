@@ -2,7 +2,7 @@ PYTHON ?= python3
 SLICERDDSURFER_RELEASE_ARGS ?=
 SLICERDDSURFER_TEST_PATTERN ?= test_*.py
 
-.PHONY: help test-fast test-slicer release-check release-plan lint
+.PHONY: help test-fast test-slicer release-check release-plan release-artifacts output-tree-report lint
 
 help:
 	@echo "SlicerDDSurfer developer targets:"
@@ -10,6 +10,8 @@ help:
 	@echo "  make test-slicer    Run Slicer smoke tests. Set SLICERDDSURFER_SLICER_LAUNCHER and SLICERDDSURFER_XVFB_RUN."
 	@echo "  make release-check  Run release audit, model asset verification, and release validation."
 	@echo "  make release-plan   Run release validation only. Requires SLICERDDSURFER_RELEASE_SUBJECT_ROOT."
+	@echo "  make release-artifacts Build lockfile and code-only archive metadata."
+	@echo "  make output-tree-report Generate annotated HTML for the release output tree."
 	@echo "  make lint           Run ruff if installed."
 
 test-fast:
@@ -33,6 +35,15 @@ release-check:
 	$(PYTHON) scripts/release_audit.py
 	$(PYTHON) scripts/download_model_assets.py --profile core --verify-only
 	$(MAKE) release-plan
+
+release-artifacts:
+	$(PYTHON) scripts/build_release_artifacts.py \
+	  --release-validation-report "$${SLICERDDSURFER_RELEASE_VALIDATION_REPORT:-/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/release_validation/release_validation_report.json}"
+
+output-tree-report:
+	$(PYTHON) Testing/Python/generate_output_tree_report.py \
+	  --output-root "$${SLICERDDSURFER_OUTPUT_ROOT:-/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs}" \
+	  --dest "$${SLICERDDSURFER_OUTPUT_TREE_HTML:-SlicerDDSurfer_100307_release_candidate_output_tree.html}"
 
 lint:
 	$(PYTHON) -m ruff check .

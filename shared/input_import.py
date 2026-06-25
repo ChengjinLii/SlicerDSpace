@@ -1,0 +1,342 @@
+"""Prepare external DWI inputs into the SlicerDDSurfer subject-root layout."""
+
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Literal
+
+
+ImportSourceKind = Literal["canonical", "dicom", "nifti", "nrrd"]
+ImportBackend = Literal["auto", "copy", "dcm2niix", "mrconvert", "dwiconvert"]
+ImportOutputKind = Literal["canonical-nifti", "compat-nrrd"]
+
+
+CANONICAL_INPUT_FILES = ("data.nii.gz", "bvals", "bvecs")
+NIFTI_SUFFIXES = (".nii", ".nii.gz")
+NRRD_SUFFIXES = (".nrrd", ".nhdr")
+DICOM_SUFFIXES = (".dcm", ".ima")
+
+
+@dataclass(frozen=True)
+class InputImportConfig:
+    """Options for preparing an external DWI source into a subject root."""
+
+    source: Path
+    subject_root: Path
+    subject_id: str
+    source_kind: ImportSourceKind = "canonical"
+    backend: ImportBackend = "auto"
+    output_kind: ImportOutputKind = "canonical-nifti"
+    bval_path: Path | None = None
+    bvec_path: Path | None = None
+    metadata_path: Path | None = None
+    mask_path: Path | None = None
+    dcm2niix_executable: Path | None = None
+    mrconvert_executable: Path | None = None
+    dwiconvert_executable: Path | None = None
+    dry_run: bool = False
+    force: bool = False
+
+
+def detect_import_source_kind(path: Path) -> ImportSourceKind:
+    """Detect the most likely import source kind."""
+
+    resolved = path.expanduser()
+    if resolved.is_dir():
+        input_dir = resolved / "input"
+        if input_dir.is_dir() and all((input_dir / name).is_file() for name in CANONICAL_INPUT_FILES):
+            return "canonical"
+        if all((resolved / name).is_file() for name in CANONICAL_INPUT_FILES):
+            return "canonical"
+        if _directory_has_dicom_like_files(resolved):
+            return "dicom"
+        return "dicom"
+    name = resolved.name.lower()
+    if name.endswith(NRRD_SUFFIXES):
+        return "nrrd"
+    if name.endswith(NIFTI_SUFFIXES):
+        return "nifti"
+    raise ValueError(f"Unsupported import source: {path}")
+
+
+def _directory_has_dicom_like_files(path: Path) -> bool:
+    try:
+        for child in path.iterdir():
+            if child.is_file() and (child.suffix.lower() in DICOM_SUFFIXES or not child.suffix):
+                return True
+            if child.is_dir() and _directory_has_dicom_like_files(child):
+                return True
+    except OSError:
+        return False
+    return False
+
+
+def _resolve_executable(explicit: Path | None, name: str) -> str:
+    if explicit:
+        return explicit.expanduser().as_posix()
+    found = shutil.which(name)
+    if found:
+        return found
+    return name
+
+
+def _sidecar_for(source: Path, suffix: str) -> Path:
+    name = source.name
+    if name.endswith(".nii.gz"):
+        return source.with_name(name[:-7] + suffix)
+    return source.with_suffix(suffix)
+
+
+def _copy_file(source: Path, target: Path, *, force: bool) -> None:
+    if target.exists() and not force:
+        raise FileExistsError(f"Refusing to overwrite existing file: {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+
+
+def _run(command: list[str], *, dry_run: bool, cwd: Path | None = None) -> dict[str, Any]:
+    if dry_run:
+        return {"command": command, "returncode": None, "stdout": "", "stderr": "", "dry_run": True}
+    completed = subprocess.run(
+        command,
+        cwd=cwd,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    result = {
+        "command": command,
+        "returncode": completed.returncode,
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+        "dry_run": False,
+    }
+    if completed.returncode != 0:
+        raise RuntimeError(f"Input import command failed with exit code {completed.returncode}: {' '.join(command)}")
+    return result
+
+
+def _normalize_dcm2niix_outputs(input_dir: Path, *, force: bool, dry_run: bool) -> list[dict[str, str]]:
+    expected = {
+        "data.bval": "bvals",
+        "data.bvec": "bvecs",
+        "data.json": "dwi.json",
+    }
+    actions: list[dict[str, str]] = []
+    for source_name, target_name in expected.items():
+        source = input_dir / source_name
+        target = input_dir / target_name
+        actions.append({"source": source.as_posix(), "target": target.as_posix()})
+        if dry_run:
+            continue
+        if source.is_file():
+            if target.exists() and not force:
+                raise FileExistsError(f"Refusing to overwrite existing file: {target}")
+            source.replace(target)
+    return actions
+
+
+def _canonical_targets(subject_root: Path) -> dict[str, Path]:
+    input_dir = subject_root / "input"
+    return {
+        "input_dir": input_dir,
+        "dwi": input_dir / "data.nii.gz",
+        "bvals": input_dir / "bvals",
+        "bvecs": input_dir / "bvecs",
+        "metadata": input_dir / "dwi.json",
+        "mask": input_dir / "nodif_brain_mask.nii.gz",
+        "manifest": input_dir / "input_import_manifest.json",
+        "compat_nrrd": subject_root / "cache" / "imported_nrrd" / "data.nhdr",
+    }
+
+
+def build_import_plan(config: InputImportConfig) -> dict[str, Any]:
+    """Build a serializable input-import plan without mutating the filesystem."""
+
+    source = config.source.expanduser().resolve()
+    subject_root = config.subject_root.expanduser().resolve()
+    source_kind = config.source_kind if config.source_kind != "canonical" else detect_import_source_kind(source)
+    backend = _select_backend(source_kind, config.backend, config.output_kind)
+    targets = _canonical_targets(subject_root)
+    command: list[str] | None = None
+
+    if backend == "dcm2niix":
+        command = [
+            _resolve_executable(config.dcm2niix_executable, "dcm2niix"),
+            "-z",
+            "y",
+            "-f",
+            "data",
+            "-o",
+            targets["input_dir"].as_posix(),
+            source.as_posix(),
+        ]
+    elif backend == "mrconvert":
+        command = [
+            _resolve_executable(config.mrconvert_executable, "mrconvert"),
+            source.as_posix(),
+            targets["dwi"].as_posix(),
+            "-export_grad_fsl",
+            targets["bvecs"].as_posix(),
+            targets["bvals"].as_posix(),
+            "-json_export",
+            targets["metadata"].as_posix(),
+            "-force",
+        ]
+    elif backend == "dwiconvert" and source_kind == "nrrd":
+        command = [
+            _resolve_executable(config.dwiconvert_executable, "DWIConvert"),
+            "--inputVolume",
+            source.as_posix(),
+            "--conversionMode",
+            "NrrdToFSL",
+            "--outputVolume",
+            targets["dwi"].as_posix(),
+            "--outputBValues",
+            targets["bvals"].as_posix(),
+            "--outputBVectors",
+            targets["bvecs"].as_posix(),
+        ]
+    elif backend == "dwiconvert" and source_kind == "dicom":
+        command = [
+            _resolve_executable(config.dwiconvert_executable, "DWIConvert"),
+            "--inputDicomDirectory",
+            source.as_posix(),
+            "--conversionMode",
+            "DicomToNrrd",
+            "--outputVolume",
+            targets["compat_nrrd"].as_posix(),
+        ]
+
+    return {
+        "kind": "slicerdsurfer_input_import_plan",
+        "version": 1,
+        "subject_id": config.subject_id,
+        "source": source.as_posix(),
+        "source_kind": source_kind,
+        "backend": backend,
+        "output_kind": config.output_kind,
+        "canonical_layout": {key: value.as_posix() for key, value in targets.items()},
+        "command": command,
+        "sidecars": {
+            "bval": (config.bval_path or _sidecar_for(source, ".bval")).expanduser().as_posix()
+            if source_kind == "nifti"
+            else None,
+            "bvec": (config.bvec_path or _sidecar_for(source, ".bvec")).expanduser().as_posix()
+            if source_kind == "nifti"
+            else None,
+            "metadata": (config.metadata_path or _sidecar_for(source, ".json")).expanduser().as_posix()
+            if source_kind == "nifti"
+            else None,
+            "mask": config.mask_path.expanduser().as_posix() if config.mask_path else None,
+        },
+        "policy": (
+            "External inputs are normalized into input/data.nii.gz, input/bvals, input/bvecs and optional input/dwi.json. "
+            "The downstream pipeline continues to consume only the canonical subject-root layout."
+        ),
+    }
+
+
+def _select_backend(source_kind: ImportSourceKind, backend: ImportBackend, output_kind: ImportOutputKind) -> ImportBackend:
+    if backend != "auto":
+        return backend
+    if source_kind == "canonical":
+        return "copy"
+    if source_kind == "nifti":
+        return "copy"
+    if source_kind == "dicom":
+        return "dwiconvert" if output_kind == "compat-nrrd" else "dcm2niix"
+    if source_kind == "nrrd":
+        return "mrconvert"
+    raise ValueError(f"Unsupported source kind: {source_kind}")
+
+
+def prepare_inputs(config: InputImportConfig) -> dict[str, Any]:
+    """Prepare external inputs and write input/input_import_manifest.json."""
+
+    plan = build_import_plan(config)
+    targets = _canonical_targets(config.subject_root.expanduser().resolve())
+    targets["input_dir"].mkdir(parents=True, exist_ok=True)
+    command_result: dict[str, Any] | None = None
+    source = config.source.expanduser().resolve()
+    source_kind = plan["source_kind"]
+    backend = plan["backend"]
+
+    if backend == "copy":
+        if source_kind == "canonical":
+            _copy_canonical_source(source, targets, force=config.force, dry_run=config.dry_run)
+        elif source_kind == "nifti":
+            _copy_nifti_source(source, targets, config, force=config.force, dry_run=config.dry_run)
+    else:
+        command = plan.get("command")
+        if not command:
+            raise ValueError(f"No import command was generated for backend={backend}.")
+        cwd = targets["input_dir"] if backend == "dcm2niix" else None
+        command_result = _run(command, dry_run=config.dry_run, cwd=cwd)
+        if backend == "dcm2niix":
+            plan["postprocess"] = _normalize_dcm2niix_outputs(targets["input_dir"], force=config.force, dry_run=config.dry_run)
+    if config.mask_path:
+        _copy_file(config.mask_path.expanduser().resolve(), targets["mask"], force=config.force) if not config.dry_run else None
+
+    manifest = {
+        "kind": "slicerdsurfer_input_import_manifest",
+        "version": 1,
+        "status": "planned" if config.dry_run else "completed",
+        "plan": plan,
+        "command_result": command_result,
+        "outputs": {
+            "dwi": targets["dwi"].as_posix(),
+            "bvals": targets["bvals"].as_posix(),
+            "bvecs": targets["bvecs"].as_posix(),
+            "metadata": targets["metadata"].as_posix(),
+            "mask": targets["mask"].as_posix() if targets["mask"].exists() or config.mask_path else None,
+        },
+    }
+    if not config.dry_run:
+        targets["manifest"].write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
+
+
+def _copy_canonical_source(source: Path, targets: dict[str, Path], *, force: bool, dry_run: bool) -> None:
+    input_dir = source / "input" if (source / "input").is_dir() else source
+    mapping = {
+        input_dir / "data.nii.gz": targets["dwi"],
+        input_dir / "bvals": targets["bvals"],
+        input_dir / "bvecs": targets["bvecs"],
+    }
+    optional = {
+        input_dir / "dwi.json": targets["metadata"],
+        input_dir / "nodif_brain_mask.nii.gz": targets["mask"],
+    }
+    if dry_run:
+        return
+    for src, dst in mapping.items():
+        _copy_file(src, dst, force=force)
+    for src, dst in optional.items():
+        if src.is_file():
+            _copy_file(src, dst, force=force)
+
+
+def _copy_nifti_source(
+    source: Path,
+    targets: dict[str, Path],
+    config: InputImportConfig,
+    *,
+    force: bool,
+    dry_run: bool,
+) -> None:
+    bval = (config.bval_path or _sidecar_for(source, ".bval")).expanduser().resolve()
+    bvec = (config.bvec_path or _sidecar_for(source, ".bvec")).expanduser().resolve()
+    metadata = (config.metadata_path or _sidecar_for(source, ".json")).expanduser().resolve()
+    if dry_run:
+        return
+    _copy_file(source, targets["dwi"], force=force)
+    _copy_file(bval, targets["bvals"], force=force)
+    _copy_file(bvec, targets["bvecs"], force=force)
+    if metadata.is_file():
+        _copy_file(metadata, targets["metadata"], force=force)

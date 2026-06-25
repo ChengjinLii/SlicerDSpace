@@ -18,7 +18,7 @@ SlicerDDSurfer is a 3D Slicer scripted module that bundles multiple diffusion-MR
 
 **Release-candidate install/run validation:** [RELEASE_CANDIDATE_VALIDATION.md](RELEASE_CANDIDATE_VALIDATION.md)
 
-**License and release archive process:** [LICENSE](LICENSE), [CITATION.cff](CITATION.cff), and [RELEASE.md](RELEASE.md)
+**License and release archive process:** [LICENSE](LICENSE), [CITATION.cff](CITATION.cff), [RELEASE.md](RELEASE.md), and [DOI_ARCHIVE_PREP.md](DOI_ARCHIVE_PREP.md)
 
 The Slicer UI and CLI both support external dependency path overrides. In Slicer, use `Environment & Dependencies` to import/export a CLI-compatible dependency config; on the CLI, use explicit path flags or `--dependency-config` / `--save-dependency-config`.
 Imported dependency profiles are re-scanned on the current machine; saved paths are treated as hints, not proof that another computer has the same environment.
@@ -103,6 +103,62 @@ scripts/download_model_assets.sh --profile parcellation
 ```
 
 See [MODEL_ASSETS.md](MODEL_ASSETS.md) for the manifest format, profiles, expected paths, verification behavior, and external DDSurfer asset environment variables.
+
+---
+
+## Prepare Inputs
+
+The main pipeline consumes a canonical subject-root layout:
+
+```text
+sub-01/
+  input/
+    data.nii.gz
+    bvals
+    bvecs
+    dwi.json                  # optional BIDS-style metadata
+    nodif_brain_mask.nii.gz   # optional; generated with MRtrix3 dwi2mask if absent
+```
+
+External input formats should be normalized before running the workflow:
+
+```bash
+# DICOM folder -> canonical NIfTI + bvals/bvecs/json through dcm2niix
+python3 scripts/prepare_inputs.py \
+  --source /path/to/dicom_folder \
+  --subject-root /path/to/sub-01 \
+  --subject-id sub-01
+
+# DWI NIfTI + sidecars -> canonical subject-root copy
+python3 scripts/prepare_inputs.py \
+  --source /path/to/dwi.nii.gz \
+  --bval /path/to/dwi.bval \
+  --bvec /path/to/dwi.bvec \
+  --metadata /path/to/dwi.json \
+  --subject-root /path/to/sub-01 \
+  --subject-id sub-01
+
+# NRRD/NHDR -> canonical NIfTI + FSL gradients through MRtrix3 mrconvert
+python3 scripts/prepare_inputs.py \
+  --source /path/to/data.nhdr \
+  --subject-root /path/to/sub-01 \
+  --subject-id sub-01
+```
+
+The import step writes `input/input_import_manifest.json` with the detected
+source type, backend command and generated canonical files. DICOM-to-NRRD is
+available as a compatibility route through SlicerDMRI `DWIConvert`:
+
+```bash
+python3 scripts/prepare_inputs.py \
+  --source /path/to/dicom_folder \
+  --subject-root /path/to/sub-01 \
+  --subject-id sub-01 \
+  --output-kind compat-nrrd
+```
+
+The downstream workflow still uses the canonical NIfTI+bval/bvec files, which
+keeps preprocessing, MRtrix, tractography and connectome stages consistent.
 
 ---
 
@@ -454,6 +510,17 @@ dependencies block only the affected target by default; runnable targets still
 run and blocked targets are recorded in the orchestration manifest. Use
 `--strict-environment` only when you want any selected missing dependency to
 abort the whole run.
+
+Release artifacts and annotated output-tree reports can be generated with:
+
+```bash
+make release-artifacts
+make output-tree-report
+```
+
+`release-artifacts` writes a model-asset lockfile, a code-only archive manifest
+and an asset exclusion checklist. `output-tree-report` writes the annotated HTML
+tree used for release validation review.
 
 Useful high-level selectors:
 

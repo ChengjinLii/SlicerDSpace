@@ -77,7 +77,7 @@
         </div>
         <div class="body summary">
           <div class="metric"><span>输出根目录</span><strong>/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs</strong></div>
-          <div class="metric"><span>regular files</span><strong>485</strong></div>
+          <div class="metric"><span>regular files</span><strong>1112</strong></div>
           <div class="metric"><span>symlink entries</span><strong>40</strong></div>
           <div class="metric"><span>post-process 状态</span><strong>completed</strong></div>
         </div>
@@ -111,17 +111,913 @@
       <article class="card">
         <div class="head">
           <b>输出树（真实节点逐项注释）</b>
-          <span class="badge">525 file/symlink nodes</span>
+          <span class="badge">1152 file/symlink nodes</span>
         </div>
         <div class="body">
           <ul class="tree">
 <li><span class="folder">outputs/</span> <span class="comment"># 统一 outputs 根目录</span><ul>
 <li><span class="folder">00_run_metadata/</span> <span class="comment"># 运行元数据、环境扫描、任务日志、run plan 与审计文件</span><ul>
-<li><span class="folder">environment/</span> <span class="comment"># 依赖 doctor 结果和自动安装/外部工具安装提示</span><ul>
+<li><span class="folder">dependency_profile_matrix/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">darwin/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dependency_profile.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
 <li><span class="metadata">environment_doctor.json</span> <span class="comment"># 依赖自动发现/环境 doctor JSON 结果</span></li>
 <li><span class="metadata">install_external_tools.md</span> <span class="comment"># 外部工具安装说明</span></li>
 <li><span class="metadata">install_missing_python.ps1</span> <span class="comment"># 缺失 Python 依赖安装 helper</span></li>
 <li><span class="metadata">install_missing_python.sh</span> <span class="comment"># 缺失 Python 依赖安装 helper</span></li>
+</ul></li>
+<li><span class="folder">linux/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dependency_profile.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">environment_doctor.json</span> <span class="comment"># 依赖自动发现/环境 doctor JSON 结果</span></li>
+<li><span class="metadata">install_external_tools.md</span> <span class="comment"># 外部工具安装说明</span></li>
+<li><span class="metadata">install_missing_python.ps1</span> <span class="comment"># 缺失 Python 依赖安装 helper</span></li>
+<li><span class="metadata">install_missing_python.sh</span> <span class="comment"># 缺失 Python 依赖安装 helper</span></li>
+</ul></li>
+<li><span class="folder">windows/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dependency_profile.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">environment_doctor.json</span> <span class="comment"># 依赖自动发现/环境 doctor JSON 结果</span></li>
+<li><span class="metadata">install_external_tools.md</span> <span class="comment"># 外部工具安装说明</span></li>
+<li><span class="metadata">install_missing_python.ps1</span> <span class="comment"># 缺失 Python 依赖安装 helper</span></li>
+<li><span class="metadata">install_missing_python.sh</span> <span class="comment"># 缺失 Python 依赖安装 helper</span></li>
+</ul></li>
+<li><span class="metadata">dependency_profile_matrix.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+</ul></li>
+<li><span class="folder">environment/</span> <span class="comment"># 依赖 doctor 结果和自动安装/外部工具安装提示</span><ul>
+<li><span class="metadata">dependency_profile.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">environment_doctor.json</span> <span class="comment"># 依赖自动发现/环境 doctor JSON 结果</span></li>
+<li><span class="metadata">install_external_tools.md</span> <span class="comment"># 外部工具安装说明</span></li>
+<li><span class="metadata">install_missing_python.ps1</span> <span class="comment"># 缺失 Python 依赖安装 helper</span></li>
+<li><span class="metadata">install_missing_python.sh</span> <span class="comment"># 缺失 Python 依赖安装 helper</span></li>
+</ul></li>
+<li><span class="folder">environment_profile_check/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dependency_profile.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">deps.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">environment_doctor.json</span> <span class="comment"># 依赖自动发现/环境 doctor JSON 结果</span></li>
+<li><span class="metadata">install_external_tools.md</span> <span class="comment"># 外部工具安装说明</span></li>
+<li><span class="metadata">install_missing_python.ps1</span> <span class="comment"># 缺失 Python 依赖安装 helper</span></li>
+<li><span class="metadata">install_missing_python.sh</span> <span class="comment"># 缺失 Python 依赖安装 helper</span></li>
+</ul></li>
+<li><span class="folder">release_validation/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">batch_logs/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">100307-release-candidate.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">100307-release-candidate.stdout.log</span> <span class="comment"># 运行日志</span></li>
+</ul></li>
+<li><span class="folder">batch_outputs/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">100307-release-candidate/</span> <span class="comment"># 受试者级输出子目录</span><ul>
+<li><span class="folder">00_run_metadata/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">tasks/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">Test1/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">validation/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">logs/</span> <span class="comment"># 日志目录</span><ul>
+<li><span class="metadata">task.log</span> <span class="comment"># batch_outputs / 100307-release-candidate 的终端运行日志</span></li>
+</ul></li>
+<li><span class="metadata">manifest.json</span> <span class="comment"># batch_outputs / 100307-release-candidate 的任务 manifest，记录输入、输出、状态和参数</span></li>
+<li><span class="metadata">qc.json</span> <span class="comment"># batch_outputs / 100307-release-candidate 的任务级 QC 摘要</span></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><span class="folder">validation/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">100307-release-candidate_input_validation.json</span> <span class="comment"># 统一输入契约校验结果</span></li>
+</ul></li>
+<li><span class="metadata">output_tree_audit.json</span> <span class="comment"># 输出树结构审计</span></li>
+<li><span class="metadata">output_tree_semantics.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">Test1_orchestration_manifest.json</span> <span class="comment"># run-level orchestration manifest</span></li>
+<li><span class="metadata">Test1_performance_profile.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">Test1_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
+</ul></li>
+<li><span class="folder">06_slicer_scene_report/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">output_tree.html</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">provenance.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">qc_summary.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">report.html</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">summary.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Test1_output_tree.html</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Test1_provenance.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">Test1_qc_summary.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">Test1_report.html</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Test1_summary.md</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><span class="folder">logs/</span> <span class="comment"># 日志目录</span><ul>
+<li><span class="metadata">batch_validation.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">batch_validation.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_tractcloud.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_tractcloud.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_wma.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_wma.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_wmql.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_wmql.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">output_tree_html.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">output_tree_html.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">repository_release_audit.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">repository_release_audit.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">representative_outputs.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">representative_outputs.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">single_subject_all_backends.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">single_subject_all_backends.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">stage_slicer_extension.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">stage_slicer_extension.stdout.log</span> <span class="comment"># 运行日志</span></li>
+</ul></li>
+<li><span class="folder">representative_outputs/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">representative_outputs.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">representative_outputs_source_data.csv</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">representative_outputs_timing.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+</ul></li>
+<li><span class="folder">slicer_extension_install/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">SlicerDDSurfer/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">lib/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">Slicer-5.10/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">qt-scripted-modules/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">connectome/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">microstructure/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">parcellation/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">conversion/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">data/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">FreeSurferColorLUT.txt</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">_version.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">antsUtil.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">bval_bvec_io.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">fs_label_parser.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">grad_avg.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">grad_remove.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">nhdr_data_file.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">nhdr_write.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">nifti_write.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">NrrdToNhdr.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">util.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">data_loader/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">augmentation.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">conform.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">load_neuroimaging_data.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">models/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">losses.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">networks.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">organize_weights.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">solver.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">sub_module.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">weights/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">backbones/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dti-FractionalAnisotropy-reg-NormMasked-axial.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-FractionalAnisotropy-reg-NormMasked-coronal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-FractionalAnisotropy-reg-NormMasked-sagittal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MidEigenvalue-reg-NormMasked-axial.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MidEigenvalue-reg-NormMasked-coronal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MidEigenvalue-reg-NormMasked-sagittal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MinEigenvalue-reg-NormMasked-axial.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MinEigenvalue-reg-NormMasked-coronal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MinEigenvalue-reg-NormMasked-sagittal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-Trace-reg-NormMasked-axial.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-Trace-reg-NormMasked-coronal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-Trace-reg-NormMasked-sagittal.pkl</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">Fused-Unet-v3-noMax-axial.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Fused-Unet-v3-noMax-coronal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Fused-Unet-v3-noMax-sagittal.pkl</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">DDSurfer_Pred.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">normalize.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">preprocessing/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">Resources/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">Data/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">ckpts/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">hcp/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">DDCSR_pial_lh_Full_DualStream_no_b0_Cascaded.pt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">DDCSR_pial_rh_Full_DualStream_no_b0_Cascaded.pt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">DDCSR_white_lh_Full_DualStream_no_b0_Cascaded.pt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">DDCSR_white_rh_Full_DualStream_no_b0_Cascaded.pt</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+<li><span class="folder">template/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">100307-FA.nii.gz</span> <span class="comment"># 医学影像或 FreeSurfer morphometry 文件</span></li>
+<li><span class="metadata">hcp_hemi-left_init_160k.obj</span> <span class="comment"># tractogram 或可视化网格文件</span></li>
+<li><span class="metadata">hcp_hemi-right_init_160k.obj</span> <span class="comment"># tractogram 或可视化网格文件</span></li>
+</ul></li>
+<li><span class="metadata">100HCP-population-mean-T2.nii.gz</span> <span class="comment"># 医学影像或 FreeSurfer morphometry 文件</span></li>
+</ul></li>
+<li><span class="folder">Icons/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">SlicerDDSurfer.png</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">UI/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">SlicerDDSurfer.ui</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+<li><span class="folder">scripts/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">docker/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">rc-smoke.Dockerfile</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_rc_smoke.sh</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">audit_slicer_extension_metadata.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">collect_representative_outputs.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dependency_profile_matrix.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">download_model_assets.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">download_model_assets.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">generate_subject_report.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">install_dependencies.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">install_deps_linux.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">install_deps_macos.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">install_deps_windows.ps1</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">release_audit.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">release_validation.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_100307_regression.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_batch_pipeline.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">stage_slicer_extension.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">start_isolated_slicerdsurfer_viewer.sh</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">segmentation/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">weights/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dti_axial.pt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti_coronal.pt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti_sagittal.pt</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">config.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti_slicer.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">feature_defs.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">inference.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">model_loader.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">preprocess.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_ddseg.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">unet.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">utils.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">shared/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">brain_mask.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dependency_config.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">environment.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">external_process.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">io_layout.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">orchestrator.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">output_tree_report.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">python_environment.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">reporting.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_subject_pipeline_cli.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">ui_environment_dialog.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">ui_environment_panel.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">ui_environment_paths.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">ui_error_dialogs.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">ui_output_loading.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">ui_parameter_sync.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">ui_run_controller.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">ui_run_status_panel.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">ui_styles.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">validation.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">surface/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">ddsurfer_postprocess_release/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">config/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">pipeline.conf</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">scripts/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">pipeline_steps.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_pipeline.sh</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">src/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">compute_regional_stats.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">compute_surface_area.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">compute_thickness.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">convert_stl_to_fs.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">extract_ctab.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">validate_inputs.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">write_pipeline_report.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">README.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run.sh</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">models/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">cmunext_3d.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">d_lka_attention.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dsc_volume_reg.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">networks/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">tanet.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">sculpting/</span> <span class="comment"># 输出子目录</span></li>
+<li><span class="folder">template/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">100307-FA.nii.gz</span> <span class="comment"># 医学影像或 FreeSurfer morphometry 文件</span></li>
+<li><span class="metadata">hcp_hemi-left_init_160k.obj</span> <span class="comment"># tractogram 或可视化网格文件</span></li>
+<li><span class="metadata">hcp_hemi-right_init_160k.obj</span> <span class="comment"># tractogram 或可视化网格文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">postprocess_release.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">postprocessing.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">prediction.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">preprocessing.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">tractography/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">saf_backend/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">Class_files/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">init_class.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">modality_class.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">saf_class.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">storage_class.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">surfproper_class.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">tx_class.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">Data_modules/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">apply_tck_sample.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">doc/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dstr.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">outputs.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">README.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">use.md</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">Filters/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">snap2mesh/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">coordinate_clustering.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">find_closest_vertex.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">streamlineXmesh/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">crop_streamlines_outside_mesh_complete.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">crop_streamlines_outside_mesh_fast.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">trintersect_complete.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">trintersect_fast.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_GG_HH.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_GWG.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_label.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_length.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_PG.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_saf.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">Pipe_modules/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">prepare_seeds.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">read_prefilter_tracks.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">SAF_registration_default.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">seed_curv.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">streamlines_on_surface.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">tractography_mrtrix.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">wholebrain_operations.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">Support/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">convert_coords.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">discretise_surface_function.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">extract_faces.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">extract_tck_end_coordinates.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">get_surface_transform.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">make_full_path.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">mrtrix_tracks.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">number_parser.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">process_coords.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">process_FS_surfaces.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pts_to_tck.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">read_sl_data.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">read_tsf.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Supp_gz_fileparts.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">sys_exec.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">verb_msg.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">write_curv.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">write_tsf.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">LICENSE.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">README.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">requirements.txt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">SAF_pipeline.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">slicer_dmri_reference/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">DICOM2FullBrainTractographyLib/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">Resources/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">UI/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dicom2nrrd.ui</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">done.ui</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti2fibers.ui</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dwi2dti.ui</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">full_tractography_workflow.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">workflow_support.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">DICOM2FullBrainTractography.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">FiberBundleToLabelMap.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">README.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">TractographyDownsample.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">wmql_queries/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">AF_CST.qry</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">act.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">act_prep.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">bundle_parcellation.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">csd.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">saf.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">tractcloud.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">wma.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">wmql.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">EXTERNAL_DEPENDENCIES.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">SlicerDDSurfer.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><span class="metadata">extension_staging_manifest.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">SlicerDDSurfer.s4ext</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+<li><span class="metadata">batch_manifest.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">output_tree.html</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">release_validation_report.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+</ul></li>
+<li><span class="folder">release_validation_with_smoke/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">batch_logs/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">100307-release-candidate.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">100307-release-candidate.stdout.log</span> <span class="comment"># 运行日志</span></li>
+</ul></li>
+<li><span class="folder">batch_outputs/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">100307-release-candidate/</span> <span class="comment"># 受试者级输出子目录</span><ul>
+<li><span class="folder">00_run_metadata/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">tasks/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">Test1/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">validation/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">logs/</span> <span class="comment"># 日志目录</span><ul>
+<li><span class="metadata">task.log</span> <span class="comment"># batch_outputs / 100307-release-candidate 的终端运行日志</span></li>
+</ul></li>
+<li><span class="metadata">manifest.json</span> <span class="comment"># batch_outputs / 100307-release-candidate 的任务 manifest，记录输入、输出、状态和参数</span></li>
+<li><span class="metadata">qc.json</span> <span class="comment"># batch_outputs / 100307-release-candidate 的任务级 QC 摘要</span></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><span class="folder">validation/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">100307-release-candidate_input_validation.json</span> <span class="comment"># 统一输入契约校验结果</span></li>
+</ul></li>
+<li><span class="metadata">output_tree_audit.json</span> <span class="comment"># 输出树结构审计</span></li>
+<li><span class="metadata">output_tree_semantics.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">Test1_orchestration_manifest.json</span> <span class="comment"># run-level orchestration manifest</span></li>
+<li><span class="metadata">Test1_performance_profile.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">Test1_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
+</ul></li>
+<li><span class="folder">06_slicer_scene_report/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">output_tree.html</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">provenance.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">qc_summary.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">report.html</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">summary.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Test1_output_tree.html</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Test1_provenance.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">Test1_qc_summary.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">Test1_report.html</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Test1_summary.md</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><span class="folder">logs/</span> <span class="comment"># 日志目录</span><ul>
+<li><span class="metadata">batch_validation.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">batch_validation.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_tractcloud.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_tractcloud.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_wma.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_wma.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_wmql.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">bundle_backend_wmql.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">output_tree_html.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">output_tree_html.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">repository_release_audit.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">repository_release_audit.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">single_subject_all_backends.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">single_subject_all_backends.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">slicer_smoke.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">slicer_smoke.stdout.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">stage_slicer_extension.stderr.log</span> <span class="comment"># 运行日志</span></li>
+<li><span class="metadata">stage_slicer_extension.stdout.log</span> <span class="comment"># 运行日志</span></li>
+</ul></li>
+<li><span class="folder">slicer_extension_install/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">SlicerDDSurfer/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">lib/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">Slicer-5.10/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">qt-scripted-modules/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">__pycache__/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">SlicerDDSurfer.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">connectome/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">__pycache__/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">microstructure/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">__pycache__/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">parcellation/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">__pycache__/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">conversion/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">data/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">FreeSurferColorLUT.txt</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">_version.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">antsUtil.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">bval_bvec_io.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">fs_label_parser.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">grad_avg.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">grad_remove.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">nhdr_data_file.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">nhdr_write.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">nifti_write.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">NrrdToNhdr.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">util.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">data_loader/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">augmentation.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">conform.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">load_neuroimaging_data.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">models/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">losses.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">networks.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">organize_weights.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">solver.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">sub_module.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">weights/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">backbones/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dti-FractionalAnisotropy-reg-NormMasked-axial.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-FractionalAnisotropy-reg-NormMasked-coronal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-FractionalAnisotropy-reg-NormMasked-sagittal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MidEigenvalue-reg-NormMasked-axial.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MidEigenvalue-reg-NormMasked-coronal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MidEigenvalue-reg-NormMasked-sagittal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MinEigenvalue-reg-NormMasked-axial.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MinEigenvalue-reg-NormMasked-coronal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-MinEigenvalue-reg-NormMasked-sagittal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-Trace-reg-NormMasked-axial.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-Trace-reg-NormMasked-coronal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti-Trace-reg-NormMasked-sagittal.pkl</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">Fused-Unet-v3-noMax-axial.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Fused-Unet-v3-noMax-coronal.pkl</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Fused-Unet-v3-noMax-sagittal.pkl</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">DDSurfer_Pred.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">normalize.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">preprocessing/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">__pycache__/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">Resources/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">Data/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">ckpts/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">hcp/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">DDCSR_pial_lh_Full_DualStream_no_b0_Cascaded.pt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">DDCSR_pial_rh_Full_DualStream_no_b0_Cascaded.pt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">DDCSR_white_lh_Full_DualStream_no_b0_Cascaded.pt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">DDCSR_white_rh_Full_DualStream_no_b0_Cascaded.pt</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+<li><span class="folder">template/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">100307-FA.nii.gz</span> <span class="comment"># 医学影像或 FreeSurfer morphometry 文件</span></li>
+<li><span class="metadata">hcp_hemi-left_init_160k.obj</span> <span class="comment"># tractogram 或可视化网格文件</span></li>
+<li><span class="metadata">hcp_hemi-right_init_160k.obj</span> <span class="comment"># tractogram 或可视化网格文件</span></li>
+</ul></li>
+<li><span class="metadata">100HCP-population-mean-T2.nii.gz</span> <span class="comment"># 医学影像或 FreeSurfer morphometry 文件</span></li>
+</ul></li>
+<li><span class="folder">Icons/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">SlicerDDSurfer.png</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">UI/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">SlicerDDSurfer.ui</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+<li><span class="folder">scripts/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">docker/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">rc-smoke.Dockerfile</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_rc_smoke.sh</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">download_model_assets.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">download_model_assets.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">generate_subject_report.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">install_dependencies.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">install_deps_linux.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">install_deps_macos.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">install_deps_windows.ps1</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">release_audit.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">release_validation.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_100307_regression.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_batch_pipeline.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">stage_slicer_extension.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">start_isolated_slicerdsurfer_viewer.sh</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">segmentation/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">__pycache__/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">weights/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dti_axial.pt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti_coronal.pt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti_sagittal.pt</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">config.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti_slicer.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">feature_defs.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">inference.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">model_loader.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">preprocess.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_ddseg.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">unet.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">utils.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">shared/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">__pycache__/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">environment.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">external_process.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">io_layout.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">orchestrator.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">output_tree_report.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">reporting.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">validation.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">environment.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">external_process.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">io_layout.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">orchestrator.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">output_tree_report.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">reporting.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_subject_pipeline_cli.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">validation.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">surface/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">__pycache__/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">ddsurfer_postprocess_release/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">config/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">pipeline.conf</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">scripts/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">pipeline_steps.sh</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run_pipeline.sh</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">src/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">compute_regional_stats.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">compute_surface_area.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">compute_thickness.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">convert_stl_to_fs.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">extract_ctab.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">validate_inputs.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">write_pipeline_report.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">README.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">run.sh</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">models/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">cmunext_3d.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">d_lka_attention.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dsc_volume_reg.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">networks/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">tanet.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">sculpting/</span> <span class="comment"># 输出子目录</span></li>
+<li><span class="folder">template/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">100307-FA.nii.gz</span> <span class="comment"># 医学影像或 FreeSurfer morphometry 文件</span></li>
+<li><span class="metadata">hcp_hemi-left_init_160k.obj</span> <span class="comment"># tractogram 或可视化网格文件</span></li>
+<li><span class="metadata">hcp_hemi-right_init_160k.obj</span> <span class="comment"># tractogram 或可视化网格文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_widget.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">postprocess_release.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">postprocessing.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">prediction.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">preprocessing.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">tractography/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">__pycache__/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">act.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">act_prep.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">bundle_parcellation.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">csd.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">saf.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">tractcloud.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">wma.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">wmql.cpython-312.pyc</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">saf_backend/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">Class_files/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">init_class.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">modality_class.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">saf_class.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">storage_class.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">surfproper_class.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">tx_class.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">Data_modules/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">apply_tck_sample.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">doc/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dstr.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">outputs.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">README.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">use.md</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">Filters/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">snap2mesh/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">coordinate_clustering.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">find_closest_vertex.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">streamlineXmesh/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">crop_streamlines_outside_mesh_complete.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">crop_streamlines_outside_mesh_fast.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">trintersect_complete.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">trintersect_fast.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_GG_HH.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_GWG.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_label.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_length.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_PG.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">filters_saf.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">Pipe_modules/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">prepare_seeds.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">read_prefilter_tracks.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">SAF_registration_default.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">seed_curv.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">streamlines_on_surface.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">tractography_mrtrix.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">wholebrain_operations.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">Support/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">convert_coords.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">discretise_surface_function.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">extract_faces.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">extract_tck_end_coordinates.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">get_surface_transform.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">make_full_path.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">mrtrix_tracks.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">number_parser.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">process_coords.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">process_FS_surfaces.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pts_to_tck.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">read_sl_data.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">read_tsf.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">Supp_gz_fileparts.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">sys_exec.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">verb_msg.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">write_curv.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">write_tsf.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">LICENSE.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">README.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">requirements.txt</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">SAF_pipeline.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">slicer_dmri_reference/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">DICOM2FullBrainTractographyLib/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">Resources/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="folder">UI/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">dicom2nrrd.ui</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">done.ui</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti2fibers.ui</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dwi2dti.ui</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">full_tractography_workflow.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">workflow_support.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">DICOM2FullBrainTractography.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">FiberBundleToLabelMap.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">README.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">TractographyDownsample.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="folder">wmql_queries/</span> <span class="comment"># 输出子目录</span><ul>
+<li><span class="metadata">AF_CST.qry</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">__init__.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">act.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">act_prep.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">bundle_parcellation.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">csd.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">dti.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">module_logic.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">pipeline.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">saf.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">tractcloud.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">wma.py</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">wmql.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+<li><span class="metadata">EXTERNAL_DEPENDENCIES.md</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">SlicerDDSurfer.py</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li><span class="metadata">extension_staging_manifest.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">SlicerDDSurfer.s4ext</span> <span class="comment"># 输出文件</span></li>
+</ul></li>
+</ul></li>
+<li><span class="metadata">batch_manifest.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">output_tree.html</span> <span class="comment"># 输出文件</span></li>
+<li><span class="metadata">release_validation_report.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
 </ul></li>
 <li><span class="folder">tasks/</span> <span class="comment"># 按 run profile 和 task 归档的 manifest、qc、log</span><ul>
 <li><span class="folder">rc_csd_act/</span> <span class="comment"># 输出子目录</span><ul>
@@ -251,6 +1147,7 @@
 <li><span class="folder">validation/</span> <span class="comment"># 统一输入契约校验结果</span><ul>
 <li><span class="metadata">100307-release-candidate_input_validation.json</span> <span class="comment"># 统一输入契约校验结果</span></li>
 </ul></li>
+<li><span class="metadata">model_assets_core.lock.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
 <li><span class="metadata">optional_bundle_backend_audit.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
 <li><span class="metadata">output_tree_audit.json</span> <span class="comment"># 输出树结构审计</span></li>
 <li><span class="metadata">rc_csd_act_orchestration_manifest.json</span> <span class="comment"># run-level orchestration manifest</span></li>
@@ -259,6 +1156,14 @@
 <li><span class="metadata">rc_microstructure_long_orchestration_manifest.json</span> <span class="comment"># run-level orchestration manifest</span></li>
 <li><span class="metadata">rc_microstructure_long_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
 <li><span class="metadata">release_audit.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
+<li><span class="metadata">release_validation_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
+<li><span class="metadata">release_validation_tractcloud_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
+<li><span class="metadata">release_validation_wma_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
+<li><span class="metadata">release_validation_wmql_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
+<li><span class="metadata">Test1_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
+<li><span class="metadata">Test1_tractcloud_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
+<li><span class="metadata">Test1_wma_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
+<li><span class="metadata">Test1_wmql_run_plan.json</span> <span class="comment"># target run plan 和环境 blocker 记录</span></li>
 </ul></li>
 <li><span class="folder">01_preproc/</span> <span class="comment"># DWI 预处理阶段目录；部分条目可能是输入或最终产物 symlink</span><ul>
 <li><span class="folder">00_import/</span> <span class="comment"># 导入/标准化输入副本</span><ul>
@@ -278,6 +1183,7 @@
 <li><span class="folder">03_distortion_motion/</span> <span class="comment"># 畸变/运动校正产物</span><ul>
 <li><span class="symlink">100307-release-candidate_dwi_preproc.nii.gz</span> <span class="comment"># symlink：DWI 畸变/运动校正后结果</span></li>
 </ul></li>
+<li><span class="folder">04_bias_normalize/</span> <span class="comment"># bias field 和强度归一化产物；DIPY backend 可能留空，MRtrix/FSL backend 会写入相关中间产物</span></li>
 <li><span class="folder">05_qc/</span> <span class="comment"># 预处理质量控制输出</span><ul>
 <li><span class="metadata">100307-release-candidate_preproc_qc.json</span> <span class="comment"># JSON metadata / manifest / QC</span></li>
 </ul></li>
@@ -849,6 +1755,7 @@
 <li><span class="metadata">saf_qc.json</span> <span class="comment"># SAF 主结果、日志、manifest、QC 或缓存</span></li>
 </ul></li>
 </ul></li>
+<li><span class="folder">tractograms/</span> <span class="comment"># 主 tractogram 正式位置；旧 run 或替代 run 可能归档在 cache/alternate_runs/tractograms</span></li>
 </ul></li>
 <li><span class="folder">05_statistics/</span> <span class="comment"># 统计结果目录</span><ul>
 <li><span class="folder">ddsurfer/</span> <span class="comment"># 输出子目录</span><ul>
@@ -862,8 +1769,10 @@
 </ul></li>
 </ul></li>
 <li><span class="folder">06_slicer_scene_report/</span> <span class="comment"># Slicer 场景报告、QC 摘要、provenance 和输出树 HTML</span><ul>
+<li><span class="file">output_tree.html</span> <span class="comment"># Slicer 场景报告、QC summary、provenance、Markdown 摘要或输出树 HTML</span></li>
 <li><span class="metadata">provenance.json</span> <span class="comment"># Slicer 场景报告、QC summary、provenance、Markdown 摘要或输出树 HTML</span></li>
 <li><span class="metadata">qc_summary.json</span> <span class="comment"># Slicer 场景报告、QC summary、provenance、Markdown 摘要或输出树 HTML</span></li>
+<li><span class="file">rc_csd_act_output_tree.html</span> <span class="comment"># Slicer 场景报告、QC summary、provenance、Markdown 摘要或输出树 HTML</span></li>
 <li><span class="metadata">rc_csd_act_provenance.json</span> <span class="comment"># Slicer 场景报告、QC summary、provenance、Markdown 摘要或输出树 HTML</span></li>
 <li><span class="metadata">rc_csd_act_qc_summary.json</span> <span class="comment"># Slicer 场景报告、QC summary、provenance、Markdown 摘要或输出树 HTML</span></li>
 <li><span class="file">rc_csd_act_report.html</span> <span class="comment"># Slicer 场景报告、QC summary、provenance、Markdown 摘要或输出树 HTML</span></li>

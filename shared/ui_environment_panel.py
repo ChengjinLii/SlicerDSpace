@@ -299,6 +299,28 @@ def model_assets_summary_text(repo_root: Path) -> str:
     return f"Unified source expected at {manifest}. Refresh or verify with `{command}`."
 
 
+def model_assets_provenance_text(repo_root: Path) -> str:
+    """Return compact model-asset provenance and release-boundary text."""
+
+    manifest = repo_root / "models" / "assets_manifest.json"
+    terms = repo_root / "MODEL_ASSET_TERMS.md"
+    lock_command = (
+        "python3 scripts/download_model_assets.py --profile core --verify-only "
+        "--write-lockfile outputs/00_run_metadata/model_assets_core.lock.json"
+    )
+    return "\n".join(
+        [
+            "Model asset provenance",
+            f"Manifest: {manifest}",
+            f"Terms decision record: {terms}",
+            "Default profile: core",
+            "Verify command: python3 scripts/download_model_assets.py --profile core --verify-only",
+            f"Lockfile command: {lock_command}",
+            "Release boundary: local verification does not grant public redistribution or DOI-archive rights.",
+        ]
+    )
+
+
 def python_install_target_text(python_executable: str) -> str:
     """Return the user-facing target text for Python package installs."""
 

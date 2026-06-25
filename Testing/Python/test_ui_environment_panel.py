@@ -27,6 +27,7 @@ from shared.ui_environment_panel import (
     external_dependencies_from_profile,
     format_detected_source,
     model_assets_summary_text,
+    model_assets_provenance_text,
     optional_backend_label_styles,
     optional_backend_widget_style,
     path_status_dependencies,
@@ -104,6 +105,14 @@ class UIEnvironmentPanelTest(unittest.TestCase):
 
         self.assertIn("/opt/Slicer/bin/PythonSlicer", text)
         self.assertIn("External tools are never installed silently", text)
+
+    def test_model_assets_provenance_text_names_terms_and_lockfile(self) -> None:
+        text = model_assets_provenance_text(Path("/repo"))
+
+        self.assertIn("/repo/models/assets_manifest.json", text)
+        self.assertIn("/repo/MODEL_ASSET_TERMS.md", text)
+        self.assertIn("--write-lockfile", text)
+        self.assertIn("DOI-archive rights", text)
 
     def test_dependency_schema_grouping_drives_environment_panel_sections(self) -> None:
         core = dependency_items_for_section(UI_DEPENDENCY_PATHS, "core-runtime")

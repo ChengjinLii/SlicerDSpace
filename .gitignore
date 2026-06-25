@@ -11,3 +11,4 @@ Testing/**/Temporary/
 *.tmp
 third_party/
 ignore/
+release_artifacts/

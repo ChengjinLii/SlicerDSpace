@@ -217,9 +217,24 @@ def add_model_assets_row(owner: Any, form_layout: Any) -> None:
     guide_button.connect("clicked()", owner._on_open_model_assets_guide_clicked)
     row_layout.addWidget(guide_button)
 
+    terms_button = qt.QPushButton("Terms")
+    terms_button.setToolTip("Open MODEL_ASSET_TERMS.md.")
+    terms_button.connect("clicked()", owner._on_open_model_asset_terms_clicked)
+    row_layout.addWidget(terms_button)
+
     manifest_button = qt.QPushButton("Open manifest")
     manifest_button.setToolTip("Open models/assets_manifest.json.")
     manifest_button.connect("clicked()", owner._on_open_model_assets_manifest_clicked)
     row_layout.addWidget(manifest_button)
+
+    provenance_button = qt.QPushButton("Provenance")
+    provenance_button.setToolTip("Show model asset profile, verification, lockfile, and release-boundary notes.")
+    provenance_button.connect("clicked()", owner._on_show_model_asset_provenance_clicked)
+    row_layout.addWidget(provenance_button)
+
+    release_button = qt.QPushButton("Release notes")
+    release_button.setToolTip("Open RELEASE_NOTES_v0.1.0.md.")
+    release_button.connect("clicked()", owner._on_open_release_notes_clicked)
+    row_layout.addWidget(release_button)
 
     form_layout.addRow("Model assets bundle", row)

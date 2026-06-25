@@ -1,0 +1,23 @@
+{
+  "kind": "slicerdsurfer_sample_data_registry",
+  "version": 1,
+  "policy": "Registry entries must point to redistributable data with explicit license terms.",
+  "entries": [
+    {
+      "sample_id": "local-dwi-example",
+      "label": "Local DWI example",
+      "source": "/path/to/redistributable_dwi_or_archive",
+      "source_type": "local",
+      "license": "replace-with-approved-license",
+      "description": "Example only. Do not publish restricted or unidentified subject data."
+    },
+    {
+      "sample_id": "hosted-dwi-example",
+      "label": "Hosted DWI example",
+      "source": "https://example.org/path/to/redistributable_dwi_or_archive",
+      "source_type": "url",
+      "license": "replace-with-approved-license",
+      "description": "Example only. Point to data with confirmed redistribution terms."
+    }
+  ]
+}

@@ -34,6 +34,8 @@ from .io_layout import (
 )
 from .reporting import SubjectReportPaths, write_subject_reports
 from .output_tree_report import OutputTreeReportPaths, write_output_tree_report
+from .input_import import InputImportConfig, build_import_plan, detect_import_source_kind, prepare_inputs
+from .sample_data import SampleDataEntry, load_sample_data_registry, sample_data_registry_payload
 from .orchestrator import (
     ProductOrchestratorConfig,
     ProductOrchestratorResult,
@@ -48,6 +50,7 @@ from .orchestrator import (
 __all__ = [
     "InputValidationConfig",
     "InputValidationResult",
+    "InputImportConfig",
     "EnvironmentDoctorConfig",
     "EnvironmentDoctorResult",
     "RawInputBundle",
@@ -56,6 +59,7 @@ __all__ = [
     "SubjectIOLayout",
     "SubjectReportPaths",
     "OutputTreeReportPaths",
+    "SampleDataEntry",
     "archive_development_outputs",
     "blocked_target_reasons",
     "canonical_connectome_output_dir",
@@ -70,6 +74,8 @@ __all__ = [
     "ensure_native_dti_bundle",
     "ensure_registered_dti_bundle",
     "find_subject_root",
+    "build_import_plan",
+    "detect_import_source_kind",
     "inspect_subject_directory",
     "is_raw_subject_root",
     "materialize_canonical_output_tree",
@@ -80,10 +86,13 @@ __all__ = [
     "resolve_pythonslicer_executable",
     "subject_layout",
     "plan_subject_products",
+    "prepare_inputs",
     "run_environment_doctor",
     "run_subject_products",
     "summarize_environment_doctor",
     "validate_subject_inputs",
+    "load_sample_data_registry",
+    "sample_data_registry_payload",
     "write_environment_report",
     "write_output_tree_report",
     "write_subject_reports",

@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  fast-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run fast unit tests
+        run: make test-fast
+
+      - name: Audit Slicer extension metadata
+        run: python3 scripts/audit_slicer_extension_metadata.py --json
+
+      - name: Audit release metadata and LFS pointers
+        run: python3 scripts/release_audit.py
+
+      - name: Resolve model asset manifest without downloading assets
+        run: python3 scripts/download_model_assets.py --profile core --print-plan

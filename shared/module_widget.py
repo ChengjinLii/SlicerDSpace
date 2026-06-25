@@ -36,6 +36,7 @@ from shared.ui_environment_panel import (
     environment_summary_text,
     external_dependencies_from_profile,
     format_detected_source,
+    model_assets_provenance_text,
     optional_backend_label_styles,
     optional_backend_widget_style,
     path_status_dependencies,
@@ -424,6 +425,25 @@ class SharedWidgetMixin:
         self._open_local_path(
             Path(__file__).resolve().parent.parent / "models" / "assets_manifest.json",
             missing_message="models/assets_manifest.json is not available in the current repository checkout.",
+        )
+
+    def _on_open_model_asset_terms_clicked(self) -> None:
+        self._open_local_path(
+            Path(__file__).resolve().parent.parent / "MODEL_ASSET_TERMS.md",
+            missing_message="MODEL_ASSET_TERMS.md is not available in the current repository checkout.",
+        )
+
+    def _on_open_release_notes_clicked(self) -> None:
+        self._open_local_path(
+            Path(__file__).resolve().parent.parent / "RELEASE_NOTES_v0.1.0.md",
+            missing_message="RELEASE_NOTES_v0.1.0.md is not available in the current repository checkout.",
+        )
+
+    def _on_show_model_asset_provenance_clicked(self) -> None:
+        slicer.util.infoDisplay(
+            model_assets_provenance_text(Path(__file__).resolve().parent.parent),
+            windowTitle="SlicerDDSurfer model asset provenance",
+            parent=self.parent,
         )
 
     def _python_install_target_text(self) -> str:
