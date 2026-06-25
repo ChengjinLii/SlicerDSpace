@@ -99,6 +99,17 @@ def add_dependency_config_buttons(owner: Any, form_layout: Any) -> None:
     owner._environmentExportConfigButton = export_button
     config_buttons.addWidget(import_button)
     config_buttons.addWidget(export_button)
+
+    report_button = qt.QPushButton("Open environment report")
+    report_button.setToolTip("Open the latest environment_doctor.json directory after a dependency check.")
+    report_button.connect("clicked()", owner._on_open_environment_report_dir_clicked)
+    config_buttons.addWidget(report_button)
+
+    install_logs_button = qt.QPushButton("Open install logs")
+    install_logs_button.setToolTip("Open the latest Python dependency install logs/results directory.")
+    install_logs_button.connect("clicked()", owner._on_open_install_logs_dir_clicked)
+    config_buttons.addWidget(install_logs_button)
+
     config_buttons.addStretch(1)
     form_layout.addRow("Config", config_buttons)
 

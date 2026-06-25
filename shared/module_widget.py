@@ -422,6 +422,20 @@ class SharedWidgetMixin:
             parent=self.parent,
         )
 
+    def _on_open_environment_report_dir_clicked(self) -> None:
+        report_dir = getattr(self, "_latestEnvironmentReportDir", None)
+        if not report_dir:
+            slicer.util.infoDisplay("Run Check environment dependencies first.", parent=self.parent)
+            return
+        self._open_local_path(Path(report_dir), missing_message="The latest environment report directory is unavailable.")
+
+    def _on_open_install_logs_dir_clicked(self) -> None:
+        report_dir = getattr(self, "_latestEnvironmentReportDir", None)
+        if not report_dir:
+            slicer.util.infoDisplay("Run Check environment dependencies or install Python packages first.", parent=self.parent)
+            return
+        self._open_local_path(Path(report_dir), missing_message="The latest install log directory is unavailable.")
+
     def _python_install_target_text(self) -> str:
         return python_install_target_text(sys.executable or "unknown")
 
@@ -439,6 +453,22 @@ class SharedWidgetMixin:
             python_executable=sys.executable or "",
             platform_text=platform.platform(),
         )
+
+    def _remember_environment_report_dir(self, subject_root_text: str, output_root_text: str) -> None:
+        try:
+            subject_root = Path(subject_root_text).expanduser().resolve() if subject_root_text else None
+            output_root = Path(output_root_text).expanduser().resolve() if output_root_text else None
+            if subject_root is not None and subject_root.exists():
+                from shared.io_layout import subject_layout
+
+                report_dir = subject_layout(subject_root, output_root=output_root).run_metadata / "environment"
+            elif output_root is not None:
+                report_dir = output_root / "00_run_metadata" / "environment"
+            else:
+                report_dir = Path(str(slicer.app.temporaryPath)) / "SlicerDDSurfer" / "00_run_metadata" / "environment"
+            self._latestEnvironmentReportDir = report_dir
+        except Exception:
+            self._latestEnvironmentReportDir = None
 
     def _apply_environment_dependency_config(self, payload: dict[str, object]) -> int:
         data = external_dependencies_from_profile(payload)
@@ -1509,7 +1539,22 @@ class SharedWidgetMixin:
             return None
         self._update_environment_result_label(doctor_result)
         self._update_environment_path_status_labels(doctor_result)
+        self._latestEnvironmentReportDir = self._environment_report_dir_from_kwargs(doctor_kwargs)
         return doctor_result
+
+    def _environment_report_dir_from_kwargs(self, doctor_kwargs: dict) -> Optional[Path]:
+        try:
+            subject_root = doctor_kwargs.get("subject_root")
+            output_root = doctor_kwargs.get("output_root")
+            if subject_root is not None and Path(subject_root).expanduser().exists():
+                from shared.io_layout import subject_layout
+
+                return subject_layout(Path(subject_root).expanduser().resolve(), output_root=output_root).run_metadata / "environment"
+            if output_root is not None:
+                return Path(output_root).expanduser().resolve() / "00_run_metadata" / "environment"
+            return Path(str(slicer.app.temporaryPath)) / "SlicerDDSurfer" / "00_run_metadata" / "environment"
+        except Exception:
+            return None
 
     def _install_missing_python_before_run(self, doctor_result, doctor_kwargs: dict, doctor_signature: tuple):
         self.appendLog(
@@ -1737,6 +1782,7 @@ class SharedWidgetMixin:
             return None
 
         self._cache_environment_result(result, signature)
+        self._remember_environment_report_dir(subject_root_text, output_dir)
         return result
 
     def _update_environment_status(self, result) -> None:
