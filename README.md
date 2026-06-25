@@ -50,15 +50,35 @@ Developer and CI entry points are also available from the repository root:
 # Pure Python unit tests; does not launch Slicer.
 make test-fast
 
-# Slicer extension smoke test; requires local launcher paths.
+# Slicer extension smoke test with xvfb-run.
 SLICERDDSURFER_SLICER_LAUNCHER=/path/to/Slicer \
 SLICERDDSURFER_XVFB_RUN=/path/to/xvfb-run \
+make test-slicer
+
+# Or run the same smoke test inside an existing X/VNC session.
+SLICERDDSURFER_SLICER_LAUNCHER=/path/to/Slicer \
+SLICERDDSURFER_USE_EXISTING_DISPLAY=1 \
 make test-slicer
 
 # Release evidence chain; requires a subject-root fixture.
 SLICERDDSURFER_RELEASE_SUBJECT_ROOT=/path/to/subject-root \
 make release-check
 ```
+
+Before a release, run the fresh-clone smoke gate from a clean controller
+checkout. This clones the repository into `/tmp`, downloads only the `core`
+model-asset profile, runs `make test-fast`, verifies that the downloaded files
+are not Git LFS pointers, and writes
+`fresh_clone_smoke_report.json` plus per-step logs:
+
+```bash
+scripts/smoke_fresh_clone.sh
+```
+
+The same gate is available in GitHub Actions through the manual
+`workflow_dispatch` input `run_fresh_clone_smoke=true`. Normal push and pull
+request CI intentionally does not download the large model weights; it only
+checks the manifest plan and LFS metadata.
 
 For a fuller reproducibility check that plans the subject pipeline, batch path,
 WMQL/WMA/TractCloud bundle routes, output-tree HTML, release audit and Slicer
@@ -103,6 +123,16 @@ scripts/download_model_assets.sh --profile parcellation
 ```
 
 See [MODEL_ASSETS.md](MODEL_ASSETS.md) for the manifest format, profiles, expected paths, verification behavior, and external DDSurfer asset environment variables.
+
+To generate a release smoke report from a fresh clone:
+
+```bash
+SMOKE_ASSET_PROFILE=core scripts/smoke_fresh_clone.sh
+```
+
+The report records the clone ref, asset profile, command logs, test status,
+missing files and LFS-pointer verification result. Use this as release evidence
+instead of treating a developer checkout as proof that installation works.
 
 ---
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -291,12 +293,46 @@ def model_assets_summary_text(repo_root: Path) -> str:
     manifest = repo_root / "models" / "assets_manifest.json"
     command = "python3 scripts/download_model_assets.py --profile core"
     if manifest.is_file():
+        status = _model_asset_profiles_status_text(repo_root)
+        status_text = f" Current status: {status}." if status else " Click Check status to verify core/all locally."
         return (
             "Unified source: models/assets_manifest.json. "
             "Default bundled resources are auto-detected from the repository. "
             f"Refresh or verify with `{command}`."
+            f"{status_text}"
         )
     return f"Unified source expected at {manifest}. Refresh or verify with `{command}`."
+
+
+def _model_asset_profiles_status_text(repo_root: Path) -> str:
+    """Return compact core/all profile verification text, or empty on failure."""
+
+    try:
+        module_name = "slicerdsurfer_download_model_assets_summary"
+        module = sys.modules.get(module_name)
+        if module is None:
+            script_path = repo_root / "scripts" / "download_model_assets.py"
+            spec = importlib.util.spec_from_file_location(module_name, script_path)
+            if spec is None or spec.loader is None:
+                return ""
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
+        manifest = module.load_manifest(repo_root / "models" / "assets_manifest.json")
+        parts = []
+        for profile in ("core", "all"):
+            plan = module.resolve_asset_plan(manifest, profile)
+            verification = module.verify_asset_plan(repo_root, plan)
+            checked = int(verification.get("checked_count") or 0)
+            if verification.get("ok"):
+                parts.append(f"{profile}=verified ({checked})")
+            else:
+                missing = len(verification.get("missing") or [])
+                pointers = len(verification.get("lfs_pointers") or [])
+                parts.append(f"{profile}=needs download ({checked} checked, {missing} missing, {pointers} pointer)")
+        return "; ".join(parts)
+    except Exception:
+        return ""
 
 
 def model_assets_provenance_text(repo_root: Path) -> str:

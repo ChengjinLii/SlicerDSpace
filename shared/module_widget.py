@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import json
 import platform
@@ -17,6 +18,7 @@ import vtk
 from qt import QPixmap, QSignalBlocker
 
 from shared.dependency_config import UI_DEPENDENCY_PATHS
+from shared.input_import import InputImportConfig, detect_import_source_kind, prepare_inputs
 from shared.ui_error_dialogs import format_actionable_error_message
 from shared.ui_environment_dialog import show_environment_results_dialog
 from shared.ui_environment_paths import (
@@ -42,6 +44,7 @@ from shared.ui_environment_panel import (
     path_status_dependencies,
     python_install_target_text,
 )
+from shared.ui_prepare_inputs import install_prepare_inputs_panel
 from shared.ui_output_loading import qbytearray_to_text
 from shared.ui_parameter_sync import sync_parameter_node_to_ui
 from shared.ui_run_controller import (
@@ -148,6 +151,7 @@ class SharedWidgetMixin:
 
         self._configure_workflow_shell()
         self._hide_legacy_product_panels()
+        self._initialize_prepare_inputs_panel()
         self._initialize_environment_dependency_path_controls()
         self._initialize_product_selection_summary()
         self._initialize_run_status_panel()
@@ -366,6 +370,14 @@ class SharedWidgetMixin:
             return
         install_environment_dependency_path_controls(self, environment_layout)
 
+    def _initialize_prepare_inputs_panel(self) -> None:
+        if getattr(self, "_prepareInputWidgets", None) is not None:
+            return
+        configuration_layout = getattr(self.ui, "configurationLayout", None)
+        if not configuration_layout:
+            return
+        install_prepare_inputs_panel(self, configuration_layout)
+
     def _add_environment_path_row(self, form_layout, item: dict[str, str]) -> None:
         add_environment_path_row(self, form_layout, item)
 
@@ -421,6 +433,135 @@ class SharedWidgetMixin:
             windowTitle="SlicerDDSurfer model asset provenance",
             parent=self.parent,
         )
+
+    def _load_model_assets_module(self):
+        module_name = "slicerdsurfer_download_model_assets"
+        cached = sys.modules.get(module_name)
+        if cached is not None:
+            return cached
+        script_path = Path(__file__).resolve().parent.parent / "scripts" / "download_model_assets.py"
+        spec = importlib.util.spec_from_file_location(module_name, script_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"Could not load model asset helper: {script_path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    def _model_asset_verification(self, profile: str) -> tuple[object, object, dict[str, Any]]:
+        module = self._load_model_assets_module()
+        repo_root = Path(__file__).resolve().parent.parent
+        manifest = module.load_manifest(repo_root / "models" / "assets_manifest.json")
+        plan = module.resolve_asset_plan(manifest, profile)
+        verification = module.verify_asset_plan(repo_root, plan)
+        return module, plan, verification
+
+    def _format_model_asset_status_line(self, profile: str, verification: dict[str, Any]) -> str:
+        checked = int(verification.get("checked_count") or 0)
+        missing = list(verification.get("missing") or [])
+        pointers = list(verification.get("lfs_pointers") or [])
+        if verification.get("ok"):
+            return f"{profile}=verified ({checked} file(s))"
+        problems = []
+        if missing:
+            problems.append(f"{len(missing)} missing")
+        if pointers:
+            problems.append(f"{len(pointers)} LFS pointer")
+        problem_text = ", ".join(problems) if problems else "not verified"
+        return f"{profile}=needs download ({checked} checked; {problem_text})"
+
+    def _set_model_assets_status_text(self, text: str) -> None:
+        label = getattr(self, "_modelAssetsSummaryLabel", None)
+        if label:
+            label.setText(text)
+        self.appendLog("[Model assets] " + text)
+
+    def _on_check_model_assets_status_clicked(self) -> None:
+        try:
+            _, _, core = self._model_asset_verification("core")
+            _, _, all_assets = self._model_asset_verification("all")
+        except Exception as exc:
+            self._show_actionable_error(
+                title="Model Asset Status Failed",
+                what="SlicerDDSurfer could not verify the model asset manifest.",
+                why="The checkout is missing the manifest, Git LFS metadata is unavailable, or the manifest profile is invalid.",
+                next_step="Run scripts/download_model_assets.sh --profile core from the repository root, then check status again.",
+                auto_fix="Use the Verify core button for local verification; large downloads are not started by Check status.",
+                details=exc,
+            )
+            return
+        text = (
+            "Unified source: models/assets_manifest.json. Current status: "
+            + self._format_model_asset_status_line("core", core)
+            + "; "
+            + self._format_model_asset_status_line("all", all_assets)
+            + "."
+        )
+        self._set_model_assets_status_text(text)
+
+    def _on_verify_core_model_assets_clicked(self) -> None:
+        try:
+            _, _, verification = self._model_asset_verification("core")
+        except Exception as exc:
+            self._show_actionable_error(
+                title="Core Model Asset Verification Failed",
+                what="SlicerDDSurfer could not verify the core model assets.",
+                why="The manifest or Git LFS file list could not be read.",
+                next_step="Run scripts/download_model_assets.sh --profile core from the repository root and retry.",
+                auto_fix="This button verifies existing files only; it does not download large Git LFS objects.",
+                details=exc,
+            )
+            return
+        line = self._format_model_asset_status_line("core", verification)
+        missing = list(verification.get("missing") or [])
+        pointers = list(verification.get("lfs_pointers") or [])
+        details = ""
+        if missing or pointers:
+            details = f" Missing: {missing[:5]}; LFS pointers: {pointers[:5]}"
+        self._set_model_assets_status_text(f"Core model assets: {line}.{details}")
+        if verification.get("ok"):
+            slicer.util.infoDisplay("Core model assets are verified.", parent=self.parent)
+        else:
+            slicer.util.infoDisplay(
+                "Core model assets are not complete. Run scripts/download_model_assets.sh --profile core.",
+                parent=self.parent,
+            )
+
+    def _on_write_model_asset_lockfile_clicked(self) -> None:
+        selected = qt.QFileDialog.getSaveFileName(
+            slicer.util.mainWindow(),
+            "Write SlicerDDSurfer model asset lockfile",
+            str(Path.home() / "model_assets_core_lock.json"),
+            "JSON files (*.json)",
+        )
+        path_text = selected[0] if isinstance(selected, tuple) else selected
+        path_text = str(path_text or "").strip()
+        if not path_text:
+            return
+        try:
+            module, plan, verification = self._model_asset_verification("core")
+            if not verification.get("ok"):
+                raise RuntimeError(
+                    "Core assets are not fully verified: "
+                    f"missing={verification.get('missing')}, lfs_pointers={verification.get('lfs_pointers')}"
+                )
+            repo_root = Path(__file__).resolve().parent.parent
+            lockfile = module.build_asset_lockfile(repo_root, plan)
+            path = Path(path_text).expanduser().resolve()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(lockfile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        except Exception as exc:
+            self._show_actionable_error(
+                title="Model Asset Lockfile Failed",
+                what="SlicerDDSurfer could not write the core model asset lockfile.",
+                why="Core assets are missing, still Git LFS pointers, or the destination path is not writable.",
+                next_step="Verify the core assets first, then choose a writable JSON destination.",
+                auto_fix="Not available. Lockfiles must be generated from verified local files.",
+                details=exc,
+            )
+            return
+        self._set_model_assets_status_text(f"Core model asset lockfile written: {path}")
+        slicer.util.infoDisplay(f"Model asset lockfile written:\n{path}", parent=self.parent)
 
     def _on_open_environment_report_dir_clicked(self) -> None:
         report_dir = getattr(self, "_latestEnvironmentReportDir", None)
@@ -537,6 +678,193 @@ class SharedWidgetMixin:
             parent=self.parent,
         )
         self._onValidateClicked()
+
+    def _prepare_inputs_widget_text(self, key: str) -> str:
+        widget = (getattr(self, "_prepareInputWidgets", {}) or {}).get(key)
+        if not widget:
+            return ""
+        return self._line_edit_text(widget)
+
+    def _prepare_inputs_combo_text(self, key: str, default: str) -> str:
+        widget = (getattr(self, "_prepareInputWidgets", {}) or {}).get(key)
+        if not widget:
+            return default
+        value = getattr(widget, "currentText", "")
+        return str(value() if callable(value) else value or default).strip() or default
+
+    def _prepare_inputs_checked(self, key: str) -> bool:
+        widget = (getattr(self, "_prepareInputWidgets", {}) or {}).get(key)
+        return bool(widget and widget.isChecked())
+
+    def _set_prepare_inputs_widget_text(self, key: str, value: str) -> None:
+        widget = (getattr(self, "_prepareInputWidgets", {}) or {}).get(key)
+        if widget:
+            widget.setText(value)
+
+    def _shared_input_directory_text(self) -> str:
+        widget = getattr(self.ui, "inputDirectoryPath", None)
+        if widget:
+            current_path = getattr(widget, "currentPath", "")
+            return str(current_path() if callable(current_path) else current_path).strip()
+        node = self._parameterNode
+        return str((node.inputDirectory if node else "") or "").strip()
+
+    def _shared_subject_id_text(self) -> str:
+        widget = getattr(self.ui, "subjectIdLineEdit", None)
+        if widget:
+            text = self._line_edit_text(widget)
+            if text:
+                return text
+        node = self._parameterNode
+        return str((node.subjectId if node else "") or "").strip()
+
+    def _browse_prepare_input_source_path(self, key: str) -> None:
+        source_kind = self._prepare_inputs_combo_text("source_kind", "auto")
+        start_dir = self._prepare_inputs_widget_text(key) or self._shared_input_directory_text() or os.path.expanduser("~")
+        if source_kind in {"dicom", "canonical"}:
+            selected = qt.QFileDialog.getExistingDirectory(
+                slicer.util.mainWindow(),
+                "Select DWI source folder",
+                start_dir,
+            )
+            selected_text = str(selected or "").strip()
+        else:
+            selected = qt.QFileDialog.getOpenFileName(
+                slicer.util.mainWindow(),
+                "Select DWI source file",
+                start_dir,
+                "DWI files (*.nii *.nii.gz *.nrrd *.nhdr);;All files (*)",
+            )
+            selected_text = selected[0] if isinstance(selected, tuple) else selected
+            selected_text = str(selected_text or "").strip()
+        if selected_text:
+            self._set_prepare_inputs_widget_text(key, selected_text)
+
+    def _browse_prepare_input_subject_root(self, key: str) -> None:
+        start_dir = self._prepare_inputs_widget_text(key) or self._shared_input_directory_text() or os.path.expanduser("~")
+        selected = qt.QFileDialog.getExistingDirectory(
+            slicer.util.mainWindow(),
+            "Select destination subject root",
+            start_dir,
+        )
+        selected_text = str(selected or "").strip()
+        if selected_text:
+            self._set_prepare_inputs_widget_text(key, selected_text)
+
+    def _browse_prepare_input_file(self, key: str) -> None:
+        start_dir = self._prepare_inputs_widget_text(key) or self._prepare_inputs_widget_text("source") or os.path.expanduser("~")
+        selected = qt.QFileDialog.getOpenFileName(
+            slicer.util.mainWindow(),
+            "Select sidecar file",
+            start_dir,
+            "DWI sidecars (*.bval *.bvec *.json *.nii *.nii.gz);;All files (*)",
+        )
+        selected_text = selected[0] if isinstance(selected, tuple) else selected
+        selected_text = str(selected_text or "").strip()
+        if selected_text:
+            self._set_prepare_inputs_widget_text(key, selected_text)
+
+    def _prepare_inputs_config(self, *, force_dry_run: bool = False) -> InputImportConfig:
+        source_text = self._prepare_inputs_widget_text("source")
+        subject_root_text = self._prepare_inputs_widget_text("subject_root") or self._shared_input_directory_text()
+        subject_id = self._prepare_inputs_widget_text("subject_id") or self._shared_subject_id_text()
+        if not source_text:
+            raise ValueError("Select a DICOM folder, NIfTI file, NRRD/NHDR file, or canonical subject root.")
+        if not subject_root_text:
+            raise ValueError("Select the destination subject root.")
+        if not subject_id:
+            raise ValueError("Enter a subject ID.")
+
+        source = Path(source_text).expanduser()
+        source_kind_text = self._prepare_inputs_combo_text("source_kind", "auto")
+        source_kind = detect_import_source_kind(source) if source_kind_text == "auto" else source_kind_text
+        backend = self._prepare_inputs_combo_text("backend", "auto")
+        output_kind = self._prepare_inputs_combo_text("output_kind", "canonical-nifti")
+
+        def optional_path(key: str) -> Optional[Path]:
+            value = self._prepare_inputs_widget_text(key)
+            return Path(value).expanduser() if value else None
+
+        external_paths = self._environment_dependency_path_kwargs()
+        mrtrix_bin_dir = external_paths.get("mrtrix_bin_dir") or external_paths.get("preprocessing_mrtrix_bin_dir")
+        mrconvert = (Path(mrtrix_bin_dir) / "mrconvert") if mrtrix_bin_dir else None
+
+        return InputImportConfig(
+            source=source,
+            subject_root=Path(subject_root_text).expanduser(),
+            subject_id=subject_id,
+            source_kind=source_kind,
+            backend=backend,
+            output_kind=output_kind,
+            bval_path=optional_path("bval"),
+            bvec_path=optional_path("bvec"),
+            metadata_path=optional_path("metadata"),
+            mask_path=optional_path("mask"),
+            mrconvert_executable=mrconvert,
+            dry_run=force_dry_run or self._prepare_inputs_checked("dry_run"),
+            force=self._prepare_inputs_checked("force"),
+        )
+
+    def _on_prepare_inputs_preview_clicked(self) -> None:
+        try:
+            manifest = prepare_inputs(self._prepare_inputs_config(force_dry_run=True))
+        except Exception as exc:
+            self._show_actionable_error(
+                title="Input Import Preview Failed",
+                what="SlicerDDSurfer could not build an input import plan.",
+                why="The selected source path, sidecars, source type, backend, or destination subject root is invalid.",
+                next_step="Check the source path and sidecar paths, or set Source type explicitly instead of auto.",
+                auto_fix="Not available. The preview does not mutate files.",
+                details=exc,
+            )
+            return
+        self.appendLog("[Prepare Inputs] Dry-run plan:\n" + json.dumps(manifest, indent=2, sort_keys=True))
+        slicer.util.infoDisplay("Input import plan created. See the SlicerDDSurfer log for details.", parent=self.parent)
+
+    def _on_prepare_inputs_clicked(self) -> None:
+        try:
+            config = self._prepare_inputs_config(force_dry_run=False)
+            manifest = prepare_inputs(config)
+        except Exception as exc:
+            self._show_actionable_error(
+                title="Input Import Failed",
+                what="SlicerDDSurfer could not prepare the selected external inputs.",
+                why="The import backend failed, sidecar files are missing, or the destination already contains files without overwrite enabled.",
+                next_step="Review the selected paths and backend. Enable overwrite only if replacing the destination input files is intended.",
+                auto_fix="Not available. External converters such as dcm2niix, MRtrix3 mrconvert, and SlicerDMRI DWIConvert must be installed separately.",
+                details=exc,
+            )
+            return
+
+        status = str(manifest.get("status") or "completed")
+        subject_root = Path(config.subject_root).expanduser().resolve()
+        self.appendLog("[Prepare Inputs] Result:\n" + json.dumps(manifest, indent=2, sort_keys=True))
+        if status == "completed":
+            self._sync_path_widget(getattr(self.ui, "inputDirectoryPath", None), subject_root.as_posix())
+            self._sync_line_edit(getattr(self.ui, "subjectIdLineEdit", None), config.subject_id)
+            if self._parameterNode:
+                with slicer.util.NodeModify(self._parameterNode):
+                    self._parameterNode.inputDirectory = subject_root.as_posix()
+                    self._parameterNode.subjectId = config.subject_id
+            self._apply_shared_inputs_to_workflow_fields()
+            self._checkCanApply()
+            slicer.util.infoDisplay(
+                f"Inputs prepared for {config.subject_id}:\n{subject_root / 'input' / 'input_import_manifest.json'}",
+                parent=self.parent,
+            )
+        else:
+            slicer.util.infoDisplay("Dry-run completed. No files were written; see the log for the planned import.", parent=self.parent)
+
+    def _on_open_prepare_input_manifest_clicked(self) -> None:
+        subject_root_text = self._prepare_inputs_widget_text("subject_root") or self._shared_input_directory_text()
+        if not subject_root_text:
+            slicer.util.infoDisplay("Select a subject root first.", parent=self.parent)
+            return
+        manifest_path = Path(subject_root_text).expanduser() / "input" / "input_import_manifest.json"
+        self._open_local_path(
+            manifest_path,
+            missing_message="input/input_import_manifest.json is not available for the selected subject root.",
+        )
 
     def _initialize_run_status_panel(self) -> None:
         install_run_status_panel(self)

@@ -48,6 +48,10 @@ Use `.zenodo.json` as the starting metadata file. Before publishing:
 5. Record the final DOI in `CITATION.cff`, `codemeta.json`, `RELEASE.md` and the
    manuscript availability statement.
 
+For the current `v0.1.0` GitHub Release page, use
+`GITHUB_RELEASE_DRAFT_v0.1.0.md` as the release body and attach the generated
+code-only support files from `release_artifacts/v0.1.0/`.
+
 ## Current Boundary
 
 The current asset terms decision record is `MODEL_ASSET_TERMS.md`. Until every

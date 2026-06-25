@@ -5,6 +5,15 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      run_fresh_clone_smoke:
+        description: "Run release fresh-clone smoke with core Git LFS model assets"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 jobs:
   fast-checks:
@@ -31,3 +40,36 @@ jobs:
 
       - name: Resolve model asset manifest without downloading assets
         run: python3 scripts/download_model_assets.py --profile core --print-plan
+
+  fresh-clone-smoke:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_fresh_clone_smoke == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout controller copy
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Install Git LFS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git-lfs
+          git lfs version
+
+      - name: Run fresh-clone smoke
+        env:
+          SMOKE_REPO_URL: https://github.com/${{ github.repository }}.git
+          SMOKE_REF: ${{ github.ref_name }}
+          SMOKE_ASSET_PROFILE: core
+          SMOKE_ROOT: /tmp/slicerdsurfer-fresh-clone-smoke
+        run: bash scripts/smoke_fresh_clone.sh
+
+      - name: Upload fresh-clone smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-clone-smoke-report
+          path: |
+            /tmp/slicerdsurfer-fresh-clone-smoke/fresh_clone_smoke_report.json
+            /tmp/slicerdsurfer-fresh-clone-smoke/logs/*.log
+          if-no-files-found: warn
