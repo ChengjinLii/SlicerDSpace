@@ -20,6 +20,9 @@ Date: 2026-06-25
   an existing X/VNC display using `SLICERDDSURFER_USE_EXISTING_DISPLAY=1`.
 - Added `GITHUB_RELEASE_DRAFT_v0.1.0.md` with a ready-to-review GitHub Release
   body, attachment list and DOI/code-only archive boundary.
+- Added `scripts/create_github_release.py`, a GitHub REST API helper that can
+  validate the release plan in dry-run mode or create the draft release and
+  upload artifacts when `GITHUB_TOKEN` or `GH_TOKEN` is available.
 - Updated `README.md`, `RELEASE.md` and `DOI_ARCHIVE_PREP.md` with the new
   smoke gate, Slicer smoke modes, release draft and DOI boundary.
 
@@ -44,8 +47,8 @@ Date: 2026-06-25
 ## Remaining Manual Boundary
 
 - The GitHub Release page itself was not created from this environment because
-  `gh` is not installed and no `GITHUB_TOKEN`/`GH_TOKEN` is available. The draft
-  release body and exact creation command are in
-  `GITHUB_RELEASE_DRAFT_v0.1.0.md`.
+  no `GITHUB_TOKEN`/`GH_TOKEN` is available. The draft release body and scripted
+  creation path are in `GITHUB_RELEASE_DRAFT_v0.1.0.md` and
+  `scripts/create_github_release.py`.
 - DOI remains code-only unless every model/template/validation asset group has
   confirmed redistribution and DOI-archive permission.

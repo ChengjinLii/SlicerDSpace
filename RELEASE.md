@@ -115,6 +115,16 @@ ready-to-review GitHub Release body and attachment list. If post-tag changes on
 `main` should be included, create a new tag after rerunning the release gates
 rather than moving `v0.1.0`.
 
+To create the draft GitHub Release page and upload the default code-only support
+files from a maintainer machine:
+
+```bash
+python3 scripts/create_github_release.py --dry-run
+GITHUB_TOKEN=<token-with-repo-release-permission> \
+  python3 scripts/create_github_release.py \
+  --fresh-clone-report /path/to/fresh_clone_smoke_report.json
+```
+
 ## Post-Release Updates
 
 After a release tag and DOI exist:

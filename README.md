@@ -80,6 +80,15 @@ The same gate is available in GitHub Actions through the manual
 request CI intentionally does not download the large model weights; it only
 checks the manifest plan and LFS metadata.
 
+To validate or create the draft GitHub Release page from a maintainer machine:
+
+```bash
+python3 scripts/create_github_release.py --dry-run
+GITHUB_TOKEN=<token-with-repo-release-permission> \
+  python3 scripts/create_github_release.py \
+  --fresh-clone-report /path/to/fresh_clone_smoke_report.json
+```
+
 For a fuller reproducibility check that plans the subject pipeline, batch path,
 WMQL/WMA/TractCloud bundle routes, output-tree HTML, release audit and Slicer
 smoke when the configured Slicer launcher and `xvfb-run` are available, run:

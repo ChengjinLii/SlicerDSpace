@@ -84,7 +84,29 @@ For DOI deposition, use `DOI_ARCHIVE_PREP.md` and publish a code-only archive
 unless every asset group listed in `MODEL_ASSET_TERMS.md` has confirmed source,
 ownership, license, redistribution permission and archive permission.
 
-## Manual Creation Command
+## Scripted Creation Command
+
+This repository includes a GitHub REST API helper that creates the draft
+release and uploads the default code-only support files. Validate the plan
+without credentials first:
+
+```bash
+python3 scripts/create_github_release.py --dry-run
+```
+
+When a maintainer token is available:
+
+```bash
+GITHUB_TOKEN=<token-with-repo-release-permission> \
+python3 scripts/create_github_release.py \
+  --fresh-clone-report /path/to/fresh_clone_smoke_report.json
+```
+
+The script defaults to `draft=true` and `prerelease=true`. Add `--publish` only
+when the release should be visible immediately, and add `--final` only when this
+is no longer considered a prerelease.
+
+## Manual GitHub CLI Alternative
 
 If GitHub CLI is available on a maintainer machine:
 
