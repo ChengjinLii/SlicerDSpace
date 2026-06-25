@@ -228,16 +228,19 @@ def add_model_assets_row(owner: Any, form_layout: Any) -> None:
     status_button.setToolTip("Check whether core and all model asset profiles are present and not Git LFS pointer files.")
     status_button.connect("clicked()", owner._on_check_model_assets_status_clicked)
     row_layout.addWidget(status_button)
+    owner._modelAssetsCheckStatusButton = status_button
 
     verify_button = qt.QPushButton("Verify core")
     verify_button.setToolTip("Verify the core model asset profile required by DDSurfer, DDSeg, and DDParcel.")
     verify_button.connect("clicked()", owner._on_verify_core_model_assets_clicked)
     row_layout.addWidget(verify_button)
+    owner._modelAssetsVerifyCoreButton = verify_button
 
     lockfile_button = qt.QPushButton("Write lockfile")
     lockfile_button.setToolTip("Write a SHA256 lockfile for the core model asset profile.")
     lockfile_button.connect("clicked()", owner._on_write_model_asset_lockfile_clicked)
     row_layout.addWidget(lockfile_button)
+    owner._modelAssetsWriteLockfileButton = lockfile_button
 
     guide_button = qt.QPushButton("Open guide")
     guide_button.setToolTip("Open MODEL_ASSETS.md for unified model weights/template download and verification.")

@@ -48,6 +48,32 @@ def _run() -> None:
         parameter_node_ready = bool(getattr(widget, "_parameterNode", None))
         run_panel_ready = bool(getattr(widget, "_runStatusPanel", None))
         env_paths_ready = bool(getattr(widget, "_environmentPathLineEdits", None))
+        prepare_widgets = getattr(widget, "_prepareInputWidgets", {}) or {}
+        prepare_required = {
+            "source_kind",
+            "source",
+            "subject_root",
+            "subject_id",
+            "bval",
+            "bvec",
+            "metadata",
+            "mask",
+            "backend",
+            "output_kind",
+            "preview_button",
+            "prepare_button",
+            "manifest_button",
+        }
+        prepare_inputs_ready = prepare_required.issubset(set(prepare_widgets))
+        model_assets_ready = all(
+            bool(getattr(widget, name, None))
+            for name in (
+                "_modelAssetsSummaryLabel",
+                "_modelAssetsCheckStatusButton",
+                "_modelAssetsVerifyCoreButton",
+                "_modelAssetsWriteLockfileButton",
+            )
+        )
         summary_label = getattr(widget, "_selectedProductsSummaryLabel", None)
         summary_text = ""
         if summary_label:
@@ -71,6 +97,8 @@ def _run() -> None:
         print(f"SLICERDDSURFER_EXTENSION_PARAMETER_NODE_READY={parameter_node_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_RUN_PANEL_READY={run_panel_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_ENV_PATHS_READY={env_paths_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_PREPARE_INPUTS_READY={prepare_inputs_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_MODEL_ASSETS_READY={model_assets_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_SELECTION_SUMMARY_READY={selection_summary_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_LOG_BLOCK_LIMIT={log_block_limit}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_CONFIGURED_LOG_LIMIT={configured_log_limit}", flush=True)
@@ -84,6 +112,8 @@ def _run() -> None:
             or not parameter_node_ready
             or not run_panel_ready
             or not env_paths_ready
+            or not prepare_inputs_ready
+            or not model_assets_ready
             or not selection_summary_ready
             or not log_limit_ready
             or not environment_cache_ready
