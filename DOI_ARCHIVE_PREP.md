@@ -11,6 +11,7 @@ Include:
 - Documentation, release notes and metadata.
 - `LICENSE`, `CITATION.cff`, `codemeta.json`, `.zenodo.json`.
 - `RELEASE.md`, `MODEL_ASSETS.md`, `MODEL_ASSET_TERMS.md`.
+- `MODEL_ASSET_HOSTING_PLAN.md`.
 - Release validation report and generated artifact manifests.
 
 Exclude unless redistribution and DOI-archive permission are confirmed:
@@ -60,3 +61,5 @@ Actions workflow can run the same helper with `create_github_release=true`.
 The current asset terms decision record is `MODEL_ASSET_TERMS.md`. Until every
 asset group is cleared for public redistribution and DOI archiving, publish only
 code/documentation DOI archives or document an approved external access route.
+Use `MODEL_ASSET_HOSTING_PLAN.md` when preparing a separate asset repository or
+DOI-backed model-asset record.

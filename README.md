@@ -118,7 +118,13 @@ including staged-extension and Slicer-smoke step results when those checks run.
 
 ## Model Weights And Templates
 
-Model weights and template assets are stored with Git LFS. Install Git LFS first, then download the recommended core asset profile before running DDSurfer, DDSeg, or DDParcel:
+Model weights and template assets are currently available through Git LFS for
+compatibility with this checkout. The same downloader also supports external
+URL/mirror sources with manifest size and SHA256 verification, which is the
+preferred long-term route for a separate `SlicerDDSurfer-models` repository,
+Hugging Face, Zenodo, OSF, Figshare, or institutional storage. Install Git LFS
+first when using the current compatibility source, then download the recommended
+core asset profile before running DDSurfer, DDSeg, or DDParcel:
 
 ```bash
 scripts/download_model_assets.sh --profile core
@@ -138,7 +144,9 @@ scripts/download_model_assets.sh --profile segmentation
 scripts/download_model_assets.sh --profile parcellation
 ```
 
-See [MODEL_ASSETS.md](MODEL_ASSETS.md) for the manifest format, profiles, expected paths, verification behavior, and external DDSurfer asset environment variables.
+See [MODEL_ASSETS.md](MODEL_ASSETS.md) for the manifest format, profiles,
+expected paths, checksum verification, URL/mirror sources, and external
+DDSurfer asset environment variables.
 
 To generate a release smoke report from a fresh clone:
 

@@ -7,8 +7,12 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import os
 import subprocess
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -29,6 +33,8 @@ class AssetPlan:
     external_overrides: tuple[str, ...]
     asset_groups: tuple[str, ...]
     terms_notices: tuple[str, ...]
+    source_ids: tuple[str, ...]
+    asset_records: dict[str, dict[str, Any]]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -40,6 +46,8 @@ class AssetPlan:
             "external_overrides": list(self.external_overrides),
             "asset_groups": list(self.asset_groups),
             "terms_notices": list(self.terms_notices),
+            "source_ids": list(self.source_ids),
+            "asset_records": self.asset_records,
         }
 
 
@@ -49,6 +57,40 @@ def _dedupe(values: list[str]) -> tuple[str, ...]:
 
 def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict[str, Any]:
     return json.loads(path.expanduser().read_text(encoding="utf-8"))
+
+
+def _manifest_asset_records(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    records = manifest.get("asset_records", {})
+    if not isinstance(records, dict):
+        return {}
+    result: dict[str, dict[str, Any]] = {}
+    default_source_ids = tuple(str(value) for value in manifest.get("default_asset_source_ids", ["github_lfs"]))
+    for relative, payload in records.items():
+        if not isinstance(payload, dict):
+            continue
+        record = dict(payload)
+        record["path"] = str(relative)
+        source_ids = record.get("source_ids")
+        if not isinstance(source_ids, list) or not source_ids:
+            record["source_ids"] = list(default_source_ids)
+        else:
+            record["source_ids"] = [str(value) for value in source_ids if str(value or "").strip()]
+        result[str(relative)] = record
+    return result
+
+
+def _asset_record_for_path(
+    path: str,
+    records: dict[str, dict[str, Any]],
+    *,
+    default_source_ids: tuple[str, ...],
+) -> dict[str, Any]:
+    record = dict(records.get(path, {}))
+    record["path"] = path
+    source_ids = record.get("source_ids")
+    if not isinstance(source_ids, list) or not source_ids:
+        record["source_ids"] = list(default_source_ids)
+    return record
 
 
 def resolve_asset_plan(manifest: dict[str, Any], profile: str | None = None) -> AssetPlan:
@@ -64,6 +106,8 @@ def resolve_asset_plan(manifest: dict[str, Any], profile: str | None = None) -> 
     asset_groups: list[str] = []
     terms_notices: list[str] = []
     all_lfs = False
+    manifest_records = _manifest_asset_records(manifest)
+    default_source_ids = tuple(str(value) for value in manifest.get("default_asset_source_ids", ["github_lfs"]))
 
     def visit(name: str) -> None:
         nonlocal all_lfs
@@ -91,15 +135,36 @@ def resolve_asset_plan(manifest: dict[str, Any], profile: str | None = None) -> 
         terms_notices.extend(str(value) for value in profile_data.get("terms_notice", []))
 
     visit(selected)
+    selected_paths: list[str] = []
+    if all_lfs:
+        selected_paths.extend(sorted(manifest_records))
+    elif include_patterns:
+        selected_paths.extend(path for path in sorted(manifest_records) if _matches_any(path, tuple(include_patterns)))
+    selected_paths.extend(required_paths)
+    selected_paths = list(_dedupe(selected_paths))
+    selected_records = {
+        path: _asset_record_for_path(path, manifest_records, default_source_ids=default_source_ids)
+        for path in selected_paths
+    }
+    source_ids = _dedupe(
+        [
+            source_id
+            for record in selected_records.values()
+            for source_id in record.get("source_ids", [])
+            if str(source_id or "").strip()
+        ]
+    )
     return AssetPlan(
         profile=selected,
         resolved_profiles=_dedupe(resolved_profiles),
         all_lfs=all_lfs,
         include_patterns=_dedupe(include_patterns),
-        required_paths=_dedupe(required_paths),
+        required_paths=tuple(selected_paths),
         external_overrides=_dedupe(external_overrides),
         asset_groups=_dedupe(asset_groups),
         terms_notices=_dedupe(terms_notices),
+        source_ids=source_ids,
+        asset_records=selected_records,
     )
 
 
@@ -157,7 +222,7 @@ def _git_head(repo_root: Path) -> str:
     return result.stdout.strip() if result.returncode == 0 else "unknown"
 
 
-def verify_asset_plan(repo_root: Path, plan: AssetPlan) -> dict[str, Any]:
+def verify_asset_plan(repo_root: Path, plan: AssetPlan, *, check_hashes: bool = True) -> dict[str, Any]:
     lfs_files = _git_lfs_files(repo_root)
     checked: list[str] = []
     if plan.all_lfs:
@@ -169,19 +234,50 @@ def verify_asset_plan(repo_root: Path, plan: AssetPlan) -> dict[str, Any]:
 
     missing: list[str] = []
     pointers: list[str] = []
+    size_mismatches: list[dict[str, Any]] = []
+    sha256_mismatches: list[dict[str, Any]] = []
+    hashes_checked = 0
     for relative in checked:
         path = repo_root / relative
+        record = plan.asset_records.get(relative, {})
         if not path.is_file():
             missing.append(relative)
             continue
         if _is_lfs_pointer(path):
             pointers.append(relative)
+            continue
+        expected_size = record.get("size_bytes")
+        if expected_size is not None:
+            actual_size = path.stat().st_size
+            if actual_size != int(expected_size):
+                size_mismatches.append(
+                    {
+                        "path": relative,
+                        "expected": int(expected_size),
+                        "actual": actual_size,
+                    }
+                )
+        expected_sha256 = str(record.get("sha256") or "").strip()
+        if check_hashes and expected_sha256:
+            hashes_checked += 1
+            actual_sha256 = _sha256(path)
+            if actual_sha256 != expected_sha256:
+                sha256_mismatches.append(
+                    {
+                        "path": relative,
+                        "expected": expected_sha256,
+                        "actual": actual_sha256,
+                    }
+                )
 
     return {
         "checked_count": len(checked),
+        "hashes_checked": hashes_checked,
         "missing": missing,
         "lfs_pointers": pointers,
-        "ok": bool(checked) and not missing and not pointers,
+        "size_mismatches": size_mismatches,
+        "sha256_mismatches": sha256_mismatches,
+        "ok": bool(checked) and not missing and not pointers and not size_mismatches and not sha256_mismatches,
     }
 
 
@@ -191,14 +287,17 @@ def build_asset_lockfile(repo_root: Path, plan: AssetPlan) -> dict[str, Any]:
         path = repo_root / relative
         exists = path.is_file()
         is_pointer = _is_lfs_pointer(path) if exists else False
+        plan_record = plan.asset_records.get(relative, {})
         records.append(
             {
                 "path": relative,
                 "exists": exists,
                 "size_bytes": path.stat().st_size if exists else 0,
+                "expected_size_bytes": plan_record.get("size_bytes"),
                 "sha256": _sha256(path) if exists and not is_pointer else None,
+                "expected_sha256": plan_record.get("sha256"),
                 "lfs_pointer": is_pointer,
-                "source": "git-lfs",
+                "source_ids": list(plan_record.get("source_ids", plan.source_ids)),
             }
         )
     return {
@@ -210,14 +309,188 @@ def build_asset_lockfile(repo_root: Path, plan: AssetPlan) -> dict[str, Any]:
         "resolved_profiles": list(plan.resolved_profiles),
         "asset_groups": list(plan.asset_groups),
         "terms_notices": list(plan.terms_notices),
-        "download_sources": ["git-lfs"],
+        "download_sources": list(plan.source_ids),
         "mirror_policy": "Optional mirrors must preserve path, size, SHA256, and terms notices from this lockfile.",
         "offline_package_policy": "Offline archives should be built from files verified by this lockfile and distributed only after asset terms are confirmed.",
         "records": records,
     }
 
 
-def download_asset_plan(repo_root: Path, plan: AssetPlan) -> None:
+def _asset_record_ok(path: Path, record: dict[str, Any]) -> bool:
+    if not path.is_file() or _is_lfs_pointer(path):
+        return False
+    expected_size = record.get("size_bytes")
+    if expected_size is not None and path.stat().st_size != int(expected_size):
+        return False
+    expected_sha256 = str(record.get("sha256") or "").strip()
+    return not expected_sha256 or _sha256(path) == expected_sha256
+
+
+def _format_url_template(template: str, *, relative: str, record: dict[str, Any]) -> str:
+    encoded_path = urllib.parse.quote(relative, safe="/")
+    return template.format(
+        path=relative,
+        path_urlencoded=encoded_path,
+        filename=urllib.parse.quote(Path(relative).name),
+        sha256=str(record.get("sha256") or ""),
+    )
+
+
+def _source_url_templates(
+    manifest: dict[str, Any],
+    source_ids: tuple[str, ...],
+    *,
+    allow_planned_sources: bool,
+) -> list[tuple[str, str]]:
+    source_map = manifest.get("asset_sources", {})
+    if not isinstance(source_map, dict):
+        return []
+    templates: list[tuple[str, str]] = []
+    for source_id in source_ids:
+        source = source_map.get(source_id)
+        if not isinstance(source, dict):
+            continue
+        if str(source.get("kind") or "") not in {"url-template", "url"}:
+            continue
+        status = str(source.get("status") or "active")
+        if status != "active" and not allow_planned_sources:
+            continue
+        template = str(source.get("url_template") or "").strip()
+        if not template:
+            base_url = str(source.get("base_url") or "").rstrip("/")
+            template = base_url + "/{path_urlencoded}" if base_url else ""
+        if template:
+            templates.append((source_id, template))
+    return templates
+
+
+def _url_candidates_for_asset(
+    manifest: dict[str, Any],
+    record: dict[str, Any],
+    *,
+    source_ids: tuple[str, ...],
+    base_urls: tuple[str, ...],
+    allow_planned_sources: bool,
+) -> list[tuple[str, str]]:
+    relative = str(record["path"])
+    candidates: list[tuple[str, str]] = []
+    for base_url in base_urls:
+        clean_base = base_url.rstrip("/")
+        if clean_base:
+            candidates.append(("base-url", clean_base + "/" + urllib.parse.quote(relative, safe="/")))
+    for key in ("urls", "mirrors"):
+        values = record.get(key, [])
+        if isinstance(values, str):
+            values = [values]
+        if isinstance(values, list):
+            for value in values:
+                text = str(value or "").strip()
+                if text:
+                    candidates.append((key.rstrip("s"), _format_url_template(text, relative=relative, record=record)))
+    for source_id, template in _source_url_templates(
+        manifest,
+        source_ids,
+        allow_planned_sources=allow_planned_sources,
+    ):
+        candidates.append((source_id, _format_url_template(template, relative=relative, record=record)))
+    return candidates
+
+
+def _download_url_to_path(url: str, target: Path, *, timeout: int = 60) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(target.name + ".download")
+    request = urllib.request.Request(url, headers={"User-Agent": "SlicerDDSurfer-model-asset-downloader"})
+    with urllib.request.urlopen(request, timeout=timeout) as response, tmp.open("wb") as stream:
+        while True:
+            chunk = response.read(1024 * 1024)
+            if not chunk:
+                break
+            stream.write(chunk)
+    os.replace(tmp, target)
+
+
+def download_asset_urls(
+    repo_root: Path,
+    plan: AssetPlan,
+    manifest: dict[str, Any],
+    *,
+    source_ids: tuple[str, ...],
+    base_urls: tuple[str, ...],
+    allow_planned_sources: bool,
+    force: bool,
+) -> None:
+    if not plan.required_paths:
+        raise RuntimeError("No concrete asset paths were resolved for URL download.")
+    for relative in plan.required_paths:
+        record = plan.asset_records.get(relative, {"path": relative, "source_ids": list(plan.source_ids)})
+        target = repo_root / relative
+        if not force and _asset_record_ok(target, record):
+            print(f"[model-assets] Existing verified asset: {relative}")
+            continue
+        source_ids_for_asset = tuple(source_ids or tuple(str(value) for value in record.get("source_ids", plan.source_ids)))
+        candidates = _url_candidates_for_asset(
+            manifest,
+            record,
+            source_ids=source_ids_for_asset,
+            base_urls=base_urls,
+            allow_planned_sources=allow_planned_sources,
+        )
+        if not candidates:
+            raise RuntimeError(
+                f"No URL or active mirror is configured for {relative}. "
+                "Use --base-url, --source-id with an active manifest source, or keep --source git-lfs."
+            )
+        errors: list[str] = []
+        for source_id, url in candidates:
+            try:
+                print(f"[model-assets] Downloading {relative} from {source_id}: {url}")
+                _download_url_to_path(url, target)
+                if not _asset_record_ok(target, record):
+                    raise RuntimeError("Downloaded file failed size/SHA256 verification.")
+                break
+            except (OSError, RuntimeError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+                errors.append(f"{source_id}: {exc}")
+                try:
+                    target.unlink()
+                except OSError:
+                    pass
+        else:
+            raise RuntimeError(f"Could not download {relative} from any configured source. Errors: {errors}")
+
+
+def download_asset_plan(
+    repo_root: Path,
+    plan: AssetPlan,
+    manifest: dict[str, Any],
+    *,
+    source: str = "auto",
+    source_ids: tuple[str, ...] = (),
+    base_urls: tuple[str, ...] = (),
+    allow_planned_sources: bool = False,
+    force: bool = False,
+) -> None:
+    if source not in {"auto", "git-lfs", "url"}:
+        raise ValueError(f"Unsupported download source: {source}")
+    if source in {"auto", "git-lfs"}:
+        try:
+            download_asset_plan_from_git_lfs(repo_root, plan)
+            return
+        except Exception:
+            if source == "git-lfs":
+                raise
+            print("[model-assets] Git LFS download failed or is unavailable; trying URL/mirror sources.", file=sys.stderr)
+    download_asset_urls(
+        repo_root,
+        plan,
+        manifest,
+        source_ids=source_ids,
+        base_urls=base_urls,
+        allow_planned_sources=allow_planned_sources,
+        force=force,
+    )
+
+
+def download_asset_plan_from_git_lfs(repo_root: Path, plan: AssetPlan) -> None:
     _check_git_checkout(repo_root)
     _check_git_lfs(repo_root)
     _run(["git", "lfs", "install", "--local"], cwd=repo_root)
@@ -225,17 +498,25 @@ def download_asset_plan(repo_root: Path, plan: AssetPlan) -> None:
         print("[model-assets] Downloading all Git LFS objects.")
         subprocess.run(["git", "lfs", "pull"], cwd=repo_root, check=True)
         return
-    include_csv = ",".join(plan.include_patterns)
+    include_patterns = plan.include_patterns or plan.required_paths
+    include_csv = ",".join(include_patterns)
+    if not include_csv:
+        raise RuntimeError(f"Profile {plan.profile} did not resolve any Git LFS include pattern or required path.")
     print(f"[model-assets] profile={plan.profile}")
     print(f"[model-assets] include={include_csv}")
     subprocess.run(["git", "lfs", "pull", f"--include={include_csv}", "--exclude="], cwd=repo_root, check=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Download SlicerDDSurfer model weights and templates through Git LFS.")
+    parser = argparse.ArgumentParser(description="Download and verify SlicerDDSurfer model weights and templates.")
     parser.add_argument("--profile", "-p", help="Asset profile to download. Defaults to manifest default_profile.")
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST, help="Asset manifest JSON path.")
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT, help="Repository root. Defaults to this checkout.")
+    parser.add_argument("--source", choices=("auto", "git-lfs", "url"), default="auto", help="Download backend. Defaults to Git LFS with URL fallback when configured.")
+    parser.add_argument("--source-id", action="append", help="Manifest asset source id to use for URL downloads. Can be repeated.")
+    parser.add_argument("--base-url", action="append", help="Ad-hoc mirror base URL. Relative asset paths are appended to this URL.")
+    parser.add_argument("--allow-planned-sources", action="store_true", help="Allow manifest URL sources marked as planned/TBD.")
+    parser.add_argument("--force", action="store_true", help="Redownload URL assets even if an existing file already verifies.")
     parser.add_argument("--no-verify", action="store_true", help="Skip post-download pointer/missing-file verification.")
     parser.add_argument("--verify-only", action="store_true", help="Do not download; only verify selected assets already exist.")
     parser.add_argument("--print-plan", action="store_true", help="Print the resolved manifest plan as JSON and exit.")
@@ -254,7 +535,16 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(plan.to_dict(), indent=2, sort_keys=True))
             return 0
         if not args.verify_only:
-            download_asset_plan(repo_root, plan)
+            download_asset_plan(
+                repo_root,
+                plan,
+                manifest,
+                source=args.source,
+                source_ids=tuple(args.source_id or ()),
+                base_urls=tuple(args.base_url or ()),
+                allow_planned_sources=bool(args.allow_planned_sources),
+                force=bool(args.force),
+            )
         if not args.no_verify:
             result = verify_asset_plan(repo_root, plan)
             if not result["ok"]:

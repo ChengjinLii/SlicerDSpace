@@ -36,6 +36,9 @@ class ModelAssetsTest(unittest.TestCase):
         self.assertIn("segmentation/weights/**", plan.include_patterns)
         self.assertIn("parcellation/weights/**", plan.include_patterns)
         self.assertIn("segmentation/weights/dti_axial.pt", plan.required_paths)
+        self.assertIn("segmentation/weights/dti_axial.pt", plan.asset_records)
+        self.assertIn("sha256", plan.asset_records["segmentation/weights/dti_axial.pt"])
+        self.assertIn("github_lfs", plan.source_ids)
         self.assertIn("DDSURFER_CHECKPOINT_DIR", plan.external_overrides)
         self.assertIn("DDCSR surface model weights", plan.asset_groups)
         self.assertTrue(any("redistribution" in notice for notice in plan.terms_notices))
@@ -68,6 +71,8 @@ class ModelAssetsTest(unittest.TestCase):
                 external_overrides=(),
                 asset_groups=(),
                 terms_notices=(),
+                source_ids=("github_lfs",),
+                asset_records={},
             )
 
             asset.write_text("version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 1\n", encoding="utf-8")
@@ -98,6 +103,14 @@ class ModelAssetsTest(unittest.TestCase):
                 external_overrides=(),
                 asset_groups=("unit weights",),
                 terms_notices=("confirm terms",),
+                source_ids=("mirror",),
+                asset_records={
+                    "weights/model.pt": {
+                        "path": "weights/model.pt",
+                        "source_ids": ["mirror"],
+                        "size_bytes": len("downloaded"),
+                    }
+                },
             )
 
             lockfile = module.build_asset_lockfile(root, plan)
@@ -108,6 +121,120 @@ class ModelAssetsTest(unittest.TestCase):
             self.assertEqual(lockfile["records"][0]["path"], "weights/model.pt")
             self.assertFalse(lockfile["records"][0]["lfs_pointer"])
             self.assertIsNotNone(lockfile["records"][0]["sha256"])
+            self.assertEqual(lockfile["records"][0]["source_ids"], ["mirror"])
+
+    def test_verify_asset_plan_reports_size_and_sha256_mismatches(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            asset = root / "weights" / "model.pt"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("bad", encoding="utf-8")
+            plan = module.AssetPlan(
+                profile="unit",
+                resolved_profiles=("unit",),
+                all_lfs=False,
+                include_patterns=(),
+                required_paths=("weights/model.pt",),
+                external_overrides=(),
+                asset_groups=(),
+                terms_notices=(),
+                source_ids=("mirror",),
+                asset_records={
+                    "weights/model.pt": {
+                        "path": "weights/model.pt",
+                        "source_ids": ["mirror"],
+                        "size_bytes": 10,
+                        "sha256": "0" * 64,
+                    }
+                },
+            )
+
+            result = module.verify_asset_plan(root, plan)
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["hashes_checked"], 1)
+        self.assertEqual(result["size_mismatches"][0]["path"], "weights/model.pt")
+        self.assertEqual(result["sha256_mismatches"][0]["path"], "weights/model.pt")
+
+    def test_verify_asset_plan_can_skip_hashes_for_ui_status(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            asset = root / "weights" / "model.pt"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("downloaded", encoding="utf-8")
+            plan = module.AssetPlan(
+                profile="unit",
+                resolved_profiles=("unit",),
+                all_lfs=False,
+                include_patterns=(),
+                required_paths=("weights/model.pt",),
+                external_overrides=(),
+                asset_groups=(),
+                terms_notices=(),
+                source_ids=("mirror",),
+                asset_records={
+                    "weights/model.pt": {
+                        "path": "weights/model.pt",
+                        "source_ids": ["mirror"],
+                        "size_bytes": asset.stat().st_size,
+                        "sha256": "0" * 64,
+                    }
+                },
+            )
+
+            result = module.verify_asset_plan(root, plan, check_hashes=False)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["hashes_checked"], 0)
+
+    def test_url_download_uses_base_url_and_verifies_checksum(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            repo_root = tmp_path / "repo"
+            mirror = tmp_path / "mirror"
+            source_file = mirror / "weights" / "model.pt"
+            source_file.parent.mkdir(parents=True)
+            source_file.write_text("downloaded", encoding="utf-8")
+            expected_sha = module._sha256(source_file)
+            plan = module.AssetPlan(
+                profile="unit",
+                resolved_profiles=("unit",),
+                all_lfs=False,
+                include_patterns=(),
+                required_paths=("weights/model.pt",),
+                external_overrides=(),
+                asset_groups=(),
+                terms_notices=(),
+                source_ids=("unit_mirror",),
+                asset_records={
+                    "weights/model.pt": {
+                        "path": "weights/model.pt",
+                        "source_ids": ["unit_mirror"],
+                        "size_bytes": source_file.stat().st_size,
+                        "sha256": expected_sha,
+                    }
+                },
+            )
+            manifest = {
+                "asset_sources": {},
+            }
+
+            module.download_asset_plan(
+                repo_root,
+                plan,
+                manifest,
+                source="url",
+                base_urls=(mirror.resolve().as_uri(),),
+            )
+            result = module.verify_asset_plan(repo_root, plan)
+
+        self.assertTrue(result["ok"])
 
 
 if __name__ == "__main__":

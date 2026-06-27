@@ -448,12 +448,12 @@ class SharedWidgetMixin:
         spec.loader.exec_module(module)
         return module
 
-    def _model_asset_verification(self, profile: str) -> tuple[object, object, dict[str, Any]]:
+    def _model_asset_verification(self, profile: str, *, check_hashes: bool = True) -> tuple[object, object, dict[str, Any]]:
         module = self._load_model_assets_module()
         repo_root = Path(__file__).resolve().parent.parent
         manifest = module.load_manifest(repo_root / "models" / "assets_manifest.json")
         plan = module.resolve_asset_plan(manifest, profile)
-        verification = module.verify_asset_plan(repo_root, plan)
+        verification = module.verify_asset_plan(repo_root, plan, check_hashes=check_hashes)
         return module, plan, verification
 
     def _format_model_asset_status_line(self, profile: str, verification: dict[str, Any]) -> str:
@@ -461,7 +461,9 @@ class SharedWidgetMixin:
         missing = list(verification.get("missing") or [])
         pointers = list(verification.get("lfs_pointers") or [])
         if verification.get("ok"):
-            return f"{profile}=verified ({checked} file(s))"
+            if int(verification.get("hashes_checked") or 0) > 0:
+                return f"{profile}=verified ({checked} file(s))"
+            return f"{profile}=present ({checked} file(s))"
         problems = []
         if missing:
             problems.append(f"{len(missing)} missing")
@@ -478,8 +480,8 @@ class SharedWidgetMixin:
 
     def _on_check_model_assets_status_clicked(self) -> None:
         try:
-            _, _, core = self._model_asset_verification("core")
-            _, _, all_assets = self._model_asset_verification("all")
+            _, _, core = self._model_asset_verification("core", check_hashes=False)
+            _, _, all_assets = self._model_asset_verification("all", check_hashes=False)
         except Exception as exc:
             self._show_actionable_error(
                 title="Model Asset Status Failed",

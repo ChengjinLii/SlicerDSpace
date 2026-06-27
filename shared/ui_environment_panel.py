@@ -322,10 +322,10 @@ def _model_asset_profiles_status_text(repo_root: Path) -> str:
         parts = []
         for profile in ("core", "all"):
             plan = module.resolve_asset_plan(manifest, profile)
-            verification = module.verify_asset_plan(repo_root, plan)
+            verification = module.verify_asset_plan(repo_root, plan, check_hashes=False)
             checked = int(verification.get("checked_count") or 0)
             if verification.get("ok"):
-                parts.append(f"{profile}=verified ({checked})")
+                parts.append(f"{profile}=present ({checked})")
             else:
                 missing = len(verification.get("missing") or [])
                 pointers = len(verification.get("lfs_pointers") or [])

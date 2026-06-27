@@ -71,6 +71,7 @@ Before archiving model or validation assets, review:
 
 - `MODEL_ASSETS.md`
 - `MODEL_ASSET_TERMS.md`
+- `MODEL_ASSET_HOSTING_PLAN.md`
 - `models/assets_manifest.json`
 - `manuscript_nature_protocols/guidance/lfs_asset_availability_audit.md`
 - `manuscript_nature_protocols/guidance/lfs_asset_terms_manifest.csv`
@@ -83,6 +84,8 @@ availability statement.
 If `MODEL_ASSET_TERMS.md` still marks redistribution or DOI-archive permission
 as unconfirmed, publish only a code/documentation release or exclude the affected
 assets from the DOI archive.
+Use `MODEL_ASSET_HOSTING_PLAN.md` to prepare a separate asset repository or
+DOI-backed mirror without moving large weights into the code archive.
 
 ## Tagging
 

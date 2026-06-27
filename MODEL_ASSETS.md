@@ -1,6 +1,16 @@
 # Model Assets and Weight Downloads
 
-SlicerDDSurfer keeps distributable model weights, templates, and release test fixtures in Git LFS. Install Git LFS before using these commands. A normal `git clone` may leave these files as small LFS pointer files until they are explicitly downloaded.
+SlicerDDSurfer currently keeps model weights, templates, and release test
+fixtures in Git LFS for compatibility with existing checkouts. This is not the
+preferred long-term public distribution architecture. The manifest and
+downloader now support external URL/mirror sources with size and SHA256
+verification so the assets can be moved to a separate `SlicerDDSurfer-models`
+repository, Hugging Face, Zenodo, OSF, Figshare, or institutional object
+storage without changing the pipeline code.
+
+Install Git LFS before using the current compatibility source. A normal
+`git clone` may leave these files as small LFS pointer files until they are
+explicitly downloaded.
 
 Use the unified downloader instead of asking users to remember individual LFS paths:
 
@@ -8,10 +18,12 @@ Use the unified downloader instead of asking users to remember individual LFS pa
 scripts/download_model_assets.sh --profile core
 ```
 
-The downloader reads `models/assets_manifest.json`, runs `git lfs install --local` for the checkout, downloads the selected profile, and verifies that the selected files are real downloaded objects rather than Git LFS pointer files.
-It also prints profile-level asset groups and conservative terms notices so
-users know when model weights, templates, or subject-derived fixtures require
-separate license or redistribution confirmation.
+The downloader reads `models/assets_manifest.json`, resolves the selected
+profile, downloads from Git LFS or configured URL mirrors, and verifies that the
+selected files are real materialized objects with the expected file size and
+SHA256 checksum. It also prints profile-level asset groups and conservative
+terms notices so users know when model weights, templates, or subject-derived
+fixtures require separate license or redistribution confirmation.
 
 To inspect the resolved profile without downloading anything:
 
@@ -24,6 +36,25 @@ To verify an existing checkout without downloading:
 ```bash
 python3 scripts/download_model_assets.py --profile core --verify-only
 ```
+
+CLI verification performs size and SHA256 checks. The Slicer UI uses a lighter
+presence/pointer check for passive status text and performs full checksum
+verification when the user clicks `Verify core`.
+
+To download from an external mirror while preserving the same repository-local
+paths:
+
+```bash
+python3 scripts/download_model_assets.py \
+  --profile core \
+  --source url \
+  --base-url https://example.org/SlicerDDSurfer-models/v0.1.0
+```
+
+`--base-url` appends each relative asset path to the URL and verifies every
+download against the manifest size and SHA256. Use `--source-id <id>` to select
+a named source from `models/assets_manifest.json`; planned sources are ignored
+unless `--allow-planned-sources` is explicitly supplied.
 
 To freeze a release or manuscript-validation asset state, write a lockfile
 after verification:
@@ -122,6 +153,49 @@ The manifest has one top-level `profiles` object. Each profile may define:
 | `external_overrides` | Environment variables users may set instead of repository-local DDSurfer assets. |
 | `asset_groups` | Human-readable asset groups included by the profile, used for manuscript and release audits. |
 | `terms_notice` | Conservative license/redistribution notice printed by the downloader. This is not a license grant. |
+
+The manifest also contains source and checksum metadata:
+
+| Field | Meaning |
+| --- | --- |
+| `asset_sources` | Named sources. `github_lfs` is active; `slicerdsurfer_models_release`, `huggingface`, and `zenodo` are planned migration targets until their real URLs and terms are finalized. |
+| `default_asset_source_ids` | Ordered source ids attached to asset records when no per-file source list is supplied. |
+| `asset_records` | Per-file `size_bytes` and `sha256` records used by verification, URL downloads, and release lockfiles. |
+
+URL-template sources may use these placeholders:
+
+| Placeholder | Meaning |
+| --- | --- |
+| `{path}` | Repository-relative asset path. |
+| `{path_urlencoded}` | URL-encoded repository-relative path, preserving `/`. |
+| `{filename}` | URL-encoded basename only. Useful for flat DOI records. |
+| `{sha256}` | Manifest SHA256 for content-addressed mirrors. |
+
+## Recommended Asset Hosting Architecture
+
+For a public release, keep this code repository lightweight and move large
+weights/templates to a governed asset source:
+
+1. Create `SlicerDDSurfer-models` or an equivalent Hugging Face/Zenodo/OSF
+   record.
+2. Preserve the same relative paths as `asset_records`.
+3. Upload only files whose redistribution and archive permissions are confirmed.
+4. Generate or reuse the manifest `size_bytes` and `sha256` values.
+5. Change the selected source in `models/assets_manifest.json` from `planned`
+   to `active`, or pass an explicit `--base-url` during validation.
+6. Run:
+
+```bash
+python3 scripts/download_model_assets.py \
+  --profile core \
+  --source url \
+  --source-id slicerdsurfer_models_release
+python3 scripts/download_model_assets.py --profile core --verify-only
+```
+
+If a DOI platform stores all files flat rather than preserving directories,
+configure per-record `urls` or a URL template using `{filename}`. Do not publish
+asset-inclusive DOI archives until the terms decision record allows it.
 
 ## Release Governance
 
