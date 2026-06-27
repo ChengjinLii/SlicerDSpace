@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_fresh_clone_smoke:
+        description: "Run fresh-clone smoke with core Git LFS model assets"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      create_github_release:
+        description: "Create or update the draft GitHub Release from release_artifacts"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      release_tag:
+        description: "Release tag used by scripts/create_github_release.py"
+        required: false
+        default: "v0.1.0"
+        type: string
+
+jobs:
+  release-dispatch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release controller copy
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Install Git LFS
+        if: github.event.inputs.run_fresh_clone_smoke == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git-lfs
+          git lfs version
+
+      - name: Run fresh-clone smoke
+        if: github.event.inputs.run_fresh_clone_smoke == 'true'
+        env:
+          SMOKE_REPO_URL: https://github.com/${{ github.repository }}.git
+          SMOKE_REF: ${{ github.ref_name }}
+          SMOKE_ASSET_PROFILE: core
+          SMOKE_ROOT: /tmp/slicerdsurfer-fresh-clone-smoke
+        run: bash scripts/smoke_fresh_clone.sh
+
+      - name: Upload fresh-clone smoke report
+        if: always() && github.event.inputs.run_fresh_clone_smoke == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-clone-smoke-report
+          path: |
+            /tmp/slicerdsurfer-fresh-clone-smoke/fresh_clone_smoke_report.json
+            /tmp/slicerdsurfer-fresh-clone-smoke/logs/*.log
+          if-no-files-found: warn
+
+      - name: Validate GitHub Release plan
+        if: github.event.inputs.create_github_release == 'true'
+        run: |
+          extra_args=()
+          if [ -f /tmp/slicerdsurfer-fresh-clone-smoke/fresh_clone_smoke_report.json ]; then
+            extra_args+=(--fresh-clone-report /tmp/slicerdsurfer-fresh-clone-smoke/fresh_clone_smoke_report.json)
+          fi
+          python3 scripts/create_github_release.py \
+            --repository "${{ github.repository }}" \
+            --tag "${{ github.event.inputs.release_tag }}" \
+            --dry-run \
+            "${extra_args[@]}"
+
+      - name: Create or update draft GitHub Release
+        if: github.event.inputs.create_github_release == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          extra_args=()
+          if [ -f /tmp/slicerdsurfer-fresh-clone-smoke/fresh_clone_smoke_report.json ]; then
+            extra_args+=(--fresh-clone-report /tmp/slicerdsurfer-fresh-clone-smoke/fresh_clone_smoke_report.json)
+          fi
+          python3 scripts/create_github_release.py \
+            --repository "${{ github.repository }}" \
+            --tag "${{ github.event.inputs.release_tag }}" \
+            --reuse-existing \
+            --replace-existing-assets \
+            "${extra_args[@]}"
+
+      - name: Summarize manual run
+        if: github.event.inputs.create_github_release != 'true'
+        run: |
+          echo "Fresh-clone smoke requested: ${{ github.event.inputs.run_fresh_clone_smoke }}"
+          echo "Draft GitHub Release creation was not requested."

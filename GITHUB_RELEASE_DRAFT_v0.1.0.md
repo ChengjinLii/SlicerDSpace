@@ -86,10 +86,10 @@ ownership, license, redistribution permission and archive permission.
 
 ## Scripted Creation Command
 
-The repository CI workflow can create or update this draft release from the
-GitHub Actions page:
+The repository `Release` workflow can create or update this draft release from
+the GitHub Actions page:
 
-1. Open the `CI` workflow.
+1. Open the `Release` workflow.
 2. Select `Run workflow`.
 3. Set `create_github_release=true`.
 4. Optionally set `run_fresh_clone_smoke=true` to attach

@@ -50,13 +50,13 @@ SLICERDDSURFER_USE_EXISTING_DISPLAY=1 \
   make test-slicer
 ```
 
-The GitHub Actions workflow exposes the fresh-clone smoke gate only as a manual
-`workflow_dispatch` input. Push and pull request CI must not download the large
-Git LFS model assets by default.
+The GitHub Actions `Release` workflow exposes the fresh-clone smoke gate only as
+a manual `workflow_dispatch` input. Push and pull request CI must not download
+the large Git LFS model assets by default.
 
-The same manual workflow can create or update the draft GitHub Release page by
-setting `create_github_release=true`. To attach fresh-clone evidence to the
-release in the same run, also set `run_fresh_clone_smoke=true`.
+The same manual `Release` workflow can create or update the draft GitHub Release
+page by setting `create_github_release=true`. To attach fresh-clone evidence to
+the release in the same run, also set `run_fresh_clone_smoke=true`.
 
 For manuscript-linked releases, also run the manuscript checks:
 

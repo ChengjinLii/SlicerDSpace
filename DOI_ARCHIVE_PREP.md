@@ -54,7 +54,8 @@ For the current `v0.1.0` GitHub Release page, use
 code-only support files from `release_artifacts/v0.1.0/`. The helper
 `scripts/create_github_release.py` can create the draft release and upload these
 artifacts when `GITHUB_TOKEN` or `GH_TOKEN` is available; the manual GitHub
-Actions workflow can run the same helper with `create_github_release=true`.
+Actions `Release` workflow can run the same helper with
+`create_github_release=true`.
 
 ## Current Boundary
 

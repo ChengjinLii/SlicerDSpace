@@ -8,7 +8,7 @@ Date: 2026-06-25
   clones into `/tmp`, downloads the `core` model-asset profile, runs
   `make test-fast`, verifies core assets with `--verify-only`, and writes
   `fresh_clone_smoke_report.json` plus per-step logs.
-- Added a manual GitHub Actions `workflow_dispatch` job for fresh-clone smoke.
+- Added a manual GitHub Actions `Release` workflow for fresh-clone smoke.
   Normal push and pull-request CI still avoids downloading large Git LFS model
   assets.
 - Added a Slicer `Prepare Inputs` panel that wraps the existing DICOM,
@@ -23,10 +23,11 @@ Date: 2026-06-25
 - Added `scripts/create_github_release.py`, a GitHub REST API helper that can
   validate the release plan in dry-run mode or create the draft release and
   upload artifacts when `GITHUB_TOKEN` or `GH_TOKEN` is available.
-- Extended the manual GitHub Actions workflow with `create_github_release=true`
-  so maintainers can create or update the draft GitHub Release from the GitHub
-  UI using the workflow `GITHUB_TOKEN`. If `run_fresh_clone_smoke=true` is used
-  in the same dispatch, the smoke report is attached to the release.
+- Extended the manual GitHub Actions `Release` workflow with
+  `create_github_release=true` so maintainers can create or update the draft
+  GitHub Release from the GitHub UI using the workflow `GITHUB_TOKEN`. If
+  `run_fresh_clone_smoke=true` is used in the same dispatch, the smoke report is
+  attached to the release.
 - Updated `README.md`, `RELEASE.md` and `DOI_ARCHIVE_PREP.md` with the new
   smoke gate, Slicer smoke modes, release draft and DOI boundary.
 
