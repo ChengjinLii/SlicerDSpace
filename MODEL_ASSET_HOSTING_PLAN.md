@@ -36,8 +36,20 @@ defaults while the downloader changes only the source backend.
 4. Preserve paths exactly, or add per-record `urls` for hosts that flatten file
    names.
 5. Keep SHA256 and `size_bytes` unchanged.
-6. Change the relevant `asset_sources.<id>.status` from `planned` to `active`.
-7. Validate from a clean checkout:
+6. Build an upload-ready mirror from a local checkout whose assets already
+   verify:
+
+```bash
+python3 scripts/download_model_assets.py --profile core --verify-only
+python3 scripts/export_model_asset_mirror.py \
+  --profile core \
+  --output-dir /tmp/SlicerDDSurfer-models-v0.1.0
+```
+
+7. Upload the generated mirror directory, including `asset_mirror_manifest.json`
+   and `asset_mirror_index.tsv`.
+8. Change the relevant `asset_sources.<id>.status` from `planned` to `active`.
+9. Validate from a clean checkout:
 
 ```bash
 GIT_LFS_SKIP_SMUDGE=1 git clone git@github.com:ChengjinLii/SlicerDDSurfer.git /tmp/slicerdsurfer-url-smoke
@@ -49,7 +61,7 @@ python3 scripts/download_model_assets.py \
 python3 scripts/download_model_assets.py --profile core --verify-only
 ```
 
-8. Run the normal release gates:
+10. Run the normal release gates:
 
 ```bash
 make test-fast

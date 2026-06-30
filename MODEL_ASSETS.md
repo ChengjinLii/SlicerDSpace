@@ -56,6 +56,22 @@ download against the manifest size and SHA256. Use `--source-id <id>` to select
 a named source from `models/assets_manifest.json`; planned sources are ignored
 unless `--allow-planned-sources` is explicitly supplied.
 
+To prepare an upload-ready mirror after the selected assets are materialized and
+verified locally:
+
+```bash
+python3 scripts/export_model_asset_mirror.py \
+  --profile core \
+  --output-dir /tmp/SlicerDDSurfer-models-v0.1.0
+```
+
+The exporter verifies size and SHA256 first, then writes the files using the
+same repository-relative paths plus `asset_mirror_manifest.json` and
+`asset_mirror_index.tsv`. Upload that directory to `SlicerDDSurfer-models`,
+Hugging Face, Zenodo, OSF, Figshare, or institutional object storage. Use
+`--dry-run` to inspect the export plan without writing files, or `--mode
+hardlink` for local staging when the target filesystem supports hard links.
+
 To freeze a release or manuscript-validation asset state, write a lockfile
 after verification:
 
