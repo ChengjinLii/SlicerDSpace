@@ -58,6 +58,25 @@ The same manual `Release` workflow can create or update the draft GitHub Release
 page by setting `create_github_release=true`. To attach fresh-clone evidence to
 the release in the same run, also set `run_fresh_clone_smoke=true`.
 
+If GitHub reports `some jobs were not successful`, first confirm that the latest
+commit is being inspected and that branch protection no longer requires old
+manual release jobs. With a token that can read repository Actions and branch
+protection, run:
+
+```bash
+GITHUB_TOKEN=<token> \
+  python3 scripts/check_github_ci_status.py \
+  --repository ChengjinLii/SlicerDDSurfer \
+  --ref $(git rev-parse HEAD) \
+  --branch main
+```
+
+The normal required check should be `CI / fast-checks` or `fast-checks`. Remove
+stale required checks such as `fresh-clone-smoke`, `create-github-release`, or
+`create-github-release-with-smoke` from GitHub branch protection. The manual
+`Release` workflow is still available for fresh-clone smoke and draft release
+creation, but it should not be required for every push or pull request.
+
 For manuscript-linked releases, also run the manuscript checks:
 
 ```bash

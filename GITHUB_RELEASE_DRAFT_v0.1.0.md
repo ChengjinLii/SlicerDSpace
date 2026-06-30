@@ -98,6 +98,20 @@ the GitHub Actions page:
 
 This uses the workflow `GITHUB_TOKEN` with `contents: write` permission.
 
+If GitHub reports stale unsuccessful checks after the workflow split, inspect
+the latest commit and branch protection with:
+
+```bash
+GITHUB_TOKEN=<token> \
+  python3 scripts/check_github_ci_status.py \
+  --repository ChengjinLii/SlicerDDSurfer \
+  --ref $(git rev-parse HEAD) \
+  --branch main
+```
+
+Only `CI / fast-checks` or `fast-checks` should be required for push and pull
+request CI.
+
 This repository also includes a GitHub REST API helper that creates the draft
 release and uploads the default code-only support files from a maintainer
 machine. Validate the plan without credentials first:
