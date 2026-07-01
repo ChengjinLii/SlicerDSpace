@@ -18,6 +18,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPOSITORY = "ChengjinLii/SlicerDDSurfer"
+EXPECTED_REQUIRED_CHECK = "CI / fast-checks"
 STALE_REQUIRED_CHECK_TOKENS = (
     "fresh-clone-smoke",
     "create-github-release",
@@ -102,7 +103,7 @@ def _safe_get(
 def summarize_check_runs(check_runs: list[dict[str, Any]]) -> dict[str, Any]:
     stale_runs = []
     unsuccessful = []
-    expected_names = {"fast-checks", "CI / fast-checks"}
+    expected_names = {"fast-checks", EXPECTED_REQUIRED_CHECK}
     expected_present = False
     for run in check_runs:
         name = str(run.get("name") or "")
@@ -139,10 +140,10 @@ def stale_required_checks(contexts: list[str]) -> list[str]:
 
 
 def required_check_assessment(contexts: list[str]) -> dict[str, Any]:
-    expected_names = {"fast-checks", "CI / fast-checks"}
+    expected_names = {"fast-checks", EXPECTED_REQUIRED_CHECK}
     stale = stale_required_checks(contexts)
     expected_present = any(context in expected_names for context in contexts)
-    unexpected = sorted(context for context in contexts if context not in expected_names)
+    unexpected = sorted(context for context in contexts if context not in expected_names and context not in stale)
     return {
         "contexts": contexts,
         "expected_present": expected_present,
@@ -150,6 +151,70 @@ def required_check_assessment(contexts: list[str]) -> dict[str, Any]:
         "unexpected_required_checks": unexpected,
         "ok": expected_present and not stale,
     }
+
+
+def branch_protection_remediation(repository: str, branch: str, contexts: list[str]) -> dict[str, Any]:
+    assessment = required_check_assessment(contexts)
+    stale = assessment["stale_required_checks"]
+    intentional_existing = [
+        context
+        for context in contexts
+        if context not in stale and context not in {"fast-checks", EXPECTED_REQUIRED_CHECK}
+    ]
+    recommended_contexts = [EXPECTED_REQUIRED_CHECK, *intentional_existing]
+    recommended_contexts = list(dict.fromkeys(recommended_contexts))
+    return {
+        "ui_url": f"https://github.com/{repository}/settings/branches",
+        "api_endpoint": f"/repos/{repository}/branches/{branch}/protection/required_status_checks",
+        "expected_required_check": EXPECTED_REQUIRED_CHECK,
+        "stale_required_checks_to_remove": stale,
+        "recommended_required_checks": recommended_contexts,
+        "manual_steps": [
+            "Open repository Settings > Branches.",
+            f"Edit the branch protection rule that targets `{branch}`.",
+            "In required status checks, remove stale release/fresh-clone checks.",
+            f"Keep or add `{EXPECTED_REQUIRED_CHECK}` as the automatic CI gate.",
+            "Keep any other project-specific required checks only if they are still intentional.",
+            "Save the rule, then rerun this script with a GitHub token to verify.",
+        ],
+    }
+
+
+def format_branch_protection_guide(report: dict[str, Any]) -> str:
+    remediation = report["branch_protection_remediation"]
+    lines = [
+        "# Branch Protection Required Checks Guide",
+        "",
+        f"Repository: `{report['repository']}`",
+        f"Branch: `{report['branch']}`",
+        f"Settings URL: {remediation['ui_url']}",
+        "",
+        "## Recommended State",
+        "",
+        "Required checks should include:",
+    ]
+    lines.extend(f"- `{context}`" for context in remediation["recommended_required_checks"])
+    stale = remediation["stale_required_checks_to_remove"]
+    if stale:
+        lines.extend(["", "Remove stale checks:"])
+        lines.extend(f"- `{context}`" for context in stale)
+    if report["required_status_checks"]["unexpected_required_checks"]:
+        lines.extend(["", "Review manually before keeping or removing:"])
+        lines.extend(f"- `{context}`" for context in report["required_status_checks"]["unexpected_required_checks"])
+    lines.extend(["", "## UI Steps", ""])
+    lines.extend(f"{index}. {step}" for index, step in enumerate(remediation["manual_steps"], start=1))
+    lines.extend(
+        [
+            "",
+            "## API Reference",
+            "",
+            "The script intentionally does not patch branch protection automatically. "
+            "If you choose to update by API, preserve any intentional checks and patch only the required-status-checks section.",
+            "",
+            f"Endpoint: `{remediation['api_endpoint']}`",
+        ]
+    )
+    return "\n".join(lines) + "\n"
 
 
 def build_report(
@@ -203,6 +268,7 @@ def build_report(
             contexts.extend(str(item.get("context")) for item in checks_payload if item.get("context"))
         contexts = list(dict.fromkeys(contexts))
 
+    required_status_checks_report = required_check_assessment(contexts)
     return {
         "kind": "slicerddsurfer_github_ci_status",
         "repository": repository,
@@ -225,7 +291,8 @@ def build_report(
             }
             for run in (runs.get("workflow_runs", []) if runs else [])
         ],
-        "required_status_checks": required_check_assessment(contexts),
+        "required_status_checks": required_status_checks_report,
+        "branch_protection_remediation": branch_protection_remediation(repository, branch, contexts),
         "api_failures": [failure.to_dict() for failure in failures],
     }
 
@@ -251,6 +318,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--branch", default=current_branch(), help="Branch protection target. Defaults to current branch.")
     parser.add_argument("--token", help="GitHub token. Defaults to GITHUB_TOKEN or GH_TOKEN.")
     parser.add_argument("--json", action="store_true", help="Print full JSON report.")
+    parser.add_argument(
+        "--branch-protection-guide",
+        action="store_true",
+        help="Print a Markdown guide for removing stale required checks from GitHub branch protection.",
+    )
     parser.add_argument("--warn-only", action="store_true", help="Always exit 0 after printing the report.")
     return parser
 
@@ -279,6 +351,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"unsuccessful_check={run['name']} status={run['status']} conclusion={run['conclusion']}")
         for failure in report["api_failures"]:
             print(f"api_failure={failure['status']} {failure['endpoint']}: {failure['message']}")
+    if args.branch_protection_guide:
+        print(format_branch_protection_guide(report), end="")
     if args.warn_only:
         return 0
     return 0 if report_ok(report) else 1

@@ -68,6 +68,9 @@ and extending the local release-validation evidence chain.
 - `scripts/prepare_model_asset_upload.py` validates an exported model-asset
   mirror and prints maintainer upload commands for a GitHub model release,
   Hugging Face dataset repository, or Zenodo record.
+- `scripts/check_github_ci_status.py --branch-protection-guide` prints a
+  maintainer-facing guide for removing stale release/fresh-clone required
+  checks while preserving `CI / fast-checks`.
 - Environment discovery tests now lock in representative macOS and Windows
   common paths for Slicer, MRtrix3, FSL and FreeSurfer.
 

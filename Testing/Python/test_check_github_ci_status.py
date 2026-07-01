@@ -55,12 +55,13 @@ class CheckGithubCiStatusTest(unittest.TestCase):
         module = _load_module()
 
         assessment = module.required_check_assessment(
-            ["CI / fast-checks", "fresh-clone-smoke", "create-github-release"]
+            ["CI / fast-checks", "fresh-clone-smoke", "create-github-release", "security-scan"]
         )
 
         self.assertFalse(assessment["ok"])
         self.assertTrue(assessment["expected_present"])
         self.assertEqual(assessment["stale_required_checks"], ["create-github-release", "fresh-clone-smoke"])
+        self.assertEqual(assessment["unexpected_required_checks"], ["security-scan"])
 
     def test_required_check_assessment_accepts_fast_checks_only(self) -> None:
         module = _load_module()
@@ -70,6 +71,41 @@ class CheckGithubCiStatusTest(unittest.TestCase):
         self.assertTrue(assessment["ok"])
         self.assertTrue(assessment["expected_present"])
         self.assertEqual(assessment["stale_required_checks"], [])
+
+    def test_branch_protection_remediation_preserves_intentional_checks(self) -> None:
+        module = _load_module()
+
+        remediation = module.branch_protection_remediation(
+            "owner/repo",
+            "main",
+            ["CI / fast-checks", "fresh-clone-smoke", "security-scan"],
+        )
+
+        self.assertEqual(remediation["expected_required_check"], "CI / fast-checks")
+        self.assertEqual(remediation["stale_required_checks_to_remove"], ["fresh-clone-smoke"])
+        self.assertEqual(remediation["recommended_required_checks"], ["CI / fast-checks", "security-scan"])
+        self.assertIn("https://github.com/owner/repo/settings/branches", remediation["ui_url"])
+
+    def test_branch_protection_guide_names_stale_and_expected_checks(self) -> None:
+        module = _load_module()
+        report = {
+            "repository": "owner/repo",
+            "branch": "main",
+            "required_status_checks": {
+                "unexpected_required_checks": ["security-scan"],
+            },
+            "branch_protection_remediation": module.branch_protection_remediation(
+                "owner/repo",
+                "main",
+                ["CI / fast-checks", "create-github-release", "security-scan"],
+            ),
+        }
+
+        guide = module.format_branch_protection_guide(report)
+
+        self.assertIn("`CI / fast-checks`", guide)
+        self.assertIn("`create-github-release`", guide)
+        self.assertIn("Settings URL: https://github.com/owner/repo/settings/branches", guide)
 
 
 if __name__ == "__main__":
