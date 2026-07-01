@@ -19,7 +19,7 @@ and extending the local release-validation evidence chain.
 
 ## Local Checks Completed
 
-- `make test-fast`: 236 tests passed.
+- `make test-fast`: 243 tests passed.
 - `python3 scripts/release_audit.py`: release ready, no blockers after commit.
 - `python3 scripts/download_model_assets.py --profile core --verify-only`: 29 files verified.
 - `python3 scripts/download_model_assets.py --profile all --verify-only`: 33 files verified.
@@ -48,6 +48,8 @@ and extending the local release-validation evidence chain.
 ## Real and Semi-Real Data Smoke
 
 - DTI tractography smoke passed on the `100307` fixture.
+- CSD/ACT real-subject smoke passed on the `100307` fixture, including
+  tractogram export, SIFT2 weights and connectome scaffold generation.
 - Connectome dry-run smoke passed on the `149741_wma_act` fixture.
 - WMA fixture readiness smoke passed.
 - WMA ORG atlas plan passed using the local WMA checkout and ORG atlas fixture.
