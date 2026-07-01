@@ -17,9 +17,9 @@ class ReleaseValidationConfigTest(unittest.TestCase):
         args = parser.parse_args(["--subject-root", "/tmp/slicerdsurfer-subject", "--skip-slicer-smoke"])
         args.report_dir = Path("/tmp/slicerdsurfer-release-report")
         steps = release_validation.build_validation_steps(args, [])
-        slicer_steps = [step for step in steps if step.name == "slicer_smoke"]
-        self.assertEqual(len(slicer_steps), 1)
-        self.assertTrue(slicer_steps[0].skipped)
+        slicer_steps = [step for step in steps if step.name.startswith("slicer_") and step.name.endswith("_smoke")]
+        self.assertEqual(len(slicer_steps), 5)
+        self.assertTrue(all(step.skipped for step in slicer_steps))
 
         fresh_clone = [step for step in steps if step.name == "fresh_clone_smoke"]
         self.assertEqual(len(fresh_clone), 1)

@@ -19,7 +19,7 @@ and extending the local release-validation evidence chain.
 
 ## Local Checks Completed
 
-- `make test-fast`: 248 tests passed.
+- `make test-fast`: 249 tests passed.
 - `python3 scripts/release_audit.py`: release ready, no blockers after commit.
 - `python3 scripts/download_model_assets.py --profile core --verify-only`: 29 files verified.
 - `python3 scripts/download_model_assets.py --profile all --verify-only`: 33 files verified.
@@ -36,7 +36,11 @@ and extending the local release-validation evidence chain.
 
 - Extension install smoke passed after adding the local runtime library path for
   `libpcre2-16.so.0`.
-- Run plan panel smoke passed.
+- Integrated Slicer GUI validation passed with staged extension discovery,
+  environment dependency dialog, plan-only run panel, output-tree button and
+  background cancellation smoke steps.
+- Run plan panel smoke passed in plan-only mode to avoid launching a long
+  scientific background pipeline during GUI validation.
 - Output tree button smoke passed.
 - Cancel-background smoke passed after switching the smoke test to an isolated
   `/tmp` output root and directly exercising the background QProcess
@@ -66,6 +70,9 @@ and extending the local release-validation evidence chain.
 - `scripts/release_validation.py` now writes a `completion_audit` section that
   summarizes local regression, Slicer GUI smoke, scientific workflow smoke,
   fresh-clone smoke, and the code/model-asset boundary in one report.
+- `scripts/release_validation.py` stages and runs the full Slicer GUI smoke
+  group when Slicer and xvfb paths are provided, rather than only checking
+  extension discovery.
 - The manual GitHub `Release` workflow now validates fresh-clone release
   evidence before draft release creation.
 - `scripts/prepare_model_asset_upload.py` validates an exported model-asset

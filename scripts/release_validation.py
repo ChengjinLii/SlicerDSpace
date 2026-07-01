@@ -53,6 +53,33 @@ def _append_dependency_config(command: list[str], dependency_config: Path | None
         command.extend(["--dependency-config", dependency_config.expanduser().resolve().as_posix()])
 
 
+def _slicer_smoke_command(
+    *,
+    args: argparse.Namespace,
+    module_dir: Path,
+    script_name: str,
+) -> tuple[str, ...]:
+    return (
+        "env",
+        f"SLICERDDSURFER_EXTENSION_MODULE_DIR={module_dir.as_posix()}",
+        f"SLICERDDSURFER_SMOKE_SUBJECT_ROOT={args.subject_root.expanduser().resolve().as_posix()}",
+        f"SLICERDDSURFER_SMOKE_SUBJECT_ID={_subject_id(args.subject_root, args.subject_id)}",
+        f"SLICERDDSURFER_SMOKE_RUN_NAME={args.run_name}",
+        "SLICERDDSURFER_SMOKE_MICROSTRUCTURE_STAGES=dti",
+        "SLICERDDSURFER_SMOKE_PLAN_ONLY=1",
+        f"PATH={args.xvfb_run.parent.as_posix()}:{os.environ.get('PATH', '')}",
+        args.xvfb_run.as_posix(),
+        "-a",
+        args.slicer_launcher.as_posix(),
+        "--no-splash",
+        "--disable-cli-modules",
+        "--additional-module-paths",
+        module_dir.as_posix(),
+        "--python-script",
+        (REPO_ROOT / "Testing" / "Python" / script_name).as_posix(),
+    )
+
+
 def _subject_command(
     *,
     args: argparse.Namespace,
@@ -315,7 +342,21 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
         )
 
     if args.skip_slicer_smoke:
-        steps.append(ValidationStep("slicer_smoke", (), required=False, skipped_reason="--skip-slicer-smoke was provided"))
+        for name in (
+            "slicer_extension_install_smoke",
+            "slicer_environment_button_smoke",
+            "slicer_run_plan_panel_smoke",
+            "slicer_output_tree_button_smoke",
+            "slicer_cancel_background_smoke",
+        ):
+            steps.append(
+                ValidationStep(
+                    name,
+                    (),
+                    required=False,
+                    skipped_reason="--skip-slicer-smoke was provided",
+                )
+            )
     else:
         install_root = report_dir / "slicer_extension_install"
         module_dir = install_root / "SlicerDDSurfer" / "lib" / "Slicer-5.10" / "qt-scripted-modules"
@@ -335,35 +376,36 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
             )
         )
         if args.slicer_launcher and args.xvfb_run and args.slicer_launcher.is_file() and args.xvfb_run.is_file():
-            steps.append(
-                ValidationStep(
-                    "slicer_smoke",
-                    (
-                        "env",
-                        f"SLICERDDSURFER_EXTENSION_MODULE_DIR={module_dir.as_posix()}",
-                        f"PATH={args.xvfb_run.parent.as_posix()}:{os.environ.get('PATH', '')}",
-                        args.xvfb_run.as_posix(),
-                        "-a",
-                        args.slicer_launcher.as_posix(),
-                        "--no-splash",
-                        "--disable-cli-modules",
-                        "--additional-module-paths",
-                        module_dir.as_posix(),
-                        "--python-script",
-                        (REPO_ROOT / "Testing" / "Python" / "slicer_extension_install_smoke.py").as_posix(),
-                    ),
-                    required=False,
+            for name, script_name in (
+                ("slicer_extension_install_smoke", "slicer_extension_install_smoke.py"),
+                ("slicer_environment_button_smoke", "slicer_environment_button_smoke.py"),
+                ("slicer_run_plan_panel_smoke", "slicer_run_plan_panel_smoke.py"),
+                ("slicer_output_tree_button_smoke", "slicer_output_tree_button_smoke.py"),
+                ("slicer_cancel_background_smoke", "slicer_cancel_background_smoke.py"),
+            ):
+                steps.append(
+                    ValidationStep(
+                        name,
+                        _slicer_smoke_command(args=args, module_dir=module_dir, script_name=script_name),
+                        required=False,
+                    )
                 )
-            )
         else:
-            steps.append(
-                ValidationStep(
-                    "slicer_smoke",
-                    (),
-                    required=False,
-                    skipped_reason="Slicer launcher or xvfb-run was not found",
+            for name in (
+                "slicer_extension_install_smoke",
+                "slicer_environment_button_smoke",
+                "slicer_run_plan_panel_smoke",
+                "slicer_output_tree_button_smoke",
+                "slicer_cancel_background_smoke",
+            ):
+                steps.append(
+                    ValidationStep(
+                        name,
+                        (),
+                        required=False,
+                        skipped_reason="Slicer launcher or xvfb-run was not found",
+                    )
                 )
-            )
     return steps
 
 
@@ -396,8 +438,8 @@ def _run_step(step: ValidationStep, report_dir: Path, *, timeout_seconds: int) -
         returncode = completed.returncode
         error = ""
     except subprocess.TimeoutExpired as exc:
-        stdout_path.write_text(exc.stdout or "", encoding="utf-8")
-        stderr_path.write_text(exc.stderr or "", encoding="utf-8")
+        stdout_path.write_text(_text_output(exc.stdout), encoding="utf-8")
+        stderr_path.write_text(_text_output(exc.stderr), encoding="utf-8")
         status = "failed"
         returncode = None
         error = f"timed out after {timeout_seconds} seconds"
@@ -413,6 +455,14 @@ def _run_step(step: ValidationStep, report_dir: Path, *, timeout_seconds: int) -
         "elapsed_seconds": elapsed,
         "error": error,
     }
+
+
+def _text_output(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
 
 
 def _result_map(results: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -474,9 +524,19 @@ def build_completion_audit(args: argparse.Namespace, results: list[dict[str, Any
         ),
         _coverage_item(
             requirement="slicer_gui_smoke",
-            step_names=["stage_slicer_extension", "slicer_smoke"],
+            step_names=[
+                "stage_slicer_extension",
+                "slicer_extension_install_smoke",
+                "slicer_environment_button_smoke",
+                "slicer_run_plan_panel_smoke",
+                "slicer_output_tree_button_smoke",
+                "slicer_cancel_background_smoke",
+            ],
             results_by_name=results_by_name,
-            notes="Covers staged extension discovery from Slicer when Slicer and xvfb-run paths are provided.",
+            notes=(
+                "Covers staged extension discovery, environment dependency dialog, run-plan panel, "
+                "output-tree button and background cancellation when Slicer and xvfb-run paths are provided."
+            ),
         ),
         _coverage_item(
             requirement="scientific_workflow_smoke",

@@ -15,6 +15,7 @@ RUN_NAME = os.environ.get("SLICERDDSURFER_SMOKE_RUN_NAME", "csd_act")
 TRACTOGRAPHY_BACKEND = os.environ.get("SLICERDDSURFER_SMOKE_TRACTOGRAPHY_BACKEND", "saf")
 BUNDLE_BACKEND = os.environ.get("SLICERDDSURFER_SMOKE_BUNDLE_BACKEND", "all")
 MICROSTRUCTURE_STAGES = os.environ.get("SLICERDDSURFER_SMOKE_MICROSTRUCTURE_STAGES", "dti,freewater,noddi")
+PLAN_ONLY = os.environ.get("SLICERDDSURFER_SMOKE_PLAN_ONLY", "").strip().lower() in {"1", "true", "yes"}
 
 
 def _module_widget():
@@ -33,6 +34,11 @@ def _run() -> None:
             f"SLICERDDSURFER_RUN_PANEL_INFO={message}",
             flush=True,
         )
+        if PLAN_ONLY:
+            widget._startBackgroundPipeline = lambda common_run_kwargs, external_paths, selected: print(
+                f"SLICERDDSURFER_RUN_PANEL_PLAN_ONLY_TARGETS={selected}",
+                flush=True,
+            )
         node = widget._parameterNode
         with slicer.util.NodeModify(node):
             node.subjectId = SUBJECT_ID
@@ -79,6 +85,14 @@ def _poll(count: int) -> None:
 def _ui_result_ready(widget) -> bool:
     summary = getattr(widget, "_runSummaryLabel", None)
     summary_text = summary.text if summary else ""
+    if PLAN_ONLY:
+        table = getattr(widget, "_runStatusTable", None)
+        statuses = []
+        if table:
+            for row in range(table.rowCount):
+                status_item = table.item(row, 1)
+                statuses.append(status_item.text() if status_item else "")
+        return summary_text.startswith("Plan:") and any(status in {"queued", "will_run", "blocked"} for status in statuses)
     report_button = getattr(widget, "_runReportButton", None)
     latest_report = getattr(widget, "_latestReportPath", None)
     table = getattr(widget, "_runStatusTable", None)
@@ -131,15 +145,15 @@ def _check() -> None:
     print(f"SLICERDDSURFER_RUN_PANEL_LATEST_REPORT={latest_report}", flush=True)
     bad = (
         row_count < 4
-        or status_label == "Ready to run."
-        or not any(status in {"blocked", "skipped", "passed", "completed"} for status in statuses)
-        or not manifest.is_file()
-        or not plan.is_file()
+        or (not PLAN_ONLY and status_label == "Ready to run.")
+        or not any(status in {"queued", "will_run", "blocked", "skipped", "passed", "completed"} for status in statuses)
+        or (not PLAN_ONLY and not manifest.is_file())
+        or (not PLAN_ONLY and not plan.is_file())
         or not summary_text
         or auto_load_limit != 12
-        or not (report_button and report_button.enabled)
-        or not latest_report
-        or not latest_report.is_file()
+        or (not PLAN_ONLY and not (report_button and report_button.enabled))
+        or (not PLAN_ONLY and not latest_report)
+        or (not PLAN_ONLY and not latest_report.is_file())
     )
     slicer.app.exit(2 if bad else 0)
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -57,7 +58,11 @@ class ReleaseValidationTest(unittest.TestCase):
             self.assertIn("asset_mirror_core_verify", names)
             self.assertIn("asset_mirror_all_verify", names)
             self.assertIn("fresh_clone_smoke", names)
-            self.assertIn("slicer_smoke", names)
+            self.assertIn("slicer_extension_install_smoke", names)
+            self.assertIn("slicer_environment_button_smoke", names)
+            self.assertIn("slicer_run_plan_panel_smoke", names)
+            self.assertIn("slicer_output_tree_button_smoke", names)
+            self.assertIn("slicer_cancel_background_smoke", names)
             single_command = next(step.command for step in steps if step.name == "single_subject_all_backends")
             self.assertIn("--bundle-backend", single_command)
             self.assertIn("all", single_command)
@@ -66,8 +71,20 @@ class ReleaseValidationTest(unittest.TestCase):
             self.assertIn("--jobs", batch_command)
             self.assertIn("2", batch_command)
             self.assertIn("--dependency-config", batch_command)
-            slicer_smoke = next(step for step in steps if step.name == "slicer_smoke")
-            self.assertTrue(slicer_smoke.skipped)
+            slicer_smokes = [
+                step
+                for step in steps
+                if step.name
+                in {
+                    "slicer_extension_install_smoke",
+                    "slicer_environment_button_smoke",
+                    "slicer_run_plan_panel_smoke",
+                    "slicer_output_tree_button_smoke",
+                    "slicer_cancel_background_smoke",
+                }
+            ]
+            self.assertEqual(len(slicer_smokes), 5)
+            self.assertTrue(all(step.skipped for step in slicer_smokes))
             core_assets = next(step.command for step in steps if step.name == "model_assets_core_verify")
             self.assertIn("--profile", core_assets)
             self.assertIn("core", core_assets)
@@ -116,14 +133,23 @@ class ReleaseValidationTest(unittest.TestCase):
             stage = next(step for step in steps if step.name == "stage_slicer_extension")
             self.assertIn("--link-mode", stage.command)
             self.assertIn("copy", stage.command)
-            slicer_smoke = next(step for step in steps if step.name == "slicer_smoke")
+            slicer_smoke = next(step for step in steps if step.name == "slicer_extension_install_smoke")
             self.assertFalse(slicer_smoke.skipped)
             self.assertEqual(slicer_smoke.command[0], "env")
             self.assertTrue(
                 any(part.startswith("SLICERDDSURFER_EXTENSION_MODULE_DIR=") for part in slicer_smoke.command)
             )
+            self.assertTrue(any(part.startswith("SLICERDDSURFER_SMOKE_SUBJECT_ROOT=") for part in slicer_smoke.command))
+            self.assertTrue(any(part.startswith("SLICERDDSURFER_SMOKE_SUBJECT_ID=sub-01") for part in slicer_smoke.command))
+            self.assertIn("SLICERDDSURFER_SMOKE_MICROSTRUCTURE_STAGES=dti", slicer_smoke.command)
+            self.assertIn("SLICERDDSURFER_SMOKE_PLAN_ONLY=1", slicer_smoke.command)
             self.assertTrue(any(part.startswith("PATH=") for part in slicer_smoke.command))
             self.assertIn("--disable-cli-modules", slicer_smoke.command)
+            planned_smoke_names = [step.name for step in steps if step.name.endswith("_smoke")]
+            self.assertIn("slicer_environment_button_smoke", planned_smoke_names)
+            self.assertIn("slicer_run_plan_panel_smoke", planned_smoke_names)
+            self.assertIn("slicer_output_tree_button_smoke", planned_smoke_names)
+            self.assertIn("slicer_cancel_background_smoke", planned_smoke_names)
 
     def test_completion_audit_reports_passed_when_all_release_evidence_passes(self) -> None:
         from scripts.release_validation import build_completion_audit
@@ -136,7 +162,11 @@ class ReleaseValidationTest(unittest.TestCase):
             {"name": "asset_mirror_core_verify", "status": "passed", "required": False},
             {"name": "asset_mirror_all_verify", "status": "passed", "required": False},
             {"name": "stage_slicer_extension", "status": "passed", "required": False},
-            {"name": "slicer_smoke", "status": "passed", "required": False},
+            {"name": "slicer_extension_install_smoke", "status": "passed", "required": False},
+            {"name": "slicer_environment_button_smoke", "status": "passed", "required": False},
+            {"name": "slicer_run_plan_panel_smoke", "status": "passed", "required": False},
+            {"name": "slicer_output_tree_button_smoke", "status": "passed", "required": False},
+            {"name": "slicer_cancel_background_smoke", "status": "passed", "required": False},
             {"name": "single_subject_all_backends", "status": "passed", "required": True},
             {"name": "bundle_backend_wmql", "status": "passed", "required": False},
             {"name": "bundle_backend_wma", "status": "passed", "required": False},
@@ -167,7 +197,11 @@ class ReleaseValidationTest(unittest.TestCase):
             {"name": "asset_mirror_core_verify", "status": "skipped", "required": False, "reason": "not provided"},
             {"name": "asset_mirror_all_verify", "status": "skipped", "required": False, "reason": "not provided"},
             {"name": "stage_slicer_extension", "status": "skipped", "required": False, "reason": "skipped"},
-            {"name": "slicer_smoke", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "slicer_extension_install_smoke", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "slicer_environment_button_smoke", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "slicer_run_plan_panel_smoke", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "slicer_output_tree_button_smoke", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "slicer_cancel_background_smoke", "status": "skipped", "required": False, "reason": "skipped"},
             {"name": "single_subject_all_backends", "status": "passed", "required": True},
             {"name": "bundle_backend_wmql", "status": "passed", "required": False},
             {"name": "bundle_backend_wma", "status": "passed", "required": False},
@@ -195,7 +229,12 @@ class ReleaseValidationTest(unittest.TestCase):
             {"name": "model_assets_all_verify", "status": "passed", "required": False},
             {"name": "asset_mirror_core_verify", "status": "passed", "required": False},
             {"name": "asset_mirror_all_verify", "status": "passed", "required": False},
-            {"name": "slicer_smoke", "status": "skipped", "required": False, "reason": "--skip-slicer-smoke"},
+            {
+                "name": "slicer_extension_install_smoke",
+                "status": "skipped",
+                "required": False,
+                "reason": "--skip-slicer-smoke",
+            },
             {"name": "single_subject_all_backends", "status": "passed", "required": True},
             {"name": "bundle_backend_wmql", "status": "passed", "required": False},
             {"name": "bundle_backend_wma", "status": "passed", "required": False},
@@ -209,6 +248,27 @@ class ReleaseValidationTest(unittest.TestCase):
 
         statuses = {item["requirement"]: item["status"] for item in audit["coverage"]}
         self.assertEqual(statuses["slicer_gui_smoke"], "skipped")
+
+    def test_run_step_records_timeout_bytes_without_crashing(self) -> None:
+        import subprocess
+
+        from scripts import release_validation
+
+        def raise_timeout(*args, **kwargs):
+            raise subprocess.TimeoutExpired(cmd=["slow"], timeout=1, output=b"partial out", stderr=b"partial err")
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch("scripts.release_validation.subprocess.run", raise_timeout):
+            report_dir = Path(tmp)
+            result = release_validation._run_step(
+                release_validation.ValidationStep("slow_step", ("slow",), required=False),
+                report_dir,
+                timeout_seconds=1,
+            )
+
+            self.assertEqual(result["status"], "failed")
+            self.assertIn("timed out", result["error"])
+            self.assertEqual((report_dir / "logs" / "slow_step.stdout.log").read_text(encoding="utf-8"), "partial out")
+            self.assertEqual((report_dir / "logs" / "slow_step.stderr.log").read_text(encoding="utf-8"), "partial err")
 
 
 if __name__ == "__main__":

@@ -65,6 +65,7 @@ def _check() -> None:
     ]
     python_target_visible = bool(
         python_target_label
+        and python_target_label.isVisible()
         and "Python install target: current Slicer Python environment" in python_target_label.text
     )
     print(f"SLICERDDSURFER_ENV_CLICK_STATUS={status}", flush=True)
