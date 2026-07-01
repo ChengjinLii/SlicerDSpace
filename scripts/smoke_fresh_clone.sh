@@ -134,6 +134,17 @@ report = {
     "repo_url": repo_url,
     "ref": ref,
     "asset_profile": asset_profile,
+    "code_checkout": {
+        "strategy": "git clone with GIT_LFS_SKIP_SMUDGE=1",
+        "step_names": ["git_clone", "git_checkout"],
+        "separate_from_model_assets": True,
+    },
+    "model_asset_download": {
+        "strategy": "manifest-driven downloader after code checkout",
+        "profile": asset_profile,
+        "step_names": [f"download_model_assets_{asset_profile}", f"verify_model_assets_{asset_profile}"],
+        "separate_from_code_checkout": True,
+    },
     "smoke_root": smoke_root,
     "clone_dir": clone_dir,
     "platform": {

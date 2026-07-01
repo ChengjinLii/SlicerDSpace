@@ -1,0 +1,67 @@
+# Local Release Validation Summary
+
+Date: 2026-07-01
+
+## Scope
+
+This run focused on separating source-code checkout from model-asset retrieval
+and extending the local release-validation evidence chain.
+
+## Code and Model Asset Boundary
+
+- Code checkout is tested separately from model-asset retrieval.
+- Fresh-clone smoke uses `GIT_LFS_SKIP_SMUDGE=1` for `git clone`.
+- Model weights and templates are downloaded after checkout through
+  `scripts/download_model_assets.py` with an explicit profile and checksum
+  verification.
+- `scripts/smoke_fresh_clone.sh` now records `code_checkout` and
+  `model_asset_download` sections in `fresh_clone_smoke_report.json`.
+
+## Local Checks Completed
+
+- `make test-fast`: 236 tests passed.
+- `python3 scripts/release_audit.py`: release ready, no blockers after commit.
+- `python3 scripts/download_model_assets.py --profile core --verify-only`: 29 files verified.
+- `python3 scripts/download_model_assets.py --profile all --verify-only`: 33 files verified.
+- Core asset mirror verification:
+  `/data/chengjin/SlicerDDSurfer-models-v0.1.0-export-20260630`, 29 files verified.
+- All asset mirror verification:
+  `/data/chengjin/SlicerDDSurfer-models-v0.1.0-all-export-20260630`, 33 files verified.
+- Fresh-clone smoke:
+  `/tmp/slicerdsurfer-fresh-clone-smoke-20260701/fresh_clone_smoke_report.json`, passed.
+- Release-validation plan report:
+  `/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/release_validation_latest/release_validation_report.json`, passed.
+
+## Slicer GUI Smoke
+
+- Extension install smoke passed after adding the local runtime library path for
+  `libpcre2-16.so.0`.
+- Run plan panel smoke passed.
+- Output tree button smoke passed.
+- Environment button smoke opened the dependency dialog and reported one
+  missing Python backend, `tract_querier`; this blocks the optional `bundles`
+  route but not core routes.
+- Cancel-background smoke did not exit within the expected time and was
+  terminated. This should be investigated separately as a UI/background-process
+  robustness issue.
+
+## Real and Semi-Real Data Smoke
+
+- DTI tractography smoke passed on the `100307` fixture.
+- Connectome dry-run smoke passed on the `149741_wma_act` fixture.
+- WMA fixture readiness smoke passed.
+- WMA ORG atlas plan passed using the local WMA checkout and ORG atlas fixture.
+- Surface post-process release tests passed.
+- Microstructure DTI scalar tests passed.
+- Full Free Water/NODDI microstructure regression started a serial long-running
+  fit and was stopped after confirming progress. Treat full Free Water/NODDI as
+  an overnight or dedicated-host validation job.
+
+## Remaining External Gates
+
+- GitHub Actions status and branch-protection checks still require GitHub API or
+  UI access.
+- Draft GitHub Release creation still requires a GitHub token or manual
+  workflow run.
+- Publishing model assets to `SlicerDDSurfer-models`, Hugging Face or Zenodo
+  still requires the selected hosting credentials and redistribution approval.

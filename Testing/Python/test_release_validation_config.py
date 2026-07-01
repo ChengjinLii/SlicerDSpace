@@ -21,6 +21,14 @@ class ReleaseValidationConfigTest(unittest.TestCase):
         self.assertEqual(len(slicer_steps), 1)
         self.assertTrue(slicer_steps[0].skipped)
 
+        fresh_clone = [step for step in steps if step.name == "fresh_clone_smoke"]
+        self.assertEqual(len(fresh_clone), 1)
+        self.assertTrue(fresh_clone[0].skipped)
+
+        mirror_steps = [step for step in steps if step.name in {"asset_mirror_core_verify", "asset_mirror_all_verify"}]
+        self.assertEqual(len(mirror_steps), 2)
+        self.assertTrue(all(step.skipped for step in mirror_steps))
+
 
 if __name__ == "__main__":
     unittest.main()

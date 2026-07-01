@@ -33,6 +33,11 @@ class ReleaseValidationTest(unittest.TestCase):
                 tractography_backend="csd_act",
                 connectome_backend="python",
                 skip_slicer_smoke=True,
+                skip_asset_checks=False,
+                asset_mirror_dir=root / "core_mirror",
+                all_asset_mirror_dir=root / "all_mirror",
+                run_fresh_clone_smoke=True,
+                fresh_clone_asset_profile="core",
                 slicer_launcher=Path("/missing/Slicer"),
                 xvfb_run=Path("/missing/xvfb-run"),
             )
@@ -47,6 +52,11 @@ class ReleaseValidationTest(unittest.TestCase):
             self.assertIn("bundle_backend_tractcloud", names)
             self.assertIn("output_tree_html", names)
             self.assertIn("repository_release_audit", names)
+            self.assertIn("model_assets_core_verify", names)
+            self.assertIn("model_assets_all_verify", names)
+            self.assertIn("asset_mirror_core_verify", names)
+            self.assertIn("asset_mirror_all_verify", names)
+            self.assertIn("fresh_clone_smoke", names)
             self.assertIn("slicer_smoke", names)
             single_command = next(step.command for step in steps if step.name == "single_subject_all_backends")
             self.assertIn("--bundle-backend", single_command)
@@ -58,6 +68,14 @@ class ReleaseValidationTest(unittest.TestCase):
             self.assertIn("--dependency-config", batch_command)
             slicer_smoke = next(step for step in steps if step.name == "slicer_smoke")
             self.assertTrue(slicer_smoke.skipped)
+            core_assets = next(step.command for step in steps if step.name == "model_assets_core_verify")
+            self.assertIn("--profile", core_assets)
+            self.assertIn("core", core_assets)
+            core_mirror = next(step.command for step in steps if step.name == "asset_mirror_core_verify")
+            self.assertIn("--repo-root", core_mirror)
+            fresh_clone = next(step.command for step in steps if step.name == "fresh_clone_smoke")
+            self.assertEqual(fresh_clone[0], "env")
+            self.assertIn("SMOKE_ASSET_PROFILE=core", fresh_clone)
 
     def test_slicer_smoke_step_uses_staged_module_env_and_disable_cli(self) -> None:
         from scripts.release_validation import build_validation_steps
@@ -84,6 +102,11 @@ class ReleaseValidationTest(unittest.TestCase):
                 tractography_backend="csd_act",
                 connectome_backend="python",
                 skip_slicer_smoke=False,
+                skip_asset_checks=True,
+                asset_mirror_dir=None,
+                all_asset_mirror_dir=None,
+                run_fresh_clone_smoke=False,
+                fresh_clone_asset_profile="core",
                 slicer_launcher=launcher,
                 xvfb_run=xvfb_run,
             )

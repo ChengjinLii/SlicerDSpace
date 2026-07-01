@@ -215,6 +215,105 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
         )
     )
 
+    if args.skip_asset_checks:
+        steps.append(
+            ValidationStep(
+                "model_assets_core_verify",
+                (),
+                required=False,
+                skipped_reason="--skip-asset-checks was provided",
+            )
+        )
+        steps.append(
+            ValidationStep(
+                "model_assets_all_verify",
+                (),
+                required=False,
+                skipped_reason="--skip-asset-checks was provided",
+            )
+        )
+    else:
+        steps.append(
+            ValidationStep(
+                "model_assets_core_verify",
+                (
+                    sys.executable,
+                    (REPO_ROOT / "scripts" / "download_model_assets.py").as_posix(),
+                    "--profile",
+                    "core",
+                    "--verify-only",
+                ),
+                required=False,
+            )
+        )
+        steps.append(
+            ValidationStep(
+                "model_assets_all_verify",
+                (
+                    sys.executable,
+                    (REPO_ROOT / "scripts" / "download_model_assets.py").as_posix(),
+                    "--profile",
+                    "all",
+                    "--verify-only",
+                ),
+                required=False,
+            )
+        )
+
+    for name, mirror_dir, profile, flag_name in (
+        ("asset_mirror_core_verify", args.asset_mirror_dir, "core", "--asset-mirror-dir"),
+        ("asset_mirror_all_verify", args.all_asset_mirror_dir, "all", "--all-asset-mirror-dir"),
+    ):
+        if mirror_dir is None:
+            steps.append(
+                ValidationStep(
+                    name,
+                    (),
+                    required=False,
+                    skipped_reason=f"{flag_name} was not provided",
+                )
+            )
+        else:
+            steps.append(
+                ValidationStep(
+                    name,
+                    (
+                        sys.executable,
+                        (REPO_ROOT / "scripts" / "download_model_assets.py").as_posix(),
+                        "--profile",
+                        profile,
+                        "--repo-root",
+                        mirror_dir.expanduser().resolve().as_posix(),
+                        "--verify-only",
+                    ),
+                    required=False,
+                )
+            )
+
+    if args.run_fresh_clone_smoke:
+        steps.append(
+            ValidationStep(
+                "fresh_clone_smoke",
+                (
+                    "env",
+                    f"SMOKE_ASSET_PROFILE={args.fresh_clone_asset_profile}",
+                    f"SMOKE_ROOT={(report_dir / 'fresh_clone_smoke').as_posix()}",
+                    "bash",
+                    (REPO_ROOT / "scripts" / "smoke_fresh_clone.sh").as_posix(),
+                ),
+                required=False,
+            )
+        )
+    else:
+        steps.append(
+            ValidationStep(
+                "fresh_clone_smoke",
+                (),
+                required=False,
+                skipped_reason="--run-fresh-clone-smoke was not provided",
+            )
+        )
+
     if args.skip_slicer_smoke:
         steps.append(ValidationStep("slicer_smoke", (), required=False, skipped_reason="--skip-slicer-smoke was provided"))
     else:
@@ -331,6 +430,21 @@ def _write_report(args: argparse.Namespace, steps: list[ValidationStep], results
         "batch_root": _path(args.batch_root),
         "run_name": args.run_name,
         "dependency_config": _path(args.dependency_config),
+        "code_and_model_asset_boundary": {
+            "code_checkout": "Use normal Git clone with LFS smudge disabled for release smoke.",
+            "model_asset_download": (
+                "Run scripts/download_model_assets.py after code checkout using "
+                "an explicit profile and checksum verification."
+            ),
+            "fresh_clone_smoke": (
+                "scripts/smoke_fresh_clone.sh records git clone/checkout "
+                "separately from model asset download/verify steps."
+            ),
+        },
+        "asset_mirrors": {
+            "core": _path(args.asset_mirror_dir),
+            "all": _path(args.all_asset_mirror_dir),
+        },
         "summary": {
             "status": "failed" if failed_required else "passed_with_optional_failures" if failed_optional else "passed",
             "step_count": len(results),
@@ -375,6 +489,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tractography-backend", default="csd_act", choices=("csd_act", "dti_det", "saf"))
     parser.add_argument("--connectome-backend", default="python", choices=("python", "mrtrix"))
     parser.add_argument("--skip-slicer-smoke", action="store_true")
+    parser.add_argument("--skip-asset-checks", action="store_true")
+    parser.add_argument("--asset-mirror-dir", type=Path, help="Optional core-profile asset mirror directory to verify.")
+    parser.add_argument(
+        "--all-asset-mirror-dir",
+        type=Path,
+        help="Optional all-profile asset mirror directory to verify.",
+    )
+    parser.add_argument(
+        "--run-fresh-clone-smoke",
+        action="store_true",
+        help="Run scripts/smoke_fresh_clone.sh as an optional release-validation step.",
+    )
+    parser.add_argument("--fresh-clone-asset-profile", default="core", help="Asset profile used by --run-fresh-clone-smoke.")
     parser.add_argument(
         "--slicer-launcher",
         type=Path,

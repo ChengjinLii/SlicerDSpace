@@ -66,10 +66,11 @@ make release-check
 ```
 
 Before a release, run the fresh-clone smoke gate from a clean controller
-checkout. This clones the repository into `/tmp`, downloads only the `core`
-model-asset profile, runs `make test-fast`, verifies that the downloaded files
-are not Git LFS pointers, and writes
-`fresh_clone_smoke_report.json` plus per-step logs:
+checkout. Code checkout and model-asset retrieval are intentionally separate:
+the script clones the repository into `/tmp` with `GIT_LFS_SKIP_SMUDGE=1`, then
+runs the manifest-driven downloader for only the selected model-asset profile.
+It then runs `make test-fast`, verifies that the downloaded files are not Git
+LFS pointers, and writes `fresh_clone_smoke_report.json` plus per-step logs:
 
 ```bash
 scripts/smoke_fresh_clone.sh
@@ -104,13 +105,16 @@ smoke when the configured Slicer launcher and `xvfb-run` are available, run:
 python3 scripts/release_validation.py \
   --subject-root /path/to/subject \
   --batch-root /path/to/study_subjects \
+  --asset-mirror-dir /path/to/SlicerDDSurfer-models-core \
+  --all-asset-mirror-dir /path/to/SlicerDDSurfer-models-all \
   --run-name Test1 \
   --warn-only
 ```
 
-The default mode plans scientific workflows. Add `--execute` only for a
-prepared long-running validation host. The script writes one machine-readable
-report at
+The default mode plans scientific workflows and verifies local model assets. Add
+`--run-fresh-clone-smoke` when you want the same report to include a fresh clone
+that downloads model assets after checkout. Add `--execute` only for a prepared
+long-running validation host. The script writes one machine-readable report at
 `outputs/00_run_metadata/release_validation/release_validation_report.json`,
 including staged-extension and Slicer-smoke step results when those checks run.
 
@@ -118,13 +122,15 @@ including staged-extension and Slicer-smoke step results when those checks run.
 
 ## Model Weights And Templates
 
-Model weights and template assets are currently available through Git LFS for
-compatibility with this checkout. The same downloader also supports external
-URL/mirror sources with manifest size and SHA256 verification, which is the
-preferred long-term route for a separate `SlicerDDSurfer-models` repository,
-Hugging Face, Zenodo, OSF, Figshare, or institutional storage. Install Git LFS
-first when using the current compatibility source, then download the recommended
-core asset profile before running DDSurfer, DDSeg, or DDParcel:
+Model weights and template assets are separate from the code checkout. They are
+currently available through Git LFS for compatibility with this repository, but
+normal CI and fresh-clone smoke clone the code with LFS smudge disabled and then
+download the selected asset profile explicitly. The same downloader also
+supports external URL/mirror sources with manifest size and SHA256 verification,
+which is the preferred long-term route for a separate `SlicerDDSurfer-models`
+repository, Hugging Face, Zenodo, OSF, Figshare, or institutional storage.
+Install Git LFS first when using the current compatibility source, then download
+the recommended core asset profile before running DDSurfer, DDSeg, or DDParcel:
 
 ```bash
 scripts/download_model_assets.sh --profile core

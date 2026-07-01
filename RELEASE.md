@@ -28,11 +28,18 @@ Run these checks from a clean worktree:
 make test-fast
 python3 scripts/release_audit.py
 python3 scripts/download_model_assets.py --profile core --verify-only
+python3 scripts/download_model_assets.py --profile all --verify-only
 scripts/smoke_fresh_clone.sh
 SLICERDDSURFER_RELEASE_SUBJECT_ROOT=/path/to/subject-root \
-  SLICERDDSURFER_RELEASE_ARGS="--skip-slicer-smoke --warn-only" \
+  SLICERDDSURFER_RELEASE_ARGS="--skip-slicer-smoke --warn-only --asset-mirror-dir /path/to/core-mirror --all-asset-mirror-dir /path/to/all-mirror" \
   make release-plan
 ```
+
+The release gate treats code checkout and model-asset download as separate
+operations. Fresh-clone smoke uses `GIT_LFS_SKIP_SMUDGE=1` for `git clone`, then
+runs `scripts/download_model_assets.py` with an explicit profile and checksum
+verification. Do not treat a developer checkout that already has materialized
+LFS files as proof that new users can install the release.
 
 If Slicer is available, also run:
 
