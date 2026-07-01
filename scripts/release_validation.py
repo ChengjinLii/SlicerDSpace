@@ -415,6 +415,113 @@ def _run_step(step: ValidationStep, report_dir: Path, *, timeout_seconds: int) -
     }
 
 
+def _result_map(results: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    return {str(item.get("name")): item for item in results}
+
+
+def _coverage_status(names: list[str], results_by_name: dict[str, dict[str, Any]]) -> str:
+    statuses = [str(results_by_name.get(name, {}).get("status") or "missing") for name in names]
+    if all(status == "passed" for status in statuses):
+        return "passed"
+    if any(status == "failed" for status in statuses):
+        return "failed"
+    if any(status == "skipped" for status in statuses) and all(status in {"skipped", "missing"} for status in statuses):
+        return "skipped"
+    if any(status == "missing" for status in statuses):
+        return "missing"
+    return "skipped"
+
+
+def _coverage_item(
+    *,
+    requirement: str,
+    step_names: list[str],
+    results_by_name: dict[str, dict[str, Any]],
+    notes: str = "",
+) -> dict[str, Any]:
+    return {
+        "requirement": requirement,
+        "status": _coverage_status(step_names, results_by_name),
+        "steps": [
+            {
+                "name": name,
+                "status": str(results_by_name.get(name, {}).get("status") or "missing"),
+                "required": bool(results_by_name.get(name, {}).get("required", False)),
+                "reason": str(results_by_name.get(name, {}).get("reason") or ""),
+                "stdout_log": results_by_name.get(name, {}).get("stdout_log"),
+                "stderr_log": results_by_name.get(name, {}).get("stderr_log"),
+            }
+            for name in step_names
+        ],
+        "notes": notes,
+    }
+
+
+def build_completion_audit(args: argparse.Namespace, results: list[dict[str, Any]]) -> dict[str, Any]:
+    results_by_name = _result_map(results)
+    coverage = [
+        _coverage_item(
+            requirement="local_release_regression",
+            step_names=[
+                "repository_release_audit",
+                "model_assets_core_verify",
+                "model_assets_all_verify",
+                "asset_mirror_core_verify",
+                "asset_mirror_all_verify",
+            ],
+            results_by_name=results_by_name,
+            notes="Covers release audit, core/all model checksums and core/all asset mirror verification.",
+        ),
+        _coverage_item(
+            requirement="slicer_gui_smoke",
+            step_names=["stage_slicer_extension", "slicer_smoke"],
+            results_by_name=results_by_name,
+            notes="Covers staged extension discovery from Slicer when Slicer and xvfb-run paths are provided.",
+        ),
+        _coverage_item(
+            requirement="scientific_workflow_smoke",
+            step_names=[
+                "single_subject_all_backends",
+                "bundle_backend_wmql",
+                "bundle_backend_wma",
+                "bundle_backend_tractcloud",
+                "output_tree_html",
+                "representative_outputs",
+            ],
+            results_by_name=results_by_name,
+            notes=(
+                "Plans all main targets by default; use --execute for real product execution. "
+                "Dedicated DTI, CSD/ACT, WMA, connectome, microstructure and surface smoke scripts remain separate."
+            ),
+        ),
+        _coverage_item(
+            requirement="fresh_clone_release_smoke",
+            step_names=["fresh_clone_smoke"],
+            results_by_name=results_by_name,
+            notes="Simulates GitHub Release checkout with LFS smudge disabled and explicit model asset download.",
+        ),
+    ]
+    return {
+        "kind": "slicerdsurfer_release_completion_audit",
+        "version": 1,
+        "execute": bool(args.execute),
+        "overall_status": (
+            "failed"
+            if any(item["status"] == "failed" for item in coverage)
+            else "incomplete"
+            if any(item["status"] in {"skipped", "missing"} for item in coverage)
+            else "passed"
+        ),
+        "coverage": coverage,
+        "code_and_model_asset_boundary": {
+            "status": "documented",
+            "code_checkout": "Git checkout is validated separately from model assets; release smoke disables LFS smudge.",
+            "model_asset_download": "Model files are retrieved by scripts/download_model_assets.py using explicit profiles and checksums.",
+            "fresh_clone_asset_profile": str(getattr(args, "fresh_clone_asset_profile", "core")),
+        },
+    }
+
+
 def _write_report(args: argparse.Namespace, steps: list[ValidationStep], results: list[dict[str, Any]], report_dir: Path) -> Path:
     failed_required = [item["name"] for item in results if item["required"] and item["status"] == "failed"]
     failed_optional = [item["name"] for item in results if not item["required"] and item["status"] == "failed"]
@@ -452,6 +559,7 @@ def _write_report(args: argparse.Namespace, steps: list[ValidationStep], results
             "failed_optional": failed_optional,
             "skipped": [item["name"] for item in results if item["status"] == "skipped"],
         },
+        "completion_audit": build_completion_audit(args, results),
         "planned_steps": [
             {
                 "name": step.name,

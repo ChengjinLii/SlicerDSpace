@@ -125,6 +125,91 @@ class ReleaseValidationTest(unittest.TestCase):
             self.assertTrue(any(part.startswith("PATH=") for part in slicer_smoke.command))
             self.assertIn("--disable-cli-modules", slicer_smoke.command)
 
+    def test_completion_audit_reports_passed_when_all_release_evidence_passes(self) -> None:
+        from scripts.release_validation import build_completion_audit
+
+        args = SimpleNamespace(execute=False, fresh_clone_asset_profile="core")
+        results = [
+            {"name": "repository_release_audit", "status": "passed", "required": False},
+            {"name": "model_assets_core_verify", "status": "passed", "required": False},
+            {"name": "model_assets_all_verify", "status": "passed", "required": False},
+            {"name": "asset_mirror_core_verify", "status": "passed", "required": False},
+            {"name": "asset_mirror_all_verify", "status": "passed", "required": False},
+            {"name": "stage_slicer_extension", "status": "passed", "required": False},
+            {"name": "slicer_smoke", "status": "passed", "required": False},
+            {"name": "single_subject_all_backends", "status": "passed", "required": True},
+            {"name": "bundle_backend_wmql", "status": "passed", "required": False},
+            {"name": "bundle_backend_wma", "status": "passed", "required": False},
+            {"name": "bundle_backend_tractcloud", "status": "passed", "required": False},
+            {"name": "output_tree_html", "status": "passed", "required": False},
+            {"name": "representative_outputs", "status": "passed", "required": False},
+            {"name": "fresh_clone_smoke", "status": "passed", "required": False},
+        ]
+
+        audit = build_completion_audit(args, results)
+
+        self.assertEqual(audit["overall_status"], "passed")
+        self.assertEqual(audit["code_and_model_asset_boundary"]["status"], "documented")
+        statuses = {item["requirement"]: item["status"] for item in audit["coverage"]}
+        self.assertEqual(statuses["local_release_regression"], "passed")
+        self.assertEqual(statuses["slicer_gui_smoke"], "passed")
+        self.assertEqual(statuses["scientific_workflow_smoke"], "passed")
+        self.assertEqual(statuses["fresh_clone_release_smoke"], "passed")
+
+    def test_completion_audit_reports_incomplete_when_optional_evidence_is_skipped(self) -> None:
+        from scripts.release_validation import build_completion_audit
+
+        args = SimpleNamespace(execute=False, fresh_clone_asset_profile="core")
+        results = [
+            {"name": "repository_release_audit", "status": "passed", "required": False},
+            {"name": "model_assets_core_verify", "status": "passed", "required": False},
+            {"name": "model_assets_all_verify", "status": "passed", "required": False},
+            {"name": "asset_mirror_core_verify", "status": "skipped", "required": False, "reason": "not provided"},
+            {"name": "asset_mirror_all_verify", "status": "skipped", "required": False, "reason": "not provided"},
+            {"name": "stage_slicer_extension", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "slicer_smoke", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "single_subject_all_backends", "status": "passed", "required": True},
+            {"name": "bundle_backend_wmql", "status": "passed", "required": False},
+            {"name": "bundle_backend_wma", "status": "passed", "required": False},
+            {"name": "bundle_backend_tractcloud", "status": "passed", "required": False},
+            {"name": "output_tree_html", "status": "passed", "required": False},
+            {"name": "representative_outputs", "status": "passed", "required": False},
+            {"name": "fresh_clone_smoke", "status": "skipped", "required": False, "reason": "skipped"},
+        ]
+
+        audit = build_completion_audit(args, results)
+
+        self.assertEqual(audit["overall_status"], "incomplete")
+        statuses = {item["requirement"]: item["status"] for item in audit["coverage"]}
+        self.assertEqual(statuses["local_release_regression"], "skipped")
+        self.assertEqual(statuses["slicer_gui_smoke"], "skipped")
+        self.assertEqual(statuses["fresh_clone_release_smoke"], "skipped")
+
+    def test_completion_audit_treats_intentionally_skipped_slicer_smoke_as_skipped(self) -> None:
+        from scripts.release_validation import build_completion_audit
+
+        args = SimpleNamespace(execute=False, fresh_clone_asset_profile="core")
+        results = [
+            {"name": "repository_release_audit", "status": "passed", "required": False},
+            {"name": "model_assets_core_verify", "status": "passed", "required": False},
+            {"name": "model_assets_all_verify", "status": "passed", "required": False},
+            {"name": "asset_mirror_core_verify", "status": "passed", "required": False},
+            {"name": "asset_mirror_all_verify", "status": "passed", "required": False},
+            {"name": "slicer_smoke", "status": "skipped", "required": False, "reason": "--skip-slicer-smoke"},
+            {"name": "single_subject_all_backends", "status": "passed", "required": True},
+            {"name": "bundle_backend_wmql", "status": "passed", "required": False},
+            {"name": "bundle_backend_wma", "status": "passed", "required": False},
+            {"name": "bundle_backend_tractcloud", "status": "passed", "required": False},
+            {"name": "output_tree_html", "status": "passed", "required": False},
+            {"name": "representative_outputs", "status": "passed", "required": False},
+            {"name": "fresh_clone_smoke", "status": "passed", "required": False},
+        ]
+
+        audit = build_completion_audit(args, results)
+
+        statuses = {item["requirement"]: item["status"] for item in audit["coverage"]}
+        self.assertEqual(statuses["slicer_gui_smoke"], "skipped")
+
 
 if __name__ == "__main__":
     unittest.main()
