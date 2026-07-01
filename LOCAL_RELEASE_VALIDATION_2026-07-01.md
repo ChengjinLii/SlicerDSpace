@@ -19,7 +19,7 @@ and extending the local release-validation evidence chain.
 
 ## Local Checks Completed
 
-- `make test-fast`: 243 tests passed.
+- `make test-fast`: 245 tests passed.
 - `python3 scripts/release_audit.py`: release ready, no blockers after commit.
 - `python3 scripts/download_model_assets.py --profile core --verify-only`: 29 files verified.
 - `python3 scripts/download_model_assets.py --profile all --verify-only`: 33 files verified.
