@@ -8,7 +8,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from shared.environment import DependencySpec, EnvironmentDoctorConfig, _check_spec, run_environment_doctor, write_environment_report
+from shared.environment import (
+    DependencySpec,
+    EnvironmentDoctorConfig,
+    _check_spec,
+    _common_command_dirs,
+    _common_freesurfer_homes,
+    _common_slicer_executables,
+    run_environment_doctor,
+    write_environment_report,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -200,6 +209,23 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             self.assertEqual(profile["platform"], "Windows")
             self.assertEqual(profile["host_platform"], result.host_platform)
             self.assertTrue(profile["portability_policy"]["revalidate_after_import"])
+
+    def test_common_platform_paths_include_macos_and_windows_runtime_locations(self) -> None:
+        mac_slicers = {path.as_posix() for path in _common_slicer_executables("Darwin")}
+        win_slicers = {path.as_posix() for path in _common_slicer_executables("Windows")}
+        mac_mrtrix = {path.as_posix() for path in _common_command_dirs("mrtrix", "Darwin")}
+        win_mrtrix = {path.as_posix() for path in _common_command_dirs("mrtrix", "Windows")}
+        win_fsl = {path.as_posix() for path in _common_command_dirs("fsl", "Windows")}
+        mac_freesurfer = {path.as_posix() for path in _common_freesurfer_homes("Darwin")}
+        win_freesurfer = {path.as_posix() for path in _common_freesurfer_homes("Windows")}
+
+        self.assertIn("/Applications/Slicer.app/Contents/MacOS/Slicer", mac_slicers)
+        self.assertIn("C:/Program Files/Slicer 5.10.0/Slicer.exe", win_slicers)
+        self.assertIn("/Applications/MRtrix3.app/Contents/bin", mac_mrtrix)
+        self.assertIn("C:/Program Files/MRtrix3/bin", win_mrtrix)
+        self.assertIn("C:/Program Files/FSL/bin", win_fsl)
+        self.assertIn("/Applications/FreeSurfer", mac_freesurfer)
+        self.assertIn("C:/Program Files/FreeSurfer", win_freesurfer)
 
     def test_python_install_requirement_survives_default_python_assignment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

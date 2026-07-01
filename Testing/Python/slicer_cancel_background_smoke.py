@@ -9,6 +9,7 @@ import slicer
 
 
 SUBJECT_ROOT = Path("/data/chengjin/SlicerDDSurfer-test/100307")
+OUTPUT_ROOT = Path("/tmp/slicerdsurfer-cancel-smoke-output")
 RUN_NAME = "cancel_smoke"
 
 
@@ -30,29 +31,18 @@ def _run() -> None:
         )
         widget._slicer_launcher_program = lambda: "/bin/bash"
         widget._build_background_cli_args = lambda common_run_kwargs, external_paths: [
-            "-lc",
+            "-c",
             "echo '[Orchestrator] Running Microstructure DTI'; sleep 30",
         ]
         widget._cancelSmokeSawRunning = False
-        node = widget._parameterNode
-        with slicer.util.NodeModify(node):
-            node.subjectId = "100307"
-            node.inputDirectory = SUBJECT_ROOT.as_posix()
-            node.outputDirectory = ""
-            node.targetPreprocessing = False
-            node.targetSegmentation = False
-            node.targetParcellation = False
-            node.targetSurface = False
-            node.targetMicrostructure = True
-            node.targetTractography = False
-            node.targetBundles = False
-            node.targetConnectome = False
-            node.orchestrationRunName = RUN_NAME
-            node.orchestrationRunFreeWater = False
-            node.orchestrationRunNoddi = False
-            node.autoInstallPythonDependencies = False
-        widget._checkCanApply()
-        widget.ui.runSelectedButton.click()
+        common_run_kwargs = {
+            "subject_id": "100307",
+            "subject_root": SUBJECT_ROOT,
+            "output_root": OUTPUT_ROOT,
+            "run_name": RUN_NAME,
+            "targets": ["microstructure"],
+        }
+        widget._startBackgroundPipeline(common_run_kwargs, {}, ["microstructure"])
         qt.QTimer.singleShot(700, _capture_running)
         qt.QTimer.singleShot(1500, widget._onCancelRunClicked)
         qt.QTimer.singleShot(6500, _check)
@@ -63,13 +53,14 @@ def _run() -> None:
 
 def _capture_running() -> None:
     widget = _module_widget()
-    table = getattr(widget, "_runStatusTable", None)
-    statuses = []
-    if table:
-        for row in range(table.rowCount):
-            status_item = table.item(row, 1)
-            statuses.append(status_item.text() if status_item else "")
-    widget._cancelSmokeSawRunning = any(status == "running" for status in statuses)
+    process = getattr(widget, "_backgroundProcess", None)
+    process_running = False
+    if process is not None:
+        try:
+            process_running = process.state() != qt.QProcess.NotRunning
+        except Exception:
+            process_running = False
+    widget._cancelSmokeSawRunning = process_running
     print(f"SLICERDDSURFER_CANCEL_SAW_RUNNING={widget._cancelSmokeSawRunning}", flush=True)
 
 
@@ -82,7 +73,7 @@ def _check() -> None:
             process_running = process.state() != qt.QProcess.NotRunning
         except Exception:
             process_running = False
-    manifest = SUBJECT_ROOT / "outputs" / "00_run_metadata" / f"{RUN_NAME}_cancelled_orchestration_manifest.json"
+    manifest = OUTPUT_ROOT / "00_run_metadata" / f"{RUN_NAME}_cancelled_orchestration_manifest.json"
     status_label = widget.ui.statusLabel.text if hasattr(widget.ui, "statusLabel") else ""
     table = getattr(widget, "_runStatusTable", None)
     statuses = []
@@ -99,4 +90,10 @@ def _check() -> None:
     slicer.app.exit(2 if bad else 0)
 
 
-qt.QTimer.singleShot(6000, _run)
+def _watchdog() -> None:
+    print("SLICERDDSURFER_CANCEL_WATCHDOG_TIMEOUT=True", flush=True)
+    slicer.app.exit(3)
+
+
+qt.QTimer.singleShot(2000, _run)
+qt.QTimer.singleShot(20000, _watchdog)

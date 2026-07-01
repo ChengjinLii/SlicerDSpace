@@ -38,12 +38,12 @@ and extending the local release-validation evidence chain.
   `libpcre2-16.so.0`.
 - Run plan panel smoke passed.
 - Output tree button smoke passed.
+- Cancel-background smoke passed after switching the smoke test to an isolated
+  `/tmp` output root and directly exercising the background QProcess
+  cancellation path.
 - Environment button smoke opened the dependency dialog and reported one
   missing Python backend, `tract_querier`; this blocks the optional `bundles`
   route but not core routes.
-- Cancel-background smoke did not exit within the expected time and was
-  terminated. This should be investigated separately as a UI/background-process
-  robustness issue.
 
 ## Real and Semi-Real Data Smoke
 
@@ -56,6 +56,18 @@ and extending the local release-validation evidence chain.
 - Full Free Water/NODDI microstructure regression started a serial long-running
   fit and was stopped after confirming progress. Treat full Free Water/NODDI as
   an overnight or dedicated-host validation job.
+
+## Additional Release Tooling
+
+- `scripts/validate_release_evidence.py` validates fresh-clone smoke reports and
+  asset mirror manifests before release publication.
+- The manual GitHub `Release` workflow now validates fresh-clone release
+  evidence before draft release creation.
+- `scripts/prepare_model_asset_upload.py` validates an exported model-asset
+  mirror and prints maintainer upload commands for a GitHub model release,
+  Hugging Face dataset repository, or Zenodo record.
+- Environment discovery tests now lock in representative macOS and Windows
+  common paths for Slicer, MRtrix3, FSL and FreeSurfer.
 
 ## Remaining External Gates
 

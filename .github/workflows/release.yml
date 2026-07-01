@@ -62,6 +62,12 @@ jobs:
             /tmp/slicerdsurfer-fresh-clone-smoke/logs/*.log
           if-no-files-found: warn
 
+      - name: Validate fresh-clone release evidence
+        if: github.event.inputs.run_fresh_clone_smoke == 'true'
+        run: |
+          python3 scripts/validate_release_evidence.py \
+            --fresh-clone-report /tmp/slicerdsurfer-fresh-clone-smoke/fresh_clone_smoke_report.json
+
       - name: Validate GitHub Release plan
         if: github.event.inputs.create_github_release == 'true'
         run: |
