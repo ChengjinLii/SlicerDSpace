@@ -13,7 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_ENTRIES = (
     "SlicerDDSurfer.py",
-    "EXTERNAL_DEPENDENCIES.md",
+    "docs",
     "Resources",
     "shared",
     "preprocessing",

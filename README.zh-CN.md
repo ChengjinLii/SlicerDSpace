@@ -87,7 +87,8 @@ python3 run_subject_pipeline.py \
 - 后台执行和取消；
 - output tree、report、manifest、QC 文件检查。
 
-详细依赖配置见 [EXTERNAL_DEPENDENCIES.md](EXTERNAL_DEPENDENCIES.md)。
+详细依赖配置见
+[docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md)。
 
 ## 模型资源
 
@@ -105,7 +106,8 @@ scripts/download_model_assets.sh --profile core
 - `parcellation`：DDParcel 权重。
 - `all`：全部 LFS 资源和测试 fixture。
 
-详细 manifest、mirror、lockfile 和再分发边界见 [MODEL_ASSETS.md](MODEL_ASSETS.md)。
+详细 manifest、mirror、lockfile 和再分发边界见
+[docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md)。
 
 ## 输入准备
 
@@ -143,12 +145,13 @@ python3 scripts/release_validation.py \
 
 ## 文档入口
 
-- [MODEL_ASSETS.md](MODEL_ASSETS.md)：模型权重、模板和 mirror。
-- [EXTERNAL_DEPENDENCIES.md](EXTERNAL_DEPENDENCIES.md)：Python 包和外部工具配置。
-- [PRODUCT_ARCHITECTURE.md](PRODUCT_ARCHITECTURE.md)：流程和输出结构。
-- [RELEASE.md](RELEASE.md)：发布流程。
-- [DOI_ARCHIVE_PREP.md](DOI_ARCHIVE_PREP.md)：代码归档和模型资产边界。
+- [docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md)：模型权重、模板和 mirror。
+- [docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md)：Python 包和外部工具配置。
+- [docs/architecture/PRODUCT_ARCHITECTURE.md](docs/architecture/PRODUCT_ARCHITECTURE.md)：流程和输出结构。
+- [docs/release/RELEASE.md](docs/release/RELEASE.md)：发布流程。
+- [docs/release/DOI_ARCHIVE_PREP.md](docs/release/DOI_ARCHIVE_PREP.md)：代码归档和模型资产边界。
 
 ## License 和引用
 
-见 [LICENSE](LICENSE)、[CITATION.cff](CITATION.cff) 和 [MODEL_ASSET_TERMS.md](MODEL_ASSET_TERMS.md)。
+见 [LICENSE](LICENSE)、[CITATION.cff](CITATION.cff) 和
+[docs/assets/MODEL_ASSET_TERMS.md](docs/assets/MODEL_ASSET_TERMS.md)。

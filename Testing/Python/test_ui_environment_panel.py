@@ -110,7 +110,7 @@ class UIEnvironmentPanelTest(unittest.TestCase):
         text = model_assets_provenance_text(Path("/repo"))
 
         self.assertIn("/repo/models/assets_manifest.json", text)
-        self.assertIn("/repo/MODEL_ASSET_TERMS.md", text)
+        self.assertIn("/repo/docs/assets/MODEL_ASSET_TERMS.md", text)
         self.assertIn("--write-lockfile", text)
         self.assertIn("DOI-archive rights", text)
 

@@ -19,8 +19,8 @@ REQUIRED_TOP_LEVEL_FILES = (
     "CITATION.cff",
     "codemeta.json",
     ".zenodo.json",
-    "MODEL_ASSETS.md",
-    "RELEASE.md",
+    "docs/assets/MODEL_ASSETS.md",
+    "docs/release/RELEASE.md",
 )
 REQUIRED_HELP_TERMS = (
     "diffusion",
@@ -32,7 +32,7 @@ REQUIRED_HELP_TERMS = (
     "connectome",
 )
 REQUIRED_README_TERMS = (
-    "MODEL_ASSETS.md",
+    "docs/assets/MODEL_ASSETS.md",
     "scripts/download_model_assets.sh --profile core",
     "SlicerDMRI",
     "PyTorch",

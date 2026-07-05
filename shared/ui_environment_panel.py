@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from shared.dependency_config import DEPENDENCY_PROFILE_KIND
+from shared.docs import doc_path
 
 
 DEPENDENCY_PROFILE_SCHEMA = "slicerddsurfer.dependency_profile.v2"
@@ -339,7 +340,7 @@ def model_assets_provenance_text(repo_root: Path) -> str:
     """Return compact model-asset provenance and release-boundary text."""
 
     manifest = repo_root / "models" / "assets_manifest.json"
-    terms = repo_root / "MODEL_ASSET_TERMS.md"
+    terms = doc_path(repo_root, "model_asset_terms")
     lock_command = (
         "python3 scripts/download_model_assets.py --profile core --verify-only "
         "--write-lockfile outputs/00_run_metadata/model_assets_core.lock.json"

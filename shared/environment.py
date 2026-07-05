@@ -1767,7 +1767,7 @@ def write_environment_report(result: EnvironmentDoctorResult, output_dir: Path) 
                 f"- Required: `{item.required}`",
                 f"- Targets: `{', '.join(item.targets)}`",
                 f"- Detected source: `{item.details.get('detected_source', 'not found')}`",
-                f"- Suggested fix: {item.install_hint or 'See EXTERNAL_DEPENDENCIES.md.'}",
+                f"- Suggested fix: {item.install_hint or 'See docs/setup/EXTERNAL_DEPENDENCIES.md.'}",
                 "",
             ]
         )

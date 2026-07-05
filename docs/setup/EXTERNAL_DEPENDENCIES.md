@@ -289,7 +289,7 @@ scripts/download_model_assets.sh --profile core
 
   - `core` 会下载 DDSurfer / DDSeg / DDParcel 所需模型权重和模板。
   - 只跑某个深度学习后端时，可改用 `--profile surface`、`--profile segmentation` 或 `--profile parcellation`。
-  - 详细 profile、路径和外部 asset 覆盖方式见 [MODEL_ASSETS.md](MODEL_ASSETS.md)。
+  - 详细 profile、路径和外部 asset 覆盖方式见 [MODEL_ASSETS.md](../assets/MODEL_ASSETS.md)。
 
 ## 2. Python 包依赖
 
@@ -647,7 +647,7 @@ scripts/download_model_assets.sh --profile segmentation
 scripts/download_model_assets.sh --profile parcellation
 ```
 
-完整说明见 [MODEL_ASSETS.md](MODEL_ASSETS.md)。
+完整说明见 [MODEL_ASSETS.md](../assets/MODEL_ASSETS.md)。
 
 以下资源必须存在，否则对应深度学习流程会报错：
 

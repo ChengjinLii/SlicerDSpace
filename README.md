@@ -97,7 +97,8 @@ module list. The UI supports:
 - background execution with cancellation;
 - output-tree, report, manifest and QC inspection.
 
-Detailed dependency setup is in [EXTERNAL_DEPENDENCIES.md](EXTERNAL_DEPENDENCIES.md).
+Detailed dependency setup is in
+[docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md).
 
 ## Model Assets
 
@@ -115,8 +116,8 @@ Useful profiles:
 - `parcellation`: DDParcel weights.
 - `all`: all LFS-managed assets and test fixtures.
 
-See [MODEL_ASSETS.md](MODEL_ASSETS.md) for manifest format, external mirrors,
-lockfiles and redistribution notes.
+See [docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md) for manifest
+format, external mirrors, lockfiles and redistribution notes.
 
 ## Input Preparation
 
@@ -154,20 +155,23 @@ python3 scripts/release_validation.py \
   --warn-only
 ```
 
-See [RELEASE_CANDIDATE_VALIDATION.md](RELEASE_CANDIDATE_VALIDATION.md) for
-release-candidate validation details.
+See
+[docs/release/RELEASE_CANDIDATE_VALIDATION.md](docs/release/RELEASE_CANDIDATE_VALIDATION.md)
+for release-candidate validation details.
 
 ## Documentation
 
-- [MODEL_ASSETS.md](MODEL_ASSETS.md): model weights, templates and mirrors.
-- [EXTERNAL_DEPENDENCIES.md](EXTERNAL_DEPENDENCIES.md): Python packages and
-  external runtime setup.
-- [PRODUCT_ARCHITECTURE.md](PRODUCT_ARCHITECTURE.md): workflow and output
-  organization.
-- [RELEASE.md](RELEASE.md): release workflow.
-- [DOI_ARCHIVE_PREP.md](DOI_ARCHIVE_PREP.md): code/archive boundary.
+- [docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md): model weights,
+  templates and mirrors.
+- [docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md):
+  Python packages and external runtime setup.
+- [docs/architecture/PRODUCT_ARCHITECTURE.md](docs/architecture/PRODUCT_ARCHITECTURE.md):
+  workflow and output organization.
+- [docs/release/RELEASE.md](docs/release/RELEASE.md): release workflow.
+- [docs/release/DOI_ARCHIVE_PREP.md](docs/release/DOI_ARCHIVE_PREP.md):
+  code/archive boundary.
 
 ## License And Citation
 
 See [LICENSE](LICENSE), [CITATION.cff](CITATION.cff) and
-[MODEL_ASSET_TERMS.md](MODEL_ASSET_TERMS.md).
+[docs/assets/MODEL_ASSET_TERMS.md](docs/assets/MODEL_ASSET_TERMS.md).

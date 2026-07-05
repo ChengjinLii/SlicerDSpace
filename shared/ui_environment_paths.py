@@ -243,12 +243,12 @@ def add_model_assets_row(owner: Any, form_layout: Any) -> None:
     owner._modelAssetsWriteLockfileButton = lockfile_button
 
     guide_button = qt.QPushButton("Open guide")
-    guide_button.setToolTip("Open MODEL_ASSETS.md for unified model weights/template download and verification.")
+    guide_button.setToolTip("Open docs/assets/MODEL_ASSETS.md for unified model weights/template download and verification.")
     guide_button.connect("clicked()", owner._on_open_model_assets_guide_clicked)
     row_layout.addWidget(guide_button)
 
     terms_button = qt.QPushButton("Terms")
-    terms_button.setToolTip("Open MODEL_ASSET_TERMS.md.")
+    terms_button.setToolTip("Open docs/assets/MODEL_ASSET_TERMS.md.")
     terms_button.connect("clicked()", owner._on_open_model_asset_terms_clicked)
     row_layout.addWidget(terms_button)
 
@@ -263,7 +263,7 @@ def add_model_assets_row(owner: Any, form_layout: Any) -> None:
     row_layout.addWidget(provenance_button)
 
     release_button = qt.QPushButton("Release notes")
-    release_button.setToolTip("Open RELEASE_NOTES_v0.1.0.md.")
+    release_button.setToolTip("Open docs/release/RELEASE_NOTES_v0.1.0.md.")
     release_button.connect("clicked()", owner._on_open_release_notes_clicked)
     row_layout.addWidget(release_button)
 

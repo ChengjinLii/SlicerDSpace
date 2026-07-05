@@ -8,9 +8,9 @@ provenance capture.
 ## Highlights
 
 - Added a manifest-driven model asset download and verification route:
-  `MODEL_ASSETS.md`, `models/assets_manifest.json` and
+  `docs/assets/MODEL_ASSETS.md`, `models/assets_manifest.json` and
   `scripts/download_model_assets.py`.
-- Added explicit model-asset terms governance in `MODEL_ASSET_TERMS.md`.
+- Added explicit model-asset terms governance in `docs/assets/MODEL_ASSET_TERMS.md`.
 - Added standard developer and release checks through `Makefile`,
   `pyproject.toml`, release metadata files and release validation scripts.
 - Improved dependency handling for Slicer Python, conda environments and

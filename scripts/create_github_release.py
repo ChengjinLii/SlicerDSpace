@@ -25,7 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPOSITORY = "ChengjinLii/SlicerDDSurfer"
 DEFAULT_TAG = "v0.1.0"
 DEFAULT_TITLE = "SlicerDDSurfer v0.1.0"
-DEFAULT_NOTES = REPO_ROOT / "GITHUB_RELEASE_DRAFT_v0.1.0.md"
+DEFAULT_NOTES = REPO_ROOT / "docs" / "release" / "GITHUB_RELEASE_DRAFT_v0.1.0.md"
 DEFAULT_ARTIFACT_NAMES = (
     "model_assets_core_lock.json",
     "code_only_archive_manifest.json",

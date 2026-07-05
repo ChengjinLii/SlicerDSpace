@@ -18,6 +18,7 @@ import vtk
 from qt import QPixmap, QSignalBlocker
 
 from shared.dependency_config import UI_DEPENDENCY_PATHS
+from shared.docs import doc_path
 from shared.input_import import InputImportConfig, detect_import_source_kind, prepare_inputs
 from shared.ui_error_dialogs import format_actionable_error_message
 from shared.ui_environment_dialog import show_environment_results_dialog
@@ -404,9 +405,10 @@ class SharedWidgetMixin:
             slicer.util.infoDisplay(f"Path: {resolved}", parent=self.parent)
 
     def _on_open_model_assets_guide_clicked(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
         self._open_local_path(
-            Path(__file__).resolve().parent.parent / "MODEL_ASSETS.md",
-            missing_message="MODEL_ASSETS.md is not available in the current repository checkout.",
+            doc_path(repo_root, "model_assets"),
+            missing_message="docs/assets/MODEL_ASSETS.md is not available in the current repository checkout.",
         )
 
     def _on_open_model_assets_manifest_clicked(self) -> None:
@@ -416,15 +418,17 @@ class SharedWidgetMixin:
         )
 
     def _on_open_model_asset_terms_clicked(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
         self._open_local_path(
-            Path(__file__).resolve().parent.parent / "MODEL_ASSET_TERMS.md",
-            missing_message="MODEL_ASSET_TERMS.md is not available in the current repository checkout.",
+            doc_path(repo_root, "model_asset_terms"),
+            missing_message="docs/assets/MODEL_ASSET_TERMS.md is not available in the current repository checkout.",
         )
 
     def _on_open_release_notes_clicked(self) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
         self._open_local_path(
-            Path(__file__).resolve().parent.parent / "RELEASE_NOTES_v0.1.0.md",
-            missing_message="RELEASE_NOTES_v0.1.0.md is not available in the current repository checkout.",
+            doc_path(repo_root, "release_notes"),
+            missing_message="docs/release/RELEASE_NOTES_v0.1.0.md is not available in the current repository checkout.",
         )
 
     def _on_show_model_asset_provenance_clicked(self) -> None:

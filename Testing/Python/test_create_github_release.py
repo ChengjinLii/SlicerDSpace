@@ -85,7 +85,7 @@ class CreateGithubReleaseTest(unittest.TestCase):
             repository="owner/repo",
             tag="v0.1.0",
             title="Title",
-            notes_file=REPO_ROOT / "GITHUB_RELEASE_DRAFT_v0.1.0.md",
+            notes_file=REPO_ROOT / "docs" / "release" / "GITHUB_RELEASE_DRAFT_v0.1.0.md",
             asset=[],
             fresh_clone_report=smoke_report,
             publish=False,

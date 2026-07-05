@@ -26,11 +26,11 @@ and provenance capture.
 ### Highlights
 
 - Manifest-driven model asset download and verification through
-  `MODEL_ASSETS.md`, `models/assets_manifest.json`,
+  `docs/assets/MODEL_ASSETS.md`, `models/assets_manifest.json`,
   `scripts/download_model_assets.sh` and `scripts/download_model_assets.py`.
-- Explicit model-asset terms governance in `MODEL_ASSET_TERMS.md`.
-- Release metadata and validation support through `RELEASE.md`,
-  `DOI_ARCHIVE_PREP.md`, `CITATION.cff`, `codemeta.json`,
+- Explicit model-asset terms governance in `docs/assets/MODEL_ASSET_TERMS.md`.
+- Release metadata and validation support through `docs/release/RELEASE.md`,
+  `docs/release/DOI_ARCHIVE_PREP.md`, `CITATION.cff`, `codemeta.json`,
   `.zenodo.json` and `release_artifacts/v0.1.0`.
 - Slicer UI and CLI support for external dependency path overrides,
   target-aware environment checking and conservative dependency installation.
@@ -80,8 +80,8 @@ LFS verification proves that the files in a checkout are present and not LFS
 pointers; it does not grant public redistribution rights for model weights,
 templates, validation fixtures or subject-derived assets.
 
-For DOI deposition, use `DOI_ARCHIVE_PREP.md` and publish a code-only archive
-unless every asset group listed in `MODEL_ASSET_TERMS.md` has confirmed source,
+For DOI deposition, use `docs/release/DOI_ARCHIVE_PREP.md` and publish a code-only archive
+unless every asset group listed in `docs/assets/MODEL_ASSET_TERMS.md` has confirmed source,
 ownership, license, redistribution permission and archive permission.
 
 ## Scripted Creation Command
@@ -140,7 +140,7 @@ If GitHub CLI is available on a maintainer machine:
 gh release create v0.1.0 \
   --repo ChengjinLii/SlicerDDSurfer \
   --title "SlicerDDSurfer v0.1.0" \
-  --notes-file GITHUB_RELEASE_DRAFT_v0.1.0.md \
+  --notes-file docs/release/GITHUB_RELEASE_DRAFT_v0.1.0.md \
   --draft \
   release_artifacts/v0.1.0/model_assets_core_lock.json \
   release_artifacts/v0.1.0/code_only_archive_manifest.json \

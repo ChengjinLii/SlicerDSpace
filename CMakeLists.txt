@@ -16,6 +16,7 @@ file(GLOB_RECURSE MICROSTRUCTURE_PYTHON_SCRIPTS "microstructure/*.py")
 file(GLOB_RECURSE TRACTOGRAPHY_PYTHON_SCRIPTS "tractography/*.py")
 file(GLOB_RECURSE CONNECTOME_PYTHON_SCRIPTS "connectome/*.py")
 file(GLOB_RECURSE SCRIPT_TOOL_FILES "scripts/*.py" "scripts/*.sh" "scripts/*.ps1")
+file(GLOB_RECURSE DOC_FILES "docs/*.md")
 file(GLOB_RECURSE DDSURFER_POSTPROCESS_RELEASE_FILES
   "surface/ddsurfer_postprocess_release/*.md"
   "surface/ddsurfer_postprocess_release/*.sh"
@@ -31,7 +32,7 @@ set(MODULE_PYTHON_SCRIPTS
   )
 
 set(MODULE_PYTHON_RESOURCES
-  EXTERNAL_DEPENDENCIES.md
+  ${DOC_FILES}
   ${SHARED_PYTHON_SCRIPTS}
   ${PREPROCESSING_PYTHON_SCRIPTS}
   ${SURFACE_PYTHON_SCRIPTS}

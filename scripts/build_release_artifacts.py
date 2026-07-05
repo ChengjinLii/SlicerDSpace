@@ -82,10 +82,10 @@ def main(argv: list[str] | None = None) -> int:
             "CITATION.cff",
             "codemeta.json",
             ".zenodo.json",
-            "RELEASE.md",
-            "MODEL_ASSETS.md",
-            "MODEL_ASSET_TERMS.md",
-            "RELEASE_NOTES_v0.1.0.md",
+            "docs/release/RELEASE.md",
+            "docs/assets/MODEL_ASSETS.md",
+            "docs/assets/MODEL_ASSET_TERMS.md",
+            "docs/release/RELEASE_NOTES_v0.1.0.md",
         ],
     }
     _write_json(output_dir / "code_only_archive_manifest.json", archive_manifest)
@@ -97,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
         "",
         *[f"- `{pattern}`" for pattern in ASSET_EXCLUSION_PATTERNS],
         "",
-        "Use `MODEL_ASSET_TERMS.md` as the terms decision record.",
+        "Use `docs/assets/MODEL_ASSET_TERMS.md` as the terms decision record.",
         "",
     ]
     (output_dir / "asset_exclusion_checklist.md").write_text("\n".join(exclusion_notes), encoding="utf-8")
