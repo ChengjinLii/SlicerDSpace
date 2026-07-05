@@ -16,7 +16,7 @@ from shared import write_output_tree_report
 
 
 DEFAULT_OUTPUT_ROOT = Path("/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs")
-DEFAULT_DEST = REPO_ROOT / "SlicerDDSurfer_100307_release_candidate_output_tree.html"
+DEFAULT_DEST = REPO_ROOT / "ignore" / "local_reports" / "SlicerDDSurfer_100307_release_candidate_output_tree.html"
 
 
 def build_parser() -> argparse.ArgumentParser:

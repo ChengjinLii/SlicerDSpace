@@ -1,8 +1,9 @@
 """Canonical subject I/O layout for SlicerDDSurfer outputs.
 
-The paths mirror the product-level tree documented in ``SlicerDDSurfer.html``.
 Pipeline code should use this module for default locations while still honoring
-explicit user-provided output paths for backward compatibility.
+explicit user-provided output paths for backward compatibility. Generated
+output-tree HTML reports are local artifacts and should be written under an
+ignored report directory unless a caller explicitly requests another path.
 """
 
 from __future__ import annotations

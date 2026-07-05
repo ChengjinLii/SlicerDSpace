@@ -52,7 +52,7 @@ release-artifacts:
 output-tree-report:
 	$(PYTHON) Testing/Python/generate_output_tree_report.py \
 	  --output-root "$${SLICERDDSURFER_OUTPUT_ROOT:-/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs}" \
-	  --dest "$${SLICERDDSURFER_OUTPUT_TREE_HTML:-SlicerDDSurfer_100307_release_candidate_output_tree.html}"
+	  --dest "$${SLICERDDSURFER_OUTPUT_TREE_HTML:-ignore/local_reports/SlicerDDSurfer_100307_release_candidate_output_tree.html}"
 
 lint:
 	$(PYTHON) -m ruff check .

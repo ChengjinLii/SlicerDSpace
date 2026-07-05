@@ -12,3 +12,7 @@ Testing/**/Temporary/
 third_party/
 ignore/
 release_artifacts/
+
+# Local generated reports and manual inspection artifacts.
+/local_reports/
+/*.html
