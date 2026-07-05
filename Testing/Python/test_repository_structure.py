@@ -27,9 +27,74 @@ SCAN_ROOTS = (
     "connectome",
     "workflow_catalog.py",
 )
+ALLOWED_ROOT_FILES = {
+    ".gitattributes",
+    ".gitignore",
+    ".zenodo.json",
+    "CITATION.cff",
+    "CMakeLists.txt",
+    "LICENSE",
+    "Makefile",
+    "README.md",
+    "README.zh-CN.md",
+    "SlicerDDSurfer.py",
+    "SlicerDDSurfer.s4ext",
+    "codemeta.json",
+    "pyproject.toml",
+    "requirements-ci.txt",
+    "run_postprocess_docker.py",
+    "run_subject_pipeline.py",
+    "workflow_catalog.py",
+}
+FORBIDDEN_TRACKED_PATH_PARTS = (
+    "manuscript_nature_protocols",
+    "local_reports",
+    "release_artifacts",
+)
+FORBIDDEN_TRACKED_ROOT_PATTERNS = (
+    "GOAL_PROGRESS_",
+    "LOCAL_RELEASE_VALIDATION_",
+)
 
 
 class RepositoryStructureTest(unittest.TestCase):
+    def test_tracked_root_files_stay_small_and_intentional(self) -> None:
+        result = subprocess.run(
+            ["git", "ls-files"],
+            cwd=REPO_ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+        root_files = {
+            relative
+            for relative in result.stdout.splitlines()
+            if relative and "/" not in relative
+        }
+        self.assertEqual(sorted(root_files - ALLOWED_ROOT_FILES), [])
+
+    def test_non_project_artifacts_are_not_tracked(self) -> None:
+        result = subprocess.run(
+            ["git", "ls-files"],
+            cwd=REPO_ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+        offenders: list[str] = []
+        for relative in result.stdout.splitlines():
+            parts = relative.split("/")
+            if any(part in FORBIDDEN_TRACKED_PATH_PARTS for part in parts):
+                offenders.append(relative)
+                continue
+            name = Path(relative).name
+            if relative.endswith(".html") or name in {"goal.md", "goal_completion_audit.md", "AGENTS.md"}:
+                offenders.append(relative)
+                continue
+            if "/" not in relative and any(name.startswith(prefix) for prefix in FORBIDDEN_TRACKED_ROOT_PATTERNS):
+                offenders.append(relative)
+        self.assertEqual(offenders, [])
+
     def test_product_code_does_not_reference_legacy_root_packages(self) -> None:
         offenders: list[str] = []
         for relative in SCAN_ROOTS:

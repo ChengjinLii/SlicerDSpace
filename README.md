@@ -167,6 +167,8 @@ for release-candidate validation details.
   Python packages and external runtime setup.
 - [docs/architecture/PRODUCT_ARCHITECTURE.md](docs/architecture/PRODUCT_ARCHITECTURE.md):
   workflow and output organization.
+- [docs/architecture/REPOSITORY_LAYOUT.md](docs/architecture/REPOSITORY_LAYOUT.md):
+  repository layout and GitHub hygiene rules.
 - [docs/release/RELEASE.md](docs/release/RELEASE.md): release workflow.
 - [docs/release/DOI_ARCHIVE_PREP.md](docs/release/DOI_ARCHIVE_PREP.md):
   code/archive boundary.

@@ -148,6 +148,7 @@ python3 scripts/release_validation.py \
 - [docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md)：模型权重、模板和 mirror。
 - [docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md)：Python 包和外部工具配置。
 - [docs/architecture/PRODUCT_ARCHITECTURE.md](docs/architecture/PRODUCT_ARCHITECTURE.md)：流程和输出结构。
+- [docs/architecture/REPOSITORY_LAYOUT.md](docs/architecture/REPOSITORY_LAYOUT.md)：仓库布局和 GitHub 首屏整理规则。
 - [docs/release/RELEASE.md](docs/release/RELEASE.md)：发布流程。
 - [docs/release/DOI_ARCHIVE_PREP.md](docs/release/DOI_ARCHIVE_PREP.md)：代码归档和模型资产边界。
 
