@@ -39,9 +39,22 @@ class ModelAssetsTest(unittest.TestCase):
         self.assertIn("segmentation/weights/dti_axial.pt", plan.asset_records)
         self.assertIn("sha256", plan.asset_records["segmentation/weights/dti_axial.pt"])
         self.assertIn("github_lfs", plan.source_ids)
+        self.assertIn("slicerdsurfer_models_git", plan.source_ids)
         self.assertIn("DDSURFER_CHECKPOINT_DIR", plan.external_overrides)
         self.assertIn("DDCSR surface model weights", plan.asset_groups)
         self.assertTrue(any("redistribution" in notice for notice in plan.terms_notices))
+
+    def test_manifest_prefers_independent_model_repository_source(self) -> None:
+        module = _load_downloader_module()
+
+        manifest = module.load_manifest(REPO_ROOT / "models" / "assets_manifest.json")
+        sources = manifest["asset_sources"]
+
+        self.assertEqual(sources["slicerdsurfer_models_git"]["status"], "active")
+        self.assertIn(
+            "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main",
+            sources["slicerdsurfer_models_git"]["url_template"],
+        )
 
     def test_quick_gate_alias_resolves_to_core_profile(self) -> None:
         module = _load_downloader_module()

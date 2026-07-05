@@ -51,11 +51,11 @@ would affect module loading, packaging paths and documented CLI examples.
 ## Resources And Assets
 
 - `Resources/Icons/` and `Resources/UI/` are normal Slicer extension resources.
-- Large model weights, templates and test imaging fixtures are currently tracked
-  through Git LFS for compatibility.
-- The intended release direction is to move model/template assets to a separate
-  asset source while keeping only `models/assets_manifest.json`, checksums and
-  download tooling in this code repository.
+- Large model weights and templates are not tracked in this code repository.
+  They are restored from the independent `SlicerDDSurfer-models` repository or
+  another manifest-compatible mirror.
+- Keep only `models/assets_manifest.json`, checksums and download tooling in
+  this code repository.
 
 ## Testing
 

@@ -24,9 +24,6 @@ file(GLOB_RECURSE DDSURFER_POSTPROCESS_RELEASE_FILES
   "surface/ddsurfer_postprocess_release/scripts/*"
   )
 
-file(GLOB_RECURSE PARCELLATION_WEIGHT_FILES "parcellation/weights/*.pkl")
-file(GLOB_RECURSE SEGMENTATION_WEIGHT_FILES "segmentation/weights/*.pt")
-
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
   )
@@ -45,17 +42,7 @@ set(MODULE_PYTHON_RESOURCES
   ${DDSURFER_POSTPROCESS_RELEASE_FILES}
   Resources/Icons/${MODULE_NAME}.png
   Resources/UI/${MODULE_NAME}.ui
-  Resources/Data/100HCP-population-mean-T2.nii.gz
-  Resources/Data/template/100307-FA.nii.gz
-  Resources/Data/template/hcp_hemi-left_init_160k.obj
-  Resources/Data/template/hcp_hemi-right_init_160k.obj
-  Resources/Data/ckpts/hcp/DDCSR_white_lh_Full_DualStream_no_b0_Cascaded.pt
-  Resources/Data/ckpts/hcp/DDCSR_white_rh_Full_DualStream_no_b0_Cascaded.pt
-  Resources/Data/ckpts/hcp/DDCSR_pial_lh_Full_DualStream_no_b0_Cascaded.pt
-  Resources/Data/ckpts/hcp/DDCSR_pial_rh_Full_DualStream_no_b0_Cascaded.pt
   parcellation/conversion/data/FreeSurferColorLUT.txt
-  ${PARCELLATION_WEIGHT_FILES}
-  ${SEGMENTATION_WEIGHT_FILES}
   )
 
 #-----------------------------------------------------------------------------

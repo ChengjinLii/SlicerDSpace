@@ -51,6 +51,12 @@ FORBIDDEN_TRACKED_PATH_PARTS = (
     "local_reports",
     "release_artifacts",
 )
+FORBIDDEN_TRACKED_ASSET_PREFIXES = (
+    "Resources/Data/",
+    "surface/template/",
+    "segmentation/weights/",
+    "parcellation/weights/",
+)
 FORBIDDEN_TRACKED_ROOT_PATTERNS = (
     "GOAL_PROGRESS_",
     "LOCAL_RELEASE_VALIDATION_",
@@ -115,21 +121,19 @@ class RepositoryStructureTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0)
 
-    def test_large_neuroimaging_and_model_extensions_use_lfs(self) -> None:
-        expected_lfs_paths = (
-            "segmentation/weights/dti_axial.pt",
-            "parcellation/weights/Fused-Unet-v3-noMax-axial.pkl",
-            "Resources/Data/100HCP-population-mean-T2.nii.gz",
-            "Resources/Data/template/hcp_hemi-left_init_160k.obj",
-        )
+    def test_model_assets_are_not_tracked_in_code_repository(self) -> None:
         result = subprocess.run(
-            ["git", "check-attr", "filter", "--", *expected_lfs_paths],
+            ["git", "ls-files"],
             cwd=REPO_ROOT,
             check=True,
             text=True,
             stdout=subprocess.PIPE,
         )
-        offenders = [line for line in result.stdout.splitlines() if not line.endswith("filter: lfs")]
+        offenders = [
+            relative
+            for relative in result.stdout.splitlines()
+            if relative.startswith(FORBIDDEN_TRACKED_ASSET_PREFIXES)
+        ]
         self.assertEqual(offenders, [])
 
     def test_untracked_files_are_not_large_runtime_artifacts(self) -> None:

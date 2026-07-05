@@ -187,6 +187,8 @@ class ProductOrchestratorTest(unittest.TestCase):
             input_dir.mkdir(parents=True)
             for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
                 (input_dir / name).write_text("x", encoding="utf-8")
+            atlas_t2 = Path(tmp) / "atlas_t2.nii.gz"
+            atlas_t2.write_text("atlas", encoding="utf-8")
 
             plan = plan_subject_products(
                 ProductOrchestratorConfig(
@@ -194,6 +196,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                     subject_root=subject_root,
                     targets=("segmentation", "parcellation", "tractography", "bundles", "connectome"),
                     execute=True,
+                    atlas_t2=atlas_t2,
                     preflight_blocked_targets={"tractography": "preflight missing dependencies: MRtrix3"},
                 )
             )

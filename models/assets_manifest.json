@@ -2,7 +2,7 @@
   "kind": "slicerdsurfer_model_asset_manifest",
   "version": 1,
   "default_profile": "core",
-  "asset_source_policy": "Git LFS remains the compatibility source for this repository. The independent SlicerDDSurfer-models repository is the preferred external URL source for code-only checkouts. Hugging Face and Zenodo entries are reserved mirrors until public asset terms are confirmed.",
+  "asset_source_policy": "The independent SlicerDDSurfer-models repository is the preferred external URL source for code-only checkouts. Git LFS support is retained for direct model-repository clones and legacy asset checkouts. Hugging Face and Zenodo entries are reserved mirrors until public asset terms are confirmed.",
   "default_asset_source_ids": [
     "github_lfs",
     "slicerdsurfer_models_git",
@@ -188,7 +188,7 @@
         "surface initialization meshes"
       ],
       "terms_notice": [
-        "DDCSR surface weights, HCP-like templates, surface initialization meshes, and subject-derived FA examples are distributed through Git LFS for this checkout, but public redistribution and DOI-archive terms require author confirmation before manuscript submission.",
+        "DDCSR surface weights, HCP-like templates, surface initialization meshes, and subject-derived FA examples are provided through the external SlicerDDSurfer-models asset source, but public redistribution and DOI-archive terms require author confirmation before manuscript submission.",
         "If redistribution terms cannot be confirmed, document an alternate access route in Data and Code Availability."
       ],
       "include_patterns": [

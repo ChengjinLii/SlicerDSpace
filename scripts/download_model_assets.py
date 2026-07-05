@@ -549,6 +549,12 @@ def main(argv: list[str] | None = None) -> int:
             result = verify_asset_plan(repo_root, plan)
             if not result["ok"]:
                 print(json.dumps({"profile": plan.profile, "verification": result}, indent=2, sort_keys=True), file=sys.stderr)
+                print(
+                    "[model-assets] Suggested fix: "
+                    f"python3 scripts/download_model_assets.py --profile {plan.profile} "
+                    "--source url --source-id slicerdsurfer_models_git",
+                    file=sys.stderr,
+                )
                 return 3
             print(f"[model-assets] Verified {result['checked_count']} file(s) for profile={plan.profile}.")
         if args.write_lockfile:

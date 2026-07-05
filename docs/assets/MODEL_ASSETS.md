@@ -1,14 +1,13 @@
 # Model Assets and Weight Downloads
 
-SlicerDDSurfer keeps the code repository lightweight by supporting a separate
-model-asset source. Existing Git LFS assets in this repository remain a
-compatibility source, while the preferred external source is the independent
-`SlicerDDSurfer-models` repository. The manifest and downloader verify every
-asset by size and SHA256 checksum before use.
+SlicerDDSurfer keeps the code repository lightweight by storing large
+model/template files outside the main source tree. The preferred external
+source is the independent `SlicerDDSurfer-models` repository. The manifest and
+downloader verify every asset by size and SHA256 checksum before use.
 
-Install Git LFS before using the current compatibility source. A normal
-`git clone` may leave these files as small LFS pointer files until they are
-explicitly downloaded.
+Users do not need to clone model files with the code repository. A code-only
+checkout can restore the selected model profile with the downloader. Git LFS is
+only needed if users clone the separate model repository directly.
 
 Use the unified downloader instead of asking users to remember individual LFS paths:
 
