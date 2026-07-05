@@ -12,7 +12,12 @@ Testing/**/Temporary/
 third_party/
 ignore/
 release_artifacts/
+manuscript_nature_protocols/
 
 # Local generated reports and manual inspection artifacts.
 /local_reports/
 /*.html
+GOAL_PROGRESS_*.md
+LOCAL_RELEASE_VALIDATION_*.md
+goal.md
+goal_completion_audit.md

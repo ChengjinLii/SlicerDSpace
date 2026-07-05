@@ -84,13 +84,6 @@ stale required checks such as `fresh-clone-smoke`, `create-github-release`, or
 `Release` workflow is still available for fresh-clone smoke and draft release
 creation, but it should not be required for every push or pull request.
 
-For manuscript-linked releases, also run the manuscript checks:
-
-```bash
-make -C manuscript_nature_protocols validate
-make -C manuscript_nature_protocols pdf
-```
-
 ## Asset Terms Review
 
 Before archiving model or validation assets, review:
@@ -99,8 +92,6 @@ Before archiving model or validation assets, review:
 - `MODEL_ASSET_TERMS.md`
 - `MODEL_ASSET_HOSTING_PLAN.md`
 - `models/assets_manifest.json`
-- `manuscript_nature_protocols/guidance/lfs_asset_availability_audit.md`
-- `manuscript_nature_protocols/guidance/lfs_asset_terms_manifest.csv`
 
 Do not include an LFS-managed asset in a DOI archive until its source,
 ownership, license, redistribution rights, and archive permissions are known.
@@ -164,12 +155,5 @@ After a release tag and DOI exist:
 
 1. Update `CITATION.cff` with the final version and DOI.
 2. Update `codemeta.json` with the final version and identifier.
-3. Update `manuscript_nature_protocols/guidance/release_metadata_manifest.csv`.
-4. Refresh the release snapshot:
-
-```bash
-make -C manuscript_nature_protocols release-metadata-check
-```
-
-5. Update `manuscript_nature_protocols/sections/07_data_code_availability.tex`
-   with the repository URL, release tag, DOI, license, and asset restrictions.
+3. Update release notes and availability text with the repository URL, release
+   tag, DOI, license, and asset restrictions.
