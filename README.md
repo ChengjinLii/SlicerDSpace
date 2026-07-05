@@ -129,6 +129,27 @@ download the selected asset profile explicitly. The same downloader also
 supports external URL/mirror sources with manifest size and SHA256 verification,
 which is the preferred long-term route for a separate `SlicerDDSurfer-models`
 repository, Hugging Face, Zenodo, OSF, Figshare, or institutional storage.
+
+For a new user, treat source code and model assets as two separate downloads:
+
+```bash
+# Step 1: clone the code repository.
+git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
+cd SlicerDDSurfer
+
+# Step 2: download the recommended model weights and templates.
+scripts/download_model_assets.sh --profile core
+
+# Step 3: verify that the selected assets are materialized and match checksums.
+python3 scripts/download_model_assets.py --profile core --verify-only
+```
+
+`git clone` downloads the Slicer module source code, Python pipeline scripts,
+documentation, configuration files, `models/assets_manifest.json`, and Git LFS
+pointer files. It should not be treated as proof that the large model weights
+and templates are present. The downloader materializes the selected profile and
+checks file sizes and SHA256 hashes.
+
 Install Git LFS first when using the current compatibility source, then download
 the recommended core asset profile before running DDSurfer, DDSeg, or DDParcel:
 

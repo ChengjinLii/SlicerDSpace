@@ -37,7 +37,25 @@ python3 scripts/release_audit.py
 
 ## 模型权重与模板资源
 
-DDSurfer、DDSeg、DDParcel 的模型权重和模板资源通过 Git LFS 管理。先安装 Git LFS；克隆仓库后，推荐用统一下载入口拉取核心资源：
+DDSurfer、DDSeg、DDParcel 的模型权重和模板资源通过 Git LFS 管理。代码仓库和模型资源是两个不同的下载步骤，不要把 `git clone` 当作完整模型下载。
+
+新用户推荐按下面三步操作：
+
+```bash
+# 第一步：下载代码仓库。
+git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
+cd SlicerDDSurfer
+
+# 第二步：下载推荐的核心模型权重和模板。
+scripts/download_model_assets.sh --profile core
+
+# 第三步：校验模型文件已真实下载，并且大小和 SHA256 与 manifest 一致。
+python3 scripts/download_model_assets.py --profile core --verify-only
+```
+
+`git clone` 下载的是 Slicer 模块源码、Python pipeline、文档、配置文件、`models/assets_manifest.json` 以及 Git LFS pointer。大模型权重和模板需要通过统一 downloader 单独拉取。
+
+先安装 Git LFS；克隆仓库后，推荐用统一下载入口拉取核心资源：
 
 ```bash
 scripts/download_model_assets.sh --profile core
