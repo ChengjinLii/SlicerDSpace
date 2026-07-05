@@ -57,7 +57,7 @@ cd /tmp/slicerdsurfer-url-smoke
 python3 scripts/download_model_assets.py \
   --profile core \
   --source url \
-  --source-id slicerdsurfer_models_release
+  --source-id slicerdsurfer_models_git
 python3 scripts/download_model_assets.py --profile core --verify-only
 ```
 

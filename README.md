@@ -108,6 +108,16 @@ Recommended profile:
 scripts/download_model_assets.sh --profile core
 ```
 
+For a code-only clone that should download from the independent asset
+repository instead of this repository's Git LFS objects:
+
+```bash
+python3 scripts/download_model_assets.py \
+  --profile core \
+  --source url \
+  --source-id slicerdsurfer_models_git
+```
+
 Useful profiles:
 
 - `core`: surface + segmentation + parcellation assets.

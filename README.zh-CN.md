@@ -98,6 +98,16 @@ python3 run_subject_pipeline.py \
 scripts/download_model_assets.sh --profile core
 ```
 
+如果用户只 clone 代码仓库，希望从独立模型资源仓库下载，而不是依赖本仓库
+Git LFS：
+
+```bash
+python3 scripts/download_model_assets.py \
+  --profile core \
+  --source url \
+  --source-id slicerdsurfer_models_git
+```
+
 常用 profile：
 
 - `core`：surface + segmentation + parcellation 资源。

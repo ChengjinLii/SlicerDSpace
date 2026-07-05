@@ -2,9 +2,10 @@
   "kind": "slicerdsurfer_model_asset_manifest",
   "version": 1,
   "default_profile": "core",
-  "asset_source_policy": "Git LFS remains the compatibility source for this repository. URL-template sources are the planned migration path for a separate SlicerDDSurfer-models repository, Hugging Face dataset/model repository, or Zenodo DOI record. Only active sources are used automatically.",
+  "asset_source_policy": "Git LFS remains the compatibility source for this repository. The independent SlicerDDSurfer-models repository is the preferred external URL source for code-only checkouts. Hugging Face and Zenodo entries are reserved mirrors until public asset terms are confirmed.",
   "default_asset_source_ids": [
     "github_lfs",
+    "slicerdsurfer_models_git",
     "slicerdsurfer_models_release",
     "huggingface",
     "zenodo"
@@ -14,6 +15,13 @@
       "kind": "git-lfs",
       "status": "active",
       "description": "Compatibility source: Git LFS objects tracked by this code repository."
+    },
+    "slicerdsurfer_models_git": {
+      "kind": "url-template",
+      "status": "active",
+      "description": "Independent Git LFS asset repository preserving SlicerDDSurfer-relative paths.",
+      "base_url": "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main",
+      "url_template": "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main/{path_urlencoded}"
     },
     "slicerdsurfer_models_release": {
       "kind": "url-template",

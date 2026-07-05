@@ -1,12 +1,10 @@
 # Model Assets and Weight Downloads
 
-SlicerDDSurfer currently keeps model weights, templates, and release test
-fixtures in Git LFS for compatibility with existing checkouts. This is not the
-preferred long-term public distribution architecture. The manifest and
-downloader now support external URL/mirror sources with size and SHA256
-verification so the assets can be moved to a separate `SlicerDDSurfer-models`
-repository, Hugging Face, Zenodo, OSF, Figshare, or institutional object
-storage without changing the pipeline code.
+SlicerDDSurfer keeps the code repository lightweight by supporting a separate
+model-asset source. Existing Git LFS assets in this repository remain a
+compatibility source, while the preferred external source is the independent
+`SlicerDDSurfer-models` repository. The manifest and downloader verify every
+asset by size and SHA256 checksum before use.
 
 Install Git LFS before using the current compatibility source. A normal
 `git clone` may leave these files as small LFS pointer files until they are
@@ -48,13 +46,14 @@ paths:
 python3 scripts/download_model_assets.py \
   --profile core \
   --source url \
-  --base-url https://example.org/SlicerDDSurfer-models/v0.1.0
+  --source-id slicerdsurfer_models_git
 ```
 
-`--base-url` appends each relative asset path to the URL and verifies every
-download against the manifest size and SHA256. Use `--source-id <id>` to select
-a named source from `models/assets_manifest.json`; planned sources are ignored
-unless `--allow-planned-sources` is explicitly supplied.
+The `slicerdsurfer_models_git` source resolves files from
+`https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main/{path}` after
+that repository has been published. For an ad-hoc mirror, use `--base-url`;
+the downloader appends each relative asset path to that URL and verifies every
+download against the manifest size and SHA256.
 
 To prepare an upload-ready mirror after the selected assets are materialized and
 verified locally:
@@ -174,7 +173,7 @@ The manifest also contains source and checksum metadata:
 
 | Field | Meaning |
 | --- | --- |
-| `asset_sources` | Named sources. `github_lfs` is active; `slicerdsurfer_models_release`, `huggingface`, and `zenodo` are planned migration targets until their real URLs and terms are finalized. |
+| `asset_sources` | Named sources. `github_lfs` is the compatibility source, `slicerdsurfer_models_git` is the preferred independent repository source, and release/Hugging Face/Zenodo entries are reserved mirrors until their URLs and terms are finalized. |
 | `default_asset_source_ids` | Ordered source ids attached to asset records when no per-file source list is supplied. |
 | `asset_records` | Per-file `size_bytes` and `sha256` records used by verification, URL downloads, and release lockfiles. |
 
@@ -189,23 +188,23 @@ URL-template sources may use these placeholders:
 
 ## Recommended Asset Hosting Architecture
 
-For a public release, keep this code repository lightweight and move large
-weights/templates to a governed asset source:
+For a public release, keep this code repository lightweight and publish large
+weights/templates through a governed asset source:
 
-1. Create `SlicerDDSurfer-models` or an equivalent Hugging Face/Zenodo/OSF
-   record.
+1. Create `ChengjinLii/SlicerDDSurfer-models` or an equivalent
+   Hugging Face/Zenodo/OSF record.
 2. Preserve the same relative paths as `asset_records`.
 3. Upload only files whose redistribution and archive permissions are confirmed.
 4. Generate or reuse the manifest `size_bytes` and `sha256` values.
-5. Change the selected source in `models/assets_manifest.json` from `planned`
-   to `active`, or pass an explicit `--base-url` during validation.
+5. Keep `slicerdsurfer_models_git` active for the independent repository, or
+   pass an explicit `--base-url` during validation.
 6. Run:
 
 ```bash
 python3 scripts/download_model_assets.py \
   --profile core \
   --source url \
-  --source-id slicerdsurfer_models_release
+  --source-id slicerdsurfer_models_git
 python3 scripts/download_model_assets.py --profile core --verify-only
 ```
 
