@@ -14,6 +14,9 @@ verified before a public SlicerDDSurfer release.
 - Per-item UI actions persist selected paths and survive Slicer restart.
 - A minimal subject run can build and review a processing plan with the selected
   asset root.
+- User-facing setup documentation is available in
+  `docs/assets/DEPENDENCY_SETUP_WORKFLOW.md`; the local HTML rendering is kept
+  under `ignore/` and is not tracked by git.
 
 ## Dependency Policy
 
@@ -27,11 +30,11 @@ verified before a public SlicerDDSurfer release.
 
 | Check | Status | Evidence |
 | --- | --- | --- |
-| Repository unit tests | Passed | `make test-fast` passed with 257 tests before the dependency-workflow smoke was added. |
+| Repository unit tests | Passed | `make test-fast` passed with 257 tests after adding the dependency-workflow smoke and user documentation. |
 | Slicer extension smoke | Passed | Slicer 5.10 loaded the staged extension and reported `SLICERDDSURFER_EXTENSION_TARGET_REGISTERED=True`, `LOGIC_READY=True`, `ENV_PATHS_READY=True`, `MODEL_ASSETS_READY=True`. |
-| Dependency UI smoke | Passed | `Testing/Python/slicer_dependency_workflow_smoke.py` exercised model-root selection, fake manifest download, MRtrix path selection and user-settings restore in a real Slicer session. |
+| Dependency UI smoke | Passed | `Testing/Python/slicer_dependency_workflow_smoke.py` exercised the dependency check entry point, top-level `Install/download auto items`, per-item model download/path selection, MRtrix path selection, external-tool setup notice and user-settings restore in a real Slicer session. |
 | Fresh clone smoke | Passed | Fresh clone smoke was run in plan mode after moving model assets out of the code repository. |
-| GitHub push | Passed | `origin/main` was updated to commit `0f8ef85c0e818962652ce28b4a0c6cebc8c0b416`. |
+| GitHub push | Passed | `origin/main` was updated to commit `891d5f210e0d37961895911a24cfabd5c9715318`. |
 | GitHub Actions readback | Not verified from this host | GitHub Actions API and connector returned 404 for this repository/commit in the current environment; verify in the GitHub web UI or with an authenticated `gh` CLI. |
 
 ## Commands To Re-run Before Tagging

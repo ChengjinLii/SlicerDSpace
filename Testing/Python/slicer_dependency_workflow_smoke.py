@@ -42,6 +42,17 @@ class FakePlan:
     terms_notices = ()
 
 
+@dataclass
+class FakeEnvironmentResult:
+    statuses: tuple[FakeDependencyItem, ...]
+    missing_python_packages: tuple[str, ...] = ()
+    runnable_targets: tuple[str, ...] = ("validation",)
+    blocked_targets: tuple[str, ...] = ("tractography",)
+    blocker_count: int = 2
+    targets: tuple[str, ...] = ("validation", "tractography")
+    missing_external_groups: tuple[str, ...] = ("mrtrix",)
+
+
 def _module_widget():
     try:
         return slicer.util.getModuleWidget("SlicerDDSurfer")
@@ -103,6 +114,7 @@ def _patch_model_downloader(widget):
 def _run() -> None:
     original_existing = None
     original_loader = None
+    original_info_display = None
     try:
         TEMP_ROOT.mkdir(parents=True, exist_ok=True)
         MRTRIX_ROOT.mkdir(parents=True, exist_ok=True)
@@ -115,6 +127,13 @@ def _run() -> None:
 
         original_existing = _patch_file_dialogs()
         original_loader = _patch_model_downloader(widget)
+        original_info_display = slicer.util.infoDisplay
+        info_messages = []
+
+        def fake_info_display(message, *args, **kwargs):
+            info_messages.append(str(message))
+
+        slicer.util.infoDisplay = fake_info_display
 
         model_item = FakeDependencyItem(
             key="path:ddseg_weights",
@@ -132,6 +151,12 @@ def _run() -> None:
             install_hint="Install MRtrix3.",
             install_group="mrtrix",
         )
+
+        widget._lastEnvironmentResult = FakeEnvironmentResult(statuses=(model_item, external_item))
+        widget._onInstallAllEnvironmentItemsClicked()
+        slicer.app.processEvents()
+        bulk_asset_file = MODEL_ROOT / "segmentation" / "weights" / "dti_axial.pt"
+        bulk_external_notice = any("System-level tools are not installed silently" in message for message in info_messages)
 
         widget._onInstallEnvironmentItemClicked(model_item)
         slicer.app.processEvents()
@@ -161,9 +186,13 @@ def _run() -> None:
         print(f"SLICERDDSURFER_DEP_MRTRIX_LINE_EDIT={mrtrix_line_text}", flush=True)
         print(f"SLICERDDSURFER_DEP_RESTORED_MODEL={restored_model}", flush=True)
         print(f"SLICERDDSURFER_DEP_RESTORED_MRTRIX={restored_mrtrix}", flush=True)
+        print(f"SLICERDDSURFER_DEP_BULK_MODEL_ASSET_FILE={bulk_asset_file.is_file()}", flush=True)
+        print(f"SLICERDDSURFER_DEP_BULK_EXTERNAL_NOTICE={bulk_external_notice}", flush=True)
 
         ok = (
-            model_saved == MODEL_ROOT.as_posix()
+            bulk_asset_file.is_file()
+            and bulk_external_notice
+            and model_saved == MODEL_ROOT.as_posix()
             and model_line_text == MODEL_ROOT.as_posix()
             and model_asset_file.is_file()
             and mrtrix_saved == MRTRIX_ROOT.as_posix()
@@ -183,6 +212,8 @@ def _run() -> None:
                 _module_widget()._load_model_assets_module = original_loader
             except Exception:
                 pass
+        if original_info_display is not None:
+            slicer.util.infoDisplay = original_info_display
 
 
 qt.QTimer.singleShot(6000, _run)
