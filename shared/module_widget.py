@@ -21,7 +21,7 @@ from shared.dependency_config import UI_DEPENDENCY_PATHS
 from shared.docs import doc_path
 from shared.input_import import InputImportConfig, detect_import_source_kind, prepare_inputs
 from shared.model_assets import model_asset_path
-from shared.ui_error_dialogs import format_actionable_error_message
+from shared.ui_error_dialogs import show_actionable_error_dialog
 from shared.ui_environment_dialog import show_environment_results_dialog
 from shared.ui_environment_paths import (
     add_environment_path_row,
@@ -367,15 +367,33 @@ class SharedWidgetMixin:
         auto_fix: str,
         details: object,
     ) -> None:
-        message = format_actionable_error_message(
+        actions = [
+            ("Re-check environment", self._onValidateClicked),
+            ("Open dependency guide", self._on_open_model_assets_guide_clicked),
+        ]
+        lower_title = title.lower()
+        if "model asset" in lower_title or "model" in lower_title:
+            actions.insert(0, ("Choose/download model assets", lambda: self._install_model_assets_from_environment_dialog(profile="core")))
+            actions.append(("Open model asset folder", self._on_open_model_assets_root_clicked))
+        show_actionable_error_dialog(
+            parent=self.parent,
             title=title,
             what=what,
             why=why,
             next_step=next_step,
             auto_fix=auto_fix,
             details=details,
+            actions=tuple(actions),
         )
-        slicer.util.errorDisplay(message, parent=self.parent)
+
+    def _on_open_model_assets_root_clicked(self) -> None:
+        try:
+            module = self._load_model_assets_module()
+            configured = self._environment_dependency_path_kwargs().get("model_assets_dir")
+            asset_root = configured if isinstance(configured, Path) and str(configured) else module.configured_model_assets_root()
+            self._open_local_path(Path(asset_root), missing_message="The configured model asset root does not exist yet.")
+        except Exception as exc:
+            slicer.util.infoDisplay(f"Model asset root is unavailable:\n{exc}", parent=self.parent)
 
     def _initialize_environment_dependency_path_controls(self) -> None:
         if getattr(self, "_environmentPathLineEdits", None) is not None:
