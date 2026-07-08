@@ -505,14 +505,38 @@ def _url_candidates_for_asset(
 
 def _download_url_to_path(url: str, target: Path, *, timeout: int = 60) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_name(target.name + ".download")
-    request = urllib.request.Request(url, headers={"User-Agent": "SlicerDDSurfer-model-asset-downloader"})
-    with urllib.request.urlopen(request, timeout=timeout) as response, tmp.open("wb") as stream:
-        while True:
-            chunk = response.read(1024 * 1024)
-            if not chunk:
-                break
-            stream.write(chunk)
+    tmp = target.with_name(target.name + ".part")
+    resume_from = tmp.stat().st_size if tmp.is_file() else 0
+    headers = {"User-Agent": "SlicerDDSurfer-model-asset-downloader"}
+    if resume_from:
+        headers["Range"] = f"bytes={resume_from}-"
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        status = getattr(response, "status", None)
+        append = bool(resume_from and status == 206)
+        if resume_from and not append:
+            print("[model-assets] Server did not resume partial download; restarting " + target.name, file=sys.stderr)
+            resume_from = 0
+        total_header = response.headers.get("Content-Length")
+        expected_total = int(total_header) + resume_from if total_header and str(total_header).isdigit() else 0
+        if expected_total:
+            print(f"[model-assets]   target size: {_format_bytes(expected_total)}")
+        downloaded = resume_from
+        next_report = downloaded + 16 * 1024 * 1024
+        mode = "ab" if append else "wb"
+        with tmp.open(mode) as stream:
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                stream.write(chunk)
+                downloaded += len(chunk)
+                if expected_total and downloaded >= next_report:
+                    percent = 100.0 * downloaded / max(1, expected_total)
+                    print(f"[model-assets]   progress: {_format_bytes(downloaded)} / {_format_bytes(expected_total)} ({percent:.1f}%)")
+                    next_report = downloaded + 16 * 1024 * 1024
+        if expected_total:
+            print(f"[model-assets]   complete: {_format_bytes(downloaded)} / {_format_bytes(expected_total)}")
     os.replace(tmp, target)
 
 

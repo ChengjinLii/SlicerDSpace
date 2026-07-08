@@ -34,12 +34,14 @@ test-slicer:
 	$(PYTHON) scripts/stage_slicer_extension.py --install-root "$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}" --clean --link-mode copy
 	if [ -n "$${SLICERDDSURFER_XVFB_RUN:-}" ] && [ "$${SLICERDDSURFER_XVFB_RUN}" != "none" ]; then \
 	  env PATH="$$(dirname "$${SLICERDDSURFER_XVFB_RUN}"):$${PATH}" \
+	    SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD="$${SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD:-1}" \
 	    SLICERDDSURFER_EXTENSION_MODULE_DIR="$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
 	    "$${SLICERDDSURFER_XVFB_RUN}" -a "$${SLICERDDSURFER_SLICER_LAUNCHER}" --no-splash --disable-cli-modules \
 	    --additional-module-paths "$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
 	    --python-script Testing/Python/slicer_extension_install_smoke.py; \
 	elif [ "$${SLICERDDSURFER_USE_EXISTING_DISPLAY:-0}" = "1" ] || [ -n "$${DISPLAY:-}" ] || [ -n "$${WAYLAND_DISPLAY:-}" ]; then \
 	  env SLICERDDSURFER_EXTENSION_MODULE_DIR="$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
+	    SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD="$${SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD:-1}" \
 	    "$${SLICERDDSURFER_SLICER_LAUNCHER}" --no-splash --disable-cli-modules \
 	    --additional-module-paths "$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
 	    --python-script Testing/Python/slicer_extension_install_smoke.py; \

@@ -36,6 +36,14 @@ jobs:
       - name: Resolve model asset manifest without downloading assets
         run: python3 scripts/download_model_assets.py --profile core --print-plan
 
+      - name: Verify lightweight model-asset sentinel download
+        run: |
+          python3 scripts/download_model_assets.py \
+            --profile sentinel \
+            --asset-root "$RUNNER_TEMP/slicerdsurfer-model-sentinel" \
+            --source url \
+            --source-id slicerdsurfer_models_git
+
   fresh-clone-smoke:
     runs-on: ubuntu-latest
     needs: fast-checks

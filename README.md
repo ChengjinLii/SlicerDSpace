@@ -1,46 +1,19 @@
 # SlicerDDSurfer
 
-SlicerDDSurfer is a 3D Slicer scripted module for diffusion-MRI anatomical
-reconstruction and connectivity analysis. It combines subject-root input
-preparation, environment checks, segmentation, parcellation, surface
-reconstruction, microstructure maps, tractography, bundle analysis, connectome
-generation and Slicer-based review.
+SlicerDDSurfer is a 3D Slicer module for diffusion-MRI anatomical
+reconstruction and connectivity analysis. It helps users prepare one subject,
+check dependencies, run selected diffusion products, and review outputs with
+logs, quality-control files and provenance.
 
-The project is intended for research workflows that need traceable outputs,
-quality-control files and provenance before downstream analysis.
+**中文说明:** [README.zh-CN.md](README.zh-CN.md)
 
-**Chinese README:** [README.zh-CN.md](README.zh-CN.md)
+## 5-Minute Start
 
-## What It Provides
-
-- Slicer GUI module for interactive setup, preflight, run planning and review.
-- Command-line pipeline for scripted single-subject or batch execution.
-- Manifest-driven model asset downloader with checksum verification.
-- Canonical subject-root outputs with run manifests, QC files and logs.
-- Optional integrations for PyTorch, MRtrix3, FSL, FreeSurfer, WMA,
-  TractQuerier, TractCloud and SlicerDMRI-dependent utilities.
-
-## Quick Start
-
-Clone the code first, then download model assets separately:
-
-```bash
-git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
-cd SlicerDDSurfer
-
-scripts/download_model_assets.sh --profile core
-python3 scripts/download_model_assets.py --profile core --verify-only
-```
-
-`git clone` downloads source code, scripts, documentation, configuration files,
-`models/assets_manifest.json` and Git LFS pointer files. It is not a complete
-model-weight download. The downloader materializes the selected model/template
-profile into a user asset directory and verifies file size and SHA256
-checksums.
-
-## Minimal CLI Use
-
-Prepare a subject root with diffusion data:
+1. Install [3D Slicer](https://www.slicer.org/) and open SlicerDDSurfer.
+2. Click `First-run setup wizard`.
+3. Choose a `Model assets root`, for example `~/SlicerDDSurfer-model-assets`.
+4. Click `Check environment dependencies`.
+5. Choose a `Subject root`, for example:
 
 ```text
 sub-01/
@@ -48,202 +21,111 @@ sub-01/
     data.nii.gz
     bvals
     bvecs
-    dwi.json                  # optional
-    nodif_brain_mask.nii.gz   # optional
+    nodif_brain_mask.nii.gz   # optional but recommended
 ```
 
-Run a preflight check:
+6. Review the capability dashboard. It tells you what can run now and what
+   still needs setup.
+7. Click `Preflight and run`.
+8. Open the output tree/report from the run status panel.
+
+If you only want to test the interface, click `Demo / Try with sample data`.
+This creates a tiny synthetic DWI subject with no human data and selects a
+lightweight DTI-oriented run plan.
+
+## Install The Code
 
 ```bash
-python3 run_subject_pipeline.py \
-  --subject-root /path/to/sub-01 \
-  --targets validation,preprocessing,microstructure,tractography,connectome \
-  --doctor
+git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
+cd SlicerDDSurfer
 ```
 
-Generate a run plan without executing algorithms:
+`git clone` downloads the source code, documentation, scripts and
+`models/assets_manifest.json`. It does not download the large model weights.
 
-```bash
-python3 run_subject_pipeline.py \
-  --subject-root /path/to/sub-01 \
-  --targets validation,preprocessing,microstructure,tractography,bundles,connectome \
-  --microstructure-stages dti \
-  --tractography-backend csd_act \
-  --bundle-backend wmql \
-  --plan
-```
+## Download Model Assets
 
-Execute selected products:
-
-```bash
-python3 run_subject_pipeline.py \
-  --subject-root /path/to/sub-01 \
-  --subject-id sub-01 \
-  --targets microstructure,tractography,connectome \
-  --microstructure-stages dti \
-  --tractography-backend dti_det \
-  --execute
-```
-
-Outputs are written under `<subject-root>/outputs/` by default.
-
-## Slicer Use
-
-Install or stage the module in 3D Slicer, then open `SlicerDDSurfer` from the
-module list. The UI supports:
-
-- subject-root selection;
-- dependency preflight and external path overrides;
-- run-plan review before execution;
-- background execution with cancellation;
-- output-tree, report, manifest and QC inspection.
-
-Detailed dependency setup is in
-[docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md).
-
-## Model Assets
-
-Recommended profile:
+Recommended command:
 
 ```bash
 scripts/download_model_assets.sh --profile core
 ```
 
-By default assets are downloaded outside the Slicer extension checkout:
-
-- Linux: `$XDG_DATA_HOME/SlicerDDSurfer/model-assets` or `~/.local/share/SlicerDDSurfer/model-assets`
-- macOS: `~/Library/Application Support/SlicerDDSurfer/model-assets`
-- Windows: `%LOCALAPPDATA%\\SlicerDDSurfer\\model-assets`
-
-Override the location with the Slicer UI `Model assets root` field,
-`SLICERDDSURFER_MODEL_ASSETS_DIR`, or `--asset-root`:
+Explicit equivalent:
 
 ```bash
 python3 scripts/download_model_assets.py \
   --profile core \
-  --asset-root /path/to/SlicerDDSurfer-model-assets \
-  --verify-only
-```
-
-For a code-only clone that should download from the independent asset
-repository instead of this repository's Git LFS objects:
-
-```bash
-python3 scripts/download_model_assets.py \
-  --profile core \
-  --asset-root /path/to/SlicerDDSurfer-model-assets \
+  --asset-root ~/SlicerDDSurfer-model-assets \
   --source url \
   --source-id slicerdsurfer_models_git
 ```
 
-Useful profiles:
-
-- `core`: surface + segmentation + parcellation assets.
-- `surface`: DDSurfer surface reconstruction assets.
-- `segmentation`: DDSeg weights.
-- `parcellation`: DDParcel weights.
-- `all`: all LFS-managed assets and test fixtures.
-
-See [docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md) for manifest
-format, external mirrors, lockfiles and redistribution notes.
-
-## Input Preparation
-
-Use `scripts/prepare_inputs.py` to normalize external data into the expected
-subject-root layout:
+Quick network/checksum test without large files:
 
 ```bash
-python3 scripts/prepare_inputs.py \
-  --source /path/to/dicom_or_dwi_file \
+python3 scripts/download_model_assets.py \
+  --profile sentinel \
+  --asset-root /tmp/slicerdsurfer-model-sentinel \
+  --source url \
+  --source-id slicerdsurfer_models_git
+```
+
+Details: [docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md).
+
+## Platform Setup
+
+- Windows: [docs/setup/WINDOWS.md](docs/setup/WINDOWS.md)
+- macOS: [docs/setup/MACOS.md](docs/setup/MACOS.md)
+- Linux/HPC: [docs/setup/LINUX_HPC.md](docs/setup/LINUX_HPC.md)
+- Dependency workflow: [docs/assets/DEPENDENCY_SETUP_WORKFLOW.md](docs/assets/DEPENDENCY_SETUP_WORKFLOW.md)
+
+Python packages, external software and model weights are handled differently:
+
+- Python packages install into the selected Slicer Python or conda/Python
+  environment. SlicerDMRI and PyTorch are expected Slicer extension/runtime
+  dependencies for the corresponding workflows.
+- External tools such as MRtrix3, FSL, FreeSurfer, WMA and TractCloud are
+  detected from saved paths, environment variables, `PATH` and common install
+  locations. They are not installed silently.
+- Model weights download into the user-selected `Model assets root`.
+
+## Command-Line Preflight
+
+```bash
+python3 run_subject_pipeline.py \
   --subject-root /path/to/sub-01 \
-  --subject-id sub-01
+  --targets validation,microstructure,tractography,connectome \
+  --tractography-backend dti_det \
+  --doctor
 ```
 
-Supported routes include DICOM through `dcm2niix`, NIfTI with bval/bvec
-sidecars, and NRRD/NHDR through MRtrix3 `mrconvert`.
-
-Equivalent Makefile entry:
+Generate a plan without running algorithms:
 
 ```bash
-SLICERDDSURFER_SOURCE=/path/to/dicom_or_dwi_file \
-SLICERDDSURFER_SUBJECT_ROOT=/path/to/sub-01 \
-SLICERDDSURFER_SUBJECT_ID=sub-01 \
-make prepare-inputs
+python3 run_subject_pipeline.py \
+  --subject-root /path/to/sub-01 \
+  --targets validation,microstructure,tractography,connectome \
+  --tractography-backend dti_det \
+  --plan
 ```
 
-## Validation
+## Need Help?
 
-Common local checks:
+In the Slicer module, click `Copy diagnostic report` and paste the report into
+an issue or support message. It includes Slicer/Python paths, model asset root,
+missing dependencies, checked paths and recent logs.
+
+## Developer Checks
 
 ```bash
 make test-fast
 make fresh-clone-smoke
 python3 scripts/release_audit.py
-python3 scripts/download_model_assets.py --profile core --verify-only
 ```
 
-Fuller release-candidate validation:
+Release details are in [docs/release/RELEASE.md](docs/release/RELEASE.md).
 
-```bash
-python3 scripts/release_validation.py \
-  --subject-root /path/to/sub-01 \
-  --asset-mirror-dir /path/to/SlicerDDSurfer-models-core \
-  --all-asset-mirror-dir /path/to/SlicerDDSurfer-models-all \
-  --run-fresh-clone-smoke \
-  --warn-only
-```
+## Citation
 
-See
-[docs/release/RELEASE_CANDIDATE_VALIDATION.md](docs/release/RELEASE_CANDIDATE_VALIDATION.md)
-for release-candidate validation details.
-
-## Dependency Planning
-
-Generate a dependency report without modifying the system:
-
-```bash
-python3 scripts/install_dependencies.py --profile core --platform Linux
-python3 scripts/install_dependencies.py --profile bundles --platform Darwin
-python3 scripts/install_dependencies.py --profile full --platform Windows
-```
-
-Use `--python-environment <conda-env-or-python-path>` to check or install into a
-specific Python or conda environment. Add `--execute` only when you want the
-script to install missing Python packages into that environment. External tools
-such as MRtrix3, FSL, FreeSurfer, WMA and TractCloud are reported with setup
-notes and are not installed silently.
-
-## Reports And Cleanup
-
-Generate subject-level review artifacts after a run:
-
-```bash
-SLICERDDSURFER_SUBJECT_ROOT=/path/to/sub-01 \
-SLICERDDSURFER_RUN_NAME=Test1 \
-make subject-report
-```
-
-Remove local caches and ignored smoke/report artifacts:
-
-```bash
-make clean-local
-```
-
-## Documentation
-
-- [docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md): model weights,
-  templates and mirrors.
-- [docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md):
-  Python packages and external runtime setup.
-- [docs/architecture/PRODUCT_ARCHITECTURE.md](docs/architecture/PRODUCT_ARCHITECTURE.md):
-  workflow and output organization.
-- [docs/architecture/REPOSITORY_LAYOUT.md](docs/architecture/REPOSITORY_LAYOUT.md):
-  repository layout and GitHub hygiene rules.
-- [docs/release/RELEASE.md](docs/release/RELEASE.md): release workflow.
-- [docs/release/DOI_ARCHIVE_PREP.md](docs/release/DOI_ARCHIVE_PREP.md):
-  code/archive boundary.
-
-## License And Citation
-
-See [LICENSE](LICENSE), [CITATION.cff](CITATION.cff) and
-[docs/assets/MODEL_ASSET_TERMS.md](docs/assets/MODEL_ASSET_TERMS.md).
+Use [CITATION.cff](CITATION.cff) for citation metadata.

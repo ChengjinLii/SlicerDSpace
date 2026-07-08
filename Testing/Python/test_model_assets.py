@@ -294,6 +294,17 @@ class ModelAssetsTest(unittest.TestCase):
         self.assertEqual(guidance["lfs_pointer_count"], 1)
         self.assertIn("segmentation/weights/dti_axial.pt", guidance["examples"]["missing"])
 
+    def test_sentinel_profile_is_tiny_url_download_check(self) -> None:
+        module = _load_downloader_module()
+
+        manifest = module.load_manifest(REPO_ROOT / "models" / "assets_manifest.json")
+        plan = module.resolve_asset_plan(manifest, "sentinel")
+
+        self.assertEqual(plan.required_paths, ("sentinel/slicerdsurfer_sentinel.txt",))
+        self.assertEqual(plan.asset_groups, ("download sentinel",))
+        self.assertLess(plan.asset_records["sentinel/slicerdsurfer_sentinel.txt"]["size_bytes"], 1024)
+        self.assertEqual(plan.source_ids, ("slicerdsurfer_models_git",))
+
 
 if __name__ == "__main__":
     unittest.main()

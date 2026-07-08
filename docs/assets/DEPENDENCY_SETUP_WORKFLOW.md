@@ -15,17 +15,29 @@ fields mean different things.
 ## Recommended UI Flow
 
 1. Open SlicerDDSurfer from a staged extension or installed module.
-2. Click `Check environment dependencies`.
-3. Review the dependency dialog. It separates Python packages, model resources
+2. Use the `Language` selector if you prefer Chinese labels for the beginner
+   controls.
+3. Click `First-run setup wizard` on first use.
+4. Choose a `Model assets root`, download or verify model assets, and scan the
+   local runtime.
+5. Click `Check environment dependencies`.
+6. Review the capability dashboard. It tells you which targets can run now and
+   which targets still need setup.
+7. Review the dependency dialog. It separates Python packages, model resources
    and external tools.
-4. Click `Install/download auto items` to process safe automatic actions.
-5. Use row-level `Install` for a Python package if only one package is missing.
-6. Use row-level `Download / choose path` for model resources. Select a user or
+8. Click `Install/download auto items` to process safe automatic actions.
+9. Use row-level `Install` for a Python package if only one package is missing.
+10. Use row-level `Download / choose path` for model resources. Select a user or
    shared `Model assets root`, then let the downloader verify checksums.
-7. Use row-level `Choose path / setup` for external software. Select an existing
+11. Use row-level `Choose path / setup` for external software. Select an existing
    installation path or read the setup notes.
-8. Re-run preflight. Saved paths are stored in Slicer user settings and restored
+12. Re-run preflight. Saved paths are stored in Slicer user settings and restored
    after reopening Slicer.
+
+For a safe first look, click `Demo / Try with sample data`. This creates a tiny
+synthetic DWI subject with no human data, selects DTI microstructure and
+`dti_det` tractography, and runs preflight so users can see what this computer
+can run before starting a real analysis.
 
 ## What Is Scanned Automatically
 
@@ -46,6 +58,16 @@ Download model assets into a user-selected cache:
 python3 scripts/download_model_assets.py \
   --profile core \
   --asset-root /data/shared/SlicerDDSurfer-model-assets \
+  --source url \
+  --source-id slicerdsurfer_models_git
+```
+
+Test the public download route without large model files:
+
+```bash
+python3 scripts/download_model_assets.py \
+  --profile sentinel \
+  --asset-root /tmp/slicerdsurfer-model-sentinel \
   --source url \
   --source-id slicerdsurfer_models_git
 ```
@@ -89,6 +111,8 @@ python3 shared/run_subject_pipeline_cli.py \
   `Install/download auto items`, row-level model download/path selection,
   external path selection, non-silent external setup notice and user-settings
   restore.
+- `Testing/Python/slicer_extension_install_smoke.py` verifies that the beginner
+  onboarding panel is installed in a real staged Slicer module session.
 
 An HTML rendering for local review is kept at
 `ignore/DEPENDENCY_SETUP_WORKFLOW.html` and is intentionally not tracked.

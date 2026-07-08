@@ -177,9 +177,25 @@
     "surface/template/hcp_hemi-right_init_160k.obj": {
       "sha256": "f825b4978edb25bee55c4d8dda6aae5f216cd421d2cc97759114a0fe3ff992c1",
       "size_bytes": 13419663
+    },
+    "sentinel/slicerdsurfer_sentinel.txt": {
+      "sha256": "3a7dfbbf9ef3f95b485e5a412160a689448a6d31dd79202833f8c30ba6cc66f2",
+      "size_bytes": 150,
+      "source_ids": [
+        "slicerdsurfer_models_git"
+      ]
     }
   },
   "profiles": {
+    "sentinel": {
+      "description": "Tiny connectivity check for the model-asset downloader and public mirror without downloading model weights.",
+      "asset_groups": [
+        "download sentinel"
+      ],
+      "required_paths": [
+        "sentinel/slicerdsurfer_sentinel.txt"
+      ]
+    },
     "surface": {
       "description": "DDSurfer checkpoints, surface templates, and registration atlas.",
       "asset_groups": [

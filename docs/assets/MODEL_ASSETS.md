@@ -15,6 +15,17 @@ Use the unified downloader instead of asking users to remember individual LFS pa
 scripts/download_model_assets.sh --profile core
 ```
 
+To test network access, mirror routing and checksum verification without
+downloading large model weights, use the tiny sentinel profile:
+
+```bash
+python3 scripts/download_model_assets.py \
+  --profile sentinel \
+  --asset-root /tmp/slicerdsurfer-model-sentinel \
+  --source url \
+  --source-id slicerdsurfer_models_git
+```
+
 By default, downloaded assets are treated as user data and are not written into
 the Slicer extension checkout:
 
@@ -36,7 +47,9 @@ python3 scripts/download_model_assets.py \
 The downloader reads `models/assets_manifest.json`, resolves the selected
 profile, downloads from Git LFS or configured URL mirrors, and verifies that the
 selected files are real materialized objects with the expected file size and
-SHA256 checksum. It also prints profile-level asset groups and conservative
+SHA256 checksum. URL downloads write to `.part` files first, print file-size and
+progress updates, and resume partial downloads when the server supports HTTP
+Range requests. It also prints profile-level asset groups and conservative
 terms notices so users know when model weights, templates, or subject-derived
 fixtures require separate license or redistribution confirmation.
 

@@ -74,6 +74,21 @@ def _run() -> None:
                 "_modelAssetsWriteLockfileButton",
             )
         )
+        onboarding_widgets = getattr(widget, "_onboardingWidgets", {}) or {}
+        onboarding_ready = all(
+            key in onboarding_widgets
+            for key in ("language_combo", "wizard_button", "demo_button", "diagnostic_button", "dashboard")
+        )
+        language_switch_ready = False
+        if onboarding_ready:
+            combo = onboarding_widgets["language_combo"]
+            zh_index = combo.findData("zh")
+            if zh_index >= 0:
+                combo.setCurrentIndex(zh_index)
+                slicer.app.processEvents()
+                headline = getattr(widget.ui, "headlineLabel", None)
+                headline_text = str(headline.text if headline else "")
+                language_switch_ready = "运行工作台" in headline_text
         summary_label = getattr(widget, "_selectedProductsSummaryLabel", None)
         summary_text = ""
         if summary_label:
@@ -99,6 +114,8 @@ def _run() -> None:
         print(f"SLICERDDSURFER_EXTENSION_ENV_PATHS_READY={env_paths_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_PREPARE_INPUTS_READY={prepare_inputs_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_MODEL_ASSETS_READY={model_assets_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_ONBOARDING_READY={onboarding_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_LANGUAGE_SWITCH_READY={language_switch_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_SELECTION_SUMMARY_READY={selection_summary_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_LOG_BLOCK_LIMIT={log_block_limit}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_CONFIGURED_LOG_LIMIT={configured_log_limit}", flush=True)
@@ -114,6 +131,8 @@ def _run() -> None:
             or not env_paths_ready
             or not prepare_inputs_ready
             or not model_assets_ready
+            or not onboarding_ready
+            or not language_switch_ready
             or not selection_summary_ready
             or not log_limit_ready
             or not environment_cache_ready

@@ -102,6 +102,17 @@ from shared.ui_run_status_panel import (
     table_item,
     update_run_status_table_item,
 )
+from shared.ui_onboarding import (
+    LANGUAGE_SETTING,
+    apply_onboarding_language,
+    capability_dashboard_text,
+    diagnostic_report_text,
+    install_onboarding_panel,
+    maybe_show_first_run_wizard,
+    normalized_language,
+    prepare_demo_for_owner,
+    show_first_run_wizard,
+)
 
 
 ENVIRONMENT_DEPENDENCY_PATHS = UI_DEPENDENCY_PATHS
@@ -153,6 +164,7 @@ class SharedWidgetMixin:
 
         self._configure_workflow_shell()
         self._hide_legacy_product_panels()
+        self._initialize_onboarding_panel()
         self._initialize_prepare_inputs_panel()
         self._initialize_environment_dependency_path_controls()
         self._initialize_product_selection_summary()
@@ -191,6 +203,7 @@ class SharedWidgetMixin:
 
         self._setStatus("waiting", "Waiting for input")
         self.initializeParameterNode()
+        maybe_show_first_run_wizard(self)
 
     def _configure_workflow_shell(self) -> None:
         """Keep the top-level UI focused on input, products, and execution."""
@@ -379,6 +392,75 @@ class SharedWidgetMixin:
         if not configuration_layout:
             return
         install_prepare_inputs_panel(self, configuration_layout)
+
+    def _initialize_onboarding_panel(self) -> None:
+        if getattr(self, "_onboardingWidgets", None) is not None:
+            return
+        configuration_layout = getattr(self.ui, "configurationLayout", None)
+        if not configuration_layout:
+            return
+        install_onboarding_panel(self, configuration_layout)
+        settings = slicer.app.userSettings()
+        language = normalized_language(str(settings.value(LANGUAGE_SETTING, "en") or "en"))
+        self._onboardingLanguage = language
+        apply_onboarding_language(self, language)
+
+    def _on_onboarding_language_changed(self, *args) -> None:
+        combo = (getattr(self, "_onboardingWidgets", {}) or {}).get("language_combo")
+        language = "en"
+        if combo:
+            try:
+                language = str(combo.itemData(combo.currentIndex) or "en")
+            except Exception:
+                language = str(getattr(combo, "currentText", "English") or "English")
+        language = normalized_language(language)
+        self._onboardingLanguage = language
+        slicer.app.userSettings().setValue(LANGUAGE_SETTING, language)
+        apply_onboarding_language(self, language)
+
+    def _update_onboarding_dashboard(self, result=None) -> None:
+        dashboard = (getattr(self, "_onboardingWidgets", {}) or {}).get("dashboard")
+        if not dashboard:
+            return
+        language = getattr(self, "_onboardingLanguage", "en")
+        dashboard.setText(capability_dashboard_text(result, language=language))
+
+    def _on_show_first_run_wizard_clicked(self) -> None:
+        show_first_run_wizard(self)
+
+    def _on_try_demo_clicked(self) -> None:
+        try:
+            subject_root = prepare_demo_for_owner(self)
+            result = self._run_environment_dependency_check()
+            if result is not None:
+                self._update_environment_result_label(result)
+                self._update_environment_path_status_labels(result)
+                self._update_environment_status(result)
+                self._update_onboarding_dashboard(result)
+            slicer.util.infoDisplay(
+                "Synthetic demo subject is ready.\n\n"
+                f"Subject root: {subject_root}\n\n"
+                "The UI is set to DTI microstructure + dti_det tractography. Review the capability dashboard, "
+                "then click Preflight and run when ready.",
+                parent=self.parent,
+            )
+        except Exception as exc:
+            self._show_actionable_error(
+                title="Demo Setup Failed",
+                what="SlicerDDSurfer could not prepare the synthetic demo subject.",
+                why="The temporary directory may be unavailable, or required Python packages such as nibabel/numpy are missing.",
+                next_step="Run Check environment dependencies, install missing Python packages, then try Demo again.",
+                auto_fix="No external software or model files were modified.",
+                details=exc,
+            )
+
+    def _on_copy_diagnostic_report_clicked(self) -> None:
+        report = diagnostic_report_text(self)
+        try:
+            qt.QApplication.clipboard().setText(report)
+            slicer.util.infoDisplay("Diagnostic report copied to clipboard.", parent=self.parent)
+        except Exception:
+            slicer.util.infoDisplay(report, windowTitle="SlicerDDSurfer diagnostic report", parent=self.parent)
 
     def _add_environment_path_row(self, form_layout, item: dict[str, str]) -> None:
         add_environment_path_row(self, form_layout, item)
@@ -2132,6 +2214,7 @@ class SharedWidgetMixin:
         return result
 
     def _update_environment_status(self, result) -> None:
+        self._update_onboarding_dashboard(result)
         if result.blocker_count:
             self._setStatus("error", f"Environment: {result.blocker_count} missing required item(s)")
         else:
