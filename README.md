@@ -35,7 +35,8 @@ python3 scripts/download_model_assets.py --profile core --verify-only
 `git clone` downloads source code, scripts, documentation, configuration files,
 `models/assets_manifest.json` and Git LFS pointer files. It is not a complete
 model-weight download. The downloader materializes the selected model/template
-profile and verifies file size and SHA256 checksums.
+profile into a user asset directory and verifies file size and SHA256
+checksums.
 
 ## Minimal CLI Use
 
@@ -108,12 +109,29 @@ Recommended profile:
 scripts/download_model_assets.sh --profile core
 ```
 
+By default assets are downloaded outside the Slicer extension checkout:
+
+- Linux: `$XDG_DATA_HOME/SlicerDDSurfer/model-assets` or `~/.local/share/SlicerDDSurfer/model-assets`
+- macOS: `~/Library/Application Support/SlicerDDSurfer/model-assets`
+- Windows: `%LOCALAPPDATA%\\SlicerDDSurfer\\model-assets`
+
+Override the location with the Slicer UI `Model assets root` field,
+`SLICERDDSURFER_MODEL_ASSETS_DIR`, or `--asset-root`:
+
+```bash
+python3 scripts/download_model_assets.py \
+  --profile core \
+  --asset-root /path/to/SlicerDDSurfer-model-assets \
+  --verify-only
+```
+
 For a code-only clone that should download from the independent asset
 repository instead of this repository's Git LFS objects:
 
 ```bash
 python3 scripts/download_model_assets.py \
   --profile core \
+  --asset-root /path/to/SlicerDDSurfer-model-assets \
   --source url \
   --source-id slicerdsurfer_models_git
 ```
@@ -144,12 +162,22 @@ python3 scripts/prepare_inputs.py \
 Supported routes include DICOM through `dcm2niix`, NIfTI with bval/bvec
 sidecars, and NRRD/NHDR through MRtrix3 `mrconvert`.
 
+Equivalent Makefile entry:
+
+```bash
+SLICERDDSURFER_SOURCE=/path/to/dicom_or_dwi_file \
+SLICERDDSURFER_SUBJECT_ROOT=/path/to/sub-01 \
+SLICERDDSURFER_SUBJECT_ID=sub-01 \
+make prepare-inputs
+```
+
 ## Validation
 
 Common local checks:
 
 ```bash
 make test-fast
+make fresh-clone-smoke
 python3 scripts/release_audit.py
 python3 scripts/download_model_assets.py --profile core --verify-only
 ```
@@ -168,6 +196,38 @@ python3 scripts/release_validation.py \
 See
 [docs/release/RELEASE_CANDIDATE_VALIDATION.md](docs/release/RELEASE_CANDIDATE_VALIDATION.md)
 for release-candidate validation details.
+
+## Dependency Planning
+
+Generate a dependency report without modifying the system:
+
+```bash
+python3 scripts/install_dependencies.py --profile core --platform Linux
+python3 scripts/install_dependencies.py --profile bundles --platform Darwin
+python3 scripts/install_dependencies.py --profile full --platform Windows
+```
+
+Use `--python-environment <conda-env-or-python-path>` to check or install into a
+specific Python or conda environment. Add `--execute` only when you want the
+script to install missing Python packages into that environment. External tools
+such as MRtrix3, FSL, FreeSurfer, WMA and TractCloud are reported with setup
+notes and are not installed silently.
+
+## Reports And Cleanup
+
+Generate subject-level review artifacts after a run:
+
+```bash
+SLICERDDSURFER_SUBJECT_ROOT=/path/to/sub-01 \
+SLICERDDSURFER_RUN_NAME=Test1 \
+make subject-report
+```
+
+Remove local caches and ignored smoke/report artifacts:
+
+```bash
+make clean-local
+```
 
 ## Documentation
 

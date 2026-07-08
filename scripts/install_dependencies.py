@@ -37,6 +37,40 @@ DEFAULT_TARGETS = (
     "bundles",
     "connectome",
 )
+DEPENDENCY_PROFILES = {
+    "core": (
+        "validation",
+        "preprocessing",
+        "segmentation",
+        "parcellation",
+        "surface",
+        "microstructure",
+    ),
+    "tractography": (
+        "validation",
+        "preprocessing",
+        "microstructure",
+        "tractography",
+        "connectome",
+    ),
+    "bundles": (
+        "validation",
+        "tractography",
+        "bundles",
+    ),
+    "slicer-ui": (
+        "validation",
+        "preprocessing",
+        "segmentation",
+        "parcellation",
+        "surface",
+        "microstructure",
+        "tractography",
+        "bundles",
+        "connectome",
+    ),
+    "full": DEFAULT_TARGETS,
+}
 @dataclass(frozen=True)
 class PipInstallResult:
     requirement: str
@@ -131,6 +165,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--all", action="store_true", help="Use the default product target set.")
     parser.add_argument(
+        "--profile",
+        choices=tuple(sorted(DEPENDENCY_PROFILES)),
+        help="Named dependency profile. Use core for anatomical reconstruction, bundles for WMA/TractCloud/WMQL, or full for every target.",
+    )
+    parser.add_argument(
         "--targets",
         action="append",
         help="Targets to check/install. May be repeated or comma-separated.",
@@ -181,7 +220,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.save_dependency_config:
         written_config = _write_dependency_config(args, args.save_dependency_config)
         print(f"Dependency config written: {written_config}", file=sys.stderr)
-    targets = DEFAULT_TARGETS if args.all else _split_csv(args.targets)
+    if args.all and args.profile:
+        parser.error("Use either --all or --profile, not both.")
+    if args.profile:
+        targets = DEPENDENCY_PROFILES[args.profile]
+    elif args.all:
+        targets = DEFAULT_TARGETS
+    else:
+        targets = _split_csv(args.targets)
     if not targets:
         parser.error("No targets selected. Use --all or --targets.")
 
@@ -205,6 +251,7 @@ def main(argv: list[str] | None = None) -> int:
         preprocessing_mrtrix_bin_dir=args.preprocessing_mrtrix_bin_dir,
         preprocessing_fsl_bin_dir=args.preprocessing_fsl_bin_dir,
         postprocess_freesurfer_home=args.postprocess_freesurfer_home,
+        model_assets_dir=args.model_assets_dir,
         wma_root=args.wma_root,
         wma_atlas_dir=args.wma_atlas_dir,
         slicer_executable=args.slicer_executable,

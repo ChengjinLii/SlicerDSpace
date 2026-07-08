@@ -43,7 +43,7 @@ class UIEnvironmentPanelTest(unittest.TestCase):
             platform="Linux",
             host_platform="Linux",
             python_executable="/opt/Slicer/bin/PythonSlicer",
-            targets=("tractography", "bundles"),
+            targets=("tractography", "bundles", "segmentation"),
             statuses=(
                 DependencyStatus(
                     key="python:tract_querier",
@@ -71,6 +71,7 @@ class UIEnvironmentPanelTest(unittest.TestCase):
                         "checked_locations": ["/opt/mrtrix3/bin/dwi2fod", "/usr/local/bin/dwi2fod"],
                     },
                     install_hint="Install MRtrix3.",
+                    install_group="mrtrix",
                 ),
                 DependencyStatus(
                     key="path:wma_atlas",
@@ -81,6 +82,18 @@ class UIEnvironmentPanelTest(unittest.TestCase):
                     targets=("bundles",),
                     details={"path": "/data/atlas", "path_kind": "directory"},
                     install_hint="Download ORG atlas.",
+                    install_group="wma",
+                ),
+                DependencyStatus(
+                    key="path:ddseg_weights",
+                    kind="path",
+                    label="DDSeg weights directory",
+                    status="missing",
+                    required=True,
+                    targets=("segmentation",),
+                    details={"path": "/models/segmentation/weights", "path_kind": "nonempty_dir"},
+                    install_hint="Choose a model asset root.",
+                    install_group="model-resources",
                 ),
                 DependencyStatus(
                     key="python:numpy",
@@ -94,8 +107,9 @@ class UIEnvironmentPanelTest(unittest.TestCase):
             target_statuses=(
                 TargetEnvironmentStatus("tractography", "blocked", ("command:dwi2fod",), ()),
                 TargetEnvironmentStatus("bundles", "blocked", ("python:tract_querier",), ("path:wma_atlas",)),
+                TargetEnvironmentStatus("segmentation", "blocked", ("path:ddseg_weights",), ()),
             ),
-            blocker_count=2,
+            blocker_count=3,
             missing_python_packages=("tract_querier",),
             missing_external_groups=("mrtrix", "wma"),
         )
@@ -111,6 +125,7 @@ class UIEnvironmentPanelTest(unittest.TestCase):
 
         self.assertIn("/repo/models/assets_manifest.json", text)
         self.assertIn("/repo/docs/assets/MODEL_ASSET_TERMS.md", text)
+        self.assertIn("SLICERDDSURFER_MODEL_ASSETS_DIR", text)
         self.assertIn("--write-lockfile", text)
         self.assertIn("DOI-archive rights", text)
 
@@ -141,10 +156,11 @@ class UIEnvironmentPanelTest(unittest.TestCase):
         )
 
         self.assertEqual(entries[0].kind, "section")
-        self.assertEqual(entries[0].title, "Core Python & Runtime Paths")
+        self.assertEqual(entries[0].title, "Model Asset Paths")
         self.assertIn("model-assets", kinds)
         self.assertLess(model_index, wma_index)
-        self.assertEqual(row_ids[0], "python_executable")
+        self.assertEqual(row_ids[0], "model_assets_dir")
+        self.assertIn("python_executable", row_ids)
         self.assertIn("wma_root", row_ids)
         self.assertIn("tractcloud_root", row_ids)
         self.assertEqual(
@@ -185,12 +201,15 @@ class UIEnvironmentPanelTest(unittest.TestCase):
         summary = environment_summary_text(result)
         details = environment_detail_lines(result)
 
-        self.assertEqual([item.label for item in missing], ["dwi2fod", "tract_querier", "WMA atlas"])
-        self.assertIn("0 runnable, 2 need setup, 2 required missing, 1 optional missing", summary)
+        self.assertEqual(
+            [item.label for item in missing],
+            ["dwi2fod", "DDSeg weights directory", "tract_querier", "WMA atlas"],
+        )
+        self.assertIn("0 runnable, 3 need setup, 3 required missing, 1 optional missing", summary)
         self.assertIn("Python packages available for auto-install: 1", summary)
-        self.assertIn("Needs attention: dwi2fod, tract_querier, WMA atlas", summary)
-        self.assertIn("Checked targets: tractography, bundles", details)
-        self.assertIn("Blocked targets: tractography, bundles", details)
+        self.assertIn("Needs attention: dwi2fod, DDSeg weights directory, tract_querier, +1 more", summary)
+        self.assertIn("Checked targets: tractography, bundles, segmentation", details)
+        self.assertIn("Blocked targets: tractography, bundles, segmentation", details)
         self.assertIn("Auto-installable Python packages: tract_querier", details)
         self.assertIn("Manual setup groups: mrtrix, wma", details)
 
@@ -217,15 +236,20 @@ class UIEnvironmentPanelTest(unittest.TestCase):
         state = environment_dialog_state(result, python_install_target="Python target.")
         python_item = next(item for item in result.statuses if item.key == "python:tract_querier")
         command_item = next(item for item in result.statuses if item.key == "command:dwi2fod")
+        model_item = next(item for item in result.statuses if item.key == "path:ddseg_weights")
 
         self.assertIn("required missing", state.summary_text)
-        self.assertIn("Checked targets: tractography, bundles", state.detail_text)
-        self.assertEqual([item.label for item in state.missing_items], ["dwi2fod", "tract_querier", "WMA atlas"])
+        self.assertIn("Checked targets: tractography, bundles, segmentation", state.detail_text)
+        self.assertEqual(
+            [item.label for item in state.missing_items],
+            ["dwi2fod", "DDSeg weights directory", "tract_querier", "WMA atlas"],
+        )
         self.assertTrue(state.can_install_python)
         self.assertTrue(state.has_manual_setup_notes)
         self.assertIn("Python target.", state.python_install_tooltip)
         self.assertEqual(environment_item_button_text(python_item), "Install")
-        self.assertEqual(environment_item_button_text(command_item), "Install / setup")
+        self.assertEqual(environment_item_button_text(command_item), "Choose path / setup")
+        self.assertEqual(environment_item_button_text(model_item), "Download / choose path")
         self.assertEqual(environment_item_button_tooltip(command_item), "Install MRtrix3.")
 
     def test_environment_path_status_maps_dependencies_to_label_text(self) -> None:
@@ -267,7 +291,8 @@ class UIEnvironmentPanelTest(unittest.TestCase):
             present_text = model_assets_summary_text(repo_root)
 
         self.assertIn("Unified source expected", missing_text)
-        self.assertIn("Default bundled resources are auto-detected", present_text)
+        self.assertIn("Default root:", present_text)
+        self.assertIn("SLICERDDSURFER_MODEL_ASSETS_DIR", present_text)
 
 
 if __name__ == "__main__":

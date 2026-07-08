@@ -35,3 +35,31 @@ jobs:
 
       - name: Resolve model asset manifest without downloading assets
         run: python3 scripts/download_model_assets.py --profile core --print-plan
+
+  fresh-clone-smoke:
+    runs-on: ubuntu-latest
+    needs: fast-checks
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install fast-test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-ci.txt
+
+      - name: Fresh clone smoke without model download
+        run: |
+          SMOKE_REPO_URL="$GITHUB_WORKSPACE" \
+          SMOKE_REF="$GITHUB_SHA" \
+          SMOKE_ASSET_MODE=plan \
+          SMOKE_ROOT="$RUNNER_TEMP/slicerdsurfer-fresh-clone-smoke" \
+          make fresh-clone-smoke

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from shared import ensure_registered_dti_bundle, find_subject_root, inspect_subject_directory
+from shared.model_assets import model_asset_candidates
 
 from .preprocessing import SubjectPreprocessingConfig, preprocess_subject
 
@@ -25,6 +26,7 @@ class SurfaceConfig:
     template_dir: Optional[Path] = None
     checkpoint_root: Optional[Path] = None
     registration_atlas: Optional[Path] = None
+    model_assets_dir: Optional[Path] = None
     cleanup_intermediates: bool = False
     execute: bool = False
 
@@ -67,7 +69,11 @@ def _first_existing(candidates: list[Path], *, required_child: Optional[Path] = 
     return None
 
 
-def resolve_surface_template_dir(template_dir: Optional[Path] = None) -> Optional[Path]:
+def resolve_surface_template_dir(
+    template_dir: Optional[Path] = None,
+    *,
+    model_assets_dir: Optional[Path] = None,
+) -> Optional[Path]:
     candidates: list[Path] = []
     if template_dir is not None:
         candidates.append(template_dir)
@@ -75,6 +81,7 @@ def resolve_surface_template_dir(template_dir: Optional[Path] = None) -> Optiona
     if env_template:
         candidates.append(Path(env_template))
     root = _module_root()
+    candidates.extend(model_asset_candidates("Resources/Data/template", repo_root=root, explicit_root=model_assets_dir))
     candidates.extend(
         [
             root / "Resources" / "Data" / "template",
@@ -87,7 +94,11 @@ def resolve_surface_template_dir(template_dir: Optional[Path] = None) -> Optiona
     return _first_existing(candidates, required_child=Path("100307-FA.nii.gz"))
 
 
-def resolve_surface_checkpoint_root(checkpoint_root: Optional[Path] = None) -> Optional[Path]:
+def resolve_surface_checkpoint_root(
+    checkpoint_root: Optional[Path] = None,
+    *,
+    model_assets_dir: Optional[Path] = None,
+) -> Optional[Path]:
     candidates: list[Path] = []
     if checkpoint_root is not None:
         candidates.append(checkpoint_root)
@@ -95,6 +106,7 @@ def resolve_surface_checkpoint_root(checkpoint_root: Optional[Path] = None) -> O
     if env_ckpt:
         candidates.append(Path(env_ckpt))
     root = _module_root()
+    candidates.extend(model_asset_candidates("Resources/Data/ckpts", repo_root=root, explicit_root=model_assets_dir))
     candidates.extend(
         [
             root / "Resources" / "Data" / "ckpts",
@@ -107,7 +119,11 @@ def resolve_surface_checkpoint_root(checkpoint_root: Optional[Path] = None) -> O
     return _first_existing(candidates, required_child=Path("hcp"))
 
 
-def resolve_surface_registration_atlas(registration_atlas: Optional[Path] = None) -> Optional[Path]:
+def resolve_surface_registration_atlas(
+    registration_atlas: Optional[Path] = None,
+    *,
+    model_assets_dir: Optional[Path] = None,
+) -> Optional[Path]:
     candidates: list[Path] = []
     if registration_atlas is not None:
         candidates.append(registration_atlas)
@@ -115,6 +131,13 @@ def resolve_surface_registration_atlas(registration_atlas: Optional[Path] = None
     if env_atlas:
         candidates.append(Path(env_atlas))
     root = _module_root()
+    candidates.extend(
+        model_asset_candidates(
+            "Resources/Data/100HCP-population-mean-T2.nii.gz",
+            repo_root=root,
+            explicit_root=model_assets_dir,
+        )
+    )
     candidates.extend(
         [
             root / "Resources" / "Data" / "100HCP-population-mean-T2.nii.gz",
@@ -125,9 +148,12 @@ def resolve_surface_registration_atlas(registration_atlas: Optional[Path] = None
 
 
 def inspect_surface_resources(config: SurfaceConfig) -> dict[str, object]:
-    template_dir = resolve_surface_template_dir(config.template_dir)
-    checkpoint_root = resolve_surface_checkpoint_root(config.checkpoint_root)
-    registration_atlas = resolve_surface_registration_atlas(config.registration_atlas)
+    template_dir = resolve_surface_template_dir(config.template_dir, model_assets_dir=config.model_assets_dir)
+    checkpoint_root = resolve_surface_checkpoint_root(config.checkpoint_root, model_assets_dir=config.model_assets_dir)
+    registration_atlas = resolve_surface_registration_atlas(
+        config.registration_atlas,
+        model_assets_dir=config.model_assets_dir,
+    )
     checkpoint_paths: list[Path] = []
     if checkpoint_root is not None:
         hcp_dir = checkpoint_root / "hcp"

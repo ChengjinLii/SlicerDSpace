@@ -24,6 +24,7 @@ from shared.io_layout import (
 )
 from shared.validation import InputValidationConfig, validate_subject_inputs
 from shared.environment import resolve_auto_torch_device
+from shared.model_assets import model_asset_path
 
 
 SUPPORTED_TARGETS = {
@@ -103,6 +104,7 @@ class ProductOrchestratorConfig:
     postprocess_atlases: Optional[tuple[str, ...]] = None
     postprocess_force: bool = False
     atlas_t2: Optional[Path] = None
+    model_assets_dir: Optional[Path] = None
     ddseg_device: str = "auto"
     surface_device: str = "auto"
     select_streamlines: int = 100000
@@ -510,8 +512,20 @@ def _resolve_parcellation(subject_root: Path, subject_id: str, output_root: Opti
     return next((path for path in candidates if path.is_file()), None)
 
 
-def _default_atlas_t2() -> Path:
-    return Path(__file__).resolve().parent.parent / "Resources" / "Data" / "100HCP-population-mean-T2.nii.gz"
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def _default_atlas_t2(model_assets_dir: Optional[Path] = None) -> Path:
+    return model_asset_path(
+        "Resources/Data/100HCP-population-mean-T2.nii.gz",
+        repo_root=_repo_root(),
+        explicit_root=model_assets_dir,
+    )
+
+
+def _default_ddseg_weights(model_assets_dir: Optional[Path] = None) -> Path:
+    return model_asset_path("segmentation/weights", repo_root=_repo_root(), explicit_root=model_assets_dir)
 
 
 def _segmentation_outputs(subject_root: Path, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -746,7 +760,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     primary_tractography_backend = _primary_tractography_backend(config)
     raw = _resolve_raw_inputs(subject_root)
     raw_missing = _missing_file_labels(raw)
-    atlas_t2 = config.atlas_t2.expanduser().resolve() if config.atlas_t2 is not None else _default_atlas_t2()
+    model_assets_dir = config.model_assets_dir.expanduser().resolve() if config.model_assets_dir is not None else None
+    atlas_t2 = config.atlas_t2.expanduser().resolve() if config.atlas_t2 is not None else _default_atlas_t2(model_assets_dir)
 
     preprocessing_outputs = _preprocessing_outputs(subject_root, config.subject_id, output_root)
     segmentation_outputs = _segmentation_outputs(subject_root, output_root)
@@ -1641,7 +1656,8 @@ def run_subject_products(
     preprocessing_outputs = _preprocessing_outputs(subject_root, config.subject_id, output_root)
     segmentation = _resolve_segmentation(subject_root, output_root)
     parcellation = _resolve_parcellation(subject_root, config.subject_id, output_root)
-    atlas_t2 = config.atlas_t2.expanduser().resolve() if config.atlas_t2 is not None else _default_atlas_t2()
+    model_assets_dir = config.model_assets_dir.expanduser().resolve() if config.model_assets_dir is not None else None
+    atlas_t2 = config.atlas_t2.expanduser().resolve() if config.atlas_t2 is not None else _default_atlas_t2(model_assets_dir)
     segmentation_outputs = _segmentation_outputs(subject_root, output_root)
     parcellation_outputs = _parcellation_outputs(subject_root, config.subject_id, output_root)
     surface_outputs = _surface_outputs(subject_root, config.subject_id, output_root)
@@ -1719,7 +1735,7 @@ def run_subject_products(
                     input_mask_nii=raw_bundle.mask_path,
                     parameter_type="DTI",
                     output_folder=layout.ddseg,
-                    weights_dir=Path(__file__).resolve().parent.parent / "segmentation" / "weights",
+                    weights_dir=_default_ddseg_weights(model_assets_dir),
                     dti_feature_dir=native_bundle.bundle_dir,
                     device=ddseg_device,
                 )
@@ -1771,6 +1787,11 @@ def run_subject_products(
                     registered_bundle=registered,
                     output_dir=layout.ddparcel,
                     native_mask=raw_bundle.mask_path,
+                    weights_dir=model_asset_path(
+                        "parcellation/weights",
+                        repo_root=_repo_root(),
+                        explicit_root=model_assets_dir,
+                    ),
                 ),
                 log=log,
             )
@@ -1805,6 +1826,7 @@ def run_subject_products(
                 output_dir=layout.ddsurfer,
                 predict_mode="all",
                 device=surface_device,
+                model_assets_dir=model_assets_dir,
                 registration_atlas=atlas_t2,
                 execute=True,
             )

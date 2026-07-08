@@ -4,8 +4,8 @@
   "default_profile": "core",
   "asset_source_policy": "The independent SlicerDDSurfer-models repository is the preferred external URL source for code-only checkouts. Git LFS support is retained for direct model-repository clones and legacy asset checkouts. Hugging Face and Zenodo entries are reserved mirrors until public asset terms are confirmed.",
   "default_asset_source_ids": [
-    "github_lfs",
     "slicerdsurfer_models_git",
+    "github_lfs",
     "slicerdsurfer_models_release",
     "huggingface",
     "zenodo"

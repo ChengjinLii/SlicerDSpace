@@ -28,6 +28,23 @@ python3 scripts/download_model_assets.py --profile core --verify-only
 
 `git clone` 只下载源码、脚本、文档、配置、`models/assets_manifest.json` 和 Git LFS pointer。大模型权重和模板需要通过 downloader 单独拉取，并用文件大小和 SHA256 校验。
 
+默认情况下，权重不会放在 Slicer 插件/代码目录里，而是下载到用户资产目录：
+
+- Linux: `$XDG_DATA_HOME/SlicerDDSurfer/model-assets` 或 `~/.local/share/SlicerDDSurfer/model-assets`
+- macOS: `~/Library/Application Support/SlicerDDSurfer/model-assets`
+- Windows: `%LOCALAPPDATA%\\SlicerDDSurfer\\model-assets`
+
+用户可以通过 Slicer UI 里的 `Model assets root`、环境变量
+`SLICERDDSURFER_MODEL_ASSETS_DIR`，或命令行 `--asset-root` 自定义路径：
+
+```bash
+python3 scripts/download_model_assets.py \
+  --profile core \
+  --asset-root /path/to/SlicerDDSurfer-model-assets \
+  --source url \
+  --source-id slicerdsurfer_models_git
+```
+
 ## 最小命令行用法
 
 准备 subject-root：
@@ -132,12 +149,22 @@ python3 scripts/prepare_inputs.py \
 
 支持 DICOM 到 NIfTI、NIfTI+bval/bvec、以及通过 MRtrix3 `mrconvert` 处理 NRRD/NHDR。
 
+也可以用 Makefile 入口：
+
+```bash
+SLICERDDSURFER_SOURCE=/path/to/dicom_or_dwi_file \
+SLICERDDSURFER_SUBJECT_ROOT=/path/to/sub-01 \
+SLICERDDSURFER_SUBJECT_ID=sub-01 \
+make prepare-inputs
+```
+
 ## 验证
 
 常用本地检查：
 
 ```bash
 make test-fast
+make fresh-clone-smoke
 python3 scripts/release_audit.py
 python3 scripts/download_model_assets.py --profile core --verify-only
 ```
@@ -151,6 +178,36 @@ python3 scripts/release_validation.py \
   --all-asset-mirror-dir /path/to/SlicerDDSurfer-models-all \
   --run-fresh-clone-smoke \
   --warn-only
+```
+
+## 依赖规划
+
+只生成依赖报告、不修改系统：
+
+```bash
+python3 scripts/install_dependencies.py --profile core --platform Linux
+python3 scripts/install_dependencies.py --profile bundles --platform Darwin
+python3 scripts/install_dependencies.py --profile full --platform Windows
+```
+
+可以用 `--python-environment <conda-env-or-python-path>` 指定 Python 或 conda
+环境。只有显式加 `--execute` 时，脚本才会把缺失的 Python 包安装到该环境中。
+MRtrix3、FSL、FreeSurfer、WMA、TractCloud 等外部工具只生成安装说明，不会静默修改系统。
+
+## 报告和本地清理
+
+运行完成后生成 subject-level HTML/JSON/Markdown 报告：
+
+```bash
+SLICERDDSURFER_SUBJECT_ROOT=/path/to/sub-01 \
+SLICERDDSURFER_RUN_NAME=Test1 \
+make subject-report
+```
+
+清理本地缓存和被忽略的 smoke/report 临时产物：
+
+```bash
+make clean-local
 ```
 
 ## 文档入口

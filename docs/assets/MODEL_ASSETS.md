@@ -15,6 +15,24 @@ Use the unified downloader instead of asking users to remember individual LFS pa
 scripts/download_model_assets.sh --profile core
 ```
 
+By default, downloaded assets are treated as user data and are not written into
+the Slicer extension checkout:
+
+| Platform | Default asset root |
+| --- | --- |
+| Linux | `$XDG_DATA_HOME/SlicerDDSurfer/model-assets` or `~/.local/share/SlicerDDSurfer/model-assets` |
+| macOS | `~/Library/Application Support/SlicerDDSurfer/model-assets` |
+| Windows | `%LOCALAPPDATA%\\SlicerDDSurfer\\model-assets` |
+
+Users can override this with the Slicer UI `Model assets root` field, the
+`SLICERDDSURFER_MODEL_ASSETS_DIR` environment variable, or `--asset-root`:
+
+```bash
+python3 scripts/download_model_assets.py \
+  --profile core \
+  --asset-root /data/shared/SlicerDDSurfer-model-assets
+```
+
 The downloader reads `models/assets_manifest.json`, resolves the selected
 profile, downloads from Git LFS or configured URL mirrors, and verifies that the
 selected files are real materialized objects with the expected file size and
@@ -44,6 +62,7 @@ paths:
 ```bash
 python3 scripts/download_model_assets.py \
   --profile core \
+  --asset-root /data/shared/SlicerDDSurfer-model-assets \
   --source url \
   --source-id slicerdsurfer_models_git
 ```
@@ -114,7 +133,7 @@ Examples:
 scripts/download_model_assets.sh --profile core
 
 # Equivalent explicit Python entrypoint
-python3 scripts/download_model_assets.py --profile core
+python3 scripts/download_model_assets.py --profile core --asset-root /data/shared/SlicerDDSurfer-model-assets
 
 # Only run DDSeg
 scripts/download_model_assets.sh --profile segmentation
@@ -138,7 +157,7 @@ segmentation/weights/*.pt
 parcellation/weights/*.pkl
 ```
 
-DDSurfer also supports external asset locations through environment variables:
+DDSurfer also supports lower-level external asset locations through environment variables:
 
 | Variable | Purpose |
 | --- | --- |
@@ -146,9 +165,13 @@ DDSurfer also supports external asset locations through environment variables:
 | `DDSURFER_TEMPLATE_DIR` | Directory containing DDSurfer surface templates. |
 | `DDSURFER_REGISTRATION_ATLAS` | Path to `100HCP-population-mean-T2.nii.gz` or equivalent atlas. |
 
-DDSeg and DDParcel currently use repository-local weights by default:
+The preferred unified layout under the model asset root is:
 
 ```text
+Resources/Data/
+  100HCP-population-mean-T2.nii.gz
+  ckpts/
+  template/
 segmentation/weights/
 parcellation/weights/
 ```

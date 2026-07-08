@@ -20,6 +20,7 @@ SMOKE_REPO_URL="${SMOKE_REPO_URL:-${default_repo_url:-https://github.com/Chengji
 SMOKE_REF="${SMOKE_REF:-${default_ref:-main}}"
 SMOKE_ROOT="${SMOKE_ROOT:-/tmp/slicerdsurfer-fresh-clone-smoke}"
 SMOKE_ASSET_PROFILE="${SMOKE_ASSET_PROFILE:-core}"
+SMOKE_ASSET_MODE="${SMOKE_ASSET_MODE:-plan}"
 SMOKE_REPORT="${SMOKE_REPORT:-${SMOKE_ROOT}/fresh_clone_smoke_report.json}"
 
 clone_dir="${SMOKE_ROOT}/checkout"
@@ -98,7 +99,7 @@ write_report() {
   local status="$1"
   local ended_at
   ended_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-  python3 - "$SMOKE_REPORT" "$steps_jsonl" "$status" "$started_at" "$ended_at" "$SMOKE_REPO_URL" "$SMOKE_REF" "$SMOKE_ASSET_PROFILE" "$SMOKE_ROOT" "$clone_dir" <<'PY'
+  python3 - "$SMOKE_REPORT" "$steps_jsonl" "$status" "$started_at" "$ended_at" "$SMOKE_REPO_URL" "$SMOKE_REF" "$SMOKE_ASSET_PROFILE" "$SMOKE_ASSET_MODE" "$SMOKE_ROOT" "$clone_dir" <<'PY'
 import json
 import platform
 import sys
@@ -113,6 +114,7 @@ from pathlib import Path
     repo_url,
     ref,
     asset_profile,
+    asset_mode,
     smoke_root,
     clone_dir,
 ) = sys.argv[1:]
@@ -134,15 +136,17 @@ report = {
     "repo_url": repo_url,
     "ref": ref,
     "asset_profile": asset_profile,
+    "asset_mode": asset_mode,
     "code_checkout": {
         "strategy": "git clone with GIT_LFS_SKIP_SMUDGE=1",
         "step_names": ["git_clone", "git_checkout"],
         "separate_from_model_assets": True,
     },
-    "model_asset_download": {
-        "strategy": "manifest-driven downloader after code checkout",
+    "model_asset_check": {
+        "strategy": "manifest-plan in CI-safe mode; manifest-driven download in release-gate mode",
         "profile": asset_profile,
-        "step_names": [f"download_model_assets_{asset_profile}", f"verify_model_assets_{asset_profile}"],
+        "mode": asset_mode,
+        "step_names": [f"model_assets_{asset_mode}_{asset_profile}"],
         "separate_from_code_checkout": True,
     },
     "smoke_root": smoke_root,
@@ -173,11 +177,26 @@ if [[ "${status}" == "passed" && -n "${SMOKE_REF}" ]]; then
   fi
 fi
 
-if [[ "${status}" == "passed" ]]; then
-  if ! run_step "download_model_assets_${SMOKE_ASSET_PROFILE}" "${clone_dir}" bash scripts/download_model_assets.sh --profile "${SMOKE_ASSET_PROFILE}"; then
+case "${SMOKE_ASSET_MODE}" in
+  plan)
+    if [[ "${status}" == "passed" ]]; then
+      if ! run_step "model_assets_plan_${SMOKE_ASSET_PROFILE}" "${clone_dir}" python3 scripts/download_model_assets.py --profile "${SMOKE_ASSET_PROFILE}" --print-plan; then
+        status="failed"
+      fi
+    fi
+    ;;
+  download)
+    if [[ "${status}" == "passed" ]]; then
+      if ! run_step "model_assets_download_${SMOKE_ASSET_PROFILE}" "${clone_dir}" bash scripts/download_model_assets.sh --profile "${SMOKE_ASSET_PROFILE}"; then
+        status="failed"
+      fi
+    fi
+    ;;
+  *)
+    echo "Unsupported SMOKE_ASSET_MODE=${SMOKE_ASSET_MODE}. Use plan or download." >&2
     status="failed"
-  fi
-fi
+    ;;
+esac
 
 if [[ "${status}" == "passed" ]]; then
   if ! run_step "make_test_fast" "${clone_dir}" make test-fast; then
@@ -185,7 +204,7 @@ if [[ "${status}" == "passed" ]]; then
   fi
 fi
 
-if [[ "${status}" == "passed" ]]; then
+if [[ "${status}" == "passed" && "${SMOKE_ASSET_MODE}" == "download" ]]; then
   if ! run_step "verify_model_assets_${SMOKE_ASSET_PROFILE}" "${clone_dir}" python3 scripts/download_model_assets.py --profile "${SMOKE_ASSET_PROFILE}" --verify-only; then
     status="failed"
   fi

@@ -11,6 +11,7 @@ from typing import Callable, Optional
 
 from .conversion.nhdr_write import nhdr_write
 from .conversion.nifti_write import nifti_write
+from shared.model_assets import model_asset_path
 from shared.pipeline import RegisteredDTIBundle, build_cli_environment, resolve_cli_executable
 
 LOGGER = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class DDParcelConfig:
     input_root: Path
     output_root: Path
     atlas_t2: Path
+    weights_dir: Optional[Path] = None
     flip: int = 1
 
 
@@ -31,6 +33,7 @@ class DDParcelRegisteredConfig:
     registered_bundle: RegisteredDTIBundle
     output_dir: Path
     native_mask: Path
+    weights_dir: Optional[Path] = None
     flip: int = 1
 
 
@@ -127,6 +130,12 @@ def _run_ddsurfer_pred(output_dir: Path, subject_id: str, weights_dir: Path, log
             logger.removeHandler(handler)
 
 
+def _default_weights_dir(explicit: Optional[Path] = None) -> Path:
+    if explicit is not None:
+        return explicit.expanduser().resolve()
+    return model_asset_path("parcellation/weights", repo_root=Path(__file__).resolve().parents[1])
+
+
 def run_ddparcel_from_registered_bundle(
     config: DDParcelRegisteredConfig,
     log: Optional[Callable[[str], None]] = None,
@@ -163,7 +172,7 @@ def run_ddparcel_from_registered_bundle(
         _run_normalize(bundle.mid_eig_reg_path, bundle.mask_reg_path, nii_mid_eig_reg_norm, config.flip)
 
     if not mgz_wmparc_reg.exists():
-        weights_dir = Path(__file__).resolve().parent / "weights"
+        weights_dir = _default_weights_dir(config.weights_dir)
         _run_ddsurfer_pred(output_dir, subject_id, weights_dir, log)
 
     if not nii_wmparc.exists():
@@ -351,7 +360,7 @@ def run_ddparcel(config: DDParcelConfig, log: Optional[Callable[[str], None]] = 
         _run_normalize(nii_mid_eig_reg, nii_mask_reg, nii_mid_eig_reg_norm, config.flip)
 
     if not mgz_wmparc_reg.exists():
-        weights_dir = Path(__file__).resolve().parent / "weights"
+        weights_dir = _default_weights_dir(config.weights_dir)
         _run_ddsurfer_pred(output_dir, subject_id, weights_dir, log)
 
     if not nii_wmparc.exists():

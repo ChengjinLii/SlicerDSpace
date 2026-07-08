@@ -26,7 +26,7 @@ from shared import (
     summarize_environment_doctor,
     write_environment_report,
 )
-from shared.dependency_config import apply_dependency_config, write_dependency_config
+from shared.dependency_config import add_dependency_config_arguments, apply_dependency_config, write_dependency_config
 from shared.python_environment import resolve_python_executable
 
 
@@ -184,6 +184,7 @@ def _environment_config_from_args(
         preprocessing_mrtrix_bin_dir=args.preprocessing_mrtrix_bin_dir,
         preprocessing_fsl_bin_dir=args.preprocessing_fsl_bin_dir,
         postprocess_freesurfer_home=args.postprocess_freesurfer_home,
+        model_assets_dir=args.model_assets_dir,
         wma_root=args.wma_root,
         wma_atlas_dir=args.wma_atlas_dir,
         slicer_executable=args.slicer_executable,
@@ -446,6 +447,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tractcloud-data-dir", type=Path, help="Optional model/data directory for TractCloud.")
     parser.add_argument("--tractcloud-device", default="auto", choices=("auto", "cpu", "cuda"), help="TractCloud device.")
     parser.add_argument("--tractcloud-batch-size", type=int, default=2048, help="TractCloud batch size.")
+    add_dependency_config_arguments(
+        parser,
+        exclude=(
+            "python_executable",
+            "python_environment",
+            "conda_executable",
+            "mrtrix_bin_dir",
+            "preprocessing_mrtrix_bin_dir",
+            "preprocessing_fsl_bin_dir",
+            "postprocess_freesurfer_home",
+            "wma_root",
+            "wma_atlas_dir",
+            "slicer_executable",
+            "fiber_tract_measurements_cli",
+            "tract_querier_root",
+            "tractcloud_root",
+            "tractcloud_python_executable",
+            "tractcloud_data_dir",
+        ),
+    )
     return parser
 
 
@@ -573,6 +594,7 @@ def main(argv: list[str] | None = None) -> int:
         postprocess_atlases=_split_csv_preserve_case(args.postprocess_atlases) or None,
         postprocess_force=bool(args.postprocess_force),
         atlas_t2=args.atlas_t2,
+        model_assets_dir=args.model_assets_dir,
         ddseg_device=args.ddseg_device,
         surface_device=args.surface_device,
         select_streamlines=args.select_streamlines,

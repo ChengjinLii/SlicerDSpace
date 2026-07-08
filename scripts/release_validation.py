@@ -324,6 +324,7 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
                 (
                     "env",
                     f"SMOKE_ASSET_PROFILE={args.fresh_clone_asset_profile}",
+                    "SMOKE_ASSET_MODE=download",
                     f"SMOKE_ROOT={(report_dir / 'fresh_clone_smoke').as_posix()}",
                     "bash",
                     (REPO_ROOT / "scripts" / "smoke_fresh_clone.sh").as_posix(),

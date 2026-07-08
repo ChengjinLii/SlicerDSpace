@@ -59,7 +59,7 @@ Before publishing the release page, rerun the current fresh-clone smoke gate and
 attach its JSON report:
 
 ```bash
-scripts/smoke_fresh_clone.sh
+SMOKE_ASSET_MODE=download scripts/smoke_fresh_clone.sh
 ```
 
 ### Recommended Attachments

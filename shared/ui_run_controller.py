@@ -376,6 +376,7 @@ def build_single_subject_run_kwargs(
         "select_streamlines": max(1, int(selection.select_streamlines)),
         "ddseg_device": selection.ddseg_device,
         "surface_device": selection.surface_device,
+        "model_assets_dir": external_paths.get("model_assets_dir"),
         "mrtrix_bin_dir": external_paths.get("mrtrix_bin_dir"),
         "preprocessing_mrtrix_bin_dir": external_paths.get("mrtrix_bin_dir"),
         "preprocessing_fsl_bin_dir": external_paths.get("preprocessing_fsl_bin_dir"),
@@ -403,6 +404,7 @@ def build_batch_run_kwargs(selection: RunSelection, *, batch_root: Path) -> dict
         "select_streamlines": max(1, int(selection.select_streamlines)),
         "ddseg_device": selection.ddseg_device,
         "surface_device": selection.surface_device,
+        "model_assets_dir": None,
         "connectome_backend": selection.connectome_backend,
         "connectome_compress_mrtrix_dense": selection.connectome_compress_mrtrix_dense,
         "preflight_blocked_targets": {},
@@ -563,6 +565,7 @@ def rows_from_batch_manifest(manifest_path: Path, manifest: dict[str, Any]) -> t
 
 
 EXTERNAL_PATH_CLI_FLAGS: tuple[tuple[str, str], ...] = (
+    ("model_assets_dir", "--model-assets-dir"),
     ("mrtrix_bin_dir", "--mrtrix-bin-dir"),
     ("mrtrix_bin_dir", "--preprocessing-mrtrix-bin-dir"),
     ("preprocessing_fsl_bin_dir", "--preprocessing-fsl-bin-dir"),

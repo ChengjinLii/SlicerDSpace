@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 import tempfile
 import unittest
@@ -25,6 +26,25 @@ def _load_downloader_module():
 
 
 class ModelAssetsTest(unittest.TestCase):
+    def test_default_model_asset_root_is_user_data_directory(self) -> None:
+        from shared.model_assets import MODEL_ASSETS_ENV, configured_model_assets_root
+
+        previous = os.environ.pop(MODEL_ASSETS_ENV, None)
+        try:
+            root = configured_model_assets_root()
+        finally:
+            if previous is not None:
+                os.environ[MODEL_ASSETS_ENV] = previous
+
+        self.assertIn("SlicerDDSurfer", root.as_posix())
+        self.assertNotEqual(root, REPO_ROOT)
+
+    def test_explicit_model_asset_root_wins(self) -> None:
+        from shared.model_assets import configured_model_assets_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(configured_model_assets_root(Path(tmp)), Path(tmp).resolve())
+
     def test_core_profile_resolves_manifest_includes_and_required_paths(self) -> None:
         module = _load_downloader_module()
 
@@ -50,6 +70,7 @@ class ModelAssetsTest(unittest.TestCase):
         manifest = module.load_manifest(REPO_ROOT / "models" / "assets_manifest.json")
         sources = manifest["asset_sources"]
 
+        self.assertEqual(manifest["default_asset_source_ids"][0], "slicerdsurfer_models_git")
         self.assertEqual(sources["slicerdsurfer_models_git"]["status"], "active")
         self.assertIn(
             "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main",
@@ -248,6 +269,30 @@ class ModelAssetsTest(unittest.TestCase):
             result = module.verify_asset_plan(repo_root, plan)
 
         self.assertTrue(result["ok"])
+
+    def test_model_asset_setup_guidance_summarizes_missing_assets(self) -> None:
+        module = _load_downloader_module()
+
+        manifest = module.load_manifest(REPO_ROOT / "models" / "assets_manifest.json")
+        plan = module.resolve_asset_plan(manifest, "core")
+        verification = {
+            "missing": ["segmentation/weights/dti_axial.pt"],
+            "lfs_pointers": ["parcellation/weights/Fused-Unet-v3-noMax-axial.pkl"],
+            "size_mismatches": [],
+            "sha256_mismatches": [],
+        }
+
+        guidance = module.model_asset_setup_guidance(plan, manifest, verification)
+
+        self.assertEqual(guidance["profile"], "core")
+        self.assertGreater(guidance["required_file_count"], 0)
+        self.assertIn("slicerdsurfer_models_git", guidance["active_url_sources"])
+        self.assertIn("--source-id slicerdsurfer_models_git", guidance["recommended_command"])
+        self.assertIn("--asset-root", guidance["recommended_command"])
+        self.assertIn("target_asset_root", guidance)
+        self.assertEqual(guidance["missing_count"], 1)
+        self.assertEqual(guidance["lfs_pointer_count"], 1)
+        self.assertIn("segmentation/weights/dti_axial.pt", guidance["examples"]["missing"])
 
 
 if __name__ == "__main__":

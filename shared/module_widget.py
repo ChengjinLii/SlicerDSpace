@@ -20,6 +20,7 @@ from qt import QPixmap, QSignalBlocker
 from shared.dependency_config import UI_DEPENDENCY_PATHS
 from shared.docs import doc_path
 from shared.input_import import InputImportConfig, detect_import_source_kind, prepare_inputs
+from shared.model_assets import model_asset_path
 from shared.ui_error_dialogs import format_actionable_error_message
 from shared.ui_environment_dialog import show_environment_results_dialog
 from shared.ui_environment_paths import (
@@ -457,7 +458,15 @@ class SharedWidgetMixin:
         repo_root = Path(__file__).resolve().parent.parent
         manifest = module.load_manifest(repo_root / "models" / "assets_manifest.json")
         plan = module.resolve_asset_plan(manifest, profile)
-        verification = module.verify_asset_plan(repo_root, plan, check_hashes=check_hashes)
+        configured = self._environment_dependency_path_kwargs().get("model_assets_dir")
+        asset_root = module.resolve_model_assets_root(
+            explicit=configured if isinstance(configured, Path) else None,
+            repo_root=repo_root,
+            required_paths=tuple(plan.required_paths),
+            prefer_existing_legacy=True,
+        )
+        verification = module.verify_asset_plan(asset_root, plan, check_hashes=check_hashes)
+        verification["asset_root"] = asset_root.as_posix()
         return module, plan, verification
 
     def _format_model_asset_status_line(self, profile: str, verification: dict[str, Any]) -> str:
@@ -491,13 +500,13 @@ class SharedWidgetMixin:
                 title="Model Asset Status Failed",
                 what="SlicerDDSurfer could not verify the model asset manifest.",
                 why="The checkout is missing the manifest, Git LFS metadata is unavailable, or the manifest profile is invalid.",
-                next_step="Run scripts/download_model_assets.sh --profile core from the repository root, then check status again.",
+                next_step="Set Model assets root or run scripts/download_model_assets.sh --profile core --asset-root <asset-root>, then check status again.",
                 auto_fix="Use the Verify core button for local verification; large downloads are not started by Check status.",
                 details=exc,
             )
             return
         text = (
-            "Unified source: models/assets_manifest.json. Current status: "
+            f"Unified source: models/assets_manifest.json. Asset root: {core.get('asset_root')}. Current status: "
             + self._format_model_asset_status_line("core", core)
             + "; "
             + self._format_model_asset_status_line("all", all_assets)
@@ -513,7 +522,7 @@ class SharedWidgetMixin:
                 title="Core Model Asset Verification Failed",
                 what="SlicerDDSurfer could not verify the core model assets.",
                 why="The manifest or Git LFS file list could not be read.",
-                next_step="Run scripts/download_model_assets.sh --profile core from the repository root and retry.",
+                next_step="Set Model assets root or run scripts/download_model_assets.sh --profile core --asset-root <asset-root> and retry.",
                 auto_fix="This button verifies existing files only; it does not download large Git LFS objects.",
                 details=exc,
             )
@@ -529,7 +538,7 @@ class SharedWidgetMixin:
             slicer.util.infoDisplay("Core model assets are verified.", parent=self.parent)
         else:
             slicer.util.infoDisplay(
-                "Core model assets are not complete. Run scripts/download_model_assets.sh --profile core.",
+                "Core model assets are not complete. Run scripts/download_model_assets.sh --profile core --asset-root <asset-root>.",
                 parent=self.parent,
             )
 
@@ -552,7 +561,9 @@ class SharedWidgetMixin:
                     f"missing={verification.get('missing')}, lfs_pointers={verification.get('lfs_pointers')}"
                 )
             repo_root = Path(__file__).resolve().parent.parent
-            lockfile = module.build_asset_lockfile(repo_root, plan)
+            asset_root = Path(str(verification.get("asset_root"))).expanduser().resolve()
+            lockfile = module.build_asset_lockfile(asset_root, plan)
+            lockfile["asset_root"] = asset_root.as_posix()
             path = Path(path_text).expanduser().resolve()
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(lockfile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1187,11 +1198,12 @@ class SharedWidgetMixin:
             return
 
         if not (self._parameterNode.ddparcelAtlasPath or "").strip():
-            atlas_path = self.resourcePath("Data/100HCP-population-mean-T2.nii.gz")
-            if atlas_path and os.path.exists(atlas_path):
-                self._parameterNode.ddparcelAtlasPath = atlas_path
+            module_root = Path(__file__).resolve().parent.parent
+            atlas_path = model_asset_path("Resources/Data/100HCP-population-mean-T2.nii.gz", repo_root=module_root)
+            if atlas_path.is_file():
+                self._parameterNode.ddparcelAtlasPath = atlas_path.as_posix()
 
-        ddseg_weights_dir = self.logic.segmentation_dir / "weights"
+        ddseg_weights_dir = model_asset_path("segmentation/weights", repo_root=Path(__file__).resolve().parent.parent)
         if not (self._parameterNode.ddsegWeightsDir or "").strip() and ddseg_weights_dir.is_dir():
             self._parameterNode.ddsegWeightsDir = ddseg_weights_dir.as_posix()
 
@@ -2173,12 +2185,33 @@ class SharedWidgetMixin:
         if result is None:
             slicer.util.infoDisplay("Run the environment check first.", parent=self.parent)
             return
-        self._install_python_packages_from_environment_dialog(tuple(result.missing_python_packages))
+        model_missing = self._missing_model_resource_items(result)
+        if result.missing_python_packages:
+            self._install_python_packages_from_environment_dialog(tuple(result.missing_python_packages))
+        if model_missing:
+            self._install_model_assets_from_environment_dialog(profile="core")
+        external_missing = [
+            item
+            for item in self._missing_environment_items(result)
+            if item.kind not in {"python"} and (item.install_group if hasattr(item, "install_group") else "") != "model-resources"
+        ]
+        if external_missing:
+            slicer.util.infoDisplay(
+                "System-level tools are not installed silently. Use each dependency row to choose an existing path, "
+                "or open Manual setup notes for platform-specific instructions.",
+                windowTitle="External tool setup",
+                parent=self.parent,
+            )
 
     def _onInstallEnvironmentItemClicked(self, item) -> None:
         package = (item.details or {}).get("package")
         if item.kind == "python" and package:
             self._install_python_packages_from_environment_dialog((package,))
+            return
+        if self._is_model_resource_item(item):
+            self._install_model_assets_from_environment_dialog(profile="core")
+            return
+        if self._configure_path_for_environment_item(item):
             return
         self._show_environment_install_notes_for_item(item)
 
@@ -2193,8 +2226,21 @@ class SharedWidgetMixin:
 
         self.appendLog("[Environment] Installing from UI: " + ", ".join(unique_packages))
         self._setStatus("running", "Installing Python dependencies...")
+        progress = qt.QProgressDialog("Installing Python dependencies...", "Cancel", 0, len(unique_packages), slicer.util.mainWindow())
+        progress.setWindowTitle("SlicerDDSurfer dependency install")
+        progress.setWindowModality(qt.Qt.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.show()
+
+        def on_progress(index: int, total: int, message: str) -> None:
+            progress.setMaximum(max(1, total))
+            progress.setValue(max(0, min(index, total)))
+            progress.setLabelText(message)
+            slicer.app.processEvents()
+
         try:
-            self.logic.installMissingPythonDependencies(unique_packages)
+            self.logic.installMissingPythonDependencies(unique_packages, progress_callback=on_progress)
+            progress.setValue(len(unique_packages))
             self._save_python_install_status(tuple(unique_packages), "completed")
         except Exception as exc:
             self._save_python_install_status(tuple(unique_packages), "failed", str(exc))
@@ -2209,6 +2255,11 @@ class SharedWidgetMixin:
                 details=exc,
             )
             return
+        finally:
+            try:
+                progress.close()
+            except Exception:
+                pass
 
         result = self._run_environment_dependency_check()
         if result is None:
@@ -2232,6 +2283,145 @@ class SharedWidgetMixin:
             windowTitle=f"Install / setup: {item.label}",
             parent=self.parent,
         )
+
+    def _is_model_resource_item(self, item) -> bool:
+        return str(getattr(item, "install_group", "") or "") == "model-resources" or str(getattr(item, "key", "")).startswith(
+            "path:dd"
+        )
+
+    def _missing_model_resource_items(self, result) -> list:
+        return [item for item in self._missing_environment_items(result) if self._is_model_resource_item(item)]
+
+    def _environment_setting_for_item(self, item) -> tuple[str | None, str]:
+        key = str(getattr(item, "key", "") or "")
+        group = str(getattr(item, "install_group", "") or "")
+        if self._is_model_resource_item(item):
+            return "model_assets_dir", "dir"
+        if key == "env:freesurfer_home" or group == "freesurfer":
+            return "postprocess_freesurfer_home", "dir"
+        if group == "mrtrix":
+            return "mrtrix_bin_dir", "dir"
+        if group == "fsl":
+            return "preprocessing_fsl_bin_dir", "dir"
+        if group == "wma":
+            return "wma_root", "dir"
+        if group == "tractcloud":
+            if "data" in key:
+                return "tractcloud_data_dir", "dir"
+            if "python" in key:
+                return "tractcloud_python_executable", "file"
+            return "tractcloud_root", "dir"
+        if group == "slicer":
+            return "slicer_executable", "file"
+        if group == "slicer-dmri":
+            return "fiber_tract_measurements_cli", "file"
+        if "tract_querier" in key:
+            return "tract_querier_root", "dir"
+        return None, "dir"
+
+    def _configure_path_for_environment_item(self, item) -> bool:
+        setting_key, mode = self._environment_setting_for_item(item)
+        if not setting_key:
+            return False
+        start = self._read_environment_path_setting(setting_key) or str(Path.home())
+        if mode == "file":
+            selected = qt.QFileDialog.getOpenFileName(
+                slicer.util.mainWindow(),
+                f"Choose {item.label}",
+                start,
+            )
+            selected_text = selected[0] if isinstance(selected, tuple) else selected
+        else:
+            selected_text = qt.QFileDialog.getExistingDirectory(
+                slicer.util.mainWindow(),
+                f"Choose {item.label}",
+                start,
+            )
+        selected_text = str(selected_text or "").strip()
+        if not selected_text:
+            return True
+        self._save_environment_path_setting(setting_key, selected_text)
+        line_edit = (getattr(self, "_environmentPathLineEdits", {}) or {}).get(setting_key)
+        if line_edit:
+            line_edit.setText(selected_text)
+        self.appendLog(f"[Environment] Saved {setting_key}: {selected_text}")
+        result = self._run_environment_dependency_check()
+        if result is not None:
+            self._show_environment_results_dialog(result)
+        return True
+
+    def _install_model_assets_from_environment_dialog(self, *, profile: str = "core") -> None:
+        module = self._load_model_assets_module()
+        repo_root = Path(__file__).resolve().parent.parent
+        configured = self._environment_dependency_path_kwargs().get("model_assets_dir")
+        default_root = configured if isinstance(configured, Path) and str(configured) else module.configured_model_assets_root()
+        selected = qt.QFileDialog.getExistingDirectory(
+            slicer.util.mainWindow(),
+            "Choose SlicerDDSurfer model asset root",
+            default_root.expanduser().as_posix(),
+        )
+        asset_root = Path(str(selected or default_root)).expanduser().resolve()
+        if not asset_root:
+            return
+        self._save_environment_path_setting("model_assets_dir", asset_root.as_posix())
+        line_edit = (getattr(self, "_environmentPathLineEdits", {}) or {}).get("model_assets_dir")
+        if line_edit:
+            line_edit.setText(asset_root.as_posix())
+
+        progress = qt.QProgressDialog("Preparing model asset download...", "Cancel", 0, 0, slicer.util.mainWindow())
+        progress.setWindowTitle("SlicerDDSurfer model assets")
+        progress.setWindowModality(qt.Qt.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.show()
+        try:
+            manifest = module.load_manifest(repo_root / "models" / "assets_manifest.json")
+            plan = module.resolve_asset_plan(manifest, profile)
+            self.appendLog(f"[Model assets] Downloading profile={profile} into {asset_root}")
+            progress.setLabelText(f"Downloading model assets to {asset_root} ...")
+            slicer.app.processEvents()
+            module.download_asset_plan(
+                asset_root,
+                plan,
+                manifest,
+                source="url",
+                source_ids=("slicerdsurfer_models_git",),
+                base_urls=(),
+                allow_planned_sources=False,
+                force=False,
+            )
+            progress.setRange(0, 100)
+            progress.setValue(80)
+            progress.setLabelText("Verifying model asset checksums...")
+            slicer.app.processEvents()
+            verification = module.verify_asset_plan(asset_root, plan)
+            if not verification.get("ok"):
+                raise RuntimeError(json.dumps(verification, indent=2, sort_keys=True))
+            progress.setValue(100)
+        except Exception as exc:
+            self.appendLog(f"[Model assets] Download/verification failed: {exc}")
+            self._show_actionable_error(
+                title="Model Asset Download Failed",
+                what="SlicerDDSurfer could not download or verify the selected model assets.",
+                why="The asset source may be unreachable, the selected directory may not be writable, or checksum verification failed.",
+                next_step=(
+                    "Choose a writable Model assets root, or run "
+                    f"python3 scripts/download_model_assets.py --profile {profile} --asset-root {asset_root} "
+                    "--source url --source-id slicerdsurfer_models_git in a terminal."
+                ),
+                auto_fix="No system-level software was modified. Only the selected model asset directory was targeted.",
+                details=exc,
+            )
+            return
+        finally:
+            try:
+                progress.close()
+            except Exception:
+                pass
+
+        self._set_model_assets_status_text(f"Model assets profile={profile} verified at {asset_root}")
+        result = self._run_environment_dependency_check()
+        if result is not None:
+            self._show_environment_results_dialog(result)
 
     def _setPipelineActive(self, active: bool) -> None:
         self._pipelineActive = active

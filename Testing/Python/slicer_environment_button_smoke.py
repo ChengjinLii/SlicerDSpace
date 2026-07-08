@@ -96,8 +96,8 @@ def _check() -> None:
         or not advanced_collapsed
         or not settings_roundtrip_ok
         or not dialog_visible
-        or not any("Install Python packages" == text for text in dialog_button_texts)
-        or not any(text in {"Install", "Install / setup"} for text in dialog_button_texts)
+        or not any("Install/download auto items" == text for text in dialog_button_texts)
+        or not any(text in {"Install", "Download / choose path", "Choose path / setup", "Setup"} for text in dialog_button_texts)
         or "Import dependency config" not in widget_button_texts
         or "Export dependency config" not in widget_button_texts
         or python_target_visible

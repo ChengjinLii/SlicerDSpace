@@ -11,12 +11,20 @@ from typing import Any, Mapping
 
 from shared.dependency_config import DEPENDENCY_PROFILE_KIND
 from shared.docs import doc_path
+from shared.model_assets import MODEL_ASSETS_ENV, configured_model_assets_root
 
 
 DEPENDENCY_PROFILE_SCHEMA = "slicerddsurfer.dependency_profile.v2"
 DEPENDENCY_PROFILE_VERSION = 2
 
 ENVIRONMENT_SECTION_METADATA = {
+    "model-assets": {
+        "title": "Model Asset Paths",
+        "description": (
+            "Configure where DDSurfer, DDSeg and DDParcel weights/templates are stored. "
+            "Use a user data directory or shared lab cache rather than the Slicer extension code directory."
+        ),
+    },
     "core-runtime": {
         "title": "Core Python & Runtime Paths",
         "description": (
@@ -183,7 +191,7 @@ def environment_path_entries(items: tuple[dict[str, str], ...]) -> list[Environm
     """Return section, subsection and row entries for the environment-path panel."""
 
     entries: list[EnvironmentPathEntry] = []
-    for section in ("core-runtime", "bundle-backends"):
+    for section in ("model-assets", "core-runtime", "bundle-backends"):
         section_meta = dependency_section_metadata(section)
         entries.append(
             EnvironmentPathEntry(
@@ -205,7 +213,7 @@ def environment_path_entries(items: tuple[dict[str, str], ...]) -> list[Environm
                     )
                 )
             entries.append(EnvironmentPathEntry(kind="row", item=item))
-        if section == "core-runtime":
+        if section == "model-assets":
             entries.append(EnvironmentPathEntry(kind="model-assets"))
     return entries
 
@@ -292,13 +300,14 @@ def model_assets_summary_text(repo_root: Path) -> str:
     """Return the model-assets summary shown in the environment panel."""
 
     manifest = repo_root / "models" / "assets_manifest.json"
-    command = "python3 scripts/download_model_assets.py --profile core"
+    default_root = configured_model_assets_root()
+    command = f"python3 scripts/download_model_assets.py --profile core --asset-root {default_root.as_posix()}"
     if manifest.is_file():
         status = _model_asset_profiles_status_text(repo_root)
         status_text = f" Current status: {status}." if status else " Click Check status to verify core/all locally."
         return (
             "Unified source: models/assets_manifest.json. "
-            "Default bundled resources are auto-detected from the repository. "
+            f"Default root: {default_root}. Override with the Model assets root field or ${MODEL_ASSETS_ENV}. "
             f"Refresh or verify with `{command}`."
             f"{status_text}"
         )
@@ -343,7 +352,7 @@ def model_assets_provenance_text(repo_root: Path) -> str:
     terms = doc_path(repo_root, "model_asset_terms")
     lock_command = (
         "python3 scripts/download_model_assets.py --profile core --verify-only "
-        "--write-lockfile outputs/00_run_metadata/model_assets_core.lock.json"
+        "--asset-root <asset-root> --write-lockfile outputs/00_run_metadata/model_assets_core.lock.json"
     )
     return "\n".join(
         [
@@ -351,7 +360,9 @@ def model_assets_provenance_text(repo_root: Path) -> str:
             f"Manifest: {manifest}",
             f"Terms decision record: {terms}",
             "Default profile: core",
-            "Verify command: python3 scripts/download_model_assets.py --profile core --verify-only",
+            f"Default user asset root: {configured_model_assets_root()}",
+            f"Environment override: {MODEL_ASSETS_ENV}",
+            "Verify command: python3 scripts/download_model_assets.py --profile core --asset-root <asset-root> --verify-only",
             f"Lockfile command: {lock_command}",
             "Release boundary: local verification does not grant public redistribution or DOI-archive rights.",
         ]
@@ -508,12 +519,24 @@ def environment_item_text(item: Any) -> str:
 def environment_item_button_text(item: Any) -> str:
     """Return the action button text for a missing dependency row."""
 
-    return "Install" if item.kind == "python" else "Install / setup"
+    if item.kind == "python":
+        return "Install"
+    if getattr(item, "install_group", "") == "model-resources":
+        return "Download / choose path"
+    if item.kind in {"command", "path", "env"}:
+        return "Choose path / setup"
+    return "Setup"
 
 
 def environment_item_button_tooltip(item: Any) -> str:
     """Return the action button tooltip for a missing dependency row."""
 
+    if item.kind == "python":
+        return item.install_hint or "Install this package into the selected Slicer Python environment."
+    if getattr(item, "install_group", "") == "model-resources":
+        return item.install_hint or "Choose a model asset root and download/verify required model assets."
+    if item.kind in {"command", "path", "env"}:
+        return item.install_hint or "Choose an existing local path or show manual setup instructions."
     return item.install_hint or "Show setup instructions."
 
 
@@ -521,13 +544,16 @@ def environment_dialog_state(result: Any, *, python_install_target: str) -> Envi
     """Build render state for the environment-results dialog."""
 
     missing_items = tuple(environment_missing_items(result))
+    has_model_resources = any(getattr(item, "install_group", "") == "model-resources" for item in missing_items)
     return EnvironmentDialogState(
         summary_text=environment_summary_text(result),
         detail_text="\n".join(environment_detail_lines(result)),
         missing_items=missing_items,
-        can_install_python=bool(result.missing_python_packages),
+        can_install_python=bool(result.missing_python_packages) or has_model_resources,
         has_manual_setup_notes=any(item.status == "missing" and item.kind != "python" for item in result.statuses),
         python_install_tooltip=(
-            python_install_target + " External tools, licenses, and model resources require manual setup."
+            python_install_target
+            + " Python packages are installed into Slicer Python. Model assets are downloaded to the selected asset root. "
+            "External tools and licenses are never installed silently."
         ),
     )

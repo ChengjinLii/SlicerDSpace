@@ -22,6 +22,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = REPO_ROOT / "models" / "assets_manifest.json"
 LFS_POINTER_HEADER = b"version https://git-lfs.github.com/spec/v1"
 
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from shared.model_assets import MODEL_ASSETS_ENV, configured_model_assets_root, resolve_model_assets_root
+
 
 @dataclass(frozen=True)
 class AssetPlan:
@@ -336,6 +341,108 @@ def _format_url_template(template: str, *, relative: str, record: dict[str, Any]
     )
 
 
+def _format_bytes(value: Any) -> str:
+    try:
+        size = float(value)
+    except (TypeError, ValueError):
+        return "unknown size"
+    units = ("B", "KB", "MB", "GB", "TB")
+    unit = 0
+    while size >= 1024 and unit < len(units) - 1:
+        size /= 1024
+        unit += 1
+    if unit == 0:
+        return f"{int(size)} {units[unit]}"
+    return f"{size:.1f} {units[unit]}"
+
+
+def _active_url_source_ids(manifest: dict[str, Any], plan: AssetPlan) -> tuple[str, ...]:
+    source_map = manifest.get("asset_sources", {})
+    if not isinstance(source_map, dict):
+        return ()
+    active: list[str] = []
+    for source_id in plan.source_ids:
+        source = source_map.get(source_id)
+        if not isinstance(source, dict):
+            continue
+        if source.get("status") != "active":
+            continue
+        if source.get("kind") in {"url-template", "url"}:
+            active.append(source_id)
+    return _dedupe(active)
+
+
+def model_asset_setup_guidance(
+    plan: AssetPlan,
+    manifest: dict[str, Any],
+    verification: dict[str, Any] | None = None,
+    asset_root: Path | None = None,
+) -> dict[str, Any]:
+    """Return user-facing remediation guidance for missing model assets."""
+
+    missing = list((verification or {}).get("missing", []))
+    pointers = list((verification or {}).get("lfs_pointers", []))
+    size_mismatches = list((verification or {}).get("size_mismatches", []))
+    sha256_mismatches = list((verification or {}).get("sha256_mismatches", []))
+    total_size = sum(int(record.get("size_bytes") or 0) for record in plan.asset_records.values())
+    active_url_sources = _active_url_source_ids(manifest, plan)
+    preferred_source = active_url_sources[0] if active_url_sources else "slicerdsurfer_models_git"
+    default_root = configured_model_assets_root()
+    target_root = asset_root.expanduser().resolve() if asset_root is not None else default_root
+    command = (
+        "python3 scripts/download_model_assets.py "
+        f"--profile {plan.profile} --asset-root {target_root.as_posix()} "
+        f"--source url --source-id {preferred_source}"
+    )
+    verify_command = (
+        "python3 scripts/download_model_assets.py "
+        f"--profile {plan.profile} --asset-root {target_root.as_posix()} --verify-only"
+    )
+    return {
+        "profile": plan.profile,
+        "resolved_profiles": list(plan.resolved_profiles),
+        "required_file_count": len(plan.required_paths),
+        "estimated_download_size": _format_bytes(total_size),
+        "active_url_sources": list(active_url_sources),
+        "preferred_source": preferred_source,
+        "recommended_command": command,
+        "verify_command": verify_command,
+        "default_asset_root": default_root.as_posix(),
+        "target_asset_root": target_root.as_posix(),
+        "missing_count": len(missing),
+        "lfs_pointer_count": len(pointers),
+        "size_mismatch_count": len(size_mismatches),
+        "sha256_mismatch_count": len(sha256_mismatches),
+        "examples": {
+            "missing": missing[:8],
+            "lfs_pointers": pointers[:8],
+            "size_mismatches": size_mismatches[:3],
+            "sha256_mismatches": sha256_mismatches[:3],
+        },
+        "docs": "docs/assets/MODEL_ASSETS.md",
+    }
+
+
+def print_model_asset_setup_guidance(guidance: dict[str, Any], *, stream: Any = sys.stderr) -> None:
+    print("[model-assets] Model asset setup guidance:", file=stream)
+    print(
+        f"[model-assets]   profile={guidance['profile']} "
+        f"files={guidance['required_file_count']} estimated_size={guidance['estimated_download_size']}",
+        file=stream,
+    )
+    if guidance["active_url_sources"]:
+        print("[model-assets]   active URL sources: " + ", ".join(guidance["active_url_sources"]), file=stream)
+    print("[model-assets]   download: " + guidance["recommended_command"], file=stream)
+    print("[model-assets]   verify:   " + guidance["verify_command"], file=stream)
+    print(f"[model-assets]   env override: export {MODEL_ASSETS_ENV}=/path/to/model-assets", file=stream)
+    examples = guidance.get("examples", {})
+    if examples.get("missing"):
+        print("[model-assets]   missing examples: " + ", ".join(examples["missing"]), file=stream)
+    if examples.get("lfs_pointers"):
+        print("[model-assets]   LFS pointer examples: " + ", ".join(examples["lfs_pointers"]), file=stream)
+    print("[model-assets]   docs: " + guidance["docs"], file=stream)
+
+
 def _source_url_templates(
     manifest: dict[str, Any],
     source_ids: tuple[str, ...],
@@ -512,6 +619,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--profile", "-p", help="Asset profile to download. Defaults to manifest default_profile.")
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST, help="Asset manifest JSON path.")
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT, help="Repository root. Defaults to this checkout.")
+    parser.add_argument(
+        "--asset-root",
+        type=Path,
+        help=(
+            "Directory where model assets are downloaded and verified. Defaults to "
+            f"${MODEL_ASSETS_ENV} or a per-user SlicerDDSurfer model-assets directory."
+        ),
+    )
     parser.add_argument("--source", choices=("auto", "git-lfs", "url"), default="auto", help="Download backend. Defaults to Git LFS with URL fallback when configured.")
     parser.add_argument("--source-id", action="append", help="Manifest asset source id to use for URL downloads. Can be repeated.")
     parser.add_argument("--base-url", action="append", help="Ad-hoc mirror base URL. Relative asset paths are appended to this URL.")
@@ -531,34 +646,48 @@ def main(argv: list[str] | None = None) -> int:
     try:
         manifest = load_manifest(args.manifest)
         plan = resolve_asset_plan(manifest, args.profile)
+        asset_root = resolve_model_assets_root(
+            explicit=args.asset_root,
+            repo_root=repo_root,
+            required_paths=tuple(plan.required_paths),
+            prefer_existing_legacy=True,
+        )
         if args.print_plan:
-            print(json.dumps(plan.to_dict(), indent=2, sort_keys=True))
+            payload = plan.to_dict()
+            payload["asset_root"] = asset_root.as_posix()
+            payload["asset_root_env"] = MODEL_ASSETS_ENV
+            print(json.dumps(payload, indent=2, sort_keys=True))
             return 0
         if not args.verify_only:
+            download_root = asset_root
+            source = args.source
+            if source == "git-lfs" and download_root != repo_root:
+                raise RuntimeError(
+                    "Git LFS downloads materialize files in the code checkout. "
+                    "Use --source url for custom --asset-root downloads, or omit --asset-root for legacy Git LFS mode."
+                )
+            if source == "auto" and download_root != repo_root:
+                source = "url"
             download_asset_plan(
-                repo_root,
+                repo_root if source == "git-lfs" else download_root,
                 plan,
                 manifest,
-                source=args.source,
+                source=source,
                 source_ids=tuple(args.source_id or ()),
                 base_urls=tuple(args.base_url or ()),
                 allow_planned_sources=bool(args.allow_planned_sources),
                 force=bool(args.force),
             )
         if not args.no_verify:
-            result = verify_asset_plan(repo_root, plan)
+            result = verify_asset_plan(asset_root, plan)
             if not result["ok"]:
                 print(json.dumps({"profile": plan.profile, "verification": result}, indent=2, sort_keys=True), file=sys.stderr)
-                print(
-                    "[model-assets] Suggested fix: "
-                    f"python3 scripts/download_model_assets.py --profile {plan.profile} "
-                    "--source url --source-id slicerdsurfer_models_git",
-                    file=sys.stderr,
-                )
+                print_model_asset_setup_guidance(model_asset_setup_guidance(plan, manifest, result, asset_root))
                 return 3
             print(f"[model-assets] Verified {result['checked_count']} file(s) for profile={plan.profile}.")
         if args.write_lockfile:
-            lockfile = build_asset_lockfile(repo_root, plan)
+            lockfile = build_asset_lockfile(asset_root, plan)
+            lockfile["asset_root"] = asset_root.as_posix()
             lockfile_path = args.write_lockfile.expanduser().resolve()
             lockfile_path.parent.mkdir(parents=True, exist_ok=True)
             lockfile_path.write_text(json.dumps(lockfile, indent=2, sort_keys=True) + "\n", encoding="utf-8")

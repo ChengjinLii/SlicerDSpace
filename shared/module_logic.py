@@ -31,6 +31,7 @@ from shared import (
     validate_subject_inputs,
     write_environment_report,
 )
+from shared.model_assets import model_asset_candidates
 
 LOGGER = logging.getLogger(__name__)
 
@@ -274,6 +275,7 @@ class SharedLogicMixin:
         python_executable: Optional[Path] = None,
         python_environment: Optional[str] = None,
         conda_executable: Optional[Path] = None,
+        model_assets_dir: Optional[Path] = None,
         mrtrix_bin_dir: Optional[Path] = None,
         preprocessing_mrtrix_bin_dir: Optional[Path] = None,
         preprocessing_fsl_bin_dir: Optional[Path] = None,
@@ -296,6 +298,7 @@ class SharedLogicMixin:
                 python_executable=python_executable,
                 python_environment=python_environment,
                 conda_executable=conda_executable,
+                model_assets_dir=model_assets_dir,
                 preprocessing_backend=preprocessing_backend,
                 tractography_backend=tractography_backend,
                 connectome_backend=connectome_backend,
@@ -342,6 +345,7 @@ class SharedLogicMixin:
         python_executable: Optional[Path] = None,
         python_environment: Optional[str] = None,
         conda_executable: Optional[Path] = None,
+        model_assets_dir: Optional[Path] = None,
         mrtrix_bin_dir: Optional[Path] = None,
         preprocessing_mrtrix_bin_dir: Optional[Path] = None,
         preprocessing_fsl_bin_dir: Optional[Path] = None,
@@ -372,6 +376,7 @@ class SharedLogicMixin:
                 python_executable=python_executable,
                 python_environment=python_environment,
                 conda_executable=conda_executable,
+                model_assets_dir=model_assets_dir,
                 preprocessing_backend=preprocessing_backend,
                 tractography_backend=tractography_backend,
                 connectome_backend=connectome_backend,
@@ -401,7 +406,7 @@ class SharedLogicMixin:
         self.log(f"[Environment] External tool notes: {written['external_notes']}")
         return result
 
-    def installMissingPythonDependencies(self, packages: tuple[str, ...]) -> None:
+    def installMissingPythonDependencies(self, packages: tuple[str, ...], progress_callback=None) -> None:
         """Install missing Python packages in the active Slicer Python environment."""
 
         unique_packages = tuple(dict.fromkeys(pkg for pkg in packages if pkg and pkg.strip()))
@@ -409,16 +414,23 @@ class SharedLogicMixin:
             self.log("[Environment] No missing Python packages to install.")
             return
 
+        def report(index: int, total: int, message: str) -> None:
+            if progress_callback:
+                progress_callback(index, total, message)
+
         torch_requested = any(pkg == "torch" or pkg.startswith("torch>") or pkg.startswith("torch=") for pkg in unique_packages)
         if torch_requested:
             self.log("[Environment] Installing/checking torch through the Slicer PyTorch extension...")
+            report(0, len(unique_packages), "Checking Slicer PyTorch extension")
             _ensure_torch_via_extension(min_version="2.0.0", log=self.log)
 
-        for package in unique_packages:
+        for index, package in enumerate(unique_packages, start=1):
+            report(index - 1, len(unique_packages), f"Installing {package}")
             if package == "torch" or package.startswith("torch>") or package.startswith("torch="):
                 continue
             self.log(f"[Environment] Installing Python package: {package}")
             self._install_python_requirement(package)
+            report(index, len(unique_packages), f"Installed {package}")
 
     def _default_task_output_dir(self, subject_root: Path, task_name: str) -> Path:
         return default_task_output_dir(subject_root, task_name)
@@ -439,6 +451,7 @@ class SharedLogicMixin:
         microstructure_run_noddi: bool = False,
         select_streamlines: int = 100000,
         atlas_t2: Optional[Path] = None,
+        model_assets_dir: Optional[Path] = None,
         ddseg_device: str = "auto",
         surface_device: str = "auto",
         mrtrix_bin_dir: Optional[Path] = None,
@@ -465,6 +478,7 @@ class SharedLogicMixin:
                 preprocessing_mrtrix_bin_dir=preprocessing_mrtrix_bin_dir,
                 preprocessing_fsl_bin_dir=preprocessing_fsl_bin_dir,
                 atlas_t2=atlas_t2,
+                model_assets_dir=model_assets_dir,
                 ddseg_device=ddseg_device,
                 surface_device=surface_device,
                 select_streamlines=select_streamlines,
@@ -497,6 +511,7 @@ class SharedLogicMixin:
         microstructure_run_noddi: bool = False,
         select_streamlines: int = 100000,
         atlas_t2: Optional[Path] = None,
+        model_assets_dir: Optional[Path] = None,
         ddseg_device: str = "auto",
         surface_device: str = "auto",
         mrtrix_bin_dir: Optional[Path] = None,
@@ -523,6 +538,7 @@ class SharedLogicMixin:
                 preprocessing_mrtrix_bin_dir=preprocessing_mrtrix_bin_dir,
                 preprocessing_fsl_bin_dir=preprocessing_fsl_bin_dir,
                 atlas_t2=atlas_t2,
+                model_assets_dir=model_assets_dir,
                 ddseg_device=ddseg_device,
                 surface_device=surface_device,
                 select_streamlines=select_streamlines,
@@ -698,6 +714,9 @@ class SharedLogicMixin:
         if env_template:
             candidates.append(Path(env_template))
         candidates.extend(
+            model_asset_candidates("Resources/Data/template", repo_root=self.module_dir)
+        )
+        candidates.extend(
             [
                 self.module_dir / "Resources" / "Data" / "template",
                 self.module_dir / "Resources" / "template",
@@ -722,6 +741,9 @@ class SharedLogicMixin:
         if env_ckpt:
             candidates.append(Path(env_ckpt))
         candidates.extend(
+            model_asset_candidates("Resources/Data/ckpts", repo_root=self.module_dir)
+        )
+        candidates.extend(
             [
                 self.module_dir / "Resources" / "Data" / "ckpts",
                 self.module_dir / "Resources" / "ckpts",
@@ -744,6 +766,12 @@ class SharedLogicMixin:
         env_atlas = os.environ.get("DDSURFER_REGISTRATION_ATLAS")
         if env_atlas:
             candidates.append(Path(env_atlas))
+        candidates.extend(
+            model_asset_candidates(
+                "Resources/Data/100HCP-population-mean-T2.nii.gz",
+                repo_root=self.module_dir,
+            )
+        )
         candidates.extend(
             [
                 self.module_dir / "Resources" / "Data" / "100HCP-population-mean-T2.nii.gz",

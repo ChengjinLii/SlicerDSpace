@@ -93,6 +93,7 @@ class ReleaseValidationTest(unittest.TestCase):
             fresh_clone = next(step.command for step in steps if step.name == "fresh_clone_smoke")
             self.assertEqual(fresh_clone[0], "env")
             self.assertIn("SMOKE_ASSET_PROFILE=core", fresh_clone)
+            self.assertIn("SMOKE_ASSET_MODE=download", fresh_clone)
 
     def test_slicer_smoke_step_uses_staged_module_env_and_disable_cli(self) -> None:
         from scripts.release_validation import build_validation_steps

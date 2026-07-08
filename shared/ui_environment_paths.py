@@ -205,12 +205,6 @@ def add_environment_subsection_label(form_layout: Any, title: str, description: 
 def add_model_assets_row(owner: Any, form_layout: Any) -> None:
     import qt
 
-    add_environment_section_header(
-        form_layout,
-        "Model assets",
-        "DDSurfer, DDParcel, and DDSeg weights/templates are managed together from one manifest instead of "
-        "being configured as separate external paths.",
-    )
     row = qt.QWidget()
     row_layout = qt.QHBoxLayout(row)
     row_layout.setContentsMargins(0, 0, 0, 0)

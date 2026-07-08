@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from shared.model_assets import model_asset_candidates, model_asset_path
+
 
 @dataclass(frozen=True)
 class DependencySpec:
@@ -50,6 +52,7 @@ class DependencyStatus:
     targets: tuple[str, ...]
     details: dict[str, Any] = field(default_factory=dict)
     install_hint: str = ""
+    install_group: str = ""
 
 
 @dataclass(frozen=True)
@@ -83,6 +86,7 @@ class EnvironmentDoctorConfig:
     preprocessing_mrtrix_bin_dir: Optional[Path] = None
     preprocessing_fsl_bin_dir: Optional[Path] = None
     postprocess_freesurfer_home: Optional[Path] = None
+    model_assets_dir: Optional[Path] = None
     wma_root: Optional[Path] = None
     wma_atlas_dir: Optional[Path] = None
     slicer_executable: Optional[Path] = None
@@ -147,6 +151,7 @@ class EnvironmentDoctorResult:
                     "targets": list(item.targets),
                     "details": item.details,
                     "install_hint": item.install_hint,
+                    "install_group": item.install_group,
                 }
                 for item in self.statuses
             ],
@@ -852,6 +857,15 @@ def _resource_root(config: EnvironmentDoctorConfig) -> Path:
     return config.repo_root.expanduser().resolve()
 
 
+def _model_asset_spec_path(config: EnvironmentDoctorConfig, relative: str) -> tuple[Path, tuple[Path, ...]]:
+    repo_root = _resource_root(config)
+    explicit_root = _resolve_path(config.model_assets_dir)
+    return (
+        model_asset_path(relative, repo_root=repo_root, explicit_root=explicit_root),
+        model_asset_candidates(relative, repo_root=repo_root, explicit_root=explicit_root),
+    )
+
+
 def _effective_platform_name(config: EnvironmentDoctorConfig) -> str:
     return (config.platform_name or platform.system() or "unknown").strip() or "unknown"
 
@@ -947,15 +961,17 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 _python(specs, target=target, import_name=import_name, package=package)
             _add_deep_learning_stack(specs, target)
             _device(specs, target=target, device=config.ddseg_device, python_executable=config.python_executable)
+            ddseg_weights, ddseg_candidates = _model_asset_spec_path(config, "segmentation/weights")
             _path(
                 specs,
                 target=target,
                 key="ddseg_weights",
                 label="DDSeg weights directory",
-                path=repo_root / "segmentation" / "weights",
+                path=ddseg_weights,
                 path_kind="nonempty_dir",
                 group="model-resources",
-                discovery_source="bundled resource",
+                discovery_source="model asset root",
+                common_paths=ddseg_candidates,
             )
 
         if target == "parcellation":
@@ -970,15 +986,17 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             ):
                 _python(specs, target=target, import_name=import_name, package=package)
             _add_deep_learning_stack(specs, target)
+            ddparcel_weights, ddparcel_candidates = _model_asset_spec_path(config, "parcellation/weights")
             _path(
                 specs,
                 target=target,
                 key="ddparcel_weights",
                 label="DDParcel weights directory",
-                path=repo_root / "parcellation" / "weights",
+                path=ddparcel_weights,
                 path_kind="nonempty_dir",
                 group="model-resources",
-                discovery_source="bundled resource",
+                discovery_source="model asset root",
+                common_paths=ddparcel_candidates,
             )
 
         if target == "surface":
@@ -987,35 +1005,45 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 _python(specs, target=target, import_name=import_name, package=package)
             _add_deep_learning_stack(specs, target)
             _device(specs, target=target, device=config.surface_device, python_executable=config.python_executable)
+            template_path, template_candidates = _model_asset_spec_path(
+                config, "Resources/Data/template/100307-FA.nii.gz"
+            )
+            atlas_path, atlas_candidates = _model_asset_spec_path(
+                config, "Resources/Data/100HCP-population-mean-T2.nii.gz"
+            )
+            checkpoint_path, checkpoint_candidates = _model_asset_spec_path(config, "Resources/Data/ckpts/hcp")
             _path(
                 specs,
                 target=target,
                 key="ddsurfer_template",
                 label="DDSurfer template 100307-FA.nii.gz",
-                path=repo_root / "Resources" / "Data" / "template" / "100307-FA.nii.gz",
+                path=template_path,
                 path_kind="file",
                 group="model-resources",
-                discovery_source="bundled resource",
+                discovery_source="model asset root",
+                common_paths=template_candidates,
             )
             _path(
                 specs,
                 target=target,
                 key="ddsurfer_atlas_t2",
                 label="DDSurfer registration atlas",
-                path=repo_root / "Resources" / "Data" / "100HCP-population-mean-T2.nii.gz",
+                path=atlas_path,
                 path_kind="file",
                 group="model-resources",
-                discovery_source="bundled resource",
+                discovery_source="model asset root",
+                common_paths=atlas_candidates,
             )
             _path(
                 specs,
                 target=target,
                 key="ddsurfer_checkpoints",
                 label="DDSurfer HCP checkpoints",
-                path=repo_root / "Resources" / "Data" / "ckpts" / "hcp",
+                path=checkpoint_path,
                 path_kind="nonempty_dir",
                 group="model-resources",
-                discovery_source="bundled resource",
+                discovery_source="model asset root",
+                common_paths=checkpoint_candidates,
             )
 
         if target == "surface_postprocess":
@@ -1385,7 +1413,7 @@ def _install_hint(spec: DependencySpec, platform_name: str) -> str:
     if spec.install_group == "tractcloud":
         return "Install/configure external TractCloud package/check-out and model data; pass --tractcloud-root/--tractcloud-data-dir."
     if spec.install_group == "model-resources":
-        return "Fetch model resources with git lfs pull, or set the documented resource override environment variables."
+        return "Choose a model asset root in the Slicer UI, or run scripts/download_model_assets.py --profile core --asset-root <path>."
     if spec.install_group == "slicer":
         return "Pass --slicer-executable or set SLICERDDSURFER_SLICER_EXECUTABLE to the local Slicer executable."
     if spec.install_group == "slicer-dmri":
@@ -1599,6 +1627,7 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
         targets=spec.targets,
         details=details,
         install_hint="" if available else _install_hint(spec, platform_name),
+        install_group=spec.install_group,
     )
 
 

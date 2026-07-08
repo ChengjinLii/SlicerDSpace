@@ -2,20 +2,32 @@ PYTHON ?= python3
 SLICERDDSURFER_RELEASE_ARGS ?=
 SLICERDDSURFER_TEST_PATTERN ?= test_*.py
 
-.PHONY: help test-fast test-slicer release-check release-plan release-artifacts output-tree-report lint
+.PHONY: help test-fast test-slicer fresh-clone-smoke release-check release-plan release-artifacts prepare-inputs output-tree-report subject-report install-plan clean-local lint
 
 help:
 	@echo "SlicerDDSurfer developer targets:"
 	@echo "  make test-fast      Run repository Python unit tests without launching Slicer."
 	@echo "  make test-slicer    Run Slicer smoke tests with xvfb-run or an existing DISPLAY/VNC session."
+	@echo "  make fresh-clone-smoke Run a CI-safe fresh-clone smoke test without downloading large assets."
 	@echo "  make release-check  Run release audit, model asset verification, and release validation."
 	@echo "  make release-plan   Run release validation only. Requires SLICERDDSURFER_RELEASE_SUBJECT_ROOT."
 	@echo "  make release-artifacts Build lockfile and code-only archive metadata."
+	@echo "  make prepare-inputs Normalize DICOM/NIfTI/NRRD inputs into a subject-root."
 	@echo "  make output-tree-report Generate annotated HTML for the release output tree."
+	@echo "  make subject-report Generate subject-level HTML/JSON/Markdown reports from a run manifest."
+	@echo "  make install-plan   Write a dependency plan without mutating the system."
+	@echo "  make clean-local    Remove ignored local caches and generated smoke/report artifacts."
 	@echo "  make lint           Run ruff if installed."
 
 test-fast:
 	$(PYTHON) -m unittest discover -s Testing/Python -p "$(SLICERDDSURFER_TEST_PATTERN)"
+
+fresh-clone-smoke:
+	SMOKE_ASSET_MODE="$${SMOKE_ASSET_MODE:-plan}" \
+	SMOKE_REPO_URL="$${SMOKE_REPO_URL:-$$(pwd)}" \
+	SMOKE_REF="$${SMOKE_REF:-$$(git rev-parse HEAD)}" \
+	SMOKE_ROOT="$${SMOKE_ROOT:-/tmp/slicerdsurfer-fresh-clone-smoke}" \
+	bash scripts/smoke_fresh_clone.sh
 
 test-slicer:
 	: "$${SLICERDDSURFER_SLICER_LAUNCHER:?Set SLICERDDSURFER_SLICER_LAUNCHER to the Slicer launcher}"
@@ -49,10 +61,41 @@ release-artifacts:
 	$(PYTHON) scripts/build_release_artifacts.py \
 	  --release-validation-report "$${SLICERDDSURFER_RELEASE_VALIDATION_REPORT:-/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/release_validation/release_validation_report.json}"
 
+prepare-inputs:
+	: "$${SLICERDDSURFER_SOURCE:?Set SLICERDDSURFER_SOURCE to DICOM, NIfTI, NRRD/NHDR, or a canonical subject root}"
+	: "$${SLICERDDSURFER_SUBJECT_ROOT:?Set SLICERDDSURFER_SUBJECT_ROOT to the destination subject root}"
+	: "$${SLICERDDSURFER_SUBJECT_ID:?Set SLICERDDSURFER_SUBJECT_ID}"
+	$(PYTHON) scripts/prepare_inputs.py \
+	  --source "$${SLICERDDSURFER_SOURCE}" \
+	  --subject-root "$${SLICERDDSURFER_SUBJECT_ROOT}" \
+	  --subject-id "$${SLICERDDSURFER_SUBJECT_ID}" \
+	  $${SLICERDDSURFER_SOURCE_KIND:+--source-kind "$${SLICERDDSURFER_SOURCE_KIND}"} \
+	  $${SLICERDDSURFER_BVAL:+--bval "$${SLICERDDSURFER_BVAL}"} \
+	  $${SLICERDDSURFER_BVEC:+--bvec "$${SLICERDDSURFER_BVEC}"} \
+	  $${SLICERDDSURFER_MASK:+--mask "$${SLICERDDSURFER_MASK}"} \
+	  $${SLICERDDSURFER_FORCE:+--force}
+
 output-tree-report:
 	$(PYTHON) Testing/Python/generate_output_tree_report.py \
 	  --output-root "$${SLICERDDSURFER_OUTPUT_ROOT:-/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs}" \
 	  --dest "$${SLICERDDSURFER_OUTPUT_TREE_HTML:-ignore/local_reports/SlicerDDSurfer_100307_release_candidate_output_tree.html}"
+
+subject-report:
+	: "$${SLICERDDSURFER_SUBJECT_ROOT:?Set SLICERDDSURFER_SUBJECT_ROOT to a subject root}"
+	$(PYTHON) scripts/generate_subject_report.py \
+	  --subject-root "$${SLICERDDSURFER_SUBJECT_ROOT}" \
+	  $${SLICERDDSURFER_OUTPUT_ROOT:+--output-root "$${SLICERDDSURFER_OUTPUT_ROOT}"} \
+	  --run-name "$${SLICERDDSURFER_RUN_NAME:-Test1}"
+
+install-plan:
+	$(PYTHON) scripts/install_dependencies.py --all --output-dir "$${SLICERDDSURFER_INSTALL_PLAN_DIR:-ignore/local_reports/install_plan}" --platform "$${SLICERDDSURFER_PLATFORM:-$$(uname -s)}"
+
+clean-local:
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
+	find . -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete
+	rm -rf .pytest_cache .ruff_cache build dist install_plan
+	rm -rf ignore/local_reports/fresh_clone_smoke
+	rm -rf "$${SMOKE_ROOT:-/tmp/slicerdsurfer-fresh-clone-smoke}"
 
 lint:
 	$(PYTHON) -m ruff check .
