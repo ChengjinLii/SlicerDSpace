@@ -62,6 +62,30 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             command_path.chmod(0o755)
         return freesurfer_home
 
+    def test_dti_runtime_requires_real_slicer_python(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_python = Path(tmp) / "python-without-slicer"
+            fake_python.write_text(
+                f"#!{sys.executable}\nprint('{{\"available\": false}}')\n",
+                encoding="utf-8",
+            )
+            fake_python.chmod(0o755)
+            result = run_environment_doctor(
+                EnvironmentDoctorConfig(
+                    targets=("microstructure", "tractography"),
+                    repo_root=REPO_ROOT,
+                    python_executable=fake_python,
+                    tractography_backend="dti_det",
+                )
+            )
+
+        runtime = next(item for item in result.statuses if item.key == "python:slicer.util")
+        self.assertEqual(runtime.status, "missing")
+        self.assertEqual(runtime.details["package"], "")
+        self.assertIn("slicer-runtime", result.missing_external_groups)
+        self.assertNotIn("slicer.util", result.missing_python_packages)
+        self.assertEqual(set(result.blocked_targets), {"microstructure", "tractography"})
+
     def test_user_path_source_overrides_environment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

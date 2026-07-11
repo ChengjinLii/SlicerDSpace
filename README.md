@@ -30,8 +30,9 @@ sub-01/
 8. Open the output tree/report from the run status panel.
 
 If you only want to test the interface, click `Demo / Try with sample data`.
-This creates a tiny synthetic DWI subject with no human data and selects a
-lightweight DTI-oriented run plan.
+This creates a tiny synthetic DWI subject with no human data, automatically
+runs validation, DTI scalar mapping and deterministic tractography, and loads
+the key maps and fibre bundle into the Slicer scene.
 
 ## Install The Code
 
@@ -78,13 +79,15 @@ Details: [docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md).
 - Windows: [docs/setup/WINDOWS.md](docs/setup/WINDOWS.md)
 - macOS: [docs/setup/MACOS.md](docs/setup/MACOS.md)
 - Linux/HPC: [docs/setup/LINUX_HPC.md](docs/setup/LINUX_HPC.md)
+- Shared GUI/CLI settings: [docs/setup/USER_CONFIG.md](docs/setup/USER_CONFIG.md)
 - Dependency workflow: [docs/assets/DEPENDENCY_SETUP_WORKFLOW.md](docs/assets/DEPENDENCY_SETUP_WORKFLOW.md)
 
 Python packages, external software and model weights are handled differently:
 
 - Python packages install into the selected Slicer Python or conda/Python
   environment. SlicerDMRI and PyTorch are expected Slicer extension/runtime
-  dependencies for the corresponding workflows.
+  dependencies for the corresponding workflows. DTI/anatomical execution that
+  uses Slicer CLI modules must run through Slicer or `bin/PythonSlicer`.
 - External tools such as MRtrix3, FSL, FreeSurfer, WMA and TractCloud are
   detected from saved paths, environment variables, `PATH` and common install
   locations. They are not installed silently.
@@ -116,6 +119,9 @@ In the Slicer module, click `Copy diagnostic report` and paste the report into
 an issue or support message. It includes Slicer/Python paths, model asset root,
 missing dependencies, checked paths and recent logs.
 
+Common language, paths and run defaults are saved in a local `user_config.json`
+and reused by both the GUI and CLI. Explicit CLI options always take priority.
+
 ## Developer Checks
 
 ```bash
@@ -125,6 +131,8 @@ python3 scripts/release_audit.py
 ```
 
 Release details are in [docs/release/RELEASE.md](docs/release/RELEASE.md).
+Benchmark CSV/figure generation is documented in
+[docs/release/PROTOCOL_BENCHMARKS.md](docs/release/PROTOCOL_BENCHMARKS.md).
 
 ## Citation
 

@@ -2,7 +2,7 @@ PYTHON ?= python3
 SLICERDDSURFER_RELEASE_ARGS ?=
 SLICERDDSURFER_TEST_PATTERN ?= test_*.py
 
-.PHONY: help test-fast test-slicer fresh-clone-smoke release-check release-plan release-artifacts prepare-inputs output-tree-report subject-report install-plan clean-local lint
+.PHONY: help test-fast test-slicer fresh-clone-smoke release-check release-plan release-artifacts prepare-inputs output-tree-report subject-report protocol-benchmarks install-plan clean-local lint
 
 help:
 	@echo "SlicerDDSurfer developer targets:"
@@ -15,6 +15,7 @@ help:
 	@echo "  make prepare-inputs Normalize DICOM/NIfTI/NRRD inputs into a subject-root."
 	@echo "  make output-tree-report Generate annotated HTML for the release output tree."
 	@echo "  make subject-report Generate subject-level HTML/JSON/Markdown reports from a run manifest."
+	@echo "  make protocol-benchmarks Generate benchmark CSV/JSON and publication-oriented figures."
 	@echo "  make install-plan   Write a dependency plan without mutating the system."
 	@echo "  make clean-local    Remove ignored local caches and generated smoke/report artifacts."
 	@echo "  make lint           Run ruff if installed."
@@ -35,6 +36,7 @@ test-slicer:
 	if [ -n "$${SLICERDDSURFER_XVFB_RUN:-}" ] && [ "$${SLICERDDSURFER_XVFB_RUN}" != "none" ]; then \
 	  env PATH="$$(dirname "$${SLICERDDSURFER_XVFB_RUN}"):$${PATH}" \
 	    SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD="$${SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD:-1}" \
+	    SLICERDDSURFER_USER_CONFIG="$${SLICERDDSURFER_USER_CONFIG:-/tmp/slicerdsurfer-test-user-config.json}" \
 	    SLICERDDSURFER_EXTENSION_MODULE_DIR="$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
 	    "$${SLICERDDSURFER_XVFB_RUN}" -a "$${SLICERDDSURFER_SLICER_LAUNCHER}" --no-splash --disable-cli-modules \
 	    --additional-module-paths "$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
@@ -42,6 +44,7 @@ test-slicer:
 	elif [ "$${SLICERDDSURFER_USE_EXISTING_DISPLAY:-0}" = "1" ] || [ -n "$${DISPLAY:-}" ] || [ -n "$${WAYLAND_DISPLAY:-}" ]; then \
 	  env SLICERDDSURFER_EXTENSION_MODULE_DIR="$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
 	    SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD="$${SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD:-1}" \
+	    SLICERDDSURFER_USER_CONFIG="$${SLICERDDSURFER_USER_CONFIG:-/tmp/slicerdsurfer-test-user-config.json}" \
 	    "$${SLICERDDSURFER_SLICER_LAUNCHER}" --no-splash --disable-cli-modules \
 	    --additional-module-paths "$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
 	    --python-script Testing/Python/slicer_extension_install_smoke.py; \
@@ -88,6 +91,12 @@ subject-report:
 	  --subject-root "$${SLICERDDSURFER_SUBJECT_ROOT}" \
 	  $${SLICERDDSURFER_OUTPUT_ROOT:+--output-root "$${SLICERDDSURFER_OUTPUT_ROOT}"} \
 	  --run-name "$${SLICERDDSURFER_RUN_NAME:-Test1}"
+
+protocol-benchmarks:
+	: "$${SLICERDDSURFER_BENCHMARK_INPUT:?Set SLICERDDSURFER_BENCHMARK_INPUT to an output tree or orchestration manifest}"
+	$(PYTHON) scripts/generate_protocol_benchmarks.py \
+	  --input "$${SLICERDDSURFER_BENCHMARK_INPUT}" \
+	  --output-dir "$${SLICERDDSURFER_BENCHMARK_OUTPUT:-ignore/protocol_benchmarks}"
 
 install-plan:
 	$(PYTHON) scripts/install_dependencies.py --all --output-dir "$${SLICERDDSURFER_INSTALL_PLAN_DIR:-ignore/local_reports/install_plan}" --platform "$${SLICERDDSURFER_PLATFORM:-$$(uname -s)}"

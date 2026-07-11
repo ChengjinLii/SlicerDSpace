@@ -26,8 +26,21 @@ from shared import (
     summarize_environment_doctor,
     write_environment_report,
 )
-from shared.dependency_config import add_dependency_config_arguments, apply_dependency_config, write_dependency_config
+from shared.dependency_config import (
+    DEPENDENCY_CONFIG_KEYS,
+    add_dependency_config_arguments,
+    apply_dependency_config,
+    write_dependency_config,
+)
 from shared.python_environment import resolve_python_executable
+from shared.user_config import (
+    apply_user_config_to_args,
+    default_user_config_path,
+    explicit_cli_destinations,
+    load_user_config,
+    user_config_from_cli_args,
+    write_user_config,
+)
 
 
 DEFAULT_PRODUCT_TARGETS = (
@@ -230,10 +243,36 @@ def build_parser() -> argparse.ArgumentParser:
             "Use --all for the full product tree, or --targets/--skip-targets to customize."
         )
     )
-    parser.add_argument("--subject-root", required=True, type=Path, help="Subject root directory.")
+    parser.add_argument(
+        "--subject-root",
+        type=Path,
+        help="Subject root directory. Defaults to the most recently saved user-config path when available.",
+    )
     parser.add_argument("--subject-id", help="Optional subject id. Defaults to the subject-root directory name.")
     parser.add_argument("--output-root", type=Path, help="Optional output root. Defaults to <subject-root>/outputs.")
     parser.add_argument("--run-name", default="Test1", help="Run name used for tractography/connectome subtrees.")
+    parser.add_argument(
+        "--user-config",
+        type=Path,
+        help=(
+            "Shared GUI/CLI user configuration JSON. Defaults to the platform-specific SlicerDDSurfer config path "
+            "or $SLICERDDSURFER_USER_CONFIG."
+        ),
+    )
+    parser.add_argument("--no-user-config", action="store_true", help="Do not load saved GUI/CLI defaults.")
+    parser.add_argument(
+        "--save-user-config",
+        nargs="?",
+        const="__default__",
+        metavar="PATH",
+        help="Save resolved paths and run defaults to PATH, or to the default user config when PATH is omitted.",
+    )
+    parser.add_argument("--print-user-config", action="store_true", help="Print the loaded shared user configuration and exit.")
+    parser.add_argument(
+        "--language",
+        choices=("en", "zh"),
+        help="Slicer beginner-UI language stored when --save-user-config is used.",
+    )
     parser.add_argument(
         "--all",
         action="store_true",
@@ -472,9 +511,27 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    explicit_dests = explicit_cli_destinations(parser, raw_argv)
+    args = parser.parse_args(raw_argv)
     try:
+        config_path = args.user_config.expanduser() if args.user_config else default_user_config_path()
+        user_config = load_user_config(config_path) if not args.no_user_config else None
+        if args.print_user_config:
+            print(json.dumps(user_config or {}, indent=2, ensure_ascii=False, sort_keys=True))
+            return 0
         _apply_dependency_config(args)
+        dependency_profile_dests = {
+            key
+            for key in DEPENDENCY_CONFIG_KEYS
+            if args.dependency_config is not None and getattr(args, key, None) is not None
+        }
+        if user_config is not None:
+            apply_user_config_to_args(
+                args,
+                user_config,
+                explicit_dests=explicit_dests | dependency_profile_dests,
+            )
         if args.python_environment and args.python_executable is None:
             args.python_executable = resolve_python_executable(
                 python_environment=args.python_environment,
@@ -482,6 +539,11 @@ def main(argv: list[str] | None = None) -> int:
             )
     except Exception as exc:
         parser.error(str(exc))
+    if args.subject_root is None:
+        parser.error(
+            "--subject-root is required unless a recent subject_root is available in the shared user config. "
+            f"Current config path: {config_path}"
+        )
     if args.save_dependency_config:
         written_config = _write_dependency_config(args, args.save_dependency_config)
         print(f"Dependency config written: {written_config}", file=sys.stderr)
@@ -505,7 +567,21 @@ def main(argv: list[str] | None = None) -> int:
 
     subject_root = args.subject_root.expanduser().resolve()
     subject_id = (args.subject_id or _infer_subject_id(subject_root)).strip()
+    args.subject_root = subject_root
+    args.subject_id = subject_id
     output_root = args.output_root.expanduser().resolve() if args.output_root else None
+    args.output_root = output_root
+    if args.save_user_config:
+        save_path = config_path if args.save_user_config == "__default__" else Path(args.save_user_config).expanduser()
+        saved_payload = user_config_from_cli_args(
+            args,
+            language=args.language or str((user_config or {}).get("ui", {}).get("language") or "en"),
+            base_config=user_config,
+            resolved_targets=targets,
+            resolved_stages=microstructure_stages,
+        )
+        written = write_user_config(saved_payload, save_path)
+        print(f"User config written: {written}", file=sys.stderr)
 
     if args.doctor:
         doctor_result, doctor_paths = _run_environment_doctor_from_args(

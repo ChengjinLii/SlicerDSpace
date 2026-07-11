@@ -213,6 +213,7 @@ python3 run_subject_pipeline.py \
 ```
 
 直接用系统 `python3 run_subject_pipeline.py --execute` 可能无法解析 Slicer CLI，例如 `DWIConvert`、`DWIToDTIEstimation`、`BRAINSFit` 和 `ResampleScalarVectorDWIVolume`。
+对于依赖这些 CLI 的目标，preflight 会要求真实的 `slicer.util` 运行时并阻止系统 Python 继续执行。不要通过 `pip install slicer` 处理该提示；应改用 3D Slicer 或其 `bin/PythonSlicer`。
 
 设备策略：
 

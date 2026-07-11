@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from shared.demo_data import DEMO_SUBJECT_ID, create_synthetic_demo_subject
+from shared.user_config import default_user_config_path, load_user_config, update_user_config
 
 
 LANGUAGE_SETTING = "SlicerDDSurfer/UserSettings/language"
@@ -26,6 +27,7 @@ TRANSLATIONS = {
         "wizard": "First-run setup wizard",
         "demo": "Demo / Try with sample data",
         "copy_diag": "Copy diagnostic report",
+        "open_config": "Open settings JSON",
         "language": "Language",
         "dashboard_waiting": "Run Check environment dependencies to see what is runnable on this computer.",
         "path_examples": (
@@ -49,6 +51,7 @@ TRANSLATIONS = {
         "wizard": "首次运行设置向导",
         "demo": "Demo / 我只是想试一下",
         "copy_diag": "复制诊断报告",
+        "open_config": "打开设置 JSON",
         "language": "语言",
         "dashboard_waiting": "点击“检查环境依赖”后，这里会显示这台电脑现在能跑什么、还缺什么。",
         "path_examples": (
@@ -160,6 +163,7 @@ def diagnostic_report_text(owner: Any) -> str:
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "platform": platform.platform(),
         "python": sys.executable,
+        "user_config_path": default_user_config_path().expanduser().as_posix(),
         "slicer_version": getattr(getattr(sys.modules.get("slicer"), "app", None), "applicationVersion", "unknown"),
         "subject_id": getattr(node, "subjectId", "") if node else "",
         "subject_root": getattr(node, "inputDirectory", "") if node else "",
@@ -210,9 +214,11 @@ def install_onboarding_panel(owner: Any, parent_layout: Any) -> None:
     wizard_button = qt.QPushButton()
     demo_button = qt.QPushButton()
     diagnostic_button = qt.QPushButton()
+    config_button = qt.QPushButton()
     buttons.addWidget(wizard_button)
     buttons.addWidget(demo_button)
     buttons.addWidget(diagnostic_button)
+    buttons.addWidget(config_button)
     buttons.addStretch(1)
     layout.addLayout(buttons)
 
@@ -240,6 +246,7 @@ def install_onboarding_panel(owner: Any, parent_layout: Any) -> None:
         "wizard_button": wizard_button,
         "demo_button": demo_button,
         "diagnostic_button": diagnostic_button,
+        "config_button": config_button,
         "dashboard": dashboard,
         "examples": examples,
     }
@@ -248,6 +255,7 @@ def install_onboarding_panel(owner: Any, parent_layout: Any) -> None:
     wizard_button.connect("clicked()", owner._on_show_first_run_wizard_clicked)
     demo_button.connect("clicked()", owner._on_try_demo_clicked)
     diagnostic_button.connect("clicked()", owner._on_copy_diagnostic_report_clicked)
+    config_button.connect("clicked()", owner._on_open_user_config_clicked)
 
     try:
         parent_layout.insertWidget(0, panel)
@@ -267,6 +275,7 @@ def apply_onboarding_language(owner: Any, language: str) -> None:
         ("wizard_button", "wizard"),
         ("demo_button", "demo"),
         ("diagnostic_button", "copy_diag"),
+        ("config_button", "open_config"),
         ("examples", "path_examples"),
     ):
         widget = widgets.get(name)
@@ -307,9 +316,18 @@ def maybe_show_first_run_wizard(owner: Any) -> None:
     if os.environ.get("SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD") == "1":
         return
     settings = slicer.app.userSettings()
-    if str(settings.value(FIRST_RUN_SETTING, "") or "") == "1":
+    try:
+        config = load_user_config()
+        shown_in_json = bool(config.get("ui", {}).get("first_run_wizard_shown"))
+    except Exception:
+        shown_in_json = False
+    if shown_in_json or str(settings.value(FIRST_RUN_SETTING, "") or "") == "1":
         return
     settings.setValue(FIRST_RUN_SETTING, "1")
+    try:
+        update_user_config({"ui": {"first_run_wizard_shown": True}})
+    except Exception:
+        pass
     qt.QTimer.singleShot(1200, owner._on_show_first_run_wizard_clicked)
 
 

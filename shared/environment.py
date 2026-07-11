@@ -207,6 +207,7 @@ def _python(
     required: bool = True,
     python_executable: Optional[Path] = None,
     python_path_entries: tuple[Path, ...] = (),
+    install_group: str = "python",
     notes: str = "",
 ) -> None:
     _put(
@@ -223,7 +224,7 @@ def _python(
             python_executable=_resolve_path(python_executable),
             python_path_entries=tuple(path.expanduser().resolve() for path in python_path_entries),
             discovery_source="python",
-            install_group="python",
+            install_group=install_group,
             notes=notes,
         ),
     )
@@ -379,6 +380,21 @@ def _add_core_python(specs: dict[str, DependencySpec], target: str) -> None:
 def _add_dipy_stack(specs: dict[str, DependencySpec], target: str) -> None:
     _add_core_python(specs, target)
     _python(specs, target=target, import_name="dipy", package="dipy>=1.11,<1.13")
+
+
+def _add_slicer_python_runtime(specs: dict[str, DependencySpec], target: str) -> None:
+    _python(
+        specs,
+        target=target,
+        import_name="slicer.util",
+        package="",
+        install_requirement="",
+        install_group="slicer-runtime",
+        notes=(
+            "Run this target from 3D Slicer or with Slicer's bin/PythonSlicer executable. "
+            "Do not install the unrelated PyPI package named 'slicer'. Install SlicerDMRI in 3D Slicer as well."
+        ),
+    )
 
 
 def _add_deep_learning_stack(specs: dict[str, DependencySpec], target: str) -> None:
@@ -950,13 +966,16 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             target in {"microstructure", "microstructure_freewater"} or config.tractography_backend == "dti_det"
         ):
             _add_dipy_stack(specs, target)
+            _add_slicer_python_runtime(specs, target)
 
         if target == "microstructure_noddi":
             _add_core_python(specs, target)
             _python(specs, target=target, import_name="amico", package="dmri-amico")
+            _add_slicer_python_runtime(specs, target)
 
         if target == "segmentation":
             _add_core_python(specs, target)
+            _add_slicer_python_runtime(specs, target)
             for import_name, package in (("scipy", "scipy"), ("nrrd", "pynrrd")):
                 _python(specs, target=target, import_name=import_name, package=package)
             _add_deep_learning_stack(specs, target)
@@ -976,6 +995,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
 
         if target == "parcellation":
             _add_core_python(specs, target)
+            _add_slicer_python_runtime(specs, target)
             for import_name, package in (
                 ("SimpleITK", "SimpleITK"),
                 ("scipy", "scipy"),
@@ -1001,6 +1021,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
 
         if target == "surface":
             _add_core_python(specs, target)
+            _add_slicer_python_runtime(specs, target)
             for import_name, package in (("SimpleITK", "SimpleITK"), ("scipy", "scipy"), ("trimesh", "trimesh")):
                 _python(specs, target=target, import_name=import_name, package=package)
             _add_deep_learning_stack(specs, target)
@@ -1491,7 +1512,12 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
         python_executable = spec.python_executable
         python_path_entries = tuple(path for path in spec.python_path_entries if path)
         if python_executable is None and not python_path_entries:
-            available = importlib.util.find_spec(spec.python_import) is not None
+            try:
+                available = importlib.util.find_spec(spec.python_import) is not None
+                error = None
+            except (ImportError, AttributeError, ValueError) as exc:
+                available = False
+                error = str(exc)
             details = {
                 "import": spec.python_import,
                 "package": spec.python_package,
@@ -1499,6 +1525,7 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
                 "python_executable": sys.executable,
                 "pythonpath": [],
                 "detected_source": "current Python" if available else "not found",
+                "error": error,
             }
         else:
             python_path = python_executable or Path(sys.executable)
@@ -1669,7 +1696,8 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
             {
                 specs_by_key.install_group
                 for specs_by_key in specs
-                if status_by_key[specs_by_key.key].status == "missing" and specs_by_key.kind != "python"
+                if status_by_key[specs_by_key.key].status == "missing"
+                and (specs_by_key.kind != "python" or not specs_by_key.python_package)
             }
         )
     )

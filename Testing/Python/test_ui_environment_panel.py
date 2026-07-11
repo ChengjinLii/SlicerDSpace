@@ -264,6 +264,27 @@ class UIEnvironmentPanelTest(unittest.TestCase):
         self.assertIn("#C62828", environment_path_status_style("missing"))
         self.assertIn("#78909C", environment_path_status_style("unknown-state"))
 
+    def test_non_installable_slicer_runtime_is_shown_as_setup(self) -> None:
+        runtime = DependencyStatus(
+            key="python:slicer.util",
+            kind="python",
+            label="slicer.util",
+            status="missing",
+            required=True,
+            targets=("microstructure",),
+            details={
+                "import": "slicer.util",
+                "package": "",
+                "python_executable": "/usr/bin/python3",
+            },
+            install_hint="Run with PythonSlicer; do not pip install slicer.",
+            install_group="slicer-runtime",
+        )
+
+        self.assertEqual(environment_item_button_text(runtime), "Setup")
+        self.assertIn("Runtime module: slicer.util", environment_item_text(runtime))
+        self.assertIn("do not pip install", environment_item_button_tooltip(runtime))
+
     def test_detected_source_text_is_compact(self) -> None:
         self.assertEqual(format_detected_source(""), "not found")
         self.assertEqual(format_detected_source("user setting"), "using saved path")

@@ -156,7 +156,7 @@ def _run() -> None:
         widget._onInstallAllEnvironmentItemsClicked()
         slicer.app.processEvents()
         bulk_asset_file = MODEL_ROOT / "segmentation" / "weights" / "dti_axial.pt"
-        bulk_external_notice = any("System-level tools are not installed silently" in message for message in info_messages)
+        bulk_external_notice = any("not installed silently" in message for message in info_messages)
 
         widget._onInstallEnvironmentItemClicked(model_item)
         slicer.app.processEvents()
@@ -178,6 +178,15 @@ def _run() -> None:
         widget._initialize_environment_dependency_path_controls()
         restored_model = widget._read_environment_path_setting("model_assets_dir")
         restored_mrtrix = widget._read_environment_path_setting("mrtrix_bin_dir")
+        from shared.user_config import load_user_config
+
+        user_config = load_user_config()
+        json_dependencies = user_config.get("external_dependencies", {})
+        json_model = str(json_dependencies.get("model_assets_dir") or "")
+        json_mrtrix = str(json_dependencies.get("mrtrix_bin_dir") or "")
+        widget._save_environment_path_setting("mrtrix_bin_dir", "")
+        json_clear_ready = "mrtrix_bin_dir" not in load_user_config().get("external_dependencies", {})
+        widget._save_environment_path_setting("mrtrix_bin_dir", MRTRIX_ROOT.as_posix())
 
         print(f"SLICERDDSURFER_DEP_MODEL_SAVED={model_saved}", flush=True)
         print(f"SLICERDDSURFER_DEP_MODEL_LINE_EDIT={model_line_text}", flush=True)
@@ -188,6 +197,9 @@ def _run() -> None:
         print(f"SLICERDDSURFER_DEP_RESTORED_MRTRIX={restored_mrtrix}", flush=True)
         print(f"SLICERDDSURFER_DEP_BULK_MODEL_ASSET_FILE={bulk_asset_file.is_file()}", flush=True)
         print(f"SLICERDDSURFER_DEP_BULK_EXTERNAL_NOTICE={bulk_external_notice}", flush=True)
+        print(f"SLICERDDSURFER_DEP_JSON_MODEL={json_model}", flush=True)
+        print(f"SLICERDDSURFER_DEP_JSON_MRTRIX={json_mrtrix}", flush=True)
+        print(f"SLICERDDSURFER_DEP_JSON_CLEAR_READY={json_clear_ready}", flush=True)
 
         ok = (
             bulk_asset_file.is_file()
@@ -199,6 +211,9 @@ def _run() -> None:
             and mrtrix_line_text == MRTRIX_ROOT.as_posix()
             and restored_model == MODEL_ROOT.as_posix()
             and restored_mrtrix == MRTRIX_ROOT.as_posix()
+            and json_model == MODEL_ROOT.as_posix()
+            and json_mrtrix == MRTRIX_ROOT.as_posix()
+            and json_clear_ready
         )
         slicer.app.exit(0 if ok else 2)
     except Exception as exc:

@@ -26,7 +26,7 @@ scripts/download_model_assets.sh --profile core
 python3 scripts/download_model_assets.py --profile core --verify-only
 ```
 
-`git clone` 只下载源码、脚本、文档、配置、`models/assets_manifest.json` 和 Git LFS pointer。大模型权重和模板需要通过 downloader 单独拉取，并用文件大小和 SHA256 校验。
+`git clone` 只下载源码、脚本、文档、配置和 `models/assets_manifest.json`，不包含大模型权重或模板。模型资源需要通过 downloader 从独立资源仓库拉取，并用文件大小和 SHA256 校验。
 
 默认情况下，权重不会放在 Slicer 插件/代码目录里，而是下载到用户资产目录：
 
@@ -62,7 +62,7 @@ sub-01/
 先做环境检查：
 
 ```bash
-python3 run_subject_pipeline.py \
+/path/to/Slicer --launch PythonSlicer run_subject_pipeline.py \
   --subject-root /path/to/sub-01 \
   --targets validation,preprocessing,microstructure,tractography,connectome \
   --doctor
@@ -98,6 +98,7 @@ python3 run_subject_pipeline.py \
 
 在 3D Slicer 中打开 `SlicerDDSurfer` 模块后，可以完成：
 
+- 使用 `Demo / 我只是想试一下` 自动生成无隐私的微型 DWI，运行 validation、DTI 和确定性纤维追踪，并把关键结果加载回 Slicer 场景；
 - subject-root 选择；
 - 依赖 preflight 和外部路径覆盖；
 - 运行前 run-plan 检查；
@@ -106,6 +107,8 @@ python3 run_subject_pipeline.py \
 
 详细依赖配置见
 [docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md)。
+
+语言、最近使用的 subject/output 路径、运行目标、后端和外部依赖路径会保存到本地 `user_config.json`，GUI 与命令行共用。路径和优先级见 [docs/setup/USER_CONFIG.md](docs/setup/USER_CONFIG.md)。
 
 ## 模型资源
 

@@ -113,6 +113,11 @@ from shared.ui_onboarding import (
     prepare_demo_for_owner,
     show_first_run_wizard,
 )
+from shared.user_config import (
+    default_user_config_path,
+    load_user_config,
+    update_user_config,
+)
 
 
 ENVIRONMENT_DEPENDENCY_PATHS = UI_DEPENDENCY_PATHS
@@ -299,6 +304,21 @@ class SharedWidgetMixin:
         if not node:
             return
         settings = slicer.app.userSettings()
+        config = None
+        try:
+            config_path = default_user_config_path().expanduser()
+            if config_path.is_file():
+                config = load_user_config(config_path)
+                configured_dependencies = config.get("external_dependencies", {})
+                for item in ENVIRONMENT_DEPENDENCY_PATHS:
+                    dependency_id = item["id"]
+                    value = configured_dependencies.get(dependency_id)
+                    if value:
+                        settings.setValue(self._environment_settings_key(dependency_id), value)
+                    else:
+                        settings.remove(self._environment_settings_key(dependency_id))
+        except Exception as exc:
+            self.appendLog(f"[Settings] Shared user config could not be restored: {exc}")
         with slicer.util.NodeModify(node):
             for attribute, value_type in self._common_user_setting_specs():
                 key = self._user_settings_key(attribute)
@@ -312,6 +332,44 @@ class SharedWidgetMixin:
                     setattr(node, attribute, self._coerce_user_setting_value(settings.value(key), value_type))
                 except Exception:
                     continue
+        if config is not None:
+            recent = config.get("recent", {})
+            defaults = config.get("run_defaults", {})
+            targets = set(defaults.get("targets", ()) or ())
+            with slicer.util.NodeModify(node):
+                node.subjectId = str(recent.get("subject_id") or node.subjectId or "")
+                node.inputDirectory = str(recent.get("subject_root") or node.inputDirectory or "")
+                node.outputDirectory = str(recent.get("output_root") or node.outputDirectory or "")
+                node.orchestrationRunName = str(defaults.get("run_name") or node.orchestrationRunName or "Test1")
+                node.preprocessingBackend = str(defaults.get("preprocessing_backend") or node.preprocessingBackend or "dipy")
+                node.orchestrationTractographyBackend = str(
+                    defaults.get("tractography_backend") or node.orchestrationTractographyBackend or "csd_act"
+                )
+                node.orchestrationBundleBackend = str(
+                    defaults.get("bundle_backend") or node.orchestrationBundleBackend or "wmql"
+                )
+                stages = defaults.get("microstructure_stages") or ["dti"]
+                node.orchestrationMicrostructureStages = ",".join(str(value) for value in stages)
+                node.connectomeBackend = str(defaults.get("connectome_backend") or node.connectomeBackend or "python")
+                node.orchestrationSelectStreamlines = int(
+                    defaults.get("select_streamlines") or node.orchestrationSelectStreamlines or 100000
+                )
+                node.autoInstallPythonDependencies = bool(
+                    defaults.get("auto_install_python_dependencies", node.autoInstallPythonDependencies)
+                )
+                if targets:
+                    node.targetPreprocessing = "preprocessing" in targets
+                    node.targetSurface = "surface" in targets
+                    node.targetParcellation = "parcellation" in targets
+                    node.targetSegmentation = "segmentation" in targets
+                    node.targetMicrostructure = bool(
+                        targets & {"microstructure", "microstructure_freewater", "microstructure_noddi"}
+                    )
+                    node.targetTractography = bool(targets & {"tractography", "saf"})
+                    node.targetBundles = bool(targets & {"bundles", "wma", "tractcloud"})
+                    node.targetConnectome = "connectome" in targets
+        else:
+            self._save_common_user_settings()
 
     def _save_common_user_settings(self) -> None:
         node = self._parameterNode
@@ -324,6 +382,49 @@ class SharedWidgetMixin:
             except Exception:
                 continue
             settings.setValue(self._user_settings_key(attribute), value)
+        targets = list(self._selected_product_targets())
+        stages = [value.strip() for value in (node.orchestrationMicrostructureStages or "dti").split(",") if value.strip()]
+        external_dependencies = {
+            item["id"]: self._read_environment_path_setting(item["id"]) or None
+            for item in ENVIRONMENT_DEPENDENCY_PATHS
+        }
+        try:
+            _, path = update_user_config(
+                {
+                    "recent": {
+                        "subject_id": node.subjectId or "",
+                        "subject_root": node.inputDirectory or "",
+                        "output_root": node.outputDirectory or "",
+                    },
+                    "run_defaults": {
+                        "run_name": node.orchestrationRunName or "Test1",
+                        "targets": targets,
+                        "preprocessing_backend": node.preprocessingBackend or "dipy",
+                        "tractography_backend": node.orchestrationTractographyBackend or "csd_act",
+                        "bundle_backend": node.orchestrationBundleBackend or "wmql",
+                        "microstructure_stages": stages or ["dti"],
+                        "connectome_backend": node.connectomeBackend or "python",
+                        "select_streamlines": int(node.orchestrationSelectStreamlines),
+                        "auto_install_python_dependencies": bool(node.autoInstallPythonDependencies),
+                    },
+                    "external_dependencies": external_dependencies,
+                }
+            )
+            self._sharedUserConfigPath = path
+        except Exception as exc:
+            self.appendLog(f"[Settings] Shared user config could not be saved: {exc}")
+
+    def _schedule_common_user_settings_save(self) -> None:
+        if not self._parameterNode:
+            return
+        timer = getattr(self, "_commonUserSettingsSaveTimer", None)
+        if timer is None:
+            timer = qt.QTimer(self.parent)
+            timer.setSingleShot(True)
+            timer.setInterval(350)
+            timer.connect("timeout()", self._save_common_user_settings)
+            self._commonUserSettingsSaveTimer = timer
+        timer.start()
 
     def _save_python_install_status(self, packages: tuple[str, ...], status: str, detail: str = "") -> None:
         try:
@@ -352,6 +453,13 @@ class SharedWidgetMixin:
             settings.setValue(self._environment_settings_key(dependency_id), clean_value)
         else:
             settings.remove(self._environment_settings_key(dependency_id))
+        try:
+            _, path = update_user_config(
+                {"external_dependencies": {dependency_id: clean_value or None}}
+            )
+            self._sharedUserConfigPath = path
+        except Exception as exc:
+            self.appendLog(f"[Settings] Dependency path JSON could not be saved: {exc}")
 
     def _line_edit_text(self, line_edit) -> str:
         text_attr = getattr(line_edit, "text", "")
@@ -419,7 +527,13 @@ class SharedWidgetMixin:
             return
         install_onboarding_panel(self, configuration_layout)
         settings = slicer.app.userSettings()
-        language = normalized_language(str(settings.value(LANGUAGE_SETTING, "en") or "en"))
+        try:
+            config = load_user_config()
+            self._sharedUserConfigPath = default_user_config_path()
+            configured_language = config.get("ui", {}).get("language")
+        except Exception:
+            configured_language = None
+        language = normalized_language(str(configured_language or settings.value(LANGUAGE_SETTING, "en") or "en"))
         self._onboardingLanguage = language
         apply_onboarding_language(self, language)
 
@@ -434,6 +548,11 @@ class SharedWidgetMixin:
         language = normalized_language(language)
         self._onboardingLanguage = language
         slicer.app.userSettings().setValue(LANGUAGE_SETTING, language)
+        try:
+            _, path = update_user_config({"ui": {"language": language}})
+            self._sharedUserConfigPath = path
+        except Exception as exc:
+            self.appendLog(f"[Settings] Language JSON could not be saved: {exc}")
         apply_onboarding_language(self, language)
 
     def _update_onboarding_dashboard(self, result=None) -> None:
@@ -455,13 +574,26 @@ class SharedWidgetMixin:
                 self._update_environment_path_status_labels(result)
                 self._update_environment_status(result)
                 self._update_onboarding_dashboard(result)
+            language = getattr(self, "_onboardingLanguage", "en")
+            if language == "zh":
+                message = (
+                    "合成示例数据已准备完成。\n\n"
+                    f"Subject root: {subject_root}\n\n"
+                    "将使用 DTI microstructure + dti_det tractography 轻量流程。关闭此提示后，"
+                    "SlicerDDSurfer 会自动执行 preflight 并开始运行。"
+                )
+            else:
+                message = (
+                    "Synthetic demo subject is ready.\n\n"
+                    f"Subject root: {subject_root}\n\n"
+                    "SlicerDDSurfer will run the lightweight DTI microstructure + dti_det tractography workflow. "
+                    "Close this message to start preflight and execution automatically."
+                )
             slicer.util.infoDisplay(
-                "Synthetic demo subject is ready.\n\n"
-                f"Subject root: {subject_root}\n\n"
-                "The UI is set to DTI microstructure + dti_det tractography. Review the capability dashboard, "
-                "then click Preflight and run when ready.",
+                message,
                 parent=self.parent,
             )
+            qt.QTimer.singleShot(0, self._onRunSelectedClicked)
         except Exception as exc:
             self._show_actionable_error(
                 title="Demo Setup Failed",
@@ -479,6 +611,16 @@ class SharedWidgetMixin:
             slicer.util.infoDisplay("Diagnostic report copied to clipboard.", parent=self.parent)
         except Exception:
             slicer.util.infoDisplay(report, windowTitle="SlicerDDSurfer diagnostic report", parent=self.parent)
+
+    def _on_open_user_config_clicked(self) -> None:
+        path = default_user_config_path().expanduser()
+        try:
+            if not path.is_file():
+                _, path = update_user_config({})
+            self._sharedUserConfigPath = path
+            self._open_local_path(path, missing_message="The shared user configuration JSON is not available.")
+        except Exception as exc:
+            slicer.util.infoDisplay(f"Could not open shared user configuration:\n{exc}", parent=self.parent)
 
     def _add_environment_path_row(self, form_layout, item: dict[str, str]) -> None:
         add_environment_path_row(self, form_layout, item)
@@ -1436,6 +1578,7 @@ class SharedWidgetMixin:
         self._refresh_selected_products_summary()
         self._refresh_advanced_run_settings()
         self.validateInputs(manual=False)
+        self._schedule_common_user_settings_save()
 
     def _update_parameter_node(self, attribute: str, value: Any) -> bool:
         if not self._parameterNode:
@@ -2294,12 +2437,13 @@ class SharedWidgetMixin:
         external_missing = [
             item
             for item in self._missing_environment_items(result)
-            if item.kind not in {"python"} and (item.install_group if hasattr(item, "install_group") else "") != "model-resources"
+            if (item.kind != "python" or not (item.details or {}).get("package"))
+            and (item.install_group if hasattr(item, "install_group") else "") != "model-resources"
         ]
         if external_missing:
             slicer.util.infoDisplay(
-                "System-level tools are not installed silently. Use each dependency row to choose an existing path, "
-                "or open Manual setup notes for platform-specific instructions.",
+                "System-level tools and application runtimes are not installed silently. Use each dependency row "
+                "to choose an existing path, or open Manual setup notes for platform-specific instructions.",
                 windowTitle="External tool setup",
                 parent=self.parent,
             )

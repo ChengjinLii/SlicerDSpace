@@ -1,0 +1,88 @@
+# Shared User Configuration
+
+SlicerDDSurfer stores common preferences in one local JSON file shared by the
+Slicer GUI and command-line interface. After the first setup, users do not need
+to repeatedly enter language, model paths, external software paths or common
+run defaults.
+
+## Default Location
+
+| Platform | Default JSON path |
+| --- | --- |
+| Windows | `%APPDATA%\SlicerDDSurfer\user_config.json` |
+| macOS | `~/Library/Application Support/SlicerDDSurfer/user_config.json` |
+| Linux/HPC | `$XDG_CONFIG_HOME/SlicerDDSurfer/user_config.json` or `~/.config/SlicerDDSurfer/user_config.json` |
+
+Set `SLICERDDSURFER_USER_CONFIG=/custom/path/user_config.json` to use another
+location. This is useful for a lab-wide profile, portable test environment or
+CI job.
+
+## Saved Values
+
+- UI language and whether the first-run wizard has been shown.
+- Recent subject ID, subject root and output directory.
+- Default targets, run name, preprocessing/tractography/bundle/connectome
+  backends, microstructure stages and streamline count.
+- Python environment, model asset root, MRtrix3, FSL, FreeSurfer, TractQuerier,
+  WMA, Slicer/SlicerDMRI and TractCloud paths.
+
+The GUI still writes compatible Slicer QSettings. The JSON file is the portable
+configuration that can be inspected, copied, versioned privately or reused by
+the CLI. Common GUI edits are saved automatically after a short debounce;
+language and dependency-path changes are saved immediately. Do not publish a
+config containing private data paths without review.
+
+## CLI Use
+
+Print the automatically loaded configuration:
+
+```bash
+python3 run_subject_pipeline.py --print-user-config
+```
+
+Save resolved CLI choices to the default JSON path:
+
+```bash
+python3 run_subject_pipeline.py \
+  --subject-root /data/project/sub-01 \
+  --targets validation,microstructure,tractography \
+  --tractography-backend dti_det \
+  --save-user-config \
+  --doctor
+```
+
+Reuse the saved subject root and defaults:
+
+```bash
+python3 run_subject_pipeline.py --doctor
+```
+
+Use an isolated test profile:
+
+```bash
+python3 run_subject_pipeline.py \
+  --user-config /tmp/slicerdsurfer-test-user-config.json \
+  --subject-root /data/project/sub-01 \
+  --targets validation \
+  --save-user-config /tmp/slicerdsurfer-test-user-config.json \
+  --doctor
+```
+
+Disable saved settings for one command:
+
+```bash
+python3 run_subject_pipeline.py \
+  --no-user-config \
+  --subject-root /data/project/sub-01 \
+  --targets validation \
+  --doctor
+```
+
+Precedence is: direct CLI option, explicit `--dependency-config` profile,
+shared user config, then built-in default. This lets a reusable project profile
+override personal dependency paths without overriding an option typed directly
+for the current command.
+When saving, SlicerDDSurfer records the final resolved target and
+microstructure-stage selections after applying `--all`, `--skip-targets` and
+stage expansion. GUI-only choices, such as the first-run state and automatic
+Python-package preference, are preserved.

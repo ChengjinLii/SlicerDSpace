@@ -77,11 +77,16 @@ def _run() -> None:
         onboarding_widgets = getattr(widget, "_onboardingWidgets", {}) or {}
         onboarding_ready = all(
             key in onboarding_widgets
-            for key in ("language_combo", "wizard_button", "demo_button", "diagnostic_button", "dashboard")
+            for key in ("language_combo", "wizard_button", "demo_button", "diagnostic_button", "config_button", "dashboard")
         )
         language_switch_ready = False
+        language_json_ready = False
+        shared_targets_json_ready = False
+        common_settings_auto_save_ready = False
+        original_language_index = -1
         if onboarding_ready:
             combo = onboarding_widgets["language_combo"]
+            original_language_index = int(combo.currentIndex)
             zh_index = combo.findData("zh")
             if zh_index >= 0:
                 combo.setCurrentIndex(zh_index)
@@ -89,6 +94,31 @@ def _run() -> None:
                 headline = getattr(widget.ui, "headlineLabel", None)
                 headline_text = str(headline.text if headline else "")
                 language_switch_ready = "运行工作台" in headline_text
+                try:
+                    from shared.user_config import load_user_config
+
+                    user_config = load_user_config()
+                    language_json_ready = user_config["ui"]["language"] == "zh"
+                    saved_targets = set(user_config["run_defaults"]["targets"])
+                    shared_targets_json_ready = {"validation", "preprocessing", "tractography"}.issubset(
+                        saved_targets
+                    )
+                except Exception:
+                    language_json_ready = False
+        if parameter_node_ready:
+            widget._parameterNode.subjectId = "json-auto-save-smoke"
+            widget._checkCanApply()
+            wait_loop = qt.QEventLoop()
+            qt.QTimer.singleShot(600, wait_loop.quit)
+            wait_loop.exec_()
+            try:
+                from shared.user_config import load_user_config
+
+                common_settings_auto_save_ready = (
+                    load_user_config()["recent"]["subject_id"] == "json-auto-save-smoke"
+                )
+            except Exception:
+                common_settings_auto_save_ready = False
         summary_label = getattr(widget, "_selectedProductsSummaryLabel", None)
         summary_text = ""
         if summary_label:
@@ -101,6 +131,26 @@ def _run() -> None:
         log_limit_ready = configured_log_limit == 4000
         environment_cache_ttl = float(getattr(widget, "_environmentCacheTtlSeconds", 0.0) or 0.0)
         environment_cache_ready = environment_cache_ttl > 0.0
+        demo_ready = False
+        demo_auto_dispatch_ready = False
+        original_info_display = slicer.util.infoDisplay
+        original_run_selected = widget._onRunSelectedClicked
+        try:
+            dispatched = []
+            slicer.util.infoDisplay = lambda *args, **kwargs: None
+            widget._onRunSelectedClicked = lambda: dispatched.append(True)
+            widget._on_try_demo_clicked()
+            slicer.app.processEvents()
+            demo_root = Path(str(widget._parameterNode.inputDirectory))
+            demo_ready = all(
+                (demo_root / "input" / name).is_file()
+                for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz")
+            )
+            demo_ready = demo_ready and widget._parameterNode.orchestrationTractographyBackend == "dti_det"
+            demo_auto_dispatch_ready = bool(dispatched)
+        finally:
+            slicer.util.infoDisplay = original_info_display
+            widget._onRunSelectedClicked = original_run_selected
         module_file = MODULE_DIR / "SlicerDDSurfer.py"
         module_file_is_symlink = module_file.is_symlink()
         print(f"SLICERDDSURFER_EXTENSION_MODULE_DIR={MODULE_DIR}", flush=True)
@@ -116,10 +166,15 @@ def _run() -> None:
         print(f"SLICERDDSURFER_EXTENSION_MODEL_ASSETS_READY={model_assets_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_ONBOARDING_READY={onboarding_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_LANGUAGE_SWITCH_READY={language_switch_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_LANGUAGE_JSON_READY={language_json_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_SHARED_TARGETS_JSON_READY={shared_targets_json_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_COMMON_SETTINGS_AUTO_SAVE_READY={common_settings_auto_save_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_SELECTION_SUMMARY_READY={selection_summary_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_LOG_BLOCK_LIMIT={log_block_limit}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_CONFIGURED_LOG_LIMIT={configured_log_limit}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_ENV_CACHE_TTL={environment_cache_ttl}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_DEMO_READY={demo_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_DEMO_AUTO_DISPATCH_READY={demo_auto_dispatch_ready}", flush=True)
         bad = (
             top_level_py != ["SlicerDDSurfer.py"]
             or not target_registered
@@ -133,10 +188,18 @@ def _run() -> None:
             or not model_assets_ready
             or not onboarding_ready
             or not language_switch_ready
+            or not language_json_ready
+            or not shared_targets_json_ready
+            or not common_settings_auto_save_ready
             or not selection_summary_ready
             or not log_limit_ready
             or not environment_cache_ready
+            or not demo_ready
+            or not demo_auto_dispatch_ready
         )
+        if onboarding_ready and original_language_index >= 0:
+            onboarding_widgets["language_combo"].setCurrentIndex(original_language_index)
+            slicer.app.processEvents()
         slicer.app.exit(2 if bad else 0)
     except Exception as exc:
         print(f"SLICERDDSURFER_EXTENSION_INSTALL_ERROR={exc}", flush=True)

@@ -17,6 +17,133 @@ CLI_PATH = REPO_ROOT / "run_subject_pipeline.py"
 
 
 class RunSubjectPipelineCliTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._user_config_temp = tempfile.TemporaryDirectory()
+        self._previous_user_config = os.environ.get("SLICERDDSURFER_USER_CONFIG")
+        os.environ["SLICERDDSURFER_USER_CONFIG"] = str(
+            Path(self._user_config_temp.name) / "isolated-user-config.json"
+        )
+
+    def tearDown(self) -> None:
+        if self._previous_user_config is None:
+            os.environ.pop("SLICERDDSURFER_USER_CONFIG", None)
+        else:
+            os.environ["SLICERDDSURFER_USER_CONFIG"] = self._previous_user_config
+        self._user_config_temp.cleanup()
+
+    def test_shared_user_config_reuses_subject_and_resolved_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subject_root = root / "sub-01"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+            config_path = root / "saved-user-config.json"
+
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--user-config",
+                    str(config_path),
+                    "--subject-root",
+                    str(subject_root),
+                    "--targets",
+                    "validation,microstructure",
+                    "--microstructure-stages",
+                    "freewater",
+                    "--run-name",
+                    "SavedRun",
+                    "--save-user-config",
+                    str(config_path),
+                    "--print-manifest-only",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            saved = json.loads(config_path.read_text(encoding="utf-8"))
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--user-config",
+                    str(config_path),
+                    "--print-manifest-only",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            manifest = json.loads(Path(completed.stdout.strip()).read_text(encoding="utf-8"))
+
+        self.assertEqual(saved["recent"]["subject_root"], subject_root.resolve().as_posix())
+        self.assertEqual(
+            saved["run_defaults"]["targets"],
+            ["validation", "microstructure", "microstructure_freewater"],
+        )
+        self.assertEqual(saved["run_defaults"]["microstructure_stages"], ["dti", "freewater"])
+        self.assertEqual(manifest["subject_id"], "sub-01")
+        self.assertEqual(manifest["run_name"], "SavedRun")
+        self.assertEqual(manifest["targets"], ["validation", "microstructure", "microstructure_freewater"])
+
+    def test_explicit_dependency_profile_overrides_saved_dependency_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subject_root = root / "sub-01"
+            subject_root.mkdir()
+            saved_bin = root / "saved" / "mrtrix" / "bin"
+            profile_bin = root / "profile" / "mrtrix" / "bin"
+            saved_bin.mkdir(parents=True)
+            profile_bin.mkdir(parents=True)
+            for bin_dir in (saved_bin, profile_bin):
+                command = bin_dir / "mrconvert"
+                command.write_text("#!/usr/bin/env sh\n", encoding="utf-8")
+                command.chmod(0o755)
+            user_config = root / "user-config.json"
+            dependency_config = root / "dependency-config.json"
+            user_config.write_text(
+                json.dumps(
+                    {
+                        "recent": {"subject_root": subject_root.as_posix()},
+                        "external_dependencies": {"mrtrix_bin_dir": saved_bin.as_posix()},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            dependency_config.write_text(
+                json.dumps(
+                    {"external_dependencies": {"mrtrix_bin_dir": profile_bin.as_posix()}}
+                ),
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--user-config",
+                    str(user_config),
+                    "--dependency-config",
+                    str(dependency_config),
+                    "--targets",
+                    "tractography",
+                    "--doctor",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            payload = json.loads(completed.stdout)
+            mrconvert = next(
+                item
+                for item in payload["environment"]["dependencies"]
+                if item["key"] == "command:mrconvert"
+            )
+
+        self.assertTrue(mrconvert["details"]["resolved"].startswith(profile_bin.as_posix()))
+
     def test_dry_run_all_writes_manifest_and_json_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = Path(tmp) / "100307"

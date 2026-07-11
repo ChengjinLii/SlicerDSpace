@@ -486,7 +486,10 @@ def environment_item_text(item: Any) -> str:
     if details.get("detected_source"):
         lines.append(f"Detected source: {details.get('detected_source')}")
     if item.kind == "python":
-        lines.append(f"Package: {details.get('package') or item.label}")
+        if details.get("package"):
+            lines.append(f"Package: {details.get('package')}")
+        else:
+            lines.append(f"Runtime module: {details.get('import') or item.label}")
         lines.append(f"Python: {details.get('python_executable') or 'current Slicer Python'}")
         install_requirement = details.get("install_requirement")
         if install_requirement and install_requirement != details.get("package"):
@@ -520,7 +523,7 @@ def environment_item_button_text(item: Any) -> str:
     """Return the action button text for a missing dependency row."""
 
     if item.kind == "python":
-        return "Install"
+        return "Install" if (item.details or {}).get("package") else "Setup"
     if getattr(item, "install_group", "") == "model-resources":
         return "Download / choose path"
     if item.kind in {"command", "path", "env"}:
@@ -532,7 +535,9 @@ def environment_item_button_tooltip(item: Any) -> str:
     """Return the action button tooltip for a missing dependency row."""
 
     if item.kind == "python":
-        return item.install_hint or "Install this package into the selected Slicer Python environment."
+        if (item.details or {}).get("package"):
+            return item.install_hint or "Install this package into the selected Slicer Python environment."
+        return item.install_hint or "Use the required application runtime for this target."
     if getattr(item, "install_group", "") == "model-resources":
         return item.install_hint or "Choose a model asset root and download/verify required model assets."
     if item.kind in {"command", "path", "env"}:
@@ -550,7 +555,11 @@ def environment_dialog_state(result: Any, *, python_install_target: str) -> Envi
         detail_text="\n".join(environment_detail_lines(result)),
         missing_items=missing_items,
         can_install_python=bool(result.missing_python_packages) or has_model_resources,
-        has_manual_setup_notes=any(item.status == "missing" and item.kind != "python" for item in result.statuses),
+        has_manual_setup_notes=any(
+            item.status == "missing"
+            and (item.kind != "python" or not (item.details or {}).get("package"))
+            for item in result.statuses
+        ),
         python_install_tooltip=(
             python_install_target
             + " Python packages are installed into Slicer Python. Model assets are downloaded to the selected asset root. "

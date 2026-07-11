@@ -603,21 +603,66 @@ class SharedLogicMixin:
         if not fiber_path.is_file():
             return False
         loader = getattr(slicer.util, "loadFiberBundle", None)
-        if loader is None:
-            self.log(f"[Slicer] FiberBundle loader is unavailable; skipped loading {fiber_path}")
-            return False
         if not hasattr(slicer.modules, "tractographydisplay"):
             self.log(f"[Slicer] SlicerDMRI TractographyDisplay is unavailable; skipped loading {fiber_path}")
             return False
-        try:
-            fiber_node = loader(fiber_path.as_posix())
-        except Exception as exc:  # pragma: no cover - depends on SlicerDMRI extension availability
-            self.log(f"[Slicer] Failed to load FiberBundle {fiber_path}: {exc}")
-            return False
-        if fiber_node:
-            fiber_node.SetName(node_name)
-            return True
+        if fiber_path.suffix.lower() in {".trk", ".tck"}:
+            return self._load_streamline_file_as_fiber_bundle(fiber_path, node_name)
+        if loader is not None:
+            try:
+                fiber_node = loader(fiber_path.as_posix())
+            except Exception as exc:  # pragma: no cover - depends on SlicerDMRI extension availability
+                self.log(f"[Slicer] Native FiberBundle loader could not read {fiber_path}: {exc}")
+                fiber_node = None
+            if fiber_node:
+                fiber_node.SetName(node_name)
+                fiber_node.SetAttribute("SlicerDDSurfer.SourcePath", fiber_path.as_posix())
+                return True
+        self.log(f"[Slicer] FiberBundle loader returned no node for {fiber_path}")
         return False
+
+    def _load_streamline_file_as_fiber_bundle(self, fiber_path: Path, node_name: str) -> bool:
+        """Convert TRK/TCK RAS-mm streamlines to a SlicerDMRI fiber node in memory."""
+
+        try:
+            import nibabel as nib
+            import numpy as np
+            import vtk
+
+            tractogram = nib.streamlines.load(fiber_path.as_posix()).tractogram
+            points = vtk.vtkPoints()
+            lines = vtk.vtkCellArray()
+            streamline_count = 0
+            for streamline in tractogram.streamlines:
+                coordinates = np.asarray(streamline, dtype=float)
+                if coordinates.ndim != 2 or coordinates.shape[0] < 2 or coordinates.shape[1] != 3:
+                    continue
+                if not np.all(np.isfinite(coordinates)):
+                    continue
+                lines.InsertNextCell(int(coordinates.shape[0]))
+                for point in coordinates:
+                    point_id = points.InsertNextPoint(float(point[0]), float(point[1]), float(point[2]))
+                    lines.InsertCellPoint(point_id)
+                streamline_count += 1
+            if streamline_count == 0:
+                self.log(f"[Slicer] No valid streamlines were found in {fiber_path}")
+                return False
+            poly_data = vtk.vtkPolyData()
+            poly_data.SetPoints(points)
+            poly_data.SetLines(lines)
+            fiber_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLFiberBundleNode", node_name)
+            if fiber_node is None:
+                self.log("[Slicer] vtkMRMLFiberBundleNode is unavailable; install SlicerDMRI.")
+                return False
+            fiber_node.SetAndObservePolyData(poly_data)
+            fiber_node.SetAttribute("SlicerDDSurfer.SourcePath", fiber_path.as_posix())
+            fiber_node.SetAttribute("SlicerDDSurfer.StreamlineCount", str(streamline_count))
+            fiber_node.CreateDefaultDisplayNodes()
+            self.log(f"[Slicer] Loaded {streamline_count} streamlines from {fiber_path}")
+            return True
+        except Exception as exc:  # pragma: no cover - requires a real Slicer/SlicerDMRI runtime
+            self.log(f"[Slicer] Failed to convert streamline file {fiber_path}: {exc}")
+            return False
 
     def loadKeyResultsFromManifest(self, manifest_path: Path, *, max_items: int = 40) -> dict[str, Any]:
         """Load key product outputs from an orchestration manifest into the MRML scene."""
