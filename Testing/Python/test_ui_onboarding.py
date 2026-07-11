@@ -9,7 +9,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from shared.demo_data import create_synthetic_demo_subject
-from shared.ui_onboarding import capability_dashboard_text, diagnostic_report_text, normalized_language
+from shared.ui_onboarding import (
+    capability_dashboard_text,
+    diagnostic_report_text,
+    normalized_language,
+    platform_path_examples,
+)
 
 
 @dataclass
@@ -40,6 +45,17 @@ class OnboardingHelpersTest(unittest.TestCase):
     def test_normalized_language_defaults_to_english(self) -> None:
         self.assertEqual(normalized_language(""), "en")
         self.assertEqual(normalized_language("zh-CN"), "zh")
+
+    def test_path_examples_match_the_selected_platform(self) -> None:
+        windows = platform_path_examples("en", system="Windows")
+        macos = platform_path_examples("en", system="Darwin")
+        linux = platform_path_examples("zh", system="Linux")
+
+        self.assertIn(r"C:\Users\name\data\sub-01", windows)
+        self.assertIn("/Users/name/data/sub-01", macos)
+        self.assertIn("/opt/homebrew/bin", macos)
+        self.assertIn("本机路径示例", linux)
+        self.assertIn("/home/name/data/sub-01", linux)
 
     def test_capability_dashboard_explains_runnable_and_blocked_targets(self) -> None:
         result = FakeResult(
@@ -74,4 +90,3 @@ class OnboardingHelpersTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

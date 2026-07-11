@@ -53,6 +53,12 @@ Range requests. It also prints profile-level asset groups and conservative
 terms notices so users know when model weights, templates, or subject-derived
 fixtures require separate license or redistribution confirmation.
 
+The Slicer downloader uses the same implementation. Its progress dialog shows
+the current file and byte count. `Cancel` preserves the `.part` file; choosing
+Download again resumes it when the server supports Range requests. Cancelling
+the destination-folder dialog leaves the previous setting unchanged and does
+not start a download.
+
 To inspect the resolved profile without downloading anything:
 
 ```bash

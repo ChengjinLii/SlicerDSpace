@@ -18,8 +18,9 @@ fields mean different things.
 2. Use the `Language` selector if you prefer Chinese labels for the beginner
    controls.
 3. Click `First-run setup wizard` on first use.
-4. Choose a `Model assets root`, download or verify model assets, and scan the
-   local runtime.
+4. Follow the per-step status: choose a `Model assets root`, download or verify
+   model assets, and scan the local runtime. Folder selection and download are
+   separate actions; cancelling folder selection does not start a download.
 5. Click `Check environment dependencies`.
 6. Review the capability dashboard. It tells you which targets can run now and
    which targets still need setup.
@@ -33,6 +34,12 @@ fields mean different things.
    installation path or read the setup notes.
 12. Re-run preflight. Saved paths are stored in Slicer user settings and restored
    after reopening Slicer.
+
+The beginner panel displays examples for the current operating system instead
+of showing Unix paths on Windows. During a URL model download, the progress
+dialog reports the current file, downloaded bytes, total bytes and whether a
+partial file is being resumed. Cancel pauses safely and leaves the `.part`
+file in the selected asset root for the next attempt.
 
 For a safe first look, click `Demo / Try with sample data`. This creates a tiny
 synthetic DWI subject with no human data, selects DTI microstructure and

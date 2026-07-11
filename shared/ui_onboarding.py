@@ -82,6 +82,36 @@ def onboarding_text(language: str, key: str) -> str:
     return TRANSLATIONS.get(lang, TRANSLATIONS["en"]).get(key, TRANSLATIONS["en"].get(key, key))
 
 
+def platform_path_examples(language: str, *, system: str | None = None) -> str:
+    """Return path examples that match the user's operating system."""
+
+    system_name = (system or platform.system()).lower()
+    if system_name.startswith("win"):
+        subject = r"C:\Users\name\data\sub-01"
+        output = r"C:\Users\name\data\sub-01\outputs"
+        models = r"C:\Users\name\SlicerDDSurfer-model-assets"
+        mrtrix = r"C:\Tools\MRtrix3\bin"
+    elif system_name == "darwin":
+        subject = "/Users/name/data/sub-01"
+        output = "/Users/name/data/sub-01/outputs"
+        models = "/Users/name/Library/Application Support/SlicerDDSurfer/model-assets"
+        mrtrix = "/opt/homebrew/bin"
+    else:
+        subject = "/home/name/data/sub-01"
+        output = "/home/name/data/sub-01/outputs"
+        models = "/home/name/.local/share/SlicerDDSurfer/model-assets"
+        mrtrix = "/opt/mrtrix3/bin"
+    if normalized_language(language) == "zh":
+        return (
+            f"本机路径示例：Subject root {subject} | 输出目录 {output} | "
+            f"模型权重 {models} | MRtrix bin {mrtrix}"
+        )
+    return (
+        f"Examples for this computer: Subject root {subject} | Output {output} | "
+        f"Model assets {models} | MRtrix bin {mrtrix}"
+    )
+
+
 def capability_dashboard_text(result: Any, *, language: str = "en") -> str:
     """Summarize environment capability for non-technical users."""
 
@@ -276,11 +306,13 @@ def apply_onboarding_language(owner: Any, language: str) -> None:
         ("demo_button", "demo"),
         ("diagnostic_button", "copy_diag"),
         ("config_button", "open_config"),
-        ("examples", "path_examples"),
     ):
         widget = widgets.get(name)
         if widget:
             widget.setText(onboarding_text(lang, key))
+    examples = widgets.get("examples")
+    if examples:
+        examples.setText(platform_path_examples(lang))
     combo = widgets.get("language_combo")
     if combo:
         index = combo.findData(lang)
@@ -332,43 +364,223 @@ def maybe_show_first_run_wizard(owner: Any) -> None:
 
 
 def show_first_run_wizard(owner: Any) -> None:
-    """Show a compact wizard with action buttons for the beginner path."""
+    """Show a stateful setup checklist for the beginner path."""
 
     import qt
     import slicer
 
     lang = getattr(owner, "_onboardingLanguage", "en")
     dialog = qt.QDialog(slicer.util.mainWindow())
+    dialog.setObjectName("firstRunSetupWizardDialog")
     dialog.setWindowTitle(onboarding_text(lang, "wizard"))
-    dialog.setMinimumWidth(620)
+    dialog.setMinimumWidth(760)
     layout = qt.QVBoxLayout(dialog)
-    intro = qt.QLabel(
-        "Follow these steps in order. You can close this wizard and reopen it from Beginner setup."
-        if normalized_language(lang) == "en"
-        else "按顺序完成这些步骤。关闭后也可以从“新手设置”重新打开。"
-    )
+    is_zh = normalized_language(lang) == "zh"
+    copy = {
+        "intro": (
+            "按顺序执行并查看每一步的状态。外部软件只在相应分析中需要，扫描后即使有可选项缺失，也可以先运行可用功能。"
+            if is_zh
+            else "Work through the steps and review each status. External tools are needed only for their related analyses; you can run available features even when optional items are missing."
+        ),
+        "progress": "设置进度" if is_zh else "Setup progress",
+        "pending": "尚未执行" if is_zh else "Not run yet",
+        "working": "正在执行..." if is_zh else "Working...",
+        "ready": "已完成" if is_zh else "Ready",
+        "failed": "需要处理" if is_zh else "Needs attention",
+        "python_title": "1. 确认 Slicer Python" if is_zh else "1. Confirm Slicer Python",
+        "python_body": "Python 包会安装到当前 Slicer 自带的 Python，不会改动系统 Python。" if is_zh else "Python packages are installed into this Slicer Python, not the system Python.",
+        "python_action": "显示 Python 位置" if is_zh else "Show Python location",
+        "root_title": "2. 选择模型权重目录" if is_zh else "2. Choose model asset folder",
+        "root_body": "权重属于用户数据，应放在插件目录之外；选择一次后会自动记住。" if is_zh else "Weights are user data and should live outside the extension folder. This choice is remembered.",
+        "root_action": "选择目录" if is_zh else "Choose folder",
+        "models_title": "3. 下载并校验核心模型" if is_zh else "3. Download and verify core models",
+        "models_body": "显示当前文件和进度；取消后保留部分文件，下次可继续下载。" if is_zh else "Shows the current file and progress. Cancelling keeps partial files so the next attempt can resume.",
+        "models_action": "下载 / 继续下载" if is_zh else "Download / resume",
+        "scan_title": "4. 扫描本机依赖" if is_zh else "4. Scan this computer",
+        "scan_body": "自动搜索常见的 Windows、macOS 或 Linux 路径，并说明哪些功能已经可运行。" if is_zh else "Searches common Windows, macOS or Linux locations and reports which features can run now.",
+        "scan_action": "开始扫描" if is_zh else "Scan now",
+        "report_title": "5. 查看可运行能力报告" if is_zh else "5. Review capability report",
+        "report_body": "报告会区分现在可运行的功能与仍需配置的可选功能。" if is_zh else "The report separates features that run now from optional features that still need setup.",
+        "report_action": "显示报告" if is_zh else "Show report",
+        "demo": "直接运行轻量示例" if is_zh else "Run lightweight demo",
+        "guide": "打开本系统安装指南" if is_zh else "Open setup guide for this OS",
+        "close": "关闭" if is_zh else "Close",
+        "cancelled": "未选择目录；原设置没有改变。" if is_zh else "No folder selected; existing settings were unchanged.",
+        "download_failed": "下载未完成。可以再次点击以继续。" if is_zh else "Download is incomplete. Click again to resume.",
+        "scan_failed": "扫描没有完成；请复制诊断报告后重试。" if is_zh else "The scan did not complete. Copy the diagnostic report and retry.",
+        "report_missing": "请先执行依赖扫描。" if is_zh else "Run the dependency scan first.",
+    }
+    intro = qt.QLabel(copy["intro"])
     intro.wordWrap = True
+    intro.setStyleSheet("QLabel { color: #3E5B4A; padding: 4px 2px 8px 2px; }")
     layout.addWidget(intro)
 
+    progress_label = qt.QLabel(f"{copy['progress']}: 0 / 5")
+    progress_label.setObjectName("firstRunWizardProgressLabel")
+    progress_label.setStyleSheet("QLabel { color: #173D2A; font-weight: 700; padding-bottom: 4px; }")
+    layout.addWidget(progress_label)
+
+    scroll = qt.QScrollArea()
+    scroll.setObjectName("firstRunWizardScrollArea")
+    scroll.setWidgetResizable(True)
+    scroll.setMinimumHeight(430)
+    steps_container = qt.QWidget()
+    steps_layout = qt.QVBoxLayout(steps_container)
+    steps_layout.setContentsMargins(2, 2, 2, 2)
+    scroll.setWidget(steps_container)
+    layout.addWidget(scroll, 1)
+
+    def python_action() -> tuple[bool, str]:
+        target = str(owner._python_install_target_text())
+        slicer.util.infoDisplay(target, windowTitle=copy["python_title"], parent=dialog)
+        return True, target
+
+    def root_action() -> tuple[bool, str]:
+        root = owner._choose_model_assets_root()
+        return (root is not None), (str(root) if root is not None else copy["cancelled"])
+
+    def models_action() -> tuple[bool, str]:
+        ok = bool(owner._install_model_assets_from_environment_dialog(profile="core", prompt_for_root=False))
+        if not ok:
+            return False, copy["download_failed"]
+        _, _, verification = owner._model_asset_verification("core", check_hashes=False)
+        return True, owner._format_model_asset_status_line("core", verification)
+
+    def scan_action() -> tuple[bool, str]:
+        result = owner._onValidateClicked()
+        if result is None:
+            return False, copy["scan_failed"]
+        runnable = len(tuple(getattr(result, "runnable_targets", ()) or ()))
+        blocked = len(tuple(getattr(result, "blocked_targets", ()) or ()))
+        detail = f"{runnable} runnable; {blocked} need setup"
+        if is_zh:
+            detail = f"{runnable} 项可运行；{blocked} 项仍需配置"
+        return True, detail
+
+    def report_action() -> tuple[bool, str]:
+        result = getattr(owner, "_lastEnvironmentResult", None)
+        if result is None:
+            return False, copy["report_missing"]
+        report = capability_dashboard_text(result, language=lang)
+        owner._update_onboarding_dashboard(result)
+        slicer.util.infoDisplay(report, windowTitle=copy["report_title"], parent=dialog)
+        return True, ("报告已显示。" if is_zh else "Capability report displayed.")
+
     steps = [
-        ("1. Check Slicer Python", "检查 Slicer Python", lambda: slicer.util.infoDisplay(owner._python_install_target_text())),
-        ("2. Choose model assets root", "选择模型权重目录", lambda: owner._install_model_assets_from_environment_dialog(profile="core")),
-        ("3. Download / verify model assets", "下载 / 验证模型权重", lambda: owner._on_verify_core_model_assets_clicked()),
-        ("4. Scan MRtrix/FSL/FreeSurfer", "扫描 MRtrix/FSL/FreeSurfer", owner._onValidateClicked),
-        ("5. Show capability report", "显示可运行能力报告", lambda: owner._update_onboarding_dashboard(getattr(owner, "_lastEnvironmentResult", None))),
+        (copy["python_title"], copy["python_body"], copy["python_action"], python_action),
+        (copy["root_title"], copy["root_body"], copy["root_action"], root_action),
+        (copy["models_title"], copy["models_body"], copy["models_action"], models_action),
+        (copy["scan_title"], copy["scan_body"], copy["scan_action"], scan_action),
+        (copy["report_title"], copy["report_body"], copy["report_action"], report_action),
     ]
-    for english, chinese, callback in steps:
-        row = qt.QHBoxLayout()
-        label = qt.QLabel(chinese if normalized_language(lang) == "zh" else english)
-        label.setMinimumWidth(260)
-        button = qt.QPushButton("Run" if normalized_language(lang) == "en" else "执行")
-        button.connect("clicked()", callback)
-        row.addWidget(label, 1)
-        row.addWidget(button)
-        layout.addLayout(row)
-    close_button = qt.QPushButton("Close" if normalized_language(lang) == "en" else "关闭")
+    status_labels = []
+    action_buttons = []
+    step_frames = []
+    completed_steps: set[int] = set()
+
+    def set_step_status(index: int, state: str, detail: str) -> None:
+        label = status_labels[index]
+        prefix = copy["ready"] if state == "ready" else copy["failed"] if state == "failed" else copy["working"] if state == "working" else copy["pending"]
+        label.setText(f"{prefix}: {detail}" if detail else prefix)
+        colors = {
+            "ready": ("#EAF6EE", "#26643D"),
+            "failed": ("#FFF3E8", "#9A4B13"),
+            "working": ("#EAF2F8", "#285A78"),
+            "pending": ("#F3F5F4", "#64736B"),
+        }
+        background, foreground = colors.get(state, colors["pending"])
+        label.setStyleSheet(
+            f"QLabel {{ background: {background}; color: {foreground}; border-radius: 5px; padding: 4px 7px; }}"
+        )
+        if state == "ready":
+            completed_steps.add(index)
+        elif index in completed_steps:
+            completed_steps.remove(index)
+        progress_label.setText(f"{copy['progress']}: {len(completed_steps)} / {len(steps)}")
+
+    def run_step(index: int, callback) -> None:
+        set_step_status(index, "working", "")
+        slicer.app.processEvents()
+        try:
+            ok, detail = callback()
+        except Exception as exc:
+            ok, detail = False, str(exc)
+        set_step_status(index, "ready" if ok else "failed", detail)
+
+    for index, (title_text, body_text, action_text, callback) in enumerate(steps):
+        frame = qt.QFrame()
+        frame.setObjectName(f"firstRunWizardStep{index + 1}")
+        frame.setStyleSheet("QFrame { background: #FFFFFF; border: 1px solid #DCE8E0; border-radius: 8px; }")
+        row = qt.QGridLayout(frame)
+        title = qt.QLabel(f"<b>{title_text}</b>")
+        body = qt.QLabel(body_text)
+        body.wordWrap = True
+        body.setStyleSheet("QLabel { color: #51665A; border: none; }")
+        status = qt.QLabel(copy["pending"])
+        status.setObjectName(f"firstRunWizardStatus{index + 1}")
+        status.setWordWrap(True)
+        button = qt.QPushButton(action_text)
+        button.setObjectName(f"firstRunWizardAction{index + 1}")
+        button.setMinimumWidth(150)
+        button.connect("clicked()", lambda step=index, action=callback: run_step(step, action))
+        row.addWidget(title, 0, 0)
+        row.addWidget(button, 0, 1, 2, 1)
+        row.addWidget(body, 1, 0)
+        row.addWidget(status, 2, 0, 1, 2)
+        steps_layout.addWidget(frame)
+        step_frames.append(frame)
+        action_buttons.append(button)
+        status_labels.append(status)
+        set_step_status(index, "pending", "")
+    steps_layout.addStretch(1)
+
+    set_step_status(0, "ready", str(owner._python_install_target_text()))
+    configured_root = str(owner._read_environment_path_setting("model_assets_dir") or "").strip()
+    if configured_root:
+        set_step_status(1, "ready", configured_root)
+    try:
+        _, _, existing = owner._model_asset_verification("core", check_hashes=False)
+        if existing.get("ok"):
+            set_step_status(2, "ready", owner._format_model_asset_status_line("core", existing))
+    except Exception:
+        pass
+    existing_result = getattr(owner, "_lastEnvironmentResult", None)
+    if existing_result is not None:
+        runnable = len(tuple(getattr(existing_result, "runnable_targets", ()) or ()))
+        blocked = len(tuple(getattr(existing_result, "blocked_targets", ()) or ()))
+        existing_detail = f"{runnable} runnable; {blocked} need setup"
+        if is_zh:
+            existing_detail = f"{runnable} 项可运行；{blocked} 项仍需配置"
+        set_step_status(3, "ready", existing_detail)
+
+    footer = qt.QHBoxLayout()
+    guide_button = qt.QPushButton(copy["guide"])
+    system_name = platform.system()
+    guide_name = "WINDOWS.md" if system_name == "Windows" else "MACOS.md" if system_name == "Darwin" else "LINUX_HPC.md"
+    guide_button.connect(
+        "clicked()",
+        lambda: owner._open_local_path(
+            Path(__file__).resolve().parent.parent / "docs" / "setup" / guide_name,
+            missing_message=f"docs/setup/{guide_name} is unavailable.",
+        ),
+    )
+    demo_button = qt.QPushButton(copy["demo"])
+    demo_button.connect("clicked()", lambda: (dialog.accept(), owner._on_try_demo_clicked()))
+    close_button = qt.QPushButton(copy["close"])
     close_button.connect("clicked()", dialog.accept)
-    layout.addWidget(close_button)
+    footer.addWidget(guide_button)
+    footer.addWidget(demo_button)
+    footer.addStretch(1)
+    footer.addWidget(close_button)
+    layout.addLayout(footer)
+    owner._firstRunWizardWidgets = {
+        "dialog": dialog,
+        "progress": progress_label,
+        "scroll": scroll,
+        "step_frames": tuple(step_frames),
+        "status_labels": tuple(status_labels),
+        "action_buttons": tuple(action_buttons),
+    }
     dialog.exec_()
 
 

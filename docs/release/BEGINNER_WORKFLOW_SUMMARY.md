@@ -8,19 +8,21 @@ asset management.
 
 ## User-facing improvements
 
-- A first-run setup wizard checks Slicer Python, model assets and external
-  software, then presents a capability report.
+- A stateful first-run setup wizard separates model-folder selection from
+  download, shows success/attention status for each step, scans local software
+  and presents a capability report.
 - A one-click synthetic, non-human demo runs a lightweight DTI and
   deterministic-tractography trial without requiring private data, model
   weights or MRtrix3. Key scalar maps and the generated fibre bundle are loaded
   back into the Slicer scene.
-- The main panel now provides English and Chinese labels, path examples, a
+- The main panel now provides English and Chinese labels, OS-specific path examples, a
   runnable/blocked capability dashboard, actionable error dialogs and a
   copyable diagnostic report.
 - Platform-specific setup pages separate Windows, macOS and Linux/HPC
   instructions.
-- Model downloads expose progress, checksum verification and resumable partial
-  files. A public 150-byte sentinel verifies network, mirror and checksum
+- Model downloads expose current-file and byte progress, safe cancellation,
+  checksum verification and resumable partial files. A public 150-byte
+  sentinel verifies network, mirror and checksum
   handling without downloading large weights.
 
 ## Shared settings
@@ -67,10 +69,10 @@ See [PROTOCOL_BENCHMARKS.md](PROTOCOL_BENCHMARKS.md) for interpretation rules.
 
 ## Verification
 
-- 275 repository Python tests passed.
+- 278 repository Python tests passed.
 - Real Slicer 5.10 extension smoke testing passed for module registration,
-  parameter-node setup, onboarding controls, language switching and JSON target
-  persistence.
+  parameter-node setup, a scrollable stateful setup wizard, OS-specific path
+  examples, language switching and JSON target persistence.
 - Real Slicer dependency-workflow smoke testing passed for model download UI,
   external path selection, persistence, clearing and restoration.
 - A real one-click Slicer demo completed all three tasks and auto-loaded both

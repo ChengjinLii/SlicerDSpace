@@ -34,6 +34,10 @@ This creates a tiny synthetic DWI subject with no human data, automatically
 runs validation, DTI scalar mapping and deterministic tractography, and loads
 the key maps and fibre bundle into the Slicer scene.
 
+The wizard shows a status for every setup step and uses path examples for the
+current operating system. Model downloads show the current file and byte
+progress; cancelling keeps a `.part` file so a later attempt can resume.
+
 ## Install The Code
 
 ```bash

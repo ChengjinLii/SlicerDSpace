@@ -15,7 +15,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +54,43 @@ class AssetPlan:
             "source_ids": list(self.source_ids),
             "asset_records": self.asset_records,
         }
+
+
+DownloadProgressCallback = Callable[[dict[str, Any]], None]
+DownloadCancelCheck = Callable[[], bool]
+
+
+class DownloadCancelledError(RuntimeError):
+    """Raised when an interactive model-asset download is cancelled."""
+
+
+def _emit_download_progress(
+    callback: DownloadProgressCallback | None,
+    *,
+    phase: str,
+    relative_path: str,
+    downloaded_bytes: int = 0,
+    total_bytes: int = 0,
+    resumed: bool = False,
+    source_id: str = "",
+) -> None:
+    if callback is None:
+        return
+    callback(
+        {
+            "phase": phase,
+            "path": relative_path,
+            "downloaded_bytes": max(0, int(downloaded_bytes)),
+            "total_bytes": max(0, int(total_bytes)),
+            "resumed": bool(resumed),
+            "source_id": source_id,
+        }
+    )
+
+
+def _raise_if_download_cancelled(cancel_check: DownloadCancelCheck | None) -> None:
+    if cancel_check is not None and bool(cancel_check()):
+        raise DownloadCancelledError("Model asset download cancelled; the partial file was kept for resume.")
 
 
 def _dedupe(values: list[str]) -> tuple[str, ...]:
@@ -503,10 +540,31 @@ def _url_candidates_for_asset(
     return candidates
 
 
-def _download_url_to_path(url: str, target: Path, *, timeout: int = 60) -> None:
+def _download_url_to_path(
+    url: str,
+    target: Path,
+    *,
+    timeout: int = 60,
+    relative_path: str = "",
+    source_id: str = "",
+    expected_size: int = 0,
+    progress_callback: DownloadProgressCallback | None = None,
+    cancel_check: DownloadCancelCheck | None = None,
+) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_name(target.name + ".part")
     resume_from = tmp.stat().st_size if tmp.is_file() else 0
+    display_path = relative_path or target.name
+    _raise_if_download_cancelled(cancel_check)
+    _emit_download_progress(
+        progress_callback,
+        phase="connecting",
+        relative_path=display_path,
+        downloaded_bytes=resume_from,
+        total_bytes=expected_size,
+        resumed=bool(resume_from),
+        source_id=source_id,
+    )
     headers = {"User-Agent": "SlicerDDSurfer-model-asset-downloader"}
     if resume_from:
         headers["Range"] = f"bytes={resume_from}-"
@@ -518,19 +576,39 @@ def _download_url_to_path(url: str, target: Path, *, timeout: int = 60) -> None:
             print("[model-assets] Server did not resume partial download; restarting " + target.name, file=sys.stderr)
             resume_from = 0
         total_header = response.headers.get("Content-Length")
-        expected_total = int(total_header) + resume_from if total_header and str(total_header).isdigit() else 0
+        header_total = int(total_header) + resume_from if total_header and str(total_header).isdigit() else 0
+        expected_total = header_total or max(0, int(expected_size or 0))
         if expected_total:
             print(f"[model-assets]   target size: {_format_bytes(expected_total)}")
         downloaded = resume_from
+        _emit_download_progress(
+            progress_callback,
+            phase="downloading",
+            relative_path=display_path,
+            downloaded_bytes=downloaded,
+            total_bytes=expected_total,
+            resumed=bool(resume_from),
+            source_id=source_id,
+        )
         next_report = downloaded + 16 * 1024 * 1024
         mode = "ab" if append else "wb"
         with tmp.open(mode) as stream:
             while True:
+                _raise_if_download_cancelled(cancel_check)
                 chunk = response.read(1024 * 1024)
                 if not chunk:
                     break
                 stream.write(chunk)
                 downloaded += len(chunk)
+                _emit_download_progress(
+                    progress_callback,
+                    phase="downloading",
+                    relative_path=display_path,
+                    downloaded_bytes=downloaded,
+                    total_bytes=expected_total,
+                    resumed=bool(resume_from),
+                    source_id=source_id,
+                )
                 if expected_total and downloaded >= next_report:
                     percent = 100.0 * downloaded / max(1, expected_total)
                     print(f"[model-assets]   progress: {_format_bytes(downloaded)} / {_format_bytes(expected_total)} ({percent:.1f}%)")
@@ -538,6 +616,15 @@ def _download_url_to_path(url: str, target: Path, *, timeout: int = 60) -> None:
         if expected_total:
             print(f"[model-assets]   complete: {_format_bytes(downloaded)} / {_format_bytes(expected_total)}")
     os.replace(tmp, target)
+    _emit_download_progress(
+        progress_callback,
+        phase="complete",
+        relative_path=display_path,
+        downloaded_bytes=target.stat().st_size,
+        total_bytes=expected_total or target.stat().st_size,
+        resumed=bool(resume_from),
+        source_id=source_id,
+    )
 
 
 def download_asset_urls(
@@ -549,14 +636,31 @@ def download_asset_urls(
     base_urls: tuple[str, ...],
     allow_planned_sources: bool,
     force: bool,
+    progress_callback: DownloadProgressCallback | None = None,
+    cancel_check: DownloadCancelCheck | None = None,
 ) -> None:
     if not plan.required_paths:
         raise RuntimeError("No concrete asset paths were resolved for URL download.")
-    for relative in plan.required_paths:
+    file_count = len(plan.required_paths)
+    for file_index, relative in enumerate(plan.required_paths, start=1):
+        _raise_if_download_cancelled(cancel_check)
         record = plan.asset_records.get(relative, {"path": relative, "source_ids": list(plan.source_ids)})
         target = repo_root / relative
         if not force and _asset_record_ok(target, record):
             print(f"[model-assets] Existing verified asset: {relative}")
+            if progress_callback is not None:
+                progress_callback(
+                    {
+                        "phase": "verified",
+                        "path": relative,
+                        "downloaded_bytes": target.stat().st_size,
+                        "total_bytes": target.stat().st_size,
+                        "resumed": False,
+                        "source_id": "existing",
+                        "file_index": file_index,
+                        "file_count": file_count,
+                    }
+                )
             continue
         source_ids_for_asset = tuple(source_ids or tuple(str(value) for value in record.get("source_ids", plan.source_ids)))
         candidates = _url_candidates_for_asset(
@@ -575,10 +679,31 @@ def download_asset_urls(
         for source_id, url in candidates:
             try:
                 print(f"[model-assets] Downloading {relative} from {source_id}: {url}")
-                _download_url_to_path(url, target)
+                def report_asset_progress(event: dict[str, Any]) -> None:
+                    if progress_callback is None:
+                        return
+                    progress_callback(
+                        {
+                            **event,
+                            "file_index": file_index,
+                            "file_count": file_count,
+                        }
+                    )
+
+                _download_url_to_path(
+                    url,
+                    target,
+                    relative_path=relative,
+                    source_id=source_id,
+                    expected_size=int(record.get("size_bytes") or 0),
+                    progress_callback=report_asset_progress,
+                    cancel_check=cancel_check,
+                )
                 if not _asset_record_ok(target, record):
                     raise RuntimeError("Downloaded file failed size/SHA256 verification.")
                 break
+            except DownloadCancelledError:
+                raise
             except (OSError, RuntimeError, urllib.error.URLError, urllib.error.HTTPError) as exc:
                 errors.append(f"{source_id}: {exc}")
                 try:
@@ -599,6 +724,8 @@ def download_asset_plan(
     base_urls: tuple[str, ...] = (),
     allow_planned_sources: bool = False,
     force: bool = False,
+    progress_callback: DownloadProgressCallback | None = None,
+    cancel_check: DownloadCancelCheck | None = None,
 ) -> None:
     if source not in {"auto", "git-lfs", "url"}:
         raise ValueError(f"Unsupported download source: {source}")
@@ -618,6 +745,8 @@ def download_asset_plan(
         base_urls=base_urls,
         allow_planned_sources=allow_planned_sources,
         force=force,
+        progress_callback=progress_callback,
+        cancel_check=cancel_check,
     )
 
 

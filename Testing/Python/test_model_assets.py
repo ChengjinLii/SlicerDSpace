@@ -270,6 +270,84 @@ class ModelAssetsTest(unittest.TestCase):
 
         self.assertTrue(result["ok"])
 
+    def test_url_download_reports_file_and_byte_progress(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            repo_root = tmp_path / "repo"
+            mirror = tmp_path / "mirror"
+            source_file = mirror / "weights" / "model.pt"
+            source_file.parent.mkdir(parents=True)
+            source_file.write_bytes(b"model-data" * 1024)
+            source_size = source_file.stat().st_size
+            plan = module.AssetPlan(
+                profile="unit",
+                resolved_profiles=("unit",),
+                all_lfs=False,
+                include_patterns=(),
+                required_paths=("weights/model.pt",),
+                external_overrides=(),
+                asset_groups=(),
+                terms_notices=(),
+                source_ids=("unit_mirror",),
+                asset_records={
+                    "weights/model.pt": {
+                        "path": "weights/model.pt",
+                        "source_ids": ["unit_mirror"],
+                        "size_bytes": source_size,
+                        "sha256": module._sha256(source_file),
+                    }
+                },
+            )
+            events = []
+
+            module.download_asset_plan(
+                repo_root,
+                plan,
+                {"asset_sources": {}},
+                source="url",
+                base_urls=(mirror.resolve().as_uri(),),
+                progress_callback=events.append,
+            )
+
+        self.assertTrue(any(event["phase"] == "downloading" for event in events))
+        complete = next(event for event in events if event["phase"] == "complete")
+        self.assertEqual(complete["path"], "weights/model.pt")
+        self.assertEqual(complete["downloaded_bytes"], source_size)
+        self.assertEqual(complete["total_bytes"], source_size)
+        self.assertEqual(complete["file_index"], 1)
+        self.assertEqual(complete["file_count"], 1)
+
+    def test_cancelled_download_keeps_partial_file_for_resume(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.bin"
+            target = root / "target.bin"
+            source.write_bytes(b"x" * (3 * 1024 * 1024))
+            cancel = {"requested": False}
+
+            def on_progress(event) -> None:
+                if event["phase"] == "downloading" and event["downloaded_bytes"] >= 1024 * 1024:
+                    cancel["requested"] = True
+
+            with self.assertRaises(module.DownloadCancelledError):
+                module._download_url_to_path(
+                    source.resolve().as_uri(),
+                    target,
+                    relative_path="weights/model.bin",
+                    expected_size=source.stat().st_size,
+                    progress_callback=on_progress,
+                    cancel_check=lambda: cancel["requested"],
+                )
+
+            partial = target.with_name(target.name + ".part")
+            self.assertTrue(partial.is_file())
+            self.assertGreaterEqual(partial.stat().st_size, 1024 * 1024)
+            self.assertFalse(target.exists())
+
     def test_model_asset_setup_guidance_summarizes_missing_assets(self) -> None:
         module = _load_downloader_module()
 

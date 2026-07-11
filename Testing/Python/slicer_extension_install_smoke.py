@@ -81,6 +81,8 @@ def _run() -> None:
         )
         language_switch_ready = False
         language_json_ready = False
+        platform_examples_ready = False
+        stateful_wizard_ready = False
         shared_targets_json_ready = False
         common_settings_auto_save_ready = False
         original_language_index = -1
@@ -91,9 +93,16 @@ def _run() -> None:
             if zh_index >= 0:
                 combo.setCurrentIndex(zh_index)
                 slicer.app.processEvents()
+                if parameter_node_ready:
+                    widget._parameterNode.targetPreprocessing = True
+                    widget._parameterNode.targetTractography = True
+                    widget._save_common_user_settings()
                 headline = getattr(widget.ui, "headlineLabel", None)
                 headline_text = str(headline.text if headline else "")
                 language_switch_ready = "运行工作台" in headline_text
+                examples_label = onboarding_widgets.get("examples")
+                examples_text = str(examples_label.text if examples_label else "")
+                platform_examples_ready = "本机路径示例" in examples_text and "/home/name/data/sub-01" in examples_text
                 try:
                     from shared.user_config import load_user_config
 
@@ -105,6 +114,22 @@ def _run() -> None:
                     )
                 except Exception:
                     language_json_ready = False
+            def inspect_and_close_wizard() -> None:
+                wizard_widgets = getattr(widget, "_firstRunWizardWidgets", {}) or {}
+                wizard_dialog = wizard_widgets.get("dialog")
+                if wizard_dialog:
+                    wizard_dialog.accept()
+
+            qt.QTimer.singleShot(250, inspect_and_close_wizard)
+            widget._on_show_first_run_wizard_clicked()
+            wizard_widgets = getattr(widget, "_firstRunWizardWidgets", {}) or {}
+            stateful_wizard_ready = bool(
+                wizard_widgets.get("dialog")
+                and wizard_widgets.get("progress")
+                and wizard_widgets.get("scroll")
+                and len(tuple(wizard_widgets.get("status_labels", ()))) == 5
+                and len(tuple(button for button in wizard_widgets.get("action_buttons", ()) if button)) == 5
+            )
         if parameter_node_ready:
             widget._parameterNode.subjectId = "json-auto-save-smoke"
             widget._checkCanApply()
@@ -167,6 +192,8 @@ def _run() -> None:
         print(f"SLICERDDSURFER_EXTENSION_ONBOARDING_READY={onboarding_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_LANGUAGE_SWITCH_READY={language_switch_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_LANGUAGE_JSON_READY={language_json_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_PLATFORM_EXAMPLES_READY={platform_examples_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_STATEFUL_WIZARD_READY={stateful_wizard_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_SHARED_TARGETS_JSON_READY={shared_targets_json_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_COMMON_SETTINGS_AUTO_SAVE_READY={common_settings_auto_save_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_SELECTION_SUMMARY_READY={selection_summary_ready}", flush=True)
@@ -189,6 +216,8 @@ def _run() -> None:
             or not onboarding_ready
             or not language_switch_ready
             or not language_json_ready
+            or not platform_examples_ready
+            or not stateful_wizard_ready
             or not shared_targets_json_ready
             or not common_settings_auto_save_ready
             or not selection_summary_ready

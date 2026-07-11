@@ -98,12 +98,15 @@ python3 run_subject_pipeline.py \
 
 在 3D Slicer 中打开 `SlicerDDSurfer` 模块后，可以完成：
 
+- 使用有步骤状态的首次运行向导，分别选择模型目录、下载/续传模型、扫描本机依赖并查看可运行能力；
 - 使用 `Demo / 我只是想试一下` 自动生成无隐私的微型 DWI，运行 validation、DTI 和确定性纤维追踪，并把关键结果加载回 Slicer 场景；
 - subject-root 选择；
 - 依赖 preflight 和外部路径覆盖；
 - 运行前 run-plan 检查；
 - 后台执行和取消；
 - output tree、report、manifest、QC 文件检查。
+
+界面中的路径示例会根据 Windows、macOS 或 Linux 自动切换。模型下载弹窗显示当前文件、字节进度和续传状态；取消时保留 `.part` 文件，再次点击即可继续。
 
 详细依赖配置见
 [docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md)。

@@ -2328,15 +2328,16 @@ class SharedWidgetMixin:
         if index >= 0:
             combo.setCurrentIndex(index)
 
-    def _onValidateClicked(self) -> None:
+    def _onValidateClicked(self):
         self._save_common_user_settings()
         result = self._run_environment_dependency_check()
         if result is None:
-            return
+            return None
         self._update_environment_result_label(result)
         self._update_environment_path_status_labels(result)
         self._show_environment_results_dialog(result)
         self._update_environment_status(result)
+        return result
 
     def _run_environment_dependency_check(self):
         node = self._parameterNode
@@ -2595,9 +2596,8 @@ class SharedWidgetMixin:
             self._show_environment_results_dialog(result)
         return True
 
-    def _install_model_assets_from_environment_dialog(self, *, profile: str = "core") -> None:
+    def _choose_model_assets_root(self) -> Optional[Path]:
         module = self._load_model_assets_module()
-        repo_root = Path(__file__).resolve().parent.parent
         configured = self._environment_dependency_path_kwargs().get("model_assets_dir")
         default_root = configured if isinstance(configured, Path) and str(configured) else module.configured_model_assets_root()
         selected = qt.QFileDialog.getExistingDirectory(
@@ -2605,19 +2605,80 @@ class SharedWidgetMixin:
             "Choose SlicerDDSurfer model asset root",
             default_root.expanduser().as_posix(),
         )
-        asset_root = Path(str(selected or default_root)).expanduser().resolve()
-        if not asset_root:
-            return
+        selected_text = str(selected or "").strip()
+        if not selected_text:
+            return None
+        asset_root = Path(selected_text).expanduser().resolve()
         self._save_environment_path_setting("model_assets_dir", asset_root.as_posix())
         line_edit = (getattr(self, "_environmentPathLineEdits", {}) or {}).get("model_assets_dir")
         if line_edit:
             line_edit.setText(asset_root.as_posix())
+        self._set_model_assets_status_text(f"Model asset root selected: {asset_root}")
+        return asset_root
 
-        progress = qt.QProgressDialog("Preparing model asset download...", "Cancel", 0, 0, slicer.util.mainWindow())
+    def _install_model_assets_from_environment_dialog(
+        self,
+        *,
+        profile: str = "core",
+        prompt_for_root: bool = True,
+    ) -> bool:
+        module = self._load_model_assets_module()
+        repo_root = Path(__file__).resolve().parent.parent
+        if prompt_for_root:
+            asset_root = self._choose_model_assets_root()
+            if asset_root is None:
+                self.appendLog("[Model assets] Download cancelled before a destination folder was selected.")
+                return False
+        else:
+            configured = self._environment_dependency_path_kwargs().get("model_assets_dir")
+            asset_root = configured if isinstance(configured, Path) and str(configured) else module.configured_model_assets_root()
+            asset_root = asset_root.expanduser().resolve()
+            self._save_environment_path_setting("model_assets_dir", asset_root.as_posix())
+
+        progress = qt.QProgressDialog("Preparing model asset download...", "Cancel", 0, 1000, slicer.util.mainWindow())
         progress.setWindowTitle("SlicerDDSurfer model assets")
         progress.setWindowModality(qt.Qt.WindowModal)
         progress.setMinimumDuration(0)
+        progress.setAutoClose(False)
+        progress.setValue(0)
         progress.show()
+
+        def progress_was_cancelled() -> bool:
+            value = getattr(progress, "wasCanceled", False)
+            try:
+                return bool(value() if callable(value) else value)
+            except Exception:
+                return False
+
+        def human_size(value: int) -> str:
+            size = float(max(0, int(value or 0)))
+            for unit in ("B", "KiB", "MiB", "GiB"):
+                if size < 1024.0 or unit == "GiB":
+                    return f"{size:.1f} {unit}" if unit != "B" else f"{int(size)} B"
+                size /= 1024.0
+            return f"{size:.1f} GiB"
+
+        def on_download_progress(event: dict[str, Any]) -> None:
+            phase = str(event.get("phase") or "downloading")
+            relative = str(event.get("path") or "model asset")
+            downloaded = int(event.get("downloaded_bytes") or 0)
+            total = int(event.get("total_bytes") or 0)
+            file_index = int(event.get("file_index") or 1)
+            file_count = int(event.get("file_count") or 1)
+            resumed = bool(event.get("resumed"))
+            if total > 0:
+                progress.setRange(0, 1000)
+                progress.setValue(min(1000, int(1000 * downloaded / max(1, total))))
+                amount = f"{human_size(downloaded)} / {human_size(total)}"
+            else:
+                progress.setRange(0, 0)
+                amount = human_size(downloaded) if downloaded else "waiting for server"
+            resume_text = " (resuming partial download)" if resumed and phase != "complete" else ""
+            progress.setLabelText(
+                f"File {file_index}/{file_count}: {relative}\n{amount}{resume_text}"
+            )
+            slicer.app.processEvents()
+
         try:
             manifest = module.load_manifest(repo_root / "models" / "assets_manifest.json")
             plan = module.resolve_asset_plan(manifest, profile)
@@ -2633,7 +2694,13 @@ class SharedWidgetMixin:
                 base_urls=(),
                 allow_planned_sources=False,
                 force=False,
+                progress_callback=on_download_progress,
+                cancel_check=progress_was_cancelled,
             )
+            if progress_was_cancelled():
+                raise module.DownloadCancelledError(
+                    "Model asset download cancelled; the partial file was kept for resume."
+                )
             progress.setRange(0, 100)
             progress.setValue(80)
             progress.setLabelText("Verifying model asset checksums...")
@@ -2642,6 +2709,17 @@ class SharedWidgetMixin:
             if not verification.get("ok"):
                 raise RuntimeError(json.dumps(verification, indent=2, sort_keys=True))
             progress.setValue(100)
+        except module.DownloadCancelledError as exc:
+            self.appendLog(f"[Model assets] {exc}")
+            self._set_model_assets_status_text(
+                f"Download paused. Partial files were kept at {asset_root}; run Download again to resume."
+            )
+            slicer.util.infoDisplay(
+                "Model download was paused. Partial files were kept and the next download will resume when the server supports it.",
+                windowTitle="SlicerDDSurfer model assets",
+                parent=self.parent,
+            )
+            return False
         except Exception as exc:
             self.appendLog(f"[Model assets] Download/verification failed: {exc}")
             self._show_actionable_error(
@@ -2656,7 +2734,7 @@ class SharedWidgetMixin:
                 auto_fix="No system-level software was modified. Only the selected model asset directory was targeted.",
                 details=exc,
             )
-            return
+            return False
         finally:
             try:
                 progress.close()
@@ -2667,6 +2745,7 @@ class SharedWidgetMixin:
         result = self._run_environment_dependency_check()
         if result is not None:
             self._show_environment_results_dialog(result)
+        return True
 
     def _setPipelineActive(self, active: bool) -> None:
         self._pipelineActive = active
