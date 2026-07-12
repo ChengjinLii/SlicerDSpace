@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +36,7 @@ def build_background_run_context(
         "output_root": common_run_kwargs.get("output_root"),
         "run_name": common_run_kwargs["run_name"],
         "targets": common_run_kwargs["targets"],
-        "started_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "selected_workflows": selected_workflows,
     }
     if batch_size is not None:

@@ -561,11 +561,14 @@ def archive_development_outputs(
     output_root: Optional[Path] = None,
     current_run_name: str = "csd_act",
     current_tractography_backend: str = "csd_act",
+    archive_alternate_tractograms: bool = True,
 ) -> dict[str, Path]:
     """Move development-only output folders out of the canonical product tree.
 
     This keeps ``outputs/`` aligned with the documented user-facing layout while
     preserving exploratory artifacts under ``.debug_outputs`` for later audits.
+    Set ``archive_alternate_tractograms`` false for partial or plan-only runs so
+    they cannot redefine the canonical tractography run.
     """
 
     layout = subject_layout(subject_root, output_root=output_root)
@@ -611,7 +614,7 @@ def archive_development_outputs(
                     _move_if_exists(child, debug_root / "04_tractography" / "legacy_csd_runs")
 
     tractograms = layout.tractograms
-    if tractograms.is_dir():
+    if archive_alternate_tractograms and tractograms.is_dir():
         backend = (current_tractography_backend or "csd_act").strip().lower()
         run_name = (current_run_name or "csd_act").strip() or "csd_act"
         allowed_top_dirs = {"dti_det"} if backend == "dti_det" else {run_name}

@@ -10,7 +10,7 @@ from shared import ensure_native_dti_bundle, find_subject_root
 MICROSTRUCTURE_PYTHON_REQUIREMENTS: tuple[tuple[str, str], ...] = (
     ("numpy", "numpy"),
     ("nibabel>=5.0", "nibabel"),
-    ("dipy>=1.11,<1.13", "dipy"),
+    ("dipy>=1.10,<1.13", "dipy"),
     ("dmri-amico", "amico"),
 )
 

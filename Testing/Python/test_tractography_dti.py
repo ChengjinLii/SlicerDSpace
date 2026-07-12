@@ -144,6 +144,7 @@ class DTITractographyScaffoldTest(unittest.TestCase):
                     output_format="trk",
                     min_fa=0.05,
                     seed_density=1,
+                    max_seed_voxels=4,
                     execute=True,
                 )
             )
@@ -153,6 +154,8 @@ class DTITractographyScaffoldTest(unittest.TestCase):
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
             self.assertEqual(qc["status"], "completed")
             self.assertGreaterEqual(qc["streamline_count"], 1)
+            self.assertEqual(qc["seed_voxel_count"], 4)
+            self.assertGreater(qc["tracking_mask_voxels"], qc["seed_voxel_count"])
 
 
 if __name__ == "__main__":

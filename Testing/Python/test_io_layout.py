@@ -176,6 +176,27 @@ class IOLayoutTest(unittest.TestCase):
             self.assertTrue((cached / "alt.trk").is_file())
             self.assertIn(alternate_dir.as_posix(), moved)
 
+    def test_partial_run_cleanup_preserves_existing_tractogram_runs(self) -> None:
+        from shared import archive_development_outputs, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            existing_run = layout.tractograms_dti_det / "windows_full"
+            existing_run.mkdir(parents=True)
+            tractogram = existing_run / "100307-dti-deterministic.trk"
+            tractogram.write_text("tractogram", encoding="utf-8")
+
+            moved = archive_development_outputs(
+                subject_root,
+                current_run_name="segmentation_only",
+                current_tractography_backend="dti_det",
+                archive_alternate_tractograms=False,
+            )
+
+            self.assertTrue(tractogram.is_file())
+            self.assertNotIn(existing_run.as_posix(), moved)
+
     def test_legacy_wma_runs_can_be_materialized_under_canonical_bundles_tree(self) -> None:
         from shared import materialize_canonical_output_tree, subject_layout
 

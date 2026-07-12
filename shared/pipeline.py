@@ -129,7 +129,7 @@ def _slicer_home_candidates() -> list[Path]:
         if env_value:
             candidates.append(Path(env_value).expanduser().resolve())
     executable = Path(sys.executable).expanduser().resolve()
-    if executable.name in {"python-real", "PythonSlicer", "python"}:
+    if executable.stem.lower() in {"python-real", "pythonslicer", "python"}:
         candidates.append(executable.parent.parent)
     if executable.name.startswith("Slicer"):
         candidates.append(executable.parent)
@@ -291,7 +291,12 @@ def resolve_launcher_executable() -> str:
             return Path(launcher).resolve().as_posix()
 
     slicer_home = _resolve_slicer_home()
-    for fallback in (slicer_home / "Slicer", slicer_home / "bin" / "Slicer"):
+    for fallback in (
+        slicer_home / "Slicer",
+        slicer_home / "Slicer.exe",
+        slicer_home / "bin" / "Slicer",
+        slicer_home / "bin" / "Slicer.exe",
+    ):
         if fallback.is_file():
             return fallback.as_posix()
     raise RuntimeError("Failed to resolve the Slicer launcher executable path.")
@@ -302,7 +307,9 @@ def resolve_pythonslicer_executable() -> str:
     slicer_home = _resolve_slicer_home()
     candidates = [
         slicer_home / "bin" / "PythonSlicer",
+        slicer_home / "bin" / "PythonSlicer.exe",
         slicer_home / "PythonSlicer",
+        slicer_home / "PythonSlicer.exe",
     ]
     for candidate in candidates:
         if candidate.is_file():
@@ -363,9 +370,14 @@ def resolve_cli_executable(module_name: str) -> str:
                     return cli_exe
 
     target = module_name.lower()
+    windows_executable_suffixes = {".exe", ".bat", ".cmd"}
     for cli_dir in _cli_search_dirs():
         for candidate in cli_dir.iterdir():
-            if candidate.is_file() and candidate.name.lower() == target:
+            candidate_name = candidate.name.lower()
+            is_executable_name = candidate_name == target or (
+                candidate.suffix.lower() in windows_executable_suffixes and candidate.stem.lower() == target
+            )
+            if candidate.is_file() and is_executable_name:
                 return candidate.as_posix()
 
     raise RuntimeError(

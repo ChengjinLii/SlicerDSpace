@@ -2201,6 +2201,11 @@ def run_subject_products(
                         fit_method=config.microstructure_fit_method,
                         tracking_method="deterministic",
                         output_format="trk",
+                        # DTI produces at most one seed per selected voxel at
+                        # the default density.  Honor the unified CLI's
+                        # streamline budget so whole-brain runs do not seed
+                        # every eligible voxel and exhaust memory on Windows.
+                        max_seed_voxels=config.select_streamlines,
                         execute=True,
                     ),
                     log=log,
@@ -2558,6 +2563,10 @@ def run_subject_products(
         output_root=output_root,
         current_run_name=run_name,
         current_tractography_backend=primary_tractography_backend,
+        # A partial run must not redefine which pre-existing tractography run
+        # is canonical.  Only archive alternate tractograms when this run
+        # is executing and actually selected the tractography product.
+        archive_alternate_tractograms=config.execute and "tractography" in run_targets,
     )
     output_tree_audit = _audit_output_tree(layout, subject_id=config.subject_id, selected_targets=targets)
     output_tree_semantics = _write_output_tree_semantics(

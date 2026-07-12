@@ -12,7 +12,7 @@ OUTPUT_ROOT="${OUTPUT_ROOT:-}"
 STRICT="${STRICT:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 
-TARGETS="${TARGETS:-validation,preprocessing,microstructure,tractography,bundles,connectome}"
+TARGETS="${TARGETS:-validation,preprocessing,segmentation,parcellation,microstructure,tractography,bundles,connectome}"
 
 cd "$REPO_ROOT"
 
@@ -70,6 +70,8 @@ plan = payload["run_plan"]
 summary = plan["summary"]
 print(f"[100307 regression] plan summary: will_run={summary['will_run']} skipped={summary['skipped']} blocked={summary['blocked']}")
 print(f"[100307 regression] run_plan_path={payload['run_plan_path']}")
+if summary["blocked"]:
+    raise SystemExit("[100307 regression] run plan contains blocked targets")
 PY
   exit 0
 fi
@@ -153,7 +155,7 @@ print(f"[100307 regression] plan={plan_path}")
 print(f"[100307 regression] first run tasks={len(tasks)} blocked={len(blocked)}")
 print(f"[100307 regression] resume tasks={len(resume_tasks)} skipped={len(skipped)}")
 if blocked:
-    print("[100307 regression] blocked target(s): " + "; ".join(f"{task.get('name')}: {task.get('reason')}" for task in blocked))
+    fail("blocked target(s): " + "; ".join(f"{task.get('name')}: {task.get('reason')}" for task in blocked))
 PY
 
 echo "[100307 regression] completed"

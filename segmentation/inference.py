@@ -13,6 +13,14 @@ def _softmax_nhwc(x: np.ndarray) -> np.ndarray:
     return exp / np.sum(exp, axis=3, keepdims=True)
 
 
+def normalize_class_scores(scores: np.ndarray) -> np.ndarray:
+    """Convert a final NHWC class-score volume into probabilities."""
+
+    if scores.ndim != 4:
+        raise ValueError(f"Expected a 4D NHWC score volume, got shape {scores.shape}")
+    return _softmax_nhwc(scores)
+
+
 def predict_view(model, slices: List[np.ndarray], apply_softmax: bool) -> np.ndarray:
     scores = []
     for slc in slices:

@@ -13,7 +13,7 @@ import statistics
 import subprocess
 import sys
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -375,7 +375,7 @@ def build_summary(run_rows: list[dict[str, Any]], task_rows: list[dict[str, Any]
     return {
         "kind": "slicerddsurfer_protocol_benchmark_summary",
         "version": 1,
-        "generated_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "run_count": len(run_rows),
         "subject_count": len({row["subject_id"] for row in run_rows}),
         "manifest_count": len({row["manifest_path"] for row in run_rows}),

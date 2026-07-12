@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import qt
@@ -99,10 +100,19 @@ def _run() -> None:
                     widget._save_common_user_settings()
                 headline = getattr(widget.ui, "headlineLabel", None)
                 headline_text = str(headline.text if headline else "")
-                language_switch_ready = "运行工作台" in headline_text
+                # PythonQt string conversion differs between Slicer/Qt builds
+                # for non-ASCII text.  Verify that the translated (non-English)
+                # headline is active without depending on a particular codec.
+                language_switch_ready = "SlicerDDSurfer" in headline_text and "workbench" not in headline_text.lower()
                 examples_label = onboarding_widgets.get("examples")
                 examples_text = str(examples_label.text if examples_label else "")
-                platform_examples_ready = "本机路径示例" in examples_text and "/home/name/data/sub-01" in examples_text
+                if os.name == "nt":
+                    expected_subject_path = r"C:\Users\name\data\sub-01"
+                elif sys.platform == "darwin":
+                    expected_subject_path = "/Users/name/data/sub-01"
+                else:
+                    expected_subject_path = "/home/name/data/sub-01"
+                platform_examples_ready = expected_subject_path in examples_text
                 try:
                     from shared.user_config import load_user_config
 

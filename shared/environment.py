@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.metadata
 import importlib.util
 import json
 import os
@@ -379,7 +380,9 @@ def _add_core_python(specs: dict[str, DependencySpec], target: str) -> None:
 
 def _add_dipy_stack(specs: dict[str, DependencySpec], target: str) -> None:
     _add_core_python(specs, target)
-    _python(specs, target=target, import_name="dipy", package="dipy>=1.11,<1.13")
+    # Slicer 5.6 embeds Python 3.9.  DIPY 1.11+ requires Python 3.10,
+    # while the APIs used by this extension are available in DIPY 1.10.
+    _python(specs, target=target, import_name="dipy", package="dipy>=1.10,<1.13")
 
 
 def _add_slicer_python_runtime(specs: dict[str, DependencySpec], target: str) -> None:
@@ -536,7 +539,15 @@ def _common_freesurfer_homes(platform_name: Optional[str] = None) -> tuple[Path,
                 Path("C:/Program Files (x86)/FreeSurfer"),
             ]
         )
-    return tuple(dict.fromkeys(candidate.expanduser() for candidate in candidates))
+    # Deduplicate by the rendered candidate, not host ``Path`` equality.
+    # WindowsPath compares case-insensitively, which otherwise drops the
+    # distinct macOS ``freesurfer``/``FreeSurfer`` locations when a Darwin
+    # environment is inspected or tested from Windows.
+    unique: dict[str, Path] = {}
+    for candidate in candidates:
+        expanded = candidate.expanduser()
+        unique.setdefault(expanded.as_posix(), expanded)
+    return tuple(unique.values())
 
 
 def _is_freesurfer_home(path: Path) -> bool:
@@ -734,7 +745,10 @@ def _repo_checkout_roots(repo_root: Path, name: str) -> tuple[Path, ...]:
         suffixes = ()
 
     candidates: list[Path] = []
-    search_roots = [resolved_root, *resolved_root.parents[:4]]
+    # ``Path.parents`` only gained slice support in Python 3.10.  Slicer 5.6
+    # embeds Python 3.9, so materialize the sequence before taking the nearby
+    # checkout roots.
+    search_roots = [resolved_root, *list(resolved_root.parents)[:4]]
     for base in search_roots:
         for suffix in suffixes:
             candidates.append(base.joinpath(*suffix))
@@ -1444,6 +1458,57 @@ def _install_hint(spec: DependencySpec, platform_name: str) -> str:
     return spec.notes
 
 
+def _parse_json_probe_output(stdout: str) -> dict[str, Any]:
+    """Parse a JSON probe result even when a launcher prints startup notices."""
+
+    stripped = stdout.strip()
+    if not stripped:
+        return {}
+    try:
+        payload = json.loads(stripped)
+        if isinstance(payload, dict):
+            return payload
+    except json.JSONDecodeError:
+        pass
+
+    for line in reversed(stripped.splitlines()):
+        try:
+            payload = json.loads(line.strip())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    raise ValueError(f"Python dependency probe did not emit a JSON object: {stripped!r}")
+
+
+def _python_requirement_details(package: str, installed_version: Optional[str]) -> tuple[Optional[str], Optional[bool]]:
+    """Return a package specifier and whether the installed release satisfies it."""
+
+    if not package:
+        return None, None
+    try:
+        from packaging.requirements import Requirement
+
+        requirement = Requirement(package)
+    except (ModuleNotFoundError, ValueError):
+        return None, None
+    specifier = str(requirement.specifier) or None
+    if specifier is None or installed_version is None:
+        return specifier, None
+    return specifier, requirement.specifier.contains(installed_version, prereleases=True)
+
+
+def _python_distribution_name(package: str) -> Optional[str]:
+    if not package:
+        return None
+    try:
+        from packaging.requirements import Requirement
+
+        return Requirement(package).name
+    except (ModuleNotFoundError, ValueError):
+        return None
+
+
 def _check_cuda_device(device: str, python_executable: Optional[Path]) -> tuple[bool, dict[str, Any]]:
     python_path = python_executable or Path(sys.executable)
     probe = (
@@ -1466,7 +1531,7 @@ def _check_cuda_device(device: str, python_executable: Optional[Path]) -> tuple[
             capture_output=True,
             text=True,
         )
-        details = json.loads(completed.stdout.strip() or "{}")
+        details = _parse_json_probe_output(completed.stdout)
     except Exception as exc:
         details = {
             "torch_importable": False,
@@ -1511,13 +1576,32 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
         assert spec.python_import
         python_executable = spec.python_executable
         python_path_entries = tuple(path for path in spec.python_path_entries if path)
+        distribution_name = _python_distribution_name(spec.python_package or "")
+        installed_version: Optional[str] = None
+        requirement_specifier, _ = _python_requirement_details(spec.python_package or "", None)
+        requirement_satisfied: Optional[bool] = None
         if python_executable is None and not python_path_entries:
             try:
                 available = importlib.util.find_spec(spec.python_import) is not None
                 error = None
+                if available and distribution_name and requirement_specifier:
+                    installed_version = importlib.metadata.version(distribution_name)
+            except importlib.metadata.PackageNotFoundError as exc:
+                available = False
+                error = str(exc)
             except (ImportError, AttributeError, ValueError) as exc:
                 available = False
                 error = str(exc)
+            requirement_specifier, requirement_satisfied = _python_requirement_details(
+                spec.python_package or "",
+                installed_version,
+            )
+            if available and requirement_satisfied is False:
+                available = False
+                error = (
+                    f"installed {distribution_name} {installed_version} does not satisfy "
+                    f"{requirement_specifier}"
+                )
             details = {
                 "import": spec.python_import,
                 "package": spec.python_package,
@@ -1525,6 +1609,9 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
                 "python_executable": sys.executable,
                 "pythonpath": [],
                 "detected_source": "current Python" if available else "not found",
+                "installed_version": installed_version,
+                "version_specifier": requirement_specifier,
+                "version_satisfied": requirement_satisfied,
                 "error": error,
             }
         else:
@@ -1533,8 +1620,11 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
             if python_path_entries:
                 env["PYTHONPATH"] = os.pathsep.join(path.as_posix() for path in python_path_entries) + os.pathsep + env.get("PYTHONPATH", "")
             probe = (
-                "import importlib.util, json; "
-                f"print(json.dumps({{'available': importlib.util.find_spec({spec.python_import!r}) is not None}}))"
+                "import importlib.metadata, importlib.util, json\n"
+                f"available = importlib.util.find_spec({spec.python_import!r}) is not None\n"
+                f"distribution = {(distribution_name if requirement_specifier else None)!r}\n"
+                "version = importlib.metadata.version(distribution) if available and distribution else None\n"
+                "print(json.dumps({'available': available, 'version': version}))\n"
             )
             try:
                 completed = subprocess.run(
@@ -1544,11 +1634,23 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
                     text=True,
                     env=env,
                 )
-                available = bool(json.loads(completed.stdout.strip() or "{}").get("available"))
+                probe_details = _parse_json_probe_output(completed.stdout)
+                available = bool(probe_details.get("available"))
+                installed_version = probe_details.get("version")
                 error = None
             except Exception as exc:
                 available = False
                 error = str(exc)
+            requirement_specifier, requirement_satisfied = _python_requirement_details(
+                spec.python_package or "",
+                installed_version,
+            )
+            if available and requirement_satisfied is False:
+                available = False
+                error = (
+                    f"installed {distribution_name} {installed_version} does not satisfy "
+                    f"{requirement_specifier}"
+                )
             details = {
                 "import": spec.python_import,
                 "package": spec.python_package,
@@ -1556,6 +1658,9 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
                 "python_executable": python_path.as_posix(),
                 "pythonpath": [path.as_posix() for path in python_path_entries],
                 "detected_source": "configured Python/PYTHONPATH" if available else "not found",
+                "installed_version": installed_version,
+                "version_specifier": requirement_specifier,
+                "version_satisfied": requirement_satisfied,
                 "error": error,
             }
     elif spec.kind == "command":

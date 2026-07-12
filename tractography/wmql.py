@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -161,6 +161,32 @@ def _query_include_dirs(config: WMQLConfig, query_path: Path) -> list[Path]:
     return unique
 
 
+def _requires_windows_query_staging() -> bool:
+    """TractQuerier splits ``-I`` on ``:`` and therefore breaks drive paths."""
+
+    return os.name == "nt"
+
+
+def _stage_query_includes(include_dirs: list[Path], queries_dir: Path) -> None:
+    """Stage query includes in one cwd that TractQuerier can search on Windows."""
+
+    for include_dir in include_dirs:
+        source_dir = include_dir.expanduser().resolve()
+        if not source_dir.is_dir():
+            raise FileNotFoundError(f"WMQL include directory not found: {source_dir}")
+        for source in sorted(source_dir.glob("*.qry")):
+            target = queries_dir / source.name
+            if source.resolve() == target.resolve():
+                continue
+            if target.exists():
+                if target.read_bytes() != source.read_bytes():
+                    raise RuntimeError(
+                        f"Conflicting WMQL include named {source.name}: {target} and {source}"
+                    )
+                continue
+            shutil.copy2(source, target)
+
+
 def build_wmql_command(config: WMQLConfig, backend_status: Optional[dict[str, Any]] = None) -> tuple[str, ...]:
     backend = backend_status or inspect_wmql_backend(
         tract_querier_root=config.tract_querier_root,
@@ -191,8 +217,13 @@ def build_wmql_command(config: WMQLConfig, backend_status: Optional[dict[str, An
             query_path.as_posix(),
             "-o",
             output_prefix.as_posix(),
-            "-I",
-            os.pathsep.join(path.as_posix() for path in include_dirs),
+        ]
+    )
+    if include_dirs and not _requires_windows_query_staging():
+        # TractQuerier currently hard-codes ':' as its include separator.
+        cmd.extend(["-I", ":".join(path.as_posix() for path in include_dirs)])
+    cmd.extend(
+        [
             "--threshold",
             str(config.threshold),
             "--length_threshold",
@@ -262,7 +293,6 @@ def run_wmql_bundle_segmentation(
         python_executable=config.python_executable,
     )
     _validate_wmql_config(config, backend_status)
-    command = build_wmql_command(config, backend_status)
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     queries_dir = output_dir / "queries"
@@ -271,6 +301,10 @@ def run_wmql_bundle_segmentation(
     staged_query = queries_dir / query_path.name
     if query_path.resolve() != staged_query.resolve():
         shutil.copy2(query_path, staged_query)
+    if _requires_windows_query_staging():
+        _stage_query_includes(_query_include_dirs(config, query_path), queries_dir)
+    command_config = replace(config, query_path=staged_query)
+    command = build_wmql_command(command_config, backend_status)
 
     manifest_path = output_dir / "wmql_manifest.json"
     qc_path = output_dir / "wmql_qc.json"
@@ -289,6 +323,7 @@ def run_wmql_bundle_segmentation(
         "executed": bool(config.execute),
         "status": "planned" if not config.execute else "running",
         "command": list(command),
+        "execution_cwd": queries_dir.as_posix() if _requires_windows_query_staging() else None,
         "backend": backend_status,
         "outputs": {"qc": qc_path.as_posix(), "summary": output_summary},
     }
@@ -302,18 +337,29 @@ def run_wmql_bundle_segmentation(
     start_time = time.monotonic()
     return_code: Optional[int] = None
     execution_error: Optional[str] = None
+    execution_exception: Optional[Exception] = None
     if config.execute:
         env = merged_startup_environment()
         if config.tract_querier_root is not None:
             root = config.tract_querier_root.expanduser().resolve()
             env["PYTHONPATH"] = root.as_posix() + os.pathsep + env.get("PYTHONPATH", "")
         try:
-            completed = subprocess.run(command, check=True, env=env)
+            completed = subprocess.run(
+                command,
+                check=True,
+                env=env,
+                cwd=queries_dir if _requires_windows_query_staging() else None,
+            )
             return_code = completed.returncode
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode
             execution_error = str(exc)
-            raise
+            execution_exception = exc
+        except OSError as exc:
+            # Preserve launch failures (missing/broken executables, permission
+            # errors) in QC/manifest before surfacing the original exception.
+            execution_error = f"{type(exc).__name__}: {exc}"
+            execution_exception = exc
         finally:
             output_summary = summarize_wmql_outputs(output_dir)
 
@@ -337,6 +383,9 @@ def run_wmql_bundle_segmentation(
     manifest["return_code"] = return_code
     manifest["outputs"]["summary"] = output_summary
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    if execution_exception is not None:
+        raise execution_exception
 
     return WMQLResult(
         subject_id=config.subject_id,

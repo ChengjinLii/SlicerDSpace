@@ -103,7 +103,7 @@ def ensure_dipy(bootstrap: bool) -> None:
         if not bootstrap:
             raise
 
-    cmd = [sys.executable, "-m", "pip", "install", "dipy>=1.11,<1.13"]
+    cmd = [sys.executable, "-m", "pip", "install", "dipy>=1.10,<1.13"]
     print("Bootstrapping DIPY:", " ".join(cmd))
     subprocess.run(cmd, check=True)
 

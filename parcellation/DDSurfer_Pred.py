@@ -163,7 +163,11 @@ def run_network(img_filename, orig_data, prediction_probability, plane, ckpts, p
 
             temp, temp_list = model(images_batch)
 
-            for t_idx, temp in enumerate(temp_list):
+            # Only the fused prediction at index 0 is consumed during
+            # postprocessing.  Caching every backbone prediction as a full
+            # 256^3 volume wastes more than 25 GB on CPU-only Windows hosts
+            # without changing the generated label map.
+            for t_idx, temp in enumerate(temp_list[:1]):
                 start_index_tmp = start_index
                 if plane == "Axial":
                     temp = temp.permute(3, 0, 2, 1)
@@ -214,7 +218,7 @@ def fastsurfercnn(img_filename, save_as, logger, args):
     logger.info("Cuda available: {}, # Available GPUS: {}, Cuda user disabled (--no_cuda flag): {}, --> Using device: {}".format(torch.cuda.is_available(), torch.cuda.device_count(),  args.no_cuda, device))
 
     # Set up tensor to hold probabilities
-    pred_prob = torch.zeros((args.num_modality+2, 256, 256, 256, args.num_classes_ax_cor), dtype=torch.float)
+    pred_prob = torch.zeros((1, 256, 256, 256, args.num_classes_ax_cor), dtype=torch.float)
 
     orig_data = []
     for idx in range(len(img_filename)):

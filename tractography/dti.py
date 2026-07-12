@@ -137,6 +137,52 @@ def _streamline_lengths(streamlines: list[object]) -> list[float]:
     return lengths
 
 
+def _tensor_direction_getter(
+    evecs,
+    tracking_mask,
+    sphere,
+    *,
+    max_angle_deg: float,
+    chunk_size: int = 8192,
+):
+    """Build a deterministic DIPY direction getter from fitted tensor axes."""
+
+    import numpy as np
+    from dipy.direction.peaks import PeaksAndMetrics
+
+    peak_indices = np.full(tracking_mask.shape + (1,), -1, dtype=np.int32)
+    peak_values = np.zeros(tracking_mask.shape + (1,), dtype=np.float32)
+    voxel_indices = np.argwhere(tracking_mask)
+    principal = np.nan_to_num(evecs[..., :, 0], nan=0.0, posinf=0.0, neginf=0.0).astype(
+        np.float32,
+        copy=False,
+    )
+    sphere_vertices = np.asarray(sphere.vertices, dtype=np.float32)
+
+    for start in range(0, voxel_indices.shape[0], int(chunk_size)):
+        coords = voxel_indices[start : start + int(chunk_size)]
+        directions = principal[coords[:, 0], coords[:, 1], coords[:, 2]]
+        norms = np.linalg.norm(directions, axis=1)
+        valid = norms > 0
+        closest = np.full(coords.shape[0], -1, dtype=np.int32)
+        if np.any(valid):
+            normalized = directions[valid] / norms[valid, None]
+            closest[valid] = np.argmax(np.abs(normalized @ sphere_vertices.T), axis=1).astype(np.int32)
+        peak_indices[coords[:, 0], coords[:, 1], coords[:, 2], 0] = closest
+        # Direction-getter peak values are confidence weights, not physical
+        # diffusivities.  Unit weights avoid filtering valid tensor axes by
+        # EuDX's default QA threshold; FA remains the stopping criterion.
+        peak_values[coords[:, 0], coords[:, 1], coords[:, 2], 0] = (closest >= 0).astype(np.float32)
+
+    peaks = PeaksAndMetrics()
+    peaks.sphere = sphere
+    peaks.peak_indices = peak_indices
+    peaks.peak_values = peak_values
+    peaks.ang_thr = float(max_angle_deg)
+    peaks._initialize()
+    return peaks
+
+
 def _run_dipy_dti_tracking(
     config: DTITrackingConfig,
     *,
@@ -148,7 +194,6 @@ def _run_dipy_dti_tracking(
         import numpy as np
         from dipy.core.gradients import gradient_table
         from dipy.data import default_sphere
-        from dipy.direction import peaks_from_model
         from dipy.io.stateful_tractogram import Space, StatefulTractogram
         from dipy.io.streamline import save_tck, save_trk
         from dipy.reconst.dti import TensorModel, fractional_anisotropy
@@ -180,34 +225,29 @@ def _run_dipy_dti_tracking(
     tenfit = tenmodel.fit(data, mask=mask)
     fa = np.nan_to_num(fractional_anisotropy(tenfit.evals), nan=0.0, posinf=0.0, neginf=0.0)
     tracking_mask = np.logical_and(mask, fa >= float(config.min_fa))
+    seed_mask = tracking_mask
     if config.max_seed_voxels is not None:
-        voxel_indices = np.argwhere(tracking_mask)
+        voxel_indices = np.argwhere(seed_mask)
         if voxel_indices.shape[0] > int(config.max_seed_voxels):
             rng = np.random.default_rng(int(config.random_seed))
             selected = rng.choice(voxel_indices.shape[0], size=int(config.max_seed_voxels), replace=False)
-            limited_mask = np.zeros_like(tracking_mask, dtype=bool)
+            limited_mask = np.zeros_like(seed_mask, dtype=bool)
             limited_indices = voxel_indices[selected]
             limited_mask[limited_indices[:, 0], limited_indices[:, 1], limited_indices[:, 2]] = True
-            tracking_mask = limited_mask
-    seed_count = int(tracking_mask.sum())
-    if seed_count == 0:
+            seed_mask = limited_mask
+    seed_voxel_count = int(seed_mask.sum())
+    if seed_voxel_count == 0:
         raise RuntimeError("No voxels passed the DTI tracking FA/mask threshold.")
 
     _emit("[Tractography] Building tensor peaks and seeds", log)
-    peaks = peaks_from_model(
-        tenmodel,
-        data,
+    peaks = _tensor_direction_getter(
+        tenfit.evecs,
+        tracking_mask,
         default_sphere,
-        relative_peak_threshold=0.5,
-        min_separation_angle=float(config.max_angle_deg),
-        mask=tracking_mask,
-        npeaks=1,
-        normalize_peaks=True,
-        legacy=False,
-        parallel=False,
+        max_angle_deg=float(config.max_angle_deg),
     )
     seeds = utils.seeds_from_mask(
-        tracking_mask,
+        seed_mask,
         dwi_img.affine,
         density=(int(config.seed_density), int(config.seed_density), int(config.seed_density)),
     )
@@ -242,7 +282,7 @@ def _run_dipy_dti_tracking(
     }
     return {
         "streamline_count": len(streamlines),
-        "seed_voxel_count": seed_count,
+        "seed_voxel_count": seed_voxel_count,
         "seed_count": int(len(seeds)),
         "fa_threshold": float(config.min_fa),
         "tracking_mask_voxels": int(tracking_mask.sum()),

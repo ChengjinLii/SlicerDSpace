@@ -40,6 +40,7 @@ set(MODULE_PYTHON_RESOURCES
   ${CONNECTOME_PYTHON_SCRIPTS}
   ${SCRIPT_TOOL_FILES}
   ${DDSURFER_POSTPROCESS_RELEASE_FILES}
+  models/assets_manifest.json
   Resources/Icons/${MODULE_NAME}.png
   Resources/UI/${MODULE_NAME}.ui
   parcellation/conversion/data/FreeSurferColorLUT.txt

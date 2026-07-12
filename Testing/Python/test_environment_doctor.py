@@ -15,6 +15,8 @@ from shared.environment import (
     _common_command_dirs,
     _common_freesurfer_homes,
     _common_slicer_executables,
+    _parse_json_probe_output,
+    _python_requirement_details,
     run_environment_doctor,
     write_environment_report,
 )
@@ -24,6 +26,18 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
+    def test_python_version_requirement_rejects_old_torch(self) -> None:
+        specifier, satisfied = _python_requirement_details("torch>=2.0.0", "1.8.1+cpu")
+        self.assertEqual(specifier, ">=2.0.0")
+        self.assertFalse(satisfied)
+        self.assertTrue(_python_requirement_details("torch>=2.0.0", "2.2.2+cpu")[1])
+
+    def test_python_probe_ignores_launcher_startup_notice(self) -> None:
+        self.assertEqual(
+            _parse_json_probe_output('No module named \'logic\'\n{"available": true}\n'),
+            {"available": True},
+        )
+
     def _make_mrtrix_bin(self, root: Path) -> Path:
         bin_dir = root / "mrtrix_bin"
         bin_dir.mkdir(parents=True)

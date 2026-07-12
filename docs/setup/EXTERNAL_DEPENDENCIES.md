@@ -321,7 +321,7 @@ scripts/download_model_assets.sh --profile core
 ### 2.3 Microstructure
 
 - DTI / Free Water / preprocessing DIPY backend：
-  - `dipy>=1.11,<1.13`
+  - `dipy>=1.10,<1.13` (DIPY 1.10 is the compatible choice for Slicer 5.6 / Python 3.9)
 - NODDI：
   - `dmri-amico`，Python import 名为 `amico`
 

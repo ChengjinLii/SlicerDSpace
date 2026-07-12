@@ -26,7 +26,6 @@ class ProductOrchestratorTest(unittest.TestCase):
             input_dir.mkdir(parents=True)
             for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
                 (input_dir / name).write_text("x", encoding="utf-8")
-
             result = run_subject_products(
                 ProductOrchestratorConfig(
                     subject_id="100307",
@@ -368,6 +367,17 @@ class ProductOrchestratorTest(unittest.TestCase):
             input_dir.mkdir(parents=True)
             for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
                 (input_dir / name).write_text("x", encoding="utf-8")
+            existing_tractogram = (
+                subject_root
+                / "outputs"
+                / "04_tractography"
+                / "tractograms"
+                / "dti_det"
+                / "windows_full"
+                / "existing.trk"
+            )
+            existing_tractogram.parent.mkdir(parents=True)
+            existing_tractogram.write_text("existing", encoding="utf-8")
 
             result = run_subject_products(
                 ProductOrchestratorConfig(
@@ -387,6 +397,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(statuses["connectome.streamline_count"], "planned")
             manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["tractography_backend"], "dti_det")
+            self.assertTrue(existing_tractogram.is_file())
 
     def test_microstructure_optional_stage_gates_are_explicit(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products

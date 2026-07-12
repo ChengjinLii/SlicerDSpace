@@ -8,7 +8,7 @@ import nibabel as nib
 from .config import DDSegConfig
 from .preprocess import masking_and_normalizing, stack_features, split_views
 from .model_loader import load_models
-from .inference import predict_view, combine_views
+from .inference import combine_views, normalize_class_scores, predict_view
 from .utils import padding_unpadding, load_nii_matlab_like
 from .dti_slicer import run_dti_feature_extraction
 
@@ -43,6 +43,10 @@ def run_ddseg(cfg: DDSegConfig) -> None:
     combined = combine_views(pred_axial, pred_sagittal, pred_coronal)
     prob_maps = combined["prob_maps"]
     labels = combined["labels"]
+    if not cfg.apply_softmax:
+        # Preserve the legacy/default fused-logit argmax while ensuring files
+        # named ProbabilisticMap_* contain actual normalized probabilities.
+        prob_maps = normalize_class_scores(prob_maps)
 
     mask_img = load_nii_matlab_like(cfg.input_mask_nii)
     mask = mask_img.get_fdata() > 0

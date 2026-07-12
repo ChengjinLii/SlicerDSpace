@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -123,6 +125,100 @@ exit 0
         self.assertEqual(qc["output_summary"]["bundle_count"], 2)
         self.assertEqual(len(qc["output_summary"]["bundles"]), 2)
         self.assertIn("size", qc["output_summary"]["bundles"][0])
+
+    def test_windows_stages_query_includes_without_drive_separated_I_argument(self) -> None:
+        from tractography import WMQLConfig, run_wmql_bundle_segmentation
+
+        with mock.patch("tractography.wmql._requires_windows_query_staging", return_value=True):
+            result = run_wmql_bundle_segmentation(
+                WMQLConfig(
+                    subject_id="100307",
+                    input_tractography=self.tractography,
+                    atlas_path=self.atlas,
+                    output_dir=self.output_dir,
+                    tract_querier_root=self.tract_querier_root,
+                    python_executable=self.python,
+                    execute=False,
+                )
+            )
+
+        self.assertNotIn("-I", result.command)
+        self.assertTrue((self.output_dir / "queries" / "FreeSurfer.qry").is_file())
+        manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["execution_cwd"], (self.output_dir / "queries").as_posix())
+
+    def test_failed_backend_writes_qc_before_reraising(self) -> None:
+        from tractography import WMQLConfig, run_wmql_bundle_segmentation
+
+        backend = {
+            "available": True,
+            "commands": {
+                "tract_querier_executable": None,
+                "root_script": (self.tract_querier_root / "scripts" / "cli_tract_querier.py").as_posix(),
+                "python": self.python.as_posix(),
+            },
+            "missing_required": [],
+        }
+        failure = subprocess.CalledProcessError(7, ["tract_querier"])
+        with (
+            mock.patch("tractography.wmql.inspect_wmql_backend", return_value=backend),
+            mock.patch("tractography.wmql.subprocess.run", side_effect=failure),
+            self.assertRaises(subprocess.CalledProcessError),
+        ):
+            run_wmql_bundle_segmentation(
+                WMQLConfig(
+                    subject_id="100307",
+                    input_tractography=self.tractography,
+                    atlas_path=self.atlas,
+                    output_dir=self.output_dir,
+                    tract_querier_root=self.tract_querier_root,
+                    python_executable=self.python,
+                    execute=True,
+                )
+            )
+
+        qc = json.loads((self.output_dir / "wmql_qc.json").read_text(encoding="utf-8"))
+        manifest = json.loads((self.output_dir / "wmql_manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(qc["status"], "failed")
+        self.assertEqual(qc["return_code"], 7)
+        self.assertEqual(manifest["status"], "failed")
+
+    def test_backend_launch_error_writes_qc_before_reraising(self) -> None:
+        from tractography import WMQLConfig, run_wmql_bundle_segmentation
+
+        backend = {
+            "available": True,
+            "commands": {
+                "tract_querier_executable": None,
+                "root_script": (self.tract_querier_root / "scripts" / "cli_tract_querier.py").as_posix(),
+                "python": self.python.as_posix(),
+            },
+            "missing_required": [],
+        }
+        failure = OSError("backend could not be launched")
+        with (
+            mock.patch("tractography.wmql.inspect_wmql_backend", return_value=backend),
+            mock.patch("tractography.wmql.subprocess.run", side_effect=failure),
+            self.assertRaises(OSError),
+        ):
+            run_wmql_bundle_segmentation(
+                WMQLConfig(
+                    subject_id="100307",
+                    input_tractography=self.tractography,
+                    atlas_path=self.atlas,
+                    output_dir=self.output_dir,
+                    tract_querier_root=self.tract_querier_root,
+                    python_executable=self.python,
+                    execute=True,
+                )
+            )
+
+        qc = json.loads((self.output_dir / "wmql_qc.json").read_text(encoding="utf-8"))
+        manifest = json.loads((self.output_dir / "wmql_manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(qc["status"], "failed")
+        self.assertIsNone(qc["return_code"])
+        self.assertIn("OSError", qc["error"])
+        self.assertEqual(manifest["status"], "failed")
 
     def test_bundle_parcellation_dispatches_wmql_backend(self) -> None:
         from tractography import BundleParcellationConfig, WMQLConfig, run_bundle_parcellation

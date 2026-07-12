@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
 import json
 import shutil
@@ -44,6 +45,14 @@ COMMON_PYTHON_REQUIREMENTS: tuple[tuple[str, str], ...] = (
 )
 
 
+def _release_version(version: str) -> tuple[int, ...]:
+    """Return a comparable numeric release tuple for torch-style versions."""
+
+    core = str(version).split("+", 1)[0]
+    numbers = [int(value) for value in re.findall(r"\d+", core)]
+    return tuple((numbers + [0, 0, 0])[:3])
+
+
 def _ensure_torch_via_extension(
     min_version: str = "2.0.0",
     log: Optional[Callable[[str], None]] = None,
@@ -71,6 +80,11 @@ def _ensure_torch_via_extension(
     if torch_logic.torchInstalled():
         import torch  # type: ignore[import-not-found]
 
+        if _release_version(torch.__version__) < _release_version(min_version):
+            raise RuntimeError(
+                f"PyTorch {torch.__version__} is installed, but SlicerDDSurfer requires torch>={min_version}. "
+                "Upgrade torch with the Slicer PyTorch extension and restart Slicer before running inference."
+            )
         _log(f"PyTorch detected (version {torch.__version__})")
         return torch
 
@@ -94,10 +108,12 @@ class SharedLogicMixin:
         self.module_dir = Path(__file__).resolve().parent.parent
         self.segmentation_dir = self.module_dir / "segmentation"
         self._pipeline_modules: Optional[Dict[str, Any]] = None
-        self.template_dir = self._resolve_template_dir()
-        self.checkpoint_root = self._resolve_checkpoint_root()
+        # Missing model assets must not prevent the module UI from opening:
+        # the first-run wizard is responsible for configuring/downloading them.
+        self.template_dir = self._resolve_template_dir(required=False)
+        self.checkpoint_root = self._resolve_checkpoint_root(required=False)
         self.template_volume = self.template_dir / "100307-FA.nii.gz"
-        self.registration_atlas = self._resolve_registration_atlas()
+        self.registration_atlas = self._resolve_registration_atlas(required=False)
         self.logCallback = None
 
     def log(self, message: str) -> None:
@@ -753,7 +769,7 @@ class SharedLogicMixin:
             "manifest_path": manifest_path.as_posix(),
         }
 
-    def _resolve_template_dir(self) -> Path:
+    def _resolve_template_dir(self, *, required: bool = True) -> Path:
         candidates = []
         env_template = os.environ.get("DDSURFER_TEMPLATE_DIR")
         if env_template:
@@ -775,12 +791,14 @@ class SharedLogicMixin:
                 template_file = candidate / "100307-FA.nii.gz"
                 if template_file.exists():
                     return candidate
+        if not required and candidates:
+            return candidates[0].expanduser()
         raise FileNotFoundError(
             "Unable to locate SlicerDDSurfer template directory. "
             "Provide DDSURFER_TEMPLATE_DIR or ensure template assets are bundled with the module."
         )
 
-    def _resolve_checkpoint_root(self) -> Path:
+    def _resolve_checkpoint_root(self, *, required: bool = True) -> Path:
         candidates = []
         env_ckpt = os.environ.get("DDSURFER_CHECKPOINT_DIR")
         if env_ckpt:
@@ -801,12 +819,14 @@ class SharedLogicMixin:
             hcp_dir = candidate / "hcp"
             if candidate and hcp_dir.exists():
                 return candidate
+        if not required and candidates:
+            return candidates[0].expanduser()
         raise FileNotFoundError(
             "Unable to locate SlicerDDSurfer checkpoint directory. "
             "Provide DDSURFER_CHECKPOINT_DIR or ensure checkpoints are bundled with the module."
         )
 
-    def _resolve_registration_atlas(self) -> Path:
+    def _resolve_registration_atlas(self, *, required: bool = True) -> Path:
         candidates = []
         env_atlas = os.environ.get("DDSURFER_REGISTRATION_ATLAS")
         if env_atlas:
@@ -826,6 +846,8 @@ class SharedLogicMixin:
         for candidate in candidates:
             if candidate and candidate.exists():
                 return candidate
+        if not required and candidates:
+            return candidates[0].expanduser()
         raise FileNotFoundError(
             "Unable to locate the registration atlas for raw-input DDSurfer execution. "
             "Provide DDSURFER_REGISTRATION_ATLAS or bundle 100HCP-population-mean-T2.nii.gz under Resources/Data."

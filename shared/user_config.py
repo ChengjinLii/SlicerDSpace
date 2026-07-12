@@ -6,7 +6,7 @@ import json
 import os
 import platform
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -138,7 +138,7 @@ def write_user_config(payload: Mapping[str, Any], path: Path | None = None) -> P
     resolved = (path or default_user_config_path()).expanduser().resolve()
     resolved.parent.mkdir(parents=True, exist_ok=True)
     config = normalize_user_config(payload)
-    config["updated_at"] = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    config["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     temporary = resolved.with_name(resolved.name + ".tmp")
     temporary.write_text(json.dumps(config, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     os.replace(temporary, resolved)

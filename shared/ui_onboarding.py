@@ -6,7 +6,7 @@ import json
 import os
 import platform
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -190,7 +190,7 @@ def diagnostic_report_text(owner: Any) -> str:
         except Exception:
             log_tail = ""
     payload = {
-        "generated_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "platform": platform.platform(),
         "python": sys.executable,
         "user_config_path": default_user_config_path().expanduser().as_posix(),
