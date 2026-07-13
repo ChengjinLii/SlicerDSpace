@@ -1,39 +1,183 @@
 # Windows Setup
 
-This page is for users who want to run SlicerDDSurfer from 3D Slicer on
-Windows. Use the Slicer UI first; use commands only when troubleshooting.
+SlicerDDSurfer runs its native Slicer/Python stages on Windows. Linux-only
+command-line backends (MRtrix3, FSL, FreeSurfer, WMA and TractCloud) run in an Ubuntu
+WSL 2 distribution through generated Windows command bridges.
 
-## 1. Install 3D Slicer
+## 1. Prerequisites
 
-Download and install 3D Slicer from <https://www.slicer.org/>.
+Install these once:
 
-Open Slicer, then open the SlicerDDSurfer module. If this is your first time,
-click `First-run setup wizard`.
+- 3D Slicer for Windows.
+- WSL 2 with an Ubuntu distribution and a normal (non-root) default user.
+- A FreeSurfer license file if FreeSurfer postprocessing is required.
 
-## 2. Choose A Model Asset Folder
+The installer deliberately uses `wsl.exe --user root` only for Ubuntu `apt`.
+The scientific runtime and downloaded sources are installed as the normal WSL
+user; the Linux script never calls `sudo`.
 
-Recommended example:
+Confirm the distribution name from PowerShell:
 
-```text
-C:\Users\YourName\SlicerDDSurfer-model-assets
+```powershell
+wsl.exe --list --verbose
 ```
 
-Use this path in the Slicer UI `Model assets root` field, or run:
+## 2. Inspect the Reproducible Plan
+
+Plan mode performs no WSL, package, registry or Slicer changes. It is also safe
+to use before WSL has been installed.
+
+```powershell
+Set-Location D:\SlicerDDSurfer
+.\scripts\install_deps_windows.ps1 `
+  -Distro Ubuntu `
+  -PlanOnly `
+  -PlanOutput D:\SlicerDDSurfer-test\windows-install-plan.json
+```
+
+The plan records every pinned version, source commit, resource URL and digest.
+
+## 3. Install the Full Runtime
+
+Pass the local Slicer executable and your own FreeSurfer license:
+
+```powershell
+.\scripts\install_deps_windows.ps1 `
+  -Distro Ubuntu `
+  -SlicerExecutable "C:\path\to\Slicer.exe" `
+  -FreeSurferLicensePath "C:\path\to\license.txt"
+```
+
+This command really executes the following idempotent operations:
+
+1. Installs fixed Ubuntu packages as WSL root.
+2. Verifies and installs Miniforge `26.3.2-3`.
+3. Creates a Python 3.10 runtime with MRtrix3 `3.0.8` and the pinned runtime
+   requirements in `scripts/wsl/requirements-runtime.txt`. TractCloud uses the
+   official PyTorch `2.11.0+cpu` wheel, so a CPU workstation does not download
+   an unused CUDA runtime.
+4. Creates a separate FSL environment from the official FSL conda channel,
+   pinned to Eddy `2602.0` (`hb35a746_0`) and topup `2203.5`
+   (`ha905fa9_6`). The generated command bridge sets `FSLDIR` and
+   `FSLOUTPUTTYPE=NIFTI_GZ` for every MRtrix/FSL invocation.
+5. Checks out exact TractQuerier, WhiteMatterAnalysis and TractCloud commits.
+6. Downloads TractCloud v1.0.0 data and both ORG atlas archives with SHA-256
+   verification.
+7. Downloads FreeSurfer `7.4.1`, verifies its official MD5, and installs the
+   supplied license.
+8. Downloads and SHA-256-verifies the core neural model/template profile. An
+   existing `model_assets_dir` in `user_config.json` is reused; otherwise the
+   assets are stored below the Windows install root.
+9. Compiles native Windows-to-WSL command bridges and writes a dependency JSON
+   that the SlicerDDSurfer environment panel and CLI can consume.
+10. Merges the bridge paths into `%APPDATA%\SlicerDDSurfer\user_config.json` so
+   subsequent Slicer sessions discover them without re-entering paths.
+11. Downloads Windows wheels for Slicer's exact Python ABI through the managed
+    WSL runtime, records their SHA-256 values, installs them into PythonSlicer
+    offline, and requires the final environment doctor to pass.
+
+The default Linux root is `~/.local/share/slicerdsurfer`. The default Windows
+bridge/config root is `%LOCALAPPDATA%\SlicerDDSurfer\wsl-runtime`. Re-running
+the command verifies caches, pinned commits and versions instead of blindly
+duplicating them.
+
+The installer refuses to adopt an existing Miniforge or FreeSurfer directory
+that has no matching SlicerDDSurfer provenance marker. Preserve that directory
+and choose a clean managed location instead, for example
+`-WslInstallRoot ~/.local/share/slicerdsurfer-managed`.
+
+FreeSurfer is approximately 9 GB and the two ORG archives total approximately
+1.8 GB. Make sure the WSL virtual disk has sufficient free space.
+
+## 4. Defer Large Downloads
+
+To install Miniforge, MRtrix3, the Python runtime, pinned source checkouts,
+TractCloud and the Windows bridge while deferring FreeSurfer and ORG data:
+
+```powershell
+.\scripts\install_deps_windows.ps1 `
+  -Distro Ubuntu `
+  -SlicerExecutable "C:\path\to\Slicer.exe" `
+  -SkipLargeDownloads
+```
+
+Re-run later without `-SkipLargeDownloads` and supply
+`-FreeSurferLicensePath`; existing verified components are reused. Use
+`-SkipFreeSurfer` only when FreeSurfer is intentionally out of scope.
+
+`-SkipApt` is available for a pre-provisioned/offline Ubuntu image.
+`-SkipSlicerPythonInstall` leaves PythonSlicer unchanged while still building
+the WSL runtime and bridges. `-SkipUserConfigUpdate` writes the standalone
+dependency JSON without changing the persistent GUI/CLI user configuration.
+
+## 5. Verified Mirrors
+
+Every ORG or TractCloud resource URL override requires a matching explicit
+SHA-256. The installer refuses a URL-only override:
+
+```powershell
+.\scripts\install_deps_windows.ps1 `
+  -Distro Ubuntu `
+  -OrgRegUrl "https://mirror.example/ORG-RegAtlas-100HCP.zip" `
+  -OrgRegSha256 "<64 hexadecimal characters>" `
+  -Org800Url "https://mirror.example/ORG-800FC-100HCP.zip" `
+  -Org800Sha256 "<64 hexadecimal characters>" `
+  -SlicerExecutable "C:\path\to\Slicer.exe" `
+  -FreeSurferLicensePath "C:\path\to\license.txt"
+```
+
+Equivalent override pairs are available for `TractCloudTrainUrl` /
+`TractCloudTrainSha256` and `TractCloudModelUrl` /
+`TractCloudModelSha256`.
+
+## 6. Use the Generated Dependency Config
+
+The installer writes:
+
+```text
+%LOCALAPPDATA%\SlicerDDSurfer\wsl-runtime\dependency-config.json
+```
+
+For command-line runs, pass it explicitly:
+
+```powershell
+python run_subject_pipeline.py `
+  --subject-root D:\data\sub-01 `
+  --targets tractography,wma,tractcloud,connectome `
+  --dependency-config "$env:LOCALAPPDATA\SlicerDDSurfer\wsl-runtime\dependency-config.json" `
+  --execute
+```
+
+The bridge translates drive-letter and `\\wsl.localhost\...` paths before
+calling Linux tools. A protected `bash.exe` bridge is placed beside the chosen
+Slicer executable so the bundled FreeSurfer shell workflow uses WSL reliably.
+The installer refuses to overwrite a pre-existing `bash.exe` that it does not
+own. Restart Slicer once after installation so it reloads the persistent JSON;
+the installer never terminates an open Slicer process.
+
+## 7. Install Model Assets
+
+The WSL installer covers executable backends and their atlas/model resources.
+DDSeg, DDParcel and DDSurfer checkpoints remain managed by the model-asset
+installer:
 
 ```powershell
 python scripts\download_model_assets.py `
   --profile core `
-  --asset-root C:\Users\YourName\SlicerDDSurfer-model-assets `
+  --asset-root D:\SlicerDDSurfer-model-assets `
   --source url `
   --source-id slicerdsurfer_models_git
 ```
 
-## 3. Prepare Subject Data
+Set `Model assets root` to the same directory in SlicerDDSurfer. Existing
+verified assets are reused.
+
+## 8. Prepare Subject Data
 
 Recommended layout:
 
 ```text
-C:\Users\YourName\data\sub-01\
+D:\data\sub-01\
   input\
     data.nii.gz
     bvals
@@ -41,23 +185,13 @@ C:\Users\YourName\data\sub-01\
     nodif_brain_mask.nii.gz
 ```
 
-In SlicerDDSurfer:
+In SlicerDDSurfer, set the subject ID and subject root, then run `Check
+environment dependencies`. If a stage is still blocked, include the generated
+environment report and install plan when reporting the issue.
 
-1. Set `Subject ID` to `sub-01`.
-2. Set `Subject root` to `C:\Users\YourName\data\sub-01`.
-3. Leave `Output directory` empty unless you need a custom output folder.
-
-## 4. External Tools
-
-Start with lightweight targets first. MRtrix3, FSL, FreeSurfer, WMA and
-TractCloud are optional depending on the selected products.
-
-Click `Check environment dependencies`. If a tool is missing, use the row-level
-`Choose path / setup` button to select an existing install path or read setup
-notes. SlicerDDSurfer does not silently install system tools.
-
-## 5. If Something Fails
-
-Click `Copy diagnostic report` in SlicerDDSurfer and paste it into your support
-message. Include the exact target you tried to run.
-
+For `mrtrix_fsl` preprocessing, provide the real phase-encoding direction and
+total readout time from the acquisition metadata. Susceptibility correction
+with topup additionally requires the subject's reverse-phase spin-echo b0 data.
+If those acquisition files are absent, `-rpe_none` can exercise Eddy but cannot
+replace a scientifically valid topup correction; do not guess these values for
+production processing.

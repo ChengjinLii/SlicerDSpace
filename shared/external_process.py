@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import os
+import sys
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 from typing import Iterable, Mapping, Optional
 
@@ -17,9 +20,15 @@ def startup_environment(extra_env: Optional[Mapping[str, str]] = None) -> dict[s
 
     env: dict[str, str]
     try:
-        import slicer  # type: ignore[import-not-found]
+        slicer_module = sys.modules.get("slicer")
+        if slicer_module is None:
+            # See shared.pipeline: Slicer's uninitialized python-real helper
+            # may print an import error before raising.  Environment probing
+            # must stay silent because callers can emit machine-readable JSON.
+            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                import slicer as slicer_module  # type: ignore[import-not-found]
 
-        env = dict(slicer.util.startupEnvironment())
+        env = dict(slicer_module.util.startupEnvironment())
     except Exception:
         env = os.environ.copy()
 

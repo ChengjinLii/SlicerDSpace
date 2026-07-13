@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -40,6 +43,28 @@ class InstallDependenciesProfileTest(unittest.TestCase):
             module.main(["--all", "--profile", "core"])
 
         self.assertEqual(raised.exception.code, 2)
+
+    def test_offline_wheelhouse_options_are_forwarded_to_pip(self) -> None:
+        module = _load_install_dependencies_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            wheelhouse = root / "wheelhouse"
+            wheelhouse.mkdir()
+            completed = subprocess.CompletedProcess([], 0, stdout="ok\n", stderr="")
+            with mock.patch.object(module.subprocess, "run", return_value=completed) as run:
+                results = module._install_python_packages(
+                    "PythonSlicer.exe",
+                    ("scikit-learn",),
+                    root / "report",
+                    pip_find_links=wheelhouse,
+                    pip_no_index=True,
+                )
+
+            command = run.call_args.args[0]
+            self.assertIn("--no-index", command)
+            self.assertEqual(command[command.index("--find-links") + 1], wheelhouse.resolve().as_posix())
+            self.assertEqual(command[-1], "scikit-learn")
+            self.assertEqual(results[0].status, "passed")
 
 
 if __name__ == "__main__":

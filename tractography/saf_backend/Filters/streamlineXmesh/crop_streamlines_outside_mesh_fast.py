@@ -12,8 +12,12 @@ def crop_streamlines_outside_mesh_fast(V, F, tract, inside=None, outer_intersect
 
     if inside is None:
         inside = np.zeros((nsl,), dtype=bool)
-    elif np.isscalar(inside) and nsl > 1:
-        inside = np.repeat(bool(inside), nsl)
+    elif np.isscalar(inside):
+        inside = np.full((nsl,), bool(inside), dtype=bool)
+    else:
+        inside = np.asarray(inside, dtype=bool).reshape(-1)
+        if inside.size != nsl:
+            raise ValueError("inside must be a scalar or contain one value per streamline")
 
     F_VC = lambda d: np.column_stack([V[F[:, 0], d], V[F[:, 1], d], V[F[:, 2], d]])
     FBB_max = np.column_stack([np.max(F_VC(0), axis=1), np.max(F_VC(1), axis=1), np.max(F_VC(2), axis=1)])
@@ -44,7 +48,11 @@ def crop_streamlines_outside_mesh_fast(V, F, tract, inside=None, outer_intersect
 
             if np.any(BBFX):
                 xFBB_idx = np.where(xFBB)[0]
-                xF, xS = np.where(BBFX)
+                # MATLAB's ``find`` traverses matrices in column-major order.
+                # BBFX columns are streamline segments, so preserving that
+                # order is also what keeps intersections ordered along a
+                # streamline when face indices are not spatially ordered.
+                xS, xF = np.where(BBFX.T)
                 P = V[F[xFBB_idx[xF]]]
                 I = trintersect_fast(
                     P[:, 0, :],
@@ -72,7 +80,10 @@ def crop_streamlines_outside_mesh_fast(V, F, tract, inside=None, outer_intersect
 
         xI = xP.reshape(-1, 2)
         xI[xI[:, 1] < sl.shape[0] - 1, 1] -= 1
-        xIF = xF.reshape(2, -1)
+        # Equivalent to MATLAB ``reshape(xF, 2, [])``.  NumPy's default
+        # row-major reshape would pair the first half of the intersections
+        # with the second half instead of pairing consecutive crossings.
+        xIF = xF.reshape(-1, 2).T
 
         tsl = [sl[int(xI[j, 0]):int(xI[j, 1]) + 1] for j in range(xI.shape[0])]
         lmask = [t.shape[0] > 1 for t in tsl]

@@ -136,6 +136,13 @@ class RepositoryStructureTest(unittest.TestCase):
         ]
         self.assertEqual(offenders, [])
 
+    def test_reference_sources_are_explicitly_excluded_from_cmake_packaging(self) -> None:
+        cmake_text = (REPO_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+        self.assertIn(
+            'list(FILTER TRACTOGRAPHY_PYTHON_SCRIPTS EXCLUDE REGEX "/slicer_dmri_reference/")',
+            cmake_text,
+        )
+
     def test_untracked_files_are_not_large_runtime_artifacts(self) -> None:
         result = subprocess.run(
             ["git", "ls-files", "-o", "--exclude-standard"],

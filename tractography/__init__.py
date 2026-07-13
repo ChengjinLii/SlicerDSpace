@@ -68,19 +68,22 @@ from .pipeline import (
     run_wma_org_atlas_pipeline,
 )
 
-PLANNED_WORKFLOWS: tuple[str, ...] = (
+SUPPORTED_WORKFLOWS: tuple[str, ...] = (
     "DTI tractography",
-    "CSD tractography",
-    "ACT",
+    "CSD/ACT tractography",
     "SAF short association fibres",
     "WMA ORG atlas clustering",
     "TractCloud parcellation",
     "WMQL AF/CST bundle segmentation",
-    "Additional candidate methods",
 )
+
+# Compatibility alias for callers written before these workflows became
+# executable.  New code should use SUPPORTED_WORKFLOWS.
+PLANNED_WORKFLOWS = SUPPORTED_WORKFLOWS
 
 __all__ = [
     "PLANNED_WORKFLOWS",
+    "SUPPORTED_WORKFLOWS",
     "ACTTrackingConfig",
     "ACTTrackingResult",
     "ACTPrepConfig",

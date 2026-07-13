@@ -262,6 +262,7 @@ class ConnectomePipelineTest(unittest.TestCase):
             self.assertEqual(qc["streamline_count_assigned"], 4.0)
             manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
             self.assertIn("-tck_weights_in", manifest["command"])
+            self.assertIn("-force", manifest["command"])
 
     def test_mrtrix_dense_matrix_can_be_compressed_to_sparse_labels(self) -> None:
         try:
@@ -558,6 +559,25 @@ class ConnectomePipelineTest(unittest.TestCase):
             self.assertEqual(qc["backend"], "python.endpoint_labels")
             self.assertEqual(qc["sift2_weight_count"], 2)
             self.assertEqual(qc["streamline_count_assigned"], 5.0)
+
+    def test_tck_header_streamline_count_is_read_lazily(self) -> None:
+        try:
+            import nibabel as nib
+            import numpy as np
+            from nibabel.streamlines import ArraySequence, TckFile, Tractogram
+        except ImportError:
+            self.skipTest("nibabel/numpy are required for TCK header count test")
+
+        from connectome.pipeline import _tck_header_streamline_count
+
+        with tempfile.TemporaryDirectory() as tmp:
+            streamlines = ArraySequence()
+            streamlines.append(np.asarray([[0, 0, 0], [1, 1, 1]], dtype=np.float32))
+            streamlines.append(np.asarray([[2, 2, 2], [3, 3, 3]], dtype=np.float32))
+            path = Path(tmp) / "tracks.tck"
+            nib.streamlines.save(TckFile(Tractogram(streamlines, affine_to_rasmm=np.eye(4))), path.as_posix())
+
+            self.assertEqual(_tck_header_streamline_count(path), 2)
 
 
 if __name__ == "__main__":

@@ -153,12 +153,16 @@ def _slicerdmri_module_paths(slicer_executable: Path) -> tuple[Path, ...]:
     if not candidates:
         return ()
     slicerdmri_root = candidates[-1]
-    module_root = slicerdmri_root / "lib" / "Slicer-5.10"
-    paths = (
-        module_root / "qt-loadable-modules",
-        module_root / "qt-scripted-modules",
-        module_root / "cli-modules",
-    )
+    module_roots = sorted((slicerdmri_root / "lib").glob("Slicer-*"))
+    paths: list[Path] = []
+    for module_root in module_roots:
+        paths.extend(
+            (
+                module_root / "qt-loadable-modules",
+                module_root / "qt-scripted-modules",
+                module_root / "cli-modules",
+            )
+        )
     return tuple(path for path in paths if path.is_dir())
 
 
@@ -166,10 +170,8 @@ def _slicer_runtime_library_paths(slicer_executable: Path) -> tuple[Path, ...]:
     """Return library directories needed by Slicer/PythonSlicer shims."""
 
     slicer_root = slicer_executable.expanduser().resolve().parent
-    candidates = [
-        slicer_root / "lib" / "Slicer-5.10",
-        slicer_root / "lib",
-    ]
+    candidates = sorted((slicer_root / "lib").glob("Slicer-*"))
+    candidates.append(slicer_root / "lib")
     slicerdmri_paths = _slicerdmri_module_paths(slicer_executable)
     for path in slicerdmri_paths:
         candidates.append(path)
@@ -293,6 +295,26 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
     def _count_vtp(path: Path) -> int:
         return len(list(path.glob("*.vtp"))) if path.is_dir() else 0
 
+    def _vtp_line_count(path: Path) -> Optional[int]:
+        """Read a VTP Piece line count without importing VTK or loading points."""
+
+        try:
+            with path.open("rb") as stream:
+                header = stream.read(64 * 1024)
+        except OSError:
+            return None
+        match = re.search(
+            rb'<Piece\b[^>]*\bNumberOfLines=["\'](\d+)["\']',
+            header,
+            flags=re.DOTALL,
+        )
+        return int(match.group(1)) if match else None
+
+    anatomical_line_counts = {tract.name: _vtp_line_count(tract) for tract in tracts}
+    readable_anatomical_line_counts = {
+        name: count for name, count in anatomical_line_counts.items() if count is not None
+    }
+
     progress_summary = _parse_wma_progress(progress_file)
 
     commissural_dir = separated_dir / "tracts_commissural"
@@ -305,6 +327,14 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
         "anatomical_tracts_dir": anatomical_dir.as_posix(),
         "anatomical_tracts_dir_exists": anatomical_dir.is_dir(),
         "anatomical_tract_count": len(tracts),
+        "anatomical_tract_readable_count": len(readable_anatomical_line_counts),
+        "anatomical_tract_nonempty_count": sum(
+            count > 0 for count in readable_anatomical_line_counts.values()
+        ),
+        "anatomical_streamline_count": sum(readable_anatomical_line_counts.values()),
+        "anatomical_empty_tracts": sorted(
+            name for name, count in readable_anatomical_line_counts.items() if count == 0
+        ),
         "fiber_clustering_dir": cluster_dir.as_posix(),
         "fiber_clustering_dir_exists": cluster_dir.is_dir(),
         "initial_clusters_dir": initial_dir.as_posix(),

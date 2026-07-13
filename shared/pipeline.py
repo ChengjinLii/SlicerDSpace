@@ -8,8 +8,10 @@ import os
 import shutil
 import subprocess
 import sys
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from functools import lru_cache
+from io import StringIO
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -18,11 +20,22 @@ from shared.brain_mask import generate_brain_mask_with_dwi2mask
 
 LOGGER = logging.getLogger(__name__)
 
-try:  # pragma: no cover - imported inside Slicer at runtime
-    import slicer
-except ImportError as exc:  # pragma: no cover
-    slicer = None  # type: ignore[assignment]
-    SLICER_IMPORT_ERROR = exc
+slicer = sys.modules.get("slicer")
+if slicer is None:  # pragma: no cover - depends on the host executable
+    # Slicer's private ``python-real`` can find the ``slicer`` package without
+    # having initialized the application.  That failed import prints a helper
+    # error to stdout before raising, which corrupts JSON-only CLI responses.
+    # Reuse the already loaded module in Slicer proper; otherwise treat the
+    # optional probe as silent and unavailable.
+    try:
+        with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+            import slicer as _slicer
+    except Exception as exc:
+        slicer = None  # type: ignore[assignment]
+        SLICER_IMPORT_ERROR = exc
+    else:
+        slicer = _slicer
+        SLICER_IMPORT_ERROR = None
 else:
     SLICER_IMPORT_ERROR = None
 

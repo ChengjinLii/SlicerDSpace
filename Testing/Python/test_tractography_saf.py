@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 
@@ -32,6 +34,204 @@ class SAFIntegrationTest(unittest.TestCase):
             nsl=4,
         )
         self.assertEqual(paired.tolist(), [[10, 20, 30, 40], [1, 2, 3, 4]])
+
+    def test_complete_intersection_matches_manual_triangle_gold_cases(self) -> None:
+        from tractography.saf_backend.Filters.streamlineXmesh.trintersect_complete import (
+            trintersect_complete,
+        )
+
+        triangle = (
+            np.array([[0.0, 0.0, 0.0]]),
+            np.array([[1.0, 0.0, 0.0]]),
+            np.array([[0.0, 1.0, 0.0]]),
+        )
+        q1 = np.array([
+            [0.25, 0.25, -1.0],  # face interior
+            [1.00, 1.00, -1.0],  # outside triangle
+            [0.50, 0.00, -1.0],  # edge
+            [0.00, 0.00, -1.0],  # vertex
+            [0.20, 0.20, 1.0],   # parallel to face
+        ])
+        q2 = np.array([
+            [0.25, 0.25, 1.0],
+            [1.00, 1.00, 1.0],
+            [0.50, 0.00, 1.0],
+            [0.00, 0.00, 1.0],
+            [0.80, 0.20, 1.0],
+        ])
+        count = q1.shape[0]
+        result = trintersect_complete(
+            *(np.tile(vertex, (count, 1)) for vertex in triangle),
+            q1,
+            q2,
+            np.tile(np.array([[0, 1, 2]]), (count, 1)),
+            np.zeros(count, dtype=int),
+            np.arange(count, dtype=int) * 2,
+        )
+        np.testing.assert_array_equal(result, [True, False, True, True, False])
+
+    def test_complete_intersection_counts_shared_streamline_vertex_once(self) -> None:
+        from tractography.saf_backend.Filters.streamlineXmesh.trintersect_complete import (
+            trintersect_complete,
+        )
+
+        p1 = np.tile([[0.0, 0.0, 0.0]], (2, 1))
+        p2 = np.tile([[1.0, 0.0, 0.0]], (2, 1))
+        p3 = np.tile([[0.0, 1.0, 0.0]], (2, 1))
+        result = trintersect_complete(
+            p1,
+            p2,
+            p3,
+            np.array([[0.25, 0.25, -1.0], [0.25, 0.25, 0.0]]),
+            np.array([[0.25, 0.25, 0.0], [0.25, 0.25, 1.0]]),
+            np.tile([[0, 1, 2]], (2, 1)),
+            np.zeros(2, dtype=int),
+            np.array([0, 1]),
+        )
+        np.testing.assert_array_equal(result, [False, True])
+
+    def test_complete_intersection_unique_mapping_uses_flagged_group(self) -> None:
+        from tractography.saf_backend.Filters.streamlineXmesh.trintersect_complete import (
+            _deduplicate_true_rows,
+        )
+
+        # The true duplicate is not the first row in its group. MATLAB's
+        # la(lb(flags)) mapping still marks the group's representative.
+        result = _deduplicate_true_rows(
+            np.array([[1, 9], [1, 9], [2, 9]]),
+            np.array([False, True, True]),
+        )
+        np.testing.assert_array_equal(result, [True, False, True])
+
+    def test_crop_intersections_follow_streamline_order_and_pair_faces(self) -> None:
+        from tractography.saf_backend.Filters.streamlineXmesh.crop_streamlines_outside_mesh_complete import (
+            crop_streamlines_outside_mesh_complete,
+        )
+        from tractography.saf_backend.Filters.streamlineXmesh.crop_streamlines_outside_mesh_fast import (
+            crop_streamlines_outside_mesh_fast,
+        )
+
+        tetra_vertices = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ])
+        # Put the exit face before the entry face. A row-major np.where then
+        # returns crossings backwards, whereas MATLAB find follows segments.
+        tetra_faces = np.array([
+            [1, 2, 3],
+            [0, 1, 3],
+            [0, 2, 1],
+            [0, 3, 2],
+        ])
+        vertices = np.vstack([tetra_vertices, tetra_vertices + [2.0, 0.0, 0.0]])
+        faces = np.vstack([tetra_faces, tetra_faces + 4])
+        x = np.array([-0.5, -0.1, 0.1, 0.4, 0.7, 0.9, 1.2, 1.8, 1.9, 2.1, 2.4, 2.7, 2.9, 3.2])
+        streamline = np.column_stack([x, np.full_like(x, 0.1), np.full_like(x, 0.1)])
+
+        for crop in (
+            crop_streamlines_outside_mesh_fast,
+            crop_streamlines_outside_mesh_complete,
+        ):
+            with self.subTest(crop=crop.__name__):
+                cropped, original, endpoint_vertices, xpoints = crop(
+                    vertices, faces, [streamline], False, False
+                )
+                np.testing.assert_array_equal(original, [0, 0])
+                np.testing.assert_array_equal(endpoint_vertices, [[1, 5], [2, 6]])
+                np.testing.assert_array_equal(xpoints, [[2, 9], [4, 11]])
+                np.testing.assert_allclose(cropped[0][:, 0], [0.1, 0.4, 0.7])
+                np.testing.assert_allclose(cropped[1][:, 0], [2.1, 2.4, 2.7])
+
+    def test_pial_escape_mask_uses_each_surviving_original_index(self) -> None:
+        from Filters.filters_PG import _pial_escape_mask
+
+        tracks = [np.zeros((5, 3)), np.zeros((9, 3)), np.zeros((7, 3))]
+        result = _pial_escape_mask(
+            np.array([[0, 1], [6, 4]]),
+            np.array([2, 0]),
+            tracks,
+        )
+        np.testing.assert_array_equal(result, [False, True])
+
+    def test_portable_file_operations_link_copy_and_remove_glob(self) -> None:
+        from Support import file_ops
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.txt"
+            source.write_text("surface", encoding="utf-8")
+            destination = root / "output" / "rh.inflated"
+            with mock.patch.object(file_ops.Path, "symlink_to", side_effect=OSError("links disabled")):
+                file_ops.link_or_copy(source, destination)
+            self.assertEqual(destination.read_text(encoding="utf-8"), "surface")
+            self.assertFalse(destination.is_symlink())
+
+            (root / "ants_file.txt").write_text("x", encoding="utf-8")
+            (root / "ants_dir").mkdir()
+            (root / "ants_dir" / "nested.txt").write_text("x", encoding="utf-8")
+            keep = root / "keep.txt"
+            keep.write_text("keep", encoding="utf-8")
+            removed = file_ops.remove_matching(root, "ants_*")
+            self.assertEqual({path.name for path in removed}, {"ants_file.txt", "ants_dir"})
+            self.assertTrue(keep.is_file())
+
+    def test_saf_intermediate_cache_replaces_forced_rerun_outputs(self) -> None:
+        from tractography.saf import _cache_saf_intermediates
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            (output / "PS.mat").write_text("first", encoding="utf-8")
+            first = _cache_saf_intermediates(output)
+            self.assertEqual(Path(first["PS.mat"]).read_text(encoding="utf-8"), "first")
+
+            (output / "PS.mat").write_text("second", encoding="utf-8")
+            (output / "cache" / "PS.mat.1").write_text("legacy", encoding="utf-8")
+            second = _cache_saf_intermediates(output)
+
+            self.assertEqual(Path(second["PS.mat"]).read_text(encoding="utf-8"), "second")
+            self.assertFalse((output / "cache" / "PS.mat.1").exists())
+
+    def test_sys_exec_propagates_external_command_failure(self) -> None:
+        from Support.sys_exec import sys_exec
+
+        ps = types.SimpleNamespace(dgn=False)
+        failure = subprocess.CalledProcessError(7, "broken-command")
+        with mock.patch("Support.sys_exec.subprocess.run", side_effect=failure) as run:
+            with self.assertRaises(subprocess.CalledProcessError):
+                sys_exec("broken-command", ps)
+        self.assertTrue(run.call_args.kwargs["check"])
+
+    def test_write_curv_records_freesurfer_face_count(self) -> None:
+        import importlib
+
+        io_module = types.ModuleType("nibabel.freesurfer.io")
+        io_module.write_morph_data = mock.Mock()
+        io_module.read_morph_data = mock.Mock()
+        freesurfer_module = types.ModuleType("nibabel.freesurfer")
+        freesurfer_module.io = io_module
+        nibabel_module = types.ModuleType("nibabel")
+        nibabel_module.freesurfer = freesurfer_module
+        module_name = "tractography.saf_backend.Support.write_curv"
+        previous = sys.modules.pop(module_name, None)
+        try:
+            with mock.patch.dict(
+                sys.modules,
+                {
+                    "nibabel": nibabel_module,
+                    "nibabel.freesurfer": freesurfer_module,
+                    "nibabel.freesurfer.io": io_module,
+                },
+            ):
+                module = importlib.import_module(module_name)
+                module.write_curv("rh.test", [1.0, 2.0], nfaces=np.int64(37))
+            io_module.write_morph_data.assert_called_once()
+            self.assertEqual(io_module.write_morph_data.call_args.kwargs["fnum"], 37)
+        finally:
+            sys.modules.pop(module_name, None)
+            if previous is not None:
+                sys.modules[module_name] = previous
 
     def _make_subject(self, root: Path, subject_id: str = "100307") -> Path:
         subject = root / subject_id
@@ -97,6 +297,110 @@ class SAFIntegrationTest(unittest.TestCase):
             self.assertIn("saf_vtk", manifest["outputs"])
             self.assertIn("saf_vtk", manifest["outputs"]["summary"])
 
+    def test_saf_failure_finalizes_manifest_and_qc_before_raising(self) -> None:
+        from tractography import saf as saf_module
+        from tractography.saf import SAFConfig, run_saf
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subject = self._make_subject(root)
+            fs_dir = self._make_fs_dir(root)
+            fod = root / "wmfod.mif"
+            fod.write_text("stub", encoding="utf-8")
+            tractogram = root / "input.tck"
+            tractogram.write_text("stub", encoding="utf-8")
+            output_dir = root / "failed-saf"
+            backend_status = {
+                "available": False,
+                "missing_required": ["mrtrix:tckstats"],
+            }
+
+            with mock.patch.object(
+                saf_module,
+                "inspect_saf_backend",
+                return_value=backend_status,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "backend is incomplete"):
+                    run_saf(
+                        SAFConfig(
+                            subject_id=subject.name,
+                            input_root=subject,
+                            fs_dir=fs_dir,
+                            fod_path=fod,
+                            output_dir=output_dir,
+                            pregenerated_tractogram=tractogram,
+                            noregister=True,
+                            maxlen=None,
+                            execute=True,
+                        )
+                    )
+
+            manifest = json.loads((output_dir / "saf_manifest.json").read_text(encoding="utf-8"))
+            qc = json.loads((output_dir / "saf_qc.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["status"], "failed")
+            self.assertEqual(manifest["return_code"], 1)
+            self.assertIn("mrtrix:tckstats", manifest["error"])
+            self.assertEqual(qc["status"], "failed")
+            self.assertEqual(qc["return_code"], 1)
+            self.assertIn("mrtrix:tckstats", qc["error"])
+
+    def test_saf_backend_exception_is_persisted_before_raising(self) -> None:
+        from tractography import saf as saf_module
+        from tractography.saf import SAFConfig, run_saf
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subject = self._make_subject(root)
+            fs_dir = self._make_fs_dir(root)
+            fod = root / "wmfod.mif"
+            fod.write_text("stub", encoding="utf-8")
+            tractogram = root / "input.tck"
+            tractogram.write_text("stub", encoding="utf-8")
+            output_dir = root / "failed-backend"
+            backend = root / "fake_saf_backend"
+            backend.mkdir()
+            (backend / "SAF_pipeline.py").write_text(
+                "def SAF_pipeline(*args):\n"
+                "    raise ValueError('synthetic SAF failure')\n",
+                encoding="utf-8",
+            )
+            backend_status = {"available": True, "missing_required": []}
+
+            sys.modules.pop("SAF_pipeline", None)
+            try:
+                with mock.patch.object(
+                    saf_module,
+                    "inspect_saf_backend",
+                    return_value=backend_status,
+                ), mock.patch.object(
+                    saf_module,
+                    "bundled_saf_backend_dir",
+                    return_value=backend,
+                ):
+                    with self.assertRaisesRegex(RuntimeError, "synthetic SAF failure"):
+                        run_saf(
+                            SAFConfig(
+                                subject_id=subject.name,
+                                input_root=subject,
+                                fs_dir=fs_dir,
+                                fod_path=fod,
+                                output_dir=output_dir,
+                                pregenerated_tractogram=tractogram,
+                                noregister=True,
+                                maxlen=None,
+                                execute=True,
+                            )
+                        )
+            finally:
+                sys.modules.pop("SAF_pipeline", None)
+
+            manifest = json.loads((output_dir / "saf_manifest.json").read_text(encoding="utf-8"))
+            qc = json.loads((output_dir / "saf_qc.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["status"], "failed")
+            self.assertEqual(qc["status"], "failed")
+            self.assertEqual(qc["return_code"], 1)
+            self.assertEqual(qc["error"], "synthetic SAF failure")
+
     def test_saf_execute_records_streamline_count_and_vtk(self) -> None:
         from tractography import saf as saf_module
         from tractography.saf import SAFConfig, run_saf
@@ -131,7 +435,27 @@ class SAFIntegrationTest(unittest.TestCase):
                 "    (out / 'SAF.tck').write_text('tractogram')\n",
                 encoding="utf-8",
             )
-            with mock.patch.object(saf_module, "bundled_saf_backend_dir", return_value=backend):
+
+            def fake_export(_tck_path, vtk_path, **_kwargs):
+                vtk_path.write_text("vtk", encoding="utf-8")
+                return True, None
+
+            # The fake MRtrix discovery files above are intentionally inert.
+            # Mock post-processing itself so this facade test is portable to
+            # Windows, where POSIX shebang scripts are not executable files.
+            with mock.patch.object(
+                saf_module,
+                "bundled_saf_backend_dir",
+                return_value=backend,
+            ), mock.patch.object(
+                saf_module,
+                "_count_tck_streamlines",
+                return_value=(42, None),
+            ), mock.patch.object(
+                saf_module,
+                "_export_tck_to_vtk",
+                side_effect=fake_export,
+            ):
                 result = run_saf(
                     SAFConfig(
                         subject_id=subject.name,

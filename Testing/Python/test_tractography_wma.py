@@ -280,6 +280,31 @@ exit 0
         self.assertIn(qt_loadable.resolve(), paths)
         self.assertIn(qt_loadable.parent.resolve(), paths)
 
+    def test_runtime_library_paths_discover_installed_slicer_version(self) -> None:
+        from tractography.wma import _slicer_runtime_library_paths
+
+        slicer_root = self.tmp_path / "SlicerRoot56"
+        slicer_exec = slicer_root / "Slicer.exe"
+        slicer_library = slicer_root / "lib" / "Slicer-5.6"
+        qt_scripted = (
+            slicer_root
+            / "slicer.org"
+            / "Extensions-32448"
+            / "SlicerDMRI"
+            / "lib"
+            / "Slicer-5.6"
+            / "qt-scripted-modules"
+        )
+        slicer_library.mkdir(parents=True)
+        qt_scripted.mkdir(parents=True)
+        slicer_exec.write_text("", encoding="utf-8")
+
+        paths = _slicer_runtime_library_paths(slicer_exec)
+
+        self.assertIn(slicer_library.resolve(), paths)
+        self.assertIn(qt_scripted.resolve(), paths)
+        self.assertIn(qt_scripted.parent.resolve(), paths)
+
     def test_resolve_slicer_launcher_prefers_run_slicer_sh_when_present(self) -> None:
         from tractography.wma import _resolve_slicer_launcher
 
@@ -324,6 +349,28 @@ exit 0
         self.assertEqual(summary["progress"]["completed_iterations"], 2)
         self.assertEqual(summary["progress"]["total_iterations"], 10)
         self.assertAlmostEqual(summary["progress"]["latest_percent_finished"], 1.14)
+
+    def test_summarize_wma_outputs_distinguishes_empty_anatomical_tracts(self) -> None:
+        from tractography.wma import summarize_wma_outputs
+
+        anatomical_dir = self.output_dir / self.tractography.stem / "AnatomicalTracts"
+        anatomical_dir.mkdir(parents=True)
+        (anatomical_dir / "T_AF_left.vtp").write_text(
+            '<VTKFile><PolyData><Piece NumberOfPoints="10" NumberOfLines="3"/></PolyData></VTKFile>',
+            encoding="utf-8",
+        )
+        (anatomical_dir / "T_AF_right.vtp").write_text(
+            '<VTKFile><PolyData><Piece NumberOfPoints="0" NumberOfLines="0"/></PolyData></VTKFile>',
+            encoding="utf-8",
+        )
+
+        summary = summarize_wma_outputs(self.output_dir, self.tractography)
+
+        self.assertEqual(summary["anatomical_tract_count"], 2)
+        self.assertEqual(summary["anatomical_tract_readable_count"], 2)
+        self.assertEqual(summary["anatomical_tract_nonempty_count"], 1)
+        self.assertEqual(summary["anatomical_streamline_count"], 3)
+        self.assertEqual(summary["anatomical_empty_tracts"], ["T_AF_right.vtp"])
 
 
 if __name__ == "__main__":

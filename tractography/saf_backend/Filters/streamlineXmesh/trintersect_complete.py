@@ -1,6 +1,56 @@
 ﻿import numpy as np
 
 
+def _deduplicate_true_rows(pairs, flags):
+    """Keep one true item for each pair, matching MATLAB ``unique`` mapping."""
+
+    flags = np.asarray(flags, dtype=bool)
+    result = np.zeros(flags.shape, dtype=bool)
+    if not np.any(flags):
+        return result
+    _, first, inverse = np.unique(
+        np.asarray(pairs), axis=0, return_index=True, return_inverse=True
+    )
+    result[first[inverse[flags]]] = True
+    return result
+
+
+def _point_on_triangle(point, p1, p2, p3):
+    """Return whether *point* lies on any supplied triangle, boundaries included."""
+
+    if p1.shape[0] == 0:
+        return False
+    scale = max(
+        1.0,
+        float(np.max(np.abs(np.vstack([point[None, :], p1, p2, p3])))),
+    )
+    tol = np.finfo(float).eps * 64.0 * scale
+    edge1 = p2 - p1
+    edge2 = p3 - p1
+    normal = np.cross(edge1, edge2)
+    normal_norm = np.linalg.norm(normal, axis=1)
+    valid = normal_norm > tol
+    if not np.any(valid):
+        return False
+
+    delta = point - p1
+    plane_distance = np.abs(np.einsum("ij,ij->i", delta, normal))
+    on_plane = plane_distance <= tol * normal_norm
+
+    dot00 = np.einsum("ij,ij->i", edge1, edge1)
+    dot01 = np.einsum("ij,ij->i", edge1, edge2)
+    dot11 = np.einsum("ij,ij->i", edge2, edge2)
+    dot20 = np.einsum("ij,ij->i", delta, edge1)
+    dot21 = np.einsum("ij,ij->i", delta, edge2)
+    denominator = dot00 * dot11 - dot01 * dot01
+    usable = valid & (np.abs(denominator) > tol)
+    u = np.zeros_like(denominator)
+    v = np.zeros_like(denominator)
+    u[usable] = (dot11[usable] * dot20[usable] - dot01[usable] * dot21[usable]) / denominator[usable]
+    v[usable] = (dot00[usable] * dot21[usable] - dot01[usable] * dot20[usable]) / denominator[usable]
+    return bool(np.any(usable & on_plane & (u >= -tol) & (v >= -tol) & (u + v <= 1.0 + tol)))
+
+
 def trintersect_complete(P1, P2, P3, Q1, Q2, V, F, S):
     nx = P1.shape[0]
     ex = np.zeros((nx * 3,), dtype=bool)
@@ -21,10 +71,10 @@ def trintersect_complete(P1, P2, P3, Q1, Q2, V, F, S):
             )
             if np.any(f):
                 pairs = np.column_stack([S, F])
-                _, idx = np.unique(pairs, axis=0, return_index=True)
-                fx = np.zeros((nx,), dtype=bool)
-                fx[idx[np.isin(idx, np.where(f)[0])]] = True
-                ex = np.repeat(fx, 3)
+                fx = _deduplicate_true_rows(pairs, f)
+                # MATLAB ``repmat(fx, [3 1])`` creates three complete
+                # blocks; ``np.repeat`` would interleave unrelated rows.
+                ex = np.tile(fx, 3)
 
     D = lambda p1, p2: p2 - p1
     M = lambda p1, p2: np.cross(p1, D(p1, p2))
@@ -36,8 +86,9 @@ def trintersect_complete(P1, P2, P3, Q1, Q2, V, F, S):
         t = P(q1, q2, p)
         return (t >= 0) & (t <= 1)
 
-    q1 = np.repeat(Q1, 3, axis=0)
-    q2 = np.repeat(Q2, 3, axis=0)
+    # Match MATLAB's block-major ``repmat(..., [3 1])`` layout.
+    q1 = np.tile(Q1, (3, 1))
+    q2 = np.tile(Q2, (3, 1))
     p1 = np.vstack([P1, P2, P3])
 
     v = ~ex
@@ -46,24 +97,30 @@ def trintersect_complete(P1, P2, P3, Q1, Q2, V, F, S):
         if np.any(v):
             v[v] = X(q1[v], q2[v], p1[v])
             if np.any(v):
-                pairs = np.column_stack([np.repeat(S, 3), V.reshape(-1)])
-                _, idx = np.unique(pairs, axis=0, return_index=True)
-                v0 = np.zeros((nx * 3,), dtype=bool)
-                v0[idx[np.isin(idx, np.where(v)[0])]] = True
-                v = v0
+                pairs = np.column_stack([
+                    np.tile(S, 3),
+                    V.reshape(-1, order='F'),
+                ])
+                v = _deduplicate_true_rows(pairs, v)
 
     def A(p1, p2, q1, q2):
         return np.any(np.abs(np.cross(D(p1, p2), D(q1, q2))) > np.finfo(float).eps, axis=1)
     def R(p1, p2, q1, q2):
         return np.abs(np.einsum('ij,ij->i', D(p1, p2), M(q1, q2)) + np.einsum('ij,ij->i', D(q1, q2), M(p1, p2))) < np.finfo(float).eps
     def C(p1, p2, q1, q2):
-        cross_d = np.cross(D(p1, p2), D(q1, q2))
+        # Geometric line-line intersection equivalent to the original
+        # Pluecker expression.  The earlier broadcasted translation changed
+        # its dimensions and failed for valid vertex/edge intersections.
+        p_direction = D(p1, p2)
+        q_direction = D(q1, q2)
+        cross_d = np.cross(p_direction, q_direction)
         denom = np.einsum('ij,ij->i', cross_d, cross_d)
-        term1 = np.einsum('ij,ij->i', M(p1, p2), D(q1, q2))[:, None]
-        term2 = np.einsum('ij,ij->i', M(q1, q2), D(p1, p2))[:, None]
-        return (np.cross(term1 * np.eye(3)[None, :, :], cross_d[:, None, :]) +
-                np.cross(D(p1, p2)[:, None, :], term2 * np.eye(3)[None, :, :]) -
-                np.cross(D(q1, q2)[:, None, :], term1 * np.eye(3)[None, :, :]))[:, 0, :] / denom[:, None]
+        t = np.einsum(
+            'ij,ij->i',
+            np.cross(q1 - p1, q_direction),
+            cross_d,
+        ) / denom
+        return p1 + t[:, None] * p_direction
     def Z(q1, q2, p):
         t = P(q1, q2, p)
         eps = np.finfo(float).eps
@@ -80,14 +137,12 @@ def trintersect_complete(P1, P2, P3, Q1, Q2, V, F, S):
                 e[e] = Z(p1[e], p2[e], e2) & X(q1[e], q2[e], e2)
                 if np.any(e):
                     fe = np.vstack([V[:, [0, 1]], V[:, [1, 2]], V[:, [2, 0]]])
-                    pairs = np.column_stack([np.repeat(S, 3), np.sort(fe, axis=1)])
-                    _, idx = np.unique(pairs, axis=0, return_index=True)
-                    e0 = np.zeros((nx * 3,), dtype=bool)
-                    e0[idx[np.isin(idx, np.where(e)[0])]] = True
-                    e = e0
+                    pairs = np.column_stack([np.tile(S, 3), np.sort(fe, axis=1)])
+                    e = _deduplicate_true_rows(pairs, e)
 
-    v = v.reshape(nx, 3)
-    e = e.reshape(nx, 3)
+    # MATLAB reshapes these block vectors in column-major order.
+    v = v.reshape(nx, 3, order='F')
+    e = e.reshape(nx, 3, order='F')
     I = f | np.any(e | v, axis=1)
 
     us = np.unique(S[I])
@@ -113,14 +168,16 @@ def trintersect_complete(P1, P2, P3, Q1, Q2, V, F, S):
                     cc = np.repeat(coord[None, :], edges1.shape[0], axis=0)
                     x = np.any(L(edges1, edges2, cc) & Z(edges1, edges2, cc))
                 else:
-                    nf = np.sum(i_idx)
-                    edges1 = np.vstack([P1[i_idx], P2[i_idx], P3[i_idx]])
-                    edges2 = np.vstack([P2[i_idx], P3[i_idx], P1[i_idx]])
-                    c1 = np.vstack([edges1 - coord, edges1[(np.arange(nf) * 3) + 1] - edges1[(np.arange(nf) * 3)]])
-                    c2 = np.vstack([edges2 - coord, edges1[(np.arange(nf) * 3) + 2] - edges1[(np.arange(nf) * 3)]])
-                    cc = np.sqrt(np.sum(np.cross(c1, c2) ** 2, axis=1))
-                    cc = cc[:nf * 3].reshape(-1, 3) / cc[nf * 3:].reshape(-1, 1)
-                    x = np.any(np.all((0 <= cc) & (cc <= 1), axis=1))
+                    # The translated per-face offsets assumed an interleaved
+                    # layout even though P1/P2/P3 are block-major.  Test the
+                    # intended geometry directly: the shared streamline point
+                    # lies on at least one of the intersected faces.
+                    x = _point_on_triangle(
+                        coord,
+                        P1[i_idx],
+                        P2[i_idx],
+                        P3[i_idx],
+                    )
                 if x:
                     I[i_idx] = False
 

@@ -41,7 +41,12 @@ def _run() -> None:
     try:
         top_level_py = sorted(path.name for path in MODULE_DIR.glob("*.py")) if MODULE_DIR.is_dir() else []
         forbidden_registered = [name for name in FORBIDDEN_MODULES if _module_registered(name)]
-        slicer.util.selectModule("SlicerDDSurfer")
+        # Headless release validation intentionally runs with
+        # ``--no-main-window``.  Selecting a module is a main-window action,
+        # while constructing its widget representation is sufficient to test
+        # registration, setup, language switching, and persistent JSON state.
+        if slicer.util.mainWindow() is not None:
+            slicer.util.selectModule("SlicerDDSurfer")
         module = slicer.util.getModule("SlicerDDSurfer")
         target_registered = _module_registered("SlicerDDSurfer") or module is not None
         widget = module.widgetRepresentation().self()

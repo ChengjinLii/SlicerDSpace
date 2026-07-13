@@ -448,6 +448,27 @@ def _read_sift2_weights(path: Path) -> list[float]:
     return weights
 
 
+def _tck_header_streamline_count(path: Path) -> Optional[int]:
+    """Return the declared MRtrix TCK streamline count without loading points."""
+
+    if path.expanduser().suffix.lower() != ".tck":
+        return None
+    try:
+        import nibabel as nib
+    except ImportError:
+        return None
+
+    try:
+        header = nib.streamlines.load(path.expanduser().resolve().as_posix(), lazy_load=True).header
+        value = header.get("count")
+        return int(value) if value is not None else None
+    except Exception:
+        # This is optional QC metadata.  An unreadable/non-TCK fixture or a
+        # backend-specific nibabel header error must not turn an otherwise
+        # successful tck2connectome execution into a pipeline failure.
+        return None
+
+
 def _write_python_connectome(
     config: ConnectomeConfig,
     matrix_path: Path,
@@ -563,6 +584,7 @@ def build_tck2connectome_command(config: ConnectomeConfig, matrix_path: Path) ->
         cmd.extend(["-tck_weights_in", config.sift2_weights_path.expanduser().resolve().as_posix()])
     if config.symmetric:
         cmd.append("-symmetric")
+    cmd.append("-force")
     return tuple(cmd)
 
 
@@ -868,6 +890,14 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
                     )
                 else:
                     qc.update(_summarize_dense_connectome_matrix(matrix_path, symmetric=config.symmetric))
+                total_streamlines = _tck_header_streamline_count(config.tractography_path)
+                qc["streamline_count_total"] = total_streamlines
+                if config.sift2_weights_path is not None:
+                    qc["sift2_weight_count"] = len(_read_sift2_weights(config.sift2_weights_path))
+                if config.metric == "streamline_count" and total_streamlines is not None:
+                    assigned = qc.get("streamline_count_assigned")
+                    if isinstance(assigned, (int, float)):
+                        qc["streamline_count_skipped"] = max(0, total_streamlines - int(assigned))
                 qc.update({"backend": "mrtrix3.tck2connectome"})
             else:
                 summary = _write_python_connectome(config, matrix_path, nodes_path, lut_path=lut_path)

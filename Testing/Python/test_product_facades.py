@@ -15,7 +15,7 @@ if str(REPO_ROOT) not in sys.path:
 
 class ProductFacadeTest(unittest.TestCase):
     def test_workflow_catalog_has_expected_areas(self) -> None:
-        from workflow_catalog import WORKFLOW_AREAS
+        from workflow_catalog import IMPLEMENTED_WORKFLOW_AREAS, WORKFLOW_AREAS
 
         keys = [area.key for area in WORKFLOW_AREAS]
         self.assertEqual(
@@ -29,6 +29,7 @@ class ProductFacadeTest(unittest.TestCase):
                 "connectome",
             ],
         )
+        self.assertEqual([area.key for area in IMPLEMENTED_WORKFLOW_AREAS], keys)
 
     def test_surface_facade_exports_core_aliases(self) -> None:
         from surface import (
@@ -66,14 +67,20 @@ class ProductFacadeTest(unittest.TestCase):
         self.assertIn("run_subject_products", shared.__all__)
         self.assertIn("validate_subject_inputs", shared.__all__)
 
-    def test_planned_packages_expose_plans(self) -> None:
-        from connectome import ConnectomeConfig, PLANNED_WORKFLOWS as CONNECTOME_WORKFLOWS, run_connectome
+    def test_implemented_packages_expose_supported_workflows_and_legacy_aliases(self) -> None:
+        from connectome import (
+            ConnectomeConfig,
+            PLANNED_WORKFLOWS as CONNECTOME_LEGACY_WORKFLOWS,
+            SUPPORTED_WORKFLOWS as CONNECTOME_WORKFLOWS,
+            run_connectome,
+        )
         from tractography import (
             BundleParcellationConfig,
             ACTPrepConfig,
             TractographyACTConfig,
             TractographyBundleParcellationConfig,
-            PLANNED_WORKFLOWS as TRACTOGRAPHY_WORKFLOWS,
+            PLANNED_WORKFLOWS as TRACTOGRAPHY_LEGACY_WORKFLOWS,
+            SUPPORTED_WORKFLOWS as TRACTOGRAPHY_WORKFLOWS,
             TractographyDTIConfig,
             TractographySAFConfig,
             TractographyTractCloudConfig,
@@ -96,6 +103,7 @@ class ProductFacadeTest(unittest.TestCase):
         )
 
         self.assertGreaterEqual(len(TRACTOGRAPHY_WORKFLOWS), 3)
+        self.assertIs(TRACTOGRAPHY_LEGACY_WORKFLOWS, TRACTOGRAPHY_WORKFLOWS)
         self.assertIsNotNone(TractographyACTConfig)
         self.assertIsNotNone(ACTPrepConfig)
         self.assertIsNotNone(TractographyDTIConfig)
@@ -122,6 +130,7 @@ class ProductFacadeTest(unittest.TestCase):
         self.assertIsNotNone(ConnectomeConfig)
         self.assertTrue(callable(run_connectome))
         self.assertGreaterEqual(len(CONNECTOME_WORKFLOWS), 1)
+        self.assertIs(CONNECTOME_LEGACY_WORKFLOWS, CONNECTOME_WORKFLOWS)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 ﻿import os
 
+from Support.file_ops import link_or_copy, remove_matching
 from Support.sys_exec import sys_exec
 from Support.verb_msg import verb_msg
 
@@ -8,7 +9,7 @@ def SAF_registration_default(PS, SD):
     if not PS.noregister:
         ants_anat = os.path.join(PS.work_dir, 'ants_anatomical.nii.gz')
         if os.path.exists(ants_anat) and PS.force:
-            sys_exec(f"rm {os.path.join(PS.work_dir, 'ants_*')}", PS)
+            remove_matching(PS.work_dir, 'ants_*')
 
         if not os.path.exists(ants_anat):
             if not PS.fa:
@@ -29,7 +30,6 @@ def SAF_registration_default(PS, SD):
         verb_msg('Assuming T1 and DWI are co-registered', PS)
         SD.tx.in_dwi = SD.tx.t1
         nn = os.path.basename(SD.tx.t1)
-        command = f"ln -s {SD.tx.t1} {os.path.join(PS.work_dir, nn)}"
-        sys_exec(command, PS)
+        link_or_copy(SD.tx.t1, os.path.join(PS.work_dir, nn))
 
     return SD

@@ -1,9 +1,9 @@
 ﻿import os
 import numpy as np
 
-from Support.sys_exec import sys_exec
 from Support.verb_msg import verb_msg
 from Support.write_curv import write_curv
+from Support.file_ops import link_or_copy
 from Support.Supp_gz_fileparts import Supp_gz_fileparts
 from Data_modules.apply_tck_sample import apply_tck_sample
 from Support.read_tsf import read_tsf
@@ -13,9 +13,11 @@ def streamlines_on_surface(PS, DWI):
     out_dir = os.path.join(PS.work_dir, 'surf_data')
     os.makedirs(out_dir, exist_ok=True)
 
-    command1 = f"ln -s {os.path.join(PS.fs_dir, 'surf', 'rh.inflated')} {os.path.join(out_dir, 'rh.inflated')}; "
-    command2 = f"ln -s {os.path.join(PS.fs_dir, 'surf', 'lh.inflated')} {os.path.join(out_dir, 'lh.inflated')}"
-    sys_exec(command1 + command2, PS)
+    for hemi in ('rh', 'lh'):
+        link_or_copy(
+            os.path.join(PS.fs_dir, 'surf', f'{hemi}.inflated'),
+            os.path.join(out_dir, f'{hemi}.inflated'),
+        )
 
     PS.logt.append(['', ''])
 

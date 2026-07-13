@@ -19,7 +19,9 @@ Keep only:
 - `Makefile`, `pyproject.toml`, `requirements-ci.txt`: development and CI entry points.
 - `run_subject_pipeline.py`: stable CLI entry point documented for users.
 - `run_postprocess_docker.py`: legacy container helper retained for compatibility.
-- `workflow_catalog.py`: stable workflow catalog module used by tests and CLI.
+- `workflow_catalog.py`: stable source-tree compatibility entry point for
+  workflow metadata. It is intentionally not installed as a top-level Slicer
+  module resource.
 
 Do not add generated reports, manuscripts, release drafts, validation outputs,
 or long design notes to the root directory. Put durable documentation under
@@ -71,7 +73,13 @@ Slicer extension compatibility. If the helper set grows further, split it into
 
 - `tractography/saf_backend/` is bundled runtime code used by SAF tracking.
 - `tractography/slicer_dmri_reference/` is reference material and should not be
-  packaged as runtime extension code.
+  packaged as runtime extension code. Both CMake builds and local extension
+  staging explicitly exclude it; `tractography/saf_backend/` remains packaged.
 - `third_party/` is ignored and must not be used for packaged runtime content.
+
+Workflow packages expose `SUPPORTED_WORKFLOWS`. The older
+`PLANNED_WORKFLOWS` names remain aliases for downstream compatibility, but the
+root catalog now marks tractography and connectome as implemented because their
+Python/MRtrix execution paths are part of the product pipeline.
 
 Any bundled third-party code must include provenance and license information.

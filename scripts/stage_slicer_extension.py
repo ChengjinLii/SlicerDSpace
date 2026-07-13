@@ -35,13 +35,28 @@ EXCLUDED_DIR_NAMES = {
     "tests",
     "third_party",
 }
+EXCLUDED_RUNTIME_PATHS = {
+    "tractography/slicer_dmri_reference",
+}
 EXCLUDED_FILE_SUFFIXES = {".pyc", ".pyo"}
+
+
+def _is_excluded_runtime_path(path: Path) -> bool:
+    try:
+        relative = path.resolve().relative_to(REPO_ROOT).as_posix()
+    except (OSError, ValueError):
+        return False
+    return any(relative == excluded or relative.startswith(f"{excluded}/") for excluded in EXCLUDED_RUNTIME_PATHS)
 
 
 def _ignore(_src: str, names: list[str]) -> set[str]:
     ignored = set()
     for name in names:
-        if name in EXCLUDED_DIR_NAMES or name.endswith("~"):
+        if (
+            name in EXCLUDED_DIR_NAMES
+            or name.endswith("~")
+            or _is_excluded_runtime_path(Path(_src) / name)
+        ):
             ignored.add(name)
             continue
         if any(name.endswith(suffix) for suffix in EXCLUDED_FILE_SUFFIXES):
@@ -73,7 +88,11 @@ def _copy_tree(src: Path, dst: Path, *, link_mode: str) -> None:
     for root, dirs, files in os.walk(src):
         root_path = Path(root)
         rel_root = root_path.relative_to(src)
-        dirs[:] = [name for name in dirs if name not in EXCLUDED_DIR_NAMES]
+        dirs[:] = [
+            name
+            for name in dirs
+            if name not in EXCLUDED_DIR_NAMES and not _is_excluded_runtime_path(root_path / name)
+        ]
         target_root = dst / rel_root
         target_root.mkdir(parents=True, exist_ok=True)
         for file_name in files:
@@ -114,6 +133,7 @@ def stage_extension(install_root: Path, *, slicer_version: str, clean: bool, lin
         "top_level_python_files": top_level_py,
         "top_level_python_ok": top_level_py == ["SlicerDDSurfer.py"],
         "runtime_entries": list(RUNTIME_ENTRIES),
+        "excluded_runtime_paths": sorted(EXCLUDED_RUNTIME_PATHS),
     }
     manifest_path = extension_root / "extension_staging_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")

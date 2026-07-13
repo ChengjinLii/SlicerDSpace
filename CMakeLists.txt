@@ -14,6 +14,10 @@ list(FILTER PARCELLATION_PYTHON_SCRIPTS EXCLUDE REGEX "/tests/")
 file(GLOB_RECURSE SEGMENTATION_PYTHON_SCRIPTS "segmentation/*.py")
 file(GLOB_RECURSE MICROSTRUCTURE_PYTHON_SCRIPTS "microstructure/*.py")
 file(GLOB_RECURSE TRACTOGRAPHY_PYTHON_SCRIPTS "tractography/*.py")
+# Local copies used only to study SlicerDMRI APIs are deliberately not runtime
+# resources.  Keep this filter next to the glob so a normal Slicer extension
+# build cannot install the reference modules as accidental scripted modules.
+list(FILTER TRACTOGRAPHY_PYTHON_SCRIPTS EXCLUDE REGEX "/slicer_dmri_reference/")
 file(GLOB_RECURSE CONNECTOME_PYTHON_SCRIPTS "connectome/*.py")
 file(GLOB_RECURSE SCRIPT_TOOL_FILES "scripts/*.py" "scripts/*.sh" "scripts/*.ps1")
 file(GLOB_RECURSE DOC_FILES "docs/*.md")

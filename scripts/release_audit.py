@@ -246,6 +246,22 @@ def audit_repository(*, large_file_mb: float = 20.0) -> dict[str, object]:
                     message="CMakeLists.txt must not package or reference third_party content.",
                 )
             )
+        reference_filter = (
+            'list(FILTER TRACTOGRAPHY_PYTHON_SCRIPTS EXCLUDE REGEX '
+            '"/slicer_dmri_reference/")'
+        )
+        if reference_filter not in cmake_text:
+            issues.append(
+                AuditIssue(
+                    severity="blocker",
+                    category="cmake_packaging",
+                    path="CMakeLists.txt",
+                    message=(
+                        "Reference-only SlicerDMRI sources must be filtered from "
+                        "TRACTOGRAPHY_PYTHON_SCRIPTS."
+                    ),
+                )
+            )
         if "SCRIPTS ${MODULE_PYTHON_SCRIPTS}" not in cmake_text:
             issues.append(
                 AuditIssue(

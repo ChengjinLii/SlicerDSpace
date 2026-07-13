@@ -368,20 +368,15 @@ def _saf_output_or_cache_path(output_dir: Path, name: str) -> Path:
     return _saf_cache_dir(output_dir) / name
 
 
-def _unique_cache_destination(cache_dir: Path, name: str) -> Path:
-    dest = cache_dir / name
-    if not dest.exists() and not dest.is_symlink():
-        return dest
-    suffix = 1
-    while True:
-        candidate = cache_dir / f"{name}.{suffix}"
-        if not candidate.exists() and not candidate.is_symlink():
-            return candidate
-        suffix += 1
+def _remove_cache_entry(path: Path) -> None:
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    elif path.exists() or path.is_symlink():
+        path.unlink()
 
 
 def _cache_saf_intermediates(output_dir: Path) -> dict[str, str]:
-    """Move non-product SAF artifacts out of the user-facing run directory."""
+    """Move non-product SAF artifacts into a stable, replaceable cache."""
 
     moved: dict[str, str] = {}
     cache_dir = _saf_cache_dir(output_dir)
@@ -390,7 +385,14 @@ def _cache_saf_intermediates(output_dir: Path) -> dict[str, str]:
         if not src.exists() and not src.is_symlink():
             continue
         cache_dir.mkdir(parents=True, exist_ok=True)
-        dest = _unique_cache_destination(cache_dir, name)
+        dest = cache_dir / name
+        _remove_cache_entry(dest)
+        # Versions before the stable-cache fix appended .1, .2, ... on every
+        # forced rerun. Remove only those numeric legacy siblings.
+        for legacy in cache_dir.glob(f"{name}.*"):
+            suffix = legacy.name[len(name) + 1 :]
+            if suffix.isdigit():
+                _remove_cache_entry(legacy)
         shutil.move(src.as_posix(), dest.as_posix())
         moved[name] = dest.as_posix()
     return moved
@@ -487,22 +489,25 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
     start_time = time.monotonic()
     return_code: Optional[int] = None
     execution_error: Optional[str] = None
+    execution_exception: Optional[Exception] = None
     if config.execute:
         if not backend_status["available"]:
             missing = ", ".join(str(item) for item in backend_status["missing_required"])
-            raise RuntimeError(f"SAF backend is incomplete. Missing: {missing}")
-        cwd = Path.cwd()
-        try:
-            with _saf_backend_import_path():
-                module = importlib.import_module("SAF_pipeline")
-                module.SAF_pipeline(*args)
-            return_code = 0
-        except Exception as exc:
             return_code = 1
-            execution_error = str(exc)
-            raise
-        finally:
-            os.chdir(cwd)
+            execution_error = f"SAF backend is incomplete. Missing: {missing}"
+        else:
+            cwd = Path.cwd()
+            try:
+                with _saf_backend_import_path():
+                    module = importlib.import_module("SAF_pipeline")
+                    module.SAF_pipeline(*args)
+                return_code = 0
+            except Exception as exc:
+                return_code = 1
+                execution_error = str(exc)
+                execution_exception = exc
+            finally:
+                os.chdir(cwd)
 
     elapsed_seconds = time.monotonic() - start_time
     output_summary = _summarize_saf_outputs(output_dir)
@@ -544,11 +549,15 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
     manifest["streamline_count_error"] = streamline_count_error
     manifest["vtk_export_error"] = vtk_export_error
     manifest["cached_intermediates"] = cached_intermediates
+    manifest["error"] = execution_error
     manifest["outputs"]["summary"] = output_summary
     manifest["outputs"]["saf_vtk"] = saf_vtk_path.as_posix()
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if execution_error is not None:
-        raise RuntimeError(f"SAF execution failed: {execution_error}")
+        error = RuntimeError(f"SAF execution failed: {execution_error}")
+        if execution_exception is not None:
+            raise error from execution_exception
+        raise error
 
     return SAFResult(
         subject_id=raw.subject_id,

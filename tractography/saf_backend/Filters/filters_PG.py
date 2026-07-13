@@ -6,6 +6,18 @@ from Filters.streamlineXmesh.crop_streamlines_outside_mesh_complete import crop_
 from Support.verb_msg import verb_msg
 
 
+def _pial_escape_mask(xpoints, original_indices, tracks):
+    """Identify cropped chains that do not span their source streamline."""
+
+    original_indices = np.asarray(original_indices, dtype=int)
+    last_points = np.asarray(
+        [tracks[index].shape[0] - 1 for index in original_indices],
+        dtype=int,
+    )
+    # crop_streamlines_outside_mesh uses native zero-based NumPy indices.
+    return (xpoints[0] > 0) | (xpoints[1] != last_points)
+
+
 def filters_PG(PS, DWI):
     if hasattr(DWI.saf, 'pg') and DWI.saf.pg is not None and np.any(DWI.saf.pg) and not PS.force:
         return PS, DWI
@@ -36,10 +48,15 @@ def filters_PG(PS, DWI):
         else:
             _, osi, _, xp = crop_streamlines_outside_mesh_complete(V, F, tracks, True, True)
 
+        # ``osi`` indexes the hemisphere-filtered ``tracks`` collection and
+        # can be shorter than it when some streamlines do not survive.  Use it
+        # before mapping back to whole-brain indices, just as MATLAB indexes
+        # DWI.sl_tracks(osi) after its equivalent mapping.
+        local_osi = np.asarray(osi, dtype=int)
+        xx = _pial_escape_mask(xp, local_osi, tracks)
         temp_idx = np.where(hemi_tracks)[0]
-        osi = temp_idx[osi]
-        xx = (xp[0] > 1) | (xp[1] != np.array([t.shape[0] for t in tracks]))
-        pial_sl_wb[osi[xx]] = True
+        whole_brain_osi = temp_idx[local_osi]
+        pial_sl_wb[whole_brain_osi[xx]] = True
 
     DWI.saf.pg = pial_sl_wb
 

@@ -32,6 +32,25 @@ the CLI. Common GUI edits are saved automatically after a short debounce;
 language and dependency-path changes are saved immediately. Do not publish a
 config containing private data paths without review.
 
+## Language
+
+New profiles default to English. The `Language` selector switches the running
+module between English and Chinese and saves the choice immediately. The same
+default can be managed directly in JSON:
+
+```json
+{
+  "ui": {
+    "language": "en"
+  }
+}
+```
+
+Use `"en"` for English or `"zh"` for Chinese. If the file is edited while the
+module is already open, reload the module or restart Slicer so the edited value
+is read again. Dependency installation merges its paths into this file without
+overwriting an existing language choice.
+
 ## CLI Use
 
 Print the automatically loaded configuration:

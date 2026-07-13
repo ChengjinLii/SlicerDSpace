@@ -10,13 +10,18 @@ from .pipeline import (
     run_connectome,
 )
 
-PLANNED_WORKFLOWS: tuple[str, ...] = (
-    "Tractography-driven connectome construction",
-    "Parcel-node reuse from DDParcel",
+SUPPORTED_WORKFLOWS: tuple[str, ...] = (
+    "Python tractography-to-parcel connectomes",
+    "MRtrix tractography-to-parcel connectomes",
+    "Scalar, length, and SIFT2 edge weighting",
 )
+
+# Compatibility alias retained for downstream imports from earlier releases.
+PLANNED_WORKFLOWS = SUPPORTED_WORKFLOWS
 
 __all__ = [
     "PLANNED_WORKFLOWS",
+    "SUPPORTED_WORKFLOWS",
     "ConnectomeConfig",
     "ConnectomeResult",
     "build_tck2connectome_command",

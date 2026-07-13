@@ -119,12 +119,25 @@ def _failure_category(returncode: int, stderr: str) -> str:
     return "pip_failed"
 
 
-def _install_python_packages(python_executable: str, requirements: tuple[str, ...], output_dir: Path) -> list[PipInstallResult]:
+def _install_python_packages(
+    python_executable: str,
+    requirements: tuple[str, ...],
+    output_dir: Path,
+    *,
+    pip_find_links: Path | None = None,
+    pip_no_index: bool = False,
+) -> list[PipInstallResult]:
     log_dir = output_dir.expanduser().resolve() / "python_install_logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     results: list[PipInstallResult] = []
     for requirement in requirements:
-        command = (python_executable, "-m", "pip", "install", requirement)
+        command_parts = [python_executable, "-m", "pip", "install"]
+        if pip_no_index:
+            command_parts.append("--no-index")
+        if pip_find_links is not None:
+            command_parts.extend(["--find-links", pip_find_links.expanduser().resolve().as_posix()])
+        command_parts.append(requirement)
+        command = tuple(command_parts)
         completed = subprocess.run(
             list(command),
             check=False,
@@ -188,6 +201,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--execute", action="store_true", help="Actually run pip install for missing Python packages.")
     parser.add_argument(
+        "--pip-find-links",
+        type=Path,
+        help="Optional local wheelhouse passed to pip with --find-links.",
+    )
+    parser.add_argument(
+        "--pip-no-index",
+        action="store_true",
+        help="Install Python packages only from --pip-find-links without contacting a package index.",
+    )
+    parser.add_argument(
         "--strict-exit-code",
         action="store_true",
         help="Return exit code 2 when required dependencies are still missing after planning/installation.",
@@ -222,6 +245,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Dependency config written: {written_config}", file=sys.stderr)
     if args.all and args.profile:
         parser.error("Use either --all or --profile, not both.")
+    if args.pip_no_index and args.pip_find_links is None:
+        parser.error("--pip-no-index requires --pip-find-links.")
     if args.profile:
         targets = DEPENDENCY_PROFILES[args.profile]
     elif args.all:
@@ -270,6 +295,8 @@ def main(argv: list[str] | None = None) -> int:
             args.python_executable,
             tuple(result.missing_python_packages),
             args.output_dir,
+            pip_find_links=args.pip_find_links,
+            pip_no_index=bool(args.pip_no_index),
         )
         result = run_environment_doctor(config)
         written = write_environment_report(result, args.output_dir)

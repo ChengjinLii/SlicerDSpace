@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -243,11 +244,39 @@ def summarize_tractcloud_outputs(output_dir: Path) -> dict[str, Any]:
         item.name for item in root.iterdir() if item.is_dir()
     ) if root.is_dir() else []
     mrb_files = sorted(root.glob("*.mrb")) if root.is_dir() else []
+
+    line_counts: dict[str, Optional[int]] = {}
+    for path in bundle_files:
+        relative = path.relative_to(root).as_posix()
+        try:
+            with path.open("rb") as stream:
+                header = stream.read(64 * 1024)
+        except OSError:
+            line_counts[relative] = None
+            continue
+        match = re.search(
+            rb'<Piece\b[^>]*\bNumberOfLines=["\'](\d+)["\']',
+            header,
+            flags=re.DOTALL,
+        )
+        line_counts[relative] = int(match.group(1)) if match else None
+    readable_line_counts = {
+        name: count for name, count in line_counts.items() if count is not None
+    }
     return {
         "root": root.as_posix(),
         "root_exists": root.is_dir(),
         "category_dirs": category_dirs,
         "bundle_count": len(bundle_files),
+        "bundle_readable_count": len(readable_line_counts),
+        "bundle_nonempty_count": sum(count > 0 for count in readable_line_counts.values()),
+        "assigned_streamline_count": sum(readable_line_counts.values()),
+        "empty_bundle_files": sorted(
+            name for name, count in readable_line_counts.items() if count == 0
+        ),
+        "unreadable_bundle_files": sorted(
+            name for name, count in line_counts.items() if count is None
+        ),
         "bundle_files": [path.as_posix() for path in bundle_files],
         "mrb_files": [path.as_posix() for path in mrb_files],
     }

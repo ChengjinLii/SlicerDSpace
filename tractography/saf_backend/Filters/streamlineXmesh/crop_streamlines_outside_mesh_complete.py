@@ -12,8 +12,12 @@ def crop_streamlines_outside_mesh_complete(V, F, tract, inside=None, outer_inter
 
     if inside is None:
         inside = np.zeros((nsl,), dtype=bool)
-    elif np.isscalar(inside) and nsl > 1:
-        inside = np.repeat(bool(inside), nsl)
+    elif np.isscalar(inside):
+        inside = np.full((nsl,), bool(inside), dtype=bool)
+    else:
+        inside = np.asarray(inside, dtype=bool).reshape(-1)
+        if inside.size != nsl:
+            raise ValueError("inside must be a scalar or contain one value per streamline")
 
     F_VC = lambda d: np.column_stack([V[F[:, 0], d], V[F[:, 1], d], V[F[:, 2], d]])
     FBB_max = np.column_stack([np.max(F_VC(0), axis=1), np.max(F_VC(1), axis=1), np.max(F_VC(2), axis=1)])
@@ -44,7 +48,10 @@ def crop_streamlines_outside_mesh_complete(V, F, tract, inside=None, outer_inter
 
             if np.any(BBFX):
                 xFBB_idx = np.where(xFBB)[0]
-                xF, xS = np.where(BBFX)
+                # Match MATLAB ``find(BBFX)`` column-major traversal.  Since
+                # columns represent streamline segments, this also keeps the
+                # detected crossings ordered from the head to the tail.
+                xS, xF = np.where(BBFX.T)
                 P = V[F[xFBB_idx[xF]]]
                 I = trintersect_complete(
                     P[:, 0, :],
@@ -75,7 +82,8 @@ def crop_streamlines_outside_mesh_complete(V, F, tract, inside=None, outer_inter
 
         xI = xP.reshape(-1, 2)
         xI[xI[:, 1] < sl.shape[0] - 1, 1] -= 1
-        xIF = xF.reshape(2, -1)
+        # Match MATLAB ``reshape(xF, 2, [])`` (Fortran/column-major order).
+        xIF = xF.reshape(-1, 2).T
 
         tsl = [sl[int(xI[j, 0]):int(xI[j, 1]) + 1] for j in range(xI.shape[0])]
         lmask = [t.shape[0] > 1 for t in tsl]

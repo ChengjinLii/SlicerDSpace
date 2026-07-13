@@ -75,6 +75,19 @@ def _command_search_path(config: DwiPreprocessingConfig) -> str:
     return os.pathsep.join(entries)
 
 
+def _fsl_root_from_bin_dir(bin_dir: Path) -> Path:
+    """Return ``FSLDIR`` for either ``$FSLDIR/bin`` or ``share/fsl/bin``."""
+
+    resolved = bin_dir.expanduser().resolve()
+    if (
+        resolved.name == "bin"
+        and resolved.parent.name == "fsl"
+        and resolved.parent.parent.name == "share"
+    ):
+        return resolved.parent.parent.parent
+    return resolved.parent
+
+
 def _resolve_command(command: str, config: DwiPreprocessingConfig) -> Optional[str]:
     return shutil.which(command, path=_command_search_path(config))
 
@@ -197,6 +210,12 @@ def _planned_paths(output_dir: Path, subject: str) -> dict[str, Path]:
         "final_mask": output_dir / f"{subject}_brain_mask_final.nii.gz",
         "manifest": output_dir / f"{subject}_preproc_manifest.json",
         "qc": output_dir / "05_qc" / f"{subject}_preproc_qc.json",
+        "eddy_parameters": output_dir / "05_qc" / f"{subject}_eddy_parameters.txt",
+        "eddy_movement_rms": output_dir / "05_qc" / f"{subject}_eddy_movement_rms.txt",
+        "eddy_outlier_map": output_dir / "05_qc" / f"{subject}_eddy_outlier_map.txt",
+        "eddy_outlier_report": output_dir / "05_qc" / f"{subject}_eddy_outlier_report.txt",
+        "eddy_cnr_maps": output_dir / "05_qc" / f"{subject}_eddy_cnr_maps.nii.gz",
+        "eddy_residuals": output_dir / "05_qc" / f"{subject}_eddy_residuals.nii.gz",
     }
 
 
@@ -217,10 +236,6 @@ def _build_commands(raw: RawInputBundle, config: DwiPreprocessingConfig, paths: 
     denoised = paths["denoise_dir"] / f"{subject}_dwi_denoised.nii.gz"
     noise = paths["denoise_dir"] / f"{subject}_dwi_noise.nii.gz"
     degibbs = paths["denoise_dir"] / f"{subject}_dwi_degibbs.nii.gz"
-    eddy_params = paths["motion_dir"] / f"{subject}_eddy_parameters.txt"
-    eddy_rms = paths["motion_dir"] / f"{subject}_eddy_movement_rms.txt"
-    outlier_map = paths["motion_dir"] / f"{subject}_eddy_outlier_map.nii.gz"
-
     dwifslpreproc_cmd = [
         backend["commands"]["dwifslpreproc"] or "dwifslpreproc",
         degibbs.as_posix(),
@@ -239,12 +254,12 @@ def _build_commands(raw: RawInputBundle, config: DwiPreprocessingConfig, paths: 
     ]
     if config.reverse_phase_b0 is not None:
         dwifslpreproc_cmd.extend(["-rpe_pair", "-se_epi", config.reverse_phase_b0.expanduser().resolve().as_posix()])
-        if config.phase_encoding_direction:
-            dwifslpreproc_cmd.extend(["-pe_dir", config.phase_encoding_direction])
-        if config.readout_time is not None:
-            dwifslpreproc_cmd.extend(["-readout_time", str(config.readout_time)])
     else:
         dwifslpreproc_cmd.append("-rpe_none")
+    if config.phase_encoding_direction:
+        dwifslpreproc_cmd.extend(["-pe_dir", config.phase_encoding_direction])
+    if config.readout_time is not None:
+        dwifslpreproc_cmd.extend(["-readout_time", str(config.readout_time)])
 
     return [
         [
@@ -261,8 +276,56 @@ def _build_commands(raw: RawInputBundle, config: DwiPreprocessingConfig, paths: 
         ],
         dwifslpreproc_cmd,
         ["copy", raw.mask_path.as_posix(), paths["final_mask"].as_posix()],
-        ["optional-output", eddy_params.as_posix(), eddy_rms.as_posix(), outlier_map.as_posix()],
+        [
+            "optional-output",
+            paths["eddy_parameters"].as_posix(),
+            paths["eddy_movement_rms"].as_posix(),
+            paths["eddy_outlier_map"].as_posix(),
+            paths["eddy_outlier_report"].as_posix(),
+            paths["eddy_cnr_maps"].as_posix(),
+            paths["eddy_residuals"].as_posix(),
+        ],
     ]
+
+
+def _collect_eddy_qc_artifacts(paths: dict[str, Path]) -> dict[str, Any]:
+    """Copy Eddy products retained by ``dwifslpreproc -nocleanup`` into QC.
+
+    MRtrix writes these files below its scratch directory with the fixed
+    ``dwi_post_eddy`` prefix.  They are useful pipeline outputs, but are not
+    copied by ``dwifslpreproc`` itself.  In particular, Eddy's outlier map is
+    a text matrix rather than a NIfTI image, so preserve it as ``.txt``.
+    """
+
+    scratch_dir = paths["motion_dir"] / "dwifslpreproc_tmp"
+    source_prefix = scratch_dir / "dwi_post_eddy"
+    specifications = {
+        "eddy_parameters": (".eddy_parameters", "text/eddy-parameters"),
+        "eddy_movement_rms": (".eddy_movement_rms", "text/eddy-movement-rms"),
+        "eddy_outlier_map": (".eddy_outlier_map", "text/eddy-outlier-map"),
+        "eddy_outlier_report": (".eddy_outlier_report", "text/eddy-outlier-report"),
+        "eddy_cnr_maps": (".eddy_cnr_maps.nii.gz", "application/nifti+gzip"),
+        "eddy_residuals": (".eddy_residuals.nii.gz", "application/nifti+gzip"),
+    }
+    artifact_records: dict[str, Any] = {}
+    for key, (suffix, content_type) in specifications.items():
+        source = Path(f"{source_prefix}{suffix}")
+        destination = paths[key]
+        record = {
+            "source": source.as_posix(),
+            "destination": destination.as_posix(),
+            "content_type": content_type,
+            "status": "missing",
+        }
+        if source.is_file():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            record.update({"status": "copied", "size": destination.stat().st_size})
+        artifact_records[key] = record
+    return {
+        "scratch_dir": scratch_dir.as_posix(),
+        "artifacts": artifact_records,
+    }
 
 
 def _materialize_dirs(paths: dict[str, Path]) -> None:
@@ -304,12 +367,31 @@ def _rotate_bvecs_best_effort(raw_bvec_path: Path, output_bvec_path: Path, affin
 
     bvecs = _load_bvecs(raw_bvec_path)
     affine_array = np.asarray(affines)
-    if affine_array.ndim != 3 or affine_array.shape[-2:] != (4, 4) or len(bvecs) != affine_array.shape[0]:
+    input_affine_shape = list(affine_array.shape)
+    affine_layout: Optional[str] = None
+    if (
+        affine_array.ndim == 3
+        and affine_array.shape[:2] == (4, 4)
+        and affine_array.shape[-1] == len(bvecs)
+    ):
+        # DIPY 1.12 returns one affine per volume with shape (4, 4, N).
+        # Move the volume axis first so the rotation loop below also remains
+        # compatible with the historical/list-derived (N, 4, 4) layout.
+        affine_array = np.moveaxis(affine_array, -1, 0)
+        affine_layout = "4x4xN"
+    elif (
+        affine_array.ndim == 3
+        and affine_array.shape[-2:] == (4, 4)
+        and affine_array.shape[0] == len(bvecs)
+    ):
+        affine_layout = "Nx4x4"
+
+    if affine_layout is None:
         shutil.copy2(raw_bvec_path, output_bvec_path)
         return {
             "status": "copied",
             "reason": "unexpected affine array shape or gradient count mismatch",
-            "affine_shape": list(affine_array.shape),
+            "affine_shape": input_affine_shape,
             "gradient_count": len(bvecs),
         }
 
@@ -336,6 +418,8 @@ def _rotate_bvecs_best_effort(raw_bvec_path: Path, output_bvec_path: Path, affin
         "status": "rotated",
         "method": "best_effort_polar_decomposition_of_dipy_affines",
         "gradient_count": len(rotated),
+        "affine_layout": affine_layout,
+        "affine_shape": input_affine_shape,
     }
 
 
@@ -574,7 +658,15 @@ def run_dwi_preprocessing(
     if backend.get("backend") == "dipy":
         backend_details = _run_dipy_backend(raw, config, paths, log=log)
     else:
-        env = merged_startup_environment({"PATH": _command_search_path(config)})
+        env_overrides = {"PATH": _command_search_path(config)}
+        if config.fsl_bin_dir is not None:
+            env_overrides.update(
+                {
+                    "FSLDIR": _fsl_root_from_bin_dir(config.fsl_bin_dir).as_posix(),
+                    "FSLOUTPUTTYPE": os.environ.get("FSLOUTPUTTYPE", "NIFTI_GZ"),
+                }
+            )
+        env = merged_startup_environment(env_overrides)
         for command in commands:
             if command[0] == "copy":
                 shutil.copy2(command[1], command[2])
@@ -582,6 +674,13 @@ def run_dwi_preprocessing(
             if command[0] == "optional-output":
                 continue
             _run_command(command, env=env, log=log)
+        backend_details = {
+            "fsl_environment": {
+                "FSLDIR": env.get("FSLDIR"),
+                "FSLOUTPUTTYPE": env.get("FSLOUTPUTTYPE"),
+            },
+            "eddy_qc_collection": _collect_eddy_qc_artifacts(paths),
+        }
 
     if not paths["final_bval"].exists():
         shutil.copy2(raw.bval_path, paths["final_bval"])
@@ -600,8 +699,12 @@ def run_dwi_preprocessing(
             "final_bval": _file_record(paths["final_bval"]),
             "final_bvec": _file_record(paths["final_bvec"]),
             "final_mask": _file_record(paths["final_mask"]),
-            "eddy_parameters": _file_record(paths["motion_dir"] / f"{raw.subject_id}_eddy_parameters.txt"),
-            "eddy_movement_rms": _file_record(paths["motion_dir"] / f"{raw.subject_id}_eddy_movement_rms.txt"),
+            "eddy_parameters": _file_record(paths["eddy_parameters"]),
+            "eddy_movement_rms": _file_record(paths["eddy_movement_rms"]),
+            "eddy_outlier_map": _file_record(paths["eddy_outlier_map"]),
+            "eddy_outlier_report": _file_record(paths["eddy_outlier_report"]),
+            "eddy_cnr_maps": _file_record(paths["eddy_cnr_maps"]),
+            "eddy_residuals": _file_record(paths["eddy_residuals"]),
         },
         "warnings": [
             f"Diagnostic command not found: {command}"

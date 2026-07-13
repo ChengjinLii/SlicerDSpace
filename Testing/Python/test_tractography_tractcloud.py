@@ -126,6 +126,29 @@ exit 0
         self.assertEqual(qc["status"], "completed")
         self.assertEqual(qc["output_summary"]["bundle_count"], 1)
 
+    def test_output_summary_reports_nonempty_bundle_streamlines(self) -> None:
+        from tractography.tractcloud import summarize_tractcloud_outputs
+
+        association = self.output_dir / "Association"
+        association.mkdir(parents=True)
+        (association / "AF.vtp").write_text(
+            '<VTKFile><PolyData><Piece NumberOfPoints="8" NumberOfLines="3"/></PolyData></VTKFile>',
+            encoding="utf-8",
+        )
+        (association / "UF.vtp").write_text(
+            '<VTKFile><PolyData><Piece NumberOfPoints="0" NumberOfLines="0"/></PolyData></VTKFile>',
+            encoding="utf-8",
+        )
+
+        summary = summarize_tractcloud_outputs(self.output_dir)
+
+        self.assertEqual(summary["bundle_count"], 2)
+        self.assertEqual(summary["bundle_readable_count"], 2)
+        self.assertEqual(summary["bundle_nonempty_count"], 1)
+        self.assertEqual(summary["assigned_streamline_count"], 3)
+        self.assertEqual(summary["empty_bundle_files"], ["Association/UF.vtp"])
+        self.assertEqual(summary["unreadable_bundle_files"], [])
+
     def test_bundle_parcellation_dispatches_tractcloud_backend(self) -> None:
         from tractography import BundleParcellationConfig, TractCloudConfig, run_bundle_parcellation
 
