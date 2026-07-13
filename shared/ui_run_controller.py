@@ -14,6 +14,7 @@ from shared.orchestrator import normalize_orchestrator_targets
 class ProductTargetFlags:
     preprocessing: bool = False
     surface: bool = False
+    surface_postprocess: bool = False
     parcellation: bool = False
     segmentation: bool = False
     microstructure: bool = False
@@ -142,7 +143,9 @@ def selected_workflows(flags: ProductTargetFlags) -> list[str]:
     if flags.preprocessing:
         selected.append("DWI Preprocessing")
     if flags.surface:
-        selected.append("Surface / DDSurfer")
+        selected.append("Surface / DDSurfer native STL")
+    if flags.surface_postprocess:
+        selected.append("Surface postprocess / FreeSurfer")
     if flags.parcellation:
         selected.append("Parcellation / DDParcel")
     if flags.segmentation:
@@ -159,13 +162,15 @@ def selected_workflows(flags: ProductTargetFlags) -> list[str]:
 
 
 def selected_orchestrator_targets(flags: ProductTargetFlags) -> tuple[str, ...]:
-    """Return targets supported by the product orchestrator excluding preprocessing/surface."""
+    """Return legacy orchestrator targets excluding preprocessing/native surface."""
 
     targets = ["validation"]
     if flags.segmentation:
         targets.append("segmentation")
     if flags.parcellation:
         targets.append("parcellation")
+    if flags.surface_postprocess:
+        targets.append("surface_postprocess")
     if flags.microstructure:
         targets.append("microstructure")
     if flags.tractography:
@@ -196,6 +201,8 @@ def selected_product_targets(
         product_targets.append("parcellation")
     if flags.surface:
         product_targets.append("surface")
+    if flags.surface_postprocess:
+        product_targets.append("surface_postprocess")
     if flags.microstructure:
         product_targets.append("microstructure")
     if flags.tractography:

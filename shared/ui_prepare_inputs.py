@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from shared.ui_onboarding import register_ui_language_binding
+
 
 def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
     """Install a compact Prepare Inputs panel into the main workflow section."""
@@ -22,9 +24,12 @@ def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
         panel = qt.QGroupBox("Prepare Inputs")
     panel.setObjectName("prepareInputsPanel")
     panel.setToolTip("Normalize DICOM, NRRD/NHDR, or NIfTI+bval/bvec inputs into a SlicerDDSurfer subject root.")
+    register_ui_language_binding(owner, panel, "text", "prepare_inputs")
+    register_ui_language_binding(owner, panel, "tooltip", "prepare_inputs_tooltip")
     panel.setStyleSheet(
         "QWidget#prepareInputsPanel { background: #F7FAF8; border: 1px solid #D6E4DC; border-radius: 8px; }"
     )
+    owner._prepareInputWidgets["panel"] = panel
 
     form_layout = qt.QFormLayout(panel)
     form_layout.setSpacing(8)
@@ -38,6 +43,8 @@ def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
     summary.setStyleSheet(
         "QLabel { background: #EEF6F1; border: 1px solid #CFE1D5; border-radius: 6px; color: #274737; padding: 7px; }"
     )
+    owner._prepareInputWidgets["summary"] = summary
+    register_ui_language_binding(owner, summary, "text", "prepare_summary")
     form_layout.addRow(summary)
 
     source_kind = qt.QComboBox()
@@ -45,7 +52,8 @@ def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
         source_kind.addItem(label)
     source_kind.setToolTip("Use auto unless you need to force a specific source type.")
     owner._prepareInputWidgets["source_kind"] = source_kind
-    form_layout.addRow("Source type", source_kind)
+    register_ui_language_binding(owner, source_kind, "tooltip", "source_type_tooltip")
+    _add_labeled_row(owner, form_layout, "source_type", source_kind)
 
     source_row, source_edit = _path_row(
         owner,
@@ -53,7 +61,7 @@ def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
         placeholder="DICOM folder, DWI NIfTI, NRRD/NHDR, or canonical subject root",
         browse_callback=owner._browse_prepare_input_source_path,
     )
-    form_layout.addRow("Source", source_row)
+    _add_labeled_row(owner, form_layout, "source", source_row)
     owner._prepareInputWidgets["source"] = source_edit
 
     subject_root_row, subject_root_edit = _path_row(
@@ -62,27 +70,30 @@ def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
         placeholder="Destination subject root, e.g. /data/study/sub-01",
         browse_callback=owner._browse_prepare_input_subject_root,
     )
-    form_layout.addRow("Subject root", subject_root_row)
+    _add_labeled_row(owner, form_layout, "subject_root", subject_root_row)
     owner._prepareInputWidgets["subject_root"] = subject_root_edit
 
     subject_id = qt.QLineEdit()
     subject_id.setPlaceholderText("sub-01")
     subject_id.setToolTip("Subject identifier recorded in input/input_import_manifest.json.")
     owner._prepareInputWidgets["subject_id"] = subject_id
-    form_layout.addRow("Subject ID", subject_id)
+    register_ui_language_binding(owner, subject_id, "tooltip", "prepare_subject_id_tooltip")
+    _add_labeled_row(owner, form_layout, "subject_id", subject_id)
 
     sidecar_summary = qt.QLabel("Optional sidecars for NIfTI inputs or externally generated masks.")
     sidecar_summary.setStyleSheet("QLabel { color: #5B7167; padding-top: 4px; }")
+    owner._prepareInputWidgets["sidecar_summary"] = sidecar_summary
+    register_ui_language_binding(owner, sidecar_summary, "text", "sidecar_summary")
     form_layout.addRow(sidecar_summary)
 
-    for key, label, placeholder in (
+    for key, label_key, placeholder in (
         ("bval", "bval", "Optional .bval sidecar"),
         ("bvec", "bvec", "Optional .bvec sidecar"),
-        ("metadata", "Metadata JSON", "Optional BIDS-style .json sidecar"),
-        ("mask", "Brain mask", "Optional nodif_brain_mask.nii.gz"),
+        ("metadata", "metadata_json", "Optional BIDS-style .json sidecar"),
+        ("mask", "brain_mask", "Optional nodif_brain_mask.nii.gz"),
     ):
         row, edit = _path_row(owner, key=key, placeholder=placeholder, browse_callback=owner._browse_prepare_input_file)
-        form_layout.addRow(label, row)
+        _add_labeled_row(owner, form_layout, label_key, row, storage_key=f"{key}_label")
         owner._prepareInputWidgets[key] = edit
 
     backend = qt.QComboBox()
@@ -90,14 +101,16 @@ def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
         backend.addItem(label)
     backend.setToolTip("Use auto unless you need to force dcm2niix, MRtrix3 mrconvert, SlicerDMRI DWIConvert, or copy.")
     owner._prepareInputWidgets["backend"] = backend
-    form_layout.addRow("Backend", backend)
+    register_ui_language_binding(owner, backend, "tooltip", "backend_tooltip")
+    _add_labeled_row(owner, form_layout, "backend", backend)
 
     output_kind = qt.QComboBox()
     for label in ("canonical-nifti", "compat-nrrd"):
         output_kind.addItem(label)
     output_kind.setToolTip("canonical-nifti is preferred. compat-nrrd is available for legacy DWIConvert routes.")
     owner._prepareInputWidgets["output_kind"] = output_kind
-    form_layout.addRow("Output", output_kind)
+    register_ui_language_binding(owner, output_kind, "tooltip", "output_tooltip")
+    _add_labeled_row(owner, form_layout, "output", output_kind)
 
     options_row = qt.QWidget()
     options_layout = qt.QHBoxLayout(options_row)
@@ -108,10 +121,14 @@ def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
     force.setToolTip("Allow replacing existing files in the destination input folder.")
     owner._prepareInputWidgets["dry_run"] = dry_run
     owner._prepareInputWidgets["force"] = force
+    register_ui_language_binding(owner, dry_run, "text", "dry_run")
+    register_ui_language_binding(owner, dry_run, "tooltip", "dry_run_tooltip")
+    register_ui_language_binding(owner, force, "text", "overwrite_files")
+    register_ui_language_binding(owner, force, "tooltip", "overwrite_files_tooltip")
     options_layout.addWidget(dry_run)
     options_layout.addWidget(force)
     options_layout.addStretch(1)
-    form_layout.addRow("Options", options_row)
+    _add_labeled_row(owner, form_layout, "options", options_row)
 
     buttons = qt.QHBoxLayout()
     preview_button = qt.QPushButton("Preview plan")
@@ -126,11 +143,17 @@ def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
     owner._prepareInputWidgets["preview_button"] = preview_button
     owner._prepareInputWidgets["prepare_button"] = prepare_button
     owner._prepareInputWidgets["manifest_button"] = manifest_button
+    register_ui_language_binding(owner, preview_button, "text", "preview_plan")
+    register_ui_language_binding(owner, preview_button, "tooltip", "preview_plan_tooltip")
+    register_ui_language_binding(owner, prepare_button, "text", "prepare_inputs_action")
+    register_ui_language_binding(owner, prepare_button, "tooltip", "prepare_inputs_action_tooltip")
+    register_ui_language_binding(owner, manifest_button, "text", "open_manifest")
+    register_ui_language_binding(owner, manifest_button, "tooltip", "open_prepare_manifest_tooltip")
     buttons.addWidget(preview_button)
     buttons.addWidget(prepare_button)
     buttons.addWidget(manifest_button)
     buttons.addStretch(1)
-    form_layout.addRow("Actions", buttons)
+    _add_labeled_row(owner, form_layout, "actions", buttons)
 
     try:
         configuration_layout.insertWidget(2, panel)
@@ -147,12 +170,46 @@ def _path_row(owner: Any, *, key: str, placeholder: str, browse_callback):
     edit = qt.QLineEdit()
     edit.setPlaceholderText(placeholder)
     edit.setToolTip(placeholder)
+    placeholder_key = {
+        "source": "source_placeholder",
+        "subject_root": "prepare_subject_root_placeholder",
+        "bval": "bval_placeholder",
+        "bvec": "bvec_placeholder",
+        "metadata": "metadata_placeholder",
+        "mask": "brain_mask_placeholder",
+    }[key]
+    register_ui_language_binding(owner, edit, "placeholder", placeholder_key)
+    register_ui_language_binding(owner, edit, "tooltip", placeholder_key)
     row_layout.addWidget(edit, 1)
     browse = qt.QPushButton("Browse...")
     browse.setToolTip(placeholder)
+    register_ui_language_binding(owner, browse, "text", "browse")
+    register_ui_language_binding(owner, browse, "tooltip", placeholder_key)
     browse.connect("clicked()", lambda key=key: browse_callback(key))
     row_layout.addWidget(browse)
     clear = qt.QPushButton("Clear")
+    register_ui_language_binding(owner, clear, "text", "clear")
     clear.connect("clicked()", lambda edit=edit: edit.setText(""))
     row_layout.addWidget(clear)
+    owner._prepareInputWidgets[f"{key}_browse"] = browse
+    owner._prepareInputWidgets[f"{key}_clear"] = clear
     return row, edit
+
+
+def _add_labeled_row(
+    owner: Any,
+    form_layout: Any,
+    translation_key: str,
+    field: Any,
+    *,
+    storage_key: str | None = None,
+) -> Any:
+    """Add an explicit form label so its text can change at runtime."""
+
+    import qt
+
+    label = qt.QLabel()
+    register_ui_language_binding(owner, label, "text", translation_key)
+    owner._prepareInputWidgets[storage_key or f"{translation_key}_label"] = label
+    form_layout.addRow(label, field)
+    return label

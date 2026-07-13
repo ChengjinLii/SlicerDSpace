@@ -183,6 +183,11 @@ def _environment_config_from_args(
         if args.doctor_output_dir
         else layout.run_metadata / "environment",
         python_executable=args.python_executable or args.doctor_python_executable,
+        python_path_entries=tuple(
+            Path(entry).expanduser().resolve()
+            for entry in sys.path
+            if entry and Path(entry).expanduser().exists()
+        ),
         python_environment=args.python_environment,
         conda_executable=args.conda_executable,
         preprocessing_backend=args.preprocessing_backend,

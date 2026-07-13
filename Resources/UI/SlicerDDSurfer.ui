@@ -327,14 +327,17 @@
         <item row="2" column="0">
          <widget class="QLabel" name="targetSurfaceLabel">
           <property name="text">
-           <string>Surface</string>
+           <string>Surface (native)</string>
           </property>
          </widget>
         </item>
         <item row="2" column="1">
          <widget class="QCheckBox" name="targetSurfaceCheckBox">
           <property name="text">
-           <string>DDSurfer white / pial surfaces</string>
+           <string>DDSurfer native white / pial STL surfaces</string>
+          </property>
+          <property name="toolTip">
+           <string>Run DDSurfer neural surface inference and produce native STL meshes only. This does not create a complete FreeSurfer subject directory or FreeSurfer-derived outputs.</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -345,13 +348,36 @@
          </widget>
         </item>
         <item row="3" column="0">
+         <widget class="QLabel" name="targetSurfacePostprocessLabel">
+          <property name="text">
+           <string>Surface postprocess</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QCheckBox" name="targetSurfacePostprocessCheckBox">
+          <property name="text">
+           <string>FreeSurfer-style DDSurfer postprocess</string>
+          </property>
+          <property name="toolTip">
+            <string>Optional. Stage DDSurfer native surfaces and MRI inputs, then run the FreeSurfer-style postprocess. Requires a complete FreeSurfer installation, a valid license, and the postprocess repository. Select Surface and Parcellation too unless completed native surfaces and wmparc already exist.</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+          <property name="SlicerParameterName" stdset="0">
+           <string>targetSurfacePostprocess</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
          <widget class="QLabel" name="targetParcellationLabel">
           <property name="text">
            <string>Parcellation</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
+        <item row="4" column="1">
          <widget class="QCheckBox" name="targetParcellationCheckBox">
          <property name="text">
            <string>DDParcel aparc / wmparc labels</string>
@@ -364,14 +390,14 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="0">
+        <item row="5" column="0">
          <widget class="QLabel" name="targetSegmentationLabel">
           <property name="text">
            <string>Segmentation</string>
           </property>
          </widget>
         </item>
-        <item row="4" column="1">
+        <item row="5" column="1">
          <widget class="QCheckBox" name="targetSegmentationCheckBox">
          <property name="text">
            <string>DDSeg WM / GM / CSF</string>
@@ -384,14 +410,14 @@
           </property>
          </widget>
         </item>
-        <item row="5" column="0">
+        <item row="6" column="0">
          <widget class="QLabel" name="targetMicrostructureLabel">
           <property name="text">
            <string>Microstructure</string>
           </property>
          </widget>
         </item>
-        <item row="5" column="1">
+        <item row="6" column="1">
          <widget class="QCheckBox" name="targetMicrostructureCheckBox">
          <property name="text">
            <string>FA / MD, ROI stats, Free Water, NODDI</string>
@@ -404,14 +430,14 @@
           </property>
          </widget>
         </item>
-        <item row="6" column="0">
+        <item row="7" column="0">
          <widget class="QLabel" name="targetTractographyLabel">
           <property name="text">
            <string>Tractography</string>
           </property>
          </widget>
         </item>
-        <item row="6" column="1">
+        <item row="7" column="1">
          <widget class="QCheckBox" name="targetTractographyCheckBox">
          <property name="text">
            <string>DTI tractogram, MRtrix CSD / FOD / ACT when backend is available</string>
@@ -424,14 +450,14 @@
           </property>
          </widget>
         </item>
-        <item row="7" column="0">
+        <item row="8" column="0">
          <widget class="QLabel" name="targetBundlesLabel">
           <property name="text">
            <string>Bundles</string>
           </property>
          </widget>
         </item>
-        <item row="7" column="1">
+        <item row="8" column="1">
          <widget class="QCheckBox" name="targetBundlesCheckBox">
          <property name="text">
 	           <string>Bundle extraction: WMQL presets, WMA, or TractCloud</string>
@@ -444,14 +470,14 @@
           </property>
          </widget>
         </item>
-        <item row="8" column="0">
+        <item row="9" column="0">
          <widget class="QLabel" name="targetConnectomeLabel">
           <property name="text">
            <string>Connectome</string>
           </property>
          </widget>
         </item>
-        <item row="8" column="1">
+        <item row="9" column="1">
          <widget class="QCheckBox" name="targetConnectomeCheckBox">
          <property name="text">
            <string>Streamline-count and scalar-weighted connectivity matrices</string>

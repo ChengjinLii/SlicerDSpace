@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -44,6 +45,164 @@ TRANSLATIONS = {
         "run": "<b>3. Run</b>",
         "check_env": "Check environment dependencies",
         "preflight_run": "Preflight and run",
+        "status_waiting": "Waiting for input",
+        "status_waiting_ellipsis": "Waiting for input...",
+        "environment_section": "Advanced: Dependency profile",
+        "environment_not_checked": "No environment check has been run yet.",
+        "torch_device": "Torch device",
+        "missing_python_dependencies": "Missing Python deps",
+        "install_python_dependencies": "Install missing Python packages before running",
+        "workflow": "Run workflow",
+        "subject_id": "Subject ID",
+        "subject_root": "Subject root",
+        "output_directory": "Output directory",
+        "preprocessing": "Preprocessing",
+        "preprocessing_option": "Optional DWI denoise / Gibbs / eddy-motion correction",
+        "preprocessing_backend": "Preproc backend",
+        "surface": "Surface (native)",
+        "surface_option": "DDSurfer native white / pial STL surfaces",
+        "surface_tooltip": (
+            "Run DDSurfer neural surface inference and produce native STL meshes only. "
+            "This does not create a complete FreeSurfer subject directory or FreeSurfer-derived outputs."
+        ),
+        "surface_postprocess": "Surface postprocess",
+        "surface_postprocess_option": "FreeSurfer-style DDSurfer postprocess",
+        "surface_postprocess_tooltip": (
+            "Optional. Stage DDSurfer native surfaces and MRI inputs, then run the FreeSurfer-style postprocess. "
+            "Requires a complete FreeSurfer installation, a valid license, and the postprocess repository. "
+            "Select Surface and Parcellation too unless completed native surfaces and wmparc already exist."
+        ),
+        "parcellation": "Parcellation",
+        "parcellation_option": "DDParcel aparc / wmparc labels",
+        "segmentation": "Segmentation",
+        "segmentation_option": "DDSeg WM / GM / CSF",
+        "microstructure": "Microstructure",
+        "microstructure_option": "FA / MD, ROI stats, Free Water, NODDI",
+        "tractography": "Tractography",
+        "tractography_option": "DTI tractogram, MRtrix CSD / FOD / ACT when backend is available",
+        "bundles": "Bundles",
+        "bundles_option": "Bundle extraction: WMQL presets, WMA, or TractCloud",
+        "connectome": "Connectome",
+        "connectome_option": "Streamline-count and scalar-weighted connectivity matrices",
+        "advanced_settings": "Advanced settings: backends, batch, streamlines",
+        "advanced_hint": "Change these only for non-default backends, batch runs, or optional microstructure stages.",
+        "run_name": "Run name",
+        "tractography_backend": "Tractography backend",
+        "bundle_backend": "Bundle backend",
+        "act_saf_streamlines": "ACT/SAF streamlines",
+        "microstructure_stages": "Microstructure stages",
+        "batch_mode": "Batch mode",
+        "process_all_subjects": "Process all subjects under a study root",
+        "batch_root": "Batch root",
+        "batch_size": "Batch size",
+        "arrange_inputs": "Arrange inputs",
+        "run_plan_progress": "Run Plan & Progress",
+        "run_plan_pending": "Run plan has not been generated yet.",
+        "run_summary_pending": "Run summary will appear after a plan or run completes.",
+        "open_latest_report": "Open latest report",
+        "open_output_tree": "Open output tree",
+        "target": "Target",
+        "state": "State",
+        "reason": "Reason",
+        "manifest": "Manifest",
+        "qc": "QC",
+        "logs": "Logs",
+        "cancel_job": "Cancel running job",
+        "prepare_inputs": "Prepare Inputs",
+        "prepare_inputs_tooltip": "Normalize DICOM, NRRD/NHDR, or NIfTI+bval/bvec inputs into a SlicerDDSurfer subject root.",
+        "prepare_summary": (
+            "Use this when inputs are not already organized as input/data.nii.gz, input/bvals and input/bvecs. "
+            "The import writes input/input_import_manifest.json and the workflow continues from the canonical subject root."
+        ),
+        "source_type": "Source type",
+        "source_type_tooltip": "Use auto unless you need to force a specific source type.",
+        "source": "Source",
+        "source_placeholder": "DICOM folder, DWI NIfTI, NRRD/NHDR, or canonical subject root",
+        "prepare_subject_root_placeholder": "Destination subject root, e.g. /data/study/sub-01",
+        "prepare_subject_id_tooltip": "Subject identifier recorded in input/input_import_manifest.json.",
+        "sidecar_summary": "Optional sidecars for NIfTI inputs or externally generated masks.",
+        "bval": "bval",
+        "bval_placeholder": "Optional .bval sidecar",
+        "bvec": "bvec",
+        "bvec_placeholder": "Optional .bvec sidecar",
+        "metadata_json": "Metadata JSON",
+        "metadata_placeholder": "Optional BIDS-style .json sidecar",
+        "brain_mask": "Brain mask",
+        "brain_mask_placeholder": "Optional nodif_brain_mask.nii.gz",
+        "backend": "Backend",
+        "backend_tooltip": "Use auto unless you need to force dcm2niix, MRtrix3 mrconvert, SlicerDMRI DWIConvert, or copy.",
+        "output": "Output",
+        "output_tooltip": "canonical-nifti is preferred. compat-nrrd is available for legacy DWIConvert routes.",
+        "options": "Options",
+        "preview_plan": "Preview plan",
+        "preview_plan_tooltip": "Build and show the input import plan without writing files.",
+        "prepare_inputs_action": "Prepare inputs",
+        "prepare_inputs_action_tooltip": "Create the canonical subject-root input folder and write input_import_manifest.json.",
+        "open_manifest": "Open manifest",
+        "open_prepare_manifest_tooltip": "Open input/input_import_manifest.json for the selected subject root.",
+        "model_manifest_tooltip": "Open models/assets_manifest.json.",
+        "dry_run": "Dry run",
+        "dry_run_tooltip": "Plan the import without writing files.",
+        "overwrite_files": "Overwrite existing files",
+        "overwrite_files_tooltip": "Allow replacing existing files in the destination input folder.",
+        "actions": "Actions",
+        "browse": "Browse...",
+        "external_runtime_paths": "External Runtime Paths",
+        "external_runtime_paths_tooltip": (
+            "Discovery order: saved path, environment variables, PATH, then common install paths. "
+            "Leave fields empty to rely on automatic discovery."
+        ),
+        "env_auto_detect": "Auto-detect if empty",
+        "env_not_checked": "not checked",
+        "env_check_pending": "check pending",
+        "env_not_found": "not found",
+        "env_not_used": "not used by current selection",
+        "env_using_saved_path": "using saved path",
+        "config": "Config",
+        "import_dependency_config": "Import dependency config",
+        "import_dependency_config_tooltip": "Load a SlicerDDSurfer dependency config JSON and save the external paths into Slicer settings.",
+        "export_dependency_config": "Export dependency config",
+        "export_dependency_config_tooltip": "Save the currently configured external paths as a CLI-compatible JSON config.",
+        "open_environment_report": "Open environment report",
+        "open_environment_report_tooltip": "Open the latest environment_doctor.json directory after a dependency check.",
+        "open_install_logs": "Open install logs",
+        "open_install_logs_tooltip": "Open the latest Python dependency install logs/results directory.",
+        "model_assets_bundle": "Model assets bundle",
+        "check_status": "Check status",
+        "check_status_tooltip": "Check whether core and all model asset profiles are present and not Git LFS pointer files.",
+        "verify_core": "Verify core",
+        "verify_core_tooltip": "Verify the core model asset profile required by DDSurfer, DDSeg, and DDParcel.",
+        "write_lockfile": "Write lockfile",
+        "write_lockfile_tooltip": "Write a SHA256 lockfile for the core model asset profile.",
+        "open_guide": "Open guide",
+        "open_guide_tooltip": "Open docs/assets/MODEL_ASSETS.md for unified model weights/template download and verification.",
+        "terms": "Terms",
+        "terms_tooltip": "Open docs/assets/MODEL_ASSET_TERMS.md.",
+        "provenance": "Provenance",
+        "provenance_tooltip": "Show model asset profile, verification, lockfile, and release-boundary notes.",
+        "release_notes": "Release notes",
+        "release_notes_tooltip": "Open docs/release/RELEASE_NOTES_v0.1.0.md.",
+        "select_path": "Select",
+        "log_title": "Pipeline Log",
+        "log_hint": "Live background log. Long runs keep the latest messages for UI responsiveness.",
+        "clear": "Clear",
+        "environment_ready": "Environment ready",
+        "environment_check_failed": "Environment check failed",
+        "installing_dependencies": "Installing Python dependencies...",
+        "dependency_install_failed": "Dependency installation failed",
+        "run_planning_failed": "Run planning failed",
+        "running_pipeline": "Running pipeline...",
+        "pipeline_completed": "Pipeline completed",
+        "pipeline_cancelled": "Pipeline cancelled",
+        "background_submitted": "Background execution submitted.",
+        "failed_start_background": "Failed to start background job",
+        "failed_start_batch": "Failed to start batch job",
+        "pipeline_no_manifest": "Pipeline failed: no manifest",
+        "pipeline_invalid_manifest": "Pipeline failed: invalid manifest",
+        "pipeline_no_manifest_detail": "Pipeline failed: no manifest path was reported.",
+        "batch_completed": "Batch completed",
+        "cancelling_background": "Cancelling background job...",
+        "cancelled_summary": "Status: cancelled | User cancelled the background job.",
     },
     "zh": {
         "beginner_title": "新手设置",
@@ -65,7 +224,339 @@ TRANSLATIONS = {
         "run": "<b>3. 检查并运行</b>",
         "check_env": "检查环境依赖",
         "preflight_run": "预检查并运行",
+        "status_waiting": "等待输入",
+        "status_waiting_ellipsis": "等待输入…",
+        "environment_section": "高级：依赖配置",
+        "environment_not_checked": "尚未检查环境依赖。",
+        "torch_device": "Torch 设备",
+        "missing_python_dependencies": "缺少的 Python 依赖",
+        "install_python_dependencies": "运行前安装缺少的 Python 包",
+        "workflow": "运行工作流",
+        "subject_id": "受试者 ID",
+        "subject_root": "受试者根目录",
+        "output_directory": "输出目录",
+        "preprocessing": "预处理",
+        "preprocessing_option": "可选 DWI 降噪、Gibbs 校正及涡流/运动校正",
+        "preprocessing_backend": "预处理后端",
+        "surface": "表面重建（原生）",
+        "surface_option": "DDSurfer 原生白质面 / 软脑膜面 STL",
+        "surface_tooltip": (
+            "运行 DDSurfer 神经网络表面推理，仅生成原生 STL 网格。"
+            "不会创建完整的 FreeSurfer 受试者目录或 FreeSurfer 派生产物。"
+        ),
+        "surface_postprocess": "表面后处理",
+        "surface_postprocess_option": "FreeSurfer 风格 DDSurfer 后处理",
+        "surface_postprocess_tooltip": (
+            "可选。暂存 DDSurfer 原生表面和 MRI 输入，然后运行 FreeSurfer 风格后处理。"
+            "需要完整的 FreeSurfer 安装、有效许可证和后处理代码库。"
+            "除非已有完整的原生表面和 wmparc，否则也请选择“表面重建（原生）”与“脑区分割”。"
+        ),
+        "parcellation": "脑区分割",
+        "parcellation_option": "DDParcel aparc / wmparc 标签",
+        "segmentation": "组织分割",
+        "segmentation_option": "DDSeg 白质 / 灰质 / 脑脊液",
+        "microstructure": "微结构",
+        "microstructure_option": "FA / MD、ROI 统计、自由水、NODDI",
+        "tractography": "纤维追踪",
+        "tractography_option": "DTI 纤维追踪；后端可用时可运行 MRtrix CSD / FOD / ACT",
+        "bundles": "纤维束",
+        "bundles_option": "纤维束提取：WMQL 预设、WMA 或 TractCloud",
+        "connectome": "连接组",
+        "connectome_option": "流线计数及标量加权连接矩阵",
+        "advanced_settings": "高级设置：后端、批处理、流线数量",
+        "advanced_hint": "仅在使用非默认后端、批处理或可选微结构阶段时修改这些设置。",
+        "run_name": "运行名称",
+        "tractography_backend": "纤维追踪后端",
+        "bundle_backend": "纤维束后端",
+        "act_saf_streamlines": "ACT/SAF 流线数量",
+        "microstructure_stages": "微结构阶段",
+        "batch_mode": "批处理模式",
+        "process_all_subjects": "处理研究根目录下的所有受试者",
+        "batch_root": "批处理根目录",
+        "batch_size": "并行批大小",
+        "arrange_inputs": "整理输入",
+        "run_plan_progress": "运行计划与进度",
+        "run_plan_pending": "尚未生成运行计划。",
+        "run_summary_pending": "生成计划或运行完成后将在此显示摘要。",
+        "open_latest_report": "打开最新报告",
+        "open_output_tree": "打开输出目录报告",
+        "target": "目标",
+        "state": "状态",
+        "reason": "原因",
+        "manifest": "清单",
+        "qc": "质控",
+        "logs": "日志",
+        "cancel_job": "取消正在运行的任务",
+        "prepare_inputs": "准备输入",
+        "prepare_inputs_tooltip": "将 DICOM、NRRD/NHDR 或 NIfTI+bval/bvec 输入规范化为 SlicerDDSurfer 受试者根目录。",
+        "prepare_summary": "当输入尚未整理为 input/data.nii.gz、input/bvals 和 input/bvecs 时使用此功能。导入过程会写入 input/input_import_manifest.json，工作流随后从规范受试者根目录继续。",
+        "source_type": "来源类型",
+        "source_type_tooltip": "通常使用 auto；仅在需要强制指定来源类型时修改。",
+        "source": "来源",
+        "source_placeholder": "DICOM 文件夹、DWI NIfTI、NRRD/NHDR 或规范受试者根目录",
+        "prepare_subject_root_placeholder": "目标受试者根目录，例如 /data/study/sub-01",
+        "prepare_subject_id_tooltip": "记录到 input/input_import_manifest.json 的受试者标识。",
+        "sidecar_summary": "NIfTI 输入或外部生成掩膜的可选辅助文件。",
+        "bval": "bval",
+        "bval_placeholder": "可选 .bval 辅助文件",
+        "bvec": "bvec",
+        "bvec_placeholder": "可选 .bvec 辅助文件",
+        "metadata_json": "元数据 JSON",
+        "metadata_placeholder": "可选 BIDS 风格 .json 辅助文件",
+        "brain_mask": "脑掩膜",
+        "brain_mask_placeholder": "可选 nodif_brain_mask.nii.gz",
+        "backend": "后端",
+        "backend_tooltip": "通常使用 auto；仅在需要强制使用 dcm2niix、MRtrix3 mrconvert、SlicerDMRI DWIConvert 或 copy 时修改。",
+        "output": "输出",
+        "output_tooltip": "推荐 canonical-nifti；compat-nrrd 仅用于兼容旧版 DWIConvert 流程。",
+        "options": "选项",
+        "preview_plan": "预览计划",
+        "preview_plan_tooltip": "构建并显示输入导入计划，但不写入文件。",
+        "prepare_inputs_action": "准备输入",
+        "prepare_inputs_action_tooltip": "创建规范受试者根目录的 input 文件夹，并写入 input_import_manifest.json。",
+        "open_manifest": "打开清单",
+        "open_prepare_manifest_tooltip": "打开所选受试者根目录中的 input/input_import_manifest.json。",
+        "model_manifest_tooltip": "打开 models/assets_manifest.json。",
+        "dry_run": "仅预演",
+        "dry_run_tooltip": "仅规划导入，不写入文件。",
+        "overwrite_files": "覆盖现有文件",
+        "overwrite_files_tooltip": "允许替换目标 input 文件夹中的现有文件。",
+        "actions": "操作",
+        "browse": "浏览…",
+        "external_runtime_paths": "外部运行环境路径",
+        "external_runtime_paths_tooltip": "按已保存路径、环境变量、PATH、常见安装路径的顺序查找。留空即可使用自动检测。",
+        "env_auto_detect": "留空时自动检测",
+        "env_not_checked": "未检查",
+        "env_check_pending": "等待检查",
+        "env_not_found": "未找到",
+        "env_not_used": "当前选择未使用",
+        "env_using_saved_path": "使用已保存路径",
+        "config": "配置",
+        "import_dependency_config": "导入依赖配置",
+        "import_dependency_config_tooltip": "加载 SlicerDDSurfer 依赖配置 JSON，并将外部路径保存到 Slicer 设置。",
+        "export_dependency_config": "导出依赖配置",
+        "export_dependency_config_tooltip": "将当前外部路径保存为兼容 CLI 的 JSON 配置。",
+        "open_environment_report": "打开环境报告",
+        "open_environment_report_tooltip": "依赖检查后打开最新 environment_doctor.json 所在目录。",
+        "open_install_logs": "打开安装日志",
+        "open_install_logs_tooltip": "打开最新 Python 依赖安装日志和结果目录。",
+        "model_assets_bundle": "模型资源包",
+        "check_status": "检查状态",
+        "check_status_tooltip": "检查核心及全部模型资源配置是否存在，并确认它们不是 Git LFS 指针文件。",
+        "verify_core": "验证核心资源",
+        "verify_core_tooltip": "验证 DDSurfer、DDSeg 和 DDParcel 所需的核心模型资源。",
+        "write_lockfile": "写入锁定文件",
+        "write_lockfile_tooltip": "为核心模型资源写入 SHA256 锁定文件。",
+        "open_guide": "打开指南",
+        "open_guide_tooltip": "打开 docs/assets/MODEL_ASSETS.md，查看统一模型权重/模板的下载与验证说明。",
+        "terms": "条款",
+        "terms_tooltip": "打开 docs/assets/MODEL_ASSET_TERMS.md。",
+        "provenance": "来源信息",
+        "provenance_tooltip": "显示模型资源配置、验证、锁定文件及发布边界说明。",
+        "release_notes": "发行说明",
+        "release_notes_tooltip": "打开 docs/release/RELEASE_NOTES_v0.1.0.md。",
+        "select_path": "选择",
+        "log_title": "Pipeline 日志",
+        "log_hint": "实时后台日志。长时间运行时仅保留最新消息，以确保界面响应。",
+        "clear": "清空",
+        "environment_ready": "环境已就绪",
+        "environment_check_failed": "环境检查失败",
+        "installing_dependencies": "正在安装 Python 依赖…",
+        "dependency_install_failed": "依赖安装失败",
+        "run_planning_failed": "运行规划失败",
+        "running_pipeline": "正在运行 Pipeline…",
+        "pipeline_completed": "Pipeline 已完成",
+        "pipeline_cancelled": "Pipeline 已取消",
+        "background_submitted": "后台任务已提交。",
+        "failed_start_background": "后台任务启动失败",
+        "failed_start_batch": "批处理任务启动失败",
+        "pipeline_no_manifest": "Pipeline 失败：没有清单",
+        "pipeline_invalid_manifest": "Pipeline 失败：清单无效",
+        "pipeline_no_manifest_detail": "Pipeline 失败：后台进程未报告清单路径。",
+        "batch_completed": "批处理已完成",
+        "cancelling_background": "正在取消后台任务…",
+        "cancelled_summary": "状态：已取消 | 用户取消了后台任务。",
     },
+}
+
+
+ENVIRONMENT_SECTION_TEXT = {
+    "en": {
+        "model-assets": (
+            "Model Asset Paths",
+            "Configure where DDSurfer, DDSeg and DDParcel weights/templates are stored. Use a user data directory or shared lab cache rather than the Slicer extension code directory.",
+        ),
+        "core-runtime": (
+            "Core Python & Runtime Paths",
+            "Configure the shared Python runtime and external toolchain used by preprocessing, post-process, and WMQL. Leave empty to use saved settings, environment variables, PATH, and common install paths.",
+        ),
+        "bundle-backends": (
+            "Optional Backend Paths",
+            "WMA and TractCloud are optional bundle-extraction backends. Keep them grouped here instead of mixing them with the core runtime toolchain.",
+        ),
+        "wma": ("WMA Paths", "WhiteMatterAnalysis checkout, ORG atlas, and helper Slicer/CLI paths."),
+        "tractcloud": ("TractCloud Paths", "TractCloud checkout, Python runtime, and model/data directory."),
+    },
+    "zh": {
+        "model-assets": (
+            "模型资源路径",
+            "配置 DDSurfer、DDSeg 和 DDParcel 权重/模板的存放位置。请使用用户数据目录或实验室共享缓存，不要放在 Slicer 扩展代码目录中。",
+        ),
+        "core-runtime": (
+            "核心 Python 与运行环境路径",
+            "配置预处理、后处理和 WMQL 共用的 Python 环境与外部工具链。留空时将使用已保存设置、环境变量、PATH 和常见安装路径。",
+        ),
+        "bundle-backends": (
+            "可选后端路径",
+            "WMA 和 TractCloud 是可选纤维束提取后端；这些路径集中放在这里，与核心运行工具链分开管理。",
+        ),
+        "wma": ("WMA 路径", "WhiteMatterAnalysis 代码、ORG atlas 以及辅助 Slicer/CLI 路径。"),
+        "tractcloud": ("TractCloud 路径", "TractCloud 代码、Python 运行环境及模型/数据目录。"),
+    },
+}
+
+
+ENVIRONMENT_DEPENDENCY_TEXT = {
+    "en": {
+        "python_executable": (
+            "Python executable",
+            "Optional. Python executable for dependency checks and Python package installation. Defaults to current Slicer Python.",
+        ),
+        "python_environment": (
+            "Python/conda environment",
+            "Optional. Conda environment name or Python executable path. Explicit Python executable takes precedence.",
+        ),
+        "conda_executable": (
+            "conda/mamba executable",
+            "Optional. conda or mamba executable used when Python/conda environment is an environment name.",
+        ),
+        "model_assets_dir": (
+            "Model assets root",
+            "Optional. Root directory for downloaded SlicerDDSurfer model assets. Defaults to SLICERDDSURFER_MODEL_ASSETS_DIR or a per-user data directory.",
+        ),
+        "mrtrix_bin_dir": (
+            "MRtrix3 bin dir",
+            "Optional. Directory containing mrconvert, dwi2response, dwi2fod, tckgen, tcksift2.",
+        ),
+        "preprocessing_fsl_bin_dir": (
+            "FSL bin dir",
+            "Optional. Directory containing eddy and topup for MRtrix/FSL preprocessing.",
+        ),
+        "postprocess_freesurfer_home": (
+            "FreeSurfer home",
+            "Optional. FreeSurfer installation root. FREESURFER_HOME is also detected.",
+        ),
+        "tract_querier_root": (
+            "TractQuerier root",
+            "Optional. Checkout root used by WMQL when tract_querier is not installed in Slicer Python.",
+        ),
+        "wma_root": ("WMA root", "Optional. External WhiteMatterAnalysis checkout root."),
+        "wma_atlas_dir": (
+            "WMA ORG atlas dir",
+            "Optional. Directory containing ORG-RegAtlas-100HCP and ORG-800FC-100HCP.",
+        ),
+        "slicer_executable": (
+            "Slicer executable for WMA",
+            "Optional. Slicer executable used by WMA/SlicerDMRI helper calls.",
+        ),
+        "fiber_tract_measurements_cli": (
+            "FiberTractMeasurements CLI",
+            "Optional. SlicerDMRI FiberTractMeasurements CLI path.",
+        ),
+        "tractcloud_root": ("TractCloud root", "Optional. TractCloud package/check-out root."),
+        "tractcloud_python_executable": (
+            "TractCloud Python",
+            "Optional. Dedicated Python executable for TractCloud if not using Slicer Python.",
+        ),
+        "tractcloud_data_dir": ("TractCloud data/model dir", "Optional. TractCloud model/data directory."),
+    },
+    "zh": {
+        "python_executable": ("Python 可执行文件", "可选。用于依赖检查和 Python 包安装；默认使用当前 Slicer Python。"),
+        "python_environment": ("Python/conda 环境", "可选。Conda 环境名称或 Python 可执行文件路径；显式 Python 路径优先。"),
+        "conda_executable": ("conda/mamba 可执行文件", "可选。当 Python/conda 环境填写环境名称时，用它解析该环境。"),
+        "model_assets_dir": ("模型资源根目录", "可选。下载的 SlicerDDSurfer 模型资源根目录；默认使用 SLICERDDSURFER_MODEL_ASSETS_DIR 或用户数据目录。"),
+        "mrtrix_bin_dir": ("MRtrix3 bin 目录", "可选。包含 mrconvert、dwi2response、dwi2fod、tckgen、tcksift2 的目录。"),
+        "preprocessing_fsl_bin_dir": ("FSL bin 目录", "可选。包含 MRtrix/FSL 预处理所需 eddy 和 topup 的目录。"),
+        "postprocess_freesurfer_home": ("FreeSurfer 主目录", "可选。FreeSurfer 安装根目录；也会检测 FREESURFER_HOME。"),
+        "tract_querier_root": ("TractQuerier 根目录", "可选。当 Slicer Python 未安装 tract_querier 时，WMQL 使用的代码根目录。"),
+        "wma_root": ("WMA 根目录", "可选。外部 WhiteMatterAnalysis 代码根目录。"),
+        "wma_atlas_dir": ("WMA ORG atlas 目录", "可选。包含 ORG-RegAtlas-100HCP 和 ORG-800FC-100HCP 的目录。"),
+        "slicer_executable": ("WMA 使用的 Slicer", "可选。WMA/SlicerDMRI 辅助调用使用的 Slicer 可执行文件。"),
+        "fiber_tract_measurements_cli": ("FiberTractMeasurements CLI", "可选。SlicerDMRI FiberTractMeasurements CLI 路径。"),
+        "tractcloud_root": ("TractCloud 根目录", "可选。TractCloud 软件包/代码根目录。"),
+        "tractcloud_python_executable": ("TractCloud Python", "可选。不使用 Slicer Python 时，TractCloud 专用的 Python 可执行文件。"),
+        "tractcloud_data_dir": ("TractCloud 数据/模型目录", "可选。TractCloud 模型和数据目录。"),
+    },
+}
+
+
+MAIN_UI_TEXT_BINDINGS = {
+    "headlineLabel": "headline",
+    "subtitleLabel": "subtitle",
+    "environmentCollapsibleButton": "environment_section",
+    "unifiedTorchDeviceLabel": "torch_device",
+    "autoInstallPythonDependenciesLabel": "missing_python_dependencies",
+    "autoInstallPythonDependenciesCheckBox": "install_python_dependencies",
+    "configurationCollapsibleButton": "workflow",
+    "configurationSectionLabel": "choose_input",
+    "subjectIdLabel": "subject_id",
+    "inputDirectoryLabel": "subject_root",
+    "outputDirectoryLabel": "output_directory",
+    "targetsSectionLabel": "choose_products",
+    "targetPreprocessingLabel": "preprocessing",
+    "targetPreprocessingCheckBox": "preprocessing_option",
+    "preprocessingBackendLabel": "preprocessing_backend",
+    "targetSurfaceLabel": "surface",
+    "targetSurfaceCheckBox": "surface_option",
+    "targetSurfacePostprocessLabel": "surface_postprocess",
+    "targetSurfacePostprocessCheckBox": "surface_postprocess_option",
+    "targetParcellationLabel": "parcellation",
+    "targetParcellationCheckBox": "parcellation_option",
+    "targetSegmentationLabel": "segmentation",
+    "targetSegmentationCheckBox": "segmentation_option",
+    "targetMicrostructureLabel": "microstructure",
+    "targetMicrostructureCheckBox": "microstructure_option",
+    "targetTractographyLabel": "tractography",
+    "targetTractographyCheckBox": "tractography_option",
+    "targetBundlesLabel": "bundles",
+    "targetBundlesCheckBox": "bundles_option",
+    "targetConnectomeLabel": "connectome",
+    "targetConnectomeCheckBox": "connectome_option",
+    "advancedRunCollapsibleButton": "advanced_settings",
+    "advancedRunSectionLabel": "advanced_hint",
+    "orchestrationRunNameLabel": "run_name",
+    "orchestrationTractographyBackendLabel": "tractography_backend",
+    "orchestrationBundleBackendLabel": "bundle_backend",
+    "orchestrationSelectStreamlinesLabel": "act_saf_streamlines",
+    "orchestrationMicrostructureStagesLabel": "microstructure_stages",
+    "batchModeLabel": "batch_mode",
+    "batchModeCheckBox": "process_all_subjects",
+    "batchRootLabel": "batch_root",
+    "batchSizeLabel": "batch_size",
+    "batchArrangeInputsLabel": "arrange_inputs",
+    "runStepSectionLabel": "run",
+    "validateButton": "check_env",
+    "runSelectedButton": "preflight_run",
+    "logCollapsibleButton": "log_title",
+    "logHintLabel": "log_hint",
+    "clearLogButton": "clear",
+}
+
+
+MAIN_UI_TOOLTIP_BINDINGS = {
+    "targetSurfaceCheckBox": "surface_tooltip",
+    "targetSurfacePostprocessCheckBox": "surface_postprocess_tooltip",
+}
+
+
+DYNAMIC_UI_TEXT_BINDINGS = {
+    "_cancelRunButton": "cancel_job",
+    "_runStatusPanel": "run_plan_progress",
+    "_runReportButton": "open_latest_report",
+    "_runOutputTreeButton": "open_output_tree",
+    "_environmentAdvancedPathsWidget": "external_runtime_paths",
+    "_environmentImportConfigButton": "import_dependency_config",
+    "_environmentExportConfigButton": "export_dependency_config",
 }
 
 
@@ -80,6 +571,198 @@ def onboarding_text(language: str, key: str) -> str:
 
     lang = normalized_language(language)
     return TRANSLATIONS.get(lang, TRANSLATIONS["en"]).get(key, TRANSLATIONS["en"].get(key, key))
+
+
+def environment_section_text(language: str, section: str) -> tuple[str, str]:
+    """Return the localized title and description for an environment section."""
+
+    lang = normalized_language(language)
+    fallback = ENVIRONMENT_SECTION_TEXT["en"].get(section, (section, ""))
+    return ENVIRONMENT_SECTION_TEXT.get(lang, ENVIRONMENT_SECTION_TEXT["en"]).get(section, fallback)
+
+
+def dependency_ui_text(language: str, dependency_id: str, field: str) -> str:
+    """Return a localized dependency-path row label or tooltip."""
+
+    lang = normalized_language(language)
+    fallback = ENVIRONMENT_DEPENDENCY_TEXT["en"].get(dependency_id, (dependency_id, ""))
+    values = ENVIRONMENT_DEPENDENCY_TEXT.get(lang, ENVIRONMENT_DEPENDENCY_TEXT["en"]).get(
+        dependency_id,
+        fallback,
+    )
+    return values[0 if field == "label" else 1]
+
+
+UI_MESSAGE_TEMPLATES = (
+    (
+        r"Partial results: (?P<count>\d+) blocked task\(s\)",
+        r"部分结果：(?P<count>\d+) 个任务被阻塞",
+        "Partial results: {count} blocked task(s)",
+        "部分结果：{count} 个任务被阻塞",
+    ),
+    (
+        r"Pipeline failed: exit code (?P<code>-?\d+)",
+        r"Pipeline 失败：退出码 (?P<code>-?\d+)",
+        "Pipeline failed: exit code {code}",
+        "Pipeline 失败：退出码 {code}",
+    ),
+    (
+        r"Completed with (?P<count>\d+) failed task\(s\)",
+        r"完成，但有 (?P<count>\d+) 个任务失败",
+        "Completed with {count} failed task(s)",
+        "完成，但有 {count} 个任务失败",
+    ),
+    (
+        r"Completed with (?P<count>\d+) blocked task\(s\)",
+        r"完成，但有 (?P<count>\d+) 个任务被阻塞",
+        "Completed with {count} blocked task(s)",
+        "完成，但有 {count} 个任务被阻塞",
+    ),
+    (
+        r"Batch failed: (?P<count>\d+) subject\(s\)",
+        r"批处理失败：(?P<count>\d+) 个受试者失败",
+        "Batch failed: {count} subject(s)",
+        "批处理失败：{count} 个受试者失败",
+    ),
+    (
+        r"Environment: (?P<count>\d+) missing required item\(s\)",
+        r"环境：缺少 (?P<count>\d+) 个必需项",
+        "Environment: {count} missing required item(s)",
+        "环境：缺少 {count} 个必需项",
+    ),
+    (
+        r"Pipeline cancelled\. Manifest: (?P<path>.+)",
+        r"Pipeline 已取消。清单：(?P<path>.+)",
+        "Pipeline cancelled. Manifest: {path}",
+        "Pipeline 已取消。清单：{path}",
+    ),
+    (
+        r"Run finished\. Manifest: (?P<path>.+)",
+        r"运行完成。清单：(?P<path>.+)",
+        "Run finished. Manifest: {path}",
+        "运行完成。清单：{path}",
+    ),
+    (
+        r"Batch finished\. Manifest: (?P<path>.+)",
+        r"批处理完成。清单：(?P<path>.+)",
+        "Batch finished. Manifest: {path}",
+        "批处理完成。清单：{path}",
+    ),
+    (
+        r"Run finished\. Loading up to (?P<count>\d+) key result node\(s\)\.\.\.",
+        r"运行完成。正在加载最多 (?P<count>\d+) 个关键结果节点…",
+        "Run finished. Loading up to {count} key result node(s)...",
+        "运行完成。正在加载最多 {count} 个关键结果节点…",
+    ),
+    (
+        r"Batch execution submitted for (?P<path>.+)\.",
+        r"已为 (?P<path>.+) 提交批处理任务。",
+        "Batch execution submitted for {path}.",
+        "已为 {path} 提交批处理任务。",
+    ),
+    (
+        r"Status: failed \| Background process exited with code (?P<code>-?\d+)\.",
+        r"状态：失败 \| 后台进程退出码为 (?P<code>-?\d+)。",
+        "Status: failed | Background process exited with code {code}.",
+        "状态：失败 | 后台进程退出码为 {code}。",
+    ),
+    (
+        r"detected from (?P<source>.+)",
+        r"检测来源：(?P<source>.+)",
+        "detected from {source}",
+        "检测来源：{source}",
+    ),
+    (
+        r"Pipeline failed: (?P<detail>.+)",
+        r"Pipeline 失败：(?P<detail>.+)",
+        "Pipeline failed: {detail}",
+        "Pipeline 失败：{detail}",
+    ),
+)
+
+
+def translated_ui_message(language: str, message: str) -> str:
+    """Translate a known UI status message while preserving unknown runtime details."""
+
+    source = str(message or "")
+    for key, english in TRANSLATIONS["en"].items():
+        if not isinstance(english, str):
+            continue
+        if source in {english, TRANSLATIONS["zh"].get(key)}:
+            return onboarding_text(language, key)
+    for english_pattern, chinese_pattern, english_template, chinese_template in UI_MESSAGE_TEMPLATES:
+        match = re.fullmatch(english_pattern, source) or re.fullmatch(chinese_pattern, source)
+        if match:
+            template = chinese_template if normalized_language(language) == "zh" else english_template
+            return template.format(**match.groupdict())
+    return source
+
+
+def register_ui_language_binding(owner: Any, widget: Any, property_name: str, translation_key: str) -> None:
+    """Register one dynamically created widget property for language switching."""
+
+    if widget is None:
+        return
+    bindings = getattr(owner, "_uiLanguageBindings", None)
+    if bindings is None:
+        bindings = []
+        owner._uiLanguageBindings = bindings
+    bindings.append((widget, property_name, translation_key))
+
+
+def _set_widget_text(widget: Any, text: str) -> None:
+    """Set text on Qt/PythonQt widgets without depending on one binding style."""
+
+    if widget is None:
+        return
+    try:
+        widget.setText(text)
+    except Exception:
+        pass
+    try:
+        widget.text = text
+    except Exception:
+        pass
+
+
+def _set_widget_tooltip(widget: Any, text: str) -> None:
+    """Set a translated tooltip on Qt/PythonQt widgets."""
+
+    if widget is None:
+        return
+    try:
+        widget.setToolTip(text)
+    except Exception:
+        pass
+    try:
+        widget.toolTip = text
+    except Exception:
+        pass
+
+
+def _set_widget_placeholder(widget: Any, text: str) -> None:
+    """Set translated placeholder text on Qt/PythonQt input widgets."""
+
+    if widget is None:
+        return
+    try:
+        widget.setPlaceholderText(text)
+    except Exception:
+        pass
+    try:
+        widget.placeholderText = text
+    except Exception:
+        pass
+
+
+def _widget_text(widget: Any) -> str:
+    if widget is None:
+        return ""
+    try:
+        value = widget.text()
+    except Exception:
+        value = getattr(widget, "text", "")
+    return str(value or "")
 
 
 def platform_path_examples(language: str, *, system: str | None = None) -> str:
@@ -294,9 +977,10 @@ def install_onboarding_panel(owner: Any, parent_layout: Any) -> None:
 
 
 def apply_onboarding_language(owner: Any, language: str) -> None:
-    """Apply translated labels to the beginner-facing and primary workflow UI."""
+    """Apply translated labels to onboarding, workflow, and run-status controls."""
 
     lang = normalized_language(language)
+    owner._onboardingLanguage = lang
     widgets = getattr(owner, "_onboardingWidgets", {}) or {}
     for name, key in (
         ("title", "beginner_title"),
@@ -308,35 +992,130 @@ def apply_onboarding_language(owner: Any, language: str) -> None:
         ("config_button", "open_config"),
     ):
         widget = widgets.get(name)
-        if widget:
-            widget.setText(onboarding_text(lang, key))
+        if widget is not None:
+            _set_widget_text(widget, onboarding_text(lang, key))
     examples = widgets.get("examples")
-    if examples:
-        examples.setText(platform_path_examples(lang))
+    if examples is not None:
+        _set_widget_text(examples, platform_path_examples(lang))
     combo = widgets.get("language_combo")
-    if combo:
+    if combo is not None:
         index = combo.findData(lang)
         if index >= 0 and combo.currentIndex != index:
             combo.blockSignals(True)
             combo.setCurrentIndex(index)
             combo.blockSignals(False)
-    primary = {
-        "headlineLabel": "headline",
-        "subtitleLabel": "subtitle",
-        "configurationSectionLabel": "choose_input",
-        "targetsSectionLabel": "choose_products",
-        "runStepSectionLabel": "run",
-        "validateButton": "check_env",
-        "runSelectedButton": "preflight_run",
-    }
     ui = getattr(owner, "ui", None)
-    for widget_name, key in primary.items():
+    for widget_name, key in MAIN_UI_TEXT_BINDINGS.items():
         widget = getattr(ui, widget_name, None)
-        if widget:
-            widget.setText(onboarding_text(lang, key))
+        if widget is not None:
+            _set_widget_text(widget, onboarding_text(lang, key))
+
+    for widget_name, key in MAIN_UI_TOOLTIP_BINDINGS.items():
+        _set_widget_tooltip(getattr(ui, widget_name, None), onboarding_text(lang, key))
+
+    for attribute, key in DYNAMIC_UI_TEXT_BINDINGS.items():
+        _set_widget_text(getattr(owner, attribute, None), onboarding_text(lang, key))
+
+    for widget, property_name, key in tuple(getattr(owner, "_uiLanguageBindings", ()) or ()):
+        value = onboarding_text(lang, key)
+        if property_name == "tooltip":
+            _set_widget_tooltip(widget, value)
+        elif property_name == "placeholder":
+            _set_widget_placeholder(widget, value)
+        else:
+            _set_widget_text(widget, value)
+
+    for section, title_widget, description_widget in tuple(
+        getattr(owner, "_environmentSectionLanguageWidgets", ()) or ()
+    ):
+        title, description = environment_section_text(lang, section)
+        _set_widget_text(title_widget, title)
+        _set_widget_text(description_widget, description)
+
+    dependency_rows = getattr(owner, "_environmentPathLanguageWidgets", {}) or {}
+    for dependency_id, row_widgets in dependency_rows.items():
+        label = dependency_ui_text(lang, dependency_id, "label")
+        tooltip = dependency_ui_text(lang, dependency_id, "tooltip")
+        _set_widget_text(row_widgets.get("label"), label)
+        _set_widget_placeholder(row_widgets.get("line_edit"), onboarding_text(lang, "env_auto_detect"))
+        _set_widget_tooltip(row_widgets.get("line_edit"), tooltip)
+        _set_widget_text(row_widgets.get("browse"), onboarding_text(lang, "browse"))
+        _set_widget_tooltip(row_widgets.get("browse"), tooltip)
+        _set_widget_text(row_widgets.get("clear"), onboarding_text(lang, "clear"))
+
+    status_sources = getattr(owner, "_environmentPathStatusSources", {}) or {}
+    for dependency_id, label in (getattr(owner, "_environmentPathStatusLabels", {}) or {}).items():
+        source = str(status_sources.get(dependency_id) or "not checked")
+        _set_widget_text(label, translated_ui_message(lang, source))
+
+    prepare_widgets = getattr(owner, "_prepareInputWidgets", {}) or {}
+    for name, key in (
+        ("panel", "prepare_inputs"),
+        ("preview_button", "preview_plan"),
+        ("prepare_button", "prepare_inputs_action"),
+        ("manifest_button", "open_manifest"),
+        ("dry_run", "dry_run"),
+        ("force", "overwrite_files"),
+    ):
+        _set_widget_text(prepare_widgets.get(name), onboarding_text(lang, key))
+
+    status = getattr(ui, "statusLabel", None)
+    status_source = getattr(owner, "_statusMessageSource", None)
+    if status_source is not None:
+        _set_widget_text(status, translated_ui_message(lang, status_source))
+    elif status is not None:
+        translated = translated_ui_message(lang, _widget_text(status))
+        if translated != _widget_text(status):
+            _set_widget_text(status, translated)
+
+    environment_result = getattr(ui, "environmentResultLabel", None)
+    if environment_result is not None:
+        current = _widget_text(environment_result)
+        known_defaults = {
+            onboarding_text("en", "environment_not_checked"),
+            onboarding_text("zh", "environment_not_checked"),
+        }
+        if not current or current in known_defaults:
+            _set_widget_text(environment_result, onboarding_text(lang, "environment_not_checked"))
+
+    run_hint = getattr(owner, "_runStatusHintLabel", None)
+    run_hint_source = getattr(owner, "_runProgressMessageSource", None)
+    if run_hint_source is not None:
+        _set_widget_text(run_hint, translated_ui_message(lang, run_hint_source))
+    elif run_hint is not None and _widget_text(run_hint) in {
+        onboarding_text("en", "run_plan_pending"),
+        onboarding_text("zh", "run_plan_pending"),
+    }:
+        _set_widget_text(run_hint, onboarding_text(lang, "run_plan_pending"))
+
+    run_summary = getattr(owner, "_runSummaryLabel", None)
+    run_summary_source = getattr(owner, "_runSummaryMessageSource", None)
+    if run_summary_source is not None:
+        _set_widget_text(run_summary, translated_ui_message(lang, run_summary_source))
+    elif run_summary is not None and _widget_text(run_summary) in {
+        onboarding_text("en", "run_summary_pending"),
+        onboarding_text("zh", "run_summary_pending"),
+    }:
+        _set_widget_text(run_summary, onboarding_text(lang, "run_summary_pending"))
+
+    table = getattr(owner, "_runStatusTable", None)
+    if table is not None:
+        table.setHorizontalHeaderLabels(
+            [
+                onboarding_text(lang, "target"),
+                onboarding_text(lang, "state"),
+                onboarding_text(lang, "reason"),
+                onboarding_text(lang, "manifest"),
+                onboarding_text(lang, "qc"),
+                onboarding_text(lang, "logs"),
+            ]
+        )
     dashboard = widgets.get("dashboard")
-    if dashboard:
-        dashboard.setText(capability_dashboard_text(getattr(owner, "_lastEnvironmentResult", None), language=lang))
+    if dashboard is not None:
+        _set_widget_text(
+            dashboard,
+            capability_dashboard_text(getattr(owner, "_lastEnvironmentResult", None), language=lang),
+        )
 
 
 def maybe_show_first_run_wizard(owner: Any) -> None:

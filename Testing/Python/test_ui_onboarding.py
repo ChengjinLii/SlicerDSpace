@@ -10,10 +10,16 @@ from pathlib import Path
 
 from shared.demo_data import create_synthetic_demo_subject
 from shared.ui_onboarding import (
+    apply_onboarding_language,
     capability_dashboard_text,
+    dependency_ui_text,
     diagnostic_report_text,
+    environment_section_text,
     normalized_language,
+    onboarding_text,
     platform_path_examples,
+    register_ui_language_binding,
+    translated_ui_message,
 )
 
 
@@ -41,10 +47,226 @@ class FakeOwner:
         return {"model_assets_dir": "/tmp/models"}.get(key, "")
 
 
+class FakeTextWidget:
+    def __init__(self, text: str = "") -> None:
+        self.value = text
+        self.tooltip = ""
+        self.placeholder = ""
+
+    def setText(self, text: str) -> None:
+        self.value = text
+
+    def text(self) -> str:
+        return self.value
+
+    def setToolTip(self, text: str) -> None:
+        self.tooltip = text
+
+    def setPlaceholderText(self, text: str) -> None:
+        self.placeholder = text
+
+
+class FakeCombo:
+    def __init__(self) -> None:
+        self.currentIndex = 0
+        self.signals_blocked = False
+
+    def findData(self, language: str) -> int:
+        return {"en": 0, "zh": 1}.get(language, -1)
+
+    def setCurrentIndex(self, index: int) -> None:
+        self.currentIndex = index
+
+    def blockSignals(self, blocked: bool) -> None:
+        self.signals_blocked = blocked
+
+
+class FakeTable:
+    def __init__(self) -> None:
+        self.headers: list[str] = []
+
+    def setHorizontalHeaderLabels(self, headers: list[str]) -> None:
+        self.headers = list(headers)
+
+
+class FakeLanguageUi:
+    def __init__(self) -> None:
+        for name in (
+            "headlineLabel",
+            "subtitleLabel",
+            "environmentCollapsibleButton",
+            "environmentResultLabel",
+            "configurationCollapsibleButton",
+            "configurationSectionLabel",
+            "subjectIdLabel",
+            "inputDirectoryLabel",
+            "outputDirectoryLabel",
+            "targetsSectionLabel",
+            "targetSurfaceLabel",
+            "targetSurfaceCheckBox",
+            "targetSurfacePostprocessLabel",
+            "targetSurfacePostprocessCheckBox",
+            "targetBundlesLabel",
+            "targetBundlesCheckBox",
+            "advancedRunCollapsibleButton",
+            "orchestrationBundleBackendLabel",
+            "runStepSectionLabel",
+            "validateButton",
+            "runSelectedButton",
+            "logCollapsibleButton",
+            "logHintLabel",
+            "clearLogButton",
+            "statusLabel",
+        ):
+            setattr(self, name, FakeTextWidget())
+
+
+class FakeLanguageOwner:
+    def __init__(self) -> None:
+        self.ui = FakeLanguageUi()
+        self._lastEnvironmentResult = None
+        self._statusMessageSource = "Waiting for input"
+        self._onboardingWidgets = {
+            "title": FakeTextWidget(),
+            "language_label": FakeTextWidget(),
+            "body": FakeTextWidget(),
+            "wizard_button": FakeTextWidget(),
+            "demo_button": FakeTextWidget(),
+            "diagnostic_button": FakeTextWidget(),
+            "config_button": FakeTextWidget(),
+            "dashboard": FakeTextWidget(),
+            "examples": FakeTextWidget(),
+            "language_combo": FakeCombo(),
+        }
+        self._runStatusPanel = FakeTextWidget()
+        self._runStatusHintLabel = FakeTextWidget("Run plan has not been generated yet.")
+        self._runSummaryLabel = FakeTextWidget("Run summary will appear after a plan or run completes.")
+        self._runReportButton = FakeTextWidget()
+        self._runOutputTreeButton = FakeTextWidget()
+        self._runStatusTable = FakeTable()
+
+
 class OnboardingHelpersTest(unittest.TestCase):
     def test_normalized_language_defaults_to_english(self) -> None:
         self.assertEqual(normalized_language(""), "en")
         self.assertEqual(normalized_language("zh-CN"), "zh")
+
+    def test_main_ui_switches_between_chinese_and_english(self) -> None:
+        owner = FakeLanguageOwner()
+
+        apply_onboarding_language(owner, "zh")
+
+        self.assertEqual(owner._onboardingLanguage, "zh")
+        self.assertEqual(owner.ui.headlineLabel.value, "SlicerDDSurfer 运行工作台")
+        self.assertEqual(owner.ui.subjectIdLabel.value, "受试者 ID")
+        self.assertEqual(owner.ui.targetSurfaceLabel.value, "表面重建（原生）")
+        self.assertEqual(owner.ui.targetSurfacePostprocessLabel.value, "表面后处理")
+        self.assertEqual(owner.ui.targetSurfacePostprocessCheckBox.value, "FreeSurfer 风格 DDSurfer 后处理")
+        self.assertIn("不会创建完整的 FreeSurfer 受试者目录", owner.ui.targetSurfaceCheckBox.tooltip)
+        self.assertIn("需要完整的 FreeSurfer 安装", owner.ui.targetSurfacePostprocessCheckBox.tooltip)
+        self.assertEqual(owner.ui.targetBundlesLabel.value, "纤维束")
+        self.assertEqual(owner.ui.runSelectedButton.value, "预检查并运行")
+        self.assertEqual(owner.ui.statusLabel.value, "等待输入")
+        self.assertEqual(owner._runStatusPanel.value, "运行计划与进度")
+        self.assertEqual(owner._runStatusTable.headers, ["目标", "状态", "原因", "清单", "质控", "日志"])
+        self.assertEqual(owner._onboardingWidgets["language_combo"].currentIndex, 1)
+
+        apply_onboarding_language(owner, "en")
+
+        self.assertEqual(owner._onboardingLanguage, "en")
+        self.assertEqual(owner.ui.headlineLabel.value, "SlicerDDSurfer Release Workbench")
+        self.assertEqual(owner.ui.subjectIdLabel.value, "Subject ID")
+        self.assertEqual(owner.ui.targetSurfaceLabel.value, "Surface (native)")
+        self.assertEqual(owner.ui.targetSurfacePostprocessLabel.value, "Surface postprocess")
+        self.assertEqual(owner.ui.targetSurfacePostprocessCheckBox.value, "FreeSurfer-style DDSurfer postprocess")
+        self.assertIn("does not create a complete FreeSurfer subject", owner.ui.targetSurfaceCheckBox.tooltip)
+        self.assertIn("Requires a complete FreeSurfer installation", owner.ui.targetSurfacePostprocessCheckBox.tooltip)
+        self.assertEqual(owner.ui.targetBundlesLabel.value, "Bundles")
+        self.assertEqual(owner.ui.runSelectedButton.value, "Preflight and run")
+        self.assertEqual(owner.ui.statusLabel.value, "Waiting for input")
+        self.assertEqual(owner._runStatusPanel.value, "Run Plan & Progress")
+        self.assertEqual(owner._runStatusTable.headers, ["Target", "State", "Reason", "Manifest", "QC", "Logs"])
+        self.assertEqual(owner._onboardingWidgets["language_combo"].currentIndex, 0)
+
+    def test_known_status_messages_follow_selected_language(self) -> None:
+        self.assertEqual(translated_ui_message("zh", "Environment ready"), "环境已就绪")
+        self.assertEqual(translated_ui_message("en", "环境已就绪"), "Environment ready")
+        self.assertEqual(translated_ui_message("zh", "Runtime detail: 3 tasks"), "Runtime detail: 3 tasks")
+        self.assertEqual(onboarding_text("unknown", "subject_root"), "Subject root")
+
+    def test_dynamic_status_templates_switch_in_both_directions(self) -> None:
+        cases = (
+            ("Partial results: 3 blocked task(s)", "部分结果：3 个任务被阻塞"),
+            ("Pipeline failed: exit code 17", "Pipeline 失败：退出码 17"),
+            ("Completed with 2 failed task(s)", "完成，但有 2 个任务失败"),
+            ("Completed with 4 blocked task(s)", "完成，但有 4 个任务被阻塞"),
+            ("Run finished. Manifest: D:/out/run.json", "运行完成。清单：D:/out/run.json"),
+        )
+        for english, chinese in cases:
+            with self.subTest(english=english):
+                self.assertEqual(translated_ui_message("zh", english), chinese)
+                self.assertEqual(translated_ui_message("en", chinese), english)
+
+    def test_prepare_and_environment_dynamic_controls_switch_language(self) -> None:
+        owner = FakeLanguageOwner()
+        prepare_label = FakeTextWidget()
+        prepare_edit = FakeTextWidget()
+        prepare_button = FakeTextWidget()
+        register_ui_language_binding(owner, prepare_label, "text", "source_type")
+        register_ui_language_binding(owner, prepare_edit, "placeholder", "source_placeholder")
+        register_ui_language_binding(owner, prepare_edit, "tooltip", "source_placeholder")
+        register_ui_language_binding(owner, prepare_button, "text", "browse")
+
+        section_title = FakeTextWidget()
+        section_description = FakeTextWidget()
+        dependency_label = FakeTextWidget()
+        dependency_edit = FakeTextWidget()
+        dependency_browse = FakeTextWidget()
+        dependency_clear = FakeTextWidget()
+        dependency_status = FakeTextWidget()
+        owner._environmentSectionLanguageWidgets = [
+            ("core-runtime", section_title, section_description),
+        ]
+        owner._environmentPathLanguageWidgets = {
+            "postprocess_freesurfer_home": {
+                "label": dependency_label,
+                "line_edit": dependency_edit,
+                "browse": dependency_browse,
+                "clear": dependency_clear,
+            }
+        }
+        owner._environmentPathStatusLabels = {
+            "postprocess_freesurfer_home": dependency_status,
+        }
+        owner._environmentPathStatusSources = {
+            "postprocess_freesurfer_home": "check pending",
+        }
+
+        apply_onboarding_language(owner, "zh")
+
+        self.assertEqual(prepare_label.value, "来源类型")
+        self.assertIn("DICOM 文件夹", prepare_edit.placeholder)
+        self.assertEqual(prepare_edit.tooltip, prepare_edit.placeholder)
+        self.assertEqual(prepare_button.value, "浏览…")
+        self.assertEqual(section_title.value, "核心 Python 与运行环境路径")
+        self.assertIn("环境变量", section_description.value)
+        self.assertEqual(dependency_label.value, "FreeSurfer 主目录")
+        self.assertEqual(dependency_edit.placeholder, "留空时自动检测")
+        self.assertIn("FreeSurfer 安装根目录", dependency_edit.tooltip)
+        self.assertEqual(dependency_browse.value, "浏览…")
+        self.assertEqual(dependency_clear.value, "清空")
+        self.assertEqual(dependency_status.value, "等待检查")
+
+        apply_onboarding_language(owner, "en")
+
+        self.assertEqual(prepare_label.value, "Source type")
+        self.assertIn("DICOM folder", prepare_edit.placeholder)
+        self.assertEqual(section_title.value, "Core Python & Runtime Paths")
+        self.assertEqual(dependency_label.value, "FreeSurfer home")
+        self.assertEqual(dependency_edit.placeholder, "Auto-detect if empty")
+        self.assertEqual(dependency_status.value, "check pending")
+        self.assertEqual(environment_section_text("zh", "wma")[0], "WMA 路径")
+        self.assertEqual(dependency_ui_text("zh", "mrtrix_bin_dir", "label"), "MRtrix3 bin 目录")
 
     def test_path_examples_match_the_selected_platform(self) -> None:
         windows = platform_path_examples("en", system="Windows")

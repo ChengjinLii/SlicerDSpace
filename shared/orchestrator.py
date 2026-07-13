@@ -254,6 +254,72 @@ def _qc_completed(path: Path) -> bool:
         return False
 
 
+def _nonempty_file(path: Path) -> bool:
+    try:
+        return path.is_file() and path.stat().st_size > 0
+    except OSError:
+        return False
+
+
+def _wmql_complete(qc_path: Path) -> bool:
+    """Return true only when completed WMQL QC points to real bundles."""
+
+    if not _qc_completed(qc_path):
+        return False
+    try:
+        qc = _read_json(qc_path)
+        summary = qc.get("output_summary")
+        if not isinstance(summary, dict):
+            return False
+        bundle_files = summary.get("bundle_files")
+        if not isinstance(bundle_files, list) or not bundle_files:
+            return False
+        for value in bundle_files:
+            if not isinstance(value, str) or not value.strip():
+                return False
+            path = Path(value).expanduser()
+            if not path.is_absolute():
+                path = qc_path.parent / path
+            if not _nonempty_file(path):
+                return False
+        return True
+    except (OSError, TypeError, ValueError):
+        return False
+
+
+def _connectome_complete(qc_path: Path, matrix_path: Path, nodes_path: Path) -> bool:
+    """Return true only when QC counts and both connectome tables have data."""
+
+    if not _qc_completed(qc_path):
+        return False
+    try:
+        qc = _read_json(qc_path)
+        if int(qc.get("node_count", 0) or 0) <= 0 or int(qc.get("edge_count", 0) or 0) <= 0:
+            return False
+        if not _table_has_data_row(nodes_path, header_prefix="node_id\t"):
+            return False
+        return _table_has_data_row(matrix_path, header_prefix="source_node,target_node,")
+    except (OSError, TypeError, ValueError):
+        return False
+
+
+def _table_has_data_row(path: Path, *, header_prefix: str) -> bool:
+    """Accept dense headerless matrices or require a row after a known header."""
+
+    if not _nonempty_file(path):
+        return False
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as stream:
+            first = next((line.strip() for line in stream if line.strip()), "")
+            if not first:
+                return False
+            if not first.lower().startswith(header_prefix.lower()):
+                return True
+            return any(line.strip() for line in stream)
+    except OSError:
+        return False
+
+
 def _find_first_existing(candidates: list[Path]) -> Optional[Path]:
     return next((path for path in candidates if path.is_file()), None)
 
@@ -572,6 +638,38 @@ def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional
     return all(path.is_file() for path in _surface_outputs(subject_root, subject_id, output_root).values())
 
 
+def _surface_postprocess_native_dir(
+    subject_root: Path,
+    subject_id: str,
+    output_root: Optional[Path] = None,
+) -> Path:
+    return (
+        subject_layout(subject_root, output_root=output_root).ddsurfer
+        / "pred_results_SlicerDDSurfer"
+        / "native"
+        / subject_id
+    )
+
+
+def _surface_postprocess_native_ready(native_dir: Path, subject_id: str, mode: str) -> bool:
+    hemispheres = ("lh",) if mode == "left" else ("rh",) if mode == "right" else ("lh", "rh")
+    return all(
+        (native_dir / f"{subject_id}_predicted_{surface}_{hemisphere}_orig.stl").is_file()
+        for hemisphere in hemispheres
+        for surface in ("wm", "pial")
+    )
+
+
+def _surface_postprocess_wmparc_path(subject_id: str, mri_dir: Path) -> Optional[Path]:
+    for candidate in (
+        mri_dir / "DDSurfer-wmparc.nii.gz",
+        mri_dir / f"{subject_id}-DDSurfer-wmparc.nii.gz",
+    ):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def _surface_postprocess_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
     layout = subject_layout(subject_root, output_root=output_root)
     structural_root = layout.ddsurfer_postprocess
@@ -585,9 +683,28 @@ def _surface_postprocess_outputs(subject_root: Path, subject_id: str, output_roo
     }
 
 
-def _surface_postprocess_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+def _surface_postprocess_required_files(structural_root: Path, mode: str = "whole") -> tuple[Path, ...]:
+    hemispheres = ("lh",) if mode == "left" else ("rh",) if mode == "right" else ("lh", "rh")
+    return (
+        structural_root / "mri" / "brain.mgz",
+        *(structural_root / "surf" / f"{hemisphere}.{surface}" for hemisphere in hemispheres for surface in ("white", "pial", "inflated", "sphere", "curv")),
+    )
+
+
+def _surface_postprocess_complete(
+    subject_root: Path,
+    subject_id: str,
+    output_root: Optional[Path] = None,
+    *,
+    mode: str = "whole",
+) -> bool:
     outputs = _surface_postprocess_outputs(subject_root, subject_id, output_root)
-    return outputs["manifest"].is_file() and outputs["surf"].exists() and _qc_completed(outputs["qc"])
+    structural_root = outputs["manifest"].parent
+    return (
+        _nonempty_file(outputs["manifest"])
+        and _qc_completed(outputs["qc"])
+        and all(_nonempty_file(path) for path in _surface_postprocess_required_files(structural_root, mode))
+    )
 
 
 def _surface_postprocess_saf_fs_dir(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> Optional[Path]:
@@ -597,20 +714,7 @@ def _surface_postprocess_saf_fs_dir(subject_root: Path, subject_id: str, output_
     structural_root = outputs["manifest"].parent
     if not _surface_postprocess_complete(subject_root, subject_id, output_root):
         return None
-    required_files = [
-        structural_root / "mri" / "brain.mgz",
-        structural_root / "surf" / "lh.white",
-        structural_root / "surf" / "rh.white",
-        structural_root / "surf" / "lh.pial",
-        structural_root / "surf" / "rh.pial",
-        structural_root / "surf" / "lh.inflated",
-        structural_root / "surf" / "rh.inflated",
-        structural_root / "surf" / "lh.sphere",
-        structural_root / "surf" / "rh.sphere",
-        structural_root / "surf" / "lh.curv",
-        structural_root / "surf" / "rh.curv",
-    ]
-    return structural_root if all(path.is_file() for path in required_files) else None
+    return structural_root
 
 
 def _act_prep_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -700,12 +804,27 @@ def _microstructure_requested_outputs_complete(
 
 
 def _task_from_result(name: str, result, *, status: str = "completed", reason: str = "") -> ProductTaskRecord:
+    # Product result dataclasses expose their generated artifacts as Path
+    # fields (for example matrix_path, bundle output_dir, manifest_path, and
+    # qc_path).  Preserve those fields in the orchestration record instead of
+    # silently emitting outputs={}, while deliberately ignoring arbitrary
+    # strings such as commands, backend names, and status messages.
+    outputs: dict[str, str | None] = {}
+    result_attributes = getattr(result, "__dict__", {})
+    if isinstance(result_attributes, dict):
+        for key, value in result_attributes.items():
+            if key.startswith("_"):
+                continue
+            if isinstance(value, Path):
+                outputs[key] = value.as_posix()
+
     return ProductTaskRecord(
         name=name,
         status=status,
         reason=reason,
         manifest_path=getattr(result, "manifest_path", None),
         qc_path=getattr(result, "qc_path", None),
+        outputs=outputs,
     )
 
 
@@ -816,7 +935,12 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         if target == "surface":
             return _surface_complete(subject_root, config.subject_id, output_root)
         if target == "surface_postprocess":
-            return _surface_postprocess_complete(subject_root, config.subject_id, output_root)
+            return _surface_postprocess_complete(
+                subject_root,
+                config.subject_id,
+                output_root,
+                mode=config.postprocess_mode,
+            )
         if target == "microstructure":
             return _microstructure_dti_complete(subject_root, config.subject_id, output_root)
         if target == "microstructure_freewater":
@@ -828,7 +952,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 primary_tractography_backend != "csd_act" or tractogram.is_file()
             )
         if target == "bundles":
-            return _qc_completed(wmql_dir / "wmql_qc.json")
+            return _wmql_complete(wmql_dir / "wmql_qc.json")
         if target == "saf":
             return _qc_completed(saf_dir / "saf_qc.json") and saf_tractogram.is_file()
         if target == "wma":
@@ -843,7 +967,12 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             except Exception:
                 return False
         if target == "connectome":
-            return _qc_completed(connectome_dir / f"{config.subject_id}-connectome-streamline_count_qc.json")
+            connectome_stem = f"{config.subject_id}-connectome-streamline_count"
+            return _connectome_complete(
+                connectome_dir / f"{connectome_stem}_qc.json",
+                connectome_dir / f"{connectome_stem}.csv",
+                connectome_dir / f"{config.subject_id}-connectome-nodes.tsv",
+            )
         return False
 
     def add(
@@ -949,16 +1078,65 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             continue
 
         if target == "surface_postprocess":
-            native_dir = _resolve_optional_path(config.postprocess_native_dir)
-            mri_dir = _resolve_optional_path(config.postprocess_mri_dir)
-            if config.resume and _surface_postprocess_complete(subject_root, config.subject_id, output_root):
+            explicit_native_dir = _resolve_optional_path(config.postprocess_native_dir)
+            explicit_mri_dir = _resolve_optional_path(config.postprocess_mri_dir)
+            native_dir = explicit_native_dir or _surface_postprocess_native_dir(
+                subject_root,
+                config.subject_id,
+                output_root,
+            )
+            mri_dir = explicit_mri_dir or layout.ddparcel
+            native_ready = _surface_postprocess_native_ready(native_dir, config.subject_id, config.postprocess_mode)
+            wmparc_path = _surface_postprocess_wmparc_path(config.subject_id, mri_dir)
+            native_will_run = explicit_native_dir is None and available.get("surface", False)
+            parcellation_will_run = explicit_mri_dir is None and available.get("parcellation", False)
+            dependencies = {
+                "surface": "available" if native_ready else "will_run" if native_will_run else "missing",
+                "parcellation": "available" if wmparc_path else "will_run" if parcellation_will_run else "missing",
+            }
+            if config.resume and _surface_postprocess_complete(
+                subject_root,
+                config.subject_id,
+                output_root,
+                mode=config.postprocess_mode,
+            ):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=postprocess_outputs)
-            elif native_dir is not None and not native_dir.is_dir():
+            elif explicit_native_dir is not None and not explicit_native_dir.is_dir():
                 add(target, "blocked", "invalid explicit postprocess inputs: postprocess_native_dir", "data", inputs={"native_dir": native_dir}, outputs=postprocess_outputs, provides=False)
-            elif mri_dir is not None and not mri_dir.is_dir():
+            elif explicit_mri_dir is not None and not explicit_mri_dir.is_dir():
                 add(target, "blocked", "invalid explicit postprocess inputs: postprocess_mri_dir", "data", inputs={"mri_dir": mri_dir}, outputs=postprocess_outputs, provides=False)
+            elif not native_ready and not native_will_run:
+                add(
+                    target,
+                    "blocked",
+                    "missing DDSurfer *_orig.stl inputs; select Surface or provide postprocess_native_dir",
+                    "upstream",
+                    inputs={"native_dir": native_dir, "mri_dir": mri_dir, "wmparc": wmparc_path},
+                    outputs=postprocess_outputs,
+                    dependencies=dependencies,
+                    provides=False,
+                )
+            elif wmparc_path is None and not parcellation_will_run:
+                add(
+                    target,
+                    "blocked",
+                    "missing DDSurfer wmparc input; select Parcellation or provide postprocess_mri_dir",
+                    "upstream",
+                    inputs={"native_dir": native_dir, "mri_dir": mri_dir, "wmparc": wmparc_path},
+                    outputs=postprocess_outputs,
+                    dependencies=dependencies,
+                    provides=False,
+                )
             else:
-                add(target, "will_run", "ready to run DDSurfer postprocess", "runnable", inputs={"native_dir": native_dir, "mri_dir": mri_dir}, outputs=postprocess_outputs)
+                add(
+                    target,
+                    "will_run",
+                    "ready to run DDSurfer postprocess",
+                    "runnable",
+                    inputs={"native_dir": native_dir, "mri_dir": mri_dir, "wmparc": wmparc_path},
+                    outputs=postprocess_outputs,
+                    dependencies=dependencies,
+                )
             continue
 
         if target == "microstructure":
@@ -1015,7 +1193,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             wmql_outputs = {"qc": wmql_dir / "wmql_qc.json", "manifest": wmql_dir / "wmql_manifest.json", "bundle_dir": wmql_dir}
             parcellation_ready = parcellation is not None or available.get("parcellation", False)
             tractogram_ready = tractogram_trk.is_file() or available.get("tractography", False)
-            if config.resume and _qc_completed(wmql_outputs["qc"]):
+            if config.resume and _wmql_complete(wmql_outputs["qc"]):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=wmql_outputs, dependencies={"parcellation": "available", "tractogram": "available"})
             elif not parcellation_ready:
                 add(target, "blocked", "missing parcellation; select parcellation or provide existing output", "upstream", outputs=wmql_outputs, dependencies={"parcellation": "missing"}, provides=False)
@@ -1032,13 +1210,18 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             else:
                 fod_candidate = csd_dir / f"{config.subject_id}_wmfod_norm.mif"
                 fod_path = fod_candidate if fod_candidate.is_file() else (csd_dir / f"{config.subject_id}_wmfod.mif")
+                fod_will_run = (
+                    primary_tractography_backend == "csd_act"
+                    and "tractography" in selected
+                    and available.get("tractography", False)
+                )
                 fs_dir = _resolve_optional_path(config.saf_fs_dir) or _surface_postprocess_saf_fs_dir(subject_root, config.subject_id, output_root)
                 if fs_dir is None and not available.get("surface_postprocess", False):
                     add(target, "blocked", "missing --saf-fs-dir or completed DDSurfer postprocess outputs", "upstream", outputs=saf_outputs, provides=False)
-                elif not fod_path.is_file() and not available.get("tractography", False):
+                elif not fod_path.is_file() and not fod_will_run:
                     add(target, "blocked", "missing CSD FOD output for SAF", "upstream", outputs=saf_outputs, dependencies={"fod": "missing"}, provides=False)
                 else:
-                    add(target, "will_run", "ready to run SAF", "runnable", inputs={"fs_dir": fs_dir, "fod": fod_path}, outputs=saf_outputs, dependencies={"surface_postprocess": "available" if fs_dir else "will_run", "fod": "available" if fod_path.is_file() else "will_run"})
+                    add(target, "will_run", "ready to run SAF", "runnable", inputs={"fs_dir": fs_dir, "fod": fod_path}, outputs=saf_outputs, dependencies={"surface_postprocess": "available" if fs_dir else "will_run", "fod": "available" if fod_path.is_file() else "will_run:tractography.csd_act"})
             continue
 
         if target == "wma":
@@ -1075,15 +1258,19 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
 
         if target == "connectome":
             conn_qc = connectome_dir / f"{config.subject_id}-connectome-streamline_count_qc.json"
+            conn_matrix = connectome_dir / f"{config.subject_id}-connectome-streamline_count.csv"
+            conn_nodes = connectome_dir / f"{config.subject_id}-connectome-nodes.tsv"
             conn_outputs = {
                 "qc": conn_qc,
                 "manifest": connectome_dir / f"{config.subject_id}-connectome-streamline_count_manifest.json",
+                "matrix": conn_matrix,
+                "nodes": conn_nodes,
                 "output_dir": connectome_dir,
                 "sift2_output_dir": sift2_connectome_dir,
             }
             parcellation_ready = parcellation is not None or available.get("parcellation", False)
             tractogram_ready = tractogram.is_file() or available.get("tractography", False)
-            if config.resume and _qc_completed(conn_qc):
+            if config.resume and _connectome_complete(conn_qc, conn_matrix, conn_nodes):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=conn_outputs)
             elif not parcellation_ready:
                 add(target, "blocked", "missing parcellation; select parcellation or provide existing output", "upstream", outputs=conn_outputs, dependencies={"parcellation": "missing"}, provides=False)
@@ -1860,7 +2047,12 @@ def run_subject_products(
 
     if "surface_postprocess" in run_targets:
         postprocess_outputs = _surface_postprocess_outputs(subject_root, config.subject_id, output_root)
-        if config.resume and _surface_postprocess_complete(subject_root, config.subject_id, output_root):
+        if config.resume and _surface_postprocess_complete(
+            subject_root,
+            config.subject_id,
+            output_root,
+            mode=config.postprocess_mode,
+        ):
             tasks.append(
                 ProductTaskRecord(
                     name="surface.ddsurfer_postprocess",
@@ -1876,9 +2068,15 @@ def run_subject_products(
         else:
             from surface import DDSurferPostprocessConfig, run_ddsurfer_postprocess
 
-            native_dir = _resolve_optional_path(config.postprocess_native_dir)
-            mri_dir = _resolve_optional_path(config.postprocess_mri_dir)
-            if native_dir is not None and not native_dir.is_dir():
+            explicit_native_dir = _resolve_optional_path(config.postprocess_native_dir)
+            explicit_mri_dir = _resolve_optional_path(config.postprocess_mri_dir)
+            native_dir = explicit_native_dir or _surface_postprocess_native_dir(
+                subject_root,
+                config.subject_id,
+                output_root,
+            )
+            mri_dir = explicit_mri_dir or layout.ddparcel
+            if explicit_native_dir is not None and not explicit_native_dir.is_dir():
                 tasks.append(
                     ProductTaskRecord(
                         name="surface.ddsurfer_postprocess",
@@ -1886,12 +2084,28 @@ def run_subject_products(
                         reason="invalid explicit postprocess inputs: postprocess_native_dir",
                     )
                 )
-            elif mri_dir is not None and not mri_dir.is_dir():
+            elif explicit_mri_dir is not None and not explicit_mri_dir.is_dir():
                 tasks.append(
                     ProductTaskRecord(
                         name="surface.ddsurfer_postprocess",
                         status="blocked",
                         reason="invalid explicit postprocess inputs: postprocess_mri_dir",
+                    )
+                )
+            elif not _surface_postprocess_native_ready(native_dir, config.subject_id, config.postprocess_mode):
+                tasks.append(
+                    ProductTaskRecord(
+                        name="surface.ddsurfer_postprocess",
+                        status="blocked",
+                        reason="missing DDSurfer *_orig.stl inputs; run Surface or provide postprocess_native_dir",
+                    )
+                )
+            elif _surface_postprocess_wmparc_path(config.subject_id, mri_dir) is None:
+                tasks.append(
+                    ProductTaskRecord(
+                        name="surface.ddsurfer_postprocess",
+                        status="blocked",
+                        reason="missing DDSurfer wmparc input; run Parcellation or provide postprocess_mri_dir",
                     )
                 )
             else:
@@ -1912,10 +2126,17 @@ def run_subject_products(
                     ),
                     log=log,
                 )
+                postprocess_complete = _surface_postprocess_complete(
+                    subject_root,
+                    config.subject_id,
+                    output_root,
+                    mode=config.postprocess_mode,
+                )
                 tasks.append(
                     ProductTaskRecord(
                         name="surface.ddsurfer_postprocess",
-                        status="completed",
+                        status="completed" if postprocess_complete else "failed",
+                        reason="" if postprocess_complete else "DDSurfer postprocess did not produce all required non-empty MRI/surface outputs",
                         manifest_path=result.manifest_path,
                         qc_path=result.qc_path,
                         outputs={
@@ -2223,7 +2444,7 @@ def run_subject_products(
 
     if "bundles" in run_targets:
         wmql_qc = wmql_dir / "wmql_qc.json"
-        if config.resume and _qc_completed(wmql_qc):
+        if config.resume and _wmql_complete(wmql_qc):
             tasks.append(ProductTaskRecord(name="bundles.wmql", status="skipped", reason="completed outputs found", qc_path=wmql_qc, manifest_path=wmql_dir / "wmql_manifest.json"))
         elif not config.execute:
             tasks.append(ProductTaskRecord(name="bundles.wmql", status="planned", reason="execute=False"))
@@ -2248,7 +2469,15 @@ def run_subject_products(
                 log=log,
             )
             _finish_task_timer(f"WMQL bundles {run_name}", task_started, log)
-            tasks.append(_task_from_result("bundles.wmql", result))
+            wmql_complete = _wmql_complete(result.qc_path)
+            tasks.append(
+                _task_from_result(
+                    "bundles.wmql",
+                    result,
+                    status="completed" if wmql_complete else "failed",
+                    reason="" if wmql_complete else "WMQL QC does not declare at least one existing non-empty bundle",
+                )
+            )
 
     if "saf" in run_targets:
         saf_qc = saf_dir / "saf_qc.json"
@@ -2459,7 +2688,9 @@ def run_subject_products(
     if "connectome" in run_targets:
         weighted_connectome_handled = False
         conn_qc = connectome_dir / f"{config.subject_id}-connectome-streamline_count_qc.json"
-        if config.resume and _qc_completed(conn_qc):
+        conn_matrix = connectome_dir / f"{config.subject_id}-connectome-streamline_count.csv"
+        conn_nodes = connectome_dir / f"{config.subject_id}-connectome-nodes.tsv"
+        if config.resume and _connectome_complete(conn_qc, conn_matrix, conn_nodes):
             tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="skipped", reason="completed outputs found", qc_path=conn_qc, manifest_path=connectome_dir / f"{config.subject_id}-connectome-streamline_count_manifest.json"))
         elif not config.execute:
             tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="planned", reason="execute=False"))
@@ -2513,7 +2744,9 @@ def run_subject_products(
 
         if not weighted_connectome_handled and sift2_weights.is_file():
             sift2_qc = sift2_connectome_dir / f"{config.subject_id}-connectome-sift2_weighted_streamline_count_qc.json"
-            if config.resume and _qc_completed(sift2_qc):
+            sift2_matrix = sift2_connectome_dir / f"{config.subject_id}-connectome-sift2_weighted_streamline_count.csv"
+            sift2_nodes = sift2_connectome_dir / f"{config.subject_id}-connectome-nodes.tsv"
+            if config.resume and _connectome_complete(sift2_qc, sift2_matrix, sift2_nodes):
                 tasks.append(
                     ProductTaskRecord(
                         name="connectome.sift2_weighted",

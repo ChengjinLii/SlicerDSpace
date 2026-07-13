@@ -43,9 +43,113 @@ class ConnectomePipelineTest(unittest.TestCase):
             self.assertEqual(result.nodes_path.read_text(encoding="utf-8").strip(), "node_id\tlabel\tname")
             manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["status"], qc["status"])
+            self.assertEqual(manifest["executed"], qc["executed"])
             self.assertEqual(manifest["dependencies"]["tractography"]["path"], tractography.resolve().as_posix())
             self.assertEqual(manifest["dependencies"]["ddparcel_parcellation"]["path"], parcellation.resolve().as_posix())
             self.assertEqual(qc["metric"], "streamline_count")
+
+    def test_manifest_lifecycle_matches_qc_after_success_and_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tractography = root / "streamlines.vtk"
+            parcellation = root / "wmparc.nii.gz"
+            tractography.write_text("# vtk DataFile Version 3.0\n", encoding="utf-8")
+            parcellation.write_text("parcel", encoding="utf-8")
+
+            def _write_mock_outputs(config, matrix_path, nodes_path, *, lut_path):
+                matrix_path.write_text("source_node,target_node,streamline_count\n10,20,1\n", encoding="utf-8")
+                nodes_path.write_text("node_id\tlabel\tname\n10\t10\tLeft\n20\t20\tRight\n", encoding="utf-8")
+                return {"node_count": 2, "edge_count": 1}
+
+            with mock.patch("connectome.pipeline._write_python_connectome", side_effect=_write_mock_outputs):
+                completed = run_connectome(
+                    ConnectomeConfig(
+                        subject_id="success",
+                        tractography_path=tractography,
+                        parcellation_path=parcellation,
+                        output_dir=root / "completed",
+                        backend="python",
+                        execute=True,
+                    )
+                )
+            completed_manifest = json.loads(completed.manifest_path.read_text(encoding="utf-8"))
+            completed_qc = json.loads(completed.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(completed_manifest["status"], completed_qc["status"])
+            self.assertEqual(completed_manifest["executed"], completed_qc["executed"])
+            self.assertEqual(completed_manifest["status"], "completed")
+            self.assertTrue(completed_manifest["executed"])
+
+            missing_dir = root / "missing_outputs"
+            with mock.patch("connectome.pipeline._write_python_connectome", return_value={}):
+                with self.assertRaisesRegex(RuntimeError, "incomplete outputs"):
+                    run_connectome(
+                        ConnectomeConfig(
+                            subject_id="missing",
+                            tractography_path=tractography,
+                            parcellation_path=parcellation,
+                            output_dir=missing_dir,
+                            backend="python",
+                            execute=True,
+                        )
+                    )
+            missing_manifest = json.loads(
+                (missing_dir / "missing-connectome-streamline_count_manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(missing_manifest["status"], "failed")
+
+            header_only_dir = root / "header_only"
+
+            def _write_headers_only(config, matrix_path, nodes_path, *, lut_path):
+                matrix_path.write_text("source_node,target_node,streamline_count\n", encoding="utf-8")
+                nodes_path.write_text("node_id\tlabel\tname\n", encoding="utf-8")
+                return {"node_count": 0, "edge_count": 0}
+
+            with mock.patch("connectome.pipeline._write_python_connectome", side_effect=_write_headers_only):
+                with self.assertRaisesRegex(RuntimeError, "incomplete outputs"):
+                    run_connectome(
+                        ConnectomeConfig(
+                            subject_id="headers",
+                            tractography_path=tractography,
+                            parcellation_path=parcellation,
+                            output_dir=header_only_dir,
+                            backend="python",
+                            execute=True,
+                        )
+                    )
+            header_qc = json.loads(
+                (header_only_dir / "headers-connectome-streamline_count_qc.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(header_qc["status"], "failed")
+            self.assertEqual(header_qc["node_count"], 0)
+            self.assertEqual(header_qc["edge_count"], 0)
+
+            failed_dir = root / "failed"
+            with mock.patch(
+                "connectome.pipeline._write_python_connectome",
+                side_effect=RuntimeError("synthetic connectome failure"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "synthetic connectome failure"):
+                    run_connectome(
+                        ConnectomeConfig(
+                            subject_id="failure",
+                            tractography_path=tractography,
+                            parcellation_path=parcellation,
+                            output_dir=failed_dir,
+                            backend="python",
+                            execute=True,
+                        )
+                    )
+            failed_manifest = json.loads(
+                (failed_dir / "failure-connectome-streamline_count_manifest.json").read_text(encoding="utf-8")
+            )
+            failed_qc = json.loads(
+                (failed_dir / "failure-connectome-streamline_count_qc.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(failed_manifest["status"], failed_qc["status"])
+            self.assertEqual(failed_manifest["executed"], failed_qc["executed"])
+            self.assertEqual(failed_manifest["status"], "failed")
+            self.assertTrue(failed_manifest["executed"])
 
     def test_rejects_missing_dependencies(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -78,7 +182,14 @@ class ConnectomePipelineTest(unittest.TestCase):
             tractography.write_text("tck", encoding="utf-8")
             parcellation.write_text("parcel", encoding="utf-8")
 
-            with mock.patch.dict(os.environ, {"PATH": bin_dir.as_posix() + os.pathsep + os.environ.get("PATH", "")}):
+            class _FakeLabels:
+                @staticmethod
+                def ravel():
+                    return [1, 2]
+
+            with mock.patch.dict(os.environ, {"PATH": bin_dir.as_posix() + os.pathsep + os.environ.get("PATH", "")}), mock.patch(
+                "connectome.pipeline._load_label_volume", return_value=(_FakeLabels(), None)
+            ):
                 result = run_connectome(
                     ConnectomeConfig(
                         subject_id="149741",
@@ -123,19 +234,25 @@ class ConnectomePipelineTest(unittest.TestCase):
             parcellation.write_text("parcel", encoding="utf-8")
             weights.write_text("1.0\n2.0\n", encoding="utf-8")
 
-            result = run_connectome(
-                ConnectomeConfig(
-                    subject_id="149741",
-                    tractography_path=tractography,
-                    parcellation_path=parcellation,
-                    output_dir=root / "connectome",
-                    metric="sift2_weighted_streamline_count",
-                    sift2_weights_path=weights,
-                    mrtrix_bin_dir=bin_dir,
-                    backend="mrtrix",
-                    execute=True,
+            class _FakeLabels:
+                @staticmethod
+                def ravel():
+                    return [1, 2]
+
+            with mock.patch("connectome.pipeline._load_label_volume", return_value=(_FakeLabels(), None)):
+                result = run_connectome(
+                    ConnectomeConfig(
+                        subject_id="149741",
+                        tractography_path=tractography,
+                        parcellation_path=parcellation,
+                        output_dir=root / "connectome",
+                        metric="sift2_weighted_streamline_count",
+                        sift2_weights_path=weights,
+                        mrtrix_bin_dir=bin_dir,
+                        backend="mrtrix",
+                        execute=True,
+                    )
                 )
-            )
 
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
             self.assertTrue(result.executed)

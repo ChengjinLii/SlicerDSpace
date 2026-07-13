@@ -7,6 +7,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 UI_PATH = REPO_ROOT / "Resources" / "UI" / "SlicerDDSurfer.ui"
+MODULE_WIDGET_PATH = REPO_ROOT / "shared" / "module_widget.py"
 
 
 def _load_ui() -> ET.Element:
@@ -61,6 +62,27 @@ class SlicerUiLayoutContractTest(unittest.TestCase):
         )
         self.assertEqual(_property_text(advanced, "collapsed"), "true")
         self.assertIsNotNone(_layout(root, "advancedRunFormLayout"))
+
+    def test_native_surface_and_freesurfer_postprocess_are_distinct_targets(self) -> None:
+        root = _load_ui()
+        native_surface = _widget(root, "targetSurfaceCheckBox")
+        postprocess = _widget(root, "targetSurfacePostprocessCheckBox")
+
+        self.assertIn("native", _property_text(native_surface, "text").lower())
+        self.assertIn("does not create a complete FreeSurfer subject", _property_text(native_surface, "toolTip"))
+        self.assertEqual(_property_text(postprocess, "checked"), "false")
+        self.assertEqual(_property_text(postprocess, "SlicerParameterName"), "targetSurfacePostprocess")
+        self.assertIn("complete FreeSurfer installation", _property_text(postprocess, "toolTip"))
+        self.assertIn("Surface and Parcellation", _property_text(postprocess, "toolTip"))
+
+    def test_surface_postprocess_target_is_restored_from_json_defaults(self) -> None:
+        source = MODULE_WIDGET_PATH.read_text(encoding="utf-8")
+        self.assertIn('targets_configured = "targets" in defaults', source)
+        self.assertIn("if targets_configured:", source)
+        self.assertIn(
+            'node.targetSurfacePostprocess = "surface_postprocess" in targets',
+            source,
+        )
 
 
 if __name__ == "__main__":

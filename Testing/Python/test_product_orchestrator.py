@@ -251,6 +251,36 @@ class ProductOrchestratorTest(unittest.TestCase):
                 self.assertIn("dependencies", task_manifest)
                 self.assertIn("runtime_seconds", task_manifest)
 
+    def test_task_from_result_preserves_generated_path_outputs(self) -> None:
+        from shared import orchestrator
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            class _BackendResult:
+                def __init__(self) -> None:
+                    self.output_dir = root / "bundles"
+                    self.matrix_path = root / "connectome.csv"
+                    self.manifest_path = root / "manifest.json"
+                    self.qc_path = root / "qc.json"
+                    self.command = ("tool", "--flag")
+                    self.executed = True
+                    self.backend_status = {"available": True}
+
+            task = orchestrator._task_from_result("connectome.streamline_count", _BackendResult())
+
+            self.assertEqual(
+                task.outputs,
+                {
+                    "output_dir": (root / "bundles").as_posix(),
+                    "matrix_path": (root / "connectome.csv").as_posix(),
+                    "manifest_path": (root / "manifest.json").as_posix(),
+                    "qc_path": (root / "qc.json").as_posix(),
+                },
+            )
+            self.assertNotIn("command", task.outputs)
+            self.assertGreater(len(task.outputs), 0)
+
     def test_output_tree_semantics_marks_unselected_directories(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 
@@ -477,6 +507,60 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(manifest["tractography_backend"], "saf")
             self.assertEqual(manifest["primary_tractography_backend"], "csd_act")
 
+    def test_saf_plan_only_accepts_current_csd_tractography_as_future_fod(self) -> None:
+        from shared import ProductOrchestratorConfig, plan_subject_products, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+            fs_dir = Path(tmp) / "freesurfer_subject"
+            fs_dir.mkdir()
+
+            dti_plan = plan_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("tractography", "saf"),
+                    tractography_backend="dti_det",
+                    saf_fs_dir=fs_dir,
+                    execute=True,
+                    resume=False,
+                )
+            )
+            dti_items = {item.target: item for item in dti_plan.items}
+            self.assertEqual(dti_items["tractography"].status, "will_run")
+            self.assertEqual(dti_items["saf"].status, "blocked")
+            self.assertEqual(dti_items["saf"].dependencies["fod"], "missing")
+
+            layout = subject_layout(subject_root)
+            layout.ddseg.mkdir(parents=True, exist_ok=True)
+            for name in (
+                "SegmentationMap_GMWMCSF.nii.gz",
+                "ProbabilisticMap_GM.nii.gz",
+                "ProbabilisticMap_WM.nii.gz",
+                "ProbabilisticMap_CSF.nii.gz",
+            ):
+                (layout.ddseg / name).write_text(name, encoding="utf-8")
+
+            csd_plan = plan_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("tractography", "saf"),
+                    tractography_backend="csd_act",
+                    saf_fs_dir=fs_dir,
+                    execute=True,
+                    resume=False,
+                )
+            )
+            csd_items = {item.target: item for item in csd_plan.items}
+            self.assertEqual(csd_items["tractography"].status, "will_run")
+            self.assertEqual(csd_items["saf"].status, "will_run")
+            self.assertEqual(csd_items["saf"].dependencies["fod"], "will_run:tractography.csd_act")
+
     def test_dry_run_supports_optional_algorithm_targets(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 
@@ -599,6 +683,158 @@ class ProductOrchestratorTest(unittest.TestCase):
             manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["targets"], ["surface_postprocess"])
 
+    def test_surface_postprocess_plan_requires_native_surfaces_and_wmparc(self) -> None:
+        from shared import ProductOrchestratorConfig, plan_subject_products, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+            config = ProductOrchestratorConfig(
+                subject_id="100307",
+                subject_root=subject_root,
+                targets=("surface_postprocess",),
+                execute=True,
+                resume=False,
+            )
+
+            missing_surface = {item.target: item for item in plan_subject_products(config).items}
+            self.assertEqual(missing_surface["surface_postprocess"].status, "blocked")
+            self.assertIn("*_orig.stl", missing_surface["surface_postprocess"].reason)
+
+            layout = subject_layout(subject_root)
+            native_dir = layout.ddsurfer / "pred_results_SlicerDDSurfer" / "native" / "100307"
+            native_dir.mkdir(parents=True)
+            for surface in ("wm", "pial"):
+                for hemisphere in ("lh", "rh"):
+                    (native_dir / f"100307_predicted_{surface}_{hemisphere}_orig.stl").write_text(
+                        "surface",
+                        encoding="utf-8",
+                    )
+            layout.ddparcel.mkdir(parents=True)
+
+            missing_wmparc = {item.target: item for item in plan_subject_products(config).items}
+            self.assertEqual(missing_wmparc["surface_postprocess"].status, "blocked")
+            self.assertIn("wmparc", missing_wmparc["surface_postprocess"].reason)
+
+            (layout.ddparcel / "100307-DDSurfer-wmparc.nii.gz").write_text("labels", encoding="utf-8")
+            ready = {item.target: item for item in plan_subject_products(config).items}
+            self.assertEqual(ready["surface_postprocess"].status, "will_run")
+
+    def test_surface_postprocess_plan_accepts_selected_upstream_products(self) -> None:
+        from shared import ProductOrchestratorConfig, plan_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+            atlas_t2 = Path(tmp) / "atlas.nii.gz"
+            atlas_t2.write_text("atlas", encoding="utf-8")
+
+            plan = plan_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("surface", "parcellation", "surface_postprocess"),
+                    atlas_t2=atlas_t2,
+                    execute=True,
+                    resume=False,
+                )
+            )
+            items = {item.target: item for item in plan.items}
+
+            self.assertEqual(items["surface"].status, "will_run")
+            self.assertEqual(items["parcellation"].status, "will_run")
+            self.assertEqual(items["surface_postprocess"].status, "will_run")
+            self.assertEqual(items["surface_postprocess"].dependencies["surface"], "will_run")
+            self.assertEqual(items["surface_postprocess"].dependencies["parcellation"], "will_run")
+
+    def test_surface_postprocess_resume_and_fresh_run_require_all_core_files(self) -> None:
+        from shared import ProductOrchestratorConfig, plan_subject_products, run_subject_products, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            post_dir = layout.ddsurfer_postprocess
+            (post_dir / "mri").mkdir(parents=True)
+            (post_dir / "surf").mkdir()
+            (post_dir / "mri" / "brain.mgz").write_text("brain", encoding="utf-8")
+            for hemisphere in ("lh", "rh"):
+                for surface in ("white", "pial", "inflated", "sphere", "curv"):
+                    (post_dir / "surf" / f"{hemisphere}.{surface}").write_text("surface", encoding="utf-8")
+            (post_dir / "manifest.json").write_text("{}\n", encoding="utf-8")
+            (post_dir / "qc.json").write_text('{"status":"completed"}\n', encoding="utf-8")
+
+            resume_config = ProductOrchestratorConfig(
+                subject_id="100307",
+                subject_root=subject_root,
+                targets=("surface_postprocess",),
+                execute=True,
+                resume=True,
+            )
+            self.assertEqual(plan_subject_products(resume_config).items[0].status, "skipped")
+
+            (post_dir / "surf" / "rh.curv").unlink()
+            left_resume_config = ProductOrchestratorConfig(
+                subject_id="100307",
+                subject_root=subject_root,
+                targets=("surface_postprocess",),
+                execute=True,
+                resume=True,
+                postprocess_mode="left",
+            )
+            self.assertEqual(plan_subject_products(left_resume_config).items[0].status, "skipped")
+            self.assertNotEqual(plan_subject_products(resume_config).items[0].status, "skipped")
+            (post_dir / "surf" / "rh.curv").write_text("surface", encoding="utf-8")
+
+            (post_dir / "surf" / "lh.curv").unlink()
+            self.assertNotEqual(plan_subject_products(resume_config).items[0].status, "skipped")
+
+            native_dir = layout.ddsurfer / "pred_results_SlicerDDSurfer" / "native" / "100307"
+            native_dir.mkdir(parents=True)
+            for hemisphere in ("lh", "rh"):
+                for surface in ("wm", "pial"):
+                    (native_dir / f"100307_predicted_{surface}_{hemisphere}_orig.stl").write_text("surface", encoding="utf-8")
+            layout.ddparcel.mkdir(parents=True)
+            (layout.ddparcel / "100307-DDSurfer-wmparc.nii.gz").write_text("labels", encoding="utf-8")
+
+            class _IncompleteResult:
+                def __init__(self) -> None:
+                    self.structural_root = post_dir
+                    self.stats_root = layout.ddsurfer_postprocess_stats
+                    self.staged_input_dir = post_dir / "input"
+                    self.manifest_path = post_dir / "manifest.json"
+                    self.qc_path = post_dir / "qc.json"
+
+            class _FakePostprocessConfig:
+                def __init__(self, **kwargs) -> None:
+                    self.__dict__.update(kwargs)
+
+            import surface
+
+            with mock.patch.dict(
+                surface.__dict__,
+                {
+                    "DDSurferPostprocessConfig": _FakePostprocessConfig,
+                    "run_ddsurfer_postprocess": mock.Mock(return_value=_IncompleteResult()),
+                },
+            ):
+                fresh_result = run_subject_products(
+                    ProductOrchestratorConfig(
+                        subject_id="100307",
+                        subject_root=subject_root,
+                        targets=("surface_postprocess",),
+                        execute=True,
+                        resume=False,
+                    )
+                )
+            self.assertEqual(fresh_result.tasks[0].status, "failed")
+            self.assertIn("required non-empty", fresh_result.tasks[0].reason)
+
     def test_surface_postprocess_execute_false_preserves_requested_atlases(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 
@@ -661,10 +897,29 @@ class ProductOrchestratorTest(unittest.TestCase):
             (csd_dir / "csd_act_manifest.json").write_text("{}\n", encoding="utf-8")
             (tract_dir / "100307_csd_act_ifod2.tck").write_text("tck", encoding="utf-8")
             (tract_dir / "100307_csd_act_ifod2.trk").write_text("trk", encoding="utf-8")
-            (wmql_dir / "wmql_qc.json").write_text('{"status": "completed"}\n', encoding="utf-8")
+            wmql_bundle = wmql_dir / "100307_desc-wmql_CST.left.trk"
+            wmql_bundle.write_text("bundle", encoding="utf-8")
+            (wmql_dir / "wmql_qc.json").write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "output_summary": {"bundle_files": [wmql_bundle.as_posix()]},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             (wmql_dir / "wmql_manifest.json").write_text("{}\n", encoding="utf-8")
-            (conn_dir / "100307-connectome-streamline_count_qc.json").write_text('{"status": "completed"}\n', encoding="utf-8")
+            (conn_dir / "100307-connectome-streamline_count_qc.json").write_text(
+                '{"status": "completed", "node_count": 2, "edge_count": 1}\n', encoding="utf-8"
+            )
             (conn_dir / "100307-connectome-streamline_count_manifest.json").write_text("{}\n", encoding="utf-8")
+            (conn_dir / "100307-connectome-streamline_count.csv").write_text(
+                "source_node,target_node,streamline_count\n10,20,1\n", encoding="utf-8"
+            )
+            (conn_dir / "100307-connectome-nodes.tsv").write_text(
+                "node_id\tlabel\tname\n10\t10\tLeft\n20\t20\tRight\n", encoding="utf-8"
+            )
 
             micro_dir = layout.microstructure_dti
             micro_dir.mkdir(parents=True)
@@ -685,6 +940,82 @@ class ProductOrchestratorTest(unittest.TestCase):
 
             self.assertEqual([task.status for task in result.tasks], ["skipped", "skipped", "skipped", "skipped", "skipped", "skipped", "skipped"])
             self.assertTrue(all("completed" in task.reason for task in result.tasks))
+
+    def test_resume_rejects_deleted_wmql_and_connectome_products(self) -> None:
+        from shared import ProductOrchestratorConfig, plan_subject_products, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+
+            run_name = "resume_artifacts"
+            layout = subject_layout(subject_root)
+            layout.ddparcel.mkdir(parents=True)
+            (layout.ddparcel / "100307-DDSurfer-wmparc.nii.gz").write_text("parcel", encoding="utf-8")
+            tract_dir = layout.tractograms_dti_det / run_name
+            tract_dir.mkdir(parents=True)
+            (tract_dir / "100307-dti-deterministic.trk").write_text("tractogram", encoding="utf-8")
+
+            wmql_dir = layout.bundles_wmql / run_name
+            wmql_dir.mkdir(parents=True)
+            bundle = wmql_dir / "100307_desc-wmql_CST.left.trk"
+            bundle.write_text("bundle", encoding="utf-8")
+            (wmql_dir / "wmql_qc.json").write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "output_summary": {"bundle_files": [bundle.as_posix()]},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            conn_dir = layout.connectome / run_name
+            conn_dir.mkdir(parents=True)
+            conn_qc = conn_dir / "100307-connectome-streamline_count_qc.json"
+            conn_matrix = conn_dir / "100307-connectome-streamline_count.csv"
+            conn_nodes = conn_dir / "100307-connectome-nodes.tsv"
+            conn_qc.write_text('{"status": "completed", "node_count": 2, "edge_count": 1}\n', encoding="utf-8")
+            conn_matrix.write_text("source_node,target_node,streamline_count\n10,20,1\n", encoding="utf-8")
+            conn_nodes.write_text("node_id\tlabel\tname\n10\t10\tLeft\n20\t20\tRight\n", encoding="utf-8")
+
+            config = ProductOrchestratorConfig(
+                subject_id="100307",
+                subject_root=subject_root,
+                targets=("bundles", "connectome"),
+                run_name=run_name,
+                tractography_backend="dti_det",
+                execute=True,
+                resume=True,
+            )
+            complete_plan = plan_subject_products(config)
+            self.assertEqual({item.target: item.status for item in complete_plan.items}, {"bundles": "skipped", "connectome": "skipped"})
+
+            conn_matrix.write_text("source_node,target_node,streamline_count\n", encoding="utf-8")
+            conn_nodes.write_text("node_id\tlabel\tname\n", encoding="utf-8")
+            header_only_plan = plan_subject_products(config)
+            self.assertEqual({item.target: item.status for item in header_only_plan.items}["connectome"], "will_run")
+
+            conn_nodes.write_text("node_id\tlabel\tname\n10\t10\tLeft\n20\t20\tRight\n", encoding="utf-8")
+            bundle.write_text("", encoding="utf-8")
+            conn_matrix.write_text("", encoding="utf-8")
+            empty_plan = plan_subject_products(config)
+            empty_statuses = {item.target: item.status for item in empty_plan.items}
+            self.assertEqual(empty_statuses["bundles"], "will_run")
+            self.assertEqual(empty_statuses["connectome"], "will_run")
+
+            bundle.write_text("bundle", encoding="utf-8")
+            conn_matrix.write_text("source_node,target_node,streamline_count\n10,20,1\n", encoding="utf-8")
+            bundle.unlink()
+            conn_matrix.unlink()
+            incomplete_plan = plan_subject_products(config)
+            statuses = {item.target: item.status for item in incomplete_plan.items}
+            self.assertEqual(statuses["bundles"], "will_run")
+            self.assertEqual(statuses["connectome"], "will_run")
 
     def test_plan_resume_uses_external_output_root_for_structural_dependencies(self) -> None:
         from shared import ProductOrchestratorConfig, plan_subject_products, subject_layout

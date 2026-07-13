@@ -72,6 +72,7 @@ class EnvironmentDoctorConfig:
     repo_root: Path
     output_dir: Optional[Path] = None
     python_executable: Optional[Path] = None
+    python_path_entries: tuple[Path, ...] = ()
     python_environment: Optional[str] = None
     conda_executable: Optional[Path] = None
     platform_name: Optional[str] = None
@@ -900,13 +901,23 @@ def _effective_platform_name(config: EnvironmentDoctorConfig) -> str:
     return (config.platform_name or platform.system() or "unknown").strip() or "unknown"
 
 
-def _apply_default_python(specs: Iterable[DependencySpec], python_executable: Optional[Path]) -> tuple[DependencySpec, ...]:
+def _apply_default_python(
+    specs: Iterable[DependencySpec],
+    python_executable: Optional[Path],
+    python_path_entries: Iterable[Path] = (),
+) -> tuple[DependencySpec, ...]:
     default_python = _resolve_path(python_executable)
-    if default_python is None:
+    default_python_paths = tuple(
+        dict.fromkeys(path.expanduser().resolve() for path in python_path_entries if path)
+    )
+    if default_python is None and not default_python_paths:
         return tuple(specs)
     updated: list[DependencySpec] = []
     for spec in specs:
-        if spec.kind in {"python", "device"} and spec.python_executable is None:
+        if spec.kind in {"python", "device"}:
+            spec_python = _resolve_path(spec.python_executable)
+            uses_default_python = spec_python is None or spec_python == default_python
+            inherited_python_paths = default_python_paths if uses_default_python else ()
             updated.append(
                 DependencySpec(
                     key=spec.key,
@@ -917,8 +928,10 @@ def _apply_default_python(specs: Iterable[DependencySpec], python_executable: Op
                     python_import=spec.python_import,
                     python_package=spec.python_package,
                     python_install_requirement=spec.python_install_requirement,
-                    python_executable=default_python,
-                    python_path_entries=spec.python_path_entries,
+                    python_executable=spec_python or default_python,
+                    python_path_entries=tuple(
+                        dict.fromkeys((*inherited_python_paths, *spec.python_path_entries))
+                    ),
                     device=spec.device,
                     command=spec.command,
                     bin_dir=spec.bin_dir,
@@ -1423,7 +1436,16 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     discovery_source=tractcloud_data_dir_source,
                 )
 
-    return tuple(sorted(_apply_default_python(specs.values(), resolve_config_python_executable(config)), key=lambda item: item.key))
+    return tuple(
+        sorted(
+            _apply_default_python(
+                specs.values(),
+                resolve_config_python_executable(config),
+                config.python_path_entries,
+            ),
+            key=lambda item: item.key,
+        )
+    )
 
 
 def _install_hint(spec: DependencySpec, platform_name: str) -> str:
@@ -1509,10 +1531,16 @@ def _python_distribution_name(package: str) -> Optional[str]:
         return None
 
 
-def _check_cuda_device(device: str, python_executable: Optional[Path]) -> tuple[bool, dict[str, Any]]:
+def _check_cuda_device(
+    device: str,
+    python_executable: Optional[Path],
+    python_path_entries: Iterable[Path] = (),
+) -> tuple[bool, dict[str, Any]]:
     python_path = python_executable or Path(sys.executable)
+    resolved_python_paths = tuple(path.expanduser().resolve() for path in python_path_entries if path)
     probe = (
-        "import json; "
+        "import json, sys; "
+        f"sys.path[:0] = {[path.as_posix() for path in resolved_python_paths]!r}; "
         "payload = {'torch_importable': False, 'cuda_available': False, 'device_count': 0, 'torch_version': None, 'error': None}; "
         "\ntry:\n"
         "    import torch\n"
@@ -1553,15 +1581,20 @@ def _check_cuda_device(device: str, python_executable: Optional[Path]) -> tuple[
     details["requested_device"] = device
     details["requested_index"] = requested_index
     details["python_executable"] = python_path.as_posix()
+    details["pythonpath"] = [path.as_posix() for path in resolved_python_paths]
     return available, details
 
 
-def resolve_auto_torch_device(device: str = "auto", python_executable: Optional[Path] = None) -> str:
+def resolve_auto_torch_device(
+    device: str = "auto",
+    python_executable: Optional[Path] = None,
+    python_path_entries: Iterable[Path] = (),
+) -> str:
     """Resolve ``auto`` to one concrete torch device without running both CPU and GPU paths."""
 
     normalized = (device or "auto").strip().lower()
     if normalized in {"", "auto"}:
-        available, details = _check_cuda_device("cuda:0", python_executable)
+        available, details = _check_cuda_device("cuda:0", python_executable, python_path_entries)
         return "cuda:0" if available and int(details.get("device_count") or 0) > 0 else "cpu"
     if normalized == "cuda":
         return "cuda:0"
@@ -1620,7 +1653,8 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
             if python_path_entries:
                 env["PYTHONPATH"] = os.pathsep.join(path.as_posix() for path in python_path_entries) + os.pathsep + env.get("PYTHONPATH", "")
             probe = (
-                "import importlib.metadata, importlib.util, json\n"
+                "import importlib.metadata, importlib.util, json, sys\n"
+                f"sys.path[:0] = {[path.as_posix() for path in python_path_entries]!r}\n"
                 f"available = importlib.util.find_spec({spec.python_import!r}) is not None\n"
                 f"distribution = {(distribution_name if requirement_specifier else None)!r}\n"
                 "version = importlib.metadata.version(distribution) if available and distribution else None\n"
@@ -1700,7 +1734,11 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
                 "detected_source": "configured device",
             }
         elif requested_device == "auto":
-            resolved = resolve_auto_torch_device(requested_device, spec.python_executable)
+            resolved = resolve_auto_torch_device(
+                requested_device,
+                spec.python_executable,
+                spec.python_path_entries,
+            )
             available = True
             details = {
                 "requested_device": requested_device,
@@ -1709,7 +1747,11 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
                 "detected_source": "auto",
             }
         elif requested_device.startswith("cuda"):
-            available, details = _check_cuda_device(requested_device, spec.python_executable)
+            available, details = _check_cuda_device(
+                requested_device,
+                spec.python_executable,
+                spec.python_path_entries,
+            )
             details["detected_source"] = "CUDA runtime" if available else "not found"
         else:
             available = False

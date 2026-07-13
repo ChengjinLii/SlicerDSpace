@@ -11,6 +11,7 @@ from pathlib import Path
 from shared.user_config import (
     apply_user_config_to_args,
     default_user_config_path,
+    empty_user_config,
     explicit_cli_destinations,
     load_user_config,
     update_user_config,
@@ -21,6 +22,20 @@ from shared.user_config import (
 
 
 class UserConfigTest(unittest.TestCase):
+    def test_default_language_is_english(self) -> None:
+        self.assertEqual(empty_user_config()["ui"]["language"], "en")
+        with tempfile.TemporaryDirectory() as tmp:
+            missing_path = Path(tmp) / "missing-user-config.json"
+            self.assertEqual(load_user_config(missing_path)["ui"]["language"], "en")
+
+    def test_json_language_accepts_chinese_and_english(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "user_config.json"
+            write_user_config({"ui": {"language": "zh"}}, path)
+            self.assertEqual(load_user_config(path)["ui"]["language"], "zh")
+            update_user_config({"ui": {"language": "en"}}, path)
+            self.assertEqual(load_user_config(path)["ui"]["language"], "en")
+
     def test_default_paths_are_platform_specific(self) -> None:
         home = Path("/home/tester")
         self.assertEqual(

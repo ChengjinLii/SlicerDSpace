@@ -23,6 +23,7 @@ from segmentation.module_logic import SegmentationLogicMixin
 from segmentation.module_widget import SegmentationWidgetMixin
 from shared.module_logic import SharedLogicMixin
 from shared.module_widget import SharedWidgetMixin
+from shared.ui_run_controller import ProductTargetFlags
 from surface.module_logic import PipelineResult, SurfaceLogicMixin
 from surface.module_widget import SurfaceWidgetMixin
 from tractography.module_logic import TractographyLogicMixin
@@ -111,6 +112,7 @@ class SlicerDDSurferParameterNode:
     connectomeCompressMrtrixDense: bool = False
     autoInstallPythonDependencies: bool = True
     targetSurface: bool = True
+    targetSurfacePostprocess: bool = False
     targetParcellation: bool = True
     targetSegmentation: bool = True
     targetMicrostructure: bool = True
@@ -156,6 +158,23 @@ class SlicerDDSurferWidget(
         self._connect_segmentation_ui()
         self._connect_common_ui()
         self._initialize_common_ui_state()
+
+    def _product_target_flags(self) -> ProductTargetFlags:
+        """Include the explicit FreeSurfer-style postprocess product target."""
+
+        flags = super()._product_target_flags()
+        node = self._parameterNode
+        return ProductTargetFlags(
+            preprocessing=flags.preprocessing,
+            surface=flags.surface,
+            surface_postprocess=bool(getattr(node, "targetSurfacePostprocess", False)) if node else False,
+            parcellation=flags.parcellation,
+            segmentation=flags.segmentation,
+            microstructure=flags.microstructure,
+            tractography=flags.tractography,
+            bundles=flags.bundles,
+            connectome=flags.connectome,
+        )
 
 
 class SlicerDDSurferLogic(

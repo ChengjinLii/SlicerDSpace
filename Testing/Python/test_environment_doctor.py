@@ -11,6 +11,7 @@ from pathlib import Path
 from shared.environment import (
     DependencySpec,
     EnvironmentDoctorConfig,
+    _apply_default_python,
     _check_spec,
     _common_command_dirs,
     _common_freesurfer_homes,
@@ -26,6 +27,68 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
+    def test_default_pythonpath_does_not_leak_into_an_external_python(self) -> None:
+        default_python = Path(sys.executable).resolve()
+        external_python = default_python.with_name("external-python.exe")
+        default_packages = default_python.parent / "slicer-packages"
+        external_packages = external_python.parent / "tractcloud-src"
+        specs = (
+            DependencySpec(
+                key="python:default",
+                kind="python",
+                label="default",
+                required=True,
+                targets=("validation",),
+                python_import="default_package",
+            ),
+            DependencySpec(
+                key="python:external",
+                kind="python",
+                label="external",
+                required=True,
+                targets=("tractcloud",),
+                python_import="tractcloud",
+                python_executable=external_python,
+                python_path_entries=(external_packages,),
+            ),
+        )
+
+        default_spec, external_spec = _apply_default_python(
+            specs,
+            default_python,
+            (default_packages,),
+        )
+
+        self.assertEqual(default_spec.python_executable, default_python)
+        self.assertEqual(default_spec.python_path_entries, (default_packages.resolve(),))
+        self.assertEqual(external_spec.python_executable, external_python.resolve())
+        self.assertEqual(external_spec.python_path_entries, (external_packages,))
+
+    def test_python_probe_prioritizes_configured_pythonpath(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            package_root = Path(tmp)
+            (package_root / "doctor_external_package.py").write_text(
+                "VALUE = 'external'\n",
+                encoding="utf-8",
+            )
+            status = _check_spec(
+                DependencySpec(
+                    key="python:doctor_external_package",
+                    kind="python",
+                    label="doctor_external_package",
+                    required=True,
+                    targets=("validation",),
+                    python_import="doctor_external_package",
+                    python_package="",
+                    python_executable=Path(sys.executable),
+                    python_path_entries=(package_root,),
+                ),
+                sys.platform,
+            )
+
+        self.assertEqual(status.status, "available")
+        self.assertEqual(status.details["pythonpath"], [package_root.as_posix()])
+
     def test_python_version_requirement_rejects_old_torch(self) -> None:
         specifier, satisfied = _python_requirement_details("torch>=2.0.0", "1.8.1+cpu")
         self.assertEqual(specifier, ">=2.0.0")

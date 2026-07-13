@@ -85,10 +85,32 @@ class UIRunControllerTest(unittest.TestCase):
         self.assertEqual(selected_environment_targets(("validation", "validation", "bundles")), ("validation", "bundles"))
 
     def test_selected_workflow_and_orchestrator_labels(self) -> None:
-        flags = ProductTargetFlags(surface=True, parcellation=True, bundles=True)
+        flags = ProductTargetFlags(surface=True, surface_postprocess=True, parcellation=True, bundles=True)
 
-        self.assertEqual(selected_workflows(flags), ["Surface / DDSurfer", "Parcellation / DDParcel", "Bundles"])
-        self.assertEqual(selected_orchestrator_targets(flags), ("validation", "parcellation", "bundles"))
+        self.assertEqual(
+            selected_workflows(flags),
+            [
+                "Surface / DDSurfer native STL",
+                "Surface postprocess / FreeSurfer",
+                "Parcellation / DDParcel",
+                "Bundles",
+            ],
+        )
+        self.assertEqual(
+            selected_orchestrator_targets(flags),
+            ("validation", "parcellation", "surface_postprocess", "bundles"),
+        )
+
+    def test_surface_postprocess_is_an_explicit_independent_product_target(self) -> None:
+        targets = selected_product_targets(
+            ProductTargetFlags(surface_postprocess=True),
+            tractography_backend="dti_det",
+            bundle_backend="wmql",
+            microstructure_freewater=False,
+            microstructure_noddi=False,
+        )
+
+        self.assertEqual(targets, ("validation", "surface_postprocess"))
 
     def test_summary_and_streamline_state_are_backend_aware(self) -> None:
         summary, target_text = selected_products_summary(

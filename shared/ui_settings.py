@@ -23,6 +23,7 @@ COMMON_USER_SETTING_SPECS: tuple[tuple[str, type], ...] = (
     ("batchArrangeInputs", str),
     ("targetPreprocessing", bool),
     ("targetSurface", bool),
+    ("targetSurfacePostprocess", bool),
     ("targetParcellation", bool),
     ("targetSegmentation", bool),
     ("targetMicrostructure", bool),

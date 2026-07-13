@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -18,6 +19,97 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class MicrostructureDTIScalarsTest(unittest.TestCase):
+    def test_free_water_scalar_sanitizer_rejects_implausible_tissue_md(self) -> None:
+        from microstructure.pipeline import _sanitize_free_water_scalars
+
+        fwf, tissue_fa, tissue_md, invalid_count = _sanitize_free_water_scalars(
+            np.asarray([0.25, np.nan, 1.2], dtype=np.float32),
+            np.asarray([0.4, 0.7, 0.5], dtype=np.float32),
+            np.asarray([7.0e-4, 39_608.0, 4.0e-3], dtype=np.float32),
+        )
+
+        np.testing.assert_allclose(fwf, [0.25, 0.0, 1.0])
+        np.testing.assert_allclose(tissue_fa, [0.4, 0.0, 0.0])
+        np.testing.assert_allclose(tissue_md, [7.0e-4, 0.0, 0.0])
+        self.assertEqual(invalid_count, 2)
+
+    def test_expected_manifest_distinguishes_selected_and_available_optional_maps(self) -> None:
+        from microstructure.pipeline import (
+            MicrostructureConfig,
+            _expected_free_water_manifest,
+            _expected_manifest,
+            _expected_noddi_manifest,
+            _free_water_outputs_current,
+            _noddi_outputs_current,
+            _output_paths,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            inputs = {name: root / name for name in ("dwi", "bval", "bvec", "mask")}
+            for path in inputs.values():
+                path.write_text("x", encoding="utf-8")
+            native_dir = root / "native"
+            native_dir.mkdir()
+            config = object.__new__(MicrostructureConfig)
+            object.__setattr__(config, "run_free_water", True)
+            object.__setattr__(config, "run_noddi", False)
+            object.__setattr__(config, "subject_id", "100307")
+            object.__setattr__(config, "native_bundle", type("Native", (), {"fit_method": "wls", "bundle_dir": native_dir, "manifest_path": native_dir / "manifest.json"})())
+            raw = type(
+                "Raw",
+                (),
+                {
+                    "dwi_path": inputs["dwi"],
+                    "bval_path": inputs["bval"],
+                    "bvec_path": inputs["bvec"],
+                    "mask_path": inputs["mask"],
+                },
+            )()
+            object.__setattr__(config, "raw_input_bundle", raw)
+            object.__setattr__(config, "free_water_fit_method", "WLS")
+            object.__setattr__(config, "free_water_chunk_size", 2)
+            object.__setattr__(config, "free_water_engine", "serial")
+            object.__setattr__(config, "free_water_n_jobs", None)
+            object.__setattr__(config, "free_water_vox_per_chunk", None)
+            object.__setattr__(config, "noddi_directional_average", False)
+            object.__setattr__(config, "noddi_b0_threshold", 50)
+            object.__setattr__(config, "noddi_lmax", 12)
+            object.__setattr__(config, "noddi_ndirs", 500)
+            object.__setattr__(config, "noddi_nthreads", 1)
+            object.__setattr__(config, "noddi_solver_lambda1", 0.5)
+            object.__setattr__(config, "noddi_solver_lambda2", 0.001)
+
+            manifest = _expected_manifest(
+                config,
+                None,
+                free_water_available=True,
+                noddi_available=True,
+            )
+            paths = _output_paths("100307", root / "outputs" / "02_microstructure")
+            for key in ("fwf", "fw_tissue_fa", "fw_tissue_md", "noddi_ndi", "noddi_odi", "noddi_fwf"):
+                paths[key].parent.mkdir(parents=True, exist_ok=True)
+                paths[key].write_text("map", encoding="utf-8")
+            paths["free_water_manifest"].write_text(
+                json.dumps(_expected_free_water_manifest(config)),
+                encoding="utf-8",
+            )
+            paths["noddi_manifest"].write_text(
+                json.dumps(_expected_noddi_manifest(config)),
+                encoding="utf-8",
+            )
+
+            self.assertTrue(_free_water_outputs_current(config, paths))
+            self.assertTrue(_noddi_outputs_current(config, paths))
+            inputs["dwi"].write_text("different input", encoding="utf-8")
+            self.assertFalse(_free_water_outputs_current(config, paths))
+            self.assertFalse(_noddi_outputs_current(config, paths))
+
+        self.assertTrue(manifest["free_water_model"]["run_enabled"])
+        self.assertFalse(manifest["noddi_model"]["run_enabled"])
+        self.assertTrue(manifest["noddi_model"]["outputs_available"])
+        self.assertIn("NODDI_NDI", manifest["roi_metrics"])
+
     def test_output_paths_include_full_dti_scalar_set(self) -> None:
         from microstructure.pipeline import _output_paths
 
@@ -33,6 +125,41 @@ class MicrostructureDTIScalarsTest(unittest.TestCase):
             self.assertEqual(paths["trace"].name, "100307_dti_Trace.nii.gz")
             self.assertEqual(paths["free_water_progress"].name, "freewater_progress.json")
             self.assertEqual(paths["noddi_progress"].name, "noddi_progress.json")
+
+    def test_roi_stats_exclude_zero_pair_used_for_invalid_free_water_tissue_fit(self) -> None:
+        from microstructure.pipeline import _compute_roi_stats
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            affine = np.eye(4)
+            roi_path = root / "roi.nii.gz"
+            fa_path = root / "fw_fa.nii.gz"
+            md_path = root / "fw_md.nii.gz"
+            nib.save(nib.Nifti1Image(np.ones((3, 1, 1), dtype=np.int16), affine), str(roi_path))
+            nib.save(
+                nib.Nifti1Image(np.asarray([0.4, 0.0, 0.6], dtype=np.float32).reshape(3, 1, 1), affine),
+                str(fa_path),
+            )
+            nib.save(
+                nib.Nifti1Image(np.asarray([7.0e-4, 0.0, 9.0e-4], dtype=np.float32).reshape(3, 1, 1), affine),
+                str(md_path),
+            )
+            json_path = root / "stats.json"
+
+            count = _compute_roi_stats(
+                metric_paths={"fw_tissue_fa": fa_path, "fw_tissue_md": md_path},
+                roi_label_map=roi_path,
+                lut_path=None,
+                csv_path=root / "stats.csv",
+                json_path=json_path,
+            )
+            row = json.loads(json_path.read_text(encoding="utf-8"))["rows"][0]
+
+            self.assertEqual(count, 1)
+            self.assertEqual(row["voxel_count"], 2)
+            self.assertAlmostEqual(row["fw_tissue_fa_mean"], 0.5)
+            self.assertAlmostEqual(row["fw_tissue_md_mean"], 8.0e-4)
+            self.assertGreater(row["fw_tissue_md_min"], 0.0)
 
     def test_rd_is_computed_from_l2_l3_average(self) -> None:
         from microstructure.pipeline import _compute_rd_map

@@ -106,12 +106,15 @@ from shared.ui_onboarding import (
     LANGUAGE_SETTING,
     apply_onboarding_language,
     capability_dashboard_text,
+    dependency_ui_text,
     diagnostic_report_text,
     install_onboarding_panel,
     maybe_show_first_run_wizard,
     normalized_language,
+    onboarding_text,
     prepare_demo_for_owner,
     show_first_run_wizard,
+    translated_ui_message,
 )
 from shared.user_config import (
     default_user_config_path,
@@ -178,6 +181,7 @@ class SharedWidgetMixin:
         self._apply_slicerddsurfer_ui_style()
         self._configure_log_widget()
         self._refresh_advanced_run_settings()
+        apply_onboarding_language(self, getattr(self, "_onboardingLanguage", "en"))
 
         for widget_name in (
             "surfaceOptionsSectionLabel",
@@ -336,6 +340,7 @@ class SharedWidgetMixin:
             recent = config.get("recent", {})
             defaults = config.get("run_defaults", {})
             targets = set(defaults.get("targets", ()) or ())
+            targets_configured = "targets" in defaults
             with slicer.util.NodeModify(node):
                 node.subjectId = str(recent.get("subject_id") or node.subjectId or "")
                 node.inputDirectory = str(recent.get("subject_root") or node.inputDirectory or "")
@@ -357,9 +362,10 @@ class SharedWidgetMixin:
                 node.autoInstallPythonDependencies = bool(
                     defaults.get("auto_install_python_dependencies", node.autoInstallPythonDependencies)
                 )
-                if targets:
+                if targets_configured:
                     node.targetPreprocessing = "preprocessing" in targets
                     node.targetSurface = "surface" in targets
+                    node.targetSurfacePostprocess = "surface_postprocess" in targets
                     node.targetParcellation = "parcellation" in targets
                     node.targetSegmentation = "segmentation" in targets
                     node.targetMicrostructure = bool(
@@ -1179,10 +1185,19 @@ class SharedWidgetMixin:
         apply_widget_styles(self)
 
     def _set_run_progress_message(self, message: str) -> None:
-        set_run_progress_message(self, message)
+        self._runProgressMessageSource = str(message or "")
+        set_run_progress_message(
+            self,
+            translated_ui_message(getattr(self, "_onboardingLanguage", "en"), self._runProgressMessageSource),
+        )
 
     def _set_run_summary_message(self, message: str, state: str = "") -> None:
-        set_run_summary_message(self, message, state)
+        self._runSummaryMessageSource = str(message or "")
+        set_run_summary_message(
+            self,
+            translated_ui_message(getattr(self, "_onboardingLanguage", "en"), self._runSummaryMessageSource),
+            state,
+        )
 
     def _run_summary_from_manifest(self, manifest: dict[str, Any]) -> tuple[str, str]:
         return run_summary_from_manifest(manifest)
@@ -1280,16 +1295,19 @@ class SharedWidgetMixin:
     def _browse_environment_dependency_path(self, item: dict[str, str], line_edit) -> None:
         current = self._line_edit_text(line_edit)
         start_dir = current if current else os.path.expanduser("~")
+        language = getattr(self, "_onboardingLanguage", "en")
+        localized_label = dependency_ui_text(language, item["id"], "label") or item["label"]
+        dialog_title = f"{onboarding_text(language, 'select_path')} {localized_label}"
         if item.get("mode") == "file":
             selected = qt.QFileDialog.getOpenFileName(
                 slicer.util.mainWindow(),
-                f"Select {item['label']}",
+                dialog_title,
                 start_dir,
             )
         else:
             selected = qt.QFileDialog.getExistingDirectory(
                 slicer.util.mainWindow(),
-                f"Select {item['label']}",
+                dialog_title,
                 start_dir,
             )
         selected_text = selected[0] if isinstance(selected, tuple) else selected
@@ -1347,6 +1365,11 @@ class SharedWidgetMixin:
             "connectome_backend": (node.connectomeBackend or "python").strip(),
             "ddseg_device": (node.ddsegDevice or "auto").strip() or "auto",
             "surface_device": (node.device or "auto").strip() or "auto",
+            "python_path_entries": tuple(
+                Path(entry).expanduser().resolve()
+                for entry in sys.path
+                if entry and Path(entry).expanduser().exists()
+            ),
             "microstructure_run_free_water": self._microstructure_stage_flags()[0],
             "microstructure_run_noddi": self._microstructure_stage_flags()[1],
             **external_paths,
@@ -1390,7 +1413,13 @@ class SharedWidgetMixin:
         return result
 
     def _set_environment_path_status_label(self, label, text: str, state: str) -> None:
-        label.setText(text)
+        for dependency_id, candidate in (getattr(self, "_environmentPathStatusLabels", {}) or {}).items():
+            if candidate is label:
+                sources = getattr(self, "_environmentPathStatusSources", None)
+                if sources is not None:
+                    sources[dependency_id] = str(text or "")
+                break
+        label.setText(translated_ui_message(getattr(self, "_onboardingLanguage", "en"), text))
         label.setStyleSheet(environment_path_status_style(state))
 
     def _path_status_dependencies(self, result, dependency_id: str) -> list:
@@ -2295,7 +2324,12 @@ class SharedWidgetMixin:
         slicer.util.infoDisplay(message, windowTitle="SlicerDDSurfer partial run", parent=self.parent)
 
     def _setStatus(self, kind: str, message: str) -> None:
-        set_status(self, kind, message)
+        self._statusMessageSource = str(message or "")
+        set_status(
+            self,
+            kind,
+            translated_ui_message(getattr(self, "_onboardingLanguage", "en"), self._statusMessageSource),
+        )
 
     def _summarise_missing(self, missing: List[str]) -> str:
         if not missing:

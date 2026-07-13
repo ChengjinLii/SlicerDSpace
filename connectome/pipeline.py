@@ -70,6 +70,47 @@ def _file_info(path: Path) -> dict[str, object]:
     }
 
 
+def _nonempty_file(path: Path) -> bool:
+    try:
+        return path.is_file() and path.stat().st_size > 0
+    except OSError:
+        return False
+
+
+def _table_has_data_row(path: Path, *, header_prefix: str) -> bool:
+    if not _nonempty_file(path):
+        return False
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as stream:
+            first = next((line.strip() for line in stream if line.strip()), "")
+            if not first:
+                return False
+            if not first.lower().startswith(header_prefix.lower()):
+                return True
+            return any(line.strip() for line in stream)
+    except OSError:
+        return False
+
+
+def _connectome_output_errors(qc: dict[str, object], matrix_path: Path, nodes_path: Path) -> list[str]:
+    errors: list[str] = []
+    try:
+        if int(qc.get("node_count", 0) or 0) <= 0:
+            errors.append("node_count<=0")
+    except (TypeError, ValueError):
+        errors.append("invalid node_count")
+    try:
+        if int(qc.get("edge_count", 0) or 0) <= 0:
+            errors.append("edge_count<=0")
+    except (TypeError, ValueError):
+        errors.append("invalid edge_count")
+    if not _table_has_data_row(nodes_path, header_prefix="node_id\t"):
+        errors.append("nodes table has no data rows")
+    if not _table_has_data_row(matrix_path, header_prefix="source_node,target_node,"):
+        errors.append("matrix has no data edges")
+    return errors
+
+
 def _has_supported_parcellation_suffix(path: Path) -> bool:
     name = path.name.lower()
     return any(name.endswith(suffix) for suffix in SUPPORTED_PARCELLATION_SUFFIXES)
@@ -837,6 +878,11 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
             execution_error = str(exc)
             return_code = 1
         finally:
+            if execution_error is None:
+                output_errors = _connectome_output_errors(qc, matrix_path, nodes_path)
+                if output_errors:
+                    execution_error = "Connectome execution produced incomplete outputs: " + "; ".join(output_errors)
+                    return_code = 1
             elapsed_seconds = time.monotonic() - start_time
             qc.update(
                 {
@@ -856,6 +902,12 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
             _write_nodes_table(nodes_path, data.ravel(), label_names=_parse_label_names(lut_path))
         except Exception:
             nodes_path.write_text("node_id\tlabel\tname\n", encoding="utf-8")
+    # Keep the native manifest and QC lifecycle fields authoritative and in
+    # lockstep.  Previously an executed connectome left its manifest at
+    # ``running`` even after the QC record had reached ``completed`` or
+    # ``failed``.
+    manifest["executed"] = bool(qc["executed"])
+    manifest["status"] = str(qc["status"])
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if execution_error is not None:

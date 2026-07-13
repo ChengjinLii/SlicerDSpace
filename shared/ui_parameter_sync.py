@@ -87,6 +87,10 @@ def sync_parameter_node_to_ui(widget) -> None:
     )
     widget._sync_checkbox(getattr(ui, "autoInstallPythonDependenciesCheckBox", None), bool(node.autoInstallPythonDependencies))
     widget._sync_checkbox(getattr(ui, "targetSurfaceCheckBox", None), bool(node.targetSurface))
+    widget._sync_checkbox(
+        getattr(ui, "targetSurfacePostprocessCheckBox", None),
+        bool(getattr(node, "targetSurfacePostprocess", False)),
+    )
     widget._sync_checkbox(getattr(ui, "targetParcellationCheckBox", None), bool(node.targetParcellation))
     widget._sync_checkbox(getattr(ui, "targetSegmentationCheckBox", None), bool(node.targetSegmentation))
     widget._sync_checkbox(getattr(ui, "targetMicrostructureCheckBox", None), bool(node.targetMicrostructure))

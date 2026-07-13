@@ -16,6 +16,11 @@ from shared.pipeline import NativeDTIBundle, RawInputBundle
 
 LOGGER = logging.getLogger(__name__)
 FREE_WATER_ENGINES = {"serial", "joblib", "dask", "ray"}
+# DIPY's free-water model assumes an isotropic free-water diffusivity of
+# 3e-3 mm^2/s. Tissue MD estimates above that value are numerically invalid
+# (typically caused by ill-conditioned low-signal voxel fits) and must not be
+# propagated into regional statistics.
+FREE_WATER_MAX_TISSUE_MD = 3.0e-3
 
 try:
     import nibabel as nib
@@ -287,11 +292,16 @@ def _output_paths(
 def _expected_manifest(
     config: MicrostructureConfig,
     roi_label_map: Path | None,
+    *,
+    free_water_available: bool | None = None,
+    noddi_available: bool | None = None,
 ) -> dict[str, object]:
+    free_water_available = bool(config.run_free_water) if free_water_available is None else bool(free_water_available)
+    noddi_available = bool(config.run_noddi) if noddi_available is None else bool(noddi_available)
     roi_metrics = ["FA", "MD", "AD", "RD", "L1", "L2", "L3", "TRACE"]
-    if config.run_free_water:
+    if free_water_available:
         roi_metrics.extend(["FWF", "FW_TISSUE_FA", "FW_TISSUE_MD"])
-    if config.run_noddi:
+    if noddi_available:
         roi_metrics.extend(["NODDI_NDI", "NODDI_ODI", "NODDI_FWF"])
     return {
         "kind": "microstructure_phase3",
@@ -315,12 +325,15 @@ def _expected_manifest(
             "engine": config.free_water_engine,
             "n_jobs": config.free_water_n_jobs,
             "vox_per_chunk": config.free_water_vox_per_chunk,
+            "max_tissue_md_mm2_s": FREE_WATER_MAX_TISSUE_MD,
             "run_enabled": bool(config.run_free_water),
+            "outputs_available": free_water_available,
         },
         "noddi_model": {
             "name": "NODDI",
             "library": "AMICO",
             "run_enabled": bool(config.run_noddi),
+            "outputs_available": noddi_available,
             "directional_average": bool(config.noddi_directional_average),
             "b0_threshold": int(config.noddi_b0_threshold),
             "lmax": int(config.noddi_lmax),
@@ -352,6 +365,7 @@ def _expected_free_water_manifest(config: MicrostructureConfig) -> dict[str, obj
             "engine": config.free_water_engine,
             "n_jobs": config.free_water_n_jobs,
             "vox_per_chunk": config.free_water_vox_per_chunk,
+            "max_tissue_md_mm2_s": FREE_WATER_MAX_TISSUE_MD,
         },
     }
 
@@ -422,6 +436,24 @@ def _noddi_outputs_complete(paths: dict[str, Path]) -> bool:
     )
 
 
+def _free_water_outputs_current(config: MicrostructureConfig, paths: dict[str, Path]) -> bool:
+    """Return whether reusable Free Water maps match the current input/config."""
+
+    return (
+        _free_water_outputs_complete(paths)
+        and _read_json(paths["free_water_manifest"]) == _expected_free_water_manifest(config)
+    )
+
+
+def _noddi_outputs_current(config: MicrostructureConfig, paths: dict[str, Path]) -> bool:
+    """Return whether reusable NODDI maps match the current input/config."""
+
+    return (
+        _noddi_outputs_complete(paths)
+        and _read_json(paths["noddi_manifest"]) == _expected_noddi_manifest(config)
+    )
+
+
 def _compute_rd_map(l2_path: Path, l3_path: Path, output_path: Path) -> None:
     _ensure_base_imports_ready()
     l2_img = nib.load(str(l2_path))
@@ -479,6 +511,45 @@ def _save_scalar_nifti(data: np.ndarray, reference_img: nib.Nifti1Image, output_
     nib.save(image, str(output_path))
 
 
+def _sanitize_free_water_scalars(
+    fwf: np.ndarray,
+    tissue_fa: np.ndarray,
+    tissue_md: np.ndarray,
+    *,
+    max_tissue_md: float = FREE_WATER_MAX_TISSUE_MD,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+    """Return finite, physically bounded free-water scalar arrays.
+
+    The WLS refinement can produce a handful of extremely large tissue
+    eigenvalues in ill-conditioned voxels even though the rest of the volume
+    is well behaved.  Mark the tissue FA/MD pair as unavailable (zero) for
+    those voxels as an all-zero tissue FA/MD pair rather than clipping MD to
+    a plausible-looking boundary. ROI summaries recognize that pair as an
+    unavailable fit and exclude it from tissue measurements.
+    """
+
+    raw_fwf = np.asarray(fwf, dtype=np.float32)
+    raw_fa = np.asarray(tissue_fa, dtype=np.float32)
+    raw_md = np.asarray(tissue_md, dtype=np.float32)
+    valid_tissue = (
+        np.isfinite(raw_fa)
+        & np.isfinite(raw_md)
+        & (raw_fa >= 0.0)
+        & (raw_fa <= 1.0)
+        & (raw_md >= 0.0)
+        & (raw_md <= float(max_tissue_md))
+    )
+    invalid_count = int(np.count_nonzero(~valid_tissue))
+    clean_fwf = np.clip(
+        np.nan_to_num(raw_fwf, nan=0.0, posinf=1.0, neginf=0.0),
+        0.0,
+        1.0,
+    ).astype(np.float32, copy=False)
+    clean_fa = np.where(valid_tissue, raw_fa, 0.0).astype(np.float32, copy=False)
+    clean_md = np.where(valid_tissue, raw_md, 0.0).astype(np.float32, copy=False)
+    return clean_fwf, clean_fa, clean_md, invalid_count
+
+
 def _compute_free_water_maps(
     *,
     config: MicrostructureConfig,
@@ -524,6 +595,7 @@ def _compute_free_water_maps(
     total_voxels = int(mask.sum())
     completed_chunks = 0
     completed_voxels = 0
+    invalid_tissue_voxels = 0
 
     progress_base: dict[str, object] = {
         "kind": "microstructure_stage_progress",
@@ -600,9 +672,12 @@ def _compute_free_water_maps(
             fit_kwargs["vox_per_chunk"] = int(vox_per_chunk)
         fit = fw_model.fit(voxel_signals, **fit_kwargs)
 
-        fwf = np.clip(np.nan_to_num(np.asarray(fit.f, dtype=np.float32), nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0)
-        fw_fa = np.clip(np.nan_to_num(np.asarray(fit.fa, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0), 0.0, 1.0)
-        fw_md = np.clip(np.nan_to_num(np.asarray(fit.md, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0), 0.0, None)
+        fwf, fw_fa, fw_md, invalid_count = _sanitize_free_water_scalars(
+            fit.f,
+            fit.fa,
+            fit.md,
+        )
+        invalid_tissue_voxels += invalid_count
 
         fwf_chunk = np.zeros(mask_chunk.shape, dtype=np.float32)
         fw_fa_chunk = np.zeros(mask_chunk.shape, dtype=np.float32)
@@ -628,6 +703,7 @@ def _compute_free_water_maps(
                 "z_start": z_start,
                 "z_stop": z_stop,
                 "voxel_count": voxel_count,
+                "invalid_tissue_voxels": invalid_tissue_voxels,
                 "elapsed_seconds": round(time.monotonic() - started, 3),
             },
         )
@@ -642,6 +718,8 @@ def _compute_free_water_maps(
             "status": "completed",
             "completed_chunks": completed_chunks,
             "completed_voxels": completed_voxels,
+            "invalid_tissue_voxels": invalid_tissue_voxels,
+            "max_tissue_md_mm2_s": FREE_WATER_MAX_TISSUE_MD,
             "current_chunk": None,
             "elapsed_seconds": round(time.monotonic() - started, 3),
             "outputs": {
@@ -863,6 +941,16 @@ def _compute_roi_stats(
             ]
         )
 
+    metric_validity_masks: dict[str, np.ndarray] = {}
+    if {"fw_tissue_fa", "fw_tissue_md"}.issubset(metric_arrays):
+        tissue_fa = metric_arrays["fw_tissue_fa"]
+        tissue_md = metric_arrays["fw_tissue_md"]
+        valid_tissue_pair = np.isfinite(tissue_fa) & np.isfinite(tissue_md) & (
+            (tissue_fa != 0.0) | (tissue_md != 0.0)
+        )
+        metric_validity_masks["fw_tissue_fa"] = valid_tissue_pair
+        metric_validity_masks["fw_tissue_md"] = valid_tissue_pair
+
     rounded_roi = np.rint(roi_data)
     non_integer_mask = np.logical_and(roi_data > 0, np.abs(roi_data - rounded_roi) > 1e-3)
     if np.any(non_integer_mask):
@@ -883,6 +971,8 @@ def _compute_roi_stats(
 
         for metric_key, metric_data in metric_arrays.items():
             metric_valid_mask = np.logical_and(label_mask, np.isfinite(metric_data))
+            if metric_key in metric_validity_masks:
+                metric_valid_mask = np.logical_and(metric_valid_mask, metric_validity_masks[metric_key])
             voxels = metric_data[metric_valid_mask]
             if voxels.size == 0:
                 voxel_count = 0 if voxel_count is None else voxel_count
@@ -948,7 +1038,14 @@ def run_microstructure(
 
     paths = _output_paths(subject_id, output_dir)
     roi_label_map = _resolve_roi_label_map(config)
-    expected_manifest = _expected_manifest(config, roi_label_map)
+    free_water_available = bool(config.run_free_water) or _free_water_outputs_current(config, paths)
+    noddi_available = bool(config.run_noddi) or _noddi_outputs_current(config, paths)
+    expected_manifest = _expected_manifest(
+        config,
+        roi_label_map,
+        free_water_available=free_water_available,
+        noddi_available=noddi_available,
+    )
     actual_manifest = _read_json(paths["manifest"])
     roi_enabled = roi_label_map is not None
     force_recompute = bool(config.force_recompute)
@@ -1070,7 +1167,7 @@ def run_microstructure(
             "l3": paths["l3"],
             "trace": paths["trace"],
         }
-        if config.run_free_water:
+        if _free_water_outputs_current(config, paths):
             metric_paths.update(
                 {
                     "fwf": paths["fwf"],
@@ -1078,7 +1175,7 @@ def run_microstructure(
                     "fw_tissue_md": paths["fw_tissue_md"],
                 }
             )
-        if config.run_noddi:
+        if _noddi_outputs_current(config, paths):
             metric_paths.update(
                 {
                     "noddi_ndi": paths["noddi_ndi"],

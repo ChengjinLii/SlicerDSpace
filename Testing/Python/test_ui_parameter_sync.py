@@ -17,6 +17,7 @@ class UIParameterSyncTest(unittest.TestCase):
             outputDirectoryPath=object(),
             orchestrationRunNameLineEdit=object(),
             targetSurfaceCheckBox=object(),
+            targetSurfacePostprocessCheckBox=object(),
             orchestrationTractographyBackendComboBox=object(),
             orchestrationMicrostructureStagesComboBox=object(),
         )
@@ -70,6 +71,7 @@ class UIParameterSyncTest(unittest.TestCase):
             connectomeCompressMrtrixDense=False,
             autoInstallPythonDependencies=True,
             targetSurface=True,
+            targetSurfacePostprocess=False,
             targetParcellation=False,
             targetSegmentation=True,
             targetMicrostructure=False,
@@ -106,6 +108,7 @@ class UIParameterSyncTest(unittest.TestCase):
         self.assertIn(("path", "", ui.outputDirectoryPath, "/data/out"), calls)
         self.assertIn(("line", "", ui.orchestrationRunNameLineEdit, "Test1"), calls)
         self.assertIn(("checkbox", "", ui.targetSurfaceCheckBox, True), calls)
+        self.assertIn(("checkbox", "", ui.targetSurfacePostprocessCheckBox, False), calls)
         self.assertIn(("combo", "False", ui.orchestrationTractographyBackendComboBox, "dti_det"), calls)
         self.assertIn(("combo", "False", ui.orchestrationMicrostructureStagesComboBox, "dti"), calls)
 
