@@ -110,6 +110,15 @@ ensure_freesurfer_env() {
     fi
 }
 
+cleanup_runtime_links() {
+    # fsaverage is needed only while FreeSurfer commands are running.  Leaving
+    # its absolute WSL symlink on an NTFS output tree makes Windows traversal
+    # fail with WinError 1920.
+    if [ -L "${WORK_SUBJECTS_DIR}/fsaverage" ]; then
+        rm -f "${WORK_SUBJECTS_DIR}/fsaverage"
+    fi
+}
+
 check_python_deps() {
     "${PYTHON_BIN}" - <<'PY'
 import nibabel  # noqa: F401
@@ -122,15 +131,18 @@ safe_stage_item() {
     local src="$1"
     local dest="$2"
     mkdir -p "$(dirname "${dest}")"
-    if [ -e "${dest}" ]; then
-        return 0
-    fi
     case "${STAGE_MODE}" in
         symlink)
+            if [ -e "${dest}" ] || [ -L "${dest}" ]; then
+                return 0
+            fi
             ln -s "${src}" "${dest}"
             ;;
         copy|inplace)
-            cp -a "${src}" "${dest}"
+            if [ -L "${dest}" ]; then
+                rm -f "${dest}"
+            fi
+            cp -aL "${src}" "${dest}"
             ;;
         *)
             log_echo "ERROR: Unsupported STAGE_MODE=${STAGE_MODE}"
@@ -238,7 +250,7 @@ project_annotations() {
             if [ ! -f "${target_annot_file}" ] && [ -f "${source_annot_file}" ]; then
                 mri_surf2surf --srcsubject fsaverage --trgsubject "${SUBJECT_ID}" --hemi "${hemi}" --sval-annot "${source_annot_file}" --tval "${target_annot_file}" >> "${LOG_FILE}" 2>&1
             fi
-            if [ -f "${target_annot_file}" ] && [ ! -f "${ctab_file}" ]; then
+            if [ -f "${target_annot_file}" ]; then
                 "${PYTHON_BIN}" "${PYTHON_EXTRACT_CTAB_SCRIPT}" --annot_file "${target_annot_file}" --output_ctab "${ctab_file}" >> "${LOG_FILE}" 2>&1
             fi
         done
@@ -280,7 +292,7 @@ compute_stats() {
             local annot_file="${label_dir}/${hemi}.${annot_base}.annot"
             local ctab_file="${label_dir}/${hemi}.${annot_base}.ctab"
             local output_stats="${stats_dir}/${hemi}.${annot_base}.stats"
-            if [ -f "${annot_file}" ] && [ -f "${ctab_file}" ] && [ ! -f "${output_stats}" ]; then
+            if [ -f "${annot_file}" ] && [ -f "${ctab_file}" ]; then
                 declare -a python_cmd=("${PYTHON_REGIONAL_STATS_SCRIPT}" --annot_file "${annot_file}" --ctab_file "${ctab_file}" --hemi "${hemi}" --out_stats_file "${output_stats}")
                 [ -f "${surf_dir}/${hemi}.thickness" ] && python_cmd+=(--thickness "${surf_dir}/${hemi}.thickness")
                 [ -f "${surf_dir}/${hemi}.area.pial" ] && python_cmd+=(--area "${surf_dir}/${hemi}.area.pial")
@@ -310,10 +322,29 @@ resample_fsaverage() {
                 mri_surf2surf --s "${SUBJECT_ID}" --hemi "${hemi}" --sval "${source_metric_file}" --trgsubject fsaverage --tval "${output_metric_fsaverage}" >> "${LOG_FILE}" 2>&1
             fi
             if [ -f "${output_metric_fsaverage}" ]; then
-                ln -sfn "${output_metric_fsaverage}" "${FSAVERAGE_DIR}/$(basename "${output_metric_fsaverage}")"
+                local public_metric="${FSAVERAGE_DIR}/$(basename "${output_metric_fsaverage}")"
+                if [ -L "${public_metric}" ]; then
+                    rm -f "${public_metric}"
+                fi
+                cp -fL "${output_metric_fsaverage}" "${public_metric}"
             fi
         done
     done
+}
+
+materialize_directory() {
+    local src="$1"
+    local dest="$2"
+    local temporary="${dest}.tmp.$$"
+    rm -rf "${temporary}"
+    mkdir -p "${temporary}"
+    cp -aL "${src}/." "${temporary}/"
+    if [ -L "${dest}" ]; then
+        rm -f "${dest}"
+    elif [ -e "${dest}" ]; then
+        rm -rf "${dest}"
+    fi
+    mv "${temporary}" "${dest}"
 }
 
 sync_outputs() {
@@ -322,12 +353,12 @@ sync_outputs() {
     mkdir -p "${STATS_ROOT}"
     for name in "${structural_links[@]}"; do
         if [ -e "${SUBJECT_PATH}/${name}" ]; then
-            ln -sfn "${SUBJECT_PATH}/${name}" "${STRUCTURAL_ROOT}/${name}"
+            materialize_directory "${SUBJECT_PATH}/${name}" "${STRUCTURAL_ROOT}/${name}"
         fi
     done
     mkdir -p "${LOG_DIR}"
     if [ -e "${SUBJECT_PATH}/stats" ]; then
-        ln -sfn "${SUBJECT_PATH}/stats" "${STATS_ROOT}/stats"
+        materialize_directory "${SUBJECT_PATH}/stats" "${STATS_ROOT}/stats"
     fi
 }
 

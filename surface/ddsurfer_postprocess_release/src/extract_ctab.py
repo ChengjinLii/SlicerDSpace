@@ -26,7 +26,7 @@ def extract_and_save_ctab(annot_file_path, output_ctab_path):
 
         os.makedirs(os.path.dirname(output_ctab_path), exist_ok=True)
 
-        with open(output_ctab_path, "w") as f:
+        with open(output_ctab_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(f"# Colortable extracted from {os.path.basename(annot_file_path)}\n")
             f.write(f"# NEntries {n_entries}\n")
             f.write("# TableStart\n")
@@ -35,15 +35,17 @@ def extract_and_save_ctab(annot_file_path, output_ctab_path):
                 struct_name = names[i].decode("utf-8")
 
                 try:
-                    label_id = int(row[0])
-                    r_val = int(row[1])
-                    g_val = int(row[2])
-                    b_val = int(row[3])
+                    # nibabel returns [R, G, B, T, annotation_id], where T is
+                    # FreeSurfer transparency (255 - alpha).
+                    r_val = int(row[0])
+                    g_val = int(row[1])
+                    b_val = int(row[2])
+                    a_val_output = 255 - int(row[3])
+                    label_id = int(row[4])
                 except Exception:
                     print(f"WARN: Skipping malformed CTAB row {i}")
                     continue
 
-                a_val_output = 0
                 f.write(
                     f"{label_id:<5} {struct_name:<40} {r_val:>3} {g_val:>3} {b_val:>3} {a_val_output:>3}\n"
                 )

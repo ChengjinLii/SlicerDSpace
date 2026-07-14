@@ -96,11 +96,11 @@ def main():
         sys.exit(1)
 
     try:
-        vertex_labels_orig_ids, _, struct_names_bytes = nib.freesurfer.io.read_annot(
-            args.annot_file, orig_ids=True
+        vertex_label_indices, annot_ctab, struct_names_bytes = nib.freesurfer.io.read_annot(
+            args.annot_file, orig_ids=False
         )
         struct_names = [name.decode("utf-8") for name in struct_names_bytes]
-        n_vertices = len(vertex_labels_orig_ids)
+        n_vertices = len(vertex_label_indices)
         print(f"INFO: Loaded labels for {n_vertices} vertices")
 
         ctab_data = parse_ctab_file(args.ctab_file)
@@ -140,24 +140,30 @@ def main():
 
         results = []
         processed_roi_names = set()
+        missing_ctab_ids = []
 
-        for roi_name in struct_names:
+        # ``read_annot(..., orig_ids=False)`` maps packed annotation values to
+        # color-table row indices.  This is important for legacy atlases such
+        # as PALS, whose table may contain multiple names with the same RGB
+        # (and therefore the same packed ID).  A name-keyed CTAB dictionary
+        # loses those duplicates, while row indices preserve nibabel's actual
+        # vertex-to-structure assignment.
+        roi_indices = sorted(int(value) for value in np.unique(vertex_label_indices) if int(value) >= 0)
+        for roi_index in roi_indices:
+            if roi_index >= len(struct_names) or roi_index >= len(annot_ctab):
+                raise RuntimeError(f"Annotation references invalid color-table row {roi_index}.")
+            roi_name = struct_names[roi_index]
             if roi_name in processed_roi_names:
                 continue
             if roi_name.lower() in {"unknown", "corpuscallosum"}:
                 continue
 
-            current_label_id = -1
-            for lid, ctab_tuple in ctab_data.items():
-                if ctab_tuple[0] == roi_name:
-                    current_label_id = lid
-                    break
-
-            if current_label_id == -1:
-                print(f"WARN: ROI '{roi_name}' not found in CTAB. Skipping.")
+            packed_label_id = int(annot_ctab[roi_index, 4])
+            if packed_label_id not in ctab_data:
+                missing_ctab_ids.append((roi_name, packed_label_id))
                 continue
 
-            roi_vertices_mask = vertex_labels_orig_ids == current_label_id
+            roi_vertices_mask = vertex_label_indices == roi_index
             roi_vertex_indices = np.where(roi_vertices_mask)[0]
             num_vert_in_roi = len(roi_vertex_indices)
             if num_vert_in_roi == 0:
@@ -198,6 +204,18 @@ def main():
             results.append(row_dict)
             processed_roi_names.add(roi_name)
 
+        if missing_ctab_ids:
+            missing_text = ", ".join(
+                f"{name}={label_id}" for name, label_id in sorted(set(missing_ctab_ids))
+            )
+            raise RuntimeError(
+                "CTAB does not contain packed annotation IDs for: " + missing_text
+            )
+        if not results:
+            raise RuntimeError(
+                "Regional statistics produced no non-empty ROI rows; annotation/CTAB IDs do not match."
+            )
+
         os.makedirs(os.path.dirname(args.out_stats_file), exist_ok=True)
         with open(args.out_stats_file, "w") as f:
             f.write(f"# Measure \"{os.path.basename(args.annot_file)}\", {args.hemi} hemisphere\n")
@@ -224,6 +242,7 @@ def main():
                 f.write(" ".join(line_values) + "\n")
 
         print(f"INFO: Regional stats saved to: {args.out_stats_file}")
+        print(f"INFO: Regional stats rows: {len(results)}")
         print(f"--- [{script_name}] Done ---")
 
     except FileNotFoundError as exc:

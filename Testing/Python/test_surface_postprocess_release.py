@@ -20,6 +20,105 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class SurfacePostprocessReleaseTest(unittest.TestCase):
+    def test_windows_prefers_configured_slicer_bash_bridge(self) -> None:
+        from surface.postprocess_release import _resolve_bash_executable
+
+        with tempfile.TemporaryDirectory() as tmp:
+            slicer_root = Path(tmp) / "Slicer 5.6.2"
+            python_bin = slicer_root / "bin" / "PythonSlicer.exe"
+            python_bin.parent.mkdir(parents=True)
+            python_bin.write_bytes(b"python")
+            (slicer_root / "bash.exe").write_bytes(b"bridge")
+            (slicer_root / "bash.exe.conf").write_text("target=/bin/bash\n", encoding="utf-8")
+
+            self.assertEqual(
+                _resolve_bash_executable(python_bin, platform="nt"),
+                str(slicer_root / "bash.exe"),
+            )
+
+    def test_extract_ctab_preserves_annotation_ids_and_rgb(self) -> None:
+        from surface.ddsurfer_postprocess_release.src.extract_ctab import extract_and_save_ctab
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            annot_path = root / "lh.synthetic.annot"
+            ctab_path = root / "lh.synthetic.ctab"
+            input_ctab = np.asarray(
+                [
+                    [12, 34, 56, 0],
+                    [78, 90, 123, 17],
+                ],
+                dtype=np.int32,
+            )
+            names = [b"region_one", b"region_two"]
+            nib.freesurfer.io.write_annot(
+                str(annot_path),
+                np.asarray([0, 1, 0, 1], dtype=np.int32),
+                input_ctab,
+                names,
+            )
+            _, expected_ctab, expected_names = nib.freesurfer.io.read_annot(str(annot_path))
+
+            self.assertTrue(extract_and_save_ctab(str(annot_path), str(ctab_path)))
+            rows = {}
+            for line in ctab_path.read_text(encoding="utf-8").splitlines():
+                if not line or line.startswith("#"):
+                    continue
+                parts = line.split()
+                rows[parts[1]] = tuple(int(value) for value in (parts[0], *parts[-4:]))
+
+            for index, raw_name in enumerate(expected_names):
+                name = raw_name.decode("utf-8")
+                expected = expected_ctab[index]
+                self.assertEqual(rows[name][0], int(expected[4]))
+                self.assertEqual(rows[name][1:4], tuple(int(value) for value in expected[:3]))
+                self.assertEqual(rows[name][4], 255 - int(expected[3]))
+
+    def test_regional_stats_accepts_legacy_duplicate_annotation_ids(self) -> None:
+        from surface.ddsurfer_postprocess_release.src.compute_regional_stats import main as compute_stats
+        from surface.ddsurfer_postprocess_release.src.extract_ctab import extract_and_save_ctab
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            annot_path = root / "lh.legacy.annot"
+            ctab_path = root / "lh.legacy.ctab"
+            stats_path = root / "lh.legacy.stats"
+            nib.freesurfer.io.write_annot(
+                str(annot_path),
+                np.asarray([0, 1, 2, 1, 2, 0], dtype=np.int32),
+                np.asarray(
+                    [
+                        [10, 20, 30, 0],
+                        [200, 210, 220, 0],
+                        [200, 210, 220, 0],
+                    ],
+                    dtype=np.int32,
+                ),
+                [b"unique_region", b"legacy_alias_one", b"legacy_alias_two"],
+            )
+            self.assertTrue(extract_and_save_ctab(str(annot_path), str(ctab_path)))
+
+            argv = [
+                "compute_regional_stats.py",
+                "--annot_file",
+                str(annot_path),
+                "--ctab_file",
+                str(ctab_path),
+                "--hemi",
+                "lh",
+                "--out_stats_file",
+                str(stats_path),
+            ]
+            with mock.patch.object(sys, "argv", argv):
+                compute_stats()
+
+            rows = [
+                line
+                for line in stats_path.read_text(encoding="utf-8").splitlines()
+                if line.strip() and not line.startswith("#")
+            ]
+            self.assertGreaterEqual(len(rows), 2)
+
     def test_stage_inputs_respects_left_mode(self) -> None:
         from surface.postprocess_release import stage_postprocess_inputs
 
@@ -54,6 +153,9 @@ class SurfacePostprocessReleaseTest(unittest.TestCase):
                 surf_names,
                 ["877168_predicted_pial_lh_orig.stl", "877168_predicted_wm_lh_orig.stl"],
             )
+            for staged_file in (*((staged / "surf").iterdir()), *((staged / "mri").iterdir())):
+                self.assertTrue(staged_file.is_file())
+                self.assertFalse(staged_file.is_symlink())
 
     def test_run_returns_canonical_paths(self) -> None:
         from surface.postprocess_release import DDSurferPostprocessConfig, run_ddsurfer_postprocess
@@ -87,6 +189,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --subject-id) subject_id="$2"; shift 2 ;;
     --outputs-dir) outputs_dir="$2"; shift 2 ;;
+    --nest-subject-outputs) nested="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -165,15 +268,22 @@ printf '{"status":"completed"}' > "${structural_root}/qc.json"
 set -euo pipefail
 subject_id=""
 outputs_dir=""
+nested="1"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --subject-id) subject_id="$2"; shift 2 ;;
     --outputs-dir) outputs_dir="$2"; shift 2 ;;
+    --nest-subject-outputs) nested="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
-structural_root="${outputs_dir}/${subject_id}/03_structural/ddsurfer/postprocess"
-stats_root="${outputs_dir}/${subject_id}/05_statistics/ddsurfer/postprocess/stats"
+if [[ "$nested" = "0" ]]; then
+  structural_root="${outputs_dir}/03_structural/ddsurfer/postprocess"
+  stats_root="${outputs_dir}/05_statistics/ddsurfer/postprocess/stats"
+else
+  structural_root="${outputs_dir}/${subject_id}/03_structural/ddsurfer/postprocess"
+  stats_root="${outputs_dir}/${subject_id}/05_statistics/ddsurfer/postprocess/stats"
+fi
 mkdir -p "${structural_root}/surf" "${structural_root}/label" "${stats_root}"
 printf '{"kind":"ddsurfer_postprocess","stage_status":{"sync_outputs":"completed"}}' > "${structural_root}/manifest.json"
 printf '{"status":"completed"}' > "${structural_root}/qc.json"

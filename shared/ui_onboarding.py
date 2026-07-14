@@ -69,6 +69,7 @@ TRANSLATIONS = {
         "surface_postprocess_option": "FreeSurfer-style DDSurfer postprocess",
         "surface_postprocess_tooltip": (
             "Optional. Stage DDSurfer native surfaces and MRI inputs, then run the FreeSurfer-style postprocess. "
+            "This does not run recon-all or produce a complete T1-derived FreeSurfer subject. "
             "Requires a complete FreeSurfer installation, a valid license, and the postprocess repository. "
             "Select Surface and Parcellation too unless completed native surfaces and wmparc already exist."
         ),
@@ -248,6 +249,7 @@ TRANSLATIONS = {
         "surface_postprocess_option": "FreeSurfer 风格 DDSurfer 后处理",
         "surface_postprocess_tooltip": (
             "可选。暂存 DDSurfer 原生表面和 MRI 输入，然后运行 FreeSurfer 风格后处理。"
+            "它不会运行 recon-all，也不会生成基于 T1 的完整 FreeSurfer 受试者目录。"
             "需要完整的 FreeSurfer 安装、有效许可证和后处理代码库。"
             "除非已有完整的原生表面和 wmparc，否则也请选择“表面重建（原生）”与“脑区分割”。"
         ),

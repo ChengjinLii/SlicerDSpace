@@ -62,7 +62,63 @@ def list_matching(root: Path, pattern: str) -> list[str]:
     return sorted(str(path.resolve()) for path in root.glob(pattern))
 
 
-def stage_statuses(subject_path: Path, structural_root: Path, stats_root: Path, requested_stages: list[str]) -> dict[str, str]:
+def stats_data_row_count(path: Path) -> int:
+    """Return the number of non-empty, non-comment records in a stats file."""
+    if not path.is_file():
+        return 0
+    with path.open("r", encoding="utf-8", errors="replace") as stream:
+        return sum(1 for line in stream if line.strip() and not line.lstrip().startswith("#"))
+
+
+def requested_hemispheres(mode: str) -> tuple[str, ...]:
+    normalized = mode.strip().lower()
+    if normalized == "left":
+        return ("lh",)
+    if normalized == "right":
+        return ("rh",)
+    if normalized == "whole":
+        return ("lh", "rh")
+    raise ValueError(f"Unsupported postprocess mode: {mode!r}")
+
+
+def stats_integrity(subject_path: Path, mode: str, atlases: list[str]) -> dict[str, object]:
+    """Describe whether every requested regional and wmparc stats file has data."""
+    atlas_names = list(dict.fromkeys(atlas.strip() for atlas in atlases if atlas.strip()))
+    expected_paths = [
+        subject_path / "stats" / filename
+        for hemi in requested_hemispheres(mode)
+        for filename in (
+            f"{hemi}.wmparc.stats",
+            *(f"{hemi}.{atlas}.stats" for atlas in atlas_names),
+        )
+    ]
+    row_counts = {
+        path.name: stats_data_row_count(path)
+        for path in expected_paths
+        if path.is_file()
+    }
+    missing = [path.name for path in expected_paths if not path.is_file()]
+    empty = [path.name for path in expected_paths if path.is_file() and row_counts[path.name] == 0]
+    nonempty = [path.name for path in expected_paths if path.is_file() and row_counts[path.name] > 0]
+    return {
+        "stats_expected_count": len(expected_paths),
+        "stats_nonempty_count": len(nonempty),
+        "stats_expected_files": [path.name for path in expected_paths],
+        "stats_nonempty_files": nonempty,
+        "stats_missing_files": missing,
+        "stats_empty_files": empty,
+        "stats_data_rows": row_counts,
+    }
+
+
+def stage_statuses(
+    subject_path: Path,
+    structural_root: Path,
+    stats_root: Path,
+    requested_stages: list[str],
+    mode: str,
+    atlases: list[str],
+) -> dict[str, str]:
     statuses = {stage: "not_requested" for stage in [
         "validate_inputs",
         "stage_inputs",
@@ -89,7 +145,11 @@ def stage_statuses(subject_path: Path, structural_root: Path, stats_root: Path, 
         statuses["project_annotations"] = "completed"
     if list_matching(subject_path / "label", "regions_*"):
         statuses["extract_labels"] = "completed"
-    if list_matching(subject_path / "stats", "*.stats"):
+    stats_qc = stats_integrity(subject_path, mode, atlases)
+    if (
+        stats_qc["stats_expected_count"] > 0
+        and stats_qc["stats_nonempty_count"] == stats_qc["stats_expected_count"]
+    ):
         statuses["compute_stats"] = "completed"
     if list_matching(structural_root / "fsaverage", "*.fsaverage.mgh"):
         statuses["resample_fsaverage"] = "completed"
@@ -119,7 +179,8 @@ def main() -> int:
     validation_payload = json.loads(validation_path.read_text(encoding="utf-8")) if validation_path.is_file() else {}
 
     outputs = find_outputs(subject_path, structural_root, stats_root)
-    statuses = stage_statuses(subject_path, structural_root, stats_root, stages)
+    stats_qc = stats_integrity(subject_path, args.mode, atlases)
+    statuses = stage_statuses(subject_path, structural_root, stats_root, stages, args.mode, atlases)
 
     manifest = {
         "kind": "ddsurfer_postprocess",
@@ -152,6 +213,7 @@ def main() -> int:
             "annot_count": len(list_matching(subject_path / "label", "*.annot")),
             "stats_count": len(list_matching(subject_path / "stats", "*.stats")),
             "fsaverage_overlay_count": len(list_matching(structural_root / "fsaverage", "*.fsaverage.mgh")),
+            **stats_qc,
         },
     }
 

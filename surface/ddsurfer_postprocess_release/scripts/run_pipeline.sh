@@ -7,6 +7,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCRIPT_DIR}/pipeline_steps.sh"
 
 canonical_paths_init
+trap cleanup_runtime_links EXIT
 touch "${LOG_FILE}"
 write_reports
 

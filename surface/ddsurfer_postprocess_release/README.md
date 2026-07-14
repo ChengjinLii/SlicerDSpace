@@ -22,6 +22,10 @@ and produces:
 - fsaverage-resampled surface overlays
 - `manifest.json`, `qc.json`, `provenance.json`, `validation.json`
 
+This is a DDSurfer-to-FreeSurfer-compatible postprocess, not a FreeSurfer
+`recon-all` reconstruction. It does not create the complete T1-derived
+`mri/`, `scripts/`, and `transforms/` subject tree produced by `recon-all`.
+
 ## Folder Layout
 
 ```text
@@ -44,9 +48,9 @@ postprocess-release-optimize/
         ddsurfer/
           postprocess/
           _subjects/<subject_id>/   # internal FreeSurfer workdir
-          mri -> _subjects/.../mri
-          surf -> _subjects/.../surf
-          label -> _subjects/.../label
+          mri/                       # materialized Windows-readable output
+          surf/                      # materialized Windows-readable output
+          label/                     # materialized Windows-readable output
           fsaverage/
           logs/
           manifest.json
@@ -56,7 +60,7 @@ postprocess-release-optimize/
       05_statistics/
         ddsurfer/
           postprocess/
-            stats -> ../../03_structural/.../_subjects/.../stats
+            stats/                   # materialized Windows-readable output
   run.sh
   scripts/
   src/
@@ -99,6 +103,7 @@ bash run.sh <subject_id> <left|right|whole>
 - `--mode left|right|whole`
 - `--inputs-dir PATH`
 - `--outputs-dir PATH`
+- `--nest-subject-outputs 0|1`
 - `--stage-mode copy|symlink|inplace`
 - `--stages CSV`
 - `--atlases CSV`

@@ -21,6 +21,7 @@ Options:
   --mode MODE                     left, right, or whole
   --inputs-dir PATH               Subject input root
   --outputs-dir PATH              Optimized output root
+  --nest-subject-outputs 0|1      Place results below outputs/<subject-id> (default: 1)
   --stage-mode MODE               copy, symlink, or inplace
   --stages CSV                    Comma-separated stages
   --atlases CSV                   Comma-separated atlases
@@ -38,6 +39,7 @@ SUBJECT_ID=${SUBJECT_ID:-}
 MODE=${MODE:-}
 STAGES=${STAGES:-${DEFAULT_STAGES}}
 ATLASES=${ATLASES:-${DEFAULT_ATLASES}}
+NEST_SUBJECT_OUTPUTS=${NEST_SUBJECT_OUTPUTS:-1}
 
 if [ $# -eq 2 ] && [[ "${1:-}" != --* ]] && [[ "${2:-}" != --* ]]; then
     SUBJECT_ID=$1
@@ -59,6 +61,10 @@ else
                 ;;
             --outputs-dir)
                 OUTPUTS_DIR=${2:-}
+                shift 2
+                ;;
+            --nest-subject-outputs)
+                NEST_SUBJECT_OUTPUTS=${2:-}
                 shift 2
                 ;;
             --stage-mode)
@@ -107,6 +113,14 @@ case "${MODE}" in
         ;;
 esac
 
+case "${NEST_SUBJECT_OUTPUTS}" in
+    0|1) ;;
+    *)
+        echo "ERROR: --nest-subject-outputs must be 0 or 1." >&2
+        exit 1
+        ;;
+esac
+
 export SUBJECT_ID
 export MODE
 export INPUTS_DIR
@@ -123,5 +137,6 @@ export PYTHON_EXTRACT_CTAB_SCRIPT
 export PYTHON_REGIONAL_STATS_SCRIPT
 export PYTHON_VALIDATE_SCRIPT
 export PYTHON_REPORT_SCRIPT
+export NEST_SUBJECT_OUTPUTS
 
 bash "${SCRIPT_DIR}/scripts/run_pipeline.sh"

@@ -44,7 +44,7 @@ class DDSurferPostprocessConfig:
     mode: str = "whole"
     python_bin: Optional[Path] = None
     freesurfer_home: Optional[Path] = None
-    stage_mode: str = "symlink"
+    stage_mode: str = "copy"
     atlases: Optional[tuple[str, ...]] = None
     force: bool = False
 
@@ -63,10 +63,15 @@ def _emit(message: str, log: Optional[Callable[[str], None]] = None) -> None:
         log(message)
 
 
-def _copy_or_link(src: Path, dest: Path) -> None:
+def _copy_or_link(src: Path, dest: Path, *, mode: str) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists() or dest.is_symlink():
         return
+    if mode in {"copy", "inplace"}:
+        shutil.copy2(src, dest, follow_symlinks=True)
+        return
+    if mode != "symlink":
+        raise ValueError("stage_mode must be 'copy', 'symlink', or 'inplace'")
     try:
         dest.symlink_to(src)
     except OSError:
@@ -94,6 +99,31 @@ def _default_backend_root() -> Path:
 
 def _default_freesurfer_home() -> Optional[Path]:
     return resolve_freesurfer_home()
+
+
+def _resolve_bash_executable(python_bin: Path, *, platform: Optional[str] = None) -> str:
+    """Prefer the installer-managed Slicer WSL bridge on Windows.
+
+    The system ``bash.exe`` launches WSL but does not translate Windows/UNC
+    arguments or map PythonSlicer to the managed Linux runtime.  The Windows
+    dependency installer places a configured bridge beside ``Slicer.exe``.
+    """
+
+    if (platform or os.name) != "nt":
+        return "bash"
+
+    candidate_roots: list[Path] = []
+    for executable in (python_bin, Path(sys.executable)):
+        executable_parent = executable.expanduser().parent
+        candidate_roots.append(
+            executable_parent.parent if executable_parent.name.lower() == "bin" else executable_parent
+        )
+    for root in candidate_roots:
+        candidate = root / "bash.exe"
+        configuration = root / "bash.exe.conf"
+        if candidate.is_file() and configuration.is_file():
+            return str(candidate)
+    return shutil.which("bash") or "bash"
 
 
 def _resolve_subject_root(config: DDSurferPostprocessConfig) -> Path:
@@ -225,6 +255,7 @@ def stage_postprocess_inputs(
     staging_inputs_root: Path,
     mode: str,
     force: bool,
+    stage_mode: str = "copy",
 ) -> Path:
     subject_input_dir = staging_inputs_root / subject_id
     surf_dir = subject_input_dir / "surf"
@@ -234,8 +265,8 @@ def stage_postprocess_inputs(
     surf_dir.mkdir(parents=True, exist_ok=True)
     mri_out_dir.mkdir(parents=True, exist_ok=True)
 
-    _copy_or_link(brain_mgz_path, mri_out_dir / "brain.mgz")
-    _copy_or_link(wmparc_path, mri_out_dir / "DDSurfer-wmparc.nii.gz")
+    _copy_or_link(brain_mgz_path, mri_out_dir / "brain.mgz", mode=stage_mode)
+    _copy_or_link(wmparc_path, mri_out_dir / "DDSurfer-wmparc.nii.gz", mode=stage_mode)
 
     hemi_tokens: tuple[str, ...]
     normalized_mode = mode.lower()
@@ -254,7 +285,7 @@ def stage_postprocess_inputs(
     if not stl_paths:
         raise FileNotFoundError(f"No *_orig.stl files found under {native_dir}")
     for stl in stl_paths:
-        _copy_or_link(stl, surf_dir / stl.name)
+        _copy_or_link(stl, surf_dir / stl.name, mode=stage_mode)
     return subject_input_dir
 
 
@@ -295,13 +326,14 @@ def run_ddsurfer_postprocess(
         staging_inputs_root=staging_inputs_root,
         mode=config.mode,
         force=config.force,
+        stage_mode=config.stage_mode,
     )
 
     python_bin = (config.python_bin.expanduser().resolve() if config.python_bin else Path(sys.executable))
     freesurfer_home = config.freesurfer_home.expanduser().resolve() if config.freesurfer_home else _default_freesurfer_home()
 
     cmd = [
-        "bash",
+        _resolve_bash_executable(python_bin),
         str(run_script),
         "--subject-id",
         config.subject_id,
@@ -311,6 +343,8 @@ def run_ddsurfer_postprocess(
         str(staging_inputs_root),
         "--outputs-dir",
         str(output_root),
+        "--nest-subject-outputs",
+        "0",
         "--stage-mode",
         config.stage_mode,
         "--python-bin",
@@ -322,7 +356,7 @@ def run_ddsurfer_postprocess(
         cmd.extend(["--atlases", ",".join(config.atlases)])
 
     _emit("[DDSurfer Postprocess] Running: " + " ".join(cmd), log)
-    env = merged_startup_environment({"NEST_SUBJECT_OUTPUTS": "0"})
+    env = merged_startup_environment()
     process = subprocess.Popen(
         cmd,
         cwd=str(backend_root),
