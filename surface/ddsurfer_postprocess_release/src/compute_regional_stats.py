@@ -9,6 +9,14 @@ import nibabel as nib
 import numpy as np
 
 
+EXCLUDED_ROI_NAMES = {
+    "unknown",
+    "???",
+    "corpuscallosum",
+    "freesurfer_defined_medial_wall",
+}
+
+
 def parse_ctab_file(filepath):
     """Parse a FreeSurfer-style CTAB/LUT file."""
     ctab = {}
@@ -155,7 +163,7 @@ def main():
             roi_name = struct_names[roi_index]
             if roi_name in processed_roi_names:
                 continue
-            if roi_name.lower() in {"unknown", "corpuscallosum"}:
+            if roi_name.strip().lower() in EXCLUDED_ROI_NAMES:
                 continue
 
             packed_label_id = int(annot_ctab[roi_index, 4])

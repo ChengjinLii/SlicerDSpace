@@ -85,16 +85,24 @@ class SurfacePostprocessReleaseTest(unittest.TestCase):
             stats_path = root / "lh.legacy.stats"
             nib.freesurfer.io.write_annot(
                 str(annot_path),
-                np.asarray([0, 1, 2, 1, 2, 0], dtype=np.int32),
+                np.asarray([0, 1, 2, 1, 2, 0, 3, 4], dtype=np.int32),
                 np.asarray(
                     [
                         [10, 20, 30, 0],
                         [200, 210, 220, 0],
                         [200, 210, 220, 0],
+                        [1, 2, 3, 0],
+                        [4, 5, 6, 0],
                     ],
                     dtype=np.int32,
                 ),
-                [b"unique_region", b"legacy_alias_one", b"legacy_alias_two"],
+                [
+                    b"unique_region",
+                    b"legacy_alias_one",
+                    b"legacy_alias_two",
+                    b"???",
+                    b"FreeSurfer_Defined_Medial_Wall",
+                ],
             )
             self.assertTrue(extract_and_save_ctab(str(annot_path), str(ctab_path)))
 
@@ -117,7 +125,9 @@ class SurfacePostprocessReleaseTest(unittest.TestCase):
                 for line in stats_path.read_text(encoding="utf-8").splitlines()
                 if line.strip() and not line.startswith("#")
             ]
-            self.assertGreaterEqual(len(rows), 2)
+            self.assertEqual(len(rows), 2)
+            self.assertFalse(any(line.startswith("??? ") for line in rows))
+            self.assertFalse(any(line.startswith("FreeSurfer_Defined_Medial_Wall ") for line in rows))
 
     def test_stage_inputs_respects_left_mode(self) -> None:
         from surface.postprocess_release import stage_postprocess_inputs
