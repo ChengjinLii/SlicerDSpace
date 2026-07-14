@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
@@ -137,6 +138,17 @@ def _streamline_lengths(streamlines: list[object]) -> list[float]:
     return lengths
 
 
+def _eudx_length_limits(dipy_version: str, step_size_mm: float) -> tuple[int, int]:
+    """Preserve LocalTracking limits across the DIPY 1.12 unit change."""
+
+    release = tuple(int(value) for value in re.findall(r"\d+", str(dipy_version))[:2])
+    if release >= (1, 12):
+        # DIPY 1.12 changed the high-level tracker limits from point counts to
+        # millimetres.  The previous LocalTracking maximum was 500 points.
+        return 0, max(1, int(round(500 * float(step_size_mm))))
+    return 2, 500
+
+
 def _tensor_direction_getter(
     evecs,
     tracking_mask,
@@ -190,6 +202,7 @@ def _run_dipy_dti_tracking(
     log: Optional[Callable[[str], None]] = None,
 ) -> dict[str, object]:
     try:
+        from dipy import __version__ as dipy_version
         import nibabel as nib
         import numpy as np
         from dipy.core.gradients import gradient_table
@@ -198,8 +211,12 @@ def _run_dipy_dti_tracking(
         from dipy.io.streamline import save_tck, save_trk
         from dipy.reconst.dti import TensorModel, fractional_anisotropy
         from dipy.tracking import utils
-        from dipy.tracking.local_tracking import LocalTracking
         from dipy.tracking.stopping_criterion import ThresholdStoppingCriterion
+        try:
+            from dipy.tracking.tracker import eudx_tracking
+        except ImportError:  # DIPY 1.10 compatibility for Slicer 5.6 / Python 3.9
+            eudx_tracking = None
+            from dipy.tracking.local_tracking import LocalTracking
     except ImportError as exc:  # pragma: no cover - environment dependent
         raise RuntimeError("DTI tractography execution requires DIPY, nibabel, and numpy.") from exc
 
@@ -252,16 +269,31 @@ def _run_dipy_dti_tracking(
         density=(int(config.seed_density), int(config.seed_density), int(config.seed_density)),
     )
     stopping_criterion = ThresholdStoppingCriterion(fa, float(config.min_fa))
-    local_tracking = LocalTracking(
-        peaks,
-        stopping_criterion,
-        seeds,
-        dwi_img.affine,
-        step_size=float(config.step_size_mm),
-        maxlen=500,
-        minlen=2,
-        return_all=True,
-    )
+    if eudx_tracking is not None:
+        min_length, max_length = _eudx_length_limits(dipy_version, config.step_size_mm)
+        local_tracking = eudx_tracking(
+            seeds,
+            stopping_criterion,
+            dwi_img.affine,
+            pam=peaks,
+            step_size=float(config.step_size_mm),
+            max_len=max_length,
+            min_len=min_length,
+            max_angle=float(config.max_angle_deg),
+            random_seed=int(config.random_seed),
+            return_all=True,
+        )
+    else:
+        local_tracking = LocalTracking(
+            peaks,
+            stopping_criterion,
+            seeds,
+            dwi_img.affine,
+            step_size=float(config.step_size_mm),
+            maxlen=500,
+            minlen=2,
+            return_all=True,
+        )
     streamlines = [streamline for streamline in local_tracking if len(streamline) >= 2]
     if not streamlines:
         raise RuntimeError("DIPY tracking produced no streamlines with at least two points.")

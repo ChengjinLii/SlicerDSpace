@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import subprocess
 import sys
 import tempfile
@@ -38,11 +40,13 @@ class InstallDependenciesProfileTest(unittest.TestCase):
 
     def test_all_and_profile_conflict_is_documented_by_main(self) -> None:
         module = _load_install_dependencies_module()
+        stderr = io.StringIO()
 
-        with self.assertRaises(SystemExit) as raised:
+        with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
             module.main(["--all", "--profile", "core"])
 
         self.assertEqual(raised.exception.code, 2)
+        self.assertIn("Use either --all or --profile, not both.", stderr.getvalue())
 
     def test_offline_wheelhouse_options_are_forwarded_to_pip(self) -> None:
         module = _load_install_dependencies_module()

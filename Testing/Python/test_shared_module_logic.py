@@ -8,7 +8,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from shared.module_logic import SharedLogicMixin, _ensure_torch_via_extension, _release_version
+_previous_slicer_module = sys.modules.get("slicer")
+sys.modules["slicer"] = types.ModuleType("slicer")
+try:
+    from shared.module_logic import SharedLogicMixin, _ensure_torch_via_extension, _release_version
+finally:
+    if _previous_slicer_module is None:
+        sys.modules.pop("slicer", None)
+    else:
+        sys.modules["slicer"] = _previous_slicer_module
 
 
 class SharedModuleLogicTest(unittest.TestCase):

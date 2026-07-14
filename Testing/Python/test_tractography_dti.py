@@ -16,6 +16,7 @@ if str(REPO_ROOT) not in sys.path:
 
 
 from tractography import DTITrackingConfig, run_dti_tracking
+from tractography.dti import _eudx_length_limits
 
 
 SUBJECT_ID = "100307"
@@ -79,6 +80,10 @@ def _make_native_cache(subject_root: Path, fit_method: str = "wls") -> Path:
 
 
 class DTITractographyScaffoldTest(unittest.TestCase):
+    def test_eudx_length_limits_cover_dipy_unit_change(self) -> None:
+        self.assertEqual(_eudx_length_limits("1.11.0", 0.5), (2, 500))
+        self.assertEqual(_eudx_length_limits("1.12.1", 0.5), (0, 250))
+
     def test_writes_manifest_and_qc_when_native_cache_exists(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = _make_subject_root(Path(tmp))
