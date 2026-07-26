@@ -22,12 +22,18 @@ PYTHON_DEPENDENCY_GROUPS: dict[str, tuple[str, ...]] = {
     "noddi": ("amico",),
     "freewater": ("dipy",),
     "tractography": ("dipy", "vtk"),
-    "surface": ("torch", "trimesh"),
+    "surface": ("torch", "trimesh", "rtree"),
 }
 
 COMMAND_DEPENDENCY_GROUPS: dict[str, tuple[str, ...]] = {
-    "preprocessing": ("dwidenoise", "mrdegibbs", "dwifslpreproc", "eddy", "topup"),
-    "registration": ("antsRegistration", "antsApplyTransforms"),
+    "preprocessing": (
+        "dwidenoise",
+        "mrdegibbs",
+        "dwifslpreproc",
+        "dwi2mask",
+        "eddy",
+        "topup",
+    ),
     "tractography": ("tckgen", "tcksift2"),
     "connectome": ("tck2connectome",),
 }

@@ -116,7 +116,7 @@ python3 scripts/install_dependencies.py \
 注意：
 
 - Python 包可以由脚本安装。
-- MRtrix3、FSL、FreeSurfer、ANTs、WMA、TractCloud、模型数据和 license 不会被脚本静默安装，因为它们涉及管理员权限、平台差异、license、模型下载或用户本地路径选择。
+- MRtrix3、FSL、FreeSurfer、WMA、TractCloud、模型数据和 license 不会被脚本静默安装，因为它们涉及管理员权限、平台差异、license、模型下载或用户本地路径选择。
 - 这些外部项会写入 `install_external_tools.md`，用户按平台说明安装后重新运行 `--doctor` 即可。
 
 ## 0.1.1 Dependency profile
@@ -221,7 +221,7 @@ python3 run_subject_pipeline.py \
 - `auto` 只会解析成一个具体设备，例如 `cuda:0` 或 `cpu`，不会同时跑 CPU 和 GPU 两套结果。
 - 如果用户选择 `cuda` 或 `cuda:0`，dependency doctor 会在目标 Python 中检查 `torch.cuda.is_available()` 和 GPU 数量。
 - 如果 CUDA 不可用，目标会在运行前被标记为 `blocked`，而不是运行到深度学习推理阶段才失败。
-- MRtrix3、FSL、FreeSurfer、ANTs 通常仍是 CPU 命令行工具；GPU 检查主要影响 PyTorch/DDSurfer/DDSeg/TractCloud。
+- MRtrix3、FSL、FreeSurfer 通常仍是 CPU 命令行工具；GPU 检查主要影响 PyTorch/DDSurfer/DDSeg/TractCloud。
 
 MRtrix3 特别说明：
 
@@ -303,6 +303,7 @@ scripts/download_model_assets.sh --profile core
 - `nibabel>=5.0`
 - `SimpleITK`
 - `trimesh`
+- `rtree`
 - `tqdm`
 - `networkx`
 - `pynrrd`
@@ -339,7 +340,8 @@ SAF 转写后端已内置在 `tractography/saf_backend/`，但仍需要：
 - `nibabel`
 - MRtrix3 命令，见第 4 节
 
-默认 SAF 使用 `--saf-noregister`，不要求 ANTs，也不要求 T1w。
+SAF 只接受已经位于原生 dMRI 空间的表面。DDSurfer postprocess 是默认表面来源；
+插件不提供 T1w/FreeSurfer 到 dMRI 的 ANTs 配准路线。
 
 ## 3. Slicer 相关配置
 
@@ -403,6 +405,7 @@ preprocessing MRtrix/FSL 路线：
 - `dwidenoise`
 - `mrdegibbs`
 - `dwifslpreproc`
+- `dwi2mask`
 
 ### 4.3 配置方式
 
@@ -432,7 +435,7 @@ FSL 不是默认必需项。只有选择 `--preprocessing-backend mrtrix_fsl`，
 
 - `eddy`
 - `topup`
-- MRtrix3 的 `dwifslpreproc`
+- MRtrix3 的 `dwifslpreproc` 和 `dwi2mask`
 
 配置方式：
 
@@ -443,8 +446,21 @@ python3 run_subject_pipeline.py \
   --execute \
   --preprocessing-backend mrtrix_fsl \
   --preprocessing-mrtrix-bin-dir /path/to/mrtrix3/bin \
-  --preprocessing-fsl-bin-dir /path/to/fsl/bin
+  --preprocessing-fsl-bin-dir /path/to/fsl/bin \
+  --preprocessing-reverse-phase-b0 /path/to/reverse_b0.nii.gz \
+  --preprocessing-phase-encoding-direction AP \
+  --preprocessing-readout-time 0.05 \
+  --preprocessing-eddy-threads 8
 ```
+
+未指定 `--preprocessing-eddy-threads` 时，CPU eddy 使用当前进程可用 CPU
+数量，上限为 8。若 `dwifslpreproc` 报告 diffusion-direction sampling strongly
+asymmetric，可按其建议添加 `--preprocessing-eddy-slm linear`；不要在没有该
+警告或方法学依据时任意改变 EC model。
+
+FSL 校正完成后，最终脑掩膜由 MRtrix `dwi2mask` 基于校正后的 DWI 和旋转后的
+梯度重新生成，不复用校正前输入掩膜。恢复运行会自动修复缺失或时间早于最终
+DWI 的旧掩膜。
 
 DIPY preprocessing backend 不需要 FSL，但它不提供完整 susceptibility distortion / eddy-current 建模。
 
@@ -461,7 +477,8 @@ FreeSurfer 主要用于 DDSurfer postprocess 后端，生成 FreeSurfer-style `s
 - stats 计算
 - fsaverage resampling
 
-SAF 默认 `noregister=True` 时不直接调用 FreeSurfer 命令，但通常会消费 DDSurfer postprocess 生成的 FreeSurfer-style subject 目录。
+SAF 不直接调用 FreeSurfer 命令，但通常会消费 DDSurfer postprocess 生成的
+FreeSurfer-style subject 目录。
 
 ### 6.2 需要的资源/命令
 
@@ -502,24 +519,12 @@ python3 run_subject_pipeline.py \
   --postprocess-freesurfer-home /path/to/freesurfer
 ```
 
-## 7. ANTs
+## 7. SAF 表面空间约束
 
-ANTs 不是默认必需项。
-
-当前主要用于：
-
-- 输入验证的 registration dependency group
-- SAF 显式 `--saf-register` 路线
-- 后续 DWI/T1/MNI 注册链扩展
-
-需要的命令：
-
-- `antsRegistration`
-- `antsApplyTransforms`
-- `antsIntermodalityIntrasubject.sh`，SAF register 路线使用
-- `antsApplyTransformsToPoints`，SAF register 路线使用
-
-默认 SAF 是 `--saf-noregister`，不会要求这些命令。
+SAF 的白质面和软脑膜面必须已经与 FOD、掩膜和待分析 tractogram 位于同一
+原生 dMRI 空间。SlicerDDSurfer 不再提供 ANTs 驱动的 T1w/FreeSurfer 到 dMRI
+配准分支，也不会扫描或安装 ANTs。使用外部表面时，应在导入前验证空间一致性；
+推荐直接使用 DDSurfer postprocess 输出。
 
 ## 8. WMA / WhiteMatterAnalysis
 
@@ -531,6 +536,9 @@ WMA 是可选外部 bundle backend，插件不把 WMA 作为内置运行依赖�
 - ORG atlas 目录，必须包含：
   - `ORG-RegAtlas-100HCP`
   - `ORG-800FC-100HCP`
+- 原生 RAS 坐标中的全脑 tractogram（`.vtk`、`.vtp` 或 `.tck`）。`.tck`
+  输入会通过配置的 MRtrix3 `tckconvert` 自动转换。SAF 短联络纤维和已拆分的
+  单束文件不适合作为 ORG 全脑图谱输入
 - Slicer executable
 - 可选：SlicerDMRI `FiberTractMeasurements` CLI，用于 diffusion measures 导出
 - headless 环境可选：`xvfb-run` 或可用 `DISPLAY`
@@ -557,6 +565,11 @@ python3 run_subject_pipeline.py \
   --slicer-executable /path/to/Slicer \
   --wma-use-virtual-x
 ```
+
+自动发现只检查全脑 tractography 目录，并排除 `saf/`、`bundles/`、WMA、
+WMQL 和 TractCloud 派生目录。图形界面同时选择 CSD/ACT tractography 和 WMA
+时会直接复用本次全脑 `.tck`；命令行也可用 `--wma-input-tractography` 指定
+位于其他位置的输入。
 
 ## 9. WMQL / Tract Querier
 
@@ -693,18 +706,18 @@ scripts/download_model_assets.sh --profile parcellation
 | 目标 | 必需依赖 | 可选/说明 |
 | --- | --- | --- |
 | 启动 Slicer GUI | 3D Slicer, PyTorch Extension | SlicerDMRI 用于 fiber bundle 显示 |
-| Input validation | `nibabel`, `SimpleITK` | 可检查 MRtrix/FSL/ANTs/Microstructure 依赖状态 |
+| Input validation | `nibabel`, `SimpleITK` | 可检查 MRtrix/FSL/Microstructure 依赖状态 |
 | DDSurfer surface | PyTorch, `torchvision`, DDSurfer weights/templates, `SimpleITK`, `trimesh` | GPU 可选 |
-| DDSurfer postprocess | FreeSurfer, `nibabel`, `numpy`, `trimesh` | 不需要外部 T1w；可用 FA/b0 生成 `brain.mgz` |
+| DDSurfer postprocess | FreeSurfer, `nibabel`, `numpy`, `trimesh`, `rtree` | 不需要外部 T1w；可用 FA/b0 生成 `brain.mgz` |
 | DDParcel | PyTorch, `torchvision`, `nibabel`, `pynrrd`, `h5py`, `scikit-image`, `SimpleITK`, weights | Slicer CLI DTI extraction |
 | DDSeg | PyTorch, `torchvision`, `nibabel`, `pynrrd`, weights | GPU 可选 |
 | Microstructure DTI | `dipy`, `nibabel`, `numpy` | ROI-wise 需要 parcellation label map |
 | Free Water | `dipy` | 显式启用 |
 | NODDI | `dmri-amico` | 显式启用 |
 | DIPY preprocessing | `dipy`, `nibabel`, `numpy` | 不做完整 eddy/topup |
-| MRtrix/FSL preprocessing | MRtrix3, FSL | 需要 `dwifslpreproc`, `eddy`, `topup` |
+| MRtrix/FSL preprocessing | MRtrix3, FSL | 需要 `dwifslpreproc`, `dwi2mask`, `eddy`, `topup` |
 | CSD/FOD/ACT | MRtrix3, 5TT, GMWMI | 当前 5TT/GMWMI 可由标签近似生成 |
-| SAF | 内置 SAF backend, MRtrix3, DDSurfer postprocess surface | `--saf-register` 才需要 ANTs |
+| SAF | 内置 SAF backend, MRtrix3, DDSurfer postprocess surface | 表面必须位于原生 dMRI 空间 |
 | WMQL | Tract Querier, `nibabel`, `numpy` | 默认 AF/CST 查询 |
 | WMA ORG atlas | external WMA, ORG atlas, Slicer | 可选 xvfb/SlicerDMRI measurements |
 | TractCloud | TractCloud, `torch`, model data | 当前是可选后端 |

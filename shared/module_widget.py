@@ -2242,6 +2242,7 @@ class SharedWidgetMixin:
             surface_device=surface_device,
             connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
             connectome_compress_mrtrix_dense=bool(self._parameterNode.connectomeCompressMrtrixDense),
+            preprocessing_backend=(self._parameterNode.preprocessingBackend or "dipy").strip() or "dipy",
         )
 
         if batch_mode:

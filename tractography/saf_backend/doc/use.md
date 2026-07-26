@@ -32,9 +32,8 @@ The framework is run as a MATLAB script and it is designed to make use of parall
 
 ### Other processing
 
-* `fa` path to a masked fractional anisotropy map file (same space as FOD file) - used for registration
-* `registration` name of a MATLAB wrapper script to run structural-diffusion data registration (def: 'SAF_registration_default')
-* `noregister` skip registration, assuming structural and diffusion data are in the same space (def: False)
+* `fa` path to a masked fractional anisotropy map file in the same space as the FOD, used for optional streamline-to-surface scalar sampling
+* Cortical surfaces supplied through `fs_dir` must already be in native diffusion space.
 * `remesh_seeds` if seeding from mesh vertices is enabled, temporarily remeshes the surface by bisecting long edges once to improve normality of edge lengths and face areas before using vertex coordinates as seeds; does not affect subsequent steps (def: False)
 * `notrunc` leave streamlines untruncated (def: False)
 * `scalar2surf` path to a scalar map that will be sampled onto streamlines; mean per-streamline value of all streamlines terminating at surface vertices will then be averaged per vertex producing a FreeSurfer surface map (can be called multiple times)
@@ -61,7 +60,7 @@ Bare minimum run, assumes structural and diffusion data are co-registered:
 ```
 fs_dir = 'path/to/subjects/FreeSurfer/folder';
 fod = 'path/to/subjects/fod/file';
-[SD, PS] = SAF_pipeline('fs_dir', fs_dir, 'fod', fod, 'noregister');
+[SD, PS] = SAF_pipeline('fs_dir', fs_dir, 'fod', fod);
 ```
 
 Standard registration settings, seeding from surface vertices disabled and using mask image instead, tracking with FOD amplitude threshold of 0.05 and maximum length 40 mm, generating 5M streamlines, diagnostic mode enabled:
@@ -78,7 +77,7 @@ CustomDir = 'path/to/custom/dir';
 
 Bare minimum run, point to gcc libraries for MRtrix to execute correctly (sometimes required e.g. when running on the cluster) - in this example gcc is in /usr/local/:
 ```
-[SD, PS] = SAF_pipeline('fs_dir', fs_dir, 'fod', fod, 'noregister', 'mrtrix_prefix', 'export LD_LIBRARY_PATH=/usr/local/gcc/lib64/;');
+[SD, PS] = SAF_pipeline('fs_dir', fs_dir, 'fod', fod, 'mrtrix_prefix', 'export LD_LIBRARY_PATH=/usr/local/gcc/lib64/;');
 ```
 
 ## Seeding from coordinates

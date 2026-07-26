@@ -255,9 +255,10 @@ class SAFIntegrationTest(unittest.TestCase):
 
         backend_dir = bundled_saf_backend_dir()
         self.assertTrue((backend_dir / "SAF_pipeline.py").is_file())
-        status = inspect_saf_backend(noregister=True)
+        status = inspect_saf_backend()
         self.assertTrue(status["backend_dir_exists"])
         self.assertIn("numpy", status["packages"])
+        self.assertNotIn("ants", status)
 
     def test_saf_dry_run_writes_manifest_and_qc(self) -> None:
         from shared import subject_layout
@@ -279,7 +280,6 @@ class SAFIntegrationTest(unittest.TestCase):
                     fs_dir=fs_dir,
                     fod_path=fod,
                     pregenerated_tractogram=tractogram,
-                    noregister=True,
                     maxlen=None,
                     execute=False,
                 )
@@ -291,6 +291,7 @@ class SAFIntegrationTest(unittest.TestCase):
             manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["kind"], "saf_short_association_fibres")
+            self.assertEqual(manifest["parameters"]["surface_space"], "native_dMRI")
             self.assertNotIn("mrtrix:tckgen", manifest["backend"]["missing_required"])
             self.assertEqual(qc["status"], "planned")
             self.assertFalse(result.executed)
@@ -329,7 +330,6 @@ class SAFIntegrationTest(unittest.TestCase):
                             fod_path=fod,
                             output_dir=output_dir,
                             pregenerated_tractogram=tractogram,
-                            noregister=True,
                             maxlen=None,
                             execute=True,
                         )
@@ -386,7 +386,6 @@ class SAFIntegrationTest(unittest.TestCase):
                                 fod_path=fod,
                                 output_dir=output_dir,
                                 pregenerated_tractogram=tractogram,
-                                noregister=True,
                                 maxlen=None,
                                 execute=True,
                             )
@@ -463,7 +462,6 @@ class SAFIntegrationTest(unittest.TestCase):
                         fs_dir=fs_dir,
                         fod_path=fod,
                         mrtrix_bin_dir=bin_dir,
-                        noregister=True,
                         execute=True,
                     )
                 )
@@ -539,7 +537,6 @@ class SAFIntegrationTest(unittest.TestCase):
 
             status = inspect_saf_backend(
                 mrtrix_bin_dir=bin_dir,
-                noregister=True,
                 require_mrconvert=True,
                 require_tckgen=True,
                 require_tckstats=True,
@@ -562,7 +559,6 @@ class SAFIntegrationTest(unittest.TestCase):
             os.environ["SLICERDDSURFER_MRTRIX_BIN"] = bin_dir.as_posix()
             try:
                 status = inspect_saf_backend(
-                    noregister=True,
                     require_mrconvert=True,
                     require_tckgen=False,
                     require_tckstats=False,
@@ -580,7 +576,6 @@ class SAFIntegrationTest(unittest.TestCase):
 
         status = inspect_saf_backend(
             mrtrix_prefix="singularity exec mrtrix.sif ",
-            noregister=True,
             require_mrconvert=True,
             require_tckgen=True,
             require_tckstats=False,

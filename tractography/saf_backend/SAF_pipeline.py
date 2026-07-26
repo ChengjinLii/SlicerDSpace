@@ -10,7 +10,7 @@ from Class_files.modality_class import modality_class
 from Class_files.tx_class import tx_class
 from Support.verb_msg import verb_msg
 from Support.process_FS_surfaces import process_FS_surfaces
-from Pipe_modules.SAF_registration_default import SAF_registration_default
+from Pipe_modules.SAF_native_space import SAF_native_space
 from Pipe_modules.prepare_seeds import prepare_seeds
 from Pipe_modules.tractography_mrtrix import tractography_mrtrix
 from Pipe_modules.seed_curv import seed_curv
@@ -36,7 +36,7 @@ def SAF_pipeline(*args):
     else:
         SD = load_progress(PS)
 
-    SD = SAF_registration_default(PS, SD)
+    SD = SAF_native_space(PS, SD)
 
     if (not old_SD) or PS.force:
         verb_msg('Processing surfaces', PS)
@@ -264,11 +264,8 @@ if __name__ == '__main__':
     parser.add_argument('--fs_dir', required=True)
     parser.add_argument('--fod', required=True)
     parser.add_argument('--fa', default='')
-    parser.add_argument('--noregister', action='store_true')
     args = parser.parse_args()
     opts = ['fs_dir', args.fs_dir, 'fod', args.fod]
     if args.fa:
         opts += ['fa', args.fa]
-    if args.noregister:
-        opts += ['noregister']
     SAF_pipeline(*opts)

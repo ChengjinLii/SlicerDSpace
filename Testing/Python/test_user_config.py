@@ -10,6 +10,7 @@ from pathlib import Path
 
 from shared.user_config import (
     apply_user_config_to_args,
+    coupled_explicit_cli_destinations,
     default_user_config_path,
     empty_user_config,
     explicit_cli_destinations,
@@ -161,6 +162,30 @@ class UserConfigTest(unittest.TestCase):
 
         self.assertEqual(args.tractography_backend, "dti_det")
         self.assertEqual(args.subject_root, Path("/data/saved"))
+
+    def test_explicit_subject_root_invalidates_saved_subject_context(self) -> None:
+        explicit = coupled_explicit_cli_destinations({"subject_root"})
+        args = argparse.Namespace(
+            subject_root=Path("/data/new-subject"),
+            subject_id=None,
+            output_root=None,
+        )
+
+        apply_user_config_to_args(
+            args,
+            {
+                "recent": {
+                    "subject_root": "/data/old-subject",
+                    "subject_id": "old-subject",
+                    "output_root": "/out/old-subject",
+                },
+            },
+            explicit_dests=explicit,
+        )
+
+        self.assertEqual(args.subject_root, Path("/data/new-subject"))
+        self.assertIsNone(args.subject_id)
+        self.assertIsNone(args.output_root)
 
 
 if __name__ == "__main__":

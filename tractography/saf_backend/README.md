@@ -34,10 +34,9 @@ Please cite if using the framework.
     - MATLAB scripts: read/write streamline data
     - tractography [optional]: pre-generated unfiltered tractograms can be provided instead
     - tcksample [optional]: project per-streamline scalar image data on the surface
-- **ANTs**[^4]:
-    - registration [optional]: if structural and diffusion data are not aligned
+- **Surface-space requirement**:
+    - cortical surfaces must already be expressed in native diffusion space
 
 [^1]: MATLAB: [website](https://uk.mathworks.com/products/matlab.html)
 [^2]: FreeSurfer: [website](https://surfer.nmr.mgh.harvard.edu/) [citation](https://doi.org/10.1016/j.neuroimage.2012.01.021)
 [^3]: MRtrix3: [website](https://www.mrtrix.org/) [citation](https://doi.org/10.1016/j.neuroimage.2019.116137)
-[^4]: ANTs: [website](https://github.com/ANTsX/ANTs) [citation](https://scicomp.ethz.ch/public/manual/ants/2.x/ants2.pdf)

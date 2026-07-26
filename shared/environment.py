@@ -975,7 +975,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 _add_mrtrix_commands(
                     specs,
                     target,
-                    ("dwidenoise", "mrdegibbs", "dwifslpreproc"),
+                    ("dwidenoise", "mrdegibbs", "dwifslpreproc", "dwi2mask"),
                     config.preprocessing_mrtrix_bin_dir or config.mrtrix_bin_dir,
                 )
                 for command in ("eddy", "topup"):
@@ -1049,7 +1049,12 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
         if target == "surface":
             _add_core_python(specs, target)
             _add_slicer_python_runtime(specs, target)
-            for import_name, package in (("SimpleITK", "SimpleITK"), ("scipy", "scipy"), ("trimesh", "trimesh")):
+            for import_name, package in (
+                ("SimpleITK", "SimpleITK"),
+                ("scipy", "scipy"),
+                ("trimesh", "trimesh"),
+                ("rtree", "rtree"),
+            ):
                 _python(specs, target=target, import_name=import_name, package=package)
             _add_deep_learning_stack(specs, target)
             _device(specs, target=target, device=config.surface_device, python_executable=config.python_executable)
@@ -1206,6 +1211,15 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
 
         if target == "wma":
             _add_core_python(specs, target)
+            _command(
+                specs,
+                target=target,
+                command="tckconvert",
+                group="mrtrix",
+                bin_dir=config.mrtrix_bin_dir,
+                required=False,
+                notes="Required only when the WMA input tractogram is a TCK file.",
+            )
             _env(
                 specs,
                 target=target,

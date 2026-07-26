@@ -482,6 +482,43 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(manifest["targets"], ["bundles", "wma", "tractcloud"])
             self.assertEqual(manifest["bundle_backends"], ["wmql", "wma", "tractcloud"])
 
+    def test_wma_plan_consumes_the_selected_csd_tractogram_after_tractography(self) -> None:
+        from shared import ProductOrchestratorConfig, plan_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
+            slicer_executable = Path(tmp) / "Slicer"
+            slicer_executable.write_text("", encoding="utf-8")
+            atlas_dir = Path(tmp) / "ORG-Atlases"
+            atlas_dir.mkdir()
+            mrtrix_bin = Path(tmp) / "mrtrix" / "bin"
+            mrtrix_bin.mkdir(parents=True)
+            (mrtrix_bin / "tckconvert").write_text("", encoding="utf-8")
+
+            plan = plan_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("segmentation", "tractography", "wma"),
+                    bundle_backend="wma",
+                    execute=True,
+                    wma_atlas_dir=atlas_dir,
+                    slicer_executable=slicer_executable,
+                    mrtrix_bin_dir=mrtrix_bin,
+                ),
+                write=False,
+            )
+
+            items = {item.target: item for item in plan.items}
+            self.assertEqual(items["tractography"].status, "will_run")
+            self.assertEqual(items["wma"].status, "will_run")
+            self.assertEqual(items["wma"].dependencies["input_tractography"], "will_run:tractography")
+            self.assertTrue(items["wma"].inputs["input_tractography"].endswith("_csd_act_ifod2.tck"))
+
     def test_saf_tractography_backend_expands_surface_postprocess_and_saf(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 
@@ -643,7 +680,6 @@ class ProductOrchestratorTest(unittest.TestCase):
 
             def _fake_run_saf(config, *, log=None):
                 captured["tckgen_options"] = config.tckgen_options
-                captured["noregister"] = config.noregister
                 return _FakeResult(config.output_dir)
 
             with mock.patch("tractography.run_saf", side_effect=_fake_run_saf):
@@ -653,13 +689,11 @@ class ProductOrchestratorTest(unittest.TestCase):
                         subject_root=subject_root,
                         targets=("saf",),
                         execute=True,
-                        saf_noregister=True,
                     )
                 )
 
             self.assertIn("-select 1000000", captured["tckgen_options"])
             self.assertIn("-seed_image", captured["tckgen_options"])
-            self.assertTrue(captured["noregister"])
             self.assertEqual(result.tasks[0].outputs["streamline_count"], "63589")
             self.assertTrue(result.tasks[0].outputs["tractogram_vtk"].endswith("SAF.vtk"))
 

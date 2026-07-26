@@ -4,9 +4,9 @@
 
 The framework follows a series of processing steps that result in a filtered short association fibre (SAF) tractogram and additional outputs. Results of every step are recorded in a data structure and can be accessed subsequently without having to re-run anything.
 
-## Registration
+## Surface space
 
-The first step will register diffusion to structural data using a masked fractional anisotropy map and a FreeSurfer brain image. The surface meshes are then brought into diffusion space using inverse transform. All subsequent processing is performed in diffusion space. It is possible to omit registration (by passing `noregister` input) if the data are pre-registered. Alternatively, custom registration scripts may be created following the structure of the default registration module and used by passing `registration` input followed by the name of the matlab script.
+The workflow accepts cortical surfaces that are already expressed in native diffusion space. The bundled SlicerDDSurfer backend does not register T1w/FreeSurfer surfaces to diffusion data. DDSurfer postprocess outputs are the recommended surface source.
 
 ## Tractography
 

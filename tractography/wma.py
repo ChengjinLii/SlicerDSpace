@@ -14,17 +14,19 @@ import subprocess
 import tempfile
 import time
 import re
-from dataclasses import dataclass
+import traceback
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from shared.external_process import merged_startup_environment
+from shared.external_process import external_python_environment, merged_startup_environment
 
 
 WMA_APPLY_ORG_SCRIPT = Path("bin") / "wm_apply_ORG_atlas_to_subject.sh"
 WMA_APPLY_ORG_SCRIPT_NAME = "wm_apply_ORG_atlas_to_subject.sh"
 WMA_REPOSITORY = "https://github.com/SlicerDMRI/whitematteranalysis.git"
 EXPECTED_ORG_ATLAS_DIRS = ("ORG-RegAtlas-100HCP", "ORG-800FC-100HCP")
+MIN_ANATOMICAL_TRACT_COUNT = 73
 REQUIRED_WMA_COMMANDS = (
     "wm_append_clusters_to_anatomical_tracts.py",
     "wm_assess_cluster_location_by_hemisphere.py",
@@ -54,6 +56,7 @@ class WMAOrgAtlasConfig:
     output_dir: Path
     slicer_executable: Path
     wma_root: Optional[Path] = None
+    mrtrix_bin_dir: Optional[Path] = None
     transform_path: Optional[Path] = None
     registration_mode: str = "rig"
     num_threads: int = 1
@@ -69,6 +72,7 @@ class WMAOrgAtlasResult:
     """Prepared or completed WMA ORG atlas run."""
 
     subject_id: str
+    status: str
     output_dir: Path
     manifest_path: Path
     qc_path: Path
@@ -131,6 +135,16 @@ def wma_source_info(wma_root: Path) -> dict[str, str]:
             info["commit"] = commit
         except Exception:
             pass
+    source_record = wma_root / "VENDORED_SOURCE.md"
+    if source_record.is_file():
+        for line in source_record.read_text(encoding="utf-8", errors="replace").splitlines():
+            key, separator, value = line.removeprefix("- ").partition(":")
+            if not separator or not value.strip():
+                continue
+            normalized_key = key.strip().lower().replace(" ", "_")
+            if normalized_key in {"commit", "date_added"}:
+                info[normalized_key] = value.strip()
+        info["source_record"] = source_record.as_posix()
     return info
 
 
@@ -409,15 +423,27 @@ def _last_nonempty_line(text: Optional[str]) -> Optional[str]:
 def _derive_wma_status(output_summary: dict[str, Any], execution_error: Optional[str], executed: bool) -> str:
     if not executed:
         return "planned"
-    if output_summary.get("anatomical_tract_count", 0) > 0:
+    anatomical_tract_count = int(output_summary.get("anatomical_tract_count", 0) or 0)
+    if execution_error and (
+        anatomical_tract_count > 0
+        or output_summary.get("transformed_cluster_count", 0) > 0
+        or output_summary.get("outlier_removed_cluster_count", 0) > 0
+        or output_summary.get("initial_cluster_count", 0) > 0
+    ):
+        return "partial_failed"
+    if execution_error:
+        return "failed"
+    if anatomical_tract_count >= MIN_ANATOMICAL_TRACT_COUNT:
         return "completed"
+    if anatomical_tract_count > 0:
+        return "partial_failed"
     if output_summary.get("transformed_cluster_count", 0) > 0:
         return "partial_failed"
     if output_summary.get("outlier_removed_cluster_count", 0) > 0:
         return "partial_failed"
     if output_summary.get("initial_cluster_count", 0) > 0:
         return "partial_failed"
-    return "failed" if execution_error else "completed"
+    return "failed"
 
 
 def build_wma_org_atlas_command(config: WMAOrgAtlasConfig) -> tuple[str, ...]:
@@ -465,13 +491,37 @@ def build_wma_org_atlas_command(config: WMAOrgAtlasConfig) -> tuple[str, ...]:
     return tuple(cmd)
 
 
+def _resolve_tckconvert(config: WMAOrgAtlasConfig) -> Optional[Path]:
+    configured_dirs: list[Path] = []
+    if config.mrtrix_bin_dir is not None:
+        configured_dirs.append(config.mrtrix_bin_dir.expanduser())
+    for env_name in ("SLICERDDSURFER_MRTRIX_BIN_DIR", "MRTRIX_BIN_DIR"):
+        value = os.environ.get(env_name)
+        if value:
+            configured_dirs.append(Path(value).expanduser())
+    executable_names = ("tckconvert.exe", "tckconvert") if os.name == "nt" else ("tckconvert",)
+    for bin_dir in configured_dirs:
+        for executable_name in executable_names:
+            candidate = bin_dir / executable_name
+            if candidate.is_file():
+                return candidate.resolve()
+    resolved = shutil.which("tckconvert")
+    return Path(resolved).resolve() if resolved else None
+
+
 def validate_wma_org_inputs(config: WMAOrgAtlasConfig) -> None:
     if not config.subject_id.strip():
         raise ValueError("subject_id is required.")
-    if config.input_tractography.suffix.lower() not in {".vtk", ".vtp"}:
-        raise ValueError("WMA ORG atlas input must be a VTK/VTP tractography file.")
+    input_suffix = config.input_tractography.suffix.lower()
+    if input_suffix not in {".vtk", ".vtp", ".tck"}:
+        raise ValueError("WMA ORG atlas input must be a whole-brain VTK/VTP/TCK tractography file.")
     if not config.input_tractography.expanduser().is_file():
         raise FileNotFoundError(f"Input tractography not found: {config.input_tractography}")
+    if input_suffix == ".tck" and _resolve_tckconvert(config) is None:
+        raise RuntimeError(
+            "TCK input requires MRtrix3 tckconvert. Configure mrtrix_bin_dir, "
+            "SLICERDDSURFER_MRTRIX_BIN_DIR, MRTRIX_BIN_DIR, or PATH."
+        )
     if not config.atlas_dir.expanduser().is_dir():
         raise FileNotFoundError(f"WMA ORG atlas directory not found: {config.atlas_dir}")
     atlas_status = inspect_wma_org_atlas(config.atlas_dir)
@@ -512,22 +562,46 @@ def run_wma_org_atlas(
         require_diffusion_measurements=config.export_diffusion_measures,
     )
     atlas_status = inspect_wma_org_atlas(config.atlas_dir)
-    command = build_wma_org_atlas_command(config)
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+    source_tractography = config.input_tractography.expanduser().resolve()
+    prepared_tractography = source_tractography
+    conversion_command: tuple[str, ...] = ()
+    if source_tractography.suffix.lower() == ".tck":
+        prepared_tractography = output_dir / "input" / f"{source_tractography.stem}.vtk"
+        tckconvert = _resolve_tckconvert(config)
+        if tckconvert is None:  # Defensive: validate_wma_org_inputs already checks this.
+            raise RuntimeError("MRtrix3 tckconvert was not found.")
+        conversion_command = (
+            tckconvert.as_posix(),
+            source_tractography.as_posix(),
+            prepared_tractography.as_posix(),
+            "-force",
+        )
+    runtime_config = replace(config, input_tractography=prepared_tractography)
+    command = build_wma_org_atlas_command(runtime_config)
     manifest_path = output_dir / "wma_org_atlas_manifest.json"
     qc_path = output_dir / "wma_org_atlas_qc.json"
     log_dir = output_dir / "logs"
     stdout_log = log_dir / "wma_stdout.log"
     stderr_log = log_dir / "wma_stderr.log"
-    output_summary = summarize_wma_outputs(output_dir, config.input_tractography.expanduser().resolve())
+    conversion_stdout_log = log_dir / "tckconvert_stdout.log"
+    conversion_stderr_log = log_dir / "tckconvert_stderr.log"
+    output_summary = summarize_wma_outputs(output_dir, prepared_tractography)
 
     manifest = {
         "kind": "wma_org_atlas",
-        "version": 2,
+        "version": 3,
         "name": "WMA ORG atlas clustering",
         "subject_id": config.subject_id,
-        "input_tractography": config.input_tractography.expanduser().resolve().as_posix(),
+        "input_tractography": source_tractography.as_posix(),
+        "prepared_input_tractography": prepared_tractography.as_posix(),
+        "input_conversion": {
+            "required": bool(conversion_command),
+            "command": list(conversion_command),
+            "stdout_log": conversion_stdout_log.as_posix(),
+            "stderr_log": conversion_stderr_log.as_posix(),
+        },
         "atlas_dir": config.atlas_dir.expanduser().resolve().as_posix(),
         "output_dir": output_dir.as_posix(),
         "registration_mode": config.registration_mode,
@@ -579,6 +653,22 @@ def run_wma_org_atlas(
         runtime_display = _resolve_runtime_display()
         temp_python_dir: Optional[tempfile.TemporaryDirectory[str]] = None
         try:
+            if conversion_command:
+                prepared_tractography.parent.mkdir(parents=True, exist_ok=True)
+                if log:
+                    log("[WMA] Converting TCK input: " + " ".join(conversion_command))
+                conversion_env = external_python_environment(
+                    path_prepend=(config.mrtrix_bin_dir,) if config.mrtrix_bin_dir is not None else (),
+                )
+                converted = subprocess.run(
+                    conversion_command,
+                    check=True,
+                    env=conversion_env,
+                    capture_output=True,
+                    text=True,
+                )
+                conversion_stdout_log.write_text(converted.stdout or "", encoding="utf-8")
+                conversion_stderr_log.write_text(converted.stderr or "", encoding="utf-8")
             slicerdmri_paths = _slicerdmri_module_paths(slicer_executable)
             if slicer_python is not None or config.use_virtual_x or slicerdmri_paths:
                 temp_python_dir = tempfile.TemporaryDirectory(prefix="slicerdds_wma_python_")
@@ -636,19 +726,37 @@ def run_wma_org_atlas(
             return_code = completed.returncode
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode
-            stdout_log.write_text(exc.stdout or "", encoding="utf-8")
-            stderr_log.write_text(exc.stderr or "", encoding="utf-8")
+            failed_stdout = conversion_stdout_log if conversion_command and not prepared_tractography.is_file() else stdout_log
+            failed_stderr = conversion_stderr_log if conversion_command and not prepared_tractography.is_file() else stderr_log
+            failed_stdout.write_text(exc.stdout or "", encoding="utf-8")
+            failed_stderr.write_text(exc.stderr or "", encoding="utf-8")
             execution_error = str(exc)
-            raise
+        except KeyboardInterrupt:
+            return_code = 130
+            execution_error = "Interrupted by user."
+            stderr_log.write_text(execution_error + "\n", encoding="utf-8")
+        except Exception as exc:
+            return_code = None
+            execution_error = f"{type(exc).__name__}: {exc}"
+            stderr_log.write_text(traceback.format_exc(), encoding="utf-8")
         finally:
             if temp_python_dir is not None:
                 temp_python_dir.cleanup()
-            output_summary = summarize_wma_outputs(output_dir, config.input_tractography.expanduser().resolve())
-            if execution_error is None and config.execute and not output_summary["anatomical_tracts_dir_exists"]:
+            output_summary = summarize_wma_outputs(output_dir, prepared_tractography)
+            if (
+                execution_error is None
+                and config.execute
+                and int(output_summary.get("anatomical_tract_count", 0) or 0)
+                < MIN_ANATOMICAL_TRACT_COUNT
+            ):
                 log_hint = _last_nonempty_line(stderr_log.read_text(encoding="utf-8") if stderr_log.is_file() else "")
                 if log_hint is None:
                     log_hint = _last_nonempty_line(stdout_log.read_text(encoding="utf-8") if stdout_log.is_file() else "")
-                execution_error = "WMA command returned without required FiberClustering/AnatomicalTracts outputs."
+                execution_error = (
+                    "WMA command returned without a complete AnatomicalTracts output "
+                    f"(expected at least {MIN_ANATOMICAL_TRACT_COUNT}, found "
+                    f"{output_summary.get('anatomical_tract_count', 0)})."
+                )
                 if log_hint:
                     execution_error += f" Last log line: {log_hint}"
 
@@ -665,11 +773,16 @@ def run_wma_org_atlas(
         "backend_available": bool(backend_status["available"]),
         "atlas_available": bool(atlas_status["available"]),
         "output_summary": output_summary,
+        "acceptance_criteria": {
+            "minimum_anatomical_tract_count": MIN_ANATOMICAL_TRACT_COUNT,
+        },
         "logs": {
             "stdout": stdout_log.as_posix(),
             "stderr": stderr_log.as_posix(),
             "stdout_exists": stdout_log.is_file(),
             "stderr_exists": stderr_log.is_file(),
+            "tckconvert_stdout": conversion_stdout_log.as_posix(),
+            "tckconvert_stderr": conversion_stderr_log.as_posix(),
         },
         "error": execution_error,
     }
@@ -679,10 +792,12 @@ def run_wma_org_atlas(
     manifest["executed"] = bool(config.execute)
     manifest["return_code"] = return_code
     manifest["runtime_seconds"] = elapsed_seconds
+    manifest["error"] = execution_error
     manifest["environment"] = {
         "use_virtual_x": config.use_virtual_x,
         "runtime_display": _resolve_runtime_display(),
         "resolved_wma_root": wma_root.as_posix(),
+        "resolved_tckconvert": _resolve_tckconvert(config).as_posix() if conversion_command else None,
         "resolved_slicer_executable": config.slicer_executable.expanduser().resolve().as_posix(),
         "resolved_slicer_launcher": _resolve_slicer_launcher(config.slicer_executable).as_posix(),
     }
@@ -691,6 +806,7 @@ def run_wma_org_atlas(
 
     return WMAOrgAtlasResult(
         subject_id=config.subject_id,
+        status=status,
         output_dir=output_dir,
         manifest_path=manifest_path,
         qc_path=qc_path,

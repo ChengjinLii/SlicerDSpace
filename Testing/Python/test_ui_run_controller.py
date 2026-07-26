@@ -268,7 +268,15 @@ class UIRunControllerTest(unittest.TestCase):
             external_paths = {
                 "mrtrix_bin_dir": root / "mrtrix" / "bin",
                 "preprocessing_fsl_bin_dir": root / "fsl" / "bin",
+                "postprocess_freesurfer_home": root / "freesurfer",
                 "tract_querier_root": root / "tract_querier",
+                "wma_root": root / "wma",
+                "wma_atlas_dir": root / "ORG-Atlases",
+                "slicer_executable": root / "Slicer",
+                "fiber_tract_measurements_cli": root / "FiberTractMeasurements",
+                "tractcloud_root": root / "TractCloud",
+                "tractcloud_python_executable": root / "tractcloud-python",
+                "tractcloud_data_dir": root / "tractcloud-data",
             }
 
             single = build_single_subject_run_kwargs(
@@ -281,8 +289,14 @@ class UIRunControllerTest(unittest.TestCase):
         self.assertEqual(single["subject_id"], "sub-01")
         self.assertEqual(single["targets"], ("validation", "tractography", "bundles"))
         self.assertEqual(single["select_streamlines"], 1)
+        self.assertEqual(single["preprocessing_backend"], "dipy")
         self.assertEqual(single["mrtrix_bin_dir"], external_paths["mrtrix_bin_dir"])
         self.assertEqual(single["preprocessing_mrtrix_bin_dir"], external_paths["mrtrix_bin_dir"])
+        self.assertEqual(single["postprocess_freesurfer_home"], external_paths["postprocess_freesurfer_home"])
+        self.assertEqual(single["wma_root"], external_paths["wma_root"])
+        self.assertEqual(single["wma_atlas_dir"], external_paths["wma_atlas_dir"])
+        self.assertEqual(single["slicer_executable"], external_paths["slicer_executable"])
+        self.assertEqual(single["tractcloud_root"], external_paths["tractcloud_root"])
         self.assertEqual(single["preflight_blocked_targets"], {"bundles": "missing tract_querier"})
         self.assertEqual(batch["subject_id"], "batch")
         self.assertEqual(batch["subject_root"], root / "batch")

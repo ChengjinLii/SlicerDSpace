@@ -57,6 +57,7 @@ class RunSelection:
     surface_device: str
     connectome_backend: str
     connectome_compress_mrtrix_dense: bool
+    preprocessing_backend: str = "dipy"
 
 
 @dataclass(frozen=True)
@@ -377,6 +378,7 @@ def build_single_subject_run_kwargs(
         "run_name": selection.run_name,
         "tractography_backend": selection.tractography_backend,
         "bundle_backend": selection.bundle_backend,
+        "preprocessing_backend": selection.preprocessing_backend,
         "resume": True,
         "microstructure_run_free_water": selection.microstructure_freewater,
         "microstructure_run_noddi": selection.microstructure_noddi,
@@ -387,7 +389,15 @@ def build_single_subject_run_kwargs(
         "mrtrix_bin_dir": external_paths.get("mrtrix_bin_dir"),
         "preprocessing_mrtrix_bin_dir": external_paths.get("mrtrix_bin_dir"),
         "preprocessing_fsl_bin_dir": external_paths.get("preprocessing_fsl_bin_dir"),
+        "postprocess_freesurfer_home": external_paths.get("postprocess_freesurfer_home"),
         "tract_querier_root": external_paths.get("tract_querier_root"),
+        "wma_root": external_paths.get("wma_root"),
+        "wma_atlas_dir": external_paths.get("wma_atlas_dir"),
+        "slicer_executable": external_paths.get("slicer_executable"),
+        "fiber_tract_measurements_cli": external_paths.get("fiber_tract_measurements_cli"),
+        "tractcloud_root": external_paths.get("tractcloud_root"),
+        "tractcloud_python_executable": external_paths.get("tractcloud_python_executable"),
+        "tractcloud_data_dir": external_paths.get("tractcloud_data_dir"),
         "connectome_backend": selection.connectome_backend,
         "connectome_compress_mrtrix_dense": selection.connectome_compress_mrtrix_dense,
         "preflight_blocked_targets": dict(preflight_blocked_targets),
@@ -405,6 +415,7 @@ def build_batch_run_kwargs(selection: RunSelection, *, batch_root: Path) -> dict
         "run_name": selection.run_name,
         "tractography_backend": selection.tractography_backend,
         "bundle_backend": selection.bundle_backend,
+        "preprocessing_backend": selection.preprocessing_backend,
         "resume": True,
         "microstructure_run_free_water": selection.microstructure_freewater,
         "microstructure_run_noddi": selection.microstructure_noddi,

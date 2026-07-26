@@ -18,6 +18,7 @@ from shared.environment import (
     _common_slicer_executables,
     _parse_json_probe_output,
     _python_requirement_details,
+    build_dependency_specs,
     run_environment_doctor,
     write_environment_report,
 )
@@ -138,6 +139,16 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             command_path.write_text("#!/usr/bin/env sh\n", encoding="utf-8")
             command_path.chmod(0o755)
         return freesurfer_home
+
+    def test_fsl_preprocessing_requires_corrected_dwi_mask_command(self) -> None:
+        specs = build_dependency_specs(
+            EnvironmentDoctorConfig(
+                targets=("preprocessing",),
+                repo_root=REPO_ROOT,
+                preprocessing_backend="mrtrix_fsl",
+            )
+        )
+        self.assertIn("command:dwi2mask", {spec.key for spec in specs})
 
     def test_dti_runtime_requires_real_slicer_python(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -407,6 +418,7 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
                     (REPO_ROOT / "run_subject_pipeline.py").as_posix(),
                     "--subject-root",
                     subject_root.as_posix(),
+                    "--no-user-config",
                     "--targets",
                     "tractography",
                     "--doctor",
@@ -429,6 +441,7 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
                     (REPO_ROOT / "run_subject_pipeline.py").as_posix(),
                     "--subject-root",
                     subject_root.as_posix(),
+                    "--no-user-config",
                     "--targets",
                     "tractography",
                     "--doctor",

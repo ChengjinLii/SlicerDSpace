@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import time
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
@@ -47,6 +48,7 @@ SUPPORTED_TARGETS = {
 
 TRACTOGRAPHY_BACKENDS = {"csd_act", "dti_det", "saf"}
 BUNDLE_BACKENDS = {"wmql", "wma", "tractcloud"}
+WMA_MIN_ANATOMICAL_TRACT_COUNT = 73
 
 TARGET_ORDER = (
     "validation",
@@ -88,6 +90,8 @@ class ProductOrchestratorConfig:
     preprocessing_reverse_phase_b0: Optional[Path] = None
     preprocessing_phase_encoding_direction: Optional[str] = None
     preprocessing_readout_time: Optional[float] = None
+    preprocessing_eddy_threads: Optional[int] = None
+    preprocessing_eddy_second_level_model: Optional[str] = None
     microstructure_fit_method: str = "wls"
     microstructure_run_free_water: bool = False
     microstructure_run_noddi: bool = False
@@ -115,7 +119,6 @@ class ProductOrchestratorConfig:
     saf_fs_dir: Optional[Path] = None
     saf_pregenerated_tractogram: Optional[Path] = None
     saf_tckgen_options: str = ""
-    saf_noregister: bool = True
     saf_mrtrix_prefix: str = ""
     wma_input_tractography: Optional[Path] = None
     wma_atlas_dir: Optional[Path] = None
@@ -455,6 +458,53 @@ def _resolve_bundle_input_tractography(
     candidates.extend(sorted(layout.tractography.glob("**/*.vt*")))
     candidates.extend(sorted(subject_root.glob("tractography/**/*.vt*")) + sorted(subject_root.glob("tractography/*.vt*")))
     return next((path.resolve() for path in candidates if path.suffix.lower() in {".vtk", ".vtp"} and path.is_file()), None)
+
+
+def _resolve_wma_input_tractography(
+    subject_root: Path,
+    explicit_path: Optional[Path],
+    *,
+    output_root: Optional[Path] = None,
+) -> Optional[Path]:
+    """Resolve a whole-brain VTK/VTP/TCK without selecting derived bundle outputs."""
+
+    resolved_explicit = _resolve_optional_path(explicit_path)
+    if resolved_explicit is not None:
+        return resolved_explicit if resolved_explicit.is_file() else None
+
+    layout = subject_layout(subject_root, output_root=output_root)
+    excluded_parts = {"saf", "bundles", "wma", "wmql", "tractcloud", "tract_cloud_dl"}
+    candidates = sorted(layout.tractography.glob("**/*.vtk"))
+    candidates.extend(sorted(layout.tractography.glob("**/*.vtp")))
+    candidates.extend(sorted(layout.tractography.glob("**/*.tck")))
+    candidates.extend(sorted((subject_root / "tractography").glob("**/*.vtk")))
+    candidates.extend(sorted((subject_root / "tractography").glob("**/*.vtp")))
+    candidates.extend(sorted((subject_root / "tractography").glob("**/*.tck")))
+    for path in candidates:
+        if not path.is_file():
+            continue
+        if excluded_parts.intersection(part.lower() for part in path.parts):
+            continue
+        return path.resolve()
+    return None
+
+
+def _resolve_mrtrix_command(command: str, bin_dir: Optional[Path]) -> Optional[Path]:
+    candidate_dirs: list[Path] = []
+    if bin_dir is not None:
+        candidate_dirs.append(bin_dir.expanduser())
+    for env_name in ("SLICERDDSURFER_MRTRIX_BIN_DIR", "MRTRIX_BIN_DIR"):
+        value = os.environ.get(env_name)
+        if value:
+            candidate_dirs.append(Path(value).expanduser())
+    executable_names = (f"{command}.exe", command) if os.name == "nt" else (command,)
+    for candidate_dir in candidate_dirs:
+        for executable_name in executable_names:
+            candidate = candidate_dir / executable_name
+            if candidate.is_file():
+                return candidate.resolve()
+    resolved = shutil.which(command)
+    return Path(resolved).resolve() if resolved else None
 
 
 def _resolve_best_saf_pregenerated_tractogram(subject_root: Path, explicit_path: Optional[Path], output_root: Optional[Path] = None) -> Optional[Path]:
@@ -818,10 +868,14 @@ def _task_from_result(name: str, result, *, status: str = "completed", reason: s
             if isinstance(value, Path):
                 outputs[key] = value.as_posix()
 
+    result_status = getattr(result, "status", status)
+    result_reason = reason
+    if not result_reason and result_status in {"failed", "partial_failed"}:
+        result_reason = f"{name} reported {result_status}; inspect its QC record"
     return ProductTaskRecord(
         name=name,
-        status=status,
-        reason=reason,
+        status=result_status,
+        reason=result_reason,
         manifest_path=getattr(result, "manifest_path", None),
         qc_path=getattr(result, "qc_path", None),
         outputs=outputs,
@@ -916,7 +970,22 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     tractogram = csd_tractogram if primary_tractography_backend == "csd_act" else dti_tractogram_trk
     tractogram_trk = csd_tractogram_trk if primary_tractography_backend == "csd_act" else dti_tractogram_trk
     saf_tractogram = saf_dir / "SAF.tck"
-    wma_input_tractography = _resolve_bundle_input_tractography(subject_root, config.wma_input_tractography, output_root=output_root, run_name=run_name)
+    if config.wma_input_tractography is not None:
+        wma_input_tractography = _resolve_wma_input_tractography(
+            subject_root,
+            config.wma_input_tractography,
+            output_root=output_root,
+        )
+    elif primary_tractography_backend == "csd_act" and (
+        csd_tractogram.is_file() or "tractography" in selected
+    ):
+        wma_input_tractography = csd_tractogram
+    else:
+        wma_input_tractography = _resolve_wma_input_tractography(
+            subject_root,
+            None,
+            output_root=output_root,
+        )
     tractcloud_input_tractography = _resolve_bundle_input_tractography(subject_root, config.tractcloud_input_tractography, output_root=output_root, run_name=run_name)
     slicer_executable = _resolve_slicer_executable(config)
     segmentation = _resolve_segmentation(subject_root, output_root)
@@ -1226,16 +1295,57 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
 
         if target == "wma":
             wma_outputs = {"qc": wma_dir / "wma_org_atlas_qc.json", "manifest": wma_dir / "wma_org_atlas_manifest.json", "output_dir": wma_dir}
-            if config.resume and _qc_completed(wma_outputs["qc"]) and _wma_anatomical_tract_count(wma_dir) > 0:
+            wma_input_available = bool(
+                wma_input_tractography is not None and wma_input_tractography.is_file()
+            )
+            wma_input_will_run = bool(
+                wma_input_tractography == csd_tractogram and available.get("tractography", False)
+            )
+            if (
+                config.resume
+                and _qc_completed(wma_outputs["qc"])
+                and _wma_anatomical_tract_count(wma_dir) >= WMA_MIN_ANATOMICAL_TRACT_COUNT
+            ):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=wma_outputs)
-            elif wma_input_tractography is None and not available.get("saf", False):
-                add(target, "blocked", "missing VTK/VTP input tractography for WMA", "data", outputs=wma_outputs, provides=False)
+            elif not wma_input_available and not wma_input_will_run:
+                add(
+                    target,
+                    "blocked",
+                    "missing whole-brain VTK/VTP/TCK tractography for WMA",
+                    "data",
+                    outputs=wma_outputs,
+                    provides=False,
+                )
+            elif (
+                wma_input_tractography is not None
+                and wma_input_tractography.suffix.lower() == ".tck"
+                and _resolve_mrtrix_command("tckconvert", config.mrtrix_bin_dir) is None
+            ):
+                add(
+                    target,
+                    "blocked",
+                    "TCK input requires MRtrix3 tckconvert",
+                    "environment",
+                    inputs={"input_tractography": wma_input_tractography},
+                    outputs=wma_outputs,
+                    provides=False,
+                )
             elif config.wma_atlas_dir is None:
                 add(target, "blocked", "missing --wma-atlas-dir", "data", inputs={"input_tractography": wma_input_tractography}, outputs=wma_outputs, provides=False)
             elif slicer_executable is None:
                 add(target, "blocked", "missing Slicer executable for WMA", "environment", inputs={"input_tractography": wma_input_tractography}, outputs=wma_outputs, provides=False)
             else:
-                add(target, "will_run", "ready to run WMA ORG atlas", "runnable", inputs={"input_tractography": wma_input_tractography, "atlas_dir": config.wma_atlas_dir}, outputs=wma_outputs, dependencies={"input_tractography": "available" if wma_input_tractography else "will_run:saf"})
+                add(
+                    target,
+                    "will_run",
+                    "ready to run WMA ORG atlas",
+                    "runnable",
+                    inputs={"input_tractography": wma_input_tractography, "atlas_dir": config.wma_atlas_dir},
+                    outputs=wma_outputs,
+                    dependencies={
+                        "input_tractography": "available" if wma_input_available else "will_run:tractography"
+                    },
+                )
             continue
 
         if target == "tractcloud":
@@ -1821,6 +1931,8 @@ def run_subject_products(
                     reverse_phase_b0=config.preprocessing_reverse_phase_b0,
                     phase_encoding_direction=config.preprocessing_phase_encoding_direction,
                     readout_time=config.preprocessing_readout_time,
+                    eddy_threads=config.preprocessing_eddy_threads,
+                    eddy_second_level_model=config.preprocessing_eddy_second_level_model,
                 ),
                 log=log,
             )
@@ -1874,7 +1986,20 @@ def run_subject_products(
     tractogram = csd_tractogram if primary_tractography_backend == "csd_act" else dti_tractogram_trk
     tractogram_trk = csd_tractogram_trk if primary_tractography_backend == "csd_act" else dti_tractogram_trk
     saf_tractogram = saf_dir / "SAF.tck"
-    wma_input_tractography = _resolve_bundle_input_tractography(subject_root, config.wma_input_tractography, output_root=output_root, run_name=run_name)
+    if config.wma_input_tractography is not None:
+        wma_input_tractography = _resolve_wma_input_tractography(
+            subject_root,
+            config.wma_input_tractography,
+            output_root=output_root,
+        )
+    elif primary_tractography_backend == "csd_act" and csd_tractogram.is_file():
+        wma_input_tractography = csd_tractogram
+    else:
+        wma_input_tractography = _resolve_wma_input_tractography(
+            subject_root,
+            None,
+            output_root=output_root,
+        )
     tractcloud_input_tractography = _resolve_bundle_input_tractography(subject_root, config.tractcloud_input_tractography, output_root=output_root, run_name=run_name)
     slicer_executable = _resolve_slicer_executable(config)
     ddseg_device = _resolved_device_for_execution(
@@ -2539,8 +2664,6 @@ def run_subject_products(
                 tasks.append(ProductTaskRecord(name="tractography.saf", status="blocked", reason="missing CSD FOD output for SAF"))
             elif pregenerated_tractogram is None and 'seed_mask' in locals() and seed_mask is None:
                 pass
-            elif not config.saf_noregister and not micro_outputs["fa"].is_file():
-                tasks.append(ProductTaskRecord(name="tractography.saf", status="blocked", reason="missing FA map for SAF registration"))
             else:
                 from tractography import SAFConfig, run_saf
 
@@ -2552,12 +2675,10 @@ def run_subject_products(
                         fs_dir=fs_dir,
                         fod_path=fod_path,
                         output_dir=saf_dir,
-                        fa_path=None if config.saf_noregister else micro_outputs["fa"],
                         pregenerated_tractogram=pregenerated_tractogram,
                         tckgen_options=saf_tckgen_options,
                         mrtrix_bin_dir=config.mrtrix_bin_dir,
                         mrtrix_prefix=config.saf_mrtrix_prefix,
-                        noregister=config.saf_noregister,
                         maxlen=saf_maxlen,
                         force_recompute=not config.resume,
                         execute=True,
@@ -2598,16 +2719,44 @@ def run_subject_products(
                 reason = "execute=False; existing QC present but anatomical tracts missing"
             tasks.append(ProductTaskRecord(name="bundles.wma", status="planned", reason=reason))
         else:
-            wma_input_tractography = _resolve_bundle_input_tractography(
-                subject_root,
-                config.wma_input_tractography,
-                output_root=output_root,
-                run_name=run_name,
-            )
-            if anatomical_tract_count > 0:
+            if config.wma_input_tractography is not None:
+                wma_input_tractography = _resolve_wma_input_tractography(
+                    subject_root,
+                    config.wma_input_tractography,
+                    output_root=output_root,
+                )
+            elif primary_tractography_backend == "csd_act" and csd_tractogram.is_file():
+                wma_input_tractography = csd_tractogram
+            else:
+                wma_input_tractography = _resolve_wma_input_tractography(
+                    subject_root,
+                    None,
+                    output_root=output_root,
+                )
+            if (
+                _qc_completed(wma_qc)
+                and anatomical_tract_count >= WMA_MIN_ANATOMICAL_TRACT_COUNT
+            ):
                 tasks.append(ProductTaskRecord(name="bundles.wma", status="skipped", reason="completed outputs found", qc_path=wma_qc, manifest_path=wma_dir / "wma_org_atlas_manifest.json", outputs={"anatomical_tract_count": str(anatomical_tract_count)}))
             elif wma_input_tractography is None:
-                tasks.append(ProductTaskRecord(name="bundles.wma", status="blocked", reason="missing VTK/VTP input tractography for WMA"))
+                tasks.append(
+                    ProductTaskRecord(
+                        name="bundles.wma",
+                        status="blocked",
+                        reason="missing whole-brain VTK/VTP/TCK tractography for WMA",
+                    )
+                )
+            elif (
+                wma_input_tractography.suffix.lower() == ".tck"
+                and _resolve_mrtrix_command("tckconvert", config.mrtrix_bin_dir) is None
+            ):
+                tasks.append(
+                    ProductTaskRecord(
+                        name="bundles.wma",
+                        status="blocked",
+                        reason="TCK input requires MRtrix3 tckconvert",
+                    )
+                )
             elif config.wma_atlas_dir is None:
                 tasks.append(ProductTaskRecord(name="bundles.wma", status="blocked", reason="missing --wma-atlas-dir"))
             elif slicer_executable is None:
@@ -2624,6 +2773,7 @@ def run_subject_products(
                         output_dir=wma_dir,
                         slicer_executable=slicer_executable,
                         wma_root=config.wma_root,
+                        mrtrix_bin_dir=config.mrtrix_bin_dir,
                         use_virtual_x=config.wma_use_virtual_x,
                         export_diffusion_measures=config.wma_export_diffusion_measures,
                         fiber_tract_measurements_cli=config.fiber_tract_measurements_cli,
@@ -2876,6 +3026,8 @@ def run_subject_products(
         "preprocessing_reverse_phase_b0": config.preprocessing_reverse_phase_b0.as_posix() if config.preprocessing_reverse_phase_b0 else None,
         "preprocessing_phase_encoding_direction": config.preprocessing_phase_encoding_direction,
         "preprocessing_readout_time": config.preprocessing_readout_time,
+        "preprocessing_eddy_threads": config.preprocessing_eddy_threads,
+        "preprocessing_eddy_second_level_model": config.preprocessing_eddy_second_level_model,
         "microstructure_fit_method": config.microstructure_fit_method,
         "microstructure_run_free_water": config.microstructure_run_free_water,
         "microstructure_run_noddi": config.microstructure_run_noddi,
@@ -2910,7 +3062,7 @@ def run_subject_products(
         "connectome_compress_mrtrix_dense": config.connectome_compress_mrtrix_dense,
         "saf_fs_dir": config.saf_fs_dir.expanduser().resolve().as_posix() if config.saf_fs_dir else None,
         "saf_pregenerated_tractogram": config.saf_pregenerated_tractogram.expanduser().resolve().as_posix() if config.saf_pregenerated_tractogram else None,
-        "saf_noregister": config.saf_noregister,
+        "saf_surface_space": "native_dMRI",
         "saf_mrtrix_prefix": config.saf_mrtrix_prefix,
         "wma_input_tractography": wma_input_tractography.as_posix() if wma_input_tractography else None,
         "wma_atlas_dir": config.wma_atlas_dir.expanduser().resolve().as_posix() if config.wma_atlas_dir else None,

@@ -106,6 +106,7 @@ PATH_STATUS_DEPENDENCY_KEYS = {
         "command:dwidenoise",
         "command:mrdegibbs",
         "command:dwifslpreproc",
+        "command:dwi2mask",
     },
     "preprocessing_fsl_bin_dir": {"command:eddy", "command:topup"},
     "postprocess_freesurfer_home": {

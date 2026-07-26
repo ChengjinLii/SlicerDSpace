@@ -89,6 +89,44 @@ if '-export_grad_fsl' in sys.argv:
     idx = sys.argv.index('-export_grad_fsl')
     pathlib.Path(sys.argv[idx + 1]).write_text('0 1 0\\n0 0 1\\n0 0 0\\n')
     pathlib.Path(sys.argv[idx + 2]).write_text('0 1000 1000\\n')
+if '-scratch' in sys.argv:
+    scratch = pathlib.Path(sys.argv[sys.argv.index('-scratch') + 1])
+    scratch.mkdir(parents=True, exist_ok=True)
+    (scratch / 'dwi_post_eddy.eddy_parameters').write_text('0 0 0 0 0 0\\n')
+    (scratch / 'dwi_post_eddy.eddy_movement_rms').write_text('0 0\\n')
+    (scratch / 'dwi_post_eddy.eddy_outlier_map').write_text('0 0 0\\n')
+    (scratch / 'field_fieldcoef.nii.gz').write_text('field')
+    (scratch / 'field_map.nii.gz').write_text('field-map')
+    (scratch / 'field_movpar.txt').write_text('0 0 0\\n')
+    (scratch / 'topup_in.topup_log').write_text('topup complete\\n')
+""",
+    )
+    _write_fake_command(
+        bin_dir / "dwi2mask",
+        """
+import pathlib, sys
+pathlib.Path(sys.argv[2]).write_text('corrected-dwi-mask')
+""",
+    )
+    _write_fake_command(
+        bin_dir / "mrconvert",
+        """
+import pathlib, sys
+pathlib.Path(sys.argv[2]).write_text('converted')
+""",
+    )
+    _write_fake_command(
+        bin_dir / "dwiextract",
+        """
+import pathlib, sys
+pathlib.Path(sys.argv[2]).write_text('forward-b0s')
+""",
+    )
+    _write_fake_command(
+        bin_dir / "mrcat",
+        """
+import pathlib, sys
+pathlib.Path(sys.argv[3]).write_text('se-epi-pair')
 """,
     )
 
@@ -229,6 +267,36 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
                     "copied",
                 )
 
+            manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+            executable_commands = [record["argv"] for record in manifest["commands"][:3]]
+            self.assertTrue(all("-force" not in command for command in executable_commands))
+            self.assertTrue(qc["backend_details"]["diagnostics"]["topup_field_map"]["exists"])
+            self.assertEqual(qc["mask_generation"]["method"], "dwi2mask_corrected_dwi")
+            self.assertEqual(
+                result.final_mask_path.read_text(encoding="utf-8"),
+                "corrected-dwi-mask",
+            )
+
+            cached = run_dwi_preprocessing(config)
+            cached_qc = json.loads(cached.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(cached.status, "cached")
+            self.assertEqual(cached_qc["status"], "completed")
+            self.assertEqual(cached_qc["reuse_status"], "cached")
+            self.assertEqual(cached_qc["mask_refresh_status"], "not_needed")
+
+            result.final_mask_path.unlink()
+            refreshed = run_dwi_preprocessing(config)
+            refreshed_qc = json.loads(refreshed.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(refreshed.status, "cached")
+            self.assertEqual(
+                refreshed_qc["mask_refresh_status"],
+                "regenerated_from_corrected_dwi",
+            )
+            self.assertEqual(
+                refreshed.final_mask_path.read_text(encoding="utf-8"),
+                "corrected-dwi-mask",
+            )
+
     def test_mrtrix_rpe_none_forwards_phase_encoding_and_readout(self) -> None:
         from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
 
@@ -256,6 +324,116 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
             self.assertIn("-rpe_none", command)
             self.assertEqual(command[command.index("-pe_dir") + 1], "AP")
             self.assertEqual(command[command.index("-readout_time") + 1], "0.1")
+
+    def test_force_is_forwarded_to_mrtrix_commands(self) -> None:
+        from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            subject = _write_subject(tmp_path)
+            bin_dir = tmp_path / "bin"
+            _write_fake_backend(bin_dir)
+
+            result = run_dwi_preprocessing(
+                DwiPreprocessingConfig(
+                    subject_id="100307",
+                    input_root=subject,
+                    backend="mrtrix_fsl",
+                    execute=True,
+                    force=True,
+                    mrtrix_bin_dir=bin_dir,
+                    fsl_bin_dir=bin_dir,
+                )
+            )
+
+            manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+            executable_commands = [record["argv"] for record in manifest["commands"][:3]]
+            self.assertTrue(all("-force" in command for command in executable_commands))
+
+    def test_external_command_failure_is_recorded_in_manifest_and_qc(self) -> None:
+        from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            subject = _write_subject(tmp_path)
+            bin_dir = tmp_path / "bin"
+            _write_fake_backend(bin_dir)
+            _write_fake_command(
+                bin_dir / "mrdegibbs",
+                """
+import sys
+sys.exit(9)
+""",
+            )
+            output_dir = subject / "outputs" / "01_preproc"
+
+            with self.assertRaisesRegex(RuntimeError, "exit code 9"):
+                run_dwi_preprocessing(
+                    DwiPreprocessingConfig(
+                        subject_id="100307",
+                        input_root=subject,
+                        output_dir=output_dir,
+                        backend="mrtrix_fsl",
+                        execute=True,
+                        mrtrix_bin_dir=bin_dir,
+                        fsl_bin_dir=bin_dir,
+                    )
+                )
+
+            manifest = json.loads(
+                (output_dir / "100307_preproc_manifest.json").read_text(encoding="utf-8")
+            )
+            qc = json.loads(
+                (output_dir / "05_qc" / "100307_preproc_qc.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(manifest["status"], "failed")
+            self.assertEqual(qc["status"], "failed")
+            self.assertIn("exit code 9", qc["error"])
+
+    def test_single_volume_reverse_phase_image_is_normalized_to_4d(self) -> None:
+        import nibabel as nib
+        import numpy as np
+
+        from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            subject = _write_subject(tmp_path)
+            bin_dir = tmp_path / "bin"
+            _write_fake_backend(bin_dir)
+            reverse_b0 = tmp_path / "reverse_b0.nii.gz"
+            nib.save(nib.Nifti1Image(np.zeros((5, 5, 5), dtype=np.float32), np.eye(4)), str(reverse_b0))
+
+            result = run_dwi_preprocessing(
+                DwiPreprocessingConfig(
+                    subject_id="100307",
+                    input_root=subject,
+                    backend="mrtrix_fsl",
+                    execute=True,
+                    force=True,
+                    mrtrix_bin_dir=bin_dir,
+                    fsl_bin_dir=bin_dir,
+                    reverse_phase_b0=reverse_b0,
+                    phase_encoding_direction="AP",
+                    readout_time=0.05,
+                    eddy_threads=3,
+                    eddy_second_level_model="linear",
+                )
+            )
+
+            manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+            commands = [record["argv"] for record in manifest["commands"]]
+            normalize = next(command for command in commands if command[0].endswith("mrconvert"))
+            pair = next(command for command in commands if command[0].endswith("mrcat"))
+            preprocess = next(command for command in commands if command[0].endswith("dwifslpreproc"))
+            self.assertIn("0,1,2,-1", normalize)
+            self.assertTrue(pair[3].endswith("_se_epi_pair.mif"))
+            self.assertTrue(preprocess[preprocess.index("-se_epi") + 1].endswith("_se_epi_pair.mif"))
+            eddy_options = preprocess[preprocess.index("-eddy_options") + 1]
+            self.assertIn("--nthr=3", eddy_options)
+            self.assertIn("--slm=linear", eddy_options)
+            self.assertEqual(manifest["parameters"]["eddy_threads"], 3)
+            self.assertEqual(manifest["parameters"]["eddy_second_level_model"], "linear")
 
     def test_execute_dipy_basic_generates_final_outputs(self) -> None:
         from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing

@@ -13,10 +13,8 @@
 
 ### Additional
 
-- **ants_\***: registration files mapping structural to diffusion space and vice versa
-- **brain_DWI.nii.gz**: FreeSurfer's T1-weighted **brain.mgz** image in diffusion space
-- **brain_T1.nii.gz**: original FreeSurfer's **brain.mgz** image in NIFTI format
-- **DWI_\*** and **T1_\***: surface coordinate files in diffusion and structural spaces, respectively
+- **brain_T1.nii.gz**: the supplied native-dMRI-space **brain.mgz** image converted to NIfTI
+- **DWI_\***: optional diagnostic surface-coordinate files in native diffusion space
 - **DWI_seeds_out.txt**: seed coordinates per streamline (output of tckgen)
 - **remeshed_seeds.txt**: tckgen input for coordinate seeding after remeshing (if `remesh_seeds` enabled)
 

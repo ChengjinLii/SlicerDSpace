@@ -22,8 +22,6 @@ class init_class:
         self.maxlen = 90
         self.final_init = ''
         self.remesh_seeds = False
-        self.registration = 'SAF_registration_default'
-        self.noregister = False
         self.notrunc = False
         self.fa = ''
         self.wrks = ''
@@ -40,7 +38,7 @@ class init_class:
         self.quiet = False
         self.version = '1.0.0'
 
-        arguments_bool = {'dgn', 'notrunc', 'noregister', 'force', 'quiet', 'pialfilter', 'remesh_seeds', 'gwg_hard', 'surfseed', 'fastx'}
+        arguments_bool = {'dgn', 'notrunc', 'force', 'quiet', 'pialfilter', 'remesh_seeds', 'gwg_hard', 'surfseed', 'fastx'}
         arguments_multi = {'optmodules', 'scalar2surf'}
         arguments_path = {'fod', 'fa', 'noseed', 'sl_weights'}
 
@@ -100,8 +98,6 @@ class init_class:
 
         if not self.fod or not self.fs_dir:
             raise AssertionError('FOD file and FreeSurfer dir must be provided')
-        if not self.fa and not self.noregister:
-            raise AssertionError('Provide FA for registration or ensure "noregister" flag is on')
         if self.tckgen and self.noseed:
             raise AssertionError('Either "tckgen" or "noseed" must be empty')
 
@@ -144,10 +140,7 @@ class init_class:
             ['Output directory:', self.work_dir],
             ['', ''],
         ]
-        if self.noregister:
-            self.logt.append(['Registration:', 'already co-aligned'])
-        else:
-            self.logt.append(['Registration:', self.registration])
+        self.logt.append(['Surface space:', 'native dMRI'])
         if not self.noseed:
             self.logt.extend([
                 ['Seed from surface mesh vertices for tractography:', self.surfseed],

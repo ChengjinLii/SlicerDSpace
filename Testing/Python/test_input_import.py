@@ -68,6 +68,7 @@ class InputImportTest(unittest.TestCase):
             plan = manifest["plan"]
             self.assertEqual(manifest["status"], "planned")
             self.assertEqual(plan["backend"], "dcm2niix")
+            self.assertEqual(plan["command"][plan["command"].index("-ba") + 1], "y")
             self.assertIn("-f", plan["command"])
             self.assertIn("data", plan["command"])
 

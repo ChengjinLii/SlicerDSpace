@@ -207,6 +207,15 @@ def explicit_cli_destinations(parser: Any, argv: list[str]) -> set[str]:
     return explicit
 
 
+def coupled_explicit_cli_destinations(explicit_dests: set[str]) -> set[str]:
+    """Prevent saved subject metadata from leaking into an explicit new subject root."""
+
+    coupled = set(explicit_dests)
+    if "subject_root" in explicit_dests:
+        coupled.update(("subject_id", "output_root"))
+    return coupled
+
+
 def user_config_from_cli_args(
     args: Any,
     *,

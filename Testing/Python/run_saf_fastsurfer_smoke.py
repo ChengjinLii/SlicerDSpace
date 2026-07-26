@@ -4,7 +4,8 @@
 The script can run in normal Python through ``tractography.run_saf`` or inside
 Slicer through ``SlicerDDSurferLogic.runSAFPipeline``. It creates a tiny
 synthetic .tck tractogram from cortex surface vertices so the SAF backend can be
-exercised without MRtrix3 tractography or ANTs registration.
+exercised without MRtrix3 tractography. Input surfaces must already be in native
+dMRI space.
 """
 
 from __future__ import annotations
@@ -109,7 +110,6 @@ def main() -> int:
             pregenerated_tractogram=tck_path,
             mrtrix_bin_dir=args.mrtrix_bin_dir,
             mrtrix_prefix=args.mrtrix_prefix,
-            noregister=True,
             maxlen=None,
             force_recompute=True,
             execute=args.execute,
@@ -127,7 +127,6 @@ def main() -> int:
                 pregenerated_tractogram=tck_path,
                 mrtrix_bin_dir=args.mrtrix_bin_dir,
                 mrtrix_prefix=args.mrtrix_prefix,
-                noregister=True,
                 maxlen=None,
                 force_recompute=True,
                 execute=args.execute,

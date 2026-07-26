@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--slicer-executable", type=Path, required=True)
     parser.add_argument("--wma-root", type=Path, default=None)
+    parser.add_argument("--mrtrix-bin-dir", type=Path, default=None)
     parser.add_argument("--transform-path", type=Path, default=None)
     parser.add_argument("--registration-mode", choices=("rig", "nonrig"), default="rig")
     parser.add_argument("--num-threads", type=int, default=1)
@@ -48,6 +49,7 @@ def main() -> int:
             output_dir=args.output_dir,
             slicer_executable=args.slicer_executable,
             wma_root=args.wma_root,
+            mrtrix_bin_dir=args.mrtrix_bin_dir,
             transform_path=args.transform_path,
             registration_mode=args.registration_mode,
             num_threads=args.num_threads,
@@ -56,10 +58,11 @@ def main() -> int:
         )
     )
     print(f"executed={result.executed}")
+    print(f"status={result.status}")
     print(f"return_code={result.return_code}")
     print(f"manifest={result.manifest_path}")
     print(f"qc={result.qc_path}")
-    return 0
+    return 0 if result.status in {"planned", "completed"} else 2
 
 
 if __name__ == "__main__":

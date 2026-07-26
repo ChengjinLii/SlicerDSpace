@@ -179,10 +179,9 @@ def _stage_query_includes(include_dirs: list[Path], queries_dir: Path) -> None:
             if source.resolve() == target.resolve():
                 continue
             if target.exists():
-                if target.read_bytes() != source.read_bytes():
-                    raise RuntimeError(
-                        f"Conflicting WMQL include named {source.name}: {target} and {source}"
-                    )
+                # Include directories are ordered by precedence: the selected
+                # query directory, explicit user paths, then bundled fallbacks.
+                # Keep the first matching file, mirroring normal query lookup.
                 continue
             shutil.copy2(source, target)
 

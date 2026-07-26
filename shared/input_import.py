@@ -170,6 +170,8 @@ def build_import_plan(config: InputImportConfig) -> dict[str, Any]:
             _resolve_executable(config.dcm2niix_executable, "dcm2niix"),
             "-z",
             "y",
+            "-ba",
+            "y",
             "-f",
             "data",
             "-o",

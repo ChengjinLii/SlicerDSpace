@@ -22,6 +22,38 @@ The clean subject input tree used for release-candidate testing is:
     nodif_brain_mask.nii.gz
 ```
 
+## 2026-07-25 Route Revalidation
+
+The previously open DDSurfer post-processing, representative DICOM import,
+MRtrix/FSL preprocessing and WMA checks were closed on a Linux x86-64 host.
+Detailed local evidence is recorded in:
+
+```text
+/data/chengjin/SlicerDDSurfer-validation/VALIDATION_20260725.md
+```
+
+Key results:
+
+- DDSurfer post-processing completed all 9 stages with `rtree 1.4.1` in
+  Slicer's Python: 12 annotations, 14 statistics files, 8 fsaverage overlays
+  and all four white/pial surfaces.
+- A deidentified representative AP/PA DICOM fixture imported with 0 validation
+  errors and 0 warnings. The AP DWI contains 31 volumes
+  (`104 x 104 x 60 x 31`), including 30 diffusion directions and one b0.
+- MRtrix/FSL preprocessing completed `topup + eddy` using the AP/PA pair,
+  retained 11 QC diagnostics and produced finite corrected DWI values, rotated
+  gradients and a final `dwi2mask` mask generated from the corrected image.
+- WMA completed on a 100,000-streamline whole-brain CSD/ACT tractogram:
+  10 registration iterations, 800 clusters and 74 anatomical tracts.
+- ANTs was used only by the old SAF T1w/FreeSurfer-to-dMRI registration branch.
+  That branch and its dependency were removed. SAF now requires surfaces
+  already expressed in native dMRI space.
+- Final regression: 289 fast tests, copy-mode Slicer smoke and extension
+  metadata audit passed; release audit reported 0 blockers.
+
+These are route-closure checks, not anatomical-accuracy or cohort-level
+benchmarks. Long scientific routes were executed on Linux only.
+
 ## Stage the Extension
 
 Do not point Slicer at the repository root. The repository contains many helper `.py` files that must not be registered as Slicer modules.
@@ -159,7 +191,10 @@ All DTI, Free Water, and NODDI maps were readable with shape `(145, 174, 145)` a
 
 ## SAF One-Command Closure
 
-SAF requires a FreeSurfer/FastSurfer-style surface directory. On this host the RC subject does not have completed DDSurfer postprocess outputs because FreeSurfer is not configured, so SAF was validated with the existing FastSurfer surface fixture and the RC ACT tractogram:
+SAF requires a FreeSurfer-style surface directory whose surfaces are already
+expressed in native dMRI space. The historic closure below used a compatible
+surface fixture and the RC ACT tractogram. SlicerDDSurfer no longer registers a
+T1w/FreeSurfer surface directory to dMRI with ANTs:
 
 ```bash
 /data/chengjin/software/run-slicer.sh --launch PythonSlicer \
@@ -171,7 +206,6 @@ SAF requires a FreeSurfer/FastSurfer-style surface directory. On this host the R
   --mrtrix-bin-dir /data/chengjin/software/mrtrix3_env/bin \
   --saf-fs-dir /data/chengjin/SlicerDDSurfer-test/100307-FastSurfer \
   --saf-pregenerated-tractogram /data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/04_tractography/cache/alternate_runs/tractograms/rc_csd_act/100307-release-candidate_csd_act_ifod2.tck \
-  --saf-noregister \
   --execute \
   --print-manifest-only
 ```
@@ -211,16 +245,25 @@ bundles: skipped
 connectome: skipped
 ```
 
-Blocked optional targets on the current machine are expected unless their external paths are supplied:
+Blocked optional targets are expected on a user machine unless their external
+paths and data requirements are supplied:
 
-- `surface_postprocess`: FreeSurfer command-line tools and `FREESURFER_HOME` are not configured.
-- `saf`: requires completed DDSurfer postprocess outputs or explicit `--saf-fs-dir`; the explicit `--saf-fs-dir` closure above is validated.
-- `wma`: requires an external WhiteMatterAnalysis checkout, ORG atlas, and Slicer/SlicerDMRI runtime.
-- `tractcloud`: requires an explicit VTK/VTP tractogram plus a TractCloud Python/model runtime.
+- `surface_postprocess`: requires FreeSurfer command-line tools and
+  `FREESURFER_HOME`; the configured-host closure is recorded in the 2026-07-25
+  revalidation.
+- `saf`: requires completed DDSurfer post-processing outputs or an explicit
+  dMRI-space `--saf-fs-dir`.
+- `wma`: requires WhiteMatterAnalysis, an ORG atlas and a Slicer/SlicerDMRI
+  runtime; the representative-subject closure is recorded above.
+- `tractcloud`: requires an explicit VTK/VTP tractogram plus a TractCloud
+  Python/model runtime.
 
 These blockers do not stop runnable targets unless `--strict-environment` is used.
 
-WMA and TractCloud are therefore release-deliverable as explicit optional external backends, not as zero-configuration default features. Existing completed backend evidence is summarized in:
+WMA and TractCloud remain explicit optional external backends rather than
+zero-configuration default features. WMA now has a dedicated
+representative-subject validation, while the combined historical backend
+closure remains summarized in:
 
 ```text
 /data/chengjin/SlicerDDSurfer-test/100307/outputs/00_run_metadata/bundle_backend_closure.json

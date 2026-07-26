@@ -2,7 +2,7 @@
 """Generate or execute SlicerDDSurfer dependency install plans.
 
 This script intentionally installs Python packages only when --execute is
-provided. External tools such as MRtrix3, FSL, FreeSurfer, ANTs, WMA, and
+provided. External tools such as MRtrix3, FSL, FreeSurfer, WMA, and
 TractCloud require platform-specific choices, licenses, or model data, so the
 script writes install notes instead of silently modifying the system.
 """

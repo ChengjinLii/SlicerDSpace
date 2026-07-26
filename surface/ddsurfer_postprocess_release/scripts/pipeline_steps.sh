@@ -123,6 +123,7 @@ check_python_deps() {
     "${PYTHON_BIN}" - <<'PY'
 import nibabel  # noqa: F401
 import numpy  # noqa: F401
+import rtree  # noqa: F401
 import trimesh  # noqa: F401
 PY
 }

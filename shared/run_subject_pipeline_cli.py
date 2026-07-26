@@ -35,6 +35,7 @@ from shared.dependency_config import (
 from shared.python_environment import resolve_python_executable
 from shared.user_config import (
     apply_user_config_to_args,
+    coupled_explicit_cli_destinations,
     default_user_config_path,
     explicit_cli_destinations,
     load_user_config,
@@ -382,6 +383,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--preprocessing-phase-encoding-direction", help="Optional phase encoding direction for MRtrix/FSL preprocessing.")
     parser.add_argument("--preprocessing-readout-time", type=float, help="Optional readout time for MRtrix/FSL preprocessing.")
     parser.add_argument(
+        "--preprocessing-eddy-threads",
+        type=int,
+        help="CPU thread count for FSL eddy. Defaults to the available CPU count, capped at 8.",
+    )
+    parser.add_argument(
+        "--preprocessing-eddy-slm",
+        choices=("none", "linear", "quadratic"),
+        help=(
+            "FSL eddy second-level EC model. Use linear when MRtrix reports "
+            "strongly asymmetric diffusion-direction sampling."
+        ),
+    )
+    parser.add_argument(
         "--tractography-backend",
         default="csd_act",
         choices=("csd_act", "dti_det", "saf"),
@@ -473,12 +487,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--saf-pregenerated-tractogram", type=Path, help="Optional pregenerated tractogram for SAF.")
     parser.add_argument("--saf-tckgen-options", default="", help="Optional MRtrix tckgen options string for SAF when it generates its own tractogram.")
-    saf_registration = parser.add_mutually_exclusive_group()
-    saf_registration.add_argument("--saf-noregister", dest="saf_noregister", action="store_true", help="Run SAF without registration.")
-    saf_registration.add_argument("--saf-register", dest="saf_noregister", action="store_false", help="Run SAF registration using FA/ANTs inputs.")
-    parser.set_defaults(saf_noregister=True)
     parser.add_argument("--saf-mrtrix-prefix", default="", help="Optional command prefix for SAF MRtrix calls.")
-    parser.add_argument("--wma-input-tractography", type=Path, help="Optional VTK/VTP tractography input for WMA.")
+    parser.add_argument(
+        "--wma-input-tractography",
+        type=Path,
+        help="Optional whole-brain VTK/VTP/TCK tractography input for WMA.",
+    )
     parser.add_argument("--wma-atlas-dir", type=Path, help="ORG atlas directory for WMA.")
     parser.add_argument("--wma-root", type=Path, help="Optional WhiteMatterAnalysis checkout root.")
     parser.add_argument("--slicer-executable", type=Path, help="Slicer executable used by WMA.")
@@ -517,7 +531,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     raw_argv = list(sys.argv[1:] if argv is None else argv)
-    explicit_dests = explicit_cli_destinations(parser, raw_argv)
+    explicit_dests = coupled_explicit_cli_destinations(
+        explicit_cli_destinations(parser, raw_argv)
+    )
     args = parser.parse_args(raw_argv)
     try:
         config_path = args.user_config.expanduser() if args.user_config else default_user_config_path()
@@ -659,6 +675,8 @@ def main(argv: list[str] | None = None) -> int:
         preprocessing_reverse_phase_b0=args.preprocessing_reverse_phase_b0,
         preprocessing_phase_encoding_direction=args.preprocessing_phase_encoding_direction,
         preprocessing_readout_time=args.preprocessing_readout_time,
+        preprocessing_eddy_threads=args.preprocessing_eddy_threads,
+        preprocessing_eddy_second_level_model=args.preprocessing_eddy_slm,
         microstructure_fit_method=args.micro_fit_method,
         microstructure_run_free_water=bool(args.run_free_water),
         microstructure_run_noddi=bool(args.run_noddi),
@@ -686,7 +704,6 @@ def main(argv: list[str] | None = None) -> int:
         saf_fs_dir=args.saf_fs_dir,
         saf_pregenerated_tractogram=args.saf_pregenerated_tractogram,
         saf_tckgen_options=args.saf_tckgen_options,
-        saf_noregister=bool(args.saf_noregister),
         saf_mrtrix_prefix=args.saf_mrtrix_prefix,
         wma_input_tractography=args.wma_input_tractography,
         wma_atlas_dir=args.wma_atlas_dir,

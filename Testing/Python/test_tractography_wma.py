@@ -37,12 +37,23 @@ done
 case_id=$(basename "$input")
 case_id=${case_id%.*}
 mkdir -p "$out/$case_id/FiberClustering" "$out/$case_id/AnatomicalTracts"
-printf '' > "$out/$case_id/AnatomicalTracts/T_AF_left.vtp"
+index=1
+while [ "$index" -le 73 ]; do
+  printf '' > "$out/$case_id/AnatomicalTracts/T_$(printf '%03d' "$index").vtp"
+  index=$((index + 1))
+done
 exit 0
 """,
             encoding="utf-8",
         )
         self.wma_script.chmod(0o755)
+        (self.wma_root / "VENDORED_SOURCE.md").write_text(
+            "# Vendored source\n\n"
+            "- Repository: https://github.com/SlicerDMRI/whitematteranalysis\n"
+            "- Commit: 0123456789abcdef\n"
+            "- Date added: 2026-07-25\n",
+            encoding="utf-8",
+        )
         for script_name in (
             "wm_append_clusters_to_anatomical_tracts.py",
             "wm_assess_cluster_location_by_hemisphere.py",
@@ -91,6 +102,7 @@ exit 0
         )
 
         self.assertFalse(result.executed)
+        self.assertEqual(result.status, "planned")
         self.assertTrue(result.manifest_path.is_file())
         self.assertTrue(result.qc_path.is_file())
         self.assertTrue(result.backend_status["available"])
@@ -113,6 +125,8 @@ exit 0
         self.assertEqual(manifest["registration_mode"], "rig")
         self.assertEqual(manifest["num_threads"], 2)
         self.assertEqual(manifest["backend"]["source"]["repository"], "https://github.com/SlicerDMRI/whitematteranalysis.git")
+        self.assertEqual(manifest["backend"]["source"]["commit"], "0123456789abcdef")
+        self.assertEqual(manifest["backend"]["source"]["date_added"], "2026-07-25")
         self.assertTrue(manifest["atlas"]["available"])
         qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
         self.assertEqual(qc["status"], "planned")
@@ -134,6 +148,66 @@ exit 0
                     wma_root=self.wma_root,
                 )
             )
+
+    def test_wma_auto_discovery_excludes_saf_and_bundle_outputs(self) -> None:
+        from shared.orchestrator import _resolve_wma_input_tractography
+
+        subject_root = self.tmp_path / "subject"
+        tractography_root = subject_root / "outputs" / "04_tractography"
+        saf = tractography_root / "saf" / "SAF.vtk"
+        bundle = tractography_root / "bundles" / "tractcloud" / "bundle.vtp"
+        saf.parent.mkdir(parents=True)
+        bundle.parent.mkdir(parents=True)
+        saf.write_text("", encoding="utf-8")
+        bundle.write_text("", encoding="utf-8")
+
+        self.assertIsNone(_resolve_wma_input_tractography(subject_root, None))
+
+        whole_brain = tractography_root / "cache" / "exports" / "whole_brain.vtk"
+        whole_brain.parent.mkdir(parents=True)
+        whole_brain.write_text("", encoding="utf-8")
+        self.assertEqual(
+            _resolve_wma_input_tractography(subject_root, None),
+            whole_brain.resolve(),
+        )
+
+    def test_tck_input_is_converted_before_wma_execution(self) -> None:
+        from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
+
+        tck_input = self.tmp_path / "whole_brain.tck"
+        tck_input.write_text("tck", encoding="utf-8")
+        mrtrix_bin = self.tmp_path / "mrtrix" / "bin"
+        mrtrix_bin.mkdir(parents=True)
+        tckconvert = mrtrix_bin / "tckconvert"
+        tckconvert.write_text(
+            "#!/usr/bin/env python3\n"
+            "import pathlib, sys\n"
+            "pathlib.Path(sys.argv[2]).parent.mkdir(parents=True, exist_ok=True)\n"
+            "pathlib.Path(sys.argv[2]).write_text('# vtk DataFile Version 3.0\\n')\n",
+            encoding="utf-8",
+        )
+        tckconvert.chmod(0o755)
+
+        result = run_wma_org_atlas(
+            WMAOrgAtlasConfig(
+                subject_id="100307",
+                input_tractography=tck_input,
+                atlas_dir=self.atlas_dir,
+                output_dir=self.output_dir,
+                slicer_executable=self.slicer_executable,
+                wma_root=self.wma_root,
+                mrtrix_bin_dir=mrtrix_bin,
+                execute=True,
+            )
+        )
+
+        self.assertEqual(result.status, "completed")
+        manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+        self.assertTrue(manifest["input_conversion"]["required"])
+        prepared_input = Path(manifest["prepared_input_tractography"])
+        self.assertEqual(prepared_input.suffix, ".vtk")
+        self.assertTrue(prepared_input.is_file())
+        self.assertIn(prepared_input.as_posix(), result.command)
 
     def test_wma_root_is_external_and_explicit_by_default(self) -> None:
         from tractography.wma import resolve_wma_root
@@ -175,6 +249,7 @@ exit 0
         )
 
         self.assertTrue(result.executed)
+        self.assertEqual(result.status, "completed")
         self.assertEqual(result.return_code, 0)
         qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
         self.assertEqual(qc["status"], "completed")
@@ -206,12 +281,67 @@ exit 0
         )
 
         self.assertTrue(result.executed)
+        self.assertEqual(result.status, "failed")
         self.assertEqual(result.return_code, 0)
         qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
         self.assertEqual(qc["status"], "failed")
-        self.assertIn("required FiberClustering/AnatomicalTracts outputs", qc["error"])
+        self.assertIn("complete AnatomicalTracts output", qc["error"])
         self.assertTrue(Path(qc["logs"]["stdout"]).is_file())
         self.assertTrue(Path(qc["logs"]["stderr"]).is_file())
+
+    def test_execute_true_records_nonzero_backend_failure_before_returning(self) -> None:
+        from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
+
+        self.wma_script.write_text(
+            "#!/bin/sh\n"
+            "printf 'backend failed\\n' >&2\n"
+            "exit 7\n",
+            encoding="utf-8",
+        )
+        self.wma_script.chmod(0o755)
+
+        result = run_wma_org_atlas(
+            WMAOrgAtlasConfig(
+                subject_id="100307",
+                input_tractography=self.tractography,
+                atlas_dir=self.atlas_dir,
+                output_dir=self.output_dir,
+                slicer_executable=self.slicer_executable,
+                wma_root=self.wma_root,
+                execute=True,
+            )
+        )
+
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.return_code, 7)
+        qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+        self.assertEqual(qc["status"], "failed")
+        self.assertIn("returned non-zero exit status 7", qc["error"])
+        self.assertIn("backend failed", Path(qc["logs"]["stderr"]).read_text(encoding="utf-8"))
+
+    def test_keyboard_interrupt_is_persisted_as_failed_qc(self) -> None:
+        from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
+
+        with mock.patch("tractography.wma.subprocess.run", side_effect=KeyboardInterrupt):
+            result = run_wma_org_atlas(
+                WMAOrgAtlasConfig(
+                    subject_id="100307",
+                    input_tractography=self.tractography,
+                    atlas_dir=self.atlas_dir,
+                    output_dir=self.output_dir,
+                    slicer_executable=self.slicer_executable,
+                    wma_root=self.wma_root,
+                    execute=True,
+                )
+            )
+
+        qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+        manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.return_code, 130)
+        self.assertEqual(qc["error"], "Interrupted by user.")
+        self.assertEqual(manifest["status"], "failed")
+        self.assertEqual(manifest["return_code"], 130)
 
     def test_execute_true_marks_partial_failed_when_clusters_exist_but_anatomical_tracts_do_not(self) -> None:
         from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
@@ -248,12 +378,43 @@ exit 0
         )
 
         qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+        self.assertEqual(result.status, "partial_failed")
         self.assertEqual(qc["status"], "partial_failed")
         self.assertEqual(qc["output_summary"]["initial_cluster_count"], 1)
         self.assertEqual(qc["output_summary"]["anatomical_tract_count"], 0)
         manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
         self.assertEqual(manifest["status"], "partial_failed")
         self.assertIn("runtime_seconds", manifest)
+
+    def test_execute_true_marks_partial_failed_below_required_tract_count(self) -> None:
+        from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
+
+        script = self.wma_script.read_text(encoding="utf-8").replace(
+            'while [ "$index" -le 73 ]; do',
+            'while [ "$index" -le 72 ]; do',
+        )
+        self.wma_script.write_text(script, encoding="utf-8")
+        self.wma_script.chmod(0o755)
+
+        result = run_wma_org_atlas(
+            WMAOrgAtlasConfig(
+                subject_id="100307",
+                input_tractography=self.tractography,
+                atlas_dir=self.atlas_dir,
+                output_dir=self.output_dir,
+                slicer_executable=self.slicer_executable,
+                wma_root=self.wma_root,
+                execute=True,
+            )
+        )
+
+        qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+        manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(result.status, "partial_failed")
+        self.assertEqual(qc["output_summary"]["anatomical_tract_count"], 72)
+        self.assertEqual(qc["acceptance_criteria"]["minimum_anatomical_tract_count"], 73)
+        self.assertIn("expected at least 73", qc["error"])
+        self.assertEqual(manifest["error"], qc["error"])
 
     def test_runtime_library_paths_include_slicerdmri_extension_dirs(self) -> None:
         from tractography.wma import _slicer_runtime_library_paths

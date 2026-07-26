@@ -17,12 +17,24 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from shared.io_layout import default_task_output_dir
-from shared.external_process import merged_startup_environment
+from shared.external_process import external_python_environment
 from shared.pipeline import RawInputBundle, find_subject_root
 
 
-REQUIRED_COMMANDS = ("dwidenoise", "mrdegibbs", "dwifslpreproc")
+REQUIRED_COMMANDS = ("dwidenoise", "mrdegibbs", "dwifslpreproc", "dwi2mask")
+REVERSE_PHASE_COMMANDS = ("mrconvert", "dwiextract", "mrcat")
 DIAGNOSTIC_COMMANDS = ("eddy", "topup")
+
+
+def _default_eddy_threads() -> int:
+    process_cpu_count = getattr(os, "process_cpu_count", None)
+    if callable(process_cpu_count):
+        count = process_cpu_count()
+    elif hasattr(os, "sched_getaffinity"):
+        count = len(os.sched_getaffinity(0))
+    else:
+        count = os.cpu_count()
+    return max(1, min(8, int(count or 1)))
 
 
 @dataclass(frozen=True)
@@ -43,6 +55,8 @@ class DwiPreprocessingConfig:
     reverse_phase_b0: Optional[Path] = None
     phase_encoding_direction: Optional[str] = None
     readout_time: Optional[float] = None
+    eddy_threads: Optional[int] = None
+    eddy_second_level_model: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -92,6 +106,39 @@ def _resolve_command(command: str, config: DwiPreprocessingConfig) -> Optional[s
     return shutil.which(command, path=_command_search_path(config))
 
 
+def _resolved_eddy_threads(config: DwiPreprocessingConfig) -> int:
+    if config.eddy_threads is None:
+        return _default_eddy_threads()
+    if config.eddy_threads < 1:
+        raise ValueError("eddy_threads must be >= 1.")
+    return int(config.eddy_threads)
+
+
+def _resolved_eddy_options(config: DwiPreprocessingConfig) -> str:
+    options = ["--cnr_maps", "--residuals", f"--nthr={_resolved_eddy_threads(config)}"]
+    if config.eddy_second_level_model is not None:
+        model = config.eddy_second_level_model.strip().lower()
+        if model not in {"none", "linear", "quadratic"}:
+            raise ValueError(
+                "eddy_second_level_model must be one of: none, linear, quadratic."
+            )
+        options.append(f"--slm={model}")
+    return " ".join(options)
+
+
+def _external_command_environment(config: DwiPreprocessingConfig) -> dict[str, str]:
+    path_prepend = [
+        candidate.expanduser().resolve()
+        for candidate in (config.mrtrix_bin_dir, config.fsl_bin_dir)
+        if candidate is not None
+    ]
+    extra_env: dict[str, str] = {}
+    if config.fsl_bin_dir is not None:
+        extra_env["FSLDIR"] = _fsl_root_from_bin_dir(config.fsl_bin_dir).as_posix()
+        extra_env["FSLOUTPUTTYPE"] = os.environ.get("FSLOUTPUTTYPE", "NIFTI_GZ")
+    return external_python_environment(extra_env, path_prepend=path_prepend)
+
+
 def inspect_preprocessing_backend(config: DwiPreprocessingConfig) -> dict[str, Any]:
     backend_name = config.backend.lower()
     if backend_name == "dipy":
@@ -122,16 +169,19 @@ def inspect_preprocessing_backend(config: DwiPreprocessingConfig) -> dict[str, A
             "available": False,
             "missing_required": [f"unsupported backend: {config.backend}"],
         }
+    required_commands = list(REQUIRED_COMMANDS)
+    if config.reverse_phase_b0 is not None:
+        required_commands.extend(REVERSE_PHASE_COMMANDS)
     commands = {
         command: _resolve_command(command, config)
-        for command in (*REQUIRED_COMMANDS, *DIAGNOSTIC_COMMANDS)
+        for command in (*required_commands, *DIAGNOSTIC_COMMANDS)
     }
-    missing_required = [command for command in REQUIRED_COMMANDS if commands[command] is None]
+    missing_required = [command for command in required_commands if commands[command] is None]
     missing_diagnostic = [command for command in DIAGNOSTIC_COMMANDS if commands[command] is None]
     return {
         "kind": "dwi_preprocessing_backend",
         "backend": "mrtrix_fsl",
-        "required_commands": list(REQUIRED_COMMANDS),
+        "required_commands": required_commands,
         "diagnostic_commands": list(DIAGNOSTIC_COMMANDS),
         "commands": commands,
         "missing_required": missing_required,
@@ -180,7 +230,7 @@ def _run_command(cmd: list[str], *, env: dict[str, str], log: Optional[Callable[
         log("[Preproc] Running: " + " ".join(cmd))
     process = subprocess.Popen(
         cmd,
-        env=merged_startup_environment(env),
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -219,6 +269,62 @@ def _planned_paths(output_dir: Path, subject: str) -> dict[str, Path]:
     }
 
 
+def _collect_dwifslpreproc_diagnostics(paths: dict[str, Path], subject: str) -> dict[str, dict[str, Any]]:
+    scratch_dir = paths["motion_dir"] / "dwifslpreproc_tmp"
+    destinations = {
+        "eddy_parameters": (
+            scratch_dir / "dwi_post_eddy.eddy_parameters",
+            paths["eddy_parameters"],
+        ),
+        "eddy_movement_rms": (
+            scratch_dir / "dwi_post_eddy.eddy_movement_rms",
+            paths["eddy_movement_rms"],
+        ),
+        "eddy_restricted_movement_rms": (
+            scratch_dir / "dwi_post_eddy.eddy_restricted_movement_rms",
+            paths["motion_dir"] / f"{subject}_eddy_restricted_movement_rms.txt",
+        ),
+        "eddy_outlier_map": (
+            scratch_dir / "dwi_post_eddy.eddy_outlier_map",
+            paths["eddy_outlier_map"],
+        ),
+        "eddy_outlier_report": (
+            scratch_dir / "dwi_post_eddy.eddy_outlier_report",
+            paths["eddy_outlier_report"],
+        ),
+        "eddy_cnr_maps": (
+            scratch_dir / "dwi_post_eddy.eddy_cnr_maps.nii.gz",
+            paths["eddy_cnr_maps"],
+        ),
+        "eddy_residuals": (
+            scratch_dir / "dwi_post_eddy.eddy_residuals.nii.gz",
+            paths["eddy_residuals"],
+        ),
+        "topup_field_coefficients": (
+            scratch_dir / "field_fieldcoef.nii.gz",
+            paths["motion_dir"] / f"{subject}_topup_fieldcoef.nii.gz",
+        ),
+        "topup_field_map": (
+            scratch_dir / "field_map.nii.gz",
+            paths["motion_dir"] / f"{subject}_topup_field_map.nii.gz",
+        ),
+        "topup_motion_parameters": (
+            scratch_dir / "field_movpar.txt",
+            paths["motion_dir"] / f"{subject}_topup_motion_parameters.txt",
+        ),
+        "topup_log": (
+            scratch_dir / "topup_in.topup_log",
+            paths["qc_dir"] / f"{subject}_topup.log",
+        ),
+    }
+    records: dict[str, dict[str, Any]] = {}
+    for name, (source, destination) in destinations.items():
+        if source.is_file():
+            shutil.copy2(source, destination)
+        records[name] = _file_record(destination)
+    return records
+
+
 def _build_commands(raw: RawInputBundle, config: DwiPreprocessingConfig, paths: dict[str, Path], backend: dict[str, Any]) -> list[list[str]]:
     if backend.get("backend") == "dipy":
         return [
@@ -236,6 +342,86 @@ def _build_commands(raw: RawInputBundle, config: DwiPreprocessingConfig, paths: 
     denoised = paths["denoise_dir"] / f"{subject}_dwi_denoised.nii.gz"
     noise = paths["denoise_dir"] / f"{subject}_dwi_noise.nii.gz"
     degibbs = paths["denoise_dir"] / f"{subject}_dwi_degibbs.nii.gz"
+    reverse_phase_commands: list[list[str]] = []
+    reverse_phase_b0 = (
+        config.reverse_phase_b0.expanduser().resolve()
+        if config.reverse_phase_b0 is not None
+        else None
+    )
+    if reverse_phase_b0 is not None:
+        if not reverse_phase_b0.is_file():
+            raise FileNotFoundError(f"Reverse phase-encoded b=0 image not found: {reverse_phase_b0}")
+        import nibabel as nib
+
+        try:
+            reverse_shape = nib.load(str(reverse_phase_b0)).shape
+        except Exception as exc:
+            raise ValueError(f"Unable to read reverse phase-encoded b=0 image: {reverse_phase_b0}") from exc
+        reverse_ndim = len(reverse_shape)
+        if reverse_ndim not in {3, 4}:
+            raise ValueError(
+                "reverse_phase_b0 must be a 3D image or a single-volume 4D image; "
+                f"received shape {reverse_shape}."
+            )
+        reverse_volume_count = int(reverse_shape[3]) if reverse_ndim == 4 else 1
+        if reverse_volume_count != 1:
+            raise ValueError(
+                "reverse_phase_b0 must contain exactly one reverse phase-encoded b=0 volume; "
+                f"received shape {reverse_shape}."
+            )
+        if reverse_ndim == 3:
+            normalized_reverse = paths["motion_dir"] / f"{subject}_reverse_phase_b0_4d.nii.gz"
+            normalize_cmd = [
+                backend["commands"]["mrconvert"] or "mrconvert",
+                reverse_phase_b0.as_posix(),
+                normalized_reverse.as_posix(),
+                "-axes",
+                "0,1,2,-1",
+            ]
+            if config.force:
+                normalize_cmd.append("-force")
+            reverse_phase_commands.append(normalize_cmd)
+            reverse_phase_b0 = normalized_reverse
+        forward_b0s = paths["motion_dir"] / f"{subject}_forward_b0s.mif"
+        forward_b0 = paths["motion_dir"] / f"{subject}_forward_b0_4d.nii.gz"
+        se_epi_pair = paths["motion_dir"] / f"{subject}_se_epi_pair.mif"
+        reverse_phase_commands.extend(
+            [
+                [
+                    backend["commands"]["dwiextract"] or "dwiextract",
+                    degibbs.as_posix(),
+                    forward_b0s.as_posix(),
+                    "-fslgrad",
+                    raw.bvec_path.as_posix(),
+                    raw.bval_path.as_posix(),
+                    "-bzero",
+                ],
+                [
+                    backend["commands"]["mrconvert"] or "mrconvert",
+                    forward_b0s.as_posix(),
+                    forward_b0.as_posix(),
+                    "-coord",
+                    "3",
+                    "0",
+                    "-axes",
+                    "0,1,2,-1",
+                ],
+                [
+                    backend["commands"]["mrcat"] or "mrcat",
+                    forward_b0.as_posix(),
+                    reverse_phase_b0.as_posix(),
+                    se_epi_pair.as_posix(),
+                    "-axis",
+                    "3",
+                ],
+            ]
+        )
+        if config.force:
+            for command in reverse_phase_commands:
+                if "-force" not in command:
+                    command.append("-force")
+        reverse_phase_b0 = se_epi_pair
+
     dwifslpreproc_cmd = [
         backend["commands"]["dwifslpreproc"] or "dwifslpreproc",
         degibbs.as_posix(),
@@ -250,10 +436,12 @@ def _build_commands(raw: RawInputBundle, config: DwiPreprocessingConfig, paths: 
         (paths["motion_dir"] / "dwifslpreproc_tmp").as_posix(),
         "-nocleanup",
         "-eddy_options",
-        "--cnr_maps --residuals",
+        _resolved_eddy_options(config),
     ]
-    if config.reverse_phase_b0 is not None:
-        dwifslpreproc_cmd.extend(["-rpe_pair", "-se_epi", config.reverse_phase_b0.expanduser().resolve().as_posix()])
+    if config.force:
+        dwifslpreproc_cmd.append("-force")
+    if reverse_phase_b0 is not None:
+        dwifslpreproc_cmd.extend(["-rpe_pair", "-se_epi", reverse_phase_b0.as_posix()])
     else:
         dwifslpreproc_cmd.append("-rpe_none")
     if config.phase_encoding_direction:
@@ -261,21 +449,39 @@ def _build_commands(raw: RawInputBundle, config: DwiPreprocessingConfig, paths: 
     if config.readout_time is not None:
         dwifslpreproc_cmd.extend(["-readout_time", str(config.readout_time)])
 
+    dwidenoise_cmd = [
+        backend["commands"]["dwidenoise"] or "dwidenoise",
+        raw.dwi_path.as_posix(),
+        denoised.as_posix(),
+        "-noise",
+        noise.as_posix(),
+    ]
+    mrdegibbs_cmd = [
+        backend["commands"]["mrdegibbs"] or "mrdegibbs",
+        denoised.as_posix(),
+        degibbs.as_posix(),
+    ]
+    if config.force:
+        dwidenoise_cmd.append("-force")
+        mrdegibbs_cmd.append("-force")
+
+    final_mask_cmd = [
+        backend["commands"]["dwi2mask"] or "dwi2mask",
+        paths["final_dwi"].as_posix(),
+        paths["final_mask"].as_posix(),
+        "-fslgrad",
+        paths["final_bvec"].as_posix(),
+        paths["final_bval"].as_posix(),
+    ]
+    if config.force or paths["final_mask"].exists():
+        final_mask_cmd.append("-force")
+
     return [
-        [
-            backend["commands"]["dwidenoise"] or "dwidenoise",
-            raw.dwi_path.as_posix(),
-            denoised.as_posix(),
-            "-noise",
-            noise.as_posix(),
-        ],
-        [
-            backend["commands"]["mrdegibbs"] or "mrdegibbs",
-            denoised.as_posix(),
-            degibbs.as_posix(),
-        ],
+        dwidenoise_cmd,
+        mrdegibbs_cmd,
+        *reverse_phase_commands,
         dwifslpreproc_cmd,
-        ["copy", raw.mask_path.as_posix(), paths["final_mask"].as_posix()],
+        final_mask_cmd,
         [
             "optional-output",
             paths["eddy_parameters"].as_posix(),
@@ -585,6 +791,39 @@ def _run_dipy_backend(
     }
 
 
+def _execute_preprocessing_backend(
+    raw: RawInputBundle,
+    config: DwiPreprocessingConfig,
+    paths: dict[str, Path],
+    backend: dict[str, Any],
+    commands: list[list[str]],
+    *,
+    log: Optional[Callable[[str], None]],
+) -> dict[str, Any]:
+    if backend.get("backend") == "dipy":
+        return _run_dipy_backend(raw, config, paths, log=log)
+
+    env = _external_command_environment(config)
+    for command in commands:
+        if command[0] == "copy":
+            shutil.copy2(command[1], command[2])
+            continue
+        if command[0] == "optional-output":
+            continue
+        _run_command(command, env=env, log=log)
+    diagnostics = _collect_dwifslpreproc_diagnostics(paths, raw.subject_id)
+    eddy_qc_collection = _collect_eddy_qc_artifacts(paths)
+    return {
+        "fsl_environment": {
+            "FSLDIR": env.get("FSLDIR"),
+            "FSLOUTPUTTYPE": env.get("FSLOUTPUTTYPE"),
+        },
+        "diagnostics": diagnostics,
+        "eddy_qc_collection": eddy_qc_collection,
+        "scratch_dir": (paths["motion_dir"] / "dwifslpreproc_tmp").as_posix(),
+    }
+
+
 def run_dwi_preprocessing(
     config: DwiPreprocessingConfig,
     *,
@@ -617,6 +856,22 @@ def run_dwi_preprocessing(
             "mask": raw.mask_path.as_posix(),
             "reverse_phase_b0": config.reverse_phase_b0.as_posix() if config.reverse_phase_b0 else None,
         },
+        "parameters": {
+            "eddy_threads": _resolved_eddy_threads(config)
+            if backend.get("backend") == "mrtrix_fsl"
+            else None,
+            "eddy_second_level_model": (
+                config.eddy_second_level_model.strip().lower()
+                if backend.get("backend") == "mrtrix_fsl"
+                and config.eddy_second_level_model is not None
+                else None
+            ),
+            "final_mask_method": (
+                "dwi2mask_corrected_dwi"
+                if backend.get("backend") == "mrtrix_fsl"
+                else "input_mask"
+            ),
+        },
         "outputs": {key: value.as_posix() for key, value in paths.items() if key not in {"import_dir", "gradients_dir", "denoise_dir", "motion_dir", "mask_dir", "qc_dir"}},
         "commands": command_records,
     }
@@ -634,13 +889,77 @@ def run_dwi_preprocessing(
         missing = ", ".join(backend.get("missing_required", backend.get("missing_python", [])))
         raise RuntimeError(f"DWI preprocessing backend is unavailable ({config.backend}): {missing}")
 
-    if not config.force and paths["final_dwi"].is_file() and paths["final_bval"].is_file() and paths["final_bvec"].is_file():
+    cached_core_ready = (
+        not config.force
+        and paths["final_dwi"].is_file()
+        and paths["final_bval"].is_file()
+        and paths["final_bvec"].is_file()
+    )
+    mask_refresh_status = "not_needed"
+    if cached_core_ready and backend.get("backend") == "mrtrix_fsl":
+        mask_is_stale = (
+            not paths["final_mask"].is_file()
+            or paths["final_mask"].stat().st_mtime_ns
+            < paths["final_dwi"].stat().st_mtime_ns
+        )
+        if mask_is_stale:
+            _materialize_dirs(paths)
+            mask_command = [
+                backend["commands"]["dwi2mask"] or "dwi2mask",
+                paths["final_dwi"].as_posix(),
+                paths["final_mask"].as_posix(),
+                "-fslgrad",
+                paths["final_bvec"].as_posix(),
+                paths["final_bval"].as_posix(),
+            ]
+            if paths["final_mask"].exists():
+                mask_command.append("-force")
+            _run_command(
+                mask_command,
+                env=_external_command_environment(config),
+                log=log,
+            )
+            mask_refresh_status = "regenerated_from_corrected_dwi"
+
+    if cached_core_ready and paths["final_mask"].is_file():
         manifest["status"] = "cached"
         _write_json(paths["manifest"], manifest)
-        _write_json(paths["qc"], {"kind": "dwi_preprocessing_qc", "status": "cached", "subject_id": raw.subject_id})
+        backend_details: dict[str, Any] = {}
+        if backend.get("backend") == "mrtrix_fsl":
+            backend_details = {
+                "diagnostics": _collect_dwifslpreproc_diagnostics(paths, raw.subject_id),
+                "eddy_qc_collection": _collect_eddy_qc_artifacts(paths),
+                "scratch_dir": (paths["motion_dir"] / "dwifslpreproc_tmp").as_posix(),
+            }
+        _write_json(
+            paths["qc"],
+            {
+                "kind": "dwi_preprocessing_qc",
+                "version": 1,
+                "status": "completed",
+                "reuse_status": "cached",
+                "mask_refresh_status": mask_refresh_status,
+                "subject_id": raw.subject_id,
+                "files": {
+                    "final_dwi": _file_record(paths["final_dwi"]),
+                    "final_bval": _file_record(paths["final_bval"]),
+                    "final_bvec": _file_record(paths["final_bvec"]),
+                    "final_mask": _file_record(paths["final_mask"]),
+                    "eddy_parameters": _file_record(paths["eddy_parameters"]),
+                    "eddy_movement_rms": _file_record(paths["eddy_movement_rms"]),
+                    "eddy_outlier_map": _file_record(paths["eddy_outlier_map"]),
+                    "eddy_outlier_report": _file_record(paths["eddy_outlier_report"]),
+                    "eddy_cnr_maps": _file_record(paths["eddy_cnr_maps"]),
+                    "eddy_residuals": _file_record(paths["eddy_residuals"]),
+                },
+                "backend_details": backend_details,
+            },
+        )
         return DwiPreprocessingResult(raw.subject_id, "cached", output_dir, paths["manifest"], paths["qc"], paths["final_dwi"], paths["final_bval"], paths["final_bvec"], paths["final_mask"])
 
     _materialize_dirs(paths)
+    if config.force:
+        shutil.rmtree(paths["motion_dir"] / "dwifslpreproc_tmp", ignore_errors=True)
     _copy_input_sidecars(raw, paths)
     manifest["status"] = "running"
     _write_json(paths["manifest"], manifest)
@@ -654,40 +973,50 @@ def run_dwi_preprocessing(
         },
     )
 
-    backend_details: dict[str, Any] = {}
-    if backend.get("backend") == "dipy":
-        backend_details = _run_dipy_backend(raw, config, paths, log=log)
-    else:
-        env_overrides = {"PATH": _command_search_path(config)}
-        if config.fsl_bin_dir is not None:
-            env_overrides.update(
-                {
-                    "FSLDIR": _fsl_root_from_bin_dir(config.fsl_bin_dir).as_posix(),
-                    "FSLOUTPUTTYPE": os.environ.get("FSLOUTPUTTYPE", "NIFTI_GZ"),
-                }
-            )
-        env = merged_startup_environment(env_overrides)
-        for command in commands:
-            if command[0] == "copy":
-                shutil.copy2(command[1], command[2])
-                continue
-            if command[0] == "optional-output":
-                continue
-            _run_command(command, env=env, log=log)
-        backend_details = {
-            "fsl_environment": {
-                "FSLDIR": env.get("FSLDIR"),
-                "FSLOUTPUTTYPE": env.get("FSLOUTPUTTYPE"),
-            },
-            "eddy_qc_collection": _collect_eddy_qc_artifacts(paths),
-        }
+    try:
+        backend_details = _execute_preprocessing_backend(
+            raw,
+            config,
+            paths,
+            backend,
+            commands,
+            log=log,
+        )
 
-    if not paths["final_bval"].exists():
-        shutil.copy2(raw.bval_path, paths["final_bval"])
-    if not paths["final_bvec"].exists():
-        shutil.copy2(raw.bvec_path, paths["final_bvec"])
-    if not paths["final_mask"].exists():
-        shutil.copy2(raw.mask_path, paths["final_mask"])
+        if not paths["final_bval"].exists():
+            shutil.copy2(raw.bval_path, paths["final_bval"])
+        if not paths["final_bvec"].exists():
+            shutil.copy2(raw.bvec_path, paths["final_bvec"])
+        if not paths["final_mask"].exists():
+            shutil.copy2(raw.mask_path, paths["final_mask"])
+
+        required_outputs = (
+            paths["final_dwi"],
+            paths["final_bval"],
+            paths["final_bvec"],
+            paths["final_mask"],
+        )
+        missing_outputs = [path.as_posix() for path in required_outputs if not path.is_file()]
+        if missing_outputs:
+            raise RuntimeError(
+                "DWI preprocessing finished without required output(s): " + ", ".join(missing_outputs)
+            )
+    except Exception as exc:
+        manifest["status"] = "failed"
+        manifest["error"] = f"{type(exc).__name__}: {exc}"
+        _write_json(paths["manifest"], manifest)
+        _write_json(
+            paths["qc"],
+            {
+                "kind": "dwi_preprocessing_qc",
+                "version": 1,
+                "subject_id": raw.subject_id,
+                "status": "failed",
+                "backend_available": backend["available"],
+                "error": manifest["error"],
+            },
+        )
+        raise
 
     qc_payload = {
         "kind": "dwi_preprocessing_qc",
@@ -710,6 +1039,18 @@ def run_dwi_preprocessing(
             f"Diagnostic command not found: {command}"
             for command in backend.get("missing_diagnostic", [])
         ],
+        "mask_generation": {
+            "method": (
+                "dwi2mask_corrected_dwi"
+                if backend.get("backend") == "mrtrix_fsl"
+                else "input_mask"
+            ),
+            "source": (
+                paths["final_dwi"].as_posix()
+                if backend.get("backend") == "mrtrix_fsl"
+                else raw.mask_path.as_posix()
+            ),
+        },
         "backend_details": backend_details,
     }
     manifest["status"] = "completed"

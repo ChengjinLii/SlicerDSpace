@@ -51,7 +51,6 @@ def _load_saf_progress(work_dir: Path):
         fod,
         "outf",
         work_dir.as_posix(),
-        "noregister",
         "dgn",
     ]
     ps = init_class(args)

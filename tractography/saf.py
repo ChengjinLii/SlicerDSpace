@@ -29,7 +29,6 @@ BASE_MRTRIX_COMMANDS = ("mrconvert",)
 TRACTOGRAPHY_MRTRIX_COMMANDS = ("tckgen",)
 LENGTH_FILTER_MRTRIX_COMMANDS = ("tckstats",)
 OPTIONAL_MRTRIX_COMMANDS = ("tcksample",)
-REGISTRATION_COMMANDS = ("antsIntermodalityIntrasubject.sh", "antsApplyTransforms", "antsApplyTransformsToPoints")
 FREESURFER_COMMANDS = ("recon-all",)
 SAF_INTERMEDIATE_NAMES = (
     "DWI_lh_pial.txt",
@@ -66,7 +65,6 @@ class SAFConfig:
     tckgen_options: str = ""
     mrtrix_bin_dir: Optional[Path] = None
     mrtrix_prefix: str = ""
-    noregister: bool = True
     notrunc: bool = False
     fast_intersection: bool = True
     gwg_hard: bool = False
@@ -158,14 +156,13 @@ def inspect_saf_backend(
     *,
     mrtrix_bin_dir: Optional[Path] = None,
     mrtrix_prefix: str = "",
-    noregister: bool = False,
     require_recon_all: bool = False,
     require_mrconvert: bool = True,
     require_tckgen: bool = True,
     require_tckstats: bool = True,
     require_tcksample: bool = False,
 ) -> dict[str, Any]:
-    """Inspect Python SAF, MRtrix3, ANTs, and optional FreeSurfer dependencies."""
+    """Inspect Python SAF, MRtrix3, and optional FreeSurfer dependencies."""
 
     packages = _package_status(REQUIRED_SAF_PYTHON_PACKAGES)
     resolved_mrtrix_bin_dir = _configured_mrtrix_bin_dir(mrtrix_bin_dir)
@@ -184,16 +181,12 @@ def inspect_saf_backend(
         bin_dir=resolved_mrtrix_bin_dir,
         prefix=mrtrix_prefix,
     )
-    ants = _command_status(()) if noregister else _command_status(REGISTRATION_COMMANDS)
     freesurfer = _command_status(FREESURFER_COMMANDS) if require_recon_all else {}
     missing_required = [
         f"python:{name}" for name, available in packages.items() if not available
     ]
     missing_required.extend(
         f"mrtrix:{name}" for name, resolved in mrtrix_required.items() if resolved is None
-    )
-    missing_required.extend(
-        f"ants:{name}" for name, resolved in ants.items() if resolved is None
     )
     missing_required.extend(
         f"freesurfer:{name}" for name, resolved in freesurfer.items() if resolved is None
@@ -219,7 +212,6 @@ def inspect_saf_backend(
         },
         "mrtrix_required": mrtrix_required,
         "mrtrix_optional": mrtrix_optional,
-        "ants": ants,
         "freesurfer": freesurfer,
         "missing_required": missing_required,
         "missing_optional": missing_optional,
@@ -233,8 +225,6 @@ def _validate_config(config: SAFConfig) -> None:
         raise FileNotFoundError(f"FreeSurfer directory not found: {config.fs_dir}")
     if not config.fod_path.expanduser().is_file():
         raise FileNotFoundError(f"FOD image not found: {config.fod_path}")
-    if not config.noregister and (config.fa_path is None or not config.fa_path.expanduser().is_file()):
-        raise FileNotFoundError("fa_path is required unless noregister=True.")
     if config.pregenerated_tractogram is not None and not config.pregenerated_tractogram.expanduser().is_file():
         raise FileNotFoundError(f"Pregenerated tractogram not found: {config.pregenerated_tractogram}")
     if config.streamline_weights is not None and not config.streamline_weights.expanduser().is_file():
@@ -306,8 +296,6 @@ def _build_saf_args(config: SAFConfig, output_dir: Path) -> list[Any]:
     ]
     if config.fa_path is not None:
         args.extend(["fa", config.fa_path.expanduser().resolve().as_posix()])
-    if config.noregister:
-        args.append("noregister")
     if config.notrunc:
         args.append("notrunc")
     if not config.fast_intersection:
@@ -436,9 +424,8 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
     backend_status = inspect_saf_backend(
         mrtrix_bin_dir=config.mrtrix_bin_dir,
         mrtrix_prefix=config.mrtrix_prefix,
-        noregister=config.noregister,
         require_recon_all=False,
-        require_mrconvert=not (config.noregister and (output_dir / "brain_T1.nii.gz").is_file()),
+        require_mrconvert=not (output_dir / "brain_T1.nii.gz").is_file(),
         require_tckgen=config.pregenerated_tractogram is None,
         require_tckstats=config.maxlen is not None or config.streamline_weights is not None,
         require_tcksample=bool(config.fa_path or config.scalar2surf),
@@ -452,7 +439,7 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
         "executed": bool(config.execute),
         "status": "planned" if not config.execute else "running",
         "parameters": {
-            "noregister": config.noregister,
+            "surface_space": "native_dMRI",
             "notrunc": config.notrunc,
             "fast_intersection": config.fast_intersection,
             "gwg_hard": config.gwg_hard,

@@ -26,6 +26,8 @@ class PreprocessingLogicMixin:
         reverse_phase_b0: Optional[Path] = None,
         phase_encoding_direction: Optional[str] = None,
         readout_time: Optional[float] = None,
+        eddy_threads: Optional[int] = None,
+        eddy_second_level_model: Optional[str] = None,
     ) -> DwiPreprocessingResult:
         config = DwiPreprocessingConfig(
             subject_id=subject_id,
@@ -40,6 +42,8 @@ class PreprocessingLogicMixin:
             reverse_phase_b0=reverse_phase_b0,
             phase_encoding_direction=phase_encoding_direction,
             readout_time=readout_time,
+            eddy_threads=eddy_threads,
+            eddy_second_level_model=eddy_second_level_model,
         )
         result = run_dwi_preprocessing(config, log=self.log)
         self.log(f"[Preproc] {result.status}: {result.output_dir}")
