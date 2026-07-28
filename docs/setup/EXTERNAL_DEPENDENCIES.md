@@ -721,7 +721,7 @@ scripts/download_model_assets.sh --profile parcellation
 | WMQL | Tract Querier, `nibabel`, `numpy` | 默认 AF/CST 查询 |
 | WMA ORG atlas | external WMA, ORG atlas, Slicer | 可选 xvfb/SlicerDMRI measurements |
 | TractCloud | TractCloud, `torch`, model data | 当前是可选后端 |
-| Connectome MRtrix | MRtrix3 `tck2connectome` | Python fallback 支持 `.trk/.tck/.vtk` endpoint-label |
+| Connectome | Python 或 MRtrix3 `tck2connectome` | 两个后端默认采用 4 mm 径向端点分配、FreeSurfer/DDParcel 灰质节点和零对角矩阵；Python 支持 `.trk/.tck/.vtk/.vtp` |
 
 ## 15. 推荐安装策略
 

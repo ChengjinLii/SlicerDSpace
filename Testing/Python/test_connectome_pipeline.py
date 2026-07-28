@@ -213,6 +213,9 @@ class ConnectomePipelineTest(unittest.TestCase):
             self.assertEqual(qc["streamline_count_assigned"], 6)
             manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["backend"]["mrtrix_bin_dir"], bin_dir.resolve().as_posix())
+            self.assertIn("-assignment_radial_search", manifest["command"])
+            self.assertIn("4.0", manifest["command"])
+            self.assertIn("-zero_diagonal", manifest["command"])
 
     def test_execute_true_runs_fake_tck2connectome_with_sift2_weights(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -353,6 +356,7 @@ class ConnectomePipelineTest(unittest.TestCase):
                     tractography_path=tractography,
                     parcellation_path=parcellation,
                     output_dir=root / "connectome",
+                    assignment_radius_mm=0,
                     execute=True,
                 )
             )
@@ -363,6 +367,109 @@ class ConnectomePipelineTest(unittest.TestCase):
             self.assertEqual(qc["streamline_count_total"], 2)
             self.assertEqual(qc["streamline_count_assigned"], 2)
             self.assertEqual(qc["edge_count"], 1)
+
+    def test_ddparcel_connectome_excludes_non_gray_matter_nodes(self) -> None:
+        try:
+            import nibabel as nib
+            import numpy as np
+        except ImportError:
+            self.skipTest("nibabel/numpy are required for DDParcel node-filter test")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tractography = root / "streamlines.vtk"
+            tractography.write_text(
+                "# vtk DataFile Version 3.0\n"
+                "test\n"
+                "ASCII\n"
+                "DATASET POLYDATA\n"
+                "POINTS 4 float\n"
+                "1 1 1 3 3 3 2 2 2 3 3 3\n"
+                "LINES 2 6\n"
+                "2 0 1\n"
+                "2 2 3\n",
+                encoding="utf-8",
+            )
+            labels = np.zeros((5, 5, 5), dtype=np.int16)
+            labels[1, 1, 1] = 2
+            labels[2, 2, 2] = 10
+            labels[3, 3, 3] = 1001
+            labels[4, 4, 4] = 5
+            parcellation = root / "wmparc.nii.gz"
+            nib.save(nib.Nifti1Image(labels, np.eye(4)), parcellation.as_posix())
+
+            result = run_connectome(
+                ConnectomeConfig(
+                    subject_id="ddparcel",
+                    tractography_path=tractography,
+                    parcellation_path=parcellation,
+                    output_dir=root / "connectome",
+                    assignment_radius_mm=0,
+                    execute=True,
+                )
+            )
+
+            nodes = result.nodes_path.read_text(encoding="utf-8")
+            self.assertNotIn("\t2\tLeft-Cerebral-White-Matter", nodes)
+            self.assertNotIn("\t5\tLeft-Inf-Lat-Vent", nodes)
+            self.assertIn("\t10\tLeft-Thalamus-Proper", nodes)
+            self.assertIn("\t1001\tctx-lh-bankssts", nodes)
+            self.assertIn("10,1001,1", result.matrix_path.read_text(encoding="utf-8"))
+            qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(qc["node_count"], 2)
+            self.assertEqual(qc["input_label_count"], 4)
+            self.assertEqual(qc["excluded_node_label_count"], 2)
+            self.assertEqual(qc["streamline_count_assigned"], 1)
+            self.assertEqual(qc["streamline_count_skipped_non_node"], 1)
+
+    def test_python_connectome_uses_configured_radial_assignment(self) -> None:
+        try:
+            import nibabel as nib
+            import numpy as np
+        except ImportError:
+            self.skipTest("nibabel/numpy are required for radial-assignment test")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tractography = root / "streamlines.vtk"
+            tractography.write_text(
+                "# vtk DataFile Version 3.0\n"
+                "test\n"
+                "ASCII\n"
+                "DATASET POLYDATA\n"
+                "POINTS 4 float\n"
+                "0 0 0 4 0 0 2 0 0 2 0 0\n"
+                "LINES 2 6\n"
+                "2 0 1\n"
+                "2 2 3\n",
+                encoding="utf-8",
+            )
+            labels = np.zeros((6, 3, 3), dtype=np.int16)
+            labels[2, 0, 0] = 10
+            labels[4, 0, 0] = 20
+            parcellation = root / "parcellation.nii.gz"
+            nib.save(nib.Nifti1Image(labels, np.eye(4)), parcellation.as_posix())
+
+            result = run_connectome(
+                ConnectomeConfig(
+                    subject_id="radial",
+                    tractography_path=tractography,
+                    parcellation_path=parcellation,
+                    output_dir=root / "connectome",
+                    assignment_radius_mm=2.1,
+                    execute=True,
+                )
+            )
+
+            self.assertIn("10,20,1", result.matrix_path.read_text(encoding="utf-8"))
+            self.assertNotIn("10,10", result.matrix_path.read_text(encoding="utf-8"))
+            qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(qc["assignment_method"], "radial_search")
+            self.assertEqual(qc["assignment_radius_mm"], 2.1)
+            self.assertEqual(qc["endpoint_count_radially_assigned"], 1)
+            self.assertEqual(qc["streamline_count_endpoint_assigned"], 2)
+            self.assertEqual(qc["streamline_count_matrix_included"], 1)
+            self.assertEqual(qc["streamline_count_self_connection"], 1)
 
     def test_nodes_table_uses_explicit_lut_names(self) -> None:
         try:
@@ -556,7 +663,8 @@ class ConnectomePipelineTest(unittest.TestCase):
 
             self.assertIn("10,20,5.0", result.matrix_path.read_text(encoding="utf-8"))
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
-            self.assertEqual(qc["backend"], "python.endpoint_labels")
+            self.assertEqual(qc["backend"], "python.radial_search")
+            self.assertEqual(qc["assignment_radius_mm"], 4.0)
             self.assertEqual(qc["sift2_weight_count"], 2)
             self.assertEqual(qc["streamline_count_assigned"], 5.0)
 

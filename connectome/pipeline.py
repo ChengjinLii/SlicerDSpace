@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import shutil
 import subprocess
 import time
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
@@ -33,7 +34,10 @@ class ConnectomeConfig:
     mrtrix_bin_dir: Optional[Path] = None
     backend: str = "auto"
     node_source: str = "ddparcel"
+    node_filter: str = "gray_matter"
+    assignment_radius_mm: float = 4.0
     symmetric: bool = True
+    zero_diagonal: bool = True
     compress_mrtrix_dense: bool = False
     execute: bool = False
 
@@ -188,6 +192,82 @@ def _label_at_point(point, data, inverse_affine) -> int:
     if np.any(voxel < 0) or np.any(voxel >= np.array(data.shape[:3])):
         return 0
     return int(data[tuple(voxel)])
+
+
+def _build_endpoint_label_assigner(
+    data,
+    inverse_affine,
+    *,
+    allowed_labels: Iterable[int],
+    radius_mm: float,
+) -> tuple[Callable[[object], int], str]:
+    import numpy as np
+
+    allowed = np.asarray(sorted({int(label) for label in allowed_labels}), dtype=data.dtype)
+    allowed_mask = np.isin(data, allowed)
+
+    if radius_mm <= 0:
+        allowed_set = {int(label) for label in allowed}
+
+        def assign_end_voxel(point: object) -> int:
+            label = _label_at_point(point, data, inverse_affine)
+            return label if label in allowed_set else 0
+
+        return assign_end_voxel, "end_voxel"
+
+    allowed_voxels = np.argwhere(allowed_mask)
+    if not len(allowed_voxels):
+        return lambda point: 0, "radial_search_empty"
+
+    affine = np.linalg.inv(inverse_affine)
+    world_coordinates = (
+        allowed_voxels @ affine[:3, :3].T
+        + affine[:3, 3]
+    )
+
+    try:
+        from scipy.spatial import cKDTree
+    except ImportError:  # pragma: no cover - exercised only in minimal environments
+        singular_values = np.linalg.svd(affine[:3, :3], compute_uv=False)
+        min_spacing = max(float(np.min(singular_values)), 1e-6)
+        padding = int(math.ceil(radius_mm / min_spacing)) + 2
+        shape = np.asarray(data.shape[:3], dtype=int)
+
+        def assign_local_search(point: object) -> int:
+            point_array = np.asarray(point, dtype=float)[:3]
+            continuous_voxel = (inverse_affine @ np.append(point_array, 1.0))[:3]
+            center = np.rint(continuous_voxel).astype(int)
+            lower = np.maximum(center - padding, 0)
+            upper = np.minimum(center + padding + 1, shape)
+            if np.any(lower >= upper):
+                return 0
+            slices = tuple(slice(int(lower[axis]), int(upper[axis])) for axis in range(3))
+            local_voxels = np.argwhere(allowed_mask[slices])
+            if not len(local_voxels):
+                return 0
+            local_voxels += lower
+            local_world = local_voxels @ affine[:3, :3].T + affine[:3, 3]
+            distances = np.linalg.norm(local_world - point_array, axis=1)
+            nearest_index = int(np.argmin(distances))
+            if float(distances[nearest_index]) > radius_mm:
+                return 0
+            return int(data[tuple(local_voxels[nearest_index])])
+
+        return assign_local_search, "numpy.radial_search"
+
+    tree = cKDTree(world_coordinates)
+
+    def assign_kdtree(point: object) -> int:
+        distance, index = tree.query(
+            np.asarray(point, dtype=float)[:3],
+            k=1,
+            distance_upper_bound=radius_mm,
+        )
+        if not np.isfinite(distance) or int(index) >= len(allowed_voxels):
+            return 0
+        return int(data[tuple(allowed_voxels[int(index)])])
+
+    return assign_kdtree, "scipy.spatial.cKDTree"
 
 
 def _scalar_at_point(point, data, inverse_affine) -> Optional[float]:
@@ -417,6 +497,68 @@ def _write_nodes_table(path: Path, labels: Iterable[int], *, label_names: Option
     return len(unique_labels)
 
 
+def _connectome_node_labels(
+    labels: Iterable[int],
+    *,
+    node_filter: str,
+) -> list[int]:
+    unique_labels = sorted({int(label) for label in labels if int(label) != 0})
+    if node_filter == "all":
+        return unique_labels
+
+    # Apply the anatomical filter only to FreeSurfer/DDParcel-style maps.
+    # Generic user LUTs and compact test parcellations retain all labels.
+    if not any(1000 <= label < 3000 for label in unique_labels):
+        return unique_labels
+
+    subcortical_gray_matter = {
+        10,
+        11,
+        12,
+        13,
+        17,
+        18,
+        26,
+        28,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        58,
+        60,
+    }
+    return [
+        label
+        for label in unique_labels
+        if label in subcortical_gray_matter or 1000 <= label < 3000
+    ]
+
+
+def _write_filtered_parcellation(
+    source: Path,
+    destination: Path,
+    *,
+    allowed_labels: Iterable[int],
+) -> None:
+    try:
+        import nibabel as nib
+        import numpy as np
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise RuntimeError("Filtered MRtrix connectome execution requires nibabel and numpy.") from exc
+
+    image = nib.load(source.as_posix())
+    data = np.asarray(image.dataobj)
+    allowed = np.asarray(sorted({int(label) for label in allowed_labels}), dtype=data.dtype)
+    filtered = np.where(np.isin(data, allowed), data, 0)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    nib.save(
+        nib.Nifti1Image(filtered, image.affine, image.header),
+        destination.as_posix(),
+    )
+
+
 def _metric_requires_scalar(metric: str) -> bool:
     return metric.lower() in {"mean_scalar", "mean_fa", "mean_md", "mean_odi"}
 
@@ -492,33 +634,67 @@ def _write_python_connectome(
         scalar_data, scalar_inverse_affine = _load_scalar_volume(config.scalar_map_path.expanduser().resolve())
     all_labels = np.unique(data)
     unique_nonzero_labels = sorted({int(label) for label in all_labels if int(label) != 0})
-    named_node_count = sum(1 for label in unique_nonzero_labels if label in label_names)
-    node_count = _write_nodes_table(nodes_path, unique_nonzero_labels, label_names=label_names)
+    node_labels = _connectome_node_labels(
+        unique_nonzero_labels,
+        node_filter=config.node_filter,
+    )
+    allowed_node_labels = set(node_labels)
+    assign_endpoint, assignment_implementation = _build_endpoint_label_assigner(
+        data,
+        inverse_affine,
+        allowed_labels=node_labels,
+        radius_mm=config.assignment_radius_mm,
+    )
+    named_node_count = sum(1 for label in node_labels if label in label_names)
+    node_count = _write_nodes_table(nodes_path, node_labels, label_names=label_names)
     edge_counts: Counter[tuple[int, int]] = Counter()
     edge_scalar_sums: Counter[tuple[int, int]] = Counter()
     edge_scalar_counts: Counter[tuple[int, int]] = Counter()
     edge_length_sums: Counter[tuple[int, int]] = Counter()
     edge_length_counts: Counter[tuple[int, int]] = Counter()
     skipped_streamlines = 0
+    skipped_non_node_streamlines = 0
     skipped_scalar_streamlines = 0
     total_streamlines = 0
+    radially_assigned_endpoints = 0
+    endpoint_assigned_streamlines = 0
+    matrix_included_streamlines = 0
+    self_connection_streamlines = 0
 
     for streamline_index, streamline in enumerate(_iter_streamlines(config.tractography_path.expanduser().resolve())):
         total_streamlines += 1
         if len(streamline) < 2:
             skipped_streamlines += 1
             continue
-        source = _label_at_point(streamline[0], data, inverse_affine)
-        target = _label_at_point(streamline[-1], data, inverse_affine)
+        direct_source = _label_at_point(streamline[0], data, inverse_affine)
+        direct_target = _label_at_point(streamline[-1], data, inverse_affine)
+        source = assign_endpoint(streamline[0])
+        target = assign_endpoint(streamline[-1])
+        radially_assigned_endpoints += int(source != 0 and source != direct_source)
+        radially_assigned_endpoints += int(target != 0 and target != direct_target)
         if source == 0 or target == 0:
             skipped_streamlines += 1
+            if (
+                (direct_source != 0 and direct_source not in allowed_node_labels)
+                or (direct_target != 0 and direct_target not in allowed_node_labels)
+            ):
+                skipped_non_node_streamlines += 1
             continue
-        edge = tuple(sorted((source, target))) if config.symmetric else (source, target)
+        streamline_weight = None
         if sift2_weights is not None:
             if streamline_index >= len(sift2_weights):
                 skipped_streamlines += 1
                 continue
-            edge_counts[edge] += sift2_weights[streamline_index]
+            streamline_weight = sift2_weights[streamline_index]
+        endpoint_assigned_streamlines += 1
+        if source == target:
+            self_connection_streamlines += 1
+            if config.zero_diagonal:
+                continue
+        matrix_included_streamlines += 1
+        edge = tuple(sorted((source, target))) if config.symmetric else (source, target)
+        if streamline_weight is not None:
+            edge_counts[edge] += streamline_weight
         else:
             edge_counts[edge] += 1
         if _metric_requires_length(config.metric):
@@ -558,13 +734,25 @@ def _write_python_connectome(
         "edge_count": len(edge_counts),
         "streamline_count_total": total_streamlines,
         "streamline_count_assigned": sum(edge_counts.values()),
+        "streamline_count_endpoint_assigned": endpoint_assigned_streamlines,
+        "streamline_count_matrix_included": matrix_included_streamlines,
+        "streamline_count_self_connection": self_connection_streamlines,
         "streamline_count_skipped": skipped_streamlines,
+        "streamline_count_skipped_non_node": skipped_non_node_streamlines,
         "streamline_count_scalar_sampled": sum(edge_scalar_counts.values()) if _metric_requires_scalar(config.metric) else None,
         "streamline_count_scalar_skipped": skipped_scalar_streamlines if _metric_requires_scalar(config.metric) else None,
         "streamline_count_length_sampled": sum(edge_length_counts.values()) if _metric_requires_length(config.metric) else None,
         "sift2_weight_count": len(sift2_weights) if sift2_weights is not None else None,
         "named_node_count": named_node_count,
         "unnamed_node_count": node_count - named_node_count,
+        "node_filter": config.node_filter,
+        "assignment_method": "radial_search" if config.assignment_radius_mm > 0 else "end_voxel",
+        "assignment_radius_mm": config.assignment_radius_mm,
+        "assignment_implementation": assignment_implementation,
+        "endpoint_count_radially_assigned": radially_assigned_endpoints,
+        "zero_diagonal": config.zero_diagonal,
+        "input_label_count": len(unique_nonzero_labels),
+        "excluded_node_label_count": len(unique_nonzero_labels) - node_count,
     }
 
 
@@ -584,6 +772,12 @@ def build_tck2connectome_command(config: ConnectomeConfig, matrix_path: Path) ->
         cmd.extend(["-tck_weights_in", config.sift2_weights_path.expanduser().resolve().as_posix()])
     if config.symmetric:
         cmd.append("-symmetric")
+    if config.zero_diagonal:
+        cmd.append("-zero_diagonal")
+    if config.assignment_radius_mm > 0:
+        cmd.extend(["-assignment_radial_search", str(config.assignment_radius_mm)])
+    else:
+        cmd.append("-assignment_end_voxels")
     cmd.append("-force")
     return tuple(cmd)
 
@@ -752,6 +946,10 @@ def _validate_config(config: ConnectomeConfig) -> None:
         )
     if config.backend not in {"auto", "python", "mrtrix"}:
         raise ValueError("backend must be one of: auto, python, mrtrix.")
+    if config.node_filter not in {"gray_matter", "all"}:
+        raise ValueError("node_filter must be one of: gray_matter, all.")
+    if not math.isfinite(config.assignment_radius_mm) or config.assignment_radius_mm < 0:
+        raise ValueError("assignment_radius_mm must be a finite value greater than or equal to zero.")
     if _metric_requires_scalar(config.metric):
         if config.scalar_map_path is None:
             raise ValueError(f"metric='{config.metric}' requires scalar_map_path.")
@@ -796,7 +994,11 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
         "metric": config.metric,
         "requested_backend": config.backend,
         "node_source": config.node_source,
+        "node_filter": config.node_filter,
+        "assignment_method": "radial_search" if config.assignment_radius_mm > 0 else "end_voxel",
+        "assignment_radius_mm": config.assignment_radius_mm,
         "symmetric": config.symmetric,
+        "zero_diagonal": config.zero_diagonal,
         "compress_mrtrix_dense": config.compress_mrtrix_dense,
         "backend": backend_status,
         "dependencies": {
@@ -821,13 +1023,25 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
         "edge_count": None,
         "streamline_count_total": None,
         "streamline_count_assigned": None,
+        "streamline_count_endpoint_assigned": None,
+        "streamline_count_matrix_included": None,
+        "streamline_count_self_connection": None,
         "streamline_count_skipped": None,
+        "streamline_count_skipped_non_node": None,
         "streamline_count_scalar_sampled": None,
         "streamline_count_scalar_skipped": None,
         "streamline_count_length_sampled": None,
         "sift2_weight_count": None,
         "named_node_count": None,
         "unnamed_node_count": None,
+        "node_filter": config.node_filter,
+        "assignment_method": "radial_search" if config.assignment_radius_mm > 0 else "end_voxel",
+        "assignment_radius_mm": config.assignment_radius_mm,
+        "assignment_implementation": None,
+        "endpoint_count_radially_assigned": None,
+        "zero_diagonal": config.zero_diagonal,
+        "input_label_count": None,
+        "excluded_node_label_count": None,
         "return_code": None,
         "elapsed_seconds": 0.0,
         "backend": "planned",
@@ -855,25 +1069,41 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
             if config.backend == "mrtrix" and not use_mrtrix:
                 raise RuntimeError("Requested MRtrix connectome backend is unavailable for this input/metric.")
             if use_mrtrix:
+                data, _ = _load_label_volume(config.parcellation_path.expanduser().resolve())
+                label_names = _parse_label_names(lut_path)
+                unique_labels = sorted({int(label) for label in data.ravel() if int(label) != 0})
+                node_labels = _connectome_node_labels(
+                    unique_labels,
+                    node_filter=config.node_filter,
+                )
+                command_config = config
+                if node_labels != unique_labels:
+                    filtered_parcellation = output_dir / f"{config.subject_id}-connectome-node-parcellation.nii.gz"
+                    _write_filtered_parcellation(
+                        config.parcellation_path.expanduser().resolve(),
+                        filtered_parcellation,
+                        allowed_labels=node_labels,
+                    )
+                    command_config = replace(config, parcellation_path=filtered_parcellation)
+                    manifest["outputs"]["filtered_parcellation"] = filtered_parcellation.as_posix()  # type: ignore[index]
+
                 mrtrix_matrix_path = (
                     output_dir / f"{stem}_dense.csv" if config.compress_mrtrix_dense else matrix_path
                 )
                 if config.compress_mrtrix_dense:
                     manifest["outputs"]["dense_matrix"] = mrtrix_matrix_path.as_posix()  # type: ignore[index]
-                command = build_tck2connectome_command(config, mrtrix_matrix_path)
+                command = build_tck2connectome_command(command_config, mrtrix_matrix_path)
                 manifest["command"] = list(command)
                 completed = subprocess.run(command, check=True, env=startup_environment())
                 return_code = completed.returncode
-                unique_labels: list[int] = []
                 try:
-                    data, _ = _load_label_volume(config.parcellation_path.expanduser().resolve())
-                    label_names = _parse_label_names(lut_path)
-                    unique_labels = sorted({int(label) for label in data.ravel() if int(label) != 0})
-                    _write_nodes_table(nodes_path, unique_labels, label_names=label_names)
+                    _write_nodes_table(nodes_path, node_labels, label_names=label_names)
                     qc.update(
                         {
-                            "named_node_count": sum(1 for label in unique_labels if label in label_names),
-                            "unnamed_node_count": sum(1 for label in unique_labels if label not in label_names),
+                            "named_node_count": sum(1 for label in node_labels if label in label_names),
+                            "unnamed_node_count": sum(1 for label in node_labels if label not in label_names),
+                            "input_label_count": len(unique_labels),
+                            "excluded_node_label_count": len(unique_labels) - len(node_labels),
                         }
                     )
                 except Exception:
@@ -883,7 +1113,7 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
                         _write_compressed_dense_connectome(
                             mrtrix_matrix_path,
                             matrix_path,
-                            unique_labels,
+                            node_labels,
                             metric=config.metric,
                             symmetric=config.symmetric,
                         )
@@ -894,15 +1124,32 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
                 qc["streamline_count_total"] = total_streamlines
                 if config.sift2_weights_path is not None:
                     qc["sift2_weight_count"] = len(_read_sift2_weights(config.sift2_weights_path))
-                if config.metric == "streamline_count" and total_streamlines is not None:
+                if (
+                    config.metric == "streamline_count"
+                    and total_streamlines is not None
+                    and not config.zero_diagonal
+                ):
                     assigned = qc.get("streamline_count_assigned")
                     if isinstance(assigned, (int, float)):
                         qc["streamline_count_skipped"] = max(0, total_streamlines - int(assigned))
-                qc.update({"backend": "mrtrix3.tck2connectome"})
+                qc.update(
+                    {
+                        "backend": "mrtrix3.tck2connectome",
+                        "assignment_implementation": "mrtrix3.tck2connectome",
+                    }
+                )
             else:
                 summary = _write_python_connectome(config, matrix_path, nodes_path, lut_path=lut_path)
                 qc.update(summary)
-                qc.update({"backend": "python.endpoint_labels"})
+                qc.update(
+                    {
+                        "backend": (
+                            "python.radial_search"
+                            if config.assignment_radius_mm > 0
+                            else "python.endpoint_labels"
+                        )
+                    }
+                )
                 return_code = 0
         except Exception as exc:
             execution_error = str(exc)
@@ -929,7 +1176,12 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
             writer.writerow(["source_node", "target_node", config.metric])
         try:
             data, _ = _load_label_volume(config.parcellation_path.expanduser().resolve())
-            _write_nodes_table(nodes_path, data.ravel(), label_names=_parse_label_names(lut_path))
+            label_names = _parse_label_names(lut_path)
+            node_labels = _connectome_node_labels(
+                data.ravel(),
+                node_filter=config.node_filter,
+            )
+            _write_nodes_table(nodes_path, node_labels, label_names=label_names)
         except Exception:
             nodes_path.write_text("node_id\tlabel\tname\n", encoding="utf-8")
     # Keep the native manifest and QC lifecycle fields authoritative and in
