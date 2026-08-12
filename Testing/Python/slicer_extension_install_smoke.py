@@ -148,17 +148,20 @@ def _run() -> None:
         if parameter_node_ready:
             widget._parameterNode.subjectId = "json-auto-save-smoke"
             widget._checkCanApply()
-            wait_loop = qt.QEventLoop()
-            qt.QTimer.singleShot(600, wait_loop.quit)
-            wait_loop.exec_()
-            try:
-                from shared.user_config import load_user_config
+            from shared.user_config import load_user_config
 
-                common_settings_auto_save_ready = (
-                    load_user_config()["recent"]["subject_id"] == "json-auto-save-smoke"
-                )
-            except Exception:
-                common_settings_auto_save_ready = False
+            for _attempt in range(30):
+                try:
+                    common_settings_auto_save_ready = (
+                        load_user_config()["recent"]["subject_id"] == "json-auto-save-smoke"
+                    )
+                except Exception:
+                    common_settings_auto_save_ready = False
+                if common_settings_auto_save_ready:
+                    break
+                wait_loop = qt.QEventLoop()
+                qt.QTimer.singleShot(100, wait_loop.quit)
+                wait_loop.exec_()
         summary_label = getattr(widget, "_selectedProductsSummaryLabel", None)
         summary_text = ""
         if summary_label:
