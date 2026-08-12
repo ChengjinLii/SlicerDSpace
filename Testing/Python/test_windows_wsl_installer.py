@@ -16,6 +16,20 @@ BRIDGE_SOURCE = REPO_ROOT / "scripts" / "wsl" / "WslCommandBridge.cs"
 RUNTIME_REQUIREMENTS = REPO_ROOT / "scripts" / "wsl" / "requirements-runtime.txt"
 
 
+def _powershell_executable() -> str | None:
+    configured = os.environ.get("POWERSHELL_EXECUTABLE", "").strip()
+    if configured and Path(configured).is_file():
+        return configured
+    return shutil.which("powershell") or shutil.which("pwsh")
+
+
+def _powershell_environment(temporary: Path) -> dict[str, str]:
+    environment = os.environ.copy()
+    environment.setdefault("LOCALAPPDATA", str(temporary / "local-app-data"))
+    environment.setdefault("APPDATA", str(temporary / "app-data"))
+    return environment
+
+
 class WindowsWslInstallerContractTest(unittest.TestCase):
     def test_reproducibility_pins_and_verified_resources_are_literal(self) -> None:
         powershell = POWERSHELL_INSTALLER.read_text(encoding="utf-8")
@@ -107,13 +121,13 @@ class WindowsWslInstallerContractTest(unittest.TestCase):
             self.assertIn(requirement, requirements)
         self.assertIn("--extra-index-url https://download.pytorch.org/whl/cpu", requirements)
 
-    @unittest.skipUnless(os.name == "nt", "PowerShell plan smoke is Windows-specific")
     def test_plan_only_runs_without_contacting_wsl(self) -> None:
-        shell = shutil.which("powershell") or shutil.which("pwsh")
+        shell = _powershell_executable()
         if not shell:
             self.skipTest("PowerShell is unavailable")
         with tempfile.TemporaryDirectory() as temporary:
-            install_root = Path(temporary) / "windows-runtime"
+            temporary_root = Path(temporary)
+            install_root = temporary_root / "windows-runtime"
             completed = subprocess.run(
                 [
                     shell,
@@ -132,6 +146,7 @@ class WindowsWslInstallerContractTest(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 timeout=60,
+                env=_powershell_environment(temporary_root),
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
             plan = json.loads((install_root / "install-plan.json").read_text(encoding="utf-8"))
@@ -143,12 +158,12 @@ class WindowsWslInstallerContractTest(unittest.TestCase):
             self.assertEqual(plan["pinned"]["fsl_topup_version"], "2203.5")
             self.assertEqual(plan["pinned"]["fsl_topup_build"], "ha905fa9_6")
 
-    @unittest.skipUnless(os.name == "nt", "PowerShell plan smoke is Windows-specific")
     def test_url_override_without_digest_is_rejected(self) -> None:
-        shell = shutil.which("powershell") or shutil.which("pwsh")
+        shell = _powershell_executable()
         if not shell:
             self.skipTest("PowerShell is unavailable")
         with tempfile.TemporaryDirectory() as temporary:
+            temporary_root = Path(temporary)
             completed = subprocess.run(
                 [
                     shell,
@@ -159,7 +174,7 @@ class WindowsWslInstallerContractTest(unittest.TestCase):
                     str(POWERSHELL_INSTALLER),
                     "-PlanOnly",
                     "-WindowsInstallRoot",
-                    temporary,
+                    str(temporary_root),
                     "-OrgRegUrl",
                     "https://mirror.invalid/ORG-RegAtlas-100HCP.zip",
                 ],
@@ -167,6 +182,7 @@ class WindowsWslInstallerContractTest(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 timeout=60,
+                env=_powershell_environment(temporary_root),
             )
             self.assertNotEqual(completed.returncode, 0)
             self.assertIn("provide -OrgRegSha256", completed.stdout + completed.stderr)

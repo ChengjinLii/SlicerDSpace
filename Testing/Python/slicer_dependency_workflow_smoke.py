@@ -7,6 +7,7 @@ dialogs and settings persistence paths are exercised with deterministic inputs.
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -115,6 +116,9 @@ def _run() -> None:
     original_existing = None
     original_loader = None
     original_info_display = None
+    original_model_path = ""
+    original_mrtrix_path = ""
+    widget = None
     try:
         TEMP_ROOT.mkdir(parents=True, exist_ok=True)
         MRTRIX_ROOT.mkdir(parents=True, exist_ok=True)
@@ -122,6 +126,8 @@ def _run() -> None:
 
         slicer.util.selectModule("SlicerDDSurfer")
         widget = _module_widget()
+        original_model_path = widget._read_environment_path_setting("model_assets_dir")
+        original_mrtrix_path = widget._read_environment_path_setting("mrtrix_bin_dir")
         widget.ui.validateButton.click()
         slicer.app.processEvents()
 
@@ -229,6 +235,13 @@ def _run() -> None:
                 pass
         if original_info_display is not None:
             slicer.util.infoDisplay = original_info_display
+        if widget is not None:
+            try:
+                widget._save_environment_path_setting("model_assets_dir", original_model_path)
+                widget._save_environment_path_setting("mrtrix_bin_dir", original_mrtrix_path)
+            except Exception:
+                pass
+        shutil.rmtree(TEMP_ROOT, ignore_errors=True)
 
 
 qt.QTimer.singleShot(6000, _run)

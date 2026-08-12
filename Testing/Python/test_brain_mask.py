@@ -48,6 +48,34 @@ class BrainMaskTest(unittest.TestCase):
             self.assertTrue((input_dir / "nodif_brain_mask.manifest.json").is_file())
             self.assertEqual(raw.mask_path.read_text(encoding="utf-8"), "mask\n")
 
+    def test_explicit_mrtrix_bin_dir_is_used_for_mask_generation(self) -> None:
+        from shared.pipeline import find_subject_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            self._write_fake_dwi2mask(bin_dir)
+            subject_root = root / "sub-01"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            (input_dir / "data.nii.gz").write_text("dwi\n", encoding="utf-8")
+            (input_dir / "bvals").write_text("0 1000\n", encoding="utf-8")
+            (input_dir / "bvecs").write_text("0 1\n0 0\n0 0\n", encoding="utf-8")
+
+            with patch.dict(
+                "os.environ",
+                {"PATH": Path(sys.executable).resolve().parent.as_posix()},
+                clear=False,
+            ):
+                raw = find_subject_root(
+                    subject_root,
+                    "sub-01",
+                    mrtrix_bin_dir=bin_dir,
+                )
+
+            self.assertTrue(raw.mask_path.is_file())
+
     def test_missing_subject_mask_without_dwi2mask_fails_with_setup_message(self) -> None:
         from shared.pipeline import find_subject_root
 

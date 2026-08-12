@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       run_fresh_clone_smoke:
-        description: "Run fresh-clone smoke with core Git LFS model assets"
+        description: "Run fresh-clone smoke with core external model assets"
         required: false
         default: "true"
         type: choice
@@ -35,13 +35,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: false
-
-      - name: Install Git LFS
-        if: github.event.inputs.run_fresh_clone_smoke == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git-lfs
-          git lfs version
 
       - name: Run fresh-clone smoke
         if: github.event.inputs.run_fresh_clone_smoke == 'true'

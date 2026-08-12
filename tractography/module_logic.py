@@ -38,6 +38,8 @@ class TractographyLogicMixin:
         seed_density: int = 1,
         max_seed_voxels: Optional[int] = None,
         min_fa: float = 0.2,
+        min_length_mm: float = 10.0,
+        max_length_mm: float = 250.0,
         force_recompute: bool = False,
         execute: bool = False,
     ) -> DTITrackingResult:
@@ -53,6 +55,8 @@ class TractographyLogicMixin:
             seed_density=seed_density,
             max_seed_voxels=max_seed_voxels,
             min_fa=min_fa,
+            min_length_mm=min_length_mm,
+            max_length_mm=max_length_mm,
             force_recompute=force_recompute,
             execute=execute,
         )

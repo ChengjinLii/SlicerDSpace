@@ -9,8 +9,9 @@ prepare a public release or a manuscript-linked release.
 SlicerDDSurfer release artifacts are split into three classes:
 
 1. Source code and documentation in this repository.
-2. Git LFS-managed model weights, templates, meshes, neuroimaging fixtures, and
-   validation assets.
+2. Manifest-managed model weights and templates in the independent
+   `SlicerDDSurfer-models` repository, downloaded to a user-selected asset root
+   and verified by size and SHA256.
 3. External software installed separately by users, including 3D Slicer,
    SlicerDMRI, MRtrix3, FSL, FreeSurfer-compatible tools, WMA, TractQuerier,
    and TractCloud.
@@ -27,8 +28,8 @@ Run these checks from a clean worktree:
 ```bash
 make test-fast
 python3 scripts/release_audit.py
-python3 scripts/download_model_assets.py --profile core --verify-only
-python3 scripts/download_model_assets.py --profile all --verify-only
+python3 scripts/download_model_assets.py --profile core --asset-root /path/to/model-assets --verify-only
+python3 scripts/download_model_assets.py --profile all --asset-root /path/to/model-assets --verify-only
 SMOKE_ASSET_MODE=download scripts/smoke_fresh_clone.sh
 SLICERDDSURFER_RELEASE_SUBJECT_ROOT=/path/to/subject-root \
   SLICERDDSURFER_RELEASE_ARGS="--skip-slicer-smoke --warn-only --asset-mirror-dir /path/to/core-mirror --all-asset-mirror-dir /path/to/all-mirror" \
@@ -36,7 +37,8 @@ SLICERDDSURFER_RELEASE_SUBJECT_ROOT=/path/to/subject-root \
 ```
 
 The release gate treats code checkout and model-asset download as separate
-operations. Fresh-clone smoke uses `GIT_LFS_SKIP_SMUDGE=1` for `git clone`.
+operations. Fresh-clone smoke uses `GIT_LFS_SKIP_SMUDGE=1` only to avoid any
+legacy/test-fixture LFS materialization in the code checkout.
 The CI-safe mode (`SMOKE_ASSET_MODE=plan`) resolves the manifest and runs fast
 tests without downloading large model files. The release gate must use
 `SMOKE_ASSET_MODE=download`, which runs `scripts/download_model_assets.py` with
@@ -61,8 +63,8 @@ SLICERDDSURFER_USE_EXISTING_DISPLAY=1 \
 ```
 
 The GitHub Actions `Release` workflow exposes the fresh-clone smoke gate only as
-a manual `workflow_dispatch` input. Push and pull request CI must not download
-the large Git LFS model assets by default.
+a manual `workflow_dispatch` input. Push and pull request CI downloads only the
+small sentinel asset, not the model profiles.
 
 The same manual `Release` workflow can create or update the draft GitHub Release
 page by setting `create_github_release=true`. To attach fresh-clone evidence to

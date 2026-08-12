@@ -49,11 +49,17 @@ def _check() -> None:
         )
         widget._save_environment_path_setting("mrtrix_bin_dir", "")
     dialog = getattr(widget, "_environmentDialog", None)
+    environment_result = getattr(widget, "_lastEnvironmentResult", None)
+    missing_items = widget._missing_environment_items(environment_result) if environment_result else []
+    per_item_action_required = bool(missing_items)
     dialog_visible = bool(dialog and dialog.isVisible())
     dialog_button_texts = []
+    dialog_button_names = []
     if dialog:
         try:
-            dialog_button_texts = [button.text for button in dialog.findChildren(qt.QPushButton)]
+            dialog_buttons = dialog.findChildren(qt.QPushButton)
+            dialog_button_texts = [button.text for button in dialog_buttons]
+            dialog_button_names = [button.objectName for button in dialog_buttons]
         except Exception as exc:
             dialog_button_texts = [f"BUTTON_DISCOVERY_FAILED:{exc}"]
     import_config_button = getattr(widget, "_environmentImportConfigButton", None)
@@ -79,6 +85,8 @@ def _check() -> None:
     print(f"SLICERDDSURFER_ENV_SETTINGS_ROUNDTRIP={settings_roundtrip_ok}", flush=True)
     print(f"SLICERDDSURFER_ENV_DIALOG_VISIBLE={dialog_visible}", flush=True)
     print(f"SLICERDDSURFER_ENV_DIALOG_BUTTONS={dialog_button_texts}", flush=True)
+    print(f"SLICERDDSURFER_ENV_DIALOG_BUTTON_NAMES={dialog_button_names}", flush=True)
+    print(f"SLICERDDSURFER_ENV_PER_ITEM_ACTION_REQUIRED={per_item_action_required}", flush=True)
     print(f"SLICERDDSURFER_ENV_WIDGET_BUTTONS={widget_button_texts}", flush=True)
     print(f"SLICERDDSURFER_ENV_PYTHON_TARGET_VISIBLE={python_target_visible}", flush=True)
     print("SLICERDDSURFER_ENV_CLICK_LOG_TAIL_BEGIN", flush=True)
@@ -96,10 +104,14 @@ def _check() -> None:
         or not advanced_collapsed
         or not settings_roundtrip_ok
         or not dialog_visible
-        or not any("Install/download auto items" == text for text in dialog_button_texts)
-        or not any(text in {"Install", "Download / choose path", "Choose path / setup", "Setup"} for text in dialog_button_texts)
-        or "Import dependency config" not in widget_button_texts
-        or "Export dependency config" not in widget_button_texts
+        or environment_result is None
+        or "environmentInstallAllButton" not in dialog_button_names
+        or (
+            per_item_action_required
+            and "environmentItemActionButton" not in dialog_button_names
+        )
+        or import_config_button is None
+        or export_config_button is None
         or python_target_visible
     )
     slicer.app.exit(2 if bad else 0)

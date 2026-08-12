@@ -829,7 +829,11 @@ def run_dwi_preprocessing(
     *,
     log: Optional[Callable[[str], None]] = None,
 ) -> DwiPreprocessingResult:
-    raw = find_subject_root(config.input_root, config.subject_id)
+    raw = find_subject_root(
+        config.input_root,
+        config.subject_id,
+        mrtrix_bin_dir=config.mrtrix_bin_dir,
+    )
     output_dir = _resolve_output_dir(raw, config.output_dir)
     paths = _planned_paths(output_dir, raw.subject_id)
     backend = inspect_preprocessing_backend(config)

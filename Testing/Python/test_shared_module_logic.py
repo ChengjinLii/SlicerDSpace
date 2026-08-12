@@ -11,6 +11,7 @@ from unittest.mock import patch
 _previous_slicer_module = sys.modules.get("slicer")
 sys.modules["slicer"] = types.ModuleType("slicer")
 try:
+    import shared.module_logic as shared_module_logic
     from shared.module_logic import SharedLogicMixin, _ensure_torch_via_extension, _release_version
 finally:
     if _previous_slicer_module is None:
@@ -77,6 +78,42 @@ class SharedModuleLogicTest(unittest.TestCase):
                 logic.registration_atlas,
                 candidates["Resources/Data/100HCP-population-mean-T2.nii.gz"],
             )
+
+    def test_vtk_tractogram_falls_back_to_model_node_without_slicerdmri(self) -> None:
+        class FakeNode:
+            def __init__(self) -> None:
+                self.name = ""
+                self.attributes: dict[str, str] = {}
+
+            def SetName(self, name: str) -> None:
+                self.name = name
+
+            def SetAttribute(self, key: str, value: str) -> None:
+                self.attributes[key] = value
+
+        class DummyLogic(SharedLogicMixin):
+            def __init__(self) -> None:
+                self.messages: list[str] = []
+
+            def log(self, message: str) -> None:
+                self.messages.append(message)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tractogram = Path(tmp) / "bundle.vtk"
+            tractogram.write_text("# vtk DataFile Version 3.0\n", encoding="ascii")
+            node = FakeNode()
+            fake_slicer = types.SimpleNamespace(
+                util=types.SimpleNamespace(loadModel=lambda *_args, **_kwargs: (True, node)),
+            )
+            logic = DummyLogic()
+
+            with patch.object(shared_module_logic, "slicer", fake_slicer):
+                loaded = logic._load_fiber_bundle_node(tractogram, "bundle")
+
+            self.assertTrue(loaded)
+            self.assertEqual(node.name, "bundle")
+            self.assertEqual(node.attributes["SlicerDDSurfer.SourcePath"], tractogram.as_posix())
+            self.assertEqual(node.attributes["SlicerDDSurfer.DisplayFallback"], "vtkMRMLModelNode")
 
 
 if __name__ == "__main__":

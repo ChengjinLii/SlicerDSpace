@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,7 +12,7 @@ from typing import Callable, Optional
 from shared import NativeDTIBundle, default_task_output_dir, find_subject_root
 
 
-SUPPORTED_TRACKING_METHODS = {"deterministic", "probabilistic"}
+SUPPORTED_TRACKING_METHODS = {"deterministic"}
 SUPPORTED_OUTPUT_FORMATS = {"trk", "tck"}
 
 
@@ -29,6 +30,8 @@ class DTITrackingConfig:
     max_seed_voxels: Optional[int] = None
     random_seed: int = 12345
     min_fa: float = 0.2
+    min_length_mm: float = 10.0
+    max_length_mm: float = 250.0
     force_recompute: bool = False
     execute: bool = False
 
@@ -123,6 +126,10 @@ def _validate_config(config: DTITrackingConfig) -> None:
         raise ValueError("max_seed_voxels must be >= 1 when provided.")
     if config.min_fa < 0:
         raise ValueError("min_fa must be >= 0.")
+    if config.min_length_mm < 0:
+        raise ValueError("min_length_mm must be >= 0.")
+    if config.max_length_mm <= config.min_length_mm:
+        raise ValueError("max_length_mm must be greater than min_length_mm.")
 
 
 def _streamline_lengths(streamlines: list[object]) -> list[float]:
@@ -138,15 +145,42 @@ def _streamline_lengths(streamlines: list[object]) -> list[float]:
     return lengths
 
 
-def _eudx_length_limits(dipy_version: str, step_size_mm: float) -> tuple[int, int]:
-    """Preserve LocalTracking limits across the DIPY 1.12 unit change."""
+def _eudx_length_limits(
+    dipy_version: str,
+    step_size_mm: float,
+    min_length_mm: float = 10.0,
+    max_length_mm: float = 250.0,
+) -> tuple[int, int]:
+    """Translate millimetre limits across the DIPY 1.12 unit change."""
 
     release = tuple(int(value) for value in re.findall(r"\d+", str(dipy_version))[:2])
     if release >= (1, 12):
-        # DIPY 1.12 changed the high-level tracker limits from point counts to
-        # millimetres.  The previous LocalTracking maximum was 500 points.
-        return 0, max(1, int(round(500 * float(step_size_mm))))
-    return 2, 500
+        return max(0, int(math.floor(min_length_mm))), max(1, int(math.ceil(max_length_mm)))
+    minimum_points = max(2, int(math.floor(min_length_mm / step_size_mm)) + 1)
+    maximum_points = max(minimum_points, int(math.ceil(max_length_mm / step_size_mm)) + 1)
+    return minimum_points, maximum_points
+
+
+def _filter_streamlines_by_length(
+    streamlines: list[object],
+    *,
+    min_length_mm: float,
+    max_length_mm: float,
+) -> tuple[list[object], list[float], int, int]:
+    lengths = _streamline_lengths(streamlines)
+    kept: list[object] = []
+    kept_lengths: list[float] = []
+    rejected_short = 0
+    rejected_long = 0
+    for streamline, length in zip(streamlines, lengths):
+        if length + 1e-6 < min_length_mm:
+            rejected_short += 1
+        elif length - 1e-6 > max_length_mm:
+            rejected_long += 1
+        else:
+            kept.append(streamline)
+            kept_lengths.append(length)
+    return kept, kept_lengths, rejected_short, rejected_long
 
 
 def _tensor_direction_getter(
@@ -270,7 +304,12 @@ def _run_dipy_dti_tracking(
     )
     stopping_criterion = ThresholdStoppingCriterion(fa, float(config.min_fa))
     if eudx_tracking is not None:
-        min_length, max_length = _eudx_length_limits(dipy_version, config.step_size_mm)
+        min_length, max_length = _eudx_length_limits(
+            dipy_version,
+            config.step_size_mm,
+            config.min_length_mm,
+            config.max_length_mm,
+        )
         local_tracking = eudx_tracking(
             seeds,
             stopping_criterion,
@@ -284,19 +323,33 @@ def _run_dipy_dti_tracking(
             return_all=True,
         )
     else:
+        min_length, max_length = _eudx_length_limits(
+            "1.11",
+            config.step_size_mm,
+            config.min_length_mm,
+            config.max_length_mm,
+        )
         local_tracking = LocalTracking(
             peaks,
             stopping_criterion,
             seeds,
             dwi_img.affine,
             step_size=float(config.step_size_mm),
-            maxlen=500,
-            minlen=2,
+            maxlen=max_length,
+            minlen=min_length,
             return_all=True,
         )
-    streamlines = [streamline for streamline in local_tracking if len(streamline) >= 2]
+    candidate_streamlines = [streamline for streamline in local_tracking if len(streamline) >= 2]
+    streamlines, lengths, rejected_short, rejected_long = _filter_streamlines_by_length(
+        candidate_streamlines,
+        min_length_mm=float(config.min_length_mm),
+        max_length_mm=float(config.max_length_mm),
+    )
     if not streamlines:
-        raise RuntimeError("DIPY tracking produced no streamlines with at least two points.")
+        raise RuntimeError(
+            "DIPY tracking produced no streamlines within the configured length range "
+            f"[{config.min_length_mm:g}, {config.max_length_mm:g}] mm."
+        )
     streamlines_path.parent.mkdir(parents=True, exist_ok=True)
     sft = StatefulTractogram(streamlines, dwi_img, Space.RASMM)
     if streamlines_path.suffix.lower() == ".trk":
@@ -306,7 +359,6 @@ def _run_dipy_dti_tracking(
     else:
         raise ValueError(f"Unsupported streamline output format: {streamlines_path.suffix}")
 
-    lengths = _streamline_lengths(streamlines)
     length_summary = {
         "mean_mm": float(np.mean(lengths)) if lengths else 0.0,
         "min_mm": float(np.min(lengths)) if lengths else 0.0,
@@ -314,6 +366,9 @@ def _run_dipy_dti_tracking(
     }
     return {
         "streamline_count": len(streamlines),
+        "candidate_streamline_count": len(candidate_streamlines),
+        "rejected_short_streamlines": rejected_short,
+        "rejected_long_streamlines": rejected_long,
         "seed_voxel_count": seed_voxel_count,
         "seed_count": int(len(seeds)),
         "fa_threshold": float(config.min_fa),
@@ -360,6 +415,8 @@ def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str],
             "max_seed_voxels": config.max_seed_voxels,
             "random_seed": config.random_seed,
             "min_fa": config.min_fa,
+            "min_length_mm": config.min_length_mm,
+            "max_length_mm": config.max_length_mm,
             "force_recompute": bool(config.force_recompute),
         },
         "raw_inputs": {
@@ -390,6 +447,8 @@ def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str],
         "length_mean_mm": None,
         "length_min_mm": None,
         "length_max_mm": None,
+        "rejected_short_streamlines": None,
+        "rejected_long_streamlines": None,
         "mask_coverage": None,
     }
     if config.execute:
@@ -400,6 +459,9 @@ def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str],
             {
                 "status": "completed",
                 "streamline_count": execution_summary["streamline_count"],
+                "candidate_streamline_count": execution_summary["candidate_streamline_count"],
+                "rejected_short_streamlines": execution_summary["rejected_short_streamlines"],
+                "rejected_long_streamlines": execution_summary["rejected_long_streamlines"],
                 "seed_voxel_count": execution_summary["seed_voxel_count"],
                 "seed_count": execution_summary["seed_count"],
                 "tracking_mask_voxels": execution_summary["tracking_mask_voxels"],

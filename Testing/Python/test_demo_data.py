@@ -26,12 +26,30 @@ class DemoDataTest(unittest.TestCase):
 
         self.assertEqual(subject_root.name, DEMO_SUBJECT_ID)
         self.assertEqual(repeated, subject_root)
-        self.assertEqual(dwi.shape, (4, 4, 4, 7))
-        self.assertEqual(mask.shape, (4, 4, 4))
+        self.assertEqual(dwi.shape, (24, 8, 8, 7))
+        self.assertEqual(mask.shape, (24, 8, 8))
         self.assertEqual(bvals.shape, (7,))
         self.assertEqual(bvecs.shape, (3, 7))
         self.assertTrue(np.all(np.isfinite(dwi)))
         self.assertTrue(np.all(mask == 1))
+
+    def test_overwrite_removes_stale_demo_outputs_and_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subject_root = create_synthetic_demo_subject(root)
+            stale_output = subject_root / "outputs" / "stale.txt"
+            stale_cache = subject_root / "cache" / "stale.txt"
+            stale_output.parent.mkdir(parents=True)
+            stale_cache.parent.mkdir(parents=True)
+            stale_output.write_text("old output", encoding="utf-8")
+            stale_cache.write_text("old cache", encoding="utf-8")
+
+            rebuilt = create_synthetic_demo_subject(root, overwrite=True)
+
+            self.assertEqual(rebuilt, subject_root)
+            self.assertFalse(stale_output.exists())
+            self.assertFalse(stale_cache.exists())
+            self.assertTrue((rebuilt / "input" / "data.nii.gz").is_file())
 
 
 if __name__ == "__main__":

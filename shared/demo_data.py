@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 
@@ -23,6 +24,10 @@ def create_synthetic_demo_subject(root: Path, *, subject_id: str = DEMO_SUBJECT_
     input_dir = subject_root / "input"
     if input_dir.exists() and not overwrite:
         return subject_root
+    if overwrite:
+        for managed_dir in (input_dir, subject_root / "cache", subject_root / "outputs"):
+            if managed_dir.exists():
+                shutil.rmtree(managed_dir)
     input_dir.mkdir(parents=True, exist_ok=True)
 
     bvals = np.array([0, 1000, 1000, 1000, 1000, 1000, 1000], dtype=float)
@@ -35,12 +40,14 @@ def create_synthetic_demo_subject(root: Path, *, subject_id: str = DEMO_SUBJECT_
         dtype=float,
     )
     tensor = np.diag([0.0015, 0.0003, 0.0003])
-    data = np.zeros((4, 4, 4, len(bvals)), dtype=np.float32)
+    # The principal tensor axis spans enough physical distance to exercise the
+    # production 10 mm minimum streamline filter while remaining lightweight.
+    data = np.zeros((24, 8, 8, len(bvals)), dtype=np.float32)
     data[..., 0] = 1000.0
     for index, (bval, gradient) in enumerate(zip(bvals[1:], bvecs.T[1:]), start=1):
         attenuation = np.exp(-bval * float(gradient @ tensor @ gradient))
         data[..., index] = 1000.0 * attenuation
-    mask = np.ones((4, 4, 4), dtype=np.uint8)
+    mask = np.ones((24, 8, 8), dtype=np.uint8)
 
     nib.save(nib.Nifti1Image(data, np.eye(4)), str(input_dir / "data.nii.gz"))
     nib.save(nib.Nifti1Image(mask, np.eye(4)), str(input_dir / "nodif_brain_mask.nii.gz"))
@@ -54,4 +61,3 @@ def create_synthetic_demo_subject(root: Path, *, subject_id: str = DEMO_SUBJECT_
         encoding="utf-8",
     )
     return subject_root
-

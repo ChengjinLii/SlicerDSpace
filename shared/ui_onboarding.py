@@ -1371,7 +1371,7 @@ def prepare_demo_for_owner(owner: Any) -> Path:
     import slicer
 
     demo_root = Path(str(slicer.app.temporaryPath)) / "SlicerDDSurfer" / "demo"
-    subject_root = create_synthetic_demo_subject(demo_root, subject_id=DEMO_SUBJECT_ID)
+    subject_root = create_synthetic_demo_subject(demo_root, subject_id=DEMO_SUBJECT_ID, overwrite=True)
     node = getattr(owner, "_parameterNode", None)
     if node:
         with slicer.util.NodeModify(node):
@@ -1380,6 +1380,7 @@ def prepare_demo_for_owner(owner: Any) -> Path:
             node.outputDirectory = (subject_root / "outputs").as_posix()
             node.targetPreprocessing = False
             node.targetSurface = False
+            node.targetSurfacePostprocess = False
             node.targetParcellation = False
             node.targetSegmentation = False
             node.targetMicrostructure = True
@@ -1389,6 +1390,7 @@ def prepare_demo_for_owner(owner: Any) -> Path:
             node.orchestrationTractographyBackend = "dti_det"
             node.orchestrationMicrostructureStages = "dti"
             node.orchestrationRunName = "Demo"
+            node.orchestrationSelectStreamlines = 512
         owner._checkCanApply()
     owner.appendLog(f"[Demo] Synthetic demo subject prepared: {subject_root}")
     return subject_root

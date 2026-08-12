@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import tempfile
+import types
 import unittest
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
+from unittest.mock import patch
 
 from shared.demo_data import create_synthetic_demo_subject
 from shared.ui_onboarding import (
@@ -18,6 +21,7 @@ from shared.ui_onboarding import (
     normalized_language,
     onboarding_text,
     platform_path_examples,
+    prepare_demo_for_owner,
     register_ui_language_binding,
     translated_ui_message,
 )
@@ -308,6 +312,58 @@ class OnboardingHelpersTest(unittest.TestCase):
             self.assertTrue((subject_root / "input" / "bvals").is_file())
             self.assertTrue((subject_root / "input" / "bvecs").is_file())
             self.assertTrue((subject_root / "input" / "nodif_brain_mask.nii.gz").is_file())
+
+    def test_prepare_demo_resets_every_non_demo_target(self) -> None:
+        class DemoOwner:
+            def __init__(self) -> None:
+                self._parameterNode = types.SimpleNamespace(
+                    targetPreprocessing=True,
+                    targetSurface=True,
+                    targetSurfacePostprocess=True,
+                    targetParcellation=True,
+                    targetSegmentation=True,
+                    targetMicrostructure=False,
+                    targetTractography=False,
+                    targetBundles=True,
+                    targetConnectome=True,
+                )
+                self.checked = False
+                self.logs: list[str] = []
+
+            def _checkCanApply(self) -> None:
+                self.checked = True
+
+            def appendLog(self, message: str) -> None:
+                self.logs.append(message)
+
+        owner = DemoOwner()
+        fake_slicer = types.SimpleNamespace(
+            app=types.SimpleNamespace(temporaryPath="/tmp"),
+            util=types.SimpleNamespace(NodeModify=lambda _node: nullcontext()),
+        )
+        subject_root = Path("/tmp/SlicerDDSurfer/demo/slicerdsurfer-demo")
+        with (
+            patch.dict("sys.modules", {"slicer": fake_slicer}),
+            patch("shared.ui_onboarding.create_synthetic_demo_subject", return_value=subject_root),
+        ):
+            returned = prepare_demo_for_owner(owner)
+
+        node = owner._parameterNode
+        self.assertEqual(returned, subject_root)
+        self.assertFalse(node.targetPreprocessing)
+        self.assertFalse(node.targetSurface)
+        self.assertFalse(node.targetSurfacePostprocess)
+        self.assertFalse(node.targetParcellation)
+        self.assertFalse(node.targetSegmentation)
+        self.assertTrue(node.targetMicrostructure)
+        self.assertTrue(node.targetTractography)
+        self.assertFalse(node.targetBundles)
+        self.assertFalse(node.targetConnectome)
+        self.assertEqual(node.orchestrationTractographyBackend, "dti_det")
+        self.assertEqual(node.orchestrationMicrostructureStages, "dti")
+        self.assertEqual(node.orchestrationRunName, "Demo")
+        self.assertEqual(node.orchestrationSelectStreamlines, 512)
+        self.assertTrue(owner.checked)
 
 
 if __name__ == "__main__":

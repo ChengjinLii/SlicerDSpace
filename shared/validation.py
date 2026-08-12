@@ -56,6 +56,7 @@ class InputValidationConfig:
     bids_metadata_path: Optional[Path] = None
     dependency_groups: tuple[str, ...] = ("core",)
     require_phase_encoding: bool = False
+    mrtrix_bin_dir: Optional[Path] = None
     write_report: bool = True
 
 
@@ -398,7 +399,11 @@ def validate_subject_inputs(config: InputValidationConfig) -> InputValidationRes
     if inspected["mode"] == "subject_root":
         subject_root = Path(inspected["subject_root"])
         try:
-            raw = find_subject_root(config.input_root.expanduser().resolve(), config.subject_id)
+            raw = find_subject_root(
+                config.input_root.expanduser().resolve(),
+                config.subject_id,
+                mrtrix_bin_dir=config.mrtrix_bin_dir,
+            )
         except Exception as exc:
             _check_incomplete_file_layout(subject_root, messages, metrics)
             _add_issue(

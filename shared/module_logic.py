@@ -257,6 +257,7 @@ class SharedLogicMixin:
         bids_metadata_path: Optional[Path] = None,
         dependency_groups: tuple[str, ...] = ("core",),
         require_phase_encoding: bool = False,
+        mrtrix_bin_dir: Optional[Path] = None,
     ) -> InputValidationResult:
         config = InputValidationConfig(
             subject_id=subject_id,
@@ -266,6 +267,7 @@ class SharedLogicMixin:
             bids_metadata_path=bids_metadata_path,
             dependency_groups=dependency_groups,
             require_phase_encoding=require_phase_encoding,
+            mrtrix_bin_dir=mrtrix_bin_dir,
         )
         result = validate_subject_inputs(config)
         report = result.report_path.as_posix() if result.report_path else "not written"
@@ -472,6 +474,8 @@ class SharedLogicMixin:
         microstructure_run_free_water: bool = False,
         microstructure_run_noddi: bool = False,
         select_streamlines: int = 100000,
+        dti_min_length_mm: float = 10.0,
+        dti_max_length_mm: float = 250.0,
         atlas_t2: Optional[Path] = None,
         model_assets_dir: Optional[Path] = None,
         ddseg_device: str = "auto",
@@ -514,6 +518,8 @@ class SharedLogicMixin:
                 ddseg_device=ddseg_device,
                 surface_device=surface_device,
                 select_streamlines=select_streamlines,
+                dti_min_length_mm=dti_min_length_mm,
+                dti_max_length_mm=dti_max_length_mm,
                 mrtrix_bin_dir=mrtrix_bin_dir,
                 tract_querier_root=tract_querier_root,
                 wma_root=wma_root,
@@ -550,6 +556,8 @@ class SharedLogicMixin:
         microstructure_run_free_water: bool = False,
         microstructure_run_noddi: bool = False,
         select_streamlines: int = 100000,
+        dti_min_length_mm: float = 10.0,
+        dti_max_length_mm: float = 250.0,
         atlas_t2: Optional[Path] = None,
         model_assets_dir: Optional[Path] = None,
         ddseg_device: str = "auto",
@@ -592,6 +600,8 @@ class SharedLogicMixin:
                 ddseg_device=ddseg_device,
                 surface_device=surface_device,
                 select_streamlines=select_streamlines,
+                dti_min_length_mm=dti_min_length_mm,
+                dti_max_length_mm=dti_max_length_mm,
                 mrtrix_bin_dir=mrtrix_bin_dir,
                 tract_querier_root=tract_querier_root,
                 wma_root=wma_root,
@@ -660,9 +670,6 @@ class SharedLogicMixin:
         if not fiber_path.is_file():
             return False
         loader = getattr(slicer.util, "loadFiberBundle", None)
-        if not hasattr(slicer.modules, "tractographydisplay"):
-            self.log(f"[Slicer] SlicerDMRI TractographyDisplay is unavailable; skipped loading {fiber_path}")
-            return False
         if fiber_path.suffix.lower() in {".trk", ".tck"}:
             return self._load_streamline_file_as_fiber_bundle(fiber_path, node_name)
         if loader is not None:
@@ -675,7 +682,19 @@ class SharedLogicMixin:
                 fiber_node.SetName(node_name)
                 fiber_node.SetAttribute("SlicerDDSurfer.SourcePath", fiber_path.as_posix())
                 return True
-        self.log(f"[Slicer] FiberBundle loader returned no node for {fiber_path}")
+        if fiber_path.suffix.lower() in {".vtk", ".vtp"}:
+            try:
+                success, model_node = slicer.util.loadModel(fiber_path.as_posix(), returnNode=True)
+            except Exception as exc:  # pragma: no cover - depends on Slicer model IO availability
+                self.log(f"[Slicer] Generic model loader could not read {fiber_path}: {exc}")
+                success, model_node = False, None
+            if success and model_node:
+                model_node.SetName(node_name)
+                model_node.SetAttribute("SlicerDDSurfer.SourcePath", fiber_path.as_posix())
+                model_node.SetAttribute("SlicerDDSurfer.DisplayFallback", "vtkMRMLModelNode")
+                self.log(f"[Slicer] Loaded {fiber_path} as a model because SlicerDMRI fiber IO is unavailable")
+                return True
+        self.log(f"[Slicer] No compatible fiber or model loader could read {fiber_path}")
         return False
 
     def _load_streamline_file_as_fiber_bundle(self, fiber_path: Path, node_name: str) -> bool:
@@ -707,15 +726,32 @@ class SharedLogicMixin:
             poly_data = vtk.vtkPolyData()
             poly_data.SetPoints(points)
             poly_data.SetLines(lines)
-            fiber_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLFiberBundleNode", node_name)
+            scene = slicer.mrmlScene
+            fiber_class = "vtkMRMLFiberBundleNode"
+            fiber_class_available = bool(
+                hasattr(scene, "IsNodeClassRegistered") and scene.IsNodeClassRegistered(fiber_class)
+            )
+            if not fiber_class_available:
+                factory_manager = slicer.app.moduleManager().factoryManager()
+                registered_modules = set(factory_manager.registeredModuleNames())
+                if "TractographyDisplay" in registered_modules:
+                    factory_manager.loadModules(["TractographyDisplay"])
+                    fiber_class_available = bool(scene.IsNodeClassRegistered(fiber_class))
+
+            node_class = fiber_class if fiber_class_available else "vtkMRMLModelNode"
+            fiber_node = scene.AddNewNodeByClass(node_class, node_name)
             if fiber_node is None:
-                self.log("[Slicer] vtkMRMLFiberBundleNode is unavailable; install SlicerDMRI.")
+                self.log(f"[Slicer] Neither {fiber_class} nor vtkMRMLModelNode is available for {fiber_path}")
                 return False
             fiber_node.SetAndObservePolyData(poly_data)
             fiber_node.SetAttribute("SlicerDDSurfer.SourcePath", fiber_path.as_posix())
             fiber_node.SetAttribute("SlicerDDSurfer.StreamlineCount", str(streamline_count))
+            if node_class != fiber_class:
+                fiber_node.SetAttribute("SlicerDDSurfer.DisplayFallback", node_class)
             fiber_node.CreateDefaultDisplayNodes()
-            self.log(f"[Slicer] Loaded {streamline_count} streamlines from {fiber_path}")
+            self.log(
+                f"[Slicer] Loaded {streamline_count} streamlines from {fiber_path} as {node_class}"
+            )
             return True
         except Exception as exc:  # pragma: no cover - requires a real Slicer/SlicerDMRI runtime
             self.log(f"[Slicer] Failed to convert streamline file {fiber_path}: {exc}")

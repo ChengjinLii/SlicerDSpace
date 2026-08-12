@@ -22,7 +22,7 @@ class DependencyProfileMatrixTest(unittest.TestCase):
                     "--output-dir",
                     output_dir.as_posix(),
                     "--platforms",
-                    "Linux,Windows",
+                    "Linux,Darwin,Windows",
                     "--targets",
                     "validation",
                 ],
@@ -35,7 +35,7 @@ class DependencyProfileMatrixTest(unittest.TestCase):
             payload = json.loads(matrix_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["schema"], "slicerddsurfer.dependency_profile_matrix.v1")
             self.assertEqual(payload["targets"], ["validation"])
-            self.assertEqual([row["platform"] for row in payload["rows"]], ["Linux", "Windows"])
+            self.assertEqual([row["platform"] for row in payload["rows"]], ["Linux", "Darwin", "Windows"])
             self.assertTrue(payload["scan_policy"]["non_native_rows_are_dry_run"])
             for row in payload["rows"]:
                 profile_path = Path(row["report_paths"]["profile"])

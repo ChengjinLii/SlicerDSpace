@@ -17,6 +17,36 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class ProductOrchestratorTest(unittest.TestCase):
+    def test_unhandled_stage_error_writes_failed_orchestration_manifest(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            config = ProductOrchestratorConfig(
+                subject_id="100307",
+                subject_root=subject_root,
+                targets=("surface",),
+                run_name="failure-checkpoint",
+                execute=True,
+            )
+            with mock.patch(
+                "shared.orchestrator._run_subject_products_impl",
+                side_effect=RuntimeError("synthetic stage failure"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "synthetic stage failure"):
+                    run_subject_products(config)
+
+            manifest_path = (
+                subject_root
+                / "outputs"
+                / "00_run_metadata"
+                / "failure-checkpoint_orchestration_manifest.json"
+            )
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["status"], "failed")
+            self.assertEqual(manifest["failure"]["type"], "RuntimeError")
+            self.assertEqual(manifest["failure"]["message"], "synthetic stage failure")
+
     def test_dry_run_plans_microstructure_target(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 

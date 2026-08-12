@@ -322,6 +322,32 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             self.assertEqual(profile["host_platform"], result.host_platform)
             self.assertTrue(profile["portability_policy"]["revalidate_after_import"])
 
+    def test_platform_override_is_reported_and_used_for_macos_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_bin = self._make_mrtrix_bin(tmp_path)
+            result = run_environment_doctor(
+                EnvironmentDoctorConfig(
+                    targets=("tractography",),
+                    repo_root=REPO_ROOT,
+                    platform_name="Darwin",
+                    tractography_backend="csd_act",
+                    mrtrix_bin_dir=user_bin,
+                )
+            )
+
+            self.assertEqual(result.platform, "Darwin")
+            mrconvert = next(item for item in result.statuses if item.key == "command:mrconvert")
+            self.assertEqual(mrconvert.status, "available")
+            self.assertEqual(mrconvert.details["detected_source"], "user setting")
+            self.assertEqual(mrconvert.details["resolved"], (user_bin / "mrconvert").as_posix())
+
+            written = write_environment_report(result, tmp_path / "report")
+            profile = json.loads(written["profile"].read_text(encoding="utf-8"))
+            self.assertEqual(profile["platform"], "Darwin")
+            self.assertNotEqual(profile["platform"], profile["host_platform"])
+            self.assertTrue(profile["portability_policy"]["revalidate_after_import"])
+
     def test_common_platform_paths_include_macos_and_windows_runtime_locations(self) -> None:
         mac_slicers = {path.as_posix() for path in _common_slicer_executables("Darwin")}
         win_slicers = {path.as_posix() for path in _common_slicer_executables("Windows")}

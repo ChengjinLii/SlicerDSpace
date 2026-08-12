@@ -417,6 +417,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--select-streamlines", type=int, default=100000, help="Requested streamline count for tractography.")
     parser.add_argument(
+        "--dti-min-length-mm",
+        type=float,
+        default=10.0,
+        help="Minimum retained DTI deterministic streamline length in millimetres.",
+    )
+    parser.add_argument(
+        "--dti-max-length-mm",
+        type=float,
+        default=250.0,
+        help="Maximum retained DTI deterministic streamline length in millimetres.",
+    )
+    parser.add_argument(
         "--micro-fit-method",
         default="wls",
         choices=("wls", "ls"),
@@ -697,6 +709,8 @@ def main(argv: list[str] | None = None) -> int:
         ddseg_device=args.ddseg_device,
         surface_device=args.surface_device,
         select_streamlines=args.select_streamlines,
+        dti_min_length_mm=args.dti_min_length_mm,
+        dti_max_length_mm=args.dti_max_length_mm,
         mrtrix_bin_dir=args.mrtrix_bin_dir,
         tract_querier_root=args.tract_querier_root,
         connectome_backend=args.connectome_backend,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import qt
@@ -75,6 +76,13 @@ def _check() -> None:
             process_running = False
     manifest = OUTPUT_ROOT / "00_run_metadata" / f"{RUN_NAME}_cancelled_orchestration_manifest.json"
     status_label = widget.ui.statusLabel.text if hasattr(widget.ui, "statusLabel") else ""
+    status_source = str(getattr(widget, "_statusMessageSource", ""))
+    manifest_status = ""
+    if manifest.is_file():
+        try:
+            manifest_status = str(json.loads(manifest.read_text(encoding="utf-8")).get("status") or "")
+        except Exception:
+            manifest_status = "unreadable"
     table = getattr(widget, "_runStatusTable", None)
     statuses = []
     if table:
@@ -83,10 +91,18 @@ def _check() -> None:
             statuses.append(status_item.text() if status_item else "")
     print(f"SLICERDDSURFER_CANCEL_PROCESS_RUNNING={process_running}", flush=True)
     print(f"SLICERDDSURFER_CANCEL_STATUS_LABEL={status_label}", flush=True)
+    print(f"SLICERDDSURFER_CANCEL_STATUS_SOURCE={status_source}", flush=True)
     print(f"SLICERDDSURFER_CANCEL_MANIFEST_EXISTS={manifest.is_file()}", flush=True)
+    print(f"SLICERDDSURFER_CANCEL_MANIFEST_STATUS={manifest_status}", flush=True)
     print(f"SLICERDDSURFER_CANCEL_TABLE_STATUSES={statuses}", flush=True)
     saw_running = bool(getattr(widget, "_cancelSmokeSawRunning", False))
-    bad = process_running or not manifest.is_file() or "cancel" not in status_label.lower() or not saw_running
+    bad = (
+        process_running
+        or not manifest.is_file()
+        or manifest_status != "cancelled"
+        or "cancel" not in status_source.lower()
+        or not saw_running
+    )
     slicer.app.exit(2 if bad else 0)
 
 

@@ -112,6 +112,8 @@ class ProductOrchestratorConfig:
     ddseg_device: str = "auto"
     surface_device: str = "auto"
     select_streamlines: int = 100000
+    dti_min_length_mm: float = 10.0
+    dti_max_length_mm: float = 250.0
     mrtrix_bin_dir: Optional[Path] = None
     tract_querier_root: Optional[Path] = None
     connectome_backend: str = "python"
@@ -907,6 +909,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         raise ValueError("subject_id is required.")
     if config.select_streamlines <= 0:
         raise ValueError("select_streamlines must be > 0.")
+    if config.dti_min_length_mm < 0 or config.dti_max_length_mm <= config.dti_min_length_mm:
+        raise ValueError("DTI streamline lengths require 0 <= dti_min_length_mm < dti_max_length_mm.")
     if config.microstructure_free_water_chunk_size <= 0:
         raise ValueError("microstructure_free_water_chunk_size must be > 0.")
     if config.microstructure_free_water_engine not in {"serial", "joblib", "dask", "ray"}:
@@ -1423,10 +1427,15 @@ def _now_utc() -> str:
 
 
 class _TimedTaskList(list):
-    def __init__(self, start_monotonic: float) -> None:
+    def __init__(
+        self,
+        start_monotonic: float,
+        on_append: Optional[Callable[[list[ProductTaskRecord]], None]] = None,
+    ) -> None:
         super().__init__()
         self._last_monotonic = start_monotonic
         self._last_wall = datetime.now(timezone.utc)
+        self._on_append = on_append
 
     def append(self, task: ProductTaskRecord) -> None:  # type: ignore[override]
         now = time.monotonic()
@@ -1447,6 +1456,82 @@ class _TimedTaskList(list):
         super().append(timed_task)
         self._last_monotonic = now
         self._last_wall = now_wall
+        if self._on_append is not None:
+            self._on_append(self)
+
+
+def _write_orchestration_checkpoint(
+    *,
+    path: Path,
+    config: ProductOrchestratorConfig,
+    plan: RunPlanResult,
+    targets: tuple[str, ...],
+    tasks: list[ProductTaskRecord],
+) -> None:
+    payload = {
+        "kind": "slicerddsurfer_product_orchestration",
+        "version": 1,
+        "status": "running",
+        "subject_id": config.subject_id,
+        "subject_root": config.subject_root.expanduser().resolve().as_posix(),
+        "output_root": plan.output_root.as_posix(),
+        "run_name": plan.run_name,
+        "targets": list(targets),
+        "execute": bool(config.execute),
+        "run_plan_path": plan.run_plan_path.as_posix(),
+        "updated_at": _now_utc(),
+        "tasks": [
+            {
+                "name": task.name,
+                "status": task.status,
+                "reason": task.reason,
+                "manifest_path": task.manifest_path.as_posix() if task.manifest_path else None,
+                "qc_path": task.qc_path.as_posix() if task.qc_path else None,
+                "outputs": task.outputs,
+                "started_at": task.started_at,
+                "ended_at": task.ended_at,
+                "runtime_seconds": task.runtime_seconds,
+            }
+            for task in tasks
+        ],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _mark_orchestration_failed(config: ProductOrchestratorConfig, error: BaseException) -> Path:
+    subject_root = config.subject_root.expanduser().resolve()
+    output_root = config.output_root.expanduser().resolve() if config.output_root is not None else None
+    layout = subject_layout(subject_root, output_root=output_root)
+    run_name = normalize_run_name(config.run_name)
+    path = layout.run_metadata / f"{run_name}_orchestration_manifest.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        payload = {
+            "kind": "slicerddsurfer_product_orchestration",
+            "version": 1,
+            "subject_id": config.subject_id,
+            "subject_root": subject_root.as_posix(),
+            "output_root": layout.outputs.as_posix(),
+            "run_name": run_name,
+            "targets": list(_normalize_targets(config)),
+            "execute": bool(config.execute),
+            "tasks": [],
+        }
+    payload.update(
+        {
+            "status": "failed",
+            "ended_at": _now_utc(),
+            "failure": {
+                "type": type(error).__name__,
+                "message": str(error),
+            },
+        }
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
 
 
 def _write_normalized_task_records(
@@ -1820,7 +1905,7 @@ def _build_performance_profile(
     return profile
 
 
-def run_subject_products(
+def _run_subject_products_impl(
     config: ProductOrchestratorConfig,
     *,
     log: Optional[Callable[[str], None]] = None,
@@ -1831,6 +1916,8 @@ def run_subject_products(
         raise ValueError("subject_id is required.")
     if config.select_streamlines <= 0:
         raise ValueError("select_streamlines must be > 0.")
+    if config.dti_min_length_mm < 0 or config.dti_max_length_mm <= config.dti_min_length_mm:
+        raise ValueError("DTI streamline lengths require 0 <= dti_min_length_mm < dti_max_length_mm.")
     if config.microstructure_free_water_chunk_size <= 0:
         raise ValueError("microstructure_free_water_chunk_size must be > 0.")
     if config.microstructure_free_water_engine not in {"serial", "joblib", "dask", "ray"}:
@@ -1850,8 +1937,25 @@ def run_subject_products(
     run_name = normalize_run_name(config.run_name)
     primary_tractography_backend = _primary_tractography_backend(config)
     start = time.monotonic()
-    tasks: list[ProductTaskRecord] = _TimedTaskList(start)
     plan = plan_subject_products(config, write=True)
+    manifest_path = layout.run_metadata / f"{run_name}_orchestration_manifest.json"
+    tasks: list[ProductTaskRecord] = _TimedTaskList(
+        start,
+        on_append=lambda current: _write_orchestration_checkpoint(
+            path=manifest_path,
+            config=config,
+            plan=plan,
+            targets=targets,
+            tasks=current,
+        ),
+    )
+    _write_orchestration_checkpoint(
+        path=manifest_path,
+        config=config,
+        plan=plan,
+        targets=targets,
+        tasks=tasks,
+    )
     plan_by_target = {item.target: item for item in plan.items}
     preflight_blocked_targets = {
         target: reason
@@ -1861,6 +1965,23 @@ def run_subject_products(
     run_targets = tuple(target for target in targets if target not in preflight_blocked_targets)
 
     materialize_canonical_output_tree(subject_root, output_root=output_root, mode="symlink", archive_legacy=False)
+    mask_mrtrix_bin_dir = config.mrtrix_bin_dir or config.preprocessing_mrtrix_bin_dir
+    initial_raw = _resolve_raw_inputs(subject_root)
+    if (
+        config.execute
+        and not initial_raw["mask"].is_file()
+        and all(initial_raw[key].is_file() for key in ("dwi", "bval", "bvec"))
+    ):
+        from shared.pipeline import find_subject_root
+
+        try:
+            find_subject_root(
+                subject_root,
+                config.subject_id,
+                mrtrix_bin_dir=mask_mrtrix_bin_dir,
+            )
+        except (FileNotFoundError, RuntimeError) as exc:
+            _emit(f"[Brain mask] Automatic generation unavailable: {exc}", log)
     raw = _resolve_raw_inputs(subject_root)
 
     for target in targets:
@@ -1880,6 +2001,7 @@ def run_subject_products(
                 input_root=subject_root,
                 output_dir=layout.run_metadata / "validation",
                 dependency_groups=("core",),
+                mrtrix_bin_dir=mask_mrtrix_bin_dir,
             )
         )
         tasks.append(
@@ -2040,7 +2162,11 @@ def run_subject_products(
 
             _emit("[Orchestrator] Running DDSeg", log)
             task_started = _start_task_timer("DDSeg", log)
-            raw_bundle = find_subject_root(subject_root, config.subject_id)
+            raw_bundle = find_subject_root(
+                subject_root,
+                config.subject_id,
+                mrtrix_bin_dir=mask_mrtrix_bin_dir,
+            )
             native_bundle = ensure_native_dti_bundle(raw_bundle, fit_method="ls", reuse=bool(config.resume), log=log)
             run_ddseg(
                 DDSegConfig(
@@ -2085,7 +2211,11 @@ def run_subject_products(
 
             _emit("[Orchestrator] Running DDParcel", log)
             task_started = _start_task_timer("DDParcel", log)
-            raw_bundle = find_subject_root(subject_root, config.subject_id)
+            raw_bundle = find_subject_root(
+                subject_root,
+                config.subject_id,
+                mrtrix_bin_dir=mask_mrtrix_bin_dir,
+            )
             registered = ensure_registered_dti_bundle(
                 raw_bundle,
                 atlas_t2=atlas_t2,
@@ -2104,6 +2234,7 @@ def run_subject_products(
                         repo_root=_repo_root(),
                         explicit_root=model_assets_dir,
                     ),
+                    device=ddseg_device,
                 ),
                 log=log,
             )
@@ -2298,7 +2429,11 @@ def run_subject_products(
 
             _emit("[Orchestrator] Running Microstructure DTI", log)
             task_started = _start_task_timer("Microstructure DTI", log)
-            raw_bundle = find_subject_root(subject_root, config.subject_id)
+            raw_bundle = find_subject_root(
+                subject_root,
+                config.subject_id,
+                mrtrix_bin_dir=mask_mrtrix_bin_dir,
+            )
             native_bundle = ensure_native_dti_bundle(
                 raw_bundle,
                 fit_method=config.microstructure_fit_method,
@@ -2365,7 +2500,11 @@ def run_subject_products(
             from shared.pipeline import ensure_native_dti_bundle, find_subject_root
 
             _emit("[Orchestrator] Running Microstructure Free Water", log)
-            raw_bundle = find_subject_root(subject_root, config.subject_id)
+            raw_bundle = find_subject_root(
+                subject_root,
+                config.subject_id,
+                mrtrix_bin_dir=mask_mrtrix_bin_dir,
+            )
             native_bundle = ensure_native_dti_bundle(
                 raw_bundle,
                 fit_method=config.microstructure_fit_method,
@@ -2424,7 +2563,11 @@ def run_subject_products(
             from shared.pipeline import ensure_native_dti_bundle, find_subject_root
 
             _emit("[Orchestrator] Running Microstructure NODDI", log)
-            raw_bundle = find_subject_root(subject_root, config.subject_id)
+            raw_bundle = find_subject_root(
+                subject_root,
+                config.subject_id,
+                mrtrix_bin_dir=mask_mrtrix_bin_dir,
+            )
             native_bundle = ensure_native_dti_bundle(
                 raw_bundle,
                 fit_method=config.microstructure_fit_method,
@@ -2552,6 +2695,8 @@ def run_subject_products(
                         # streamline budget so whole-brain runs do not seed
                         # every eligible voxel and exhaust memory on Windows.
                         max_seed_voxels=config.select_streamlines,
+                        min_length_mm=config.dti_min_length_mm,
+                        max_length_mm=config.dti_max_length_mm,
                         execute=True,
                     ),
                     log=log,
@@ -2932,7 +3077,6 @@ def run_subject_products(
                 )
                 tasks.append(_task_from_result("connectome.sift2_weighted", weighted))
 
-    manifest_path = layout.run_metadata / f"{run_name}_orchestration_manifest.json"
     normalized_task_records = _write_normalized_task_records(
         layout=layout,
         run_name=run_name,
@@ -2991,6 +3135,15 @@ def run_subject_products(
     manifest = {
         "kind": "slicerddsurfer_product_orchestration",
         "version": 1,
+        "status": (
+            "failed"
+            if any(task.status in {"failed", "partial_failed"} for task in tasks)
+            else "completed_with_blocks"
+            if any(task.status == "blocked" for task in tasks)
+            else "completed"
+            if config.execute
+            else "planned"
+        ),
         "subject_id": config.subject_id,
         "subject_root": subject_root.as_posix(),
         "output_root": output_root.as_posix() if output_root is not None else layout.outputs.as_posix(),
@@ -3058,6 +3211,8 @@ def run_subject_products(
         "resolved_ddseg_device": ddseg_device,
         "resolved_surface_device": surface_device,
         "select_streamlines": config.select_streamlines,
+        "dti_min_length_mm": config.dti_min_length_mm,
+        "dti_max_length_mm": config.dti_max_length_mm,
         "connectome_backend": config.connectome_backend,
         "connectome_compress_mrtrix_dense": config.connectome_compress_mrtrix_dense,
         "saf_fs_dir": config.saf_fs_dir.expanduser().resolve().as_posix() if config.saf_fs_dir else None,
@@ -3140,3 +3295,17 @@ def run_subject_products(
         tasks=tuple(tasks),
         run_plan_path=plan.run_plan_path,
     )
+
+
+def run_subject_products(
+    config: ProductOrchestratorConfig,
+    *,
+    log: Optional[Callable[[str], None]] = None,
+) -> ProductOrchestratorResult:
+    """Run products while preserving a failed manifest if any stage raises."""
+
+    try:
+        return _run_subject_products_impl(config, log=log)
+    except Exception as exc:
+        _mark_orchestration_failed(config, exc)
+        raise

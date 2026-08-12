@@ -3,6 +3,9 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import json
+import os
+import platform
 import subprocess
 import sys
 import tempfile
@@ -69,6 +72,33 @@ class InstallDependenciesProfileTest(unittest.TestCase):
             self.assertEqual(command[command.index("--find-links") + 1], wheelhouse.resolve().as_posix())
             self.assertEqual(command[-1], "scikit-learn")
             self.assertEqual(results[0].status, "passed")
+
+    def test_macos_wrapper_generates_a_darwin_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output_dir = Path(temporary) / "macos-plan"
+            environment = os.environ.copy()
+            environment["PYTHON_BIN"] = sys.executable
+            completed = subprocess.run(
+                [
+                    "bash",
+                    (REPO_ROOT / "scripts" / "install_deps_macos.sh").as_posix(),
+                    "--output-dir",
+                    output_dir.as_posix(),
+                    "--tractography-backend",
+                    "dti_det",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env=environment,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["environment"]["platform"], "Darwin")
+            self.assertEqual(payload["environment"]["host_platform"], platform.system())
+            self.assertTrue((output_dir / "dependency_profile.json").is_file())
 
 
 if __name__ == "__main__":

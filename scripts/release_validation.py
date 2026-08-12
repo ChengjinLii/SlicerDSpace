@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -59,25 +60,27 @@ def _slicer_smoke_command(
     module_dir: Path,
     script_name: str,
 ) -> tuple[str, ...]:
-    return (
+    command = [
         "env",
         f"SLICERDDSURFER_EXTENSION_MODULE_DIR={module_dir.as_posix()}",
+        f"SLICERDDSURFER_EXTENSION_ARCHIVE={(args.report_dir / 'packages' / 'SlicerDDSurfer.tar.gz').as_posix()}",
         f"SLICERDDSURFER_SMOKE_SUBJECT_ROOT={args.subject_root.expanduser().resolve().as_posix()}",
         f"SLICERDDSURFER_SMOKE_SUBJECT_ID={_subject_id(args.subject_root, args.subject_id)}",
         f"SLICERDDSURFER_SMOKE_RUN_NAME={args.run_name}",
         "SLICERDDSURFER_SMOKE_MICROSTRUCTURE_STAGES=dti",
         "SLICERDDSURFER_SMOKE_PLAN_ONLY=1",
+        "SLICERDDSURFER_DEMO_EXPECT_NODE_TYPE=model",
         f"PATH={args.xvfb_run.parent.as_posix()}:{os.environ.get('PATH', '')}",
         args.xvfb_run.as_posix(),
         "-a",
         args.slicer_launcher.as_posix(),
         "--no-splash",
         "--disable-cli-modules",
-        "--additional-module-paths",
-        module_dir.as_posix(),
-        "--python-script",
-        (REPO_ROOT / "Testing" / "Python" / script_name).as_posix(),
-    )
+    ]
+    if script_name != "slicer_extension_manager_install_smoke.py":
+        command.extend(["--additional-module-paths", module_dir.as_posix()])
+    command.extend(["--python-script", (REPO_ROOT / "Testing" / "Python" / script_name).as_posix()])
+    return tuple(command)
 
 
 def _subject_command(
@@ -309,7 +312,11 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
                         (REPO_ROOT / "scripts" / "download_model_assets.py").as_posix(),
                         "--profile",
                         profile,
+                        "--manifest",
+                        (REPO_ROOT / "models" / "assets_manifest.json").as_posix(),
                         "--repo-root",
+                        REPO_ROOT.as_posix(),
+                        "--asset-root",
                         mirror_dir.expanduser().resolve().as_posix(),
                         "--verify-only",
                     ),
@@ -345,6 +352,9 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
     if args.skip_slicer_smoke:
         for name in (
             "slicer_extension_install_smoke",
+            "slicer_extension_manager_install_smoke",
+            "slicer_dependency_workflow_smoke",
+            "slicer_demo_workflow_smoke",
             "slicer_environment_button_smoke",
             "slicer_run_plan_panel_smoke",
             "slicer_output_tree_button_smoke",
@@ -361,6 +371,31 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
     else:
         install_root = report_dir / "slicer_extension_install"
         module_dir = install_root / "SlicerDDSurfer" / "lib" / "Slicer-5.10" / "qt-scripted-modules"
+        cmake_executable = os.environ.get("CMAKE_EXECUTABLE", "").strip() or shutil.which("cmake")
+        if cmake_executable and Path(cmake_executable).is_file():
+            steps.append(
+                ValidationStep(
+                    "cmake_extension_config_contract",
+                    (
+                        "env",
+                        f"CMAKE_EXECUTABLE={Path(cmake_executable).expanduser().resolve().as_posix()}",
+                        sys.executable,
+                        "-m",
+                        "unittest",
+                        "Testing.Python.test_cmake_extension_config",
+                    ),
+                    required=False,
+                )
+            )
+        else:
+            steps.append(
+                ValidationStep(
+                    "cmake_extension_config_contract",
+                    (),
+                    required=False,
+                    skipped_reason="CMake was not found; set CMAKE_EXECUTABLE to enable the configure contract",
+                )
+            )
         steps.append(
             ValidationStep(
                 "stage_slicer_extension",
@@ -376,9 +411,28 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
                 required=False,
             )
         )
+        extension_root = install_root / "SlicerDDSurfer"
+        extension_archive = report_dir / "packages" / "SlicerDDSurfer.tar.gz"
+        steps.append(
+            ValidationStep(
+                "package_slicer_extension",
+                (
+                    sys.executable,
+                    (REPO_ROOT / "scripts" / "package_slicer_extension.py").as_posix(),
+                    "--extension-root",
+                    extension_root.as_posix(),
+                    "--output",
+                    extension_archive.as_posix(),
+                ),
+                required=False,
+            )
+        )
         if args.slicer_launcher and args.xvfb_run and args.slicer_launcher.is_file() and args.xvfb_run.is_file():
             for name, script_name in (
                 ("slicer_extension_install_smoke", "slicer_extension_install_smoke.py"),
+                ("slicer_extension_manager_install_smoke", "slicer_extension_manager_install_smoke.py"),
+                ("slicer_dependency_workflow_smoke", "slicer_dependency_workflow_smoke.py"),
+                ("slicer_demo_workflow_smoke", "slicer_demo_workflow_smoke.py"),
                 ("slicer_environment_button_smoke", "slicer_environment_button_smoke.py"),
                 ("slicer_run_plan_panel_smoke", "slicer_run_plan_panel_smoke.py"),
                 ("slicer_output_tree_button_smoke", "slicer_output_tree_button_smoke.py"),
@@ -394,6 +448,9 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
         else:
             for name in (
                 "slicer_extension_install_smoke",
+                "slicer_extension_manager_install_smoke",
+                "slicer_dependency_workflow_smoke",
+                "slicer_demo_workflow_smoke",
                 "slicer_environment_button_smoke",
                 "slicer_run_plan_panel_smoke",
                 "slicer_output_tree_button_smoke",
@@ -428,13 +485,12 @@ def _run_step(step: ValidationStep, report_dir: Path, *, timeout_seconds: int) -
         completed = subprocess.run(
             list(step.command),
             cwd=REPO_ROOT,
-            text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             timeout=timeout_seconds,
         )
-        stdout_path.write_text(completed.stdout, encoding="utf-8")
-        stderr_path.write_text(completed.stderr, encoding="utf-8")
+        stdout_path.write_text(_text_output(completed.stdout), encoding="utf-8")
+        stderr_path.write_text(_text_output(completed.stderr), encoding="utf-8")
         status = "passed" if completed.returncode == 0 else "failed"
         returncode = completed.returncode
         error = ""
@@ -527,7 +583,12 @@ def build_completion_audit(args: argparse.Namespace, results: list[dict[str, Any
             requirement="slicer_gui_smoke",
             step_names=[
                 "stage_slicer_extension",
+                "cmake_extension_config_contract",
+                "package_slicer_extension",
                 "slicer_extension_install_smoke",
+                "slicer_extension_manager_install_smoke",
+                "slicer_dependency_workflow_smoke",
+                "slicer_demo_workflow_smoke",
                 "slicer_environment_button_smoke",
                 "slicer_run_plan_panel_smoke",
                 "slicer_output_tree_button_smoke",
@@ -535,8 +596,10 @@ def build_completion_audit(args: argparse.Namespace, results: list[dict[str, Any
             ],
             results_by_name=results_by_name,
             notes=(
-                "Covers staged extension discovery, environment dependency dialog, run-plan panel, "
-                "output-tree button and background cancellation when Slicer and xvfb-run paths are provided."
+                "Covers staged discovery, rooted package creation, real local Extension Manager installation, "
+                "dependency setup persistence, the one-click demo, "
+                "environment dependency dialog, run-plan panel, output-tree button and background cancellation "
+                "when Slicer and xvfb-run paths are provided."
             ),
         ),
         _coverage_item(

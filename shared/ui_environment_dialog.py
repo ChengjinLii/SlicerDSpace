@@ -39,6 +39,7 @@ def build_environment_item_row(
     layout.addWidget(text, 1)
 
     button = qt.QPushButton(environment_item_button_text(item))
+    button.setObjectName("environmentItemActionButton")
     button.toolTip = environment_item_button_tooltip(item)
     button.connect("clicked()", lambda: on_install_item(item))
     layout.addWidget(button)
@@ -83,23 +84,27 @@ def show_environment_results_dialog(
 
     button_row = qt.QHBoxLayout()
     install_all_button = qt.QPushButton("Install/download auto items")
+    install_all_button.setObjectName("environmentInstallAllButton")
     install_all_button.toolTip = state.python_install_tooltip
     install_all_button.enabled = state.can_install_python
     install_all_button.connect("clicked()", on_install_all)
     button_row.addWidget(install_all_button)
 
     notes_button = qt.QPushButton("Manual setup notes")
+    notes_button.setObjectName("environmentManualNotesButton")
     notes_button.enabled = state.has_manual_setup_notes
     notes_button.connect("clicked()", on_show_notes)
     button_row.addWidget(notes_button)
 
     detail_button = qt.QPushButton("Show summary details")
+    detail_button.setObjectName("environmentSummaryDetailsButton")
     detail_button.checkable = True
     detail_button.checked = False
     button_row.addWidget(detail_button)
     button_row.addStretch(1)
 
     close_button = qt.QPushButton("Close")
+    close_button.setObjectName("environmentCloseButton")
     close_button.connect("clicked()", dialog.close)
     button_row.addWidget(close_button)
     layout.addLayout(button_row)

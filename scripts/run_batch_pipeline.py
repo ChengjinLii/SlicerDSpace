@@ -129,7 +129,7 @@ def discover_subjects(
                 {
                     "path": candidate.as_posix(),
                     "subject_id": subject_id,
-                    "reason": "missing required input/data.nii.gz, bvals, bvecs, nodif_brain_mask.nii.gz",
+                    "reason": "missing required input/data.nii.gz, bvals, or bvecs",
                 }
             )
             if include_missing:

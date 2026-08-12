@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 from time import monotonic
@@ -48,6 +49,16 @@ def _loaded_paths() -> list[str]:
     return paths
 
 
+def _tractogram_node_classes() -> list[str]:
+    classes: list[str] = []
+    for index in range(slicer.mrmlScene.GetNumberOfNodes()):
+        node = slicer.mrmlScene.GetNthNode(index)
+        source_path = node.GetAttribute("SlicerDDSurfer.SourcePath") if node else None
+        if source_path and Path(str(source_path)).suffix.lower() in {".trk", ".tck"}:
+            classes.append(str(node.GetClassName()))
+    return classes
+
+
 def _poll(widget, demo_root: Path) -> None:
     if monotonic() - state["started_at"] > TIMEOUT_SECONDS:
         _finish(2, "SLICERDDSURFER_DEMO_E2E_ERROR=timed out waiting for the background run")
@@ -63,8 +74,15 @@ def _poll(widget, demo_root: Path) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     statuses = {str(item.get("name")): str(item.get("status")) for item in manifest.get("tasks", [])}
     loaded_paths = _loaded_paths()
+    tractogram_node_classes = _tractogram_node_classes()
     fa_loaded = any(path.endswith("_dti_FA.nii.gz") for path in loaded_paths)
     tractogram_loaded = any(path.endswith(".trk") for path in loaded_paths)
+    expected_node_type = os.environ.get("SLICERDDSURFER_DEMO_EXPECT_NODE_TYPE", "any").strip().lower()
+    node_type_ready = (
+        expected_node_type == "any"
+        or (expected_node_type == "fiber" and "vtkMRMLFiberBundleNode" in tractogram_node_classes)
+        or (expected_node_type == "model" and "vtkMRMLModelNode" in tractogram_node_classes)
+    )
     task_status_ready = statuses == {
         "validation": "passed",
         "microstructure.dti": "completed",
@@ -74,10 +92,15 @@ def _poll(widget, demo_root: Path) -> None:
     print(f"SLICERDDSURFER_DEMO_E2E_TASK_STATUSES={statuses}", flush=True)
     print(f"SLICERDDSURFER_DEMO_E2E_FA_LOADED={fa_loaded}", flush=True)
     print(f"SLICERDDSURFER_DEMO_E2E_TRACTOGRAM_LOADED={tractogram_loaded}", flush=True)
+    print(f"SLICERDDSURFER_DEMO_E2E_TRACTOGRAM_NODE_CLASSES={tractogram_node_classes}", flush=True)
+    print(f"SLICERDDSURFER_DEMO_E2E_EXPECTED_NODE_TYPE={expected_node_type}", flush=True)
     print(f"SLICERDDSURFER_DEMO_E2E_SCENE_PATH_COUNT={len(loaded_paths)}", flush=True)
     if state["errors"]:
         print(f"SLICERDDSURFER_DEMO_E2E_UI_ERRORS={state['errors']}", flush=True)
-    _finish(0 if task_status_ready and fa_loaded and tractogram_loaded and not state["errors"] else 2, "SLICERDDSURFER_DEMO_E2E_DONE=1")
+    _finish(
+        0 if task_status_ready and fa_loaded and tractogram_loaded and node_type_ready and not state["errors"] else 2,
+        "SLICERDDSURFER_DEMO_E2E_DONE=1",
+    )
 
 
 def _start() -> None:

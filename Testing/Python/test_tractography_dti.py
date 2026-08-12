@@ -16,7 +16,7 @@ if str(REPO_ROOT) not in sys.path:
 
 
 from tractography import DTITrackingConfig, run_dti_tracking
-from tractography.dti import _eudx_length_limits
+from tractography.dti import _eudx_length_limits, _filter_streamlines_by_length
 
 
 SUBJECT_ID = "100307"
@@ -81,8 +81,40 @@ def _make_native_cache(subject_root: Path, fit_method: str = "wls") -> Path:
 
 class DTITractographyScaffoldTest(unittest.TestCase):
     def test_eudx_length_limits_cover_dipy_unit_change(self) -> None:
-        self.assertEqual(_eudx_length_limits("1.11.0", 0.5), (2, 500))
-        self.assertEqual(_eudx_length_limits("1.12.1", 0.5), (0, 250))
+        self.assertEqual(_eudx_length_limits("1.11.0", 0.5), (21, 501))
+        self.assertEqual(_eudx_length_limits("1.12.1", 0.5), (10, 250))
+
+    def test_explicit_length_filter_uses_world_millimetres(self) -> None:
+        import numpy as np
+
+        streamlines = [
+            np.asarray([[0.0, 0.0, 0.0], [5.0, 0.0, 0.0]]),
+            np.asarray([[0.0, 0.0, 0.0], [15.0, 0.0, 0.0]]),
+            np.asarray([[0.0, 0.0, 0.0], [300.0, 0.0, 0.0]]),
+        ]
+
+        kept, lengths, rejected_short, rejected_long = _filter_streamlines_by_length(
+            streamlines,
+            min_length_mm=10.0,
+            max_length_mm=250.0,
+        )
+
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(lengths, [15.0])
+        self.assertEqual(rejected_short, 1)
+        self.assertEqual(rejected_long, 1)
+
+    def test_probabilistic_label_is_rejected_until_implemented(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = _make_subject_root(Path(tmp))
+            with self.assertRaisesRegex(ValueError, "deterministic"):
+                run_dti_tracking(
+                    DTITrackingConfig(
+                        subject_id=SUBJECT_ID,
+                        input_root=subject_root,
+                        tracking_method="probabilistic",
+                    )
+                )
 
     def test_writes_manifest_and_qc_when_native_cache_exists(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -114,6 +146,8 @@ class DTITractographyScaffoldTest(unittest.TestCase):
             self.assertFalse(manifest["executed"])
             self.assertTrue(manifest["native_dti_cache"]["available"])
             self.assertEqual(manifest["parameters"]["fit_method"], "wls")
+            self.assertEqual(manifest["parameters"]["min_length_mm"], 10.0)
+            self.assertEqual(manifest["parameters"]["max_length_mm"], 250.0)
             self.assertEqual(manifest["outputs"]["streamlines"], result.streamlines_path.as_posix())
             self.assertEqual(qc["status"], "planned")
             self.assertIsNone(qc["streamline_count"])
@@ -150,6 +184,8 @@ class DTITractographyScaffoldTest(unittest.TestCase):
                     min_fa=0.05,
                     seed_density=1,
                     max_seed_voxels=4,
+                    min_length_mm=0.5,
+                    max_length_mm=10.0,
                     execute=True,
                 )
             )
@@ -161,6 +197,8 @@ class DTITractographyScaffoldTest(unittest.TestCase):
             self.assertGreaterEqual(qc["streamline_count"], 1)
             self.assertEqual(qc["seed_voxel_count"], 4)
             self.assertGreater(qc["tracking_mask_voxels"], qc["seed_voxel_count"])
+            self.assertGreaterEqual(qc["length_min_mm"], 0.5 - 1e-6)
+            self.assertIn("candidate_streamline_count", qc)
 
 
 if __name__ == "__main__":

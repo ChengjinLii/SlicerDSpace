@@ -1,9 +1,24 @@
+cmake_minimum_required(VERSION 3.20.6...3.22.6 FATAL_ERROR)
+
+project(SlicerDDSurfer)
+
+#-----------------------------------------------------------------------------
+# Extension meta-information
+set(EXTENSION_HOMEPAGE "https://github.com/ChengjinLii/SlicerDDSurfer")
+set(EXTENSION_CATEGORY "Diffusion")
+set(EXTENSION_CONTRIBUTORS "Chengjin Li")
+set(EXTENSION_DESCRIPTION "Integrated diffusion MRI workflows for anatomical reconstruction, tractography, bundle analysis, and structural connectivity.")
+set(EXTENSION_ICONURL "https://raw.githubusercontent.com/ChengjinLii/SlicerDDSurfer/main/Resources/Icons/SlicerDDSurfer.png")
+set(EXTENSION_SCREENSHOTURLS "")
+set(EXTENSION_DEPENDS SlicerDMRI PyTorch)
+
+#-----------------------------------------------------------------------------
+# Extension dependencies
+find_package(Slicer REQUIRED)
+include(${Slicer_USE_FILE})
+
 #-----------------------------------------------------------------------------
 set(MODULE_NAME SlicerDDSurfer)
-
-# Slicer extension-level dependencies. Runtime dependency doctor still checks
-# external non-Slicer tools such as MRtrix3/FSL/FreeSurfer separately.
-set(EXTENSION_DEPENDS SlicerDMRI PyTorch)
 
 #-----------------------------------------------------------------------------
 file(GLOB_RECURSE SHARED_PYTHON_SCRIPTS "shared/*.py")
@@ -68,3 +83,6 @@ if(BUILD_TESTING)
   # Additional build-time testing
   add_subdirectory(Testing)
 endif()
+
+#-----------------------------------------------------------------------------
+include(${Slicer_EXTENSION_CPACK})

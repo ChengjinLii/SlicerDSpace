@@ -45,7 +45,7 @@ python3 scripts/download_model_assets.py \
 ```
 
 The downloader reads `models/assets_manifest.json`, resolves the selected
-profile, downloads from Git LFS or configured URL mirrors, and verifies that the
+profile, downloads from the independent repository or configured URL mirrors, and verifies that the
 selected files are real materialized objects with the expected file size and
 SHA256 checksum. URL downloads write to `.part` files first, print file-size and
 progress updates, and resume partial downloads when the server supports HTTP

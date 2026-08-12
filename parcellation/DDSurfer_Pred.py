@@ -29,6 +29,7 @@ from .data_loader.load_neuroimaging_data import (
     map_prediction_sagittal2full,
 )
 from .models.networks import FastSurferCNN_Fuse_Unet_v3_extended
+from .device import logical_cuda_index
 
 HELPTEXT = """
 DDSurfer: deep learning anatomical brain parcellation from diffusion MRI. \n
@@ -159,7 +160,7 @@ def run_network(img_filename, orig_data, prediction_probability, plane, ckpts, p
             images_batch = Variable(sample_batch["image"])
 
             if params_model["use_cuda"]:
-                images_batch = images_batch.cuda()
+                images_batch = images_batch.to(params_model["device"])
 
             temp, temp_list = model(images_batch)
 
@@ -203,11 +204,17 @@ def fastsurfercnn(img_filename, save_as, logger, args):
                       'kernel_c': 1, 'kernel_d': 1}
 
     # Put it onto the GPU or CPU
-    if args.gpu != '-1':
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     print("On GPU!") if use_cuda else print("On CPU ...")
-    device = torch.device("cuda" if use_cuda else "cpu")
+    if use_cuda:
+        cuda_index = logical_cuda_index(args.gpu)
+        if cuda_index >= torch.cuda.device_count():
+            raise RuntimeError(
+                f"Requested CUDA device {args.gpu}, but only {torch.cuda.device_count()} logical device(s) are visible."
+            )
+        device = torch.device(f"cuda:{cuda_index}")
+    else:
+        device = torch.device("cpu")
 
     if use_cuda and torch.cuda.device_count() > 1:
         model_parallel = False # TODO: Issue with using parallel with new torch verion.

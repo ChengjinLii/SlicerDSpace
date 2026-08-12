@@ -59,6 +59,9 @@ class ReleaseValidationTest(unittest.TestCase):
             self.assertIn("asset_mirror_all_verify", names)
             self.assertIn("fresh_clone_smoke", names)
             self.assertIn("slicer_extension_install_smoke", names)
+            self.assertIn("slicer_extension_manager_install_smoke", names)
+            self.assertIn("slicer_dependency_workflow_smoke", names)
+            self.assertIn("slicer_demo_workflow_smoke", names)
             self.assertIn("slicer_environment_button_smoke", names)
             self.assertIn("slicer_run_plan_panel_smoke", names)
             self.assertIn("slicer_output_tree_button_smoke", names)
@@ -77,19 +80,25 @@ class ReleaseValidationTest(unittest.TestCase):
                 if step.name
                 in {
                     "slicer_extension_install_smoke",
+                    "slicer_extension_manager_install_smoke",
+                    "slicer_dependency_workflow_smoke",
+                    "slicer_demo_workflow_smoke",
                     "slicer_environment_button_smoke",
                     "slicer_run_plan_panel_smoke",
                     "slicer_output_tree_button_smoke",
                     "slicer_cancel_background_smoke",
                 }
             ]
-            self.assertEqual(len(slicer_smokes), 5)
+            self.assertEqual(len(slicer_smokes), 8)
             self.assertTrue(all(step.skipped for step in slicer_smokes))
             core_assets = next(step.command for step in steps if step.name == "model_assets_core_verify")
             self.assertIn("--profile", core_assets)
             self.assertIn("core", core_assets)
             core_mirror = next(step.command for step in steps if step.name == "asset_mirror_core_verify")
             self.assertIn("--repo-root", core_mirror)
+            self.assertIn("--asset-root", core_mirror)
+            self.assertEqual(core_mirror[core_mirror.index("--asset-root") + 1], (root / "core_mirror").as_posix())
+            self.assertIn("--manifest", core_mirror)
             fresh_clone = next(step.command for step in steps if step.name == "fresh_clone_smoke")
             self.assertEqual(fresh_clone[0], "env")
             self.assertIn("SMOKE_ASSET_PROFILE=core", fresh_clone)
@@ -134,6 +143,10 @@ class ReleaseValidationTest(unittest.TestCase):
             stage = next(step for step in steps if step.name == "stage_slicer_extension")
             self.assertIn("--link-mode", stage.command)
             self.assertIn("copy", stage.command)
+            self.assertIn("cmake_extension_config_contract", [step.name for step in steps])
+            package = next(step for step in steps if step.name == "package_slicer_extension")
+            self.assertIn("package_slicer_extension.py", " ".join(package.command))
+            self.assertIn("SlicerDDSurfer.tar.gz", " ".join(package.command))
             slicer_smoke = next(step for step in steps if step.name == "slicer_extension_install_smoke")
             self.assertFalse(slicer_smoke.skipped)
             self.assertEqual(slicer_smoke.command[0], "env")
@@ -144,10 +157,14 @@ class ReleaseValidationTest(unittest.TestCase):
             self.assertTrue(any(part.startswith("SLICERDDSURFER_SMOKE_SUBJECT_ID=sub-01") for part in slicer_smoke.command))
             self.assertIn("SLICERDDSURFER_SMOKE_MICROSTRUCTURE_STAGES=dti", slicer_smoke.command)
             self.assertIn("SLICERDDSURFER_SMOKE_PLAN_ONLY=1", slicer_smoke.command)
+            self.assertIn("SLICERDDSURFER_DEMO_EXPECT_NODE_TYPE=model", slicer_smoke.command)
             self.assertTrue(any(part.startswith("PATH=") for part in slicer_smoke.command))
             self.assertIn("--disable-cli-modules", slicer_smoke.command)
             planned_smoke_names = [step.name for step in steps if step.name.endswith("_smoke")]
             self.assertIn("slicer_environment_button_smoke", planned_smoke_names)
+            self.assertIn("slicer_extension_manager_install_smoke", planned_smoke_names)
+            self.assertIn("slicer_dependency_workflow_smoke", planned_smoke_names)
+            self.assertIn("slicer_demo_workflow_smoke", planned_smoke_names)
             self.assertIn("slicer_run_plan_panel_smoke", planned_smoke_names)
             self.assertIn("slicer_output_tree_button_smoke", planned_smoke_names)
             self.assertIn("slicer_cancel_background_smoke", planned_smoke_names)
@@ -163,7 +180,12 @@ class ReleaseValidationTest(unittest.TestCase):
             {"name": "asset_mirror_core_verify", "status": "passed", "required": False},
             {"name": "asset_mirror_all_verify", "status": "passed", "required": False},
             {"name": "stage_slicer_extension", "status": "passed", "required": False},
+            {"name": "cmake_extension_config_contract", "status": "passed", "required": False},
+            {"name": "package_slicer_extension", "status": "passed", "required": False},
             {"name": "slicer_extension_install_smoke", "status": "passed", "required": False},
+            {"name": "slicer_extension_manager_install_smoke", "status": "passed", "required": False},
+            {"name": "slicer_dependency_workflow_smoke", "status": "passed", "required": False},
+            {"name": "slicer_demo_workflow_smoke", "status": "passed", "required": False},
             {"name": "slicer_environment_button_smoke", "status": "passed", "required": False},
             {"name": "slicer_run_plan_panel_smoke", "status": "passed", "required": False},
             {"name": "slicer_output_tree_button_smoke", "status": "passed", "required": False},
@@ -198,7 +220,12 @@ class ReleaseValidationTest(unittest.TestCase):
             {"name": "asset_mirror_core_verify", "status": "skipped", "required": False, "reason": "not provided"},
             {"name": "asset_mirror_all_verify", "status": "skipped", "required": False, "reason": "not provided"},
             {"name": "stage_slicer_extension", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "cmake_extension_config_contract", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "package_slicer_extension", "status": "skipped", "required": False, "reason": "skipped"},
             {"name": "slicer_extension_install_smoke", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "slicer_extension_manager_install_smoke", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "slicer_dependency_workflow_smoke", "status": "skipped", "required": False, "reason": "skipped"},
+            {"name": "slicer_demo_workflow_smoke", "status": "skipped", "required": False, "reason": "skipped"},
             {"name": "slicer_environment_button_smoke", "status": "skipped", "required": False, "reason": "skipped"},
             {"name": "slicer_run_plan_panel_smoke", "status": "skipped", "required": False, "reason": "skipped"},
             {"name": "slicer_output_tree_button_smoke", "status": "skipped", "required": False, "reason": "skipped"},
@@ -270,6 +297,33 @@ class ReleaseValidationTest(unittest.TestCase):
             self.assertIn("timed out", result["error"])
             self.assertEqual((report_dir / "logs" / "slow_step.stdout.log").read_text(encoding="utf-8"), "partial out")
             self.assertEqual((report_dir / "logs" / "slow_step.stderr.log").read_text(encoding="utf-8"), "partial err")
+
+    def test_run_step_replaces_invalid_utf8_without_crashing(self) -> None:
+        import subprocess
+
+        from scripts import release_validation
+
+        completed = subprocess.CompletedProcess(
+            args=["mixed-output"],
+            returncode=0,
+            stdout=b"valid\ninvalid:\xe5\n",
+            stderr=b"warning:\xff\n",
+        )
+        with tempfile.TemporaryDirectory() as tmp, mock.patch(
+            "scripts.release_validation.subprocess.run", return_value=completed
+        ):
+            report_dir = Path(tmp)
+            result = release_validation._run_step(
+                release_validation.ValidationStep("mixed_output", ("mixed-output",), required=False),
+                report_dir,
+                timeout_seconds=1,
+            )
+
+            stdout = (report_dir / "logs" / "mixed_output.stdout.log").read_text(encoding="utf-8")
+            stderr = (report_dir / "logs" / "mixed_output.stderr.log").read_text(encoding="utf-8")
+            self.assertEqual(result["status"], "passed")
+            self.assertIn("invalid:\ufffd", stdout)
+            self.assertIn("warning:\ufffd", stderr)
 
 
 if __name__ == "__main__":

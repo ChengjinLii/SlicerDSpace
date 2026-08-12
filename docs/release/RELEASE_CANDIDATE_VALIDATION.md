@@ -2,6 +2,14 @@
 
 This document records the current release-candidate validation path: extension-like Slicer installation, one-command subject execution, resume, report/QC, and Slicer UI loading.
 
+The current release gate targets Linux x86-64. Windows and macOS scientific
+execution are outside this release scope.
+
+The latest release-focused audit is documented in
+[`VALIDATION_20260812.md`](VALIDATION_20260812.md). It supersedes older test
+counts and the earlier statement that no real Extension Manager installation
+had been performed.
+
 ## Verified Baseline
 
 - Repository: `/data/chengjin/SlicerDDSurfer`
@@ -105,7 +113,12 @@ python3 scripts/stage_slicer_extension.py \
   --link-mode copy
 ```
 
-The same Slicer smoke passed against the copy-mode tree. A true CMake/Extension Manager build was not possible on this host because `cmake` is not installed and the binary Slicer tree does not provide `SlicerConfig.cmake`.
+The same Slicer smoke passed against the copy-mode tree. On 2026-08-12, a clean
+rooted archive was also installed through Slicer's real Extension Manager model;
+the installed SlicerDDSurfer module was registered, loaded and available. The
+top-level CMake contract and packaging helper passed. The binary Slicer tree
+still does not provide `SlicerConfig.cmake`, so a full CMake/CPack build against
+a complete Slicer SDK remains unverified.
 
 ## Run a Clean Subject from One Command
 

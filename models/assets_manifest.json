@@ -13,8 +13,8 @@
   "asset_sources": {
     "github_lfs": {
       "kind": "git-lfs",
-      "status": "active",
-      "description": "Compatibility source: Git LFS objects tracked by this code repository."
+      "status": "legacy",
+      "description": "Legacy compatibility source for old checkouts and conversion-test fixtures; production model assets live in the independent model repository."
     },
     "slicerdsurfer_models_git": {
       "kind": "url-template",
@@ -309,7 +309,7 @@
       ]
     },
     "all": {
-      "description": "Every Git LFS object tracked by this repository.",
+      "description": "Every asset record declared by this manifest.",
       "all_lfs": true
     }
   }

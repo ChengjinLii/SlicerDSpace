@@ -206,7 +206,12 @@ def inspect_subject_directory(base_path: Path, subject_id: str) -> dict[str, Any
     }
 
 
-def find_subject_root(base_path: Path, subject_id: str) -> RawInputBundle:
+def find_subject_root(
+    base_path: Path,
+    subject_id: str,
+    *,
+    mrtrix_bin_dir: Optional[Path] = None,
+) -> RawInputBundle:
     inspected = inspect_subject_directory(base_path, subject_id)
     if inspected["mode"] != "subject_root":
         raise FileNotFoundError(
@@ -222,6 +227,7 @@ def find_subject_root(base_path: Path, subject_id: str) -> RawInputBundle:
             input_dir / RAW_INPUT_FILES["bval"],
             input_dir / RAW_INPUT_FILES["bvec"],
             mask_path,
+            mrtrix_bin_dir=mrtrix_bin_dir,
         )
     return RawInputBundle(
         subject_root=subject_root,

@@ -25,6 +25,7 @@ class DDParcelConfig:
     atlas_t2: Path
     weights_dir: Optional[Path] = None
     flip: int = 1
+    device: str = "auto"
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class DDParcelRegisteredConfig:
     native_mask: Path
     weights_dir: Optional[Path] = None
     flip: int = 1
+    device: str = "auto"
 
 
 def _log_message(message: str, log: Optional[Callable[[str], None]] = None) -> None:
@@ -82,7 +84,14 @@ def _run_normalize(input_path: Path, mask_path: Path, output_path: Path, flip: i
         sys.argv = argv_backup
 
 
-def _run_ddsurfer_pred(output_dir: Path, subject_id: str, weights_dir: Path, log: Optional[Callable[[str], None]]) -> None:
+def _run_ddsurfer_pred(
+    output_dir: Path,
+    subject_id: str,
+    weights_dir: Path,
+    log: Optional[Callable[[str], None]],
+    *,
+    device: str = "auto",
+) -> None:
     from . import DDSurfer_Pred as ddsurfer_pred
 
     argv_backup = sys.argv[:]
@@ -101,6 +110,19 @@ def _run_ddsurfer_pred(output_dir: Path, subject_id: str, weights_dir: Path, log
         options = ddsurfer_pred.options_parse()
     finally:
         sys.argv = argv_backup
+
+    normalized_device = (device or "auto").strip().lower() or "auto"
+    if normalized_device == "cpu":
+        options.no_cuda = True
+        options.gpu = "-1"
+    elif normalized_device in {"auto", "cuda"}:
+        options.no_cuda = False
+        options.gpu = "0"
+    elif normalized_device.startswith("cuda:"):
+        options.no_cuda = False
+        options.gpu = normalized_device.split(":", 1)[1]
+    else:
+        raise ValueError("DDParcel device must be one of: auto, cpu, cuda, or cuda:N.")
 
     logger = logging.getLogger("ddparcel.ddsurfer")
     logger.setLevel(logging.INFO)
@@ -173,7 +195,7 @@ def run_ddparcel_from_registered_bundle(
 
     if not mgz_wmparc_reg.exists():
         weights_dir = _default_weights_dir(config.weights_dir)
-        _run_ddsurfer_pred(output_dir, subject_id, weights_dir, log)
+        _run_ddsurfer_pred(output_dir, subject_id, weights_dir, log, device=config.device)
 
     if not nii_wmparc.exists():
         cli_exe = resolve_cli_executable("resamplescalarvectordwivolume")
@@ -361,7 +383,7 @@ def run_ddparcel(config: DDParcelConfig, log: Optional[Callable[[str], None]] = 
 
     if not mgz_wmparc_reg.exists():
         weights_dir = _default_weights_dir(config.weights_dir)
-        _run_ddsurfer_pred(output_dir, subject_id, weights_dir, log)
+        _run_ddsurfer_pred(output_dir, subject_id, weights_dir, log, device=config.device)
 
     if not nii_wmparc.exists():
         cli_exe = resolve_cli_executable("resamplescalarvectordwivolume")

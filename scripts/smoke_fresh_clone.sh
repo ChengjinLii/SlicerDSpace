@@ -3,7 +3,7 @@
 #
 # This intentionally clones into /tmp by default and downloads only the selected
 # model-asset profile, so it can be used as a manual release gate without making
-# normal pull-request CI download large Git LFS payloads.
+# normal pull-request CI download large external model payloads.
 
 set -u
 
