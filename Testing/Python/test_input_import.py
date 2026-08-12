@@ -7,6 +7,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from shared.input_import import InputImportConfig, detect_import_source_kind, prepare_inputs
 
@@ -72,7 +73,33 @@ class InputImportTest(unittest.TestCase):
             self.assertIn("-f", plan["command"])
             self.assertIn("data", plan["command"])
 
-    def test_nrrd_import_uses_mrconvert_by_default(self) -> None:
+    def test_dicom_import_falls_back_to_slicer_dwiconvert(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dicom_dir = root / "dicom"
+            dicom_dir.mkdir()
+            (dicom_dir / "IM0001.dcm").write_text("dicom\n", encoding="utf-8")
+
+            def which(name: str) -> str | None:
+                return "/slicer/DWIConvert" if name == "DWIConvert" else None
+
+            with patch("shared.input_import.shutil.which", side_effect=which):
+                manifest = prepare_inputs(
+                    InputImportConfig(
+                        source=dicom_dir,
+                        subject_root=root / "sub-01",
+                        subject_id="sub-01",
+                        source_kind="dicom",
+                        dry_run=True,
+                    )
+                )
+
+            plan = manifest["plan"]
+            self.assertEqual(plan["backend"], "dwiconvert")
+            self.assertIn("DicomToFSL", plan["command"])
+            self.assertIn("--outputNiftiFile", plan["command"])
+
+    def test_nrrd_import_uses_dwiconvert_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             nrrd = root / "data.nhdr"
@@ -89,9 +116,31 @@ class InputImportTest(unittest.TestCase):
             )
 
             plan = manifest["plan"]
+            self.assertEqual(plan["backend"], "dwiconvert")
+            self.assertIn("NrrdToFSL", plan["command"])
+            self.assertIn("--outputNiftiFile", plan["command"])
+            self.assertTrue(plan["canonical_layout"]["dwi"].endswith("input/data.nii.gz"))
+
+    def test_nrrd_import_can_force_mrconvert(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            nrrd = root / "data.nhdr"
+            nrrd.write_text("NRRD0005\n", encoding="utf-8")
+
+            manifest = prepare_inputs(
+                InputImportConfig(
+                    source=nrrd,
+                    subject_root=root / "sub-01",
+                    subject_id="sub-01",
+                    source_kind="nrrd",
+                    backend="mrconvert",
+                    dry_run=True,
+                )
+            )
+
+            plan = manifest["plan"]
             self.assertEqual(plan["backend"], "mrconvert")
             self.assertIn("-export_grad_fsl", plan["command"])
-            self.assertTrue(plan["canonical_layout"]["dwi"].endswith("input/data.nii.gz"))
 
     def test_dicom_to_compat_nrrd_uses_dwiconvert(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

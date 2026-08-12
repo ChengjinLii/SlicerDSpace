@@ -101,14 +101,20 @@ def _copy_file(source: Path, target: Path, *, force: bool) -> None:
 def _run(command: list[str], *, dry_run: bool, cwd: Path | None = None) -> dict[str, Any]:
     if dry_run:
         return {"command": command, "returncode": None, "stdout": "", "stderr": "", "dry_run": True}
-    completed = subprocess.run(
-        command,
-        cwd=cwd,
-        check=False,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=cwd,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            f"Input import backend executable was not found: {command[0]}. "
+            "Run the command with Slicer Python or select an explicit converter path."
+        ) from exc
     result = {
         "command": command,
         "returncode": completed.returncode,
@@ -117,7 +123,11 @@ def _run(command: list[str], *, dry_run: bool, cwd: Path | None = None) -> dict[
         "dry_run": False,
     }
     if completed.returncode != 0:
-        raise RuntimeError(f"Input import command failed with exit code {completed.returncode}: {' '.join(command)}")
+        details = (completed.stderr or completed.stdout).strip()
+        detail_suffix = f"\n{details[-4000:]}" if details else ""
+        raise RuntimeError(
+            f"Input import command failed with exit code {completed.returncode}: {' '.join(command)}{detail_suffix}"
+        )
     return result
 
 
@@ -161,7 +171,13 @@ def build_import_plan(config: InputImportConfig) -> dict[str, Any]:
     source = config.source.expanduser().resolve()
     subject_root = config.subject_root.expanduser().resolve()
     source_kind = config.source_kind if config.source_kind != "canonical" else detect_import_source_kind(source)
-    backend = _select_backend(source_kind, config.backend, config.output_kind)
+    backend = _select_backend(
+        source_kind,
+        config.backend,
+        config.output_kind,
+        dcm2niix_executable=config.dcm2niix_executable,
+        dwiconvert_executable=config.dwiconvert_executable,
+    )
     targets = _canonical_targets(subject_root)
     command: list[str] | None = None
 
@@ -197,7 +213,7 @@ def build_import_plan(config: InputImportConfig) -> dict[str, Any]:
             source.as_posix(),
             "--conversionMode",
             "NrrdToFSL",
-            "--outputVolume",
+            "--outputNiftiFile",
             targets["dwi"].as_posix(),
             "--outputBValues",
             targets["bvals"].as_posix(),
@@ -205,15 +221,30 @@ def build_import_plan(config: InputImportConfig) -> dict[str, Any]:
             targets["bvecs"].as_posix(),
         ]
     elif backend == "dwiconvert" and source_kind == "dicom":
-        command = [
-            _resolve_executable(config.dwiconvert_executable, "DWIConvert"),
-            "--inputDicomDirectory",
-            source.as_posix(),
-            "--conversionMode",
-            "DicomToNrrd",
-            "--outputVolume",
-            targets["compat_nrrd"].as_posix(),
-        ]
+        if config.output_kind == "canonical-nifti":
+            command = [
+                _resolve_executable(config.dwiconvert_executable, "DWIConvert"),
+                "--inputDicomDirectory",
+                source.as_posix(),
+                "--conversionMode",
+                "DicomToFSL",
+                "--outputNiftiFile",
+                targets["dwi"].as_posix(),
+                "--outputBValues",
+                targets["bvals"].as_posix(),
+                "--outputBVectors",
+                targets["bvecs"].as_posix(),
+            ]
+        else:
+            command = [
+                _resolve_executable(config.dwiconvert_executable, "DWIConvert"),
+                "--inputDicomDirectory",
+                source.as_posix(),
+                "--conversionMode",
+                "DicomToNrrd",
+                "--outputVolume",
+                targets["compat_nrrd"].as_posix(),
+            ]
 
     return {
         "kind": "slicerdsurfer_input_import_plan",
@@ -244,7 +275,14 @@ def build_import_plan(config: InputImportConfig) -> dict[str, Any]:
     }
 
 
-def _select_backend(source_kind: ImportSourceKind, backend: ImportBackend, output_kind: ImportOutputKind) -> ImportBackend:
+def _select_backend(
+    source_kind: ImportSourceKind,
+    backend: ImportBackend,
+    output_kind: ImportOutputKind,
+    *,
+    dcm2niix_executable: Path | None = None,
+    dwiconvert_executable: Path | None = None,
+) -> ImportBackend:
     if backend != "auto":
         return backend
     if source_kind == "canonical":
@@ -252,9 +290,15 @@ def _select_backend(source_kind: ImportSourceKind, backend: ImportBackend, outpu
     if source_kind == "nifti":
         return "copy"
     if source_kind == "dicom":
-        return "dwiconvert" if output_kind == "compat-nrrd" else "dcm2niix"
+        if output_kind == "compat-nrrd":
+            return "dwiconvert"
+        if dcm2niix_executable is not None or shutil.which("dcm2niix"):
+            return "dcm2niix"
+        if dwiconvert_executable is not None or shutil.which("DWIConvert"):
+            return "dwiconvert"
+        return "dcm2niix"
     if source_kind == "nrrd":
-        return "mrconvert"
+        return "dwiconvert"
     raise ValueError(f"Unsupported source kind: {source_kind}")
 
 

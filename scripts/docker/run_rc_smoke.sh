@@ -344,7 +344,7 @@ case "$SMOKE_STAGE" in
       PYTHONUNBUFFERED=1 \
       PATH=/usr/bin:/bin \
       stdbuf -oL -eL xvfb-run -a -s "-screen 0 1280x1024x24" \
-      "$HOST_SLICER_LAUNCHER" --no-splash \
+      "$HOST_SLICER_LAUNCHER" --no-splash --no-main-window \
       --additional-module-paths "$MODULE_DIR" \
       --python-script /work/src/SlicerDDSurfer/Testing/Python/slicer_extension_install_smoke.py \
       2>&1 | tee /work/logs/slicer_extension_install_smoke.log

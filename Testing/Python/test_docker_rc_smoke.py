@@ -28,6 +28,11 @@ class DockerRCSmokeContractTest(unittest.TestCase):
         self.assertIn('DOCKER_BUILD_NO_CACHE="${DOCKER_BUILD_NO_CACHE:-0}"', script)
         self.assertIn('DOCKER_BUILD_ARGS+=(--no-cache)', script)
 
+    def test_install_smoke_cannot_block_on_first_run_dialogs(self) -> None:
+        script = RUNNER.read_text(encoding="utf-8")
+
+        self.assertIn('"$HOST_SLICER_LAUNCHER" --no-splash --no-main-window', script)
+
     @unittest.skipUnless(shutil.which("bash"), "bash is required")
     def test_runner_has_valid_bash_syntax(self) -> None:
         completed = subprocess.run(
