@@ -2,7 +2,7 @@
 
 This report records the Linux release-focused validation performed on a Linux
 x86-64 workstation using 3D Slicer 5.10.0. The tested release changes were
-developed on top of commit `8cddb96` and are included with this report.
+developed on top of commit `8cddb96` and published in commit `f0f5e3c`.
 
 The release scope documented here is Linux x86-64. Windows and macOS retain
 portable discovery/install-plan code, but their complete scientific workflows
@@ -48,6 +48,12 @@ OK
 The local regression used CMake 3.31 and also exercised the existing portable
 dependency-plan unit tests. GitHub Actions remains an Ubuntu release gate for
 the supported Linux x86-64 scope.
+
+After publication, a clean clone of commit `f0f5e3c` was tested in a new
+Python 3.11 virtual environment using the commands from both Ubuntu CI jobs.
+All 376 tests passed without skips; the extension metadata audit and release
+audit reported zero errors and zero blockers; manifest planning, the public
+sentinel download and the fresh-clone smoke also passed.
 
 The final unified release report is:
 
@@ -141,17 +147,13 @@ by `RELEASE_CANDIDATE_VALIDATION.md`.
 
 The independent local model mirror passed SHA256 and size verification for all
 34 manifest files. The public sentinel download and checksum test also passed.
-A public Git fresh-clone smoke passed separately against the then-current
-remote `main`. An exact temporary Git snapshot of this working tree also passed
-clone, checkout, sentinel download, checksum verification and all 376 fast
-tests; its report is:
+A clean clone of the published `f0f5e3c` revision passed checkout, sentinel
+download, checksum verification and all 376 fast tests. Its fresh-clone report
+is:
 
 ```text
-/tmp/sdd-final-snapshot-VFcoP7/fresh/fresh_clone_smoke_report.json
+/tmp/sdd-remote-ci-tvIfqn/fresh-clone-smoke/fresh_clone_smoke_report.json
 ```
-
-The temporary snapshot is not a published revision, so hosted CI must still
-rerun after the real commit is pushed.
 
 Four optional conversion-test NIfTI files were published to the independent
 `SlicerDDSurfer-models` repository in commit `ffc0ff4`. A clean URL download of
@@ -167,7 +169,6 @@ Remaining release evidence is:
 
 - run GitHub Actions on the committed revision and confirm the Ubuntu checks
   are green;
-- rerun fresh-clone smoke on that same revision;
 - build with a complete Slicer SDK/CMake environment if CPack-generated
   Extension Index packaging is required;
 - perform broader multi-centre, multi-scanner and population-level manual QC
