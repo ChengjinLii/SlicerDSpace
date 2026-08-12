@@ -10,6 +10,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNNER = REPO_ROOT / "scripts" / "docker" / "run_rc_smoke.sh"
+SLICER_INSTALL_SMOKE = REPO_ROOT / "Testing" / "Python" / "slicer_extension_install_smoke.py"
 
 
 class DockerRCSmokeContractTest(unittest.TestCase):
@@ -29,9 +30,9 @@ class DockerRCSmokeContractTest(unittest.TestCase):
         self.assertIn('DOCKER_BUILD_ARGS+=(--no-cache)', script)
 
     def test_install_smoke_cannot_block_on_first_run_dialogs(self) -> None:
-        script = RUNNER.read_text(encoding="utf-8")
+        script = SLICER_INSTALL_SMOKE.read_text(encoding="utf-8")
 
-        self.assertIn('"$HOST_SLICER_LAUNCHER" --no-splash --no-main-window', script)
+        self.assertIn('update_user_config({"ui": {"first_run_wizard_shown": True}})', script)
 
     @unittest.skipUnless(shutil.which("bash"), "bash is required")
     def test_runner_has_valid_bash_syntax(self) -> None:

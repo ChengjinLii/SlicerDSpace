@@ -41,11 +41,12 @@ def _run() -> None:
     try:
         top_level_py = sorted(path.name for path in MODULE_DIR.glob("*.py")) if MODULE_DIR.is_dir() else []
         forbidden_registered = [name for name in FORBIDDEN_MODULES if _module_registered(name)]
-        # Headless release validation intentionally runs with
-        # ``--no-main-window``.  Selecting a module is a main-window action,
-        # while constructing its widget representation is sufficient to test
-        # registration, setup, language switching, and persistent JSON state.
+        # Prevent the automatic first-run dialog from blocking headless UI
+        # automation. The wizard is opened and inspected explicitly below.
         if slicer.util.mainWindow() is not None:
+            from shared.user_config import update_user_config
+
+            update_user_config({"ui": {"first_run_wizard_shown": True}})
             slicer.util.selectModule("SlicerDDSurfer")
         module = slicer.util.getModule("SlicerDDSurfer")
         target_registered = _module_registered("SlicerDDSurfer") or module is not None
