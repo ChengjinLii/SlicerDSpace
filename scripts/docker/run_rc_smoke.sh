@@ -13,12 +13,14 @@ HOST_SLICER_LAUNCHER="${HOST_SLICER_LAUNCHER:-$HOST_SOFTWARE_ROOT/run-slicer.sh}
 HOST_MRTRIX_BIN="${HOST_MRTRIX_BIN:-$HOST_SOFTWARE_ROOT/mrtrix3_env/bin}"
 HOST_WORK_ROOT="${HOST_WORK_ROOT:-/tmp/slicerddsurfer-rc-smoke}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-bridge}"
+DOCKER_BUILD_NO_CACHE="${DOCKER_BUILD_NO_CACHE:-0}"
 KEEP_WORK="${KEEP_WORK:-0}"
 HOST_SSH_DIR="${HOST_SSH_DIR:-$HOME/.ssh}"
 MOUNT_SSH="${MOUNT_SSH:-auto}"
 HOST_SSH_IDENTITY_FILE="${HOST_SSH_IDENTITY_FILE:-}"
 HOST_ASSET_SEED_REPO="${HOST_ASSET_SEED_REPO:-$REPO_ROOT}"
 SMOKE_SEED_ASSETS_FROM_HOST="${SMOKE_SEED_ASSETS_FROM_HOST:-auto}"
+SMOKE_MODEL_ASSET_ROOT="${SMOKE_MODEL_ASSET_ROOT:-/work/model-assets}"
 SMOKE_STAGE="${SMOKE_STAGE:-install}"
 if [[ -z "${SMOKE_LFS_MODE:-}" ]]; then
   if [[ "$SMOKE_STAGE" == "quick-gate" ]]; then
@@ -93,6 +95,18 @@ if [[ "$SMOKE_SEED_ASSETS_FROM_HOST" != "0" && "$SMOKE_SEED_ASSETS_FROM_HOST" !=
   echo "SMOKE_SEED_ASSETS_FROM_HOST must be 0, 1, or auto, got: $SMOKE_SEED_ASSETS_FROM_HOST" >&2
   exit 2
 fi
+if [[ "$DOCKER_BUILD_NO_CACHE" != "0" && "$DOCKER_BUILD_NO_CACHE" != "1" ]]; then
+  echo "DOCKER_BUILD_NO_CACHE must be 0 or 1, got: $DOCKER_BUILD_NO_CACHE" >&2
+  exit 2
+fi
+case "$SMOKE_MODEL_ASSET_ROOT" in
+  /*)
+    ;;
+  *)
+    echo "SMOKE_MODEL_ASSET_ROOT must be an absolute container path: $SMOKE_MODEL_ASSET_ROOT" >&2
+    exit 2
+    ;;
+esac
 if [[ "$SMOKE_SEED_ASSETS_FROM_HOST" == "1" && ! -d "$HOST_ASSET_SEED_REPO" ]]; then
   echo "HOST_ASSET_SEED_REPO is not a directory: $HOST_ASSET_SEED_REPO" >&2
   exit 2
@@ -120,10 +134,14 @@ fi
 mkdir -p "$HOST_WORK_ROOT"
 
 echo "[rc-smoke] Building $IMAGE_NAME"
-docker build \
-  -f "$SCRIPT_DIR/rc-smoke.Dockerfile" \
-  -t "$IMAGE_NAME" \
-  "$SCRIPT_DIR"
+DOCKER_BUILD_ARGS=(
+  -f "$SCRIPT_DIR/rc-smoke.Dockerfile"
+  -t "$IMAGE_NAME"
+)
+if [[ "$DOCKER_BUILD_NO_CACHE" == "1" ]]; then
+  DOCKER_BUILD_ARGS+=(--no-cache)
+fi
+docker build "${DOCKER_BUILD_ARGS[@]}" "$SCRIPT_DIR"
 
 echo "[rc-smoke] Running fresh-clone install smoke"
 DOCKER_RUN_ARGS=(
@@ -136,6 +154,7 @@ DOCKER_RUN_ARGS=(
   -e HOST_MRTRIX_BIN="$HOST_MRTRIX_BIN" \
   -e SMOKE_LFS_MODE="$SMOKE_LFS_MODE" \
   -e SMOKE_ASSET_PROFILE="$SMOKE_ASSET_PROFILE" \
+  -e SMOKE_MODEL_ASSET_ROOT="$SMOKE_MODEL_ASSET_ROOT" \
   -e SMOKE_SUBJECT_ID="$SMOKE_SUBJECT_ID" \
   -e SMOKE_RUN_NAME="$SMOKE_RUN_NAME" \
   -e SMOKE_TARGETS="$SMOKE_TARGETS" \
@@ -198,13 +217,14 @@ docker run "${DOCKER_RUN_ARGS[@]}" \
   "$IMAGE_NAME" \
   bash -lc '
 set -euo pipefail
-mkdir -p /work/home /work/src /work/install /work/logs
+mkdir -p /work/home /work/src /work/install /work/logs "$SMOKE_MODEL_ASSET_ROOT"
 echo "[container] repo=$REPO_URL ref=$REPO_REF"
 echo "[container] stage=$SMOKE_STAGE"
 echo "[container] slicer=$HOST_SLICER_LAUNCHER"
 echo "[container] mrtrix=$HOST_MRTRIX_BIN"
 echo "[container] lfs_mode=$SMOKE_LFS_MODE"
 echo "[container] asset_profile=$SMOKE_ASSET_PROFILE"
+echo "[container] model_asset_root=$SMOKE_MODEL_ASSET_ROOT"
 test -x "$HOST_SLICER_LAUNCHER"
 test -x "$HOST_MRTRIX_BIN/mrconvert"
 if [[ -d /work/src/SlicerDDSurfer/.git ]]; then
@@ -238,19 +258,21 @@ case "$SMOKE_LFS_MODE" in
     ;;
   profile)
     echo "[container] Profile asset mode: downloading only assets required by profile=$SMOKE_ASSET_PROFILE"
-    python3 -u scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" --print-plan \
+    python3 -u scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" \
+      --asset-root "$SMOKE_MODEL_ASSET_ROOT" --print-plan \
       2>&1 | tee /work/logs/model_assets_plan.json
     {
       if [[ -n "${CONTAINER_ASSET_SEED_REPO:-}" && -d "${CONTAINER_ASSET_SEED_REPO}" ]]; then
-        python3 - "$SMOKE_ASSET_PROFILE" "$CONTAINER_ASSET_SEED_REPO" "/work/src/SlicerDDSurfer" <<'PY'
+        python3 - "$SMOKE_ASSET_PROFILE" "$CONTAINER_ASSET_SEED_REPO" "$SMOKE_MODEL_ASSET_ROOT" "/work/src/SlicerDDSurfer" <<'PY'
 import json
 import shutil
 import sys
 from pathlib import Path
 
-profile, seed_root_arg, repo_root_arg = sys.argv[1:4]
+profile, seed_root_arg, asset_root_arg, repo_root_arg = sys.argv[1:5]
 repo_root = Path(repo_root_arg)
 seed_root = Path(seed_root_arg)
+asset_root = Path(asset_root_arg)
 manifest = json.loads((repo_root / "models" / "assets_manifest.json").read_text(encoding="utf-8"))
 profiles = manifest["profiles"]
 seen = set()
@@ -283,7 +305,7 @@ for relative in required_paths:
         if stream.read(256).startswith(pointer_header):
             skipped += 1
             continue
-    target = repo_root / relative
+    target = asset_root / relative
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, target)
     seeded += 1
@@ -292,18 +314,21 @@ print(f"[model-assets] Seeded {seeded} required file(s) from {seed_root}")
 print(f"[model-assets] Seed skipped {skipped} required file(s)")
 PY
       fi
-      if python3 scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" --verify-only; then
+      if python3 scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" \
+        --asset-root "$SMOKE_MODEL_ASSET_ROOT" --verify-only; then
         echo "[model-assets] Seeded assets already satisfied profile=$SMOKE_ASSET_PROFILE."
       else
         GIT_LFS_PROGRESS=/work/logs/git-lfs-progress.log \
-          python3 -u scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE"
+          python3 -u scripts/download_model_assets.py --profile "$SMOKE_ASSET_PROFILE" \
+            --asset-root "$SMOKE_MODEL_ASSET_ROOT"
       fi
     } 2>&1 | tee /work/logs/model_assets_download.log
     ;;
   full)
-    echo "[container] Full LFS mode: downloading all LFS objects; this can be slow on constrained networks"
-    GIT_LFS_PROGRESS=/work/logs/git-lfs-progress.log git lfs pull
-    git lfs fsck
+    echo "[container] Full asset mode: downloading all manifest assets outside the code checkout"
+    python3 -u scripts/download_model_assets.py --profile all \
+      --asset-root "$SMOKE_MODEL_ASSET_ROOT" \
+      2>&1 | tee /work/logs/model_assets_download.log
     ;;
 esac
 case "$SMOKE_STAGE" in
@@ -367,6 +392,7 @@ PY
       --bundle-backend "$SMOKE_BUNDLE_BACKEND"
       --microstructure-stages dti
       --run-name "$SMOKE_RUN_NAME"
+      --model-assets-dir "$SMOKE_MODEL_ASSET_ROOT"
       --mrtrix-bin-dir "$HOST_MRTRIX_BIN"
       --select-streamlines "$SMOKE_SELECT_STREAMLINES"
       --preprocessing-dipy-denoise-method none
