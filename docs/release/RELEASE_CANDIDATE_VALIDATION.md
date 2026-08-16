@@ -5,10 +5,12 @@ This document records the current release-candidate validation path: extension-l
 The current release gate targets Linux x86-64. Windows and macOS scientific
 execution are outside this release scope.
 
-The latest release-focused audit is documented in
-[`VALIDATION_20260812.md`](VALIDATION_20260812.md). It supersedes older test
-counts and the earlier statement that no real Extension Manager installation
-had been performed.
+The latest Linux full-route audit is documented in
+[`VALIDATION_20260816.md`](VALIDATION_20260816.md). It supersedes older test
+counts and records the current DICOM/NRRD import, model download, DDSeg
+probability-QC, full scientific-route and staged-Slicer evidence. The preceding
+release-focused audit remains available in
+[`VALIDATION_20260812.md`](VALIDATION_20260812.md).
 
 ## Verified Baseline
 
