@@ -41,6 +41,24 @@ def _run() -> None:
     try:
         top_level_py = sorted(path.name for path in MODULE_DIR.glob("*.py")) if MODULE_DIR.is_dir() else []
         forbidden_registered = [name for name in FORBIDDEN_MODULES if _module_registered(name)]
+        ddseg_runtime_import_ready = False
+        ddseg_runtime_paths = []
+        try:
+            import segmentation.pipeline as ddseg_pipeline
+            import segmentation.qc as ddseg_qc
+
+            ddseg_runtime_paths = [
+                Path(ddseg_pipeline.__file__).resolve(),
+                Path(ddseg_qc.__file__).resolve(),
+            ]
+            staged_root = MODULE_DIR.resolve()
+            ddseg_runtime_import_ready = bool(
+                callable(ddseg_pipeline.run_ddseg)
+                and ddseg_qc.DDSEG_PROBABILITY_SEMANTICS == "four_class_softmax_tissue_channels_v1"
+                and all(staged_root == path or staged_root in path.parents for path in ddseg_runtime_paths)
+            )
+        except Exception as exc:
+            print(f"SLICERDDSURFER_EXTENSION_DDSEG_IMPORT_ERROR={exc}", flush=True)
         # Prevent the automatic first-run dialog from blocking headless UI
         # automation. The wizard is opened and inspected explicitly below.
         if slicer.util.mainWindow() is not None:
@@ -201,6 +219,8 @@ def _run() -> None:
         print(f"SLICERDDSURFER_EXTENSION_TOP_LEVEL_PY={top_level_py}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_TARGET_REGISTERED={target_registered}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_FORBIDDEN_REGISTERED={forbidden_registered}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_DDSEG_RUNTIME_PATHS={ddseg_runtime_paths}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_DDSEG_RUNTIME_IMPORT_READY={ddseg_runtime_import_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_MODULE_FILE_SYMLINK={module_file_is_symlink}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_LOGIC_READY={logic_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_PARAMETER_NODE_READY={parameter_node_ready}", flush=True)
@@ -225,6 +245,7 @@ def _run() -> None:
             top_level_py != ["SlicerDDSurfer.py"]
             or not target_registered
             or forbidden_registered
+            or not ddseg_runtime_import_ready
             or module_file_is_symlink
             or not logic_ready
             or not parameter_node_ready

@@ -9,12 +9,14 @@ from .config import DDSegConfig
 from .preprocess import masking_and_normalizing, stack_features, split_views
 from .model_loader import load_models
 from .inference import combine_views, normalize_class_scores, predict_view
+from .qc import write_ddseg_qc_record
 from .utils import padding_unpadding, load_nii_matlab_like
 from .dti_slicer import run_dti_feature_extraction
 
 
 def run_ddseg(cfg: DDSegConfig) -> None:
     cfg.output_folder.mkdir(parents=True, exist_ok=True)
+    (cfg.output_folder / "ddseg_qc.json").unlink(missing_ok=True)
     if cfg.dti_feature_dir is not None:
         feature_folder = cfg.dti_feature_dir
     else:
@@ -79,3 +81,14 @@ def run_ddseg(cfg: DDSegConfig) -> None:
     nib.save(gm, out_gm.as_posix())
     nib.save(wm, out_wm.as_posix())
     nib.save(csf, out_csf.as_posix())
+    write_ddseg_qc_record(
+        cfg,
+        labels=labels,
+        probability_maps=prob_maps,
+        outputs={
+            "segmentation": out_seg,
+            "gm_probability": out_gm,
+            "wm_probability": out_wm,
+            "csf_probability": out_csf,
+        },
+    )

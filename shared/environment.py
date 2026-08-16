@@ -297,6 +297,9 @@ def _env(
     group: str,
     required: bool = True,
     notes: str = "",
+    resolved_path: Optional[Path] = None,
+    path_kind: str = "dir",
+    discovery_source: str = "",
 ) -> None:
     _put(
         specs,
@@ -307,7 +310,9 @@ def _env(
             required=required,
             targets=(target,),
             env_vars=env_vars,
-            discovery_source="environment",
+            path=resolved_path,
+            path_kind=path_kind,
+            discovery_source=discovery_source or "environment",
             install_group=group,
             notes=notes,
         ),
@@ -1114,6 +1119,8 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 group="freesurfer",
                 required=config.postprocess_freesurfer_home is None,
                 notes="Can also be supplied with --postprocess-freesurfer-home.",
+                resolved_path=freesurfer_home,
+                discovery_source="user setting" if freesurfer_home is not None else "",
             )
             for command in (
                 "recon-all",
@@ -1220,16 +1227,6 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 required=False,
                 notes="Required only when the WMA input tractogram is a TCK file.",
             )
-            _env(
-                specs,
-                target=target,
-                key="wma_root",
-                label="WhiteMatterAnalysis checkout",
-                env_vars=("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT"),
-                group="wma",
-                required=False,
-                notes="Can also be supplied with --wma-root or by putting wm_apply_ORG_atlas_to_subject.sh on PATH.",
-            )
             wma_root_source = "user setting"
             wma_root = _resolve_path(config.wma_root)
             if wma_root is None:
@@ -1241,6 +1238,18 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 )
                 if wma_root is not None:
                     wma_root_source = "common path"
+            _env(
+                specs,
+                target=target,
+                key="wma_root",
+                label="WhiteMatterAnalysis checkout",
+                env_vars=("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT"),
+                group="wma",
+                required=False,
+                notes="Can also be supplied with --wma-root or by putting wm_apply_ORG_atlas_to_subject.sh on PATH.",
+                resolved_path=wma_root,
+                discovery_source=wma_root_source if wma_root is not None else "",
+            )
             if wma_root is not None:
                 _path(
                     specs,
@@ -1301,16 +1310,6 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     group="wma",
                     notes="Pass --wma-atlas-dir. The directory must contain ORG-RegAtlas-100HCP and ORG-800FC-100HCP.",
                 )
-            _env(
-                specs,
-                target=target,
-                key="slicer_executable",
-                label="Slicer executable for WMA",
-                env_vars=("SLICERDDSURFER_SLICER_EXECUTABLE",),
-                group="slicer",
-                required=config.slicer_executable is None,
-                notes="Can also be supplied with --slicer-executable.",
-            )
             slicer_executable_source = "user setting"
             slicer_executable = _resolve_path(config.slicer_executable)
             if slicer_executable is None:
@@ -1321,6 +1320,19 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 slicer_executable, _ = _first_existing_path(_common_slicer_executables(platform_name), kind="file")
                 if slicer_executable is not None:
                     slicer_executable_source = "common path"
+            _env(
+                specs,
+                target=target,
+                key="slicer_executable",
+                label="Slicer executable for WMA",
+                env_vars=("SLICERDDSURFER_SLICER_EXECUTABLE",),
+                group="slicer",
+                required=config.slicer_executable is None,
+                notes="Can also be supplied with --slicer-executable.",
+                resolved_path=slicer_executable,
+                path_kind="file",
+                discovery_source=slicer_executable_source if slicer_executable is not None else "",
+            )
             if slicer_executable is not None:
                 _path(
                     specs,
@@ -1394,6 +1406,8 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 group="tractcloud",
                 required=False,
                 notes="Can also be supplied with --tractcloud-root.",
+                resolved_path=tractcloud_root,
+                discovery_source=tractcloud_root_source if tractcloud_root is not None else "",
             )
             if tractcloud_root is not None:
                 _path(
@@ -1724,7 +1738,21 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
         }
     elif spec.kind == "env":
         values = {name: os.environ.get(name) for name in spec.env_vars}
-        if spec.key == "env:freesurfer_home":
+        if spec.path is not None:
+            if spec.path_kind == "file":
+                available = spec.path.is_file()
+            elif spec.path_kind == "nonempty_dir":
+                available = spec.path.is_dir() and any(spec.path.iterdir())
+            else:
+                available = spec.path.is_dir()
+            details = {
+                "env": values,
+                "resolved": spec.path.as_posix(),
+                "notes": spec.notes,
+                "detected_source": spec.discovery_source if available else "not found",
+                "checked_locations": [spec.path.as_posix()],
+            }
+        elif spec.key == "env:freesurfer_home":
             resolved, detected_source, checked_locations = _resolve_freesurfer_home_with_source(platform_name)
             available = resolved is not None
             details = {

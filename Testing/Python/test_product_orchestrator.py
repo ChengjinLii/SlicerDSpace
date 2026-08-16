@@ -17,6 +17,44 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class ProductOrchestratorTest(unittest.TestCase):
+    def test_reusing_run_name_archives_previous_manifest_and_plan(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            run_name = "repeatable-run"
+            first = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("microstructure",),
+                    run_name=run_name,
+                    execute=False,
+                )
+            )
+            first_manifest = json.loads(first.run_manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(first_manifest["targets"], ["microstructure"])
+            self.assertEqual(first_manifest["previous_run_records"], {})
+
+            second = run_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("surface_postprocess",),
+                    run_name=run_name,
+                    execute=False,
+                )
+            )
+            second_manifest = json.loads(second.run_manifest_path.read_text(encoding="utf-8"))
+            archived = second_manifest["previous_run_records"]
+
+            self.assertEqual(second_manifest["targets"], ["surface_postprocess"])
+            self.assertEqual(set(archived), {"orchestration_manifest", "run_plan"})
+            for path in archived.values():
+                self.assertTrue(Path(path).is_file())
+            archived_manifest = json.loads(Path(archived["orchestration_manifest"]).read_text(encoding="utf-8"))
+            self.assertEqual(archived_manifest["targets"], ["microstructure"])
+
     def test_unhandled_stage_error_writes_failed_orchestration_manifest(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 
@@ -657,6 +695,48 @@ class ProductOrchestratorTest(unittest.TestCase):
             manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["targets"], ["saf", "wma", "tractcloud"])
 
+    def test_tractcloud_selected_with_saf_uses_same_run_output(self) -> None:
+        from shared import ProductOrchestratorConfig, plan_subject_products, subject_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            layout = subject_layout(subject_root)
+            old_saf_dir = layout.saf / "old-run"
+            old_saf_dir.mkdir(parents=True)
+            (old_saf_dir / "SAF.vtk").write_text("old vtk", encoding="utf-8")
+
+            run_name = "new-run"
+            csd_dir = layout.csd / run_name
+            csd_dir.mkdir(parents=True)
+            (csd_dir / "100307_wmfod_norm.mif").write_text("fod", encoding="utf-8")
+            fs_dir = Path(tmp) / "native-dmri-surfaces"
+            fs_dir.mkdir()
+
+            plan = plan_subject_products(
+                ProductOrchestratorConfig(
+                    subject_id="100307",
+                    subject_root=subject_root,
+                    targets=("saf", "tractcloud"),
+                    run_name=run_name,
+                    saf_fs_dir=fs_dir,
+                    execute=True,
+                    resume=False,
+                )
+            )
+
+            items = {item.target: item for item in plan.items}
+            self.assertEqual(items["saf"].status, "will_run")
+            self.assertEqual(items["tractcloud"].status, "will_run")
+            self.assertEqual(
+                items["tractcloud"].inputs["input_tractography"],
+                items["saf"].outputs["tractogram_vtk"],
+            )
+            self.assertEqual(items["tractcloud"].dependencies["input_tractography"], "will_run:saf")
+            self.assertNotEqual(
+                items["tractcloud"].inputs["input_tractography"],
+                (old_saf_dir / "SAF.vtk").resolve(),
+            )
+
     def test_execute_saf_defaults_to_1m_mask_seeding(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products, subject_layout
 
@@ -941,6 +1021,21 @@ class ProductOrchestratorTest(unittest.TestCase):
                 "ProbabilisticMap_CSF.nii.gz",
             ):
                 (seg_dir / name).write_text(name, encoding="utf-8")
+            (seg_dir / "ddseg_qc.json").write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "probability_semantics": "four_class_softmax_tissue_channels_v1",
+                        "probability_qc": {
+                            "finite_and_bounded": True,
+                            "tissue_mass_valid_fraction": 1.0,
+                            "label_agreement": 1.0,
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             for name in (
                 "100307-DDSurfer-wmparc.nii.gz",
                 "100307-DDSurfer-wmparc-Reg.mgz",
@@ -1101,6 +1196,21 @@ class ProductOrchestratorTest(unittest.TestCase):
                 "ProbabilisticMap_CSF.nii.gz",
             ):
                 (layout.ddseg / name).write_text(name, encoding="utf-8")
+            (layout.ddseg / "ddseg_qc.json").write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "probability_semantics": "four_class_softmax_tissue_channels_v1",
+                        "probability_qc": {
+                            "finite_and_bounded": True,
+                            "tissue_mass_valid_fraction": 1.0,
+                            "label_agreement": 1.0,
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
 
             layout.ddparcel.mkdir(parents=True)
             for name in (

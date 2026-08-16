@@ -201,6 +201,42 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             self.assertEqual(mrconvert.details["detected_source"], "user setting")
             self.assertTrue(mrconvert.details["resolved"].startswith(user_bin.as_posix()))
 
+    def test_explicit_wma_paths_do_not_leave_environment_false_alarms(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            wma_root = root / "whitematteranalysis"
+            wma_bin = wma_root / "bin"
+            wma_bin.mkdir(parents=True)
+            wma_command = wma_bin / "wm_apply_ORG_atlas_to_subject.sh"
+            wma_command.write_text("#!/usr/bin/env sh\n", encoding="utf-8")
+            wma_command.chmod(0o755)
+            atlas_root = root / "ORG-Atlases"
+            for child in ("ORG-RegAtlas-100HCP", "ORG-800FC-100HCP"):
+                (atlas_root / child).mkdir(parents=True)
+            slicer_executable = root / "Slicer"
+            slicer_executable.write_text("#!/usr/bin/env sh\n", encoding="utf-8")
+            slicer_executable.chmod(0o755)
+
+            specs = build_dependency_specs(
+                EnvironmentDoctorConfig(
+                    targets=("wma",),
+                    repo_root=REPO_ROOT,
+                    wma_root=wma_root,
+                    wma_atlas_dir=atlas_root,
+                    slicer_executable=slicer_executable,
+                )
+            )
+            statuses = {
+                spec.key: _check_spec(spec, "Linux")
+                for spec in specs
+                if spec.key in {"env:wma_root", "env:slicer_executable"}
+            }
+
+            self.assertEqual(statuses["env:wma_root"].status, "available")
+            self.assertEqual(statuses["env:wma_root"].details["detected_source"], "user setting")
+            self.assertEqual(statuses["env:slicer_executable"].status, "available")
+            self.assertEqual(statuses["env:slicer_executable"].details["detected_source"], "user setting")
+
     def test_environment_path_source_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_bin = self._make_mrtrix_bin(Path(tmp))

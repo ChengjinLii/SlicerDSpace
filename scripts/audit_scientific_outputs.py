@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import math
 from datetime import datetime, timezone
@@ -12,10 +13,15 @@ from typing import Any
 
 
 DTI_KEYS = ("fa", "md", "ad", "rd", "l1", "l2", "l3", "trace")
+FULL_ROUTE_NAMES = {"freewater", "noddi", "saf", "wmql", "wma", "tractcloud", "connectome"}
 
 
-def _latest_manifest(subject_output: Path) -> Path | None:
-    candidates = list((subject_output / "00_run_metadata").glob("*_orchestration_manifest.json"))
+def _manifest_for_run(subject_output: Path, run_name: str | None = None) -> Path | None:
+    metadata_dir = subject_output / "00_run_metadata"
+    if run_name:
+        candidate = metadata_dir / f"{run_name}_orchestration_manifest.json"
+        return candidate if candidate.is_file() else None
+    candidates = list(metadata_dir.glob("*_orchestration_manifest.json"))
     if not candidates:
         return None
     return max(candidates, key=lambda path: path.stat().st_mtime_ns)
@@ -266,6 +272,286 @@ def _audit_tractography(manifest: dict[str, Any], checks: list[dict[str, Any]]) 
     return True
 
 
+def _audit_optional_microstructure(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> set[str]:
+    import nibabel as nib
+    import numpy as np
+
+    route_specs = {
+        "freewater": {
+            "task": "microstructure.freewater",
+            "maps": {"fwf": (0.0, 1.0), "fw_fa": (0.0, 1.0), "fw_md": (0.0, None)},
+        },
+        "noddi": {
+            "task": "microstructure.noddi",
+            "maps": {"ndi": (0.0, 1.0), "odi": (0.0, 1.0), "isovf": (0.0, 1.0)},
+        },
+    }
+    selected: set[str] = set()
+    subject_root = Path(str(manifest["subject_root"]))
+    mask_path = subject_root / "input" / "nodif_brain_mask.nii.gz"
+    mask_image = nib.load(mask_path.as_posix()) if mask_path.is_file() else None
+    mask = np.asarray(mask_image.dataobj) > 0 if mask_image is not None else None
+
+    for route, spec in route_specs.items():
+        task = _task_entry(manifest, str(spec["task"]))
+        if task is None:
+            continue
+        selected.add(route)
+        _record_check(
+            checks,
+            f"{route}.task_status",
+            task.get("status") in {"completed", "skipped"},
+            task.get("status"),
+            "completed or skipped/reused",
+        )
+        outputs = dict(task.get("outputs") or {})
+        for key, (minimum, maximum) in dict(spec["maps"]).items():
+            value = outputs.get(key)
+            path = Path(str(value)) if value else None
+            exists = bool(path and path.is_file())
+            _record_check(
+                checks,
+                f"{route}.{key}.exists",
+                exists,
+                path.as_posix() if path else None,
+                "file exists",
+            )
+            if not exists or path is None:
+                continue
+            image = nib.load(path.as_posix())
+            array = np.asarray(image.dataobj, dtype=np.float64)
+            finite = bool(np.isfinite(array).all())
+            _record_check(checks, f"{route}.{key}.finite", finite, None, "all values finite")
+            if mask_image is not None and mask is not None:
+                _record_check(
+                    checks,
+                    f"{route}.{key}.shape",
+                    array.shape == mask.shape,
+                    list(array.shape),
+                    list(mask.shape),
+                )
+                _record_check(
+                    checks,
+                    f"{route}.{key}.affine",
+                    bool(np.allclose(image.affine, mask_image.affine, atol=1e-4)),
+                    float(np.max(np.abs(image.affine - mask_image.affine))),
+                    "maximum absolute difference <= 1e-4",
+                )
+            values = array[mask] if mask is not None and array.shape == mask.shape and np.any(mask) else array.ravel()
+            if not finite or values.size == 0:
+                continue
+            observed_min = float(np.min(values))
+            observed_max = float(np.max(values))
+            in_range = observed_min >= float(minimum) - 1e-6
+            requirement = f">= {minimum}"
+            if maximum is not None:
+                in_range = in_range and observed_max <= float(maximum) + 1e-6
+                requirement = f"{minimum} <= value <= {maximum}"
+            _record_check(
+                checks,
+                f"{route}.{key}.range",
+                in_range,
+                {"min": observed_min, "max": observed_max},
+                requirement,
+            )
+    return selected
+
+
+def _json_record(path_value: Any) -> tuple[Path | None, dict[str, Any] | None]:
+    path = Path(str(path_value)) if path_value else None
+    if path is None or not path.is_file():
+        return path, None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return path, None
+    return path, payload if isinstance(payload, dict) else None
+
+
+def _audit_qc_routes(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> set[str]:
+    route_specs = {
+        "saf": ("tractography.saf", "streamline_count", 1),
+        "wmql": ("bundles.wmql", "bundle_count", 1),
+        "wma": ("bundles.wma", "anatomical_tract_count", 73),
+        "tractcloud": ("bundles.tractcloud", "bundle_count", 1),
+    }
+    selected: set[str] = set()
+    for route, (task_name, count_key, minimum_count) in route_specs.items():
+        task = _task_entry(manifest, task_name)
+        if task is None:
+            continue
+        selected.add(route)
+        _record_check(
+            checks,
+            f"{route}.task_status",
+            task.get("status") in {"completed", "skipped"},
+            task.get("status"),
+            "completed or skipped/reused",
+        )
+        outputs = dict(task.get("outputs") or {})
+        qc_path, qc = _json_record(task.get("qc_path") or outputs.get("qc"))
+        _record_check(
+            checks,
+            f"{route}.qc_exists",
+            qc is not None,
+            qc_path.as_posix() if qc_path else None,
+            "readable QC JSON exists",
+        )
+        if qc is None:
+            continue
+        _record_check(checks, f"{route}.qc_status", qc.get("status") == "completed", qc.get("status"), "completed")
+        summary = dict(qc.get("output_summary") or {})
+        count_value = qc.get(count_key)
+        if count_value is None:
+            count_value = summary.get(count_key)
+        try:
+            count = int(count_value)
+        except (TypeError, ValueError):
+            count = 0
+        _record_check(
+            checks,
+            f"{route}.{count_key}",
+            count >= minimum_count,
+            count,
+            f">= {minimum_count}",
+        )
+
+        bundle_files = [Path(str(value)) for value in summary.get("bundle_files", [])]
+        if bundle_files:
+            valid_files = [path for path in bundle_files if path.is_file() and path.stat().st_size > 0]
+            _record_check(
+                checks,
+                f"{route}.bundle_files",
+                len(valid_files) == len(bundle_files) == count,
+                {"declared": count, "listed": len(bundle_files), "valid": len(valid_files)},
+                "declared, listed, and non-empty bundle counts match",
+            )
+        if route == "wma":
+            anatomy_dir = Path(str(summary.get("anatomical_tracts_dir") or ""))
+            anatomy_files = [path for path in anatomy_dir.glob("**/*") if path.is_file() and path.stat().st_size > 0] if anatomy_dir.is_dir() else []
+            _record_check(
+                checks,
+                "wma.anatomical_tract_files",
+                len(anatomy_files) >= minimum_count,
+                len(anatomy_files),
+                f">= {minimum_count} non-empty files",
+            )
+        if route == "saf":
+            for key in ("saf_tractogram", "saf_vtk"):
+                record = summary.get(key) or {}
+                path = Path(str(record.get("path") or outputs.get("tractogram" if key == "saf_tractogram" else "tractogram_vtk") or ""))
+                _record_check(
+                    checks,
+                    f"saf.{key}_file",
+                    path.is_file() and path.stat().st_size > 0,
+                    path.as_posix(),
+                    "non-empty file exists",
+                )
+    return selected
+
+
+def _audit_cross_route_inputs(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> None:
+    route_pairs = (
+        ("tractography.saf", "tractogram_vtk", "bundles.tractcloud", "tractcloud.input_matches_same_run_saf"),
+        ("tractography.csd_act", "tractogram", "bundles.wma", "wma.input_matches_same_run_tractography"),
+    )
+    for source_task_name, source_key, consumer_task_name, check_name in route_pairs:
+        source_task = _task_entry(manifest, source_task_name)
+        consumer_task = _task_entry(manifest, consumer_task_name)
+        if source_task is None or consumer_task is None:
+            continue
+        expected_value = dict(source_task.get("outputs") or {}).get(source_key)
+        _, consumer_manifest = _json_record(consumer_task.get("manifest_path"))
+        actual_value = consumer_manifest.get("input_tractography") if consumer_manifest else None
+        expected = Path(str(expected_value)).resolve() if expected_value else None
+        actual = Path(str(actual_value)).resolve() if actual_value else None
+        _record_check(
+            checks,
+            check_name,
+            expected is not None and actual == expected,
+            {
+                "expected": expected.as_posix() if expected else None,
+                "actual": actual.as_posix() if actual else None,
+            },
+            "consumer input equals the producing task output from this run",
+        )
+
+
+def _audit_connectomes(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> bool:
+    tasks = [
+        task
+        for task in manifest.get("tasks", [])
+        if str(task.get("name") or "").startswith("connectome.")
+    ]
+    if not tasks:
+        return False
+    for task in tasks:
+        task_name = str(task.get("name"))
+        prefix = task_name.replace(".", "_")
+        _record_check(
+            checks,
+            f"{prefix}.task_status",
+            task.get("status") in {"completed", "skipped"},
+            task.get("status"),
+            "completed or skipped/reused",
+        )
+        outputs = dict(task.get("outputs") or {})
+        qc_path, qc = _json_record(task.get("qc_path") or outputs.get("qc"))
+        manifest_path, native_manifest = _json_record(task.get("manifest_path") or outputs.get("manifest"))
+        _record_check(checks, f"{prefix}.qc_exists", qc is not None, qc_path.as_posix() if qc_path else None, "readable QC JSON exists")
+        _record_check(
+            checks,
+            f"{prefix}.manifest_exists",
+            native_manifest is not None,
+            manifest_path.as_posix() if manifest_path else None,
+            "readable manifest JSON exists",
+        )
+        if qc is None or native_manifest is None:
+            continue
+        _record_check(checks, f"{prefix}.qc_status", qc.get("status") == "completed", qc.get("status"), "completed")
+        native_outputs = dict(native_manifest.get("outputs") or {})
+        matrix_path = Path(str(outputs.get("matrix") or native_outputs.get("matrix") or ""))
+        nodes_path = Path(str(outputs.get("nodes") or native_outputs.get("nodes") or ""))
+        _record_check(checks, f"{prefix}.matrix_exists", matrix_path.is_file(), matrix_path.as_posix(), "file exists")
+        _record_check(checks, f"{prefix}.nodes_exists", nodes_path.is_file(), nodes_path.as_posix(), "file exists")
+        if not matrix_path.is_file() or not nodes_path.is_file():
+            continue
+        with matrix_path.open("r", encoding="utf-8", newline="") as stream:
+            rows = list(csv.DictReader(stream))
+        with nodes_path.open("r", encoding="utf-8", newline="") as stream:
+            node_rows = list(csv.DictReader(stream, delimiter="\t"))
+        metric = str(qc.get("metric") or native_manifest.get("metric") or "streamline_count")
+        required_columns = {"source_node", "target_node", metric}
+        columns = set(rows[0]) if rows else set()
+        _record_check(checks, f"{prefix}.columns", required_columns.issubset(columns), sorted(columns), sorted(required_columns))
+        try:
+            pairs = [(int(row["source_node"]), int(row["target_node"])) for row in rows]
+            values = [float(row[metric]) for row in rows]
+        except (KeyError, TypeError, ValueError):
+            pairs, values = [], []
+        finite_nonnegative = bool(values) and all(math.isfinite(value) and value >= 0 for value in values)
+        _record_check(checks, f"{prefix}.values", finite_nonnegative, len(values), "non-empty, finite, and non-negative")
+        _record_check(checks, f"{prefix}.unique_edges", len(pairs) == len(set(pairs)), len(pairs), "no duplicate edges")
+        _record_check(checks, f"{prefix}.upper_triangle", bool(pairs) and all(a <= b for a, b in pairs), None, "source_node <= target_node")
+        node_labels = {int(row["label"]) for row in node_rows if str(row.get("label") or "").strip().lstrip("-").isdigit()}
+        edge_labels = {value for pair in pairs for value in pair}
+        _record_check(checks, f"{prefix}.node_labels", bool(node_labels) and edge_labels.issubset(node_labels), len(node_labels), "all edge labels occur in nodes TSV")
+        edge_count = int(qc.get("edge_count") or 0)
+        node_count = int(qc.get("node_count") or 0)
+        _record_check(checks, f"{prefix}.edge_count", edge_count == len(rows), {"qc": edge_count, "file": len(rows)}, "QC and CSV match")
+        _record_check(checks, f"{prefix}.node_count", node_count == len(node_rows), {"qc": node_count, "file": len(node_rows)}, "QC and TSV match")
+        if metric == "streamline_count" and qc.get("streamline_count_assigned") is not None and values:
+            assigned = int(qc["streamline_count_assigned"])
+            _record_check(
+                checks,
+                f"{prefix}.assigned_streamlines",
+                math.isclose(sum(values), assigned, rel_tol=0.0, abs_tol=1e-6),
+                {"qc": assigned, "csv_sum": sum(values)},
+                "CSV edge counts sum to QC assigned streamlines",
+            )
+    return True
+
+
 def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> set[str]:
     import nibabel as nib
     import numpy as np
@@ -354,7 +640,7 @@ def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) ->
             "foreground Dice with input mask after world-space resampling >= 0.95",
         )
 
-        probability_arrays: list[Any] = []
+        probability_arrays: dict[str, Any] = {}
         for name, path in probability_paths.items():
             exists = path.is_file()
             _record_check(
@@ -368,7 +654,7 @@ def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) ->
                 continue
             image = nib.load(path.as_posix())
             array = np.asarray(image.dataobj, dtype=np.float64)
-            probability_arrays.append(array)
+            probability_arrays[name] = array
             _record_check(
                 checks,
                 f"structural.ddseg.{name}_probability_shape",
@@ -385,16 +671,37 @@ def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) ->
             )
         if len(probability_arrays) == 3:
             foreground = rounded > 0
-            probability_sum = np.sum(probability_arrays, axis=0)
-            normalized_fraction = float(
-                np.mean((probability_sum[foreground] >= 0.95) & (probability_sum[foreground] <= 1.05))
+            probability_stack = np.stack(
+                [probability_arrays[name] for name in ("gm", "wm", "csf")],
+                axis=-1,
             )
+            probability_sum = np.sum(probability_stack, axis=-1)
+            foreground_mass = probability_sum[foreground]
+            valid_mass = np.isfinite(foreground_mass) & (foreground_mass > 0.0) & (
+                foreground_mass <= 1.0 + 1e-5
+            )
+            valid_mass_fraction = float(np.mean(valid_mass)) if foreground_mass.size else 0.0
             _record_check(
                 checks,
-                "structural.ddseg.probability_sum",
-                normalized_fraction >= 0.95,
-                normalized_fraction,
-                ">= 0.95 of segmented voxels have GM+WM+CSF probability in [0.95, 1.05]",
+                "structural.ddseg.probability_mass",
+                valid_mass_fraction >= 0.999,
+                {
+                    "valid_fraction": valid_mass_fraction,
+                    "min": float(np.min(foreground_mass)) if foreground_mass.size else None,
+                    "max": float(np.max(foreground_mass)) if foreground_mass.size else None,
+                },
+                ">= 0.999 of segmented voxels have finite, non-zero GM+WM+CSF mass <= 1",
+            )
+            predicted_labels = np.asarray((2, 1, 3), dtype=np.int16)[
+                np.argmax(probability_stack, axis=-1)
+            ]
+            label_agreement = float(np.mean(predicted_labels[foreground] == rounded[foreground]))
+            _record_check(
+                checks,
+                "structural.ddseg.probability_label_agreement",
+                label_agreement >= 0.999,
+                label_agreement,
+                ">= 0.999 agreement between the maximum tissue probability and segmentation label",
             )
 
     ddparcel_outputs = _task_outputs(manifest, task_names["ddparcel"])
@@ -506,12 +813,14 @@ def audit_output_root(
     require_dti: bool = False,
     require_tractography: bool = False,
     require_structural: bool = False,
+    require_full_routes: bool = False,
     min_subjects: int = 1,
+    run_name: str | None = None,
 ) -> dict[str, Any]:
     root = output_root.expanduser().resolve()
     subjects: list[dict[str, Any]] = []
     for subject_output in sorted(path for path in root.iterdir() if path.is_dir() and path.name != "00_batch_metadata"):
-        manifest_path = _latest_manifest(subject_output)
+        manifest_path = _manifest_for_run(subject_output, run_name)
         if manifest_path is None:
             continue
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -519,6 +828,10 @@ def audit_output_root(
         has_dti = _audit_dti(manifest, checks)
         has_tractography = _audit_tractography(manifest, checks)
         structural_routes = _audit_structural(manifest, checks)
+        optional_microstructure_routes = _audit_optional_microstructure(manifest, checks)
+        qc_routes = _audit_qc_routes(manifest, checks)
+        _audit_cross_route_inputs(manifest, checks)
+        has_connectome = _audit_connectomes(manifest, checks)
         if require_dti:
             _record_check(checks, "required.dti", has_dti, has_dti, "DTI outputs present")
         if require_tractography:
@@ -538,6 +851,18 @@ def audit_output_root(
                 has_structural,
                 has_structural,
                 "DDSeg, DDParcel, and DDSurfer tasks present",
+            )
+        if require_full_routes:
+            observed_routes = set(optional_microstructure_routes) | set(qc_routes)
+            if has_connectome:
+                observed_routes.add("connectome")
+            missing_routes = sorted(FULL_ROUTE_NAMES - observed_routes)
+            _record_check(
+                checks,
+                "required.full_routes",
+                not missing_routes,
+                {"observed": sorted(observed_routes), "missing": missing_routes},
+                "Free Water, NODDI, SAF, WMQL, WMA, TractCloud, and connectome tasks present",
             )
         failed = [check for check in checks if not check["passed"]]
         subjects.append(
@@ -563,7 +888,9 @@ def audit_output_root(
             "require_dti": bool(require_dti),
             "require_tractography": bool(require_tractography),
             "require_structural": bool(require_structural),
+            "require_full_routes": bool(require_full_routes),
             "min_subjects": int(min_subjects),
+            "run_name": run_name,
         },
         "summary": {
             "subject_count": len(subjects),
@@ -590,7 +917,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Fail when a subject lacks any of DDSeg, DDParcel, or DDSurfer outputs.",
     )
+    parser.add_argument(
+        "--require-full-routes",
+        action="store_true",
+        help="Fail unless Free Water, NODDI, SAF, WMQL, WMA, TractCloud, and connectome outputs are audited.",
+    )
     parser.add_argument("--min-subjects", type=int, default=1, help="Minimum number of audited subjects.")
+    parser.add_argument(
+        "--run-name",
+        help="Audit this exact orchestration run instead of the most recently modified manifest.",
+    )
     return parser
 
 
@@ -603,7 +939,9 @@ def main(argv: list[str] | None = None) -> int:
         require_dti=bool(args.require_dti),
         require_tractography=bool(args.require_tractography),
         require_structural=bool(args.require_structural),
+        require_full_routes=bool(args.require_full_routes),
         min_subjects=int(args.min_subjects),
+        run_name=args.run_name,
     )
     report_path = args.report or (
         args.output_root.expanduser().resolve() / "00_batch_metadata" / "scientific_output_audit.json"

@@ -522,6 +522,7 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = Path(tmp) / "subjectA"
             subject_root.mkdir(parents=True)
+            missing_wma_root = Path(tmp) / "missing-wma"
             env = {key: value for key, value in os.environ.items() if "WMA" not in key and "SLICERDDSURFER_WMA" not in key}
 
             completed = subprocess.run(
@@ -530,8 +531,11 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
                     str(CLI_PATH),
                     "--subject-root",
                     str(subject_root),
+                    "--no-user-config",
                     "--targets",
                     "wma",
+                    "--wma-root",
+                    str(missing_wma_root),
                     "--execute",
                 ],
                 check=True,
@@ -550,6 +554,7 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = Path(tmp) / "subjectA"
             subject_root.mkdir(parents=True)
+            missing_wma_root = Path(tmp) / "missing-wma"
             env = {key: value for key, value in os.environ.items() if "WMA" not in key and "SLICERDDSURFER_WMA" not in key}
 
             completed = subprocess.run(
@@ -558,8 +563,11 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
                     str(CLI_PATH),
                     "--subject-root",
                     str(subject_root),
+                    "--no-user-config",
                     "--targets",
                     "wma",
+                    "--wma-root",
+                    str(missing_wma_root),
                     "--execute",
                     "--strict-environment",
                 ],

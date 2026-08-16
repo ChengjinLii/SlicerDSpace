@@ -442,6 +442,8 @@ def _resolve_bundle_input_tractography(
     *,
     output_root: Optional[Path] = None,
     run_name: Optional[str] = None,
+    require_current_run: bool = False,
+    allow_planned_current_run: bool = False,
 ) -> Optional[Path]:
     resolved_explicit = _resolve_optional_path(explicit_path)
     if resolved_explicit is not None:
@@ -450,12 +452,16 @@ def _resolve_bundle_input_tractography(
     candidates: list[Path] = []
     if run_name:
         normalized_run = normalize_run_name(run_name)
-        candidates.extend(
-            [
-                _saf_output_dir(layout, normalized_run) / "SAF.vtk",
-                _saf_output_dir(layout, normalized_run) / "SAF.vtp",
-            ]
-        )
+        current_run_candidates = [
+            _saf_output_dir(layout, normalized_run) / "SAF.vtk",
+            _saf_output_dir(layout, normalized_run) / "SAF.vtp",
+        ]
+        current_run_input = next((path.resolve() for path in current_run_candidates if path.is_file()), None)
+        if current_run_input is not None:
+            return current_run_input
+        if require_current_run:
+            return current_run_candidates[0].resolve() if allow_planned_current_run else None
+        candidates.extend(current_run_candidates)
     candidates.extend(sorted(layout.saf.glob("**/*.vt*")))
     candidates.extend(sorted(layout.tractography.glob("**/*.vt*")))
     candidates.extend(sorted(subject_root.glob("tractography/**/*.vt*")) + sorted(subject_root.glob("tractography/*.vt*")))
@@ -653,11 +659,30 @@ def _segmentation_outputs(subject_root: Path, output_root: Optional[Path] = None
         "gm_probability": layout.ddseg / "ProbabilisticMap_GM.nii.gz",
         "wm_probability": layout.ddseg / "ProbabilisticMap_WM.nii.gz",
         "csf_probability": layout.ddseg / "ProbabilisticMap_CSF.nii.gz",
+        "qc": layout.ddseg / "ddseg_qc.json",
     }
 
 
 def _segmentation_complete(subject_root: Path, output_root: Optional[Path] = None) -> bool:
-    return all(path.is_file() for path in _segmentation_outputs(subject_root, output_root).values())
+    outputs = _segmentation_outputs(subject_root, output_root)
+    if not all(_nonempty_file(path) for path in outputs.values()):
+        return False
+    try:
+        qc = _read_json(outputs["qc"])
+        probability_qc = qc.get("probability_qc")
+        if not isinstance(probability_qc, dict):
+            return False
+        mass_fraction = float(probability_qc.get("tissue_mass_valid_fraction", 0.0))
+        label_agreement = float(probability_qc.get("label_agreement", 0.0))
+    except Exception:
+        return False
+    return (
+        qc.get("status") == "completed"
+        and qc.get("probability_semantics") == "four_class_softmax_tissue_channels_v1"
+        and bool(probability_qc.get("finite_and_bounded"))
+        and mass_fraction >= 0.999
+        and label_agreement >= 0.999
+    )
 
 
 def _parcellation_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -990,7 +1015,14 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             None,
             output_root=output_root,
         )
-    tractcloud_input_tractography = _resolve_bundle_input_tractography(subject_root, config.tractcloud_input_tractography, output_root=output_root, run_name=run_name)
+    tractcloud_input_tractography = _resolve_bundle_input_tractography(
+        subject_root,
+        config.tractcloud_input_tractography,
+        output_root=output_root,
+        run_name=run_name,
+        require_current_run="saf" in selected,
+        allow_planned_current_run="saf" in selected,
+    )
     slicer_executable = _resolve_slicer_executable(config)
     segmentation = _resolve_segmentation(subject_root, output_root)
     parcellation = _resolve_parcellation(subject_root, config.subject_id, output_root)
@@ -1355,6 +1387,9 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         if target == "tractcloud":
             tractcloud_outputs = {"qc": tractcloud_dir / "tractcloud_qc.json", "manifest": tractcloud_dir / "tractcloud_manifest.json", "output_dir": tractcloud_dir}
             tractcloud_bundle_count = 0
+            tractcloud_input_available = bool(
+                tractcloud_input_tractography is not None and tractcloud_input_tractography.is_file()
+            )
             if config.resume and _qc_completed(tractcloud_outputs["qc"]):
                 try:
                     from tractography.tractcloud import summarize_tractcloud_outputs
@@ -1364,10 +1399,10 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                     tractcloud_bundle_count = 0
             if tractcloud_bundle_count > 0:
                 add(target, "skipped", "completed outputs found", "reuse", outputs=tractcloud_outputs)
-            elif tractcloud_input_tractography is None and not available.get("saf", False):
+            elif not tractcloud_input_available and not available.get("saf", False):
                 add(target, "blocked", "missing VTK/VTP input tractography for TractCloud", "data", outputs=tractcloud_outputs, provides=False)
             else:
-                add(target, "will_run", "ready to run TractCloud", "runnable", inputs={"input_tractography": tractcloud_input_tractography}, outputs=tractcloud_outputs, dependencies={"input_tractography": "available" if tractcloud_input_tractography else "will_run:saf"})
+                add(target, "will_run", "ready to run TractCloud", "runnable", inputs={"input_tractography": tractcloud_input_tractography}, outputs=tractcloud_outputs, dependencies={"input_tractography": "available" if tractcloud_input_available else "will_run:saf"})
             continue
 
         if target == "connectome":
@@ -1426,6 +1461,28 @@ def _now_utc() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _archive_existing_run_records(layout, run_name: str) -> dict[str, Path]:
+    """Preserve prior run-level provenance before reusing a run name."""
+
+    sources = {
+        "orchestration_manifest": layout.run_metadata / f"{run_name}_orchestration_manifest.json",
+        "run_plan": _run_plan_path(layout, run_name),
+    }
+    existing = {key: path for key, path in sources.items() if path.is_file()}
+    if not existing:
+        return {}
+
+    revision = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    history_dir = layout.run_metadata / "history" / run_name / revision
+    history_dir.mkdir(parents=True, exist_ok=False)
+    archived: dict[str, Path] = {}
+    for key, source in existing.items():
+        destination = history_dir / source.name
+        shutil.copy2(source, destination)
+        archived[key] = destination
+    return archived
+
+
 class _TimedTaskList(list):
     def __init__(
         self,
@@ -1467,6 +1524,7 @@ def _write_orchestration_checkpoint(
     plan: RunPlanResult,
     targets: tuple[str, ...],
     tasks: list[ProductTaskRecord],
+    previous_run_records: dict[str, Path],
 ) -> None:
     payload = {
         "kind": "slicerddsurfer_product_orchestration",
@@ -1479,6 +1537,7 @@ def _write_orchestration_checkpoint(
         "targets": list(targets),
         "execute": bool(config.execute),
         "run_plan_path": plan.run_plan_path.as_posix(),
+        "previous_run_records": {key: value.as_posix() for key, value in previous_run_records.items()},
         "updated_at": _now_utc(),
         "tasks": [
             {
@@ -1937,6 +1996,7 @@ def _run_subject_products_impl(
     run_name = normalize_run_name(config.run_name)
     primary_tractography_backend = _primary_tractography_backend(config)
     start = time.monotonic()
+    previous_run_records = _archive_existing_run_records(layout, run_name)
     plan = plan_subject_products(config, write=True)
     manifest_path = layout.run_metadata / f"{run_name}_orchestration_manifest.json"
     tasks: list[ProductTaskRecord] = _TimedTaskList(
@@ -1947,6 +2007,7 @@ def _run_subject_products_impl(
             plan=plan,
             targets=targets,
             tasks=current,
+            previous_run_records=previous_run_records,
         ),
     )
     _write_orchestration_checkpoint(
@@ -1955,6 +2016,7 @@ def _run_subject_products_impl(
         plan=plan,
         targets=targets,
         tasks=tasks,
+        previous_run_records=previous_run_records,
     )
     plan_by_target = {item.target: item for item in plan.items}
     preflight_blocked_targets = {
@@ -2122,7 +2184,13 @@ def _run_subject_products_impl(
             None,
             output_root=output_root,
         )
-    tractcloud_input_tractography = _resolve_bundle_input_tractography(subject_root, config.tractcloud_input_tractography, output_root=output_root, run_name=run_name)
+    tractcloud_input_tractography = _resolve_bundle_input_tractography(
+        subject_root,
+        config.tractcloud_input_tractography,
+        output_root=output_root,
+        run_name=run_name,
+        require_current_run="saf" in targets,
+    )
     slicer_executable = _resolve_slicer_executable(config)
     ddseg_device = _resolved_device_for_execution(
         config.ddseg_device,
@@ -2957,6 +3025,7 @@ def _run_subject_products_impl(
                 config.tractcloud_input_tractography,
                 output_root=output_root,
                 run_name=run_name,
+                require_current_run="saf" in targets,
             )
             if tractcloud_input_tractography is None:
                 tasks.append(ProductTaskRecord(name="bundles.tractcloud", status="blocked", reason="missing VTK/VTP input tractography for TractCloud"))
@@ -3150,6 +3219,7 @@ def _run_subject_products_impl(
         "targets": list(targets),
         "run_targets": list(run_targets),
         "run_plan_path": plan.run_plan_path.as_posix(),
+        "previous_run_records": {key: value.as_posix() for key, value in previous_run_records.items()},
         "run_plan_summary": plan.to_dict()["summary"],
         "output_tree_audit_path": output_tree_audit.get("path"),
         "output_tree_warnings": output_tree_audit.get("warnings", []),
