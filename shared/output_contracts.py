@@ -1,11 +1,12 @@
 """Fail-closed, format-aware contracts shared by planning and execution."""
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 
 
 def readable_output(path: Path) -> bool:
-    """Decode scientific data, not just headers or completion filenames."""
+    """Decode supported scientific formats; other files must be non-empty."""
     try:
         if not path.is_file() or path.stat().st_size == 0:
             return False
@@ -35,8 +36,14 @@ def readable_output(path: Path) -> bool:
         return False
 
 
-def outputs_readable(paths) -> bool:
-    return all(readable_output(Path(path)) for path in paths)
+def outputs_readable(paths: Iterable[str | Path]) -> bool:
+    """Require at least one output and validate every member."""
+    found = False
+    for path in paths:
+        found = True
+        if not readable_output(Path(path)):
+            return False
+    return found
 
 
 def tractography_readable(tck: Path, trk: Path, weights: Path | None = None) -> bool:
@@ -63,7 +70,9 @@ def tractography_readable(tck: Path, trk: Path, weights: Path | None = None) -> 
         return True
     except Exception:
         return False
-def vtp_streamline_count(path):
+
+
+def vtp_streamline_count(path: str | Path) -> int | None:
     """Decode VTP geometry; return None for corruption or unavailable VTK.
 
     Empty but valid polydata returns zero. A Piece header alone is not evidence
