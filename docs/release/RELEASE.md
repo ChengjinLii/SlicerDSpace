@@ -148,11 +148,22 @@ To create the draft GitHub Release page and upload the default code-only support
 files from a maintainer machine instead of GitHub Actions:
 
 ```bash
-python3 scripts/create_github_release.py --dry-run
-GITHUB_TOKEN=<token-with-repo-release-permission> \
+python3 scripts/create_github_release.py --dry-run \
+  --expected-commit <full-tested-commit-sha> \
+  --fresh-clone-report /path/to/fresh_clone_smoke_report.json
+# Configure GITHUB_TOKEN or GH_TOKEN securely before the write operation.
   python3 scripts/create_github_release.py \
+  --expected-commit <full-tested-commit-sha> \
   --fresh-clone-report /path/to/fresh_clone_smoke_report.json
 ```
+
+Both commands validate the actual report content. Evidence must cover a real
+`core` download and verification, all required successful steps, and the exact
+commit being released. Plan-only and sentinel checks are insufficient. Existing
+tags must resolve to that commit. The helper refuses to replace assets on an
+already public release; use a new version for corrections. Draft creation is
+not a substitute for the SDK build, packaged installation and scientific review
+required before public release.
 
 ## Post-Release Updates
 

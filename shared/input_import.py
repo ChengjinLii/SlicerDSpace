@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import gzip
+import os
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -381,7 +384,40 @@ def _copy_nifti_source(
     metadata = (config.metadata_path or _sidecar_for(source, ".json")).expanduser().resolve()
     if dry_run:
         return
-    _copy_file(source, targets["dwi"], force=force)
+    import nibabel as nib
+    import numpy as np
+
+    image = nib.load(str(source))
+    if len(image.shape) != 4 or not np.isfinite(image.affine).all():
+        raise ValueError("DWI must be a four-dimensional NIfTI with a finite affine")
+    bvals = np.loadtxt(bval).reshape(-1)
+    bvecs = np.loadtxt(bvec, ndmin=2)
+    if bvals.size != image.shape[3] or bvecs.shape != (3, bvals.size):
+        raise ValueError("Gradient count/shape does not match the DWI volumes (expected 3 x N bvecs)")
+    if not np.isfinite(bvals).all() or not np.isfinite(bvecs).all():
+        raise ValueError("Gradients contain non-finite values")
+    # Force voxel decoding before committing anything, catching truncated data.
+    for index in range(image.shape[3]):
+        if not np.isfinite(np.asanyarray(image.dataobj[..., index])).all():
+            raise ValueError("DWI contains non-finite values")
+    target = targets["dwi"]
+    for path in (target, targets["bvals"], targets["bvecs"]):
+        if path.exists() and not force:
+            raise FileExistsError(f"Refusing to overwrite existing file: {path}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(suffix=".nii.gz", dir=target.parent)
+    os.close(fd)
+    temporary = Path(name)
+    try:
+        if source.name.lower().endswith(".nii.gz"):
+            shutil.copyfile(source, temporary)
+        else:
+            with source.open("rb") as src, gzip.open(temporary, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+        nib.load(str(temporary))
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
     _copy_file(bval, targets["bvals"], force=force)
     _copy_file(bvec, targets["bvecs"], force=force)
     if metadata.is_file():

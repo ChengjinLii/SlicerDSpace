@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from vtp_fixture import vtp_lines
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -39,11 +40,11 @@ case_id=${case_id%.*}
 mkdir -p "$out/$case_id/FiberClustering" "$out/$case_id/AnatomicalTracts"
 index=1
 while [ "$index" -le 73 ]; do
-  printf '' > "$out/$case_id/AnatomicalTracts/T_$(printf '%03d' "$index").vtp"
+  printf 'VTP_FIXTURE\n' > "$out/$case_id/AnatomicalTracts/T_$(printf '%03d' "$index").vtp"
   index=$((index + 1))
 done
 exit 0
-""",
+""".replace("VTP_FIXTURE", vtp_lines(1)),
             encoding="utf-8",
         )
         self.wma_script.chmod(0o755)
@@ -166,9 +167,13 @@ exit 0
         whole_brain = tractography_root / "cache" / "exports" / "whole_brain.vtk"
         whole_brain.parent.mkdir(parents=True)
         whole_brain.write_text("", encoding="utf-8")
+        self.assertIsNone(_resolve_wma_input_tractography(subject_root, None))
+
+        ukf_whole_brain = tractography_root / "cache" / "exports" / "subject_ukf_whole_brain.vtk"
+        ukf_whole_brain.write_text("", encoding="utf-8")
         self.assertEqual(
             _resolve_wma_input_tractography(subject_root, None),
-            whole_brain.resolve(),
+            ukf_whole_brain.resolve(),
         )
 
     def test_tck_input_is_converted_before_wma_execution(self) -> None:
@@ -413,8 +418,36 @@ exit 0
         self.assertEqual(result.status, "partial_failed")
         self.assertEqual(qc["output_summary"]["anatomical_tract_count"], 72)
         self.assertEqual(qc["acceptance_criteria"]["minimum_anatomical_tract_count"], 73)
-        self.assertIn("expected at least 73", qc["error"])
+        self.assertIn("expected at least 73 files", qc["error"])
         self.assertEqual(manifest["error"], qc["error"])
+
+    def test_execute_true_rejects_atlas_filenames_when_most_tracts_are_empty(self) -> None:
+        from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
+
+        script = self.wma_script.read_text(encoding="utf-8").replace(
+            vtp_lines(1),
+            vtp_lines(0),
+        )
+        self.wma_script.write_text(script, encoding="utf-8")
+        self.wma_script.chmod(0o755)
+
+        result = run_wma_org_atlas(
+            WMAOrgAtlasConfig(
+                subject_id="100307",
+                input_tractography=self.tractography,
+                atlas_dir=self.atlas_dir,
+                output_dir=self.output_dir,
+                slicer_executable=self.slicer_executable,
+                wma_root=self.wma_root,
+                execute=True,
+            )
+        )
+
+        qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+        self.assertEqual(result.status, "partial_failed")
+        self.assertEqual(qc["output_summary"]["anatomical_tract_nonempty_count"], 0)
+        self.assertEqual(qc["acceptance_criteria"]["minimum_nonempty_anatomical_tract_count"], 55)
+        self.assertIn("under-populated", qc["error"])
 
     def test_runtime_library_paths_include_slicerdmri_extension_dirs(self) -> None:
         from tractography.wma import _slicer_runtime_library_paths
@@ -517,11 +550,11 @@ exit 0
         anatomical_dir = self.output_dir / self.tractography.stem / "AnatomicalTracts"
         anatomical_dir.mkdir(parents=True)
         (anatomical_dir / "T_AF_left.vtp").write_text(
-            '<VTKFile><PolyData><Piece NumberOfPoints="10" NumberOfLines="3"/></PolyData></VTKFile>',
+            vtp_lines(3),
             encoding="utf-8",
         )
         (anatomical_dir / "T_AF_right.vtp").write_text(
-            '<VTKFile><PolyData><Piece NumberOfPoints="0" NumberOfLines="0"/></PolyData></VTKFile>',
+            vtp_lines(0),
             encoding="utf-8",
         )
 

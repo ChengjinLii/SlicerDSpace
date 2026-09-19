@@ -64,6 +64,10 @@ def sync_parameter_node_to_ui(widget) -> None:
         getattr(node, "orchestrationBundleBackend", "wmql") or "wmql",
         via_index=False,
     )
+    widget._sync_path_widget(
+        getattr(ui, "wmaInputTractographyPath", None),
+        getattr(node, "wmaInputTractography", "") or "",
+    )
     widget._sync_spinbox(getattr(ui, "orchestrationSelectStreamlinesSpinBox", None), int(node.orchestrationSelectStreamlines))
     widget._sync_combo_text(
         getattr(ui, "orchestrationMicrostructureStagesComboBox", None),

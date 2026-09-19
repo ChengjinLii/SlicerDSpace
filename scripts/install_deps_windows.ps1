@@ -555,7 +555,7 @@ if (-not $SkipUserConfigUpdate) {
                 bundle_backend = "wmql"
                 microstructure_stages = @("dti")
                 connectome_backend = "python"
-                select_streamlines = 100000
+                select_streamlines = 1000000
                 auto_install_python_dependencies = $true
             }
             external_dependencies = [pscustomobject]@{}

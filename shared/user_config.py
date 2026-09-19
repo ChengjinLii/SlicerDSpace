@@ -25,7 +25,7 @@ RUN_DEFAULTS = {
     "bundle_backend": "wmql",
     "microstructure_stages": ["dti"],
     "connectome_backend": "python",
-    "select_streamlines": 100000,
+    "select_streamlines": 1_000_000,
     "auto_install_python_dependencies": True,
 }
 
@@ -279,7 +279,9 @@ def user_config_from_cli_args(
             "bundle_backend": bundle_backend,
             "microstructure_stages": stages or ["dti"],
             "connectome_backend": getattr(args, "connectome_backend", None) or "python",
-            "select_streamlines": int(getattr(args, "select_streamlines", None) or 100000),
+            "select_streamlines": int(
+                getattr(args, "select_streamlines", None) or RUN_DEFAULTS["select_streamlines"]
+            ),
         }
     )
     config["external_dependencies"].update(external)

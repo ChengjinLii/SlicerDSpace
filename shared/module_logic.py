@@ -473,7 +473,7 @@ class SharedLogicMixin:
         resume: bool = True,
         microstructure_run_free_water: bool = False,
         microstructure_run_noddi: bool = False,
-        select_streamlines: int = 100000,
+        select_streamlines: int = 1_000_000,
         dti_min_length_mm: float = 10.0,
         dti_max_length_mm: float = 250.0,
         atlas_t2: Optional[Path] = None,
@@ -485,6 +485,7 @@ class SharedLogicMixin:
         preprocessing_fsl_bin_dir: Optional[Path] = None,
         postprocess_freesurfer_home: Optional[Path] = None,
         tract_querier_root: Optional[Path] = None,
+        wma_input_tractography: Optional[Path] = None,
         wma_root: Optional[Path] = None,
         wma_atlas_dir: Optional[Path] = None,
         slicer_executable: Optional[Path] = None,
@@ -522,6 +523,7 @@ class SharedLogicMixin:
                 dti_max_length_mm=dti_max_length_mm,
                 mrtrix_bin_dir=mrtrix_bin_dir,
                 tract_querier_root=tract_querier_root,
+                wma_input_tractography=wma_input_tractography,
                 wma_root=wma_root,
                 wma_atlas_dir=wma_atlas_dir,
                 slicer_executable=slicer_executable,
@@ -555,7 +557,7 @@ class SharedLogicMixin:
         resume: bool = True,
         microstructure_run_free_water: bool = False,
         microstructure_run_noddi: bool = False,
-        select_streamlines: int = 100000,
+        select_streamlines: int = 1_000_000,
         dti_min_length_mm: float = 10.0,
         dti_max_length_mm: float = 250.0,
         atlas_t2: Optional[Path] = None,
@@ -567,6 +569,7 @@ class SharedLogicMixin:
         preprocessing_fsl_bin_dir: Optional[Path] = None,
         postprocess_freesurfer_home: Optional[Path] = None,
         tract_querier_root: Optional[Path] = None,
+        wma_input_tractography: Optional[Path] = None,
         wma_root: Optional[Path] = None,
         wma_atlas_dir: Optional[Path] = None,
         slicer_executable: Optional[Path] = None,
@@ -604,6 +607,7 @@ class SharedLogicMixin:
                 dti_max_length_mm=dti_max_length_mm,
                 mrtrix_bin_dir=mrtrix_bin_dir,
                 tract_querier_root=tract_querier_root,
+                wma_input_tractography=wma_input_tractography,
                 wma_root=wma_root,
                 wma_atlas_dir=wma_atlas_dir,
                 slicer_executable=slicer_executable,
@@ -641,10 +645,17 @@ class SharedLogicMixin:
         return resolved
 
     def _load_model_node(self, stl_path: Path, surface: str, subject_id: str) -> bool:
-        name = f"{subject_id}_{surface}_{stl_path.stem.split('_')[-1]}"
-        success, model_node = slicer.util.loadModel(stl_path.as_posix(), returnNode=True)
+        is_ras_companion = "_predicted_" in stl_path.name and stl_path.name.endswith("_orig.stl")
+        stem = stl_path.stem.removesuffix("_orig") if is_ras_companion else stl_path.stem
+        name = f"{subject_id}_{surface}_{stem.split('_')[-1]}"
+        coordinates = (slicer.vtkMRMLStorageNode.CoordinateSystemRAS if is_ras_companion
+                       else slicer.vtkMRMLStorageNode.CoordinateSystemLPS)
+        success, model_node = slicer.util.loadNodeFromFile(
+            stl_path.as_posix(), "ModelFile", properties={"coordinateSystem": coordinates}, returnNode=True,
+        )
         if success and model_node:
             model_node.SetName(name)
+            model_node.SetAttribute("SlicerDDSurfer.SourceCoordinateSystem", "RAS" if is_ras_companion else "LPS")
             return True
         return False
 

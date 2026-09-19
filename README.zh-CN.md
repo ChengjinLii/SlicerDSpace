@@ -96,6 +96,19 @@ python3 run_subject_pipeline.py \
 
 ## Slicer 图形界面
 
+Linux Slicer 5.10 可以通过源码安装：
+
+```bash
+python3 scripts/stage_slicer_extension.py \
+  --install-root ~/SlicerDDSurfer-extension --link-mode copy
+```
+
+打开 Slicer 的 **Edit > Application Settings > Modules**，在 **Additional module paths**
+中添加 `~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules`
+对应的绝对目录，然后重启，在模块选择器中选择 **SlicerDDSurfer**。
+通过 Extension Manager 安装相应流程所需的 **SlicerDMRI** 和 **PyTorch**。
+这是源码安装方式，不能替代打包扩展的安装验收；更新源码后需要重新运行 staging。
+
 在 3D Slicer 中打开 `SlicerDDSurfer` 模块后，可以完成：
 
 - 使用有步骤状态的首次运行向导，分别选择模型目录、下载/续传模型、扫描本机依赖并查看可运行能力；

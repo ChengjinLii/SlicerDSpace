@@ -415,7 +415,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("python", "mrtrix"),
         help="Connectome backend.",
     )
-    parser.add_argument("--select-streamlines", type=int, default=100000, help="Requested streamline count for tractography.")
+    parser.add_argument(
+        "--select-streamlines",
+        type=int,
+        default=1_000_000,
+        help="Requested streamline count for tractography. Defaults to 1,000,000 for analysis-scale bundle/connectome coverage.",
+    )
     parser.add_argument(
         "--dti-min-length-mm",
         type=float,
@@ -469,6 +474,15 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         help="Voxel chunk size passed to DIPY Free Water parallel engines. Omit for DIPY default.",
     )
+    parser.add_argument(
+        "--microstructure-free-water-max-fraction-for-tissue",
+        type=float,
+        default=0.7,
+        help=(
+            "Maximum fitted free-water fraction retained for corrected tissue FA/MD. "
+            "Defaults to DIPY's reference threshold of 0.7."
+        ),
+    )
     parser.add_argument("--postprocess-native-dir", type=Path, help="DDSurfer native STL directory for postprocess.")
     parser.add_argument("--postprocess-mri-dir", type=Path, help="MRI directory containing brain.mgz and DDSurfer-wmparc.nii.gz.")
     parser.add_argument("--postprocess-backend-root", type=Path, help="Optional override for bundled DDSurfer postprocess backend.")
@@ -503,7 +517,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--wma-input-tractography",
         type=Path,
-        help="Optional whole-brain VTK/VTP/TCK tractography input for WMA.",
+        help=(
+            "Whole-brain VTK/VTP/TCK input for WMA ORG clustering. UKF tractography is recommended; "
+            "the connectome CSD-ACT tractogram is not reused automatically because WMA requires "
+            "broad long-range bundle coverage."
+        ),
     )
     parser.add_argument("--wma-atlas-dir", type=Path, help="ORG atlas directory for WMA.")
     parser.add_argument("--wma-root", type=Path, help="Optional WhiteMatterAnalysis checkout root.")
@@ -696,6 +714,7 @@ def main(argv: list[str] | None = None) -> int:
         microstructure_free_water_engine=args.microstructure_free_water_engine,
         microstructure_free_water_n_jobs=args.microstructure_free_water_n_jobs,
         microstructure_free_water_vox_per_chunk=args.microstructure_free_water_vox_per_chunk,
+        microstructure_free_water_max_fraction_for_tissue=args.microstructure_free_water_max_fraction_for_tissue,
         postprocess_native_dir=args.postprocess_native_dir,
         postprocess_mri_dir=args.postprocess_mri_dir,
         postprocess_backend_root=args.postprocess_backend_root,

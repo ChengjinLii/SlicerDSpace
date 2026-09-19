@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from shared.external_process import external_python_environment, merged_startup_environment
+from shared.output_contracts import vtp_streamline_count
 
 
 WMA_APPLY_ORG_SCRIPT = Path("bin") / "wm_apply_ORG_atlas_to_subject.sh"
@@ -27,6 +28,10 @@ WMA_APPLY_ORG_SCRIPT_NAME = "wm_apply_ORG_atlas_to_subject.sh"
 WMA_REPOSITORY = "https://github.com/SlicerDMRI/whitematteranalysis.git"
 EXPECTED_ORG_ATLAS_DIRS = ("ORG-RegAtlas-100HCP", "ORG-800FC-100HCP")
 MIN_ANATOMICAL_TRACT_COUNT = 73
+# A successful process can still emit every atlas filename with no fibers.
+# Requiring three quarters of the atlas tracts to be non-empty is deliberately
+# conservative while catching under-sampled or spatially invalid tractograms.
+MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT = 55
 REQUIRED_WMA_COMMANDS = (
     "wm_append_clusters_to_anatomical_tracts.py",
     "wm_assess_cluster_location_by_hemisphere.py",
@@ -44,6 +49,20 @@ EXTRA_LIBRARY_DIRS = (
     Path("/data/chengjin/software/libpcre2-16-0/usr/lib/x86_64-linux-gnu"),
     Path("/data/chengjin/software/libxcb-xinerama0/usr/lib/x86_64-linux-gnu"),
 )
+
+
+def _file_info(path: Path) -> dict[str, object]:
+    expanded = path.expanduser()
+    if not expanded.exists():
+        return {"path": expanded.as_posix(), "exists": False}
+    stat = expanded.stat()
+    return {
+        "path": expanded.resolve().as_posix(),
+        "exists": True,
+        "is_file": expanded.is_file(),
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+    }
 
 
 @dataclass(frozen=True)
@@ -309,22 +328,7 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
     def _count_vtp(path: Path) -> int:
         return len(list(path.glob("*.vtp"))) if path.is_dir() else 0
 
-    def _vtp_line_count(path: Path) -> Optional[int]:
-        """Read a VTP Piece line count without importing VTK or loading points."""
-
-        try:
-            with path.open("rb") as stream:
-                header = stream.read(64 * 1024)
-        except OSError:
-            return None
-        match = re.search(
-            rb'<Piece\b[^>]*\bNumberOfLines=["\'](\d+)["\']',
-            header,
-            flags=re.DOTALL,
-        )
-        return int(match.group(1)) if match else None
-
-    anatomical_line_counts = {tract.name: _vtp_line_count(tract) for tract in tracts}
+    anatomical_line_counts = {tract.name: vtp_streamline_count(tract) for tract in tracts}
     readable_anatomical_line_counts = {
         name: count for name, count in anatomical_line_counts.items() if count is not None
     }
@@ -424,6 +428,8 @@ def _derive_wma_status(output_summary: dict[str, Any], execution_error: Optional
     if not executed:
         return "planned"
     anatomical_tract_count = int(output_summary.get("anatomical_tract_count", 0) or 0)
+    readable_tract_count = int(output_summary.get("anatomical_tract_readable_count", 0) or 0)
+    nonempty_tract_count = int(output_summary.get("anatomical_tract_nonempty_count", 0) or 0)
     if execution_error and (
         anatomical_tract_count > 0
         or output_summary.get("transformed_cluster_count", 0) > 0
@@ -433,7 +439,11 @@ def _derive_wma_status(output_summary: dict[str, Any], execution_error: Optional
         return "partial_failed"
     if execution_error:
         return "failed"
-    if anatomical_tract_count >= MIN_ANATOMICAL_TRACT_COUNT:
+    if (
+        anatomical_tract_count >= MIN_ANATOMICAL_TRACT_COUNT
+        and readable_tract_count >= MIN_ANATOMICAL_TRACT_COUNT
+        and nonempty_tract_count >= MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT
+    ):
         return "completed"
     if anatomical_tract_count > 0:
         return "partial_failed"
@@ -444,6 +454,29 @@ def _derive_wma_status(output_summary: dict[str, Any], execution_error: Optional
     if output_summary.get("initial_cluster_count", 0) > 0:
         return "partial_failed"
     return "failed"
+
+
+def _wma_output_contract_error(output_summary: dict[str, Any]) -> Optional[str]:
+    tract_count = int(output_summary.get("anatomical_tract_count", 0) or 0)
+    readable_count = int(output_summary.get("anatomical_tract_readable_count", 0) or 0)
+    nonempty_count = int(output_summary.get("anatomical_tract_nonempty_count", 0) or 0)
+    if tract_count < MIN_ANATOMICAL_TRACT_COUNT:
+        return (
+            "WMA command returned without a complete AnatomicalTracts output "
+            f"(expected at least {MIN_ANATOMICAL_TRACT_COUNT} files, found {tract_count})."
+        )
+    if readable_count != tract_count:
+        return (
+            "WMA AnatomicalTracts output contains unreadable VTP files "
+            f"(expected all {tract_count} files to decode, found {readable_count})."
+        )
+    if nonempty_count < MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT:
+        return (
+            "WMA AnatomicalTracts output is under-populated "
+            f"(expected at least {MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT} non-empty tracts, found {nonempty_count}). "
+            "Review whole-brain tractography coverage, streamline lengths and atlas registration."
+        )
+    return None
 
 
 def build_wma_org_atlas_command(config: WMAOrgAtlasConfig) -> tuple[str, ...]:
@@ -591,7 +624,7 @@ def run_wma_org_atlas(
 
     manifest = {
         "kind": "wma_org_atlas",
-        "version": 3,
+        "version": 4,
         "name": "WMA ORG atlas clustering",
         "subject_id": config.subject_id,
         "input_tractography": source_tractography.as_posix(),
@@ -614,6 +647,12 @@ def run_wma_org_atlas(
         "command": list(command),
         "backend": backend_status,
         "atlas": atlas_status,
+        "dependencies": {
+            "input_tractography": _file_info(source_tractography),
+            "atlas_dir": _file_info(config.atlas_dir),
+            "slicer_executable": _file_info(config.slicer_executable),
+            "wma_root": _file_info(wma_root),
+        },
         "outputs": {
             "qc": qc_path.as_posix(),
             "stdout_log": stdout_log.as_posix(),
@@ -743,20 +782,12 @@ def run_wma_org_atlas(
             if temp_python_dir is not None:
                 temp_python_dir.cleanup()
             output_summary = summarize_wma_outputs(output_dir, prepared_tractography)
-            if (
-                execution_error is None
-                and config.execute
-                and int(output_summary.get("anatomical_tract_count", 0) or 0)
-                < MIN_ANATOMICAL_TRACT_COUNT
-            ):
+            contract_error = _wma_output_contract_error(output_summary) if config.execute else None
+            if execution_error is None and contract_error is not None:
                 log_hint = _last_nonempty_line(stderr_log.read_text(encoding="utf-8") if stderr_log.is_file() else "")
                 if log_hint is None:
                     log_hint = _last_nonempty_line(stdout_log.read_text(encoding="utf-8") if stdout_log.is_file() else "")
-                execution_error = (
-                    "WMA command returned without a complete AnatomicalTracts output "
-                    f"(expected at least {MIN_ANATOMICAL_TRACT_COUNT}, found "
-                    f"{output_summary.get('anatomical_tract_count', 0)})."
-                )
+                execution_error = contract_error
                 if log_hint:
                     execution_error += f" Last log line: {log_hint}"
 
@@ -775,6 +806,8 @@ def run_wma_org_atlas(
         "output_summary": output_summary,
         "acceptance_criteria": {
             "minimum_anatomical_tract_count": MIN_ANATOMICAL_TRACT_COUNT,
+            "minimum_readable_anatomical_tract_count": MIN_ANATOMICAL_TRACT_COUNT,
+            "minimum_nonempty_anatomical_tract_count": MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT,
         },
         "logs": {
             "stdout": stdout_log.as_posix(),

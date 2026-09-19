@@ -603,16 +603,45 @@
          </widget>
         </item>
         <item row="3" column="0">
+         <widget class="QLabel" name="wmaInputTractographyLabel">
+          <property name="text">
+           <string>WMA tractography input</string>
+          </property>
+          <property name="toolTip">
+           <string>Optional explicit whole-brain VTK/VTP/TCK for WMA ORG clustering. UKF tractography is recommended. The CSD-ACT connectome tractogram is not reused automatically.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="ctkPathLineEdit" name="wmaInputTractographyPath">
+          <property name="filters">
+           <set>ctkPathLineEdit::Files</set>
+          </property>
+          <property name="nameFilters">
+           <stringlist>
+            <string>Tractography (*.vtk *.vtp *.tck)</string>
+            <string>All files (*)</string>
+           </stringlist>
+          </property>
+          <property name="placeholderText" stdset="0">
+           <string>Required for WMA unless a UKF/WMA/ORG input is auto-discovered</string>
+          </property>
+          <property name="toolTip">
+           <string>Select a whole-brain tractogram with broad long-range white-matter coverage. UKF is recommended for the ORG atlas route.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
          <widget class="QLabel" name="orchestrationSelectStreamlinesLabel">
          <property name="text">
            <string>ACT/SAF streamlines</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
+        <item row="4" column="1">
          <widget class="QSpinBox" name="orchestrationSelectStreamlinesSpinBox">
          <property name="toolTip">
-           <string>Number of selected streamlines requested from MRtrix CSD/ACT. Used only when tractography backend is csd_act or saf.</string>
+           <string>Number of selected streamlines requested from MRtrix CSD/ACT. One million is recommended for bundle analysis and connectome construction.</string>
           </property>
           <property name="minimum">
            <number>1</number>
@@ -621,21 +650,21 @@
            <number>10000000</number>
           </property>
           <property name="value">
-           <number>100000</number>
+           <number>1000000</number>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>orchestrationSelectStreamlines</string>
           </property>
          </widget>
         </item>
-        <item row="4" column="0">
+        <item row="5" column="0">
          <widget class="QLabel" name="orchestrationMicrostructureStagesLabel">
           <property name="text">
            <string>Microstructure stages</string>
           </property>
          </widget>
         </item>
-        <item row="4" column="1">
+        <item row="5" column="1">
          <widget class="QComboBox" name="orchestrationMicrostructureStagesComboBox">
           <property name="toolTip">
            <string>dti generates FA/MD/AD/RD/L1/L2/L3 and ROI-wise stats. Add freewater and noddi only when those optional stages are desired and dependencies are available.</string>
@@ -660,14 +689,14 @@
           </item>
          </widget>
         </item>
-        <item row="5" column="0">
+        <item row="6" column="0">
          <widget class="QLabel" name="batchModeLabel">
           <property name="text">
            <string>Batch mode</string>
           </property>
          </widget>
         </item>
-        <item row="5" column="1">
+        <item row="6" column="1">
          <widget class="QCheckBox" name="batchModeCheckBox">
           <property name="toolTip">
            <string>Run the selected product set for every detected subject under Batch root. Subject ID is inferred from each child directory.</string>
@@ -680,14 +709,14 @@
           </property>
          </widget>
         </item>
-        <item row="6" column="0">
+        <item row="7" column="0">
          <widget class="QLabel" name="batchRootLabel">
           <property name="text">
            <string>Batch root</string>
           </property>
          </widget>
         </item>
-        <item row="6" column="1">
+        <item row="7" column="1">
          <widget class="ctkPathLineEdit" name="batchRootPath">
           <property name="filters">
            <set>ctkPathLineEdit::Dirs</set>
@@ -697,14 +726,14 @@
           </property>
          </widget>
         </item>
-        <item row="7" column="0">
+        <item row="8" column="0">
          <widget class="QLabel" name="batchSizeLabel">
           <property name="text">
            <string>Batch size</string>
           </property>
          </widget>
         </item>
-        <item row="7" column="1">
+        <item row="8" column="1">
          <widget class="QSpinBox" name="batchSizeSpinBox">
           <property name="toolTip">
            <string>Maximum number of subjects to run concurrently. Use 1 for safest GPU/CPU memory behavior.</string>
@@ -723,14 +752,14 @@
           </property>
          </widget>
         </item>
-        <item row="8" column="0">
+        <item row="9" column="0">
          <widget class="QLabel" name="batchArrangeInputsLabel">
           <property name="text">
            <string>Arrange inputs</string>
           </property>
          </widget>
         </item>
-        <item row="8" column="1">
+        <item row="9" column="1">
          <widget class="QComboBox" name="batchArrangeInputsComboBox">
           <property name="toolTip">
            <string>Optional. If raw files are directly inside each subject folder, create the required input/ folder by symlink or copy before running.</string>

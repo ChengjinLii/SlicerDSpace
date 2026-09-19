@@ -26,6 +26,7 @@ from shared.io_layout import (
 from shared.validation import InputValidationConfig, validate_subject_inputs
 from shared.environment import resolve_auto_torch_device
 from shared.model_assets import model_asset_path
+from shared.output_contracts import outputs_readable, tractography_readable
 
 
 SUPPORTED_TARGETS = {
@@ -49,6 +50,7 @@ SUPPORTED_TARGETS = {
 TRACTOGRAPHY_BACKENDS = {"csd_act", "dti_det", "saf"}
 BUNDLE_BACKENDS = {"wmql", "wma", "tractcloud"}
 WMA_MIN_ANATOMICAL_TRACT_COUNT = 73
+WMA_MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT = 55
 
 TARGET_ORDER = (
     "validation",
@@ -99,6 +101,7 @@ class ProductOrchestratorConfig:
     microstructure_free_water_engine: str = "serial"
     microstructure_free_water_n_jobs: Optional[int] = None
     microstructure_free_water_vox_per_chunk: Optional[int] = None
+    microstructure_free_water_max_fraction_for_tissue: float = 0.7
     postprocess_native_dir: Optional[Path] = None
     postprocess_mri_dir: Optional[Path] = None
     postprocess_backend_root: Optional[Path] = None
@@ -111,7 +114,7 @@ class ProductOrchestratorConfig:
     model_assets_dir: Optional[Path] = None
     ddseg_device: str = "auto"
     surface_device: str = "auto"
-    select_streamlines: int = 100000
+    select_streamlines: int = 1_000_000
     dti_min_length_mm: float = 10.0
     dti_max_length_mm: float = 250.0
     mrtrix_bin_dir: Optional[Path] = None
@@ -266,39 +269,79 @@ def _nonempty_file(path: Path) -> bool:
         return False
 
 
-def _wmql_complete(qc_path: Path) -> bool:
+def _wmql_complete(
+    qc_path: Path,
+    *,
+    manifest_path: Optional[Path] = None,
+    input_tractography: Optional[Path] = None,
+    parcellation: Optional[Path] = None,
+) -> bool:
     """Return true only when completed WMQL QC points to real bundles."""
 
     if not _qc_completed(qc_path):
         return False
     try:
-        qc = _read_json(qc_path)
-        summary = qc.get("output_summary")
-        if not isinstance(summary, dict):
+        from tractography.wmql import summarize_wmql_outputs
+
+        native_manifest_path = manifest_path or qc_path.with_name("wmql_manifest.json")
+        manifest = _read_json(native_manifest_path)
+        expected_dependencies = {
+            key: path
+            for key, path in {
+                "input_tractography": input_tractography,
+                "atlas": parcellation,
+            }.items()
+            if path is not None
+        }
+        if expected_dependencies and not _manifest_inputs_match(
+            native_manifest_path,
+            expected_dependencies,
+            "dependencies",
+        ):
             return False
-        bundle_files = summary.get("bundle_files")
-        if not isinstance(bundle_files, list) or not bundle_files:
+        summary = summarize_wmql_outputs(qc_path.parent)
+        expected_count = max(1, len(manifest.get("query_selection") or []))
+        bundle_count = int(summary.get("bundle_count", 0) or 0)
+        readable_count = int(summary.get("bundle_readable_count", 0) or 0)
+        nonempty_count = int(summary.get("bundle_nonempty_count", 0) or 0)
+        if bundle_count < expected_count:
             return False
-        for value in bundle_files:
-            if not isinstance(value, str) or not value.strip():
-                return False
-            path = Path(value).expanduser()
-            if not path.is_absolute():
-                path = qc_path.parent / path
-            if not _nonempty_file(path):
-                return False
-        return True
+        return readable_count == bundle_count and nonempty_count >= expected_count
     except (OSError, TypeError, ValueError):
         return False
 
 
-def _connectome_complete(qc_path: Path, matrix_path: Path, nodes_path: Path) -> bool:
+def _connectome_complete(
+    qc_path: Path,
+    matrix_path: Path,
+    nodes_path: Path,
+    *,
+    manifest_path: Optional[Path] = None,
+    tractography: Optional[Path] = None,
+    parcellation: Optional[Path] = None,
+    sift2_weights: Optional[Path] = None,
+) -> bool:
     """Return true only when QC counts and both connectome tables have data."""
 
     if not _qc_completed(qc_path):
         return False
     try:
         qc = _read_json(qc_path)
+        expected_dependencies = {
+            key: path
+            for key, path in {
+                "tractography": tractography,
+                "ddparcel_parcellation": parcellation,
+                "sift2_weights": sift2_weights,
+            }.items()
+            if path is not None
+        }
+        if expected_dependencies and not _manifest_inputs_match(
+            manifest_path or qc_path.with_name(qc_path.name.replace("_qc.json", "_manifest.json")),
+            expected_dependencies,
+            "dependencies",
+        ):
+            return False
         if int(qc.get("node_count", 0) or 0) <= 0 or int(qc.get("edge_count", 0) or 0) <= 0:
             return False
         if not _table_has_data_row(nodes_path, header_prefix="node_id\t"):
@@ -442,6 +485,7 @@ def _resolve_bundle_input_tractography(
     *,
     output_root: Optional[Path] = None,
     run_name: Optional[str] = None,
+    current_run_tractography: Optional[Path] = None,
     require_current_run: bool = False,
     allow_planned_current_run: bool = False,
 ) -> Optional[Path]:
@@ -451,10 +495,10 @@ def _resolve_bundle_input_tractography(
     layout = subject_layout(subject_root, output_root=output_root)
     candidates: list[Path] = []
     if run_name:
-        normalized_run = normalize_run_name(run_name)
         current_run_candidates = [
-            _saf_output_dir(layout, normalized_run) / "SAF.vtk",
-            _saf_output_dir(layout, normalized_run) / "SAF.vtp",
+            current_run_tractography.expanduser().resolve()
+            if current_run_tractography is not None
+            else layout.tractograms / normalize_run_name(run_name) / "missing_csd_act_ifod2.vtk"
         ]
         current_run_input = next((path.resolve() for path in current_run_candidates if path.is_file()), None)
         if current_run_input is not None:
@@ -462,10 +506,19 @@ def _resolve_bundle_input_tractography(
         if require_current_run:
             return current_run_candidates[0].resolve() if allow_planned_current_run else None
         candidates.extend(current_run_candidates)
-    candidates.extend(sorted(layout.saf.glob("**/*.vt*")))
     candidates.extend(sorted(layout.tractography.glob("**/*.vt*")))
     candidates.extend(sorted(subject_root.glob("tractography/**/*.vt*")) + sorted(subject_root.glob("tractography/*.vt*")))
-    return next((path.resolve() for path in candidates if path.suffix.lower() in {".vtk", ".vtp"} and path.is_file()), None)
+    excluded_parts = {"saf", "bundles", "wmql", "wma", "tractcloud", "tract_cloud_dl"}
+    return next(
+        (
+            path.resolve()
+            for path in candidates
+            if path.suffix.lower() in {".vtk", ".vtp"}
+            and path.is_file()
+            and not excluded_parts.intersection(part.lower() for part in path.parts)
+        ),
+        None,
+    )
 
 
 def _resolve_wma_input_tractography(
@@ -474,7 +527,14 @@ def _resolve_wma_input_tractography(
     *,
     output_root: Optional[Path] = None,
 ) -> Optional[Path]:
-    """Resolve a whole-brain VTK/VTP/TCK without selecting derived bundle outputs."""
+    """Resolve an explicitly marked WMA-compatible whole-brain tractogram.
+
+    ORG atlas clustering expects broad long-range white-matter coverage.  The
+    CSD-ACT tractogram produced for connectome construction is therefore not
+    reused implicitly.  Automatic discovery is deliberately limited to files
+    whose names identify UKF or a dedicated WMA/ORG input; every other
+    tractogram must be selected explicitly by the user.
+    """
 
     resolved_explicit = _resolve_optional_path(explicit_path)
     if resolved_explicit is not None:
@@ -488,10 +548,13 @@ def _resolve_wma_input_tractography(
     candidates.extend(sorted((subject_root / "tractography").glob("**/*.vtk")))
     candidates.extend(sorted((subject_root / "tractography").glob("**/*.vtp")))
     candidates.extend(sorted((subject_root / "tractography").glob("**/*.tck")))
+    compatible_name_markers = ("ukf", "wma_input", "wma-input", "org_input", "org-input")
     for path in candidates:
         if not path.is_file():
             continue
         if excluded_parts.intersection(part.lower() for part in path.parts):
+            continue
+        if not any(marker in path.stem.lower() for marker in compatible_name_markers):
             continue
         return path.resolve()
     return None
@@ -545,6 +608,144 @@ def _wma_anatomical_tract_count(output_dir: Path) -> int:
     return len(list(output_dir.glob("**/AnatomicalTracts/*.vtp"))) if output_dir.is_dir() else 0
 
 
+def _wma_output_summary(output_dir: Path) -> dict[str, Any]:
+    qc_path = output_dir / "wma_org_atlas_qc.json"
+    if not qc_path.is_file():
+        return {}
+    try:
+        qc = _read_json(qc_path)
+    except Exception:
+        return {}
+    summary = qc.get("output_summary")
+    return dict(summary) if isinstance(summary, dict) else {}
+
+
+def _wma_complete(
+    output_dir: Path,
+    *,
+    input_tractography: Optional[Path] = None,
+    atlas_dir: Optional[Path] = None,
+) -> bool:
+    if input_tractography is None:
+        return False
+    qc_path = output_dir / "wma_org_atlas_qc.json"
+    manifest_path = output_dir / "wma_org_atlas_manifest.json"
+    if not _qc_completed(qc_path):
+        return False
+    try:
+        from tractography.wma import summarize_wma_outputs
+
+        manifest = _read_json(manifest_path)
+        expected_dependencies = {
+            key: path
+            for key, path in {
+                "input_tractography": input_tractography,
+                "atlas_dir": atlas_dir,
+            }.items()
+            if path is not None
+        }
+        if expected_dependencies and not _manifest_inputs_match(
+            manifest_path,
+            expected_dependencies,
+            "dependencies",
+        ):
+            return False
+        prepared_input = Path(str(manifest.get("prepared_input_tractography") or ""))
+        if not prepared_input.is_file():
+            return False
+        summary = summarize_wma_outputs(output_dir, prepared_input)
+    except Exception:
+        return False
+    return (
+        int(summary.get("anatomical_tract_count", 0) or 0) >= WMA_MIN_ANATOMICAL_TRACT_COUNT
+        and int(summary.get("anatomical_tract_readable_count", 0) or 0)
+        == int(summary.get("anatomical_tract_count", 0) or 0)
+        and int(summary.get("anatomical_tract_nonempty_count", 0) or 0)
+        >= WMA_MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT
+    )
+
+
+def _tractcloud_complete(
+    output_dir: Path,
+    *,
+    input_tractography: Optional[Path] = None,
+) -> bool:
+    qc_path = output_dir / "tractcloud_qc.json"
+    manifest_path = output_dir / "tractcloud_manifest.json"
+    if not _qc_completed(qc_path):
+        return False
+    try:
+        from tractography.tractcloud import summarize_tractcloud_outputs
+
+        if input_tractography is not None and not _manifest_inputs_match(
+            manifest_path,
+            {"input_tractography": input_tractography},
+            "dependencies",
+        ):
+            return False
+        summary = summarize_tractcloud_outputs(output_dir)
+        count = int(summary.get("bundle_count", 0) or 0)
+        return (
+            count > 0
+            and int(summary.get("bundle_readable_count", 0) or 0) == count
+            and int(summary.get("bundle_nonempty_count", 0) or 0) == count
+            and int(summary.get("assigned_streamline_count", 0) or 0) > 0
+        )
+    except Exception:
+        return False
+
+
+def _saf_complete(
+    output_dir: Path,
+    *,
+    fod_path: Optional[Path] = None,
+    fs_dir: Optional[Path] = None,
+) -> bool:
+    qc_path = output_dir / "saf_qc.json"
+    manifest_path = output_dir / "saf_manifest.json"
+    tck_path = output_dir / "SAF.tck"
+    vtk_path = output_dir / "SAF.vtk"
+    if not _qc_completed(qc_path) or not tractography_readable(tck_path, tck_path):
+        return False
+    try:
+        qc = _read_json(qc_path)
+        manifest = _read_json(manifest_path)
+        expected_dependencies = {
+            key: path
+            for key, path in {"fod": fod_path, "fs_dir": fs_dir}.items()
+            if path is not None
+        }
+        if expected_dependencies and not _manifest_inputs_match(
+            manifest_path,
+            expected_dependencies,
+            "inputs",
+        ):
+            return False
+        scientific_summary = qc.get("scientific_output_summary")
+        if not isinstance(scientific_summary, dict):
+            return False
+        length_summary = scientific_summary.get("length_mm")
+        if not isinstance(length_summary, dict):
+            return False
+        configured_max = (manifest.get("parameters") or {}).get("maxlen")
+        return (
+            int(qc.get("streamline_count", 0) or 0) > 0
+            and int(scientific_summary.get("streamline_count", 0) or 0)
+            == int(qc.get("streamline_count", 0) or 0)
+            and bool(scientific_summary.get("all_points_finite"))
+            and (
+                configured_max is None
+                or float(length_summary.get("max", float("inf")))
+                <= float(configured_max) + 1e-3
+            )
+            and not qc.get("streamline_count_error")
+            and not qc.get("vtk_export_error")
+            and _nonempty_file(vtk_path)
+        )
+    except (OSError, TypeError, ValueError):
+        return False
+
+
 def _normalize_targets(config: ProductOrchestratorConfig) -> tuple[str, ...]:
     return normalize_orchestrator_targets(
         config.targets,
@@ -595,6 +796,44 @@ def _resolve_raw_inputs(subject_root: Path) -> dict[str, Path]:
         "bvec": input_dir / "bvecs",
         "mask": input_dir / "nodif_brain_mask.nii.gz",
     }
+
+
+def _resolve_analysis_inputs(
+    subject_root: Path,
+    subject_id: str,
+    output_root: Optional[Path] = None,
+) -> dict[str, Path]:
+    """Return the completed preprocessing bundle, or canonical raw inputs."""
+
+    if _preprocessing_complete(subject_root, subject_id, output_root):
+        outputs = _preprocessing_outputs(subject_root, subject_id, output_root)
+        return {key: outputs[key] for key in ("dwi", "bval", "bvec", "mask")}
+    return _resolve_raw_inputs(subject_root)
+
+
+def _file_record_matches(record: object, path: Path) -> bool:
+    if not isinstance(record, dict) or not path.exists():
+        return False
+    try:
+        stat = path.stat()
+        return (
+            Path(str(record.get("path") or "")).resolve() == path.resolve()
+            and int(record.get("size", -1)) == stat.st_size
+            and int(record.get("mtime_ns", -1)) == stat.st_mtime_ns
+        )
+    except (OSError, TypeError, ValueError):
+        return False
+
+
+def _manifest_inputs_match(manifest_path: Path, inputs: dict[str, Path], field: str) -> bool:
+    try:
+        manifest = _read_json(manifest_path)
+    except Exception:
+        return False
+    records = manifest.get(field)
+    if not isinstance(records, dict):
+        return False
+    return all(_file_record_matches(records.get(key), path) for key, path in inputs.items())
 
 
 def _preprocessing_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -698,7 +937,7 @@ def _parcellation_outputs(subject_root: Path, subject_id: str, output_root: Opti
 
 
 def _parcellation_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
-    return all(path.is_file() for path in _parcellation_outputs(subject_root, subject_id, output_root).values())
+    return outputs_readable(_parcellation_outputs(subject_root, subject_id, output_root).values())
 
 
 def _surface_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -712,7 +951,7 @@ def _surface_outputs(subject_root: Path, subject_id: str, output_root: Optional[
 
 
 def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
-    return all(path.is_file() for path in _surface_outputs(subject_root, subject_id, output_root).values())
+    return outputs_readable(_surface_outputs(subject_root, subject_id, output_root).values())
 
 
 def _surface_postprocess_native_dir(
@@ -826,7 +1065,12 @@ def _microstructure_dti_outputs(subject_root: Path, subject_id: str, output_root
 
 
 def _microstructure_dti_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
-    return all(path.is_file() for path in _microstructure_dti_outputs(subject_root, subject_id, output_root).values())
+    outputs = _microstructure_dti_outputs(subject_root, subject_id, output_root)
+    return outputs_readable(outputs.values()) and _manifest_inputs_match(
+        outputs["manifest"],
+        _resolve_analysis_inputs(subject_root, subject_id, output_root),
+        "raw_input_bundle",
+    )
 
 
 def _microstructure_freewater_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -836,6 +1080,8 @@ def _microstructure_freewater_outputs(subject_root: Path, subject_id: str, outpu
         "fwf": freewater_dir / f"{subject_id}_fw_fraction.nii.gz",
         "fw_fa": freewater_dir / f"{subject_id}_fw_FA.nii.gz",
         "fw_md": freewater_dir / f"{subject_id}_fw_MD.nii.gz",
+        "valid_mask": freewater_dir / f"{subject_id}_fw_tissue_valid_mask.nii.gz",
+        "qc": freewater_dir / "freewater_qc.json",
         "manifest": freewater_dir / "freewater_manifest.json",
         "progress": freewater_dir / "freewater_progress.json",
     }
@@ -843,7 +1089,13 @@ def _microstructure_freewater_outputs(subject_root: Path, subject_id: str, outpu
 
 def _microstructure_freewater_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
     outputs = _microstructure_freewater_outputs(subject_root, subject_id, output_root)
-    return all(outputs[key].is_file() for key in ("fwf", "fw_fa", "fw_md", "manifest"))
+    return outputs_readable(
+        outputs[key] for key in ("fwf", "fw_fa", "fw_md", "valid_mask", "qc", "manifest")
+    ) and _manifest_inputs_match(
+        outputs["manifest"],
+        _resolve_analysis_inputs(subject_root, subject_id, output_root),
+        "raw_input_bundle",
+    )
 
 
 def _microstructure_noddi_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -853,6 +1105,10 @@ def _microstructure_noddi_outputs(subject_root: Path, subject_id: str, output_ro
         "ndi": noddi_dir / f"{subject_id}_noddi_NDI.nii.gz",
         "odi": noddi_dir / f"{subject_id}_noddi_ODI.nii.gz",
         "isovf": noddi_dir / f"{subject_id}_noddi_IsoVF.nii.gz",
+        "valid_mask": noddi_dir / f"{subject_id}_noddi_tissue_valid_mask.nii.gz",
+        "rmse": noddi_dir / f"{subject_id}_noddi_RMSE.nii.gz",
+        "nrmse": noddi_dir / f"{subject_id}_noddi_NRMSE.nii.gz",
+        "qc": noddi_dir / "noddi_qc.json",
         "manifest": noddi_dir / "noddi_manifest.json",
         "progress": noddi_dir / "noddi_progress.json",
     }
@@ -860,7 +1116,71 @@ def _microstructure_noddi_outputs(subject_root: Path, subject_id: str, output_ro
 
 def _microstructure_noddi_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
     outputs = _microstructure_noddi_outputs(subject_root, subject_id, output_root)
-    return all(outputs[key].is_file() for key in ("ndi", "odi", "isovf", "manifest"))
+    return outputs_readable(
+        outputs[key]
+        for key in ("ndi", "odi", "isovf", "valid_mask", "rmse", "nrmse", "qc", "manifest")
+    ) and _manifest_inputs_match(
+        outputs["manifest"],
+        _resolve_analysis_inputs(subject_root, subject_id, output_root),
+        "raw_input_bundle",
+    )
+
+
+def _csd_act_complete(
+    qc_path: Path,
+    manifest_path: Path,
+    tractogram: Path,
+    tractogram_trk: Path,
+    tractogram_vtk: Path,
+    weights: Path,
+    analysis_inputs: dict[str, Path],
+) -> bool:
+    """Require current inputs and decoded output evidence before CSD/ACT reuse."""
+
+    if not _qc_completed(qc_path) or not _manifest_inputs_match(
+        manifest_path,
+        analysis_inputs,
+        "dependencies",
+    ):
+        return False
+    try:
+        qc = _read_json(qc_path)
+        manifest = _read_json(manifest_path)
+        summary = qc.get("scientific_output_summary")
+        parameters = manifest.get("parameters")
+        if not isinstance(summary, dict) or not isinstance(parameters, dict):
+            return False
+        tck = summary.get("tck")
+        trk = summary.get("trk")
+        vtk = summary.get("vtk")
+        sift2 = summary.get("sift2")
+        if not all(isinstance(item, dict) for item in (tck, trk, vtk, sift2)):
+            return False
+        expected_count = int(parameters.get("select_streamlines", 0) or 0)
+        length_summary = tck.get("length_mm")
+        if not isinstance(length_summary, dict):
+            return False
+        return (
+            expected_count > 0
+            and int(tck.get("streamline_count", 0) or 0) == expected_count
+            and int(trk.get("streamline_count", 0) or 0) == expected_count
+            and int(vtk.get("streamline_count", 0) or 0) == expected_count
+            and int(sift2.get("weight_count", 0) or 0) == expected_count
+            and bool(tck.get("all_points_finite"))
+            and bool(trk.get("all_points_finite"))
+            and bool(sift2.get("all_finite"))
+            and bool(sift2.get("all_nonnegative"))
+            and float(length_summary.get("min", -1.0)) + 1e-3
+            >= float(parameters.get("min_length_mm", 0.0))
+            and float(length_summary.get("max", float("inf"))) - 1e-3
+            <= float(parameters.get("max_length_mm", 0.0))
+            and _file_record_matches(tck.get("file"), tractogram)
+            and _file_record_matches(trk.get("file"), tractogram_trk)
+            and _file_record_matches(vtk.get("file"), tractogram_vtk)
+            and _file_record_matches(sift2.get("file"), weights)
+        )
+    except (OSError, TypeError, ValueError):
+        return False
 
 
 def _microstructure_requested_outputs_complete(
@@ -942,6 +1262,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         raise ValueError("microstructure_free_water_engine must be one of: serial, joblib, dask, ray.")
     if config.microstructure_free_water_vox_per_chunk is not None and config.microstructure_free_water_vox_per_chunk <= 0:
         raise ValueError("microstructure_free_water_vox_per_chunk must be > 0.")
+    if not 0.0 < float(config.microstructure_free_water_max_fraction_for_tissue) < 1.0:
+        raise ValueError("microstructure_free_water_max_fraction_for_tissue must be between 0 and 1.")
     if config.tractography_backend not in TRACTOGRAPHY_BACKENDS:
         raise ValueError("tractography_backend must be one of: csd_act, dti_det, saf.")
     bundle_backends = _normalize_bundle_backends(config.bundle_backend)
@@ -961,6 +1283,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     run_name = normalize_run_name(config.run_name)
     primary_tractography_backend = _primary_tractography_backend(config)
     raw = _resolve_raw_inputs(subject_root)
+    analysis_inputs = _resolve_analysis_inputs(subject_root, config.subject_id, output_root)
     raw_missing = _missing_file_labels(raw)
     model_assets_dir = config.model_assets_dir.expanduser().resolve() if config.model_assets_dir is not None else None
     atlas_t2 = config.atlas_t2.expanduser().resolve() if config.atlas_t2 is not None else _default_atlas_t2(model_assets_dir)
@@ -994,6 +1317,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     dti_manifest = dti_tractogram_dir / f"{dti_stem}_manifest.json"
     csd_tractogram = tractogram_dir / f"{config.subject_id}_csd_act_ifod2.tck"
     csd_tractogram_trk = csd_tractogram.with_suffix(".trk")
+    csd_tractogram_vtk = csd_tractogram.with_suffix(".vtk")
     sift2_weights = csd_tractogram.with_name(f"{csd_tractogram.stem}_sift2_weights.txt")
     dti_tractogram_trk = dti_tractogram_dir / f"{dti_stem}.trk"
     tractogram = csd_tractogram if primary_tractography_backend == "csd_act" else dti_tractogram_trk
@@ -1005,10 +1329,6 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             config.wma_input_tractography,
             output_root=output_root,
         )
-    elif primary_tractography_backend == "csd_act" and (
-        csd_tractogram.is_file() or "tractography" in selected
-    ):
-        wma_input_tractography = csd_tractogram
     else:
         wma_input_tractography = _resolve_wma_input_tractography(
             subject_root,
@@ -1020,8 +1340,9 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         config.tractcloud_input_tractography,
         output_root=output_root,
         run_name=run_name,
-        require_current_run="saf" in selected,
-        allow_planned_current_run="saf" in selected,
+        current_run_tractography=csd_tractogram_vtk,
+        require_current_run=primary_tractography_backend == "csd_act" and "tractography" in selected,
+        allow_planned_current_run=primary_tractography_backend == "csd_act" and "tractography" in selected,
     )
     slicer_executable = _resolve_slicer_executable(config)
     segmentation = _resolve_segmentation(subject_root, output_root)
@@ -1053,30 +1374,52 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         if target == "microstructure_noddi":
             return _microstructure_noddi_complete(subject_root, config.subject_id, output_root)
         if target == "tractography":
-            return _qc_completed(csd_qc if primary_tractography_backend == "csd_act" else dti_qc) and tractogram_trk.is_file() and (
-                primary_tractography_backend != "csd_act" or tractogram.is_file()
-            )
+            if primary_tractography_backend == "csd_act":
+                return _csd_act_complete(
+                    csd_qc,
+                    csd_dir / "csd_act_manifest.json",
+                    csd_tractogram,
+                    csd_tractogram_trk,
+                    csd_tractogram_vtk,
+                    sift2_weights,
+                    analysis_inputs,
+                )
+            return _qc_completed(dti_qc) and tractogram_trk.is_file()
         if target == "bundles":
-            return _wmql_complete(wmql_dir / "wmql_qc.json")
+            return _wmql_complete(
+                wmql_dir / "wmql_qc.json",
+                input_tractography=tractogram_trk,
+                parcellation=parcellation,
+            )
         if target == "saf":
-            return _qc_completed(saf_dir / "saf_qc.json") and saf_tractogram.is_file()
+            fod_candidate = csd_dir / f"{config.subject_id}_wmfod_norm.mif"
+            fod_path = fod_candidate if fod_candidate.is_file() else csd_dir / f"{config.subject_id}_wmfod.mif"
+            fs_dir = _resolve_optional_path(config.saf_fs_dir) or _surface_postprocess_saf_fs_dir(
+                subject_root,
+                config.subject_id,
+                output_root,
+            )
+            return _saf_complete(saf_dir, fod_path=fod_path, fs_dir=fs_dir)
         if target == "wma":
-            return _qc_completed(wma_dir / "wma_org_atlas_qc.json") and _wma_anatomical_tract_count(wma_dir) > 0
+            return _wma_complete(
+                wma_dir,
+                input_tractography=wma_input_tractography,
+                atlas_dir=config.wma_atlas_dir,
+            )
         if target == "tractcloud":
-            if not _qc_completed(tractcloud_dir / "tractcloud_qc.json"):
-                return False
-            try:
-                from tractography.tractcloud import summarize_tractcloud_outputs
-
-                return int(summarize_tractcloud_outputs(tractcloud_dir).get("bundle_count", 0) or 0) > 0
-            except Exception:
-                return False
+            return _tractcloud_complete(
+                tractcloud_dir,
+                input_tractography=tractcloud_input_tractography,
+            )
         if target == "connectome":
             connectome_stem = f"{config.subject_id}-connectome-streamline_count"
             return _connectome_complete(
                 connectome_dir / f"{connectome_stem}_qc.json",
                 connectome_dir / f"{connectome_stem}.csv",
                 connectome_dir / f"{config.subject_id}-connectome-nodes.tsv",
+                manifest_path=connectome_dir / f"{connectome_stem}_manifest.json",
+                tractography=tractogram,
+                parcellation=parcellation,
             )
         return False
 
@@ -1247,29 +1590,29 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         if target == "microstructure":
             outputs = {**micro_outputs}
             if config.resume and _microstructure_dti_complete(subject_root, config.subject_id, output_root):
-                add(target, "skipped", "completed DTI microstructure outputs found", "reuse", inputs=raw, outputs=outputs)
+                add(target, "skipped", "completed DTI microstructure outputs found", "reuse", inputs=analysis_inputs, outputs=outputs)
             elif not raw_input_block(target, outputs):
-                add(target, "will_run", "ready to run Microstructure DTI", "runnable", inputs=raw, outputs=outputs, dependencies={"parcellation": "optional ROI stats"})
+                add(target, "will_run", "ready to run Microstructure DTI", "runnable", inputs=analysis_inputs, outputs=outputs, dependencies={"parcellation": "optional ROI stats"})
             continue
 
         if target == "microstructure_freewater":
             dti_ready = _microstructure_dti_complete(subject_root, config.subject_id, output_root) or available.get("microstructure", False)
             if config.resume and _microstructure_freewater_complete(subject_root, config.subject_id, output_root):
-                add(target, "skipped", "completed Free Water outputs found", "reuse", inputs=raw, outputs=freewater_outputs, dependencies={"microstructure": "available" if dti_ready else None})
+                add(target, "skipped", "completed Free Water outputs found", "reuse", inputs=analysis_inputs, outputs=freewater_outputs, dependencies={"microstructure": "available" if dti_ready else None})
             elif not dti_ready:
                 add(target, "blocked", "missing Microstructure DTI outputs; select microstructure or provide existing output", "upstream", inputs=raw, outputs=freewater_outputs, dependencies={"microstructure": "missing"}, provides=False)
             elif not raw_input_block(target, freewater_outputs):
-                add(target, "will_run", "ready to run Microstructure Free Water", "runnable", inputs=raw, outputs=freewater_outputs, dependencies={"microstructure": "available" if _microstructure_dti_complete(subject_root, config.subject_id, output_root) else "will_run"})
+                add(target, "will_run", "ready to run Microstructure Free Water", "runnable", inputs=analysis_inputs, outputs=freewater_outputs, dependencies={"microstructure": "available" if _microstructure_dti_complete(subject_root, config.subject_id, output_root) else "will_run"})
             continue
 
         if target == "microstructure_noddi":
             dti_ready = _microstructure_dti_complete(subject_root, config.subject_id, output_root) or available.get("microstructure", False)
             if config.resume and _microstructure_noddi_complete(subject_root, config.subject_id, output_root):
-                add(target, "skipped", "completed NODDI outputs found", "reuse", inputs=raw, outputs=noddi_outputs, dependencies={"microstructure": "available" if dti_ready else None})
+                add(target, "skipped", "completed NODDI outputs found", "reuse", inputs=analysis_inputs, outputs=noddi_outputs, dependencies={"microstructure": "available" if dti_ready else None})
             elif not dti_ready:
                 add(target, "blocked", "missing Microstructure DTI outputs; select microstructure or provide existing output", "upstream", inputs=raw, outputs=noddi_outputs, dependencies={"microstructure": "missing"}, provides=False)
             elif not raw_input_block(target, noddi_outputs):
-                add(target, "will_run", "ready to run Microstructure NODDI", "runnable", inputs=raw, outputs=noddi_outputs, dependencies={"microstructure": "available" if _microstructure_dti_complete(subject_root, config.subject_id, output_root) else "will_run"})
+                add(target, "will_run", "ready to run Microstructure NODDI", "runnable", inputs=analysis_inputs, outputs=noddi_outputs, dependencies={"microstructure": "available" if _microstructure_dti_complete(subject_root, config.subject_id, output_root) else "will_run"})
             continue
 
         if target == "tractography":
@@ -1277,28 +1620,44 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             tractography_outputs = {
                 "tractogram": tractogram,
                 "tractogram_trk": tractogram_trk,
+                "tractogram_vtk": csd_tractogram_vtk if primary_tractography_backend == "csd_act" else None,
                 "qc": tractography_qc,
                 "manifest": csd_dir / "csd_act_manifest.json" if primary_tractography_backend == "csd_act" else dti_manifest,
             }
-            complete = config.resume and _qc_completed(tractography_qc) and tractogram_trk.is_file() and (
-                primary_tractography_backend != "csd_act" or tractogram.is_file()
+            complete = config.resume and (
+                _csd_act_complete(
+                    csd_qc,
+                    csd_dir / "csd_act_manifest.json",
+                    csd_tractogram,
+                    csd_tractogram_trk,
+                    csd_tractogram_vtk,
+                    sift2_weights,
+                    analysis_inputs,
+                )
+                if primary_tractography_backend == "csd_act"
+                else _qc_completed(tractography_qc) and tractogram_trk.is_file()
             )
             segmentation_ready = segmentation is not None or available.get("segmentation", False)
             if complete:
-                add(target, "skipped", "completed outputs found", "reuse", inputs=raw, outputs=tractography_outputs, dependencies={"segmentation": "available" if segmentation_ready else None})
+                add(target, "skipped", "completed outputs found", "reuse", inputs=analysis_inputs, outputs=tractography_outputs, dependencies={"segmentation": "available" if segmentation_ready else None})
             elif raw_input_block(target, tractography_outputs):
                 pass
             elif primary_tractography_backend == "csd_act" and not segmentation_ready:
                 add(target, "blocked", "missing DDSeg segmentation; select segmentation or provide existing output", "upstream", inputs=raw, outputs=tractography_outputs, dependencies={"segmentation": "missing"}, provides=False)
             else:
-                add(target, "will_run", f"ready to run tractography backend {config.tractography_backend}", "runnable", inputs=raw, outputs=tractography_outputs, dependencies={"segmentation": "available" if segmentation is not None else ("will_run" if available.get("segmentation", False) else None)})
+                add(target, "will_run", f"ready to run tractography backend {config.tractography_backend}", "runnable", inputs=analysis_inputs, outputs=tractography_outputs, dependencies={"segmentation": "available" if segmentation is not None else ("will_run" if available.get("segmentation", False) else None)})
             continue
 
         if target == "bundles":
             wmql_outputs = {"qc": wmql_dir / "wmql_qc.json", "manifest": wmql_dir / "wmql_manifest.json", "bundle_dir": wmql_dir}
             parcellation_ready = parcellation is not None or available.get("parcellation", False)
             tractogram_ready = tractogram_trk.is_file() or available.get("tractography", False)
-            if config.resume and _wmql_complete(wmql_outputs["qc"]):
+            if config.resume and _wmql_complete(
+                wmql_outputs["qc"],
+                manifest_path=wmql_outputs["manifest"],
+                input_tractography=tractogram_trk,
+                parcellation=parcellation,
+            ):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=wmql_outputs, dependencies={"parcellation": "available", "tractogram": "available"})
             elif not parcellation_ready:
                 add(target, "blocked", "missing parcellation; select parcellation or provide existing output", "upstream", outputs=wmql_outputs, dependencies={"parcellation": "missing"}, provides=False)
@@ -1310,17 +1669,17 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
 
         if target == "saf":
             saf_outputs = {"tractogram": saf_tractogram, "tractogram_vtk": saf_dir / "SAF.vtk", "qc": saf_dir / "saf_qc.json", "manifest": saf_dir / "saf_manifest.json"}
-            if config.resume and _qc_completed(saf_outputs["qc"]) and saf_tractogram.is_file():
+            fod_candidate = csd_dir / f"{config.subject_id}_wmfod_norm.mif"
+            fod_path = fod_candidate if fod_candidate.is_file() else (csd_dir / f"{config.subject_id}_wmfod.mif")
+            fs_dir = _resolve_optional_path(config.saf_fs_dir) or _surface_postprocess_saf_fs_dir(subject_root, config.subject_id, output_root)
+            if config.resume and _saf_complete(saf_dir, fod_path=fod_path, fs_dir=fs_dir):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=saf_outputs)
             else:
-                fod_candidate = csd_dir / f"{config.subject_id}_wmfod_norm.mif"
-                fod_path = fod_candidate if fod_candidate.is_file() else (csd_dir / f"{config.subject_id}_wmfod.mif")
                 fod_will_run = (
                     primary_tractography_backend == "csd_act"
                     and "tractography" in selected
                     and available.get("tractography", False)
                 )
-                fs_dir = _resolve_optional_path(config.saf_fs_dir) or _surface_postprocess_saf_fs_dir(subject_root, config.subject_id, output_root)
                 if fs_dir is None and not available.get("surface_postprocess", False):
                     add(target, "blocked", "missing --saf-fs-dir or completed DDSurfer postprocess outputs", "upstream", outputs=saf_outputs, provides=False)
                 elif not fod_path.is_file() and not fod_will_run:
@@ -1334,20 +1693,21 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             wma_input_available = bool(
                 wma_input_tractography is not None and wma_input_tractography.is_file()
             )
-            wma_input_will_run = bool(
-                wma_input_tractography == csd_tractogram and available.get("tractography", False)
-            )
+            wma_input_will_run = False
             if (
                 config.resume
-                and _qc_completed(wma_outputs["qc"])
-                and _wma_anatomical_tract_count(wma_dir) >= WMA_MIN_ANATOMICAL_TRACT_COUNT
+                and _wma_complete(
+                    wma_dir,
+                    input_tractography=wma_input_tractography,
+                    atlas_dir=config.wma_atlas_dir,
+                )
             ):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=wma_outputs)
             elif not wma_input_available and not wma_input_will_run:
                 add(
                     target,
                     "blocked",
-                    "missing whole-brain VTK/VTP/TCK tractography for WMA",
+                    "missing WMA-compatible whole-brain tractography; select an explicit input (UKF recommended)",
                     "data",
                     outputs=wma_outputs,
                     provides=False,
@@ -1386,23 +1746,22 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
 
         if target == "tractcloud":
             tractcloud_outputs = {"qc": tractcloud_dir / "tractcloud_qc.json", "manifest": tractcloud_dir / "tractcloud_manifest.json", "output_dir": tractcloud_dir}
-            tractcloud_bundle_count = 0
             tractcloud_input_available = bool(
                 tractcloud_input_tractography is not None and tractcloud_input_tractography.is_file()
             )
-            if config.resume and _qc_completed(tractcloud_outputs["qc"]):
-                try:
-                    from tractography.tractcloud import summarize_tractcloud_outputs
-
-                    tractcloud_bundle_count = int(summarize_tractcloud_outputs(tractcloud_dir).get("bundle_count", 0) or 0)
-                except Exception:
-                    tractcloud_bundle_count = 0
-            if tractcloud_bundle_count > 0:
+            tractcloud_input_will_run = bool(
+                tractcloud_input_tractography == csd_tractogram_vtk
+                and available.get("tractography", False)
+            )
+            if config.resume and _tractcloud_complete(
+                tractcloud_dir,
+                input_tractography=tractcloud_input_tractography,
+            ):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=tractcloud_outputs)
-            elif not tractcloud_input_available and not available.get("saf", False):
-                add(target, "blocked", "missing VTK/VTP input tractography for TractCloud", "data", outputs=tractcloud_outputs, provides=False)
+            elif not tractcloud_input_available and not tractcloud_input_will_run:
+                add(target, "blocked", "missing whole-brain VTK/VTP tractography for TractCloud", "data", outputs=tractcloud_outputs, provides=False)
             else:
-                add(target, "will_run", "ready to run TractCloud", "runnable", inputs={"input_tractography": tractcloud_input_tractography}, outputs=tractcloud_outputs, dependencies={"input_tractography": "available" if tractcloud_input_available else "will_run:saf"})
+                add(target, "will_run", "ready to run TractCloud", "runnable", inputs={"input_tractography": tractcloud_input_tractography}, outputs=tractcloud_outputs, dependencies={"input_tractography": "available" if tractcloud_input_available else "will_run:tractography.csd_act"})
             continue
 
         if target == "connectome":
@@ -1419,7 +1778,14 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             }
             parcellation_ready = parcellation is not None or available.get("parcellation", False)
             tractogram_ready = tractogram.is_file() or available.get("tractography", False)
-            if config.resume and _connectome_complete(conn_qc, conn_matrix, conn_nodes):
+            if config.resume and _connectome_complete(
+                conn_qc,
+                conn_matrix,
+                conn_nodes,
+                manifest_path=conn_outputs["manifest"],
+                tractography=tractogram,
+                parcellation=parcellation,
+            ):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=conn_outputs)
             elif not parcellation_ready:
                 add(target, "blocked", "missing parcellation; select parcellation or provide existing output", "upstream", outputs=conn_outputs, dependencies={"parcellation": "missing"}, provides=False)
@@ -1983,6 +2349,8 @@ def _run_subject_products_impl(
         raise ValueError("microstructure_free_water_engine must be one of: serial, joblib, dask, ray.")
     if config.microstructure_free_water_vox_per_chunk is not None and config.microstructure_free_water_vox_per_chunk <= 0:
         raise ValueError("microstructure_free_water_vox_per_chunk must be > 0.")
+    if not 0.0 < float(config.microstructure_free_water_max_fraction_for_tissue) < 1.0:
+        raise ValueError("microstructure_free_water_max_fraction_for_tissue must be between 0 and 1.")
     if config.tractography_backend not in TRACTOGRAPHY_BACKENDS:
         raise ValueError("tractography_backend must be one of: csd_act, dti_det, saf.")
     bundle_backends = _normalize_bundle_backends(config.bundle_backend)
@@ -2137,6 +2505,7 @@ def _run_subject_products_impl(
             )
 
     preprocessing_outputs = _preprocessing_outputs(subject_root, config.subject_id, output_root)
+    analysis_inputs = _resolve_analysis_inputs(subject_root, config.subject_id, output_root)
     segmentation = _resolve_segmentation(subject_root, output_root)
     parcellation = _resolve_parcellation(subject_root, config.subject_id, output_root)
     model_assets_dir = config.model_assets_dir.expanduser().resolve() if config.model_assets_dir is not None else None
@@ -2165,6 +2534,7 @@ def _run_subject_products_impl(
     dti_manifest = dti_tractogram_dir / f"{dti_stem}_manifest.json"
     csd_tractogram = tractogram_dir / f"{config.subject_id}_csd_act_ifod2.tck"
     csd_tractogram_trk = csd_tractogram.with_suffix(".trk")
+    csd_tractogram_vtk = csd_tractogram.with_suffix(".vtk")
     sift2_weights = csd_tractogram.with_name(f"{csd_tractogram.stem}_sift2_weights.txt")
     dti_tractogram_trk = dti_tractogram_dir / f"{dti_stem}.trk"
     tractogram = csd_tractogram if primary_tractography_backend == "csd_act" else dti_tractogram_trk
@@ -2176,8 +2546,6 @@ def _run_subject_products_impl(
             config.wma_input_tractography,
             output_root=output_root,
         )
-    elif primary_tractography_backend == "csd_act" and csd_tractogram.is_file():
-        wma_input_tractography = csd_tractogram
     else:
         wma_input_tractography = _resolve_wma_input_tractography(
             subject_root,
@@ -2189,7 +2557,8 @@ def _run_subject_products_impl(
         config.tractcloud_input_tractography,
         output_root=output_root,
         run_name=run_name,
-        require_current_run="saf" in targets,
+        current_run_tractography=csd_tractogram_vtk,
+        require_current_run=primary_tractography_backend == "csd_act" and "tractography" in targets,
     )
     slicer_executable = _resolve_slicer_executable(config)
     ddseg_device = _resolved_device_for_execution(
@@ -2493,7 +2862,7 @@ def _run_subject_products_impl(
             tasks.append(ProductTaskRecord(name="microstructure.dti", status="blocked", reason="missing raw input: " + ", ".join(missing)))
         else:
             from microstructure import MicrostructureConfig, run_microstructure
-            from shared.pipeline import ensure_native_dti_bundle, find_subject_root
+            from shared.pipeline import ensure_native_dti_bundle, find_subject_root, resolve_preprocessed_input_bundle
 
             _emit("[Orchestrator] Running Microstructure DTI", log)
             task_started = _start_task_timer("Microstructure DTI", log)
@@ -2502,16 +2871,19 @@ def _run_subject_products_impl(
                 config.subject_id,
                 mrtrix_bin_dir=mask_mrtrix_bin_dir,
             )
+            analysis_input_bundle = resolve_preprocessed_input_bundle(raw_bundle, output_root=output_root)
             native_bundle = ensure_native_dti_bundle(
-                raw_bundle,
+                analysis_input_bundle,
                 fit_method=config.microstructure_fit_method,
-                reuse=bool(config.resume),
+                # This shared cache is keyed by its own input manifest. A fresh
+                # product run must not force an unrelated Slicer CLI rebuild.
+                reuse=True,
                 log=log,
             )
             result = run_microstructure(
                 MicrostructureConfig(
                     subject_id=config.subject_id,
-                    raw_input_bundle=raw_bundle,
+                    raw_input_bundle=analysis_input_bundle,
                     native_bundle=native_bundle,
                     output_dir=layout.microstructure,
                     roi_label_map=parcellation,
@@ -2521,6 +2893,7 @@ def _run_subject_products_impl(
                     free_water_engine=config.microstructure_free_water_engine,
                     free_water_n_jobs=config.microstructure_free_water_n_jobs,
                     free_water_vox_per_chunk=config.microstructure_free_water_vox_per_chunk,
+                    free_water_max_fraction_for_tissue=config.microstructure_free_water_max_fraction_for_tissue,
                     force_recompute=not config.resume,
                 ),
                 log=log,
@@ -2555,6 +2928,7 @@ def _run_subject_products_impl(
                     status="skipped",
                     reason="completed Free Water outputs found",
                     manifest_path=freewater_outputs["manifest"],
+                    qc_path=freewater_outputs["qc"],
                     outputs={key: path.as_posix() for key, path in freewater_outputs.items() if key != "manifest"},
                 )
             )
@@ -2565,7 +2939,7 @@ def _run_subject_products_impl(
             tasks.append(ProductTaskRecord(name="microstructure.freewater", status="blocked", reason="missing raw input: " + ", ".join(missing)))
         else:
             from microstructure import MicrostructureConfig, run_microstructure
-            from shared.pipeline import ensure_native_dti_bundle, find_subject_root
+            from shared.pipeline import ensure_native_dti_bundle, find_subject_root, resolve_preprocessed_input_bundle
 
             _emit("[Orchestrator] Running Microstructure Free Water", log)
             raw_bundle = find_subject_root(
@@ -2573,16 +2947,17 @@ def _run_subject_products_impl(
                 config.subject_id,
                 mrtrix_bin_dir=mask_mrtrix_bin_dir,
             )
+            analysis_input_bundle = resolve_preprocessed_input_bundle(raw_bundle, output_root=output_root)
             native_bundle = ensure_native_dti_bundle(
-                raw_bundle,
+                analysis_input_bundle,
                 fit_method=config.microstructure_fit_method,
-                reuse=bool(config.resume),
+                reuse=True,
                 log=log,
             )
             result = run_microstructure(
                 MicrostructureConfig(
                     subject_id=config.subject_id,
-                    raw_input_bundle=raw_bundle,
+                    raw_input_bundle=analysis_input_bundle,
                     native_bundle=native_bundle,
                     output_dir=layout.microstructure,
                     roi_label_map=parcellation,
@@ -2592,6 +2967,7 @@ def _run_subject_products_impl(
                     free_water_engine=config.microstructure_free_water_engine,
                     free_water_n_jobs=config.microstructure_free_water_n_jobs,
                     free_water_vox_per_chunk=config.microstructure_free_water_vox_per_chunk,
+                    free_water_max_fraction_for_tissue=config.microstructure_free_water_max_fraction_for_tissue,
                     force_recompute=not config.resume,
                 ),
                 log=log,
@@ -2601,10 +2977,13 @@ def _run_subject_products_impl(
                     name="microstructure.freewater",
                     status="completed",
                     manifest_path=freewater_outputs["manifest"],
+                    qc_path=result.free_water_qc_path,
                     outputs={
                         "fwf": result.fwf_path.as_posix(),
-                        "fw_tissue_fa": result.fw_tissue_fa_path.as_posix(),
-                        "fw_tissue_md": result.fw_tissue_md_path.as_posix(),
+                        "fw_fa": result.fw_tissue_fa_path.as_posix(),
+                        "fw_md": result.fw_tissue_md_path.as_posix(),
+                        "valid_mask": result.fw_tissue_valid_mask_path.as_posix(),
+                        "qc": result.free_water_qc_path.as_posix(),
                     },
                 )
             )
@@ -2618,6 +2997,7 @@ def _run_subject_products_impl(
                     status="skipped",
                     reason="completed NODDI outputs found",
                     manifest_path=noddi_outputs["manifest"],
+                    qc_path=noddi_outputs["qc"],
                     outputs={key: path.as_posix() for key, path in noddi_outputs.items() if key != "manifest"},
                 )
             )
@@ -2628,7 +3008,7 @@ def _run_subject_products_impl(
             tasks.append(ProductTaskRecord(name="microstructure.noddi", status="blocked", reason="missing raw input: " + ", ".join(missing)))
         else:
             from microstructure import MicrostructureConfig, run_microstructure
-            from shared.pipeline import ensure_native_dti_bundle, find_subject_root
+            from shared.pipeline import ensure_native_dti_bundle, find_subject_root, resolve_preprocessed_input_bundle
 
             _emit("[Orchestrator] Running Microstructure NODDI", log)
             raw_bundle = find_subject_root(
@@ -2636,16 +3016,17 @@ def _run_subject_products_impl(
                 config.subject_id,
                 mrtrix_bin_dir=mask_mrtrix_bin_dir,
             )
+            analysis_input_bundle = resolve_preprocessed_input_bundle(raw_bundle, output_root=output_root)
             native_bundle = ensure_native_dti_bundle(
-                raw_bundle,
+                analysis_input_bundle,
                 fit_method=config.microstructure_fit_method,
-                reuse=bool(config.resume),
+                reuse=True,
                 log=log,
             )
             result = run_microstructure(
                 MicrostructureConfig(
                     subject_id=config.subject_id,
-                    raw_input_bundle=raw_bundle,
+                    raw_input_bundle=analysis_input_bundle,
                     native_bundle=native_bundle,
                     output_dir=layout.microstructure,
                     roi_label_map=parcellation,
@@ -2655,6 +3036,7 @@ def _run_subject_products_impl(
                     free_water_engine=config.microstructure_free_water_engine,
                     free_water_n_jobs=config.microstructure_free_water_n_jobs,
                     free_water_vox_per_chunk=config.microstructure_free_water_vox_per_chunk,
+                    free_water_max_fraction_for_tissue=config.microstructure_free_water_max_fraction_for_tissue,
                     force_recompute=not config.resume,
                 ),
                 log=log,
@@ -2668,6 +3050,10 @@ def _run_subject_products_impl(
                         "noddi_ndi": result.noddi_ndi_path.as_posix(),
                         "noddi_odi": result.noddi_odi_path.as_posix(),
                         "noddi_fwf": result.noddi_fwf_path.as_posix(),
+                        "noddi_tissue_valid_mask": result.noddi_tissue_valid_mask_path.as_posix(),
+                        "noddi_rmse": result.noddi_rmse_path.as_posix(),
+                        "noddi_nrmse": result.noddi_nrmse_path.as_posix(),
+                        "noddi_qc": result.noddi_qc_path.as_posix(),
                     },
                 )
             )
@@ -2676,9 +3062,20 @@ def _run_subject_products_impl(
         tractography_qc = csd_qc if primary_tractography_backend == "csd_act" else dti_qc
         tractography_manifest = csd_dir / "csd_act_manifest.json" if primary_tractography_backend == "csd_act" else dti_manifest
         tractography_task_name = "tractography.csd_act" if primary_tractography_backend == "csd_act" else "tractography.dti_det"
-        if config.resume and _qc_completed(tractography_qc) and tractogram_trk.is_file() and (
-            primary_tractography_backend != "csd_act" or csd_tractogram.is_file()
-        ):
+        tractography_complete = (
+            _csd_act_complete(
+                csd_qc,
+                csd_dir / "csd_act_manifest.json",
+                csd_tractogram,
+                csd_tractogram_trk,
+                csd_tractogram_vtk,
+                sift2_weights,
+                analysis_inputs,
+            )
+            if primary_tractography_backend == "csd_act"
+            else _qc_completed(tractography_qc) and tractogram_trk.is_file()
+        )
+        if config.resume and tractography_complete:
             tasks.append(
                 ProductTaskRecord(
                     name=tractography_task_name,
@@ -2686,7 +3083,11 @@ def _run_subject_products_impl(
                     reason="completed outputs found",
                     qc_path=tractography_qc,
                     manifest_path=tractography_manifest,
-                    outputs={"tractogram": tractogram.as_posix(), "tractogram_trk": tractogram_trk.as_posix()},
+                    outputs={
+                        "tractogram": tractogram.as_posix(),
+                        "tractogram_trk": tractogram_trk.as_posix(),
+                        "tractogram_vtk": csd_tractogram_vtk.as_posix(),
+                    },
                 )
             )
         elif not config.execute:
@@ -2715,17 +3116,20 @@ def _run_subject_products_impl(
                 result = run_csd_act(
                     CSDActConfig(
                         subject_id=config.subject_id,
-                        dwi_path=raw["dwi"],
-                        bval_path=raw["bval"],
-                        bvec_path=raw["bvec"],
-                        mask_path=raw["mask"],
+                        dwi_path=analysis_inputs["dwi"],
+                        bval_path=analysis_inputs["bval"],
+                        bvec_path=analysis_inputs["bvec"],
+                        mask_path=analysis_inputs["mask"],
                         five_tt_path=act_prep.five_tt_path,
                         gmwmi_path=act_prep.gmwmi_path,
                         output_dir=csd_dir,
                         tractogram_dir=tractogram_dir,
                         select_streamlines=config.select_streamlines,
+                        min_length_mm=config.dti_min_length_mm,
+                        max_length_mm=config.dti_max_length_mm,
                         use_sift2=True,
                         export_trk=True,
+                        export_vtk=True,
                         mrtrix_bin_dir=config.mrtrix_bin_dir,
                         execute=True,
                     ),
@@ -2741,12 +3145,14 @@ def _run_subject_products_impl(
                         outputs={
                             "tractogram": result.tractogram_path.as_posix(),
                             "tractogram_trk": result.tractogram_trk_path.as_posix() if result.tractogram_trk_path else None,
+                            "tractogram_vtk": result.tractogram_vtk_path.as_posix() if result.tractogram_vtk_path else None,
                             "sift2_weights": result.sift2_weights_path.as_posix() if result.sift2_weights_path else None,
                         },
                     )
                 )
             else:
                 from tractography.dti import DTITrackingConfig, run_dti_tracking
+                from shared.pipeline import RawInputBundle
 
                 _emit(f"[Orchestrator] Running DTI tractography {run_name}", log)
                 task_started = _start_task_timer(f"DTI tractography {run_name}", log)
@@ -2754,6 +3160,15 @@ def _run_subject_products_impl(
                     DTITrackingConfig(
                         subject_id=config.subject_id,
                         input_root=subject_root,
+                        input_bundle=RawInputBundle(
+                            subject_root=subject_root,
+                            subject_id=config.subject_id,
+                            input_dir=analysis_inputs["dwi"].parent,
+                            dwi_path=analysis_inputs["dwi"],
+                            bval_path=analysis_inputs["bval"],
+                            bvec_path=analysis_inputs["bvec"],
+                            mask_path=analysis_inputs["mask"],
+                        ),
                         output_dir=dti_tractogram_dir,
                         fit_method=config.microstructure_fit_method,
                         tracking_method="deterministic",
@@ -2782,7 +3197,11 @@ def _run_subject_products_impl(
 
     if "bundles" in run_targets:
         wmql_qc = wmql_dir / "wmql_qc.json"
-        if config.resume and _wmql_complete(wmql_qc):
+        if config.resume and _wmql_complete(
+            wmql_qc,
+            input_tractography=tractogram_trk,
+            parcellation=parcellation,
+        ):
             tasks.append(ProductTaskRecord(name="bundles.wmql", status="skipped", reason="completed outputs found", qc_path=wmql_qc, manifest_path=wmql_dir / "wmql_manifest.json"))
         elif not config.execute:
             tasks.append(ProductTaskRecord(name="bundles.wmql", status="planned", reason="execute=False"))
@@ -2807,7 +3226,12 @@ def _run_subject_products_impl(
                 log=log,
             )
             _finish_task_timer(f"WMQL bundles {run_name}", task_started, log)
-            wmql_complete = _wmql_complete(result.qc_path)
+            wmql_complete = _wmql_complete(
+                result.qc_path,
+                manifest_path=result.manifest_path,
+                input_tractography=tractogram_trk,
+                parcellation=parcellation,
+            )
             tasks.append(
                 _task_from_result(
                     "bundles.wmql",
@@ -2819,7 +3243,10 @@ def _run_subject_products_impl(
 
     if "saf" in run_targets:
         saf_qc = saf_dir / "saf_qc.json"
-        if config.resume and _qc_completed(saf_qc) and saf_tractogram.is_file():
+        fod_candidate = csd_dir / f"{config.subject_id}_wmfod_norm.mif"
+        fod_path = fod_candidate if fod_candidate.is_file() else (csd_dir / f"{config.subject_id}_wmfod.mif")
+        fs_dir = _resolve_optional_path(config.saf_fs_dir) or _surface_postprocess_saf_fs_dir(subject_root, config.subject_id, output_root)
+        if config.resume and _saf_complete(saf_dir, fod_path=fod_path, fs_dir=fs_dir):
             saf_qc_data = _read_json(saf_qc)
             saf_vtk = saf_dir / "SAF.vtk"
             streamline_count = saf_qc_data.get("streamline_count")
@@ -2840,11 +3267,6 @@ def _run_subject_products_impl(
         elif not config.execute:
             tasks.append(ProductTaskRecord(name="tractography.saf", status="planned", reason="execute=False"))
         else:
-            fod_candidate = csd_dir / f"{config.subject_id}_wmfod_norm.mif"
-            fod_path = fod_candidate if fod_candidate.is_file() else (csd_dir / f"{config.subject_id}_wmfod.mif")
-            fs_dir = _resolve_optional_path(config.saf_fs_dir)
-            if fs_dir is None:
-                fs_dir = _surface_postprocess_saf_fs_dir(subject_root, config.subject_id, output_root)
             pregenerated_tractogram = _resolve_optional_path(config.saf_pregenerated_tractogram)
             saf_tckgen_options = config.saf_tckgen_options
             saf_maxlen = 40.0
@@ -2914,8 +3336,14 @@ def _run_subject_products_impl(
 
     if "wma" in run_targets:
         wma_qc = wma_dir / "wma_org_atlas_qc.json"
-        anatomical_tract_count = _wma_anatomical_tract_count(wma_dir) if config.resume and _qc_completed(wma_qc) else 0
-        if anatomical_tract_count > 0:
+        wma_summary = _wma_output_summary(wma_dir)
+        anatomical_tract_count = int(wma_summary.get("anatomical_tract_count", 0) or 0)
+        nonempty_tract_count = int(wma_summary.get("anatomical_tract_nonempty_count", 0) or 0)
+        if config.resume and _wma_complete(
+            wma_dir,
+            input_tractography=wma_input_tractography,
+            atlas_dir=config.wma_atlas_dir,
+        ):
             tasks.append(
                 ProductTaskRecord(
                     name="bundles.wma",
@@ -2923,7 +3351,10 @@ def _run_subject_products_impl(
                     reason="completed outputs found",
                     qc_path=wma_qc,
                     manifest_path=wma_dir / "wma_org_atlas_manifest.json",
-                    outputs={"anatomical_tract_count": str(anatomical_tract_count)},
+                    outputs={
+                        "anatomical_tract_count": str(anatomical_tract_count),
+                        "anatomical_tract_nonempty_count": str(nonempty_tract_count),
+                    },
                 )
             )
         elif not config.execute:
@@ -2938,25 +3369,24 @@ def _run_subject_products_impl(
                     config.wma_input_tractography,
                     output_root=output_root,
                 )
-            elif primary_tractography_backend == "csd_act" and csd_tractogram.is_file():
-                wma_input_tractography = csd_tractogram
             else:
                 wma_input_tractography = _resolve_wma_input_tractography(
                     subject_root,
                     None,
                     output_root=output_root,
                 )
-            if (
-                _qc_completed(wma_qc)
-                and anatomical_tract_count >= WMA_MIN_ANATOMICAL_TRACT_COUNT
+            if _wma_complete(
+                wma_dir,
+                input_tractography=wma_input_tractography,
+                atlas_dir=config.wma_atlas_dir,
             ):
-                tasks.append(ProductTaskRecord(name="bundles.wma", status="skipped", reason="completed outputs found", qc_path=wma_qc, manifest_path=wma_dir / "wma_org_atlas_manifest.json", outputs={"anatomical_tract_count": str(anatomical_tract_count)}))
+                tasks.append(ProductTaskRecord(name="bundles.wma", status="skipped", reason="completed outputs found", qc_path=wma_qc, manifest_path=wma_dir / "wma_org_atlas_manifest.json", outputs={"anatomical_tract_count": str(anatomical_tract_count), "anatomical_tract_nonempty_count": str(nonempty_tract_count)}))
             elif wma_input_tractography is None:
                 tasks.append(
                     ProductTaskRecord(
                         name="bundles.wma",
                         status="blocked",
-                        reason="missing whole-brain VTK/VTP/TCK tractography for WMA",
+                        reason="missing WMA-compatible whole-brain tractography; select --wma-input-tractography (UKF recommended)",
                     )
                 )
             elif (
@@ -2994,16 +3424,37 @@ def _run_subject_products_impl(
                     ),
                     log=log,
                 )
-                tasks.append(_task_from_result("bundles.wma", result))
+                wma_complete = _wma_complete(
+                    wma_dir,
+                    input_tractography=wma_input_tractography,
+                    atlas_dir=config.wma_atlas_dir,
+                )
+                tasks.append(
+                    _task_from_result(
+                        "bundles.wma",
+                        result,
+                        status="completed" if wma_complete else "failed",
+                        reason="" if wma_complete else "WMA outputs did not satisfy the anatomical-tract QC contract",
+                    )
+                )
 
     if "tractcloud" in run_targets:
         tractcloud_qc = tractcloud_dir / "tractcloud_qc.json"
-        output_summary = {"bundle_count": 0}
-        if config.resume and _qc_completed(tractcloud_qc):
+        tractcloud_input_tractography = _resolve_bundle_input_tractography(
+            subject_root,
+            config.tractcloud_input_tractography,
+            output_root=output_root,
+            run_name=run_name,
+            current_run_tractography=csd_tractogram_vtk,
+            require_current_run=primary_tractography_backend == "csd_act" and "tractography" in targets,
+        )
+        if config.resume and _tractcloud_complete(
+            tractcloud_dir,
+            input_tractography=tractcloud_input_tractography,
+        ):
             from tractography.tractcloud import summarize_tractcloud_outputs
 
             output_summary = summarize_tractcloud_outputs(tractcloud_dir)
-        if output_summary.get("bundle_count", 0) > 0:
             tasks.append(
                 ProductTaskRecord(
                     name="bundles.tractcloud",
@@ -3020,15 +3471,8 @@ def _run_subject_products_impl(
                 reason = "execute=False; existing QC present but no bundle outputs found"
             tasks.append(ProductTaskRecord(name="bundles.tractcloud", status="planned", reason=reason))
         else:
-            tractcloud_input_tractography = _resolve_bundle_input_tractography(
-                subject_root,
-                config.tractcloud_input_tractography,
-                output_root=output_root,
-                run_name=run_name,
-                require_current_run="saf" in targets,
-            )
             if tractcloud_input_tractography is None:
-                tasks.append(ProductTaskRecord(name="bundles.tractcloud", status="blocked", reason="missing VTK/VTP input tractography for TractCloud"))
+                tasks.append(ProductTaskRecord(name="bundles.tractcloud", status="blocked", reason="missing whole-brain VTK/VTP tractography for TractCloud"))
             else:
                 from tractography import TractCloudConfig, run_tractcloud_parcellation
 
@@ -3054,7 +3498,15 @@ def _run_subject_products_impl(
         conn_qc = connectome_dir / f"{config.subject_id}-connectome-streamline_count_qc.json"
         conn_matrix = connectome_dir / f"{config.subject_id}-connectome-streamline_count.csv"
         conn_nodes = connectome_dir / f"{config.subject_id}-connectome-nodes.tsv"
-        if config.resume and _connectome_complete(conn_qc, conn_matrix, conn_nodes):
+        conn_manifest = connectome_dir / f"{config.subject_id}-connectome-streamline_count_manifest.json"
+        if config.resume and _connectome_complete(
+            conn_qc,
+            conn_matrix,
+            conn_nodes,
+            manifest_path=conn_manifest,
+            tractography=tractogram,
+            parcellation=parcellation,
+        ):
             tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="skipped", reason="completed outputs found", qc_path=conn_qc, manifest_path=connectome_dir / f"{config.subject_id}-connectome-streamline_count_manifest.json"))
         elif not config.execute:
             tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="planned", reason="execute=False"))
@@ -3110,7 +3562,15 @@ def _run_subject_products_impl(
             sift2_qc = sift2_connectome_dir / f"{config.subject_id}-connectome-sift2_weighted_streamline_count_qc.json"
             sift2_matrix = sift2_connectome_dir / f"{config.subject_id}-connectome-sift2_weighted_streamline_count.csv"
             sift2_nodes = sift2_connectome_dir / f"{config.subject_id}-connectome-nodes.tsv"
-            if config.resume and _connectome_complete(sift2_qc, sift2_matrix, sift2_nodes):
+            if config.resume and _connectome_complete(
+                sift2_qc,
+                sift2_matrix,
+                sift2_nodes,
+                manifest_path=sift2_connectome_dir / f"{config.subject_id}-connectome-sift2_weighted_streamline_count_manifest.json",
+                tractography=tractogram,
+                parcellation=parcellation,
+                sift2_weights=sift2_weights,
+            ):
                 tasks.append(
                     ProductTaskRecord(
                         name="connectome.sift2_weighted",
@@ -3258,6 +3718,7 @@ def _run_subject_products_impl(
         "microstructure_free_water_engine": config.microstructure_free_water_engine,
         "microstructure_free_water_n_jobs": config.microstructure_free_water_n_jobs,
         "microstructure_free_water_vox_per_chunk": config.microstructure_free_water_vox_per_chunk,
+        "microstructure_free_water_max_fraction_for_tissue": config.microstructure_free_water_max_fraction_for_tissue,
         "microstructure_stages": [
             stage
             for stage, enabled in (

@@ -9,7 +9,8 @@ logs, quality-control files and provenance.
 
 ## 5-Minute Start
 
-1. Install [3D Slicer](https://www.slicer.org/) and open SlicerDDSurfer.
+1. Install [3D Slicer](https://www.slicer.org/) and load the module using
+   [Install the code](#install-the-code) below.
 2. Click `First-run setup wizard`.
 3. Choose a `Model assets root`, for example `~/SlicerDDSurfer-model-assets`.
 4. Click `Check environment dependencies`.
@@ -47,6 +48,21 @@ cd SlicerDDSurfer
 
 `git clone` downloads the source code, documentation, scripts and
 `models/assets_manifest.json`. It does not download the large model weights.
+
+For the tested Linux Slicer 5.10 source installation:
+
+```bash
+python3 scripts/stage_slicer_extension.py \
+  --install-root ~/SlicerDDSurfer-extension --link-mode copy
+```
+
+In Slicer, open **Edit > Application Settings > Modules**, add
+`~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules`
+to **Additional module paths** (select the expanded absolute path), and restart.
+Select **SlicerDDSurfer** in the module selector. Install **SlicerDMRI** and
+**PyTorch** through the Extension Manager for the corresponding workflows.
+This is a source installation; staging alone does not validate a packaged
+Extension Manager release. Re-run staging after updating the source.
 
 ## Download Model Assets
 

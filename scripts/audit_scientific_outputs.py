@@ -7,13 +7,20 @@ import argparse
 import csv
 import json
 import math
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+
 DTI_KEYS = ("fa", "md", "ad", "rd", "l1", "l2", "l3", "trace")
 FULL_ROUTE_NAMES = {"freewater", "noddi", "saf", "wmql", "wma", "tractcloud", "connectome"}
+TRACTOGRAM_LENGTH_ABS_TOL_MM = 1e-3
 
 
 def _manifest_for_run(subject_output: Path, run_name: str | None = None) -> Path | None:
@@ -58,6 +65,223 @@ def _task_entry(manifest: dict[str, Any], task_name: str) -> dict[str, Any] | No
     return None
 
 
+def _analysis_input_path(manifest: dict[str, Any], key: str) -> Path:
+    """Resolve the standardized preprocessing output when the run selected it."""
+
+    preprocessed = _task_outputs(manifest, "preprocessing.dwi").get(key)
+    if preprocessed:
+        candidate = Path(str(preprocessed))
+        if candidate.is_file():
+            return candidate
+    names = {
+        "dwi": "data.nii.gz",
+        "bval": "bvals",
+        "bvec": "bvecs",
+        "mask": "nodif_brain_mask.nii.gz",
+    }
+    return Path(str(manifest["subject_root"])) / "input" / names[key]
+
+
+def _audit_orchestration(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> None:
+    """Reject incomplete runs before interpreting their scientific products."""
+
+    status = manifest.get("status")
+    if status is not None:
+        _record_check(
+            checks,
+            "orchestration.status",
+            status == "completed",
+            status,
+            "completed",
+        )
+    task_statuses = {
+        str(task.get("name") or f"task_{index}"): task.get("status")
+        for index, task in enumerate(manifest.get("tasks") or [])
+    }
+    if task_statuses:
+        successful = {"completed", "skipped", "passed"}
+        _record_check(
+            checks,
+            "orchestration.task_statuses",
+            all(status in successful for status in task_statuses.values()),
+            task_statuses,
+            "every selected task completed, passed, or reused a completed output",
+        )
+
+
+def _audit_validation(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> bool:
+    """Audit the native input-validation report when the route was selected."""
+
+    task = _task_entry(manifest, "validation")
+    if task is None:
+        return False
+    task_status = task.get("status")
+    _record_check(
+        checks,
+        "validation.task_status",
+        task_status in {"completed", "skipped", "passed"},
+        task_status,
+        "completed, passed, or skipped/reused",
+    )
+    outputs = dict(task.get("outputs") or {})
+    report_path, report = _json_record(
+        task.get("qc_path")
+        or task.get("manifest_path")
+        or outputs.get("report")
+    )
+    _record_check(
+        checks,
+        "validation.report_exists",
+        report is not None,
+        report_path.as_posix() if report_path else None,
+        "readable input-validation JSON exists",
+    )
+    if report is None:
+        return True
+    error_count = int(report.get("error_count", 0) or 0)
+    passed = report.get("passed") is True and report.get("status") == "passed"
+    _record_check(
+        checks,
+        "validation.report_status",
+        passed and error_count == 0,
+        {
+            "status": report.get("status"),
+            "passed": report.get("passed"),
+            "error_count": error_count,
+            "warning_count": int(report.get("warning_count", 0) or 0),
+        },
+        "passed=true, status=passed, and error_count=0",
+    )
+    files = dict(((report.get("metrics") or {}).get("files") or {}))
+    required_files = {
+        key: bool((files.get(key) or {}).get("exists") and (files.get(key) or {}).get("is_file"))
+        for key in ("dwi", "bval", "bvec")
+    }
+    if required_files:
+        _record_check(
+            checks,
+            "validation.required_files",
+            all(required_files.values()),
+            required_files,
+            "DWI, b-values, and b-vectors exist as files",
+        )
+    gradients = dict(((report.get("metrics") or {}).get("gradients") or {}))
+    if gradients:
+        _record_check(
+            checks,
+            "validation.gradients",
+            gradients.get("valid") is True,
+            gradients,
+            "gradient table is valid",
+        )
+    return True
+
+
+def _audit_preprocessing(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> bool:
+    """Validate the standardized DWI bundle and preprocessing disclosure."""
+
+    import nibabel as nib
+    import numpy as np
+
+    task = _task_entry(manifest, "preprocessing.dwi")
+    if task is None:
+        return False
+    outputs = dict(task.get("outputs") or {})
+    manifest_path, native_manifest = _json_record(task.get("manifest_path"))
+    qc_path, qc = _json_record(task.get("qc_path"))
+    _record_check(
+        checks,
+        "preprocessing.task_status",
+        task.get("status") in {"completed", "skipped"},
+        task.get("status"),
+        "completed or skipped/reused",
+    )
+    _record_check(
+        checks,
+        "preprocessing.manifest_cache_key",
+        bool(native_manifest and native_manifest.get("cache_key")),
+        manifest_path.as_posix() if manifest_path else None,
+        "versioned input-and-parameter cache key is recorded",
+    )
+    _record_check(
+        checks,
+        "preprocessing.qc_status",
+        bool(qc and qc.get("status") == "completed"),
+        qc.get("status") if qc else None,
+        "completed",
+    )
+
+    paths = {
+        key: Path(str(outputs.get(key) or ""))
+        for key in ("dwi", "bval", "bvec", "mask")
+    }
+    for key, path in paths.items():
+        _record_check(checks, f"preprocessing.{key}.exists", path.is_file(), path.as_posix(), "file exists")
+    if not all(path.is_file() for path in paths.values()):
+        return True
+
+    dwi_image = nib.load(paths["dwi"].as_posix())
+    mask_image = nib.load(paths["mask"].as_posix())
+    dwi_shape = dwi_image.shape
+    mask = np.asarray(mask_image.dataobj)
+    bvals = np.asarray(np.loadtxt(paths["bval"], ndmin=1), dtype=np.float64).reshape(-1)
+    bvecs = np.asarray(np.loadtxt(paths["bvec"]), dtype=np.float64)
+    if bvecs.ndim == 2 and bvecs.shape[0] == 3:
+        bvecs = bvecs.T
+    volume_count = int(dwi_shape[3]) if len(dwi_shape) == 4 else 0
+    _record_check(checks, "preprocessing.dwi_4d", len(dwi_shape) == 4, list(dwi_shape), "4D DWI")
+    _record_check(
+        checks,
+        "preprocessing.gradient_count",
+        volume_count > 0 and bvals.size == volume_count and bvecs.shape == (volume_count, 3),
+        {"volumes": volume_count, "bvals": int(bvals.size), "bvec_shape": list(bvecs.shape)},
+        "one finite b-value and 3-vector per DWI volume",
+    )
+    finite_gradients = bool(np.isfinite(bvals).all() and np.isfinite(bvecs).all())
+    _record_check(checks, "preprocessing.gradients_finite", finite_gradients, None, "all gradients finite")
+    if finite_gradients and bvecs.shape == (volume_count, 3):
+        nonzero = bvals > 50.0
+        norms = np.linalg.norm(bvecs[nonzero], axis=1)
+        normalized_fraction = float(np.mean(np.isclose(norms, 1.0, atol=0.05))) if norms.size else 0.0
+        _record_check(
+            checks,
+            "preprocessing.bvec_norms",
+            normalized_fraction >= 0.99,
+            normalized_fraction,
+            ">= 0.99 of diffusion-weighted b-vectors have norm 1 +/- 0.05",
+        )
+    mask_valid = bool(
+        mask.shape == dwi_shape[:3]
+        and np.isfinite(mask).all()
+        and np.all(np.isin(mask, (0, 1)))
+        and np.count_nonzero(mask) > 0
+        and np.allclose(mask_image.affine, dwi_image.affine, atol=1e-4)
+    )
+    _record_check(
+        checks,
+        "preprocessing.mask_contract",
+        mask_valid,
+        {"mask_shape": list(mask.shape), "dwi_shape": list(dwi_shape[:3]), "voxels": int(np.count_nonzero(mask))},
+        "binary non-empty mask on the DWI grid",
+    )
+    if qc:
+        details = dict(qc.get("backend_details") or {})
+        omitted = any(
+            str((details.get(key) or {}).get("status") or "")
+            in {"not_available", "not_run", "not_supported", "not_supported_by_dipy_backend", "skipped"}
+            for key in ("denoise", "gibbs", "motion", "bias_correction", "susceptibility_distortion_correction")
+        )
+        warnings = list(qc.get("warnings") or [])
+        _record_check(
+            checks,
+            "preprocessing.omitted_steps_disclosed",
+            not omitted or bool(warnings),
+            warnings,
+            "omitted corrections are explicitly disclosed in QC warnings",
+        )
+    return True
+
+
 def _audit_dti(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> bool:
     import nibabel as nib
     import numpy as np
@@ -66,8 +290,7 @@ def _audit_dti(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> bool:
     if not outputs:
         return False
 
-    subject_root = Path(str(manifest["subject_root"]))
-    mask_path = subject_root / "input" / "nodif_brain_mask.nii.gz"
+    mask_path = _analysis_input_path(manifest, "mask")
     _record_check(checks, "dti.mask_exists", mask_path.is_file(), mask_path.as_posix(), "file exists")
     if not mask_path.is_file():
         return True
@@ -193,6 +416,14 @@ def _audit_tractography(manifest: dict[str, Any], checks: list[dict[str, Any]]) 
         parameters = tracking_manifest.get("parameters") or {}
         configured_min = parameters.get("min_length_mm")
         configured_max = parameters.get("max_length_mm")
+        if task_name == "tractography.csd_act":
+            _record_check(
+                checks,
+                "tractography.csd_act.length_limits_recorded",
+                configured_min is not None and configured_max is not None,
+                {"min_length_mm": configured_min, "max_length_mm": configured_max},
+                "explicit minimum and maximum streamline lengths are recorded",
+            )
         if configured_min is not None and configured_max is not None:
             within_configured_range = bool(
                 np.min(lengths) + 1e-3 >= float(configured_min)
@@ -215,6 +446,15 @@ def _audit_tractography(manifest: dict[str, Any], checks: list[dict[str, Any]]) 
     qc_path = Path(str(qc_value)) if qc_value else None
     if qc_path and qc_path.is_file():
         qc = json.loads(qc_path.read_text(encoding="utf-8"))
+        if task_name == "tractography.csd_act":
+            scientific_summary = qc.get("scientific_output_summary")
+            _record_check(
+                checks,
+                "tractography.csd_act.scientific_output_summary",
+                isinstance(scientific_summary, dict) and bool(scientific_summary),
+                scientific_summary,
+                "decoded TCK/TRK/SIFT2 evidence is recorded",
+            )
         qc_count = qc.get("streamline_count")
         if qc_count is not None:
             _record_check(
@@ -228,8 +468,18 @@ def _audit_tractography(manifest: dict[str, Any], checks: list[dict[str, Any]]) 
         qc_max = qc.get("length_max_mm")
         if qc_min is not None and qc_max is not None:
             summary_matches = bool(
-                math.isclose(float(qc_min), float(np.min(lengths)), rel_tol=1e-5, abs_tol=1e-5)
-                and math.isclose(float(qc_max), float(np.max(lengths)), rel_tol=1e-5, abs_tol=1e-5)
+                math.isclose(
+                    float(qc_min),
+                    float(np.min(lengths)),
+                    rel_tol=1e-5,
+                    abs_tol=TRACTOGRAM_LENGTH_ABS_TOL_MM,
+                )
+                and math.isclose(
+                    float(qc_max),
+                    float(np.max(lengths)),
+                    rel_tol=1e-5,
+                    abs_tol=TRACTOGRAM_LENGTH_ABS_TOL_MM,
+                )
             )
             _record_check(
                 checks,
@@ -244,8 +494,7 @@ def _audit_tractography(manifest: dict[str, Any], checks: list[dict[str, Any]]) 
                 "QC and saved tractogram length extrema match",
             )
 
-    subject_root = Path(str(manifest["subject_root"]))
-    dwi_path = subject_root / "input" / "data.nii.gz"
+    dwi_path = _analysis_input_path(manifest, "dwi")
     if dwi_path.is_file():
         dwi = nib.load(dwi_path.as_posix())
         corners = np.asarray(
@@ -283,12 +532,26 @@ def _audit_optional_microstructure(manifest: dict[str, Any], checks: list[dict[s
         },
         "noddi": {
             "task": "microstructure.noddi",
-            "maps": {"ndi": (0.0, 1.0), "odi": (0.0, 1.0), "isovf": (0.0, 1.0)},
+            "maps": {
+                "ndi": (0.0, 1.0),
+                "odi": (0.0, 1.0),
+                "isovf": (0.0, 1.0),
+                "rmse": (0.0, None),
+                "nrmse": (0.0, None),
+            },
         },
     }
+    output_aliases = {
+        "fw_fa": "fw_tissue_fa",
+        "fw_md": "fw_tissue_md",
+        "ndi": "noddi_ndi",
+        "odi": "noddi_odi",
+        "isovf": "noddi_fwf",
+        "rmse": "noddi_rmse",
+        "nrmse": "noddi_nrmse",
+    }
     selected: set[str] = set()
-    subject_root = Path(str(manifest["subject_root"]))
-    mask_path = subject_root / "input" / "nodif_brain_mask.nii.gz"
+    mask_path = _analysis_input_path(manifest, "mask")
     mask_image = nib.load(mask_path.as_posix()) if mask_path.is_file() else None
     mask = np.asarray(mask_image.dataobj) > 0 if mask_image is not None else None
 
@@ -305,8 +568,24 @@ def _audit_optional_microstructure(manifest: dict[str, Any], checks: list[dict[s
             "completed or skipped/reused",
         )
         outputs = dict(task.get("outputs") or {})
+        qc_path = None
+        qc_payload = None
+        route_mask_image = mask_image
+        route_mask = mask
+        if route in {"freewater", "noddi"}:
+            qc_value = outputs.get("qc") or outputs.get("noddi_qc")
+            if route == "freewater" and not qc_value:
+                valid_value = outputs.get("valid_mask") or outputs.get("fw_tissue_valid_mask")
+                qc_value = str(Path(str(valid_value)).parent / "freewater_qc.json") if valid_value else None
+            qc_path = Path(str(qc_value)) if qc_value else None
+            qc_payload = _json_record(qc_path)[1] if qc_path is not None else None
+            recorded_mask = ((qc_payload or {}).get("input") or {}).get("mask")
+            recorded_mask_path = Path(str(recorded_mask)) if recorded_mask else None
+            if recorded_mask_path is not None and recorded_mask_path.is_file():
+                route_mask_image = nib.load(recorded_mask_path.as_posix())
+                route_mask = np.asarray(route_mask_image.dataobj) > 0
         for key, (minimum, maximum) in dict(spec["maps"]).items():
-            value = outputs.get(key)
+            value = outputs.get(key) or outputs.get(output_aliases.get(key, ""))
             path = Path(str(value)) if value else None
             exists = bool(path and path.is_file())
             _record_check(
@@ -322,22 +601,26 @@ def _audit_optional_microstructure(manifest: dict[str, Any], checks: list[dict[s
             array = np.asarray(image.dataobj, dtype=np.float64)
             finite = bool(np.isfinite(array).all())
             _record_check(checks, f"{route}.{key}.finite", finite, None, "all values finite")
-            if mask_image is not None and mask is not None:
+            if route_mask_image is not None and route_mask is not None:
                 _record_check(
                     checks,
                     f"{route}.{key}.shape",
-                    array.shape == mask.shape,
+                    array.shape == route_mask.shape,
                     list(array.shape),
-                    list(mask.shape),
+                    list(route_mask.shape),
                 )
                 _record_check(
                     checks,
                     f"{route}.{key}.affine",
-                    bool(np.allclose(image.affine, mask_image.affine, atol=1e-4)),
-                    float(np.max(np.abs(image.affine - mask_image.affine))),
+                    bool(np.allclose(image.affine, route_mask_image.affine, atol=1e-4)),
+                    float(np.max(np.abs(image.affine - route_mask_image.affine))),
                     "maximum absolute difference <= 1e-4",
                 )
-            values = array[mask] if mask is not None and array.shape == mask.shape and np.any(mask) else array.ravel()
+            values = (
+                array[route_mask]
+                if route_mask is not None and array.shape == route_mask.shape and np.any(route_mask)
+                else array.ravel()
+            )
             if not finite or values.size == 0:
                 continue
             observed_min = float(np.min(values))
@@ -354,6 +637,99 @@ def _audit_optional_microstructure(manifest: dict[str, Any], checks: list[dict[s
                 {"min": observed_min, "max": observed_max},
                 requirement,
             )
+        if route in {"freewater", "noddi"}:
+            validity_aliases = {
+                "freewater": ("valid_mask", "fw_tissue_valid_mask"),
+                "noddi": ("valid_mask", "noddi_tissue_valid_mask"),
+            }
+            validity_value = next((outputs.get(key) for key in validity_aliases[route] if outputs.get(key)), None)
+            validity_path = Path(str(validity_value)) if validity_value else None
+            validity_exists = bool(validity_path and validity_path.is_file())
+            _record_check(
+                checks,
+                f"{route}.valid_mask.exists",
+                validity_exists,
+                validity_path.as_posix() if validity_path else None,
+                "file exists",
+            )
+            if validity_exists and validity_path is not None:
+                validity = np.asarray(nib.load(validity_path.as_posix()).dataobj)
+                _record_check(
+                    checks,
+                    f"{route}.valid_mask.binary",
+                    bool(np.all(np.isin(validity, (0, 1)))),
+                    sorted(float(value) for value in np.unique(validity)),
+                    "binary 0/1 mask",
+                )
+                if route == "noddi" and route_mask is not None:
+                    for metric_key in ("ndi", "odi"):
+                        metric_value = outputs.get(metric_key) or outputs.get(output_aliases[metric_key])
+                        if not metric_value:
+                            continue
+                        metric = np.asarray(nib.load(str(metric_value)).dataobj, dtype=np.float64)
+                        outside_brain = metric[~route_mask]
+                        _record_check(
+                            checks,
+                            f"noddi.{metric_key}.zero_outside_brain_mask",
+                            bool(np.allclose(outside_brain, 0.0, atol=1e-6)),
+                            float(np.max(np.abs(outside_brain))) if outside_brain.size else 0.0,
+                            "all values outside the brain mask equal zero",
+                        )
+            if route == "freewater":
+                _record_check(
+                    checks,
+                    "freewater.qc.completed",
+                    bool(qc_payload and qc_payload.get("status") == "completed"),
+                    qc_path.as_posix() if qc_path else None,
+                    "completed freewater_qc.json",
+                )
+                if qc_payload:
+                    qc_checks = qc_payload.get("checks") or {}
+                    valid_fraction = float(
+                        ((qc_payload.get("validity") or {}).get("valid_tissue_fraction", 0.0)) or 0.0
+                    )
+                    _record_check(
+                        checks,
+                        "freewater.qc.output_contract",
+                        bool(qc_checks) and all(value is True for value in qc_checks.values()),
+                        qc_checks,
+                        "all native Free Water output-contract checks pass",
+                    )
+                    _record_check(
+                        checks,
+                        "freewater.qc.valid_tissue_fraction",
+                        valid_fraction >= 0.5,
+                        valid_fraction,
+                        ">= 0.5 of brain-mask voxels have interpretable tissue FA/MD",
+                    )
+            if route == "noddi":
+                _record_check(
+                    checks,
+                    "noddi.qc.completed",
+                    bool(qc_payload and qc_payload.get("status") == "completed"),
+                    qc_path.as_posix() if qc_path else None,
+                    "completed noddi_qc.json",
+                )
+                if qc_payload:
+                    validity = qc_payload.get("validity") or {}
+                    summary = qc_payload.get("summary") or {}
+                    nrmse = summary.get("nrmse_valid_tissue") or {}
+                    valid_fraction = float(validity.get("valid_tissue_fraction", 0.0) or 0.0)
+                    nrmse_p95 = float(nrmse.get("p95", float("inf")) or 0.0)
+                    _record_check(
+                        checks,
+                        "noddi.qc.valid_tissue_fraction",
+                        valid_fraction >= 0.5,
+                        valid_fraction,
+                        ">= 0.5 of brain-mask voxels have finite, bounded tissue estimates with IsoVF below the configured threshold",
+                    )
+                    _record_check(
+                        checks,
+                        "noddi.qc.nrmse_p95",
+                        math.isfinite(nrmse_p95) and nrmse_p95 <= 0.5,
+                        nrmse_p95,
+                        "95th percentile normalized fitting error <= 0.5 in tissue-valid voxels",
+                    )
     return selected
 
 
@@ -401,6 +777,50 @@ def _audit_qc_routes(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> 
             continue
         _record_check(checks, f"{route}.qc_status", qc.get("status") == "completed", qc.get("status"), "completed")
         summary = dict(qc.get("output_summary") or {})
+        if route == "wma" and not {
+            "anatomical_tract_readable_count",
+            "anatomical_tract_nonempty_count",
+        }.issubset(summary):
+            _, native_manifest = _json_record(task.get("manifest_path") or outputs.get("manifest"))
+            input_value = None
+            output_value = None
+            if native_manifest:
+                input_value = (
+                    native_manifest.get("prepared_input_tractography")
+                    or native_manifest.get("input_tractography")
+                )
+                output_value = native_manifest.get("output_dir")
+            input_path = Path(str(input_value)) if input_value else None
+            output_dir = Path(str(output_value)) if output_value else (qc_path.parent if qc_path else None)
+            if input_path is not None and input_path.is_file() and output_dir is not None:
+                try:
+                    from tractography.wma import summarize_wma_outputs
+
+                    summary.update(summarize_wma_outputs(output_dir, input_path))
+                except Exception as exc:
+                    _record_check(
+                        checks,
+                        "wma.legacy_summary_decode",
+                        False,
+                        f"{type(exc).__name__}: {exc}",
+                        "legacy WMA outputs can be decoded with the current content-aware reader",
+                    )
+        # Recheck files on disk even if an older QC JSON claimed success.
+        if route in {"wma", "tractcloud"}:
+            from shared.output_contracts import vtp_streamline_count
+
+            if route == "wma":
+                tract_dir = summary.get("anatomical_tracts_dir")
+                paths = sorted(Path(str(tract_dir)).glob("*.vtp")) if tract_dir else []
+                decoded = {path.name: vtp_streamline_count(path) for path in paths}
+                summary["anatomical_tract_readable_count"] = sum(v is not None for v in decoded.values())
+                summary["anatomical_tract_nonempty_count"] = sum(v is not None and v > 0 for v in decoded.values())
+                summary["anatomical_empty_tracts"] = [k for k, v in decoded.items() if v == 0]
+            else:
+                paths = [Path(str(value)) for value in summary.get("bundle_files", [])]
+                decoded = {str(path): vtp_streamline_count(path) for path in paths}
+                summary["bundle_readable_count"] = sum(v is not None for v in decoded.values())
+                summary["bundle_nonempty_count"] = sum(v is not None and v > 0 for v in decoded.values())
         count_value = qc.get(count_key)
         if count_value is None:
             count_value = summary.get(count_key)
@@ -427,14 +847,34 @@ def _audit_qc_routes(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> 
                 "declared, listed, and non-empty bundle counts match",
             )
         if route == "wma":
-            anatomy_dir = Path(str(summary.get("anatomical_tracts_dir") or ""))
-            anatomy_files = [path for path in anatomy_dir.glob("**/*") if path.is_file() and path.stat().st_size > 0] if anatomy_dir.is_dir() else []
+            readable_count = int(summary.get("anatomical_tract_readable_count", 0) or 0)
+            nonempty_count = int(summary.get("anatomical_tract_nonempty_count", 0) or 0)
             _record_check(
                 checks,
-                "wma.anatomical_tract_files",
-                len(anatomy_files) >= minimum_count,
-                len(anatomy_files),
-                f">= {minimum_count} non-empty files",
+                "wma.anatomical_tracts_readable",
+                readable_count >= minimum_count and readable_count == count,
+                readable_count,
+                f"all declared VTP files decode; at least {minimum_count} files",
+            )
+            _record_check(
+                checks,
+                "wma.anatomical_tracts_nonempty",
+                nonempty_count >= 55,
+                {
+                    "nonempty": nonempty_count,
+                    "empty": summary.get("anatomical_empty_tracts") or [],
+                },
+                ">= 55 of the 73 atlas tracts contain streamlines",
+            )
+        if route in {"wmql", "tractcloud"}:
+            readable_count = int(summary.get("bundle_readable_count", 0) or 0)
+            nonempty_count = int(summary.get("bundle_nonempty_count", 0) or 0)
+            _record_check(
+                checks,
+                f"{route}.bundles_decoded_nonempty",
+                count > 0 and readable_count == count and nonempty_count == count,
+                {"declared": count, "readable": readable_count, "nonempty": nonempty_count},
+                "every declared bundle is readable and non-empty",
             )
         if route == "saf":
             for key in ("saf_tractogram", "saf_vtk"):
@@ -447,13 +887,22 @@ def _audit_qc_routes(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> 
                     path.as_posix(),
                     "non-empty file exists",
                 )
+            scientific_summary = qc.get("scientific_output_summary")
+            _record_check(
+                checks,
+                "saf.scientific_output_summary",
+                isinstance(scientific_summary, dict)
+                and int(scientific_summary.get("streamline_count", 0) or 0) == count
+                and bool(scientific_summary.get("all_points_finite")),
+                scientific_summary,
+                "decoded streamline count matches QC and all points are finite",
+            )
     return selected
 
 
 def _audit_cross_route_inputs(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> None:
     route_pairs = (
-        ("tractography.saf", "tractogram_vtk", "bundles.tractcloud", "tractcloud.input_matches_same_run_saf"),
-        ("tractography.csd_act", "tractogram", "bundles.wma", "wma.input_matches_same_run_tractography"),
+        ("tractography.csd_act", "tractogram_vtk", "bundles.tractcloud", "tractcloud.input_matches_same_run_tractography"),
     )
     for source_task_name, source_key, consumer_task_name, check_name in route_pairs:
         source_task = _task_entry(manifest, source_task_name)
@@ -474,6 +923,19 @@ def _audit_cross_route_inputs(manifest: dict[str, Any], checks: list[dict[str, A
                 "actual": actual.as_posix() if actual else None,
             },
             "consumer input equals the producing task output from this run",
+        )
+
+    wma_task = _task_entry(manifest, "bundles.wma")
+    if wma_task is not None:
+        _, wma_manifest = _json_record(wma_task.get("manifest_path"))
+        input_value = wma_manifest.get("input_tractography") if wma_manifest else None
+        input_path = Path(str(input_value)).resolve() if input_value else None
+        _record_check(
+            checks,
+            "wma.input_tractography_exists",
+            input_path is not None and input_path.is_file() and input_path.stat().st_size > 0,
+            input_path.as_posix() if input_path else None,
+            "explicit WMA whole-brain input exists and is non-empty",
         )
 
 
@@ -561,7 +1023,6 @@ def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) ->
     if not output_root_value:
         return set()
     output_root = Path(str(output_root_value))
-    subject_root = Path(str(manifest["subject_root"]))
     subject_id = str(manifest["subject_id"])
     structural_root = output_root / "03_structural"
     ddseg_dir = structural_root / "ddseg"
@@ -580,7 +1041,7 @@ def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) ->
     if not selected:
         return set()
 
-    mask_path = subject_root / "input" / "nodif_brain_mask.nii.gz"
+    mask_path = _analysis_input_path(manifest, "mask")
     if not mask_path.is_file():
         _record_check(checks, "structural.mask_exists", False, mask_path.as_posix(), "file exists")
         return selected
@@ -768,6 +1229,7 @@ def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) ->
         for surface in ("wm", "pial")
         for hemi in ("lh", "rh")
     }
+    surface_meshes: dict[str, Any] = {}
     for name, model_path in expected_models.items():
         if "ddsurfer" not in selected:
             continue
@@ -783,7 +1245,8 @@ def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) ->
             continue
         import trimesh
 
-        mesh = trimesh.load(model_path.as_posix(), process=False)
+        mesh = trimesh.load(model_path.as_posix(), process=True)
+        surface_meshes[name] = mesh
         vertices = np.asarray(mesh.vertices)
         faces = np.asarray(mesh.faces)
         extents = np.ptp(vertices, axis=0) if vertices.size else np.zeros(3)
@@ -804,6 +1267,57 @@ def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) ->
             },
             ">= 1000 vertices/faces, finite coordinates, and > 10 mm extent on each axis",
         )
+        _record_check(
+            checks,
+            f"structural.ddsurfer.{name}_topology",
+            bool(
+                mesh.is_watertight
+                and mesh.is_winding_consistent
+                and int(mesh.body_count) == 1
+                and int(mesh.euler_number) == 2
+            ),
+            {
+                "watertight": bool(mesh.is_watertight),
+                "winding_consistent": bool(mesh.is_winding_consistent),
+                "body_count": int(mesh.body_count),
+                "euler_number": int(mesh.euler_number),
+            },
+            "closed, consistently oriented, single-component genus-0 cortical surface",
+        )
+    for hemi in ("lh", "rh"):
+        white = surface_meshes.get(f"wm_{hemi}")
+        pial = surface_meshes.get(f"pial_{hemi}")
+        if white is None or pial is None:
+            continue
+        if len(white.vertices) != len(pial.vertices):
+            _record_check(
+                checks,
+                f"structural.ddsurfer.{hemi}_white_pial_correspondence",
+                False,
+                {"white_vertices": len(white.vertices), "pial_vertices": len(pial.vertices)},
+                "white and pial surfaces have corresponding vertex counts",
+            )
+            continue
+        displacement = np.linalg.norm(
+            np.asarray(pial.vertices) - np.asarray(white.vertices),
+            axis=1,
+        )
+        displacement_summary = {
+            "median_mm": float(np.median(displacement)),
+            "p95_mm": float(np.percentile(displacement, 95)),
+            "max_mm": float(np.max(displacement)),
+        }
+        _record_check(
+            checks,
+            f"structural.ddsurfer.{hemi}_white_pial_correspondence",
+            bool(
+                np.isfinite(displacement).all()
+                and displacement_summary["median_mm"] > 0.1
+                and displacement_summary["p95_mm"] < 15.0
+            ),
+            displacement_summary,
+            "finite corresponding-vertex displacement with median > 0.1 mm and p95 < 15 mm",
+        )
     return selected
 
 
@@ -819,12 +1333,21 @@ def audit_output_root(
 ) -> dict[str, Any]:
     root = output_root.expanduser().resolve()
     subjects: list[dict[str, Any]] = []
-    for subject_output in sorted(path for path in root.iterdir() if path.is_dir() and path.name != "00_batch_metadata"):
+    if (root / "00_run_metadata").is_dir():
+        subject_outputs = [root]
+    else:
+        subject_outputs = sorted(
+            path for path in root.iterdir() if path.is_dir() and path.name != "00_batch_metadata"
+        )
+    for subject_output in subject_outputs:
         manifest_path = _manifest_for_run(subject_output, run_name)
         if manifest_path is None:
             continue
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         checks: list[dict[str, Any]] = []
+        _audit_orchestration(manifest, checks)
+        _audit_validation(manifest, checks)
+        _audit_preprocessing(manifest, checks)
         has_dti = _audit_dti(manifest, checks)
         has_tractography = _audit_tractography(manifest, checks)
         structural_routes = _audit_structural(manifest, checks)
@@ -915,7 +1438,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--require-structural",
         action="store_true",
-        help="Fail when a subject lacks any of DDSeg, DDParcel, or DDSurfer outputs.",
+        help="Fail unless a subject has DDSeg, DDParcel, and DDSurfer outputs.",
     )
     parser.add_argument(
         "--require-full-routes",

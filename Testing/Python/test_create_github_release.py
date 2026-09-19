@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
+from unittest import mock
+from dataclasses import replace
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -26,6 +29,51 @@ def _load_release_module():
 
 
 class CreateGithubReleaseTest(unittest.TestCase):
+    def _validated_plan(self, module, root):
+        notes = root / "notes.md"
+        notes.write_text("Release notes")
+        evidence = root / "fresh_clone_smoke_report.json"
+        evidence.write_text(json.dumps({
+            "kind": "slicerdsurfer_fresh_clone_smoke_report", "status": "passed",
+            "asset_profile": "core", "asset_mode": "download", "resolved_commit": "a" * 40,
+            "code_checkout": {"separate_from_model_assets": True},
+            "model_asset_check": {"separate_from_code_checkout": True},
+            "steps": [{"name": name, "status": "passed", "exit_code": 0} for name in
+                      ("git_clone", "git_checkout", "make_test_fast", "model_assets_download_core", "verify_model_assets_core")],
+        }))
+        return module.ReleasePlan("owner/repo", "v1.0", "Test", notes, (evidence,),
+                                  True, True, True, True, evidence, "a" * 40)
+
+    def test_release_requires_real_evidence_before_any_network_write(self):
+        module = _load_release_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = self._validated_plan(module, Path(tmp))
+            module.validate_plan(plan)
+            self.assertEqual(module.release_payload(plan)["target_commitish"], "a" * 40)
+            for invalid in (replace(plan, fresh_clone_report=None),
+                            replace(plan, expected_commit="b" * 40),
+                            replace(plan, assets=plan.assets * 2)):
+                with self.subTest(plan=invalid), mock.patch.object(module, "_api_request") as api:
+                    with self.assertRaises((ValueError, RuntimeError)):
+                        module.create_release(invalid, token="test")
+                    api.assert_not_called()
+            plan.fresh_clone_report.write_text("{}")
+            with self.assertRaises(RuntimeError):
+                module.validate_plan(plan)
+
+    def test_existing_tag_and_public_release_are_protected(self):
+        module = _load_release_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = self._validated_plan(module, Path(tmp))
+            with mock.patch.object(module, "_api_request", return_value={"sha": "b" * 40}) as api:
+                with self.assertRaisesRegex(RuntimeError, "different commit"):
+                    module.create_release(plan, token="test")
+                self.assertEqual(api.call_count, 1)
+            with mock.patch.object(module, "_api_request", return_value={"sha": "a" * 40}), \
+                 mock.patch.object(module, "get_existing_release", return_value={"draft": False}):
+                with self.assertRaisesRegex(RuntimeError, "already published"):
+                    module.create_release(plan, token="test")
+
     def test_release_payload_defaults_to_draft_prerelease(self) -> None:
         module = _load_release_module()
 

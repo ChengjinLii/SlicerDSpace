@@ -12,6 +12,7 @@ import argparse
 import json
 import mimetypes
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -45,6 +46,8 @@ class ReleasePlan:
     prerelease: bool
     reuse_existing: bool
     replace_existing_assets: bool
+    fresh_clone_report: Path | None = None
+    expected_commit: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -57,6 +60,8 @@ class ReleasePlan:
             "prerelease": self.prerelease,
             "reuse_existing": self.reuse_existing,
             "replace_existing_assets": self.replace_existing_assets,
+            "expected_commit": self.expected_commit,
+            "fresh_clone_report": str(self.fresh_clone_report) if self.fresh_clone_report else None,
         }
 
 
@@ -82,6 +87,8 @@ def build_release_plan(args: argparse.Namespace) -> ReleasePlan:
         prerelease=not bool(args.final),
         reuse_existing=bool(args.reuse_existing),
         replace_existing_assets=bool(args.replace_existing_assets),
+        fresh_clone_report=args.fresh_clone_report.expanduser().resolve() if args.fresh_clone_report else None,
+        expected_commit=getattr(args, "expected_commit", None),
     )
 
 
@@ -93,12 +100,25 @@ def validate_plan(plan: ReleasePlan) -> None:
     missing = [path.as_posix() for path in plan.assets if not path.is_file()]
     if missing:
         raise FileNotFoundError("Release artifact(s) not found: " + ", ".join(missing))
+    if len({path.name for path in plan.assets}) != len(plan.assets):
+        raise ValueError("Release asset basenames must be unique.")
+    if not plan.expected_commit or not re.fullmatch(r"[0-9a-f]{40}", plan.expected_commit):
+        raise ValueError("Provide --expected-commit with the full tested commit SHA.")
+    if plan.fresh_clone_report is None:
+        raise ValueError("Provide --fresh-clone-report; file existence alone is not release evidence.")
+    # Support both direct script execution and import-based tests.
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from scripts.validate_release_evidence import validate_fresh_clone_report
+
+    validate_fresh_clone_report(plan.fresh_clone_report, plan.expected_commit)
 
 
 def release_payload(plan: ReleasePlan) -> dict[str, Any]:
     body = plan.notes_file.read_text(encoding="utf-8")
     return {
         "tag_name": plan.tag,
+        "target_commitish": plan.expected_commit,
         "name": plan.title,
         "body": body,
         "draft": plan.draft,
@@ -154,9 +174,24 @@ def get_existing_release(plan: ReleasePlan, *, token: str) -> dict[str, Any] | N
 
 
 def create_release(plan: ReleasePlan, *, token: str) -> dict[str, Any]:
+    validate_plan(plan)
+    owner_repo = urllib.parse.quote(plan.repository, safe="/")
+    tag = urllib.parse.quote(plan.tag, safe="")
+    try:
+        tagged_commit = _api_request("GET", f"https://api.github.com/repos/{owner_repo}/commits/{tag}", token=token)
+    except RuntimeError as exc:
+        if "HTTP 404" not in str(exc):
+            raise
+    else:
+        if tagged_commit.get("sha") != plan.expected_commit:
+            raise RuntimeError("Existing tag points to a different commit than the tested release evidence.")
     existing = get_existing_release(plan, token=token)
     if existing is not None:
         if plan.reuse_existing:
+            if existing.get("draft") is not True:
+                raise RuntimeError("Refusing to modify assets of an already published release.")
+            if not plan.draft:
+                raise RuntimeError("Publishing an existing draft requires a separate reviewed promotion step.")
             return existing
         raise RuntimeError(f"Release for tag {plan.tag} already exists. Use --reuse-existing to upload assets to it.")
     owner_repo = urllib.parse.quote(plan.repository, safe="/")
@@ -208,6 +243,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--notes-file", type=Path, default=DEFAULT_NOTES, help="Markdown release body.")
     parser.add_argument("--asset", action="append", type=Path, help="Additional artifact to upload. Can be repeated.")
     parser.add_argument("--fresh-clone-report", type=Path, help="fresh_clone_smoke_report.json to upload.")
+    parser.add_argument("--expected-commit", help="Full tested commit SHA, required for dry-run and creation.")
     parser.add_argument("--publish", action="store_true", help="Create a non-draft release. Default is draft.")
     parser.add_argument("--final", action="store_true", help="Do not mark the release as prerelease.")
     parser.add_argument("--reuse-existing", action="store_true", help="Upload assets to an existing release for the tag.")

@@ -1,6 +1,7 @@
 PYTHON ?= python3
 SLICERDDSURFER_RELEASE_ARGS ?=
 SLICERDDSURFER_TEST_PATTERN ?= test_*.py
+SLICERDDSURFER_SMOKE_SCRIPT ?= Testing/Python/slicer_extension_install_smoke.py
 
 .PHONY: help test-fast test-slicer fresh-clone-smoke release-check release-plan release-artifacts prepare-inputs output-tree-report subject-report protocol-benchmarks install-plan clean-local lint
 
@@ -30,6 +31,10 @@ fresh-clone-smoke:
 	SMOKE_ROOT="$${SMOKE_ROOT:-/tmp/slicerdsurfer-fresh-clone-smoke}" \
 	bash scripts/smoke_fresh_clone.sh
 
+.PHONY: test-slicer-coordinates
+test-slicer-coordinates:
+	$(MAKE) test-slicer SLICERDDSURFER_SMOKE_SCRIPT=Testing/Python/slicer_surface_coordinate_smoke.py
+
 test-slicer:
 	: "$${SLICERDDSURFER_SLICER_LAUNCHER:?Set SLICERDDSURFER_SLICER_LAUNCHER to the Slicer launcher}"
 	$(PYTHON) scripts/stage_slicer_extension.py --install-root "$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}" --clean --link-mode copy
@@ -40,14 +45,14 @@ test-slicer:
 	    SLICERDDSURFER_EXTENSION_MODULE_DIR="$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
 	    "$${SLICERDDSURFER_XVFB_RUN}" -a "$${SLICERDDSURFER_SLICER_LAUNCHER}" --no-splash --disable-cli-modules \
 	    --additional-module-paths "$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
-	    --python-script Testing/Python/slicer_extension_install_smoke.py; \
+	    --python-script "$(SLICERDDSURFER_SMOKE_SCRIPT)"; \
 	elif [ "$${SLICERDDSURFER_USE_EXISTING_DISPLAY:-0}" = "1" ] || [ -n "$${DISPLAY:-}" ] || [ -n "$${WAYLAND_DISPLAY:-}" ]; then \
 	  env SLICERDDSURFER_EXTENSION_MODULE_DIR="$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
 	    SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD="$${SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD:-1}" \
 	    SLICERDDSURFER_USER_CONFIG="$${SLICERDDSURFER_USER_CONFIG:-/tmp/slicerdsurfer-test-user-config.json}" \
 	    "$${SLICERDDSURFER_SLICER_LAUNCHER}" --no-splash --disable-cli-modules \
 	    --additional-module-paths "$${SLICERDDSURFER_EXTENSION_INSTALL_ROOT:-/tmp/slicerdsurfer-extension-smoke}/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules" \
-	    --python-script Testing/Python/slicer_extension_install_smoke.py; \
+	    --python-script "$(SLICERDDSURFER_SMOKE_SCRIPT)"; \
 	else \
 	  echo "Set SLICERDDSURFER_XVFB_RUN=/path/to/xvfb-run, or run inside an existing X/VNC session with SLICERDDSURFER_USE_EXISTING_DISPLAY=1."; \
 	  exit 2; \

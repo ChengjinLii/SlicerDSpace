@@ -11,6 +11,7 @@ import importlib
 import importlib.util
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -71,6 +72,7 @@ class SAFConfig:
     pialfilter: bool = False
     remesh_seeds: bool | float = False
     maxlen: Optional[float] = 90.0
+    random_seed: int = 12345
     scalar2surf: tuple[Path, ...] = field(default_factory=tuple)
     force_recompute: bool = False
     diagnostics: bool = False
@@ -236,6 +238,20 @@ def _validate_config(config: SAFConfig) -> None:
             raise FileNotFoundError(f"Scalar-to-surface image not found: {scalar}")
     if config.maxlen is not None and config.maxlen <= 0:
         raise ValueError("maxlen must be > 0 or None.")
+    if config.random_seed < 0:
+        raise ValueError("random_seed must be >= 0.")
+
+
+def _effective_tckgen_options(config: SAFConfig) -> str:
+    """Add a reproducible MRtrix seed unless the user already supplied one."""
+
+    options = config.tckgen_options.strip()
+    tokens = shlex.split(options)
+    for index in range(len(tokens) - 2):
+        if tokens[index : index + 2] == ["-config", "RandomSeed"]:
+            return options
+    seed_option = f"-config RandomSeed {config.random_seed}"
+    return f"{options} {seed_option}".strip()
 
 
 def _effective_mrtrix_prefix(config: SAFConfig) -> str:
@@ -310,7 +326,9 @@ def _build_saf_args(config: SAFConfig, output_dir: Path) -> list[Any]:
         args.extend(["maxlen", ""])
     else:
         args.extend(["maxlen", float(config.maxlen)])
-    if config.tckgen_options:
+    if config.pregenerated_tractogram is None:
+        args.extend(["tckgen", _effective_tckgen_options(config)])
+    elif config.tckgen_options:
         args.extend(["tckgen", config.tckgen_options])
     if config.pregenerated_tractogram is not None:
         args.extend(["noseed", config.pregenerated_tractogram.expanduser().resolve().as_posix()])
@@ -402,6 +420,40 @@ def _summarize_saf_outputs(output_dir: Path) -> dict[str, Any]:
     }
 
 
+def _tractogram_summary(path: Path) -> dict[str, Any]:
+    """Decode all SAF streamlines and summarize their physical lengths."""
+
+    import nibabel as nib
+    import numpy as np
+
+    lengths: list[float] = []
+    all_points_finite = True
+    for streamline in nib.streamlines.load(str(path), lazy_load=True).streamlines:
+        points = np.asarray(streamline, dtype=np.float64)
+        if points.ndim != 2 or points.shape[0] < 2 or points.shape[1] != 3:
+            all_points_finite = False
+            continue
+        if not np.isfinite(points).all():
+            all_points_finite = False
+            continue
+        lengths.append(float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum()))
+    values = np.asarray(lengths, dtype=np.float64)
+    summary: dict[str, Any] = {
+        "file": _file_info(path),
+        "streamline_count": int(values.size),
+        "all_points_finite": bool(all_points_finite),
+    }
+    if values.size:
+        summary["length_mm"] = {
+            "min": float(np.min(values)),
+            "p05": float(np.percentile(values, 5)),
+            "median": float(np.median(values)),
+            "p95": float(np.percentile(values, 95)),
+            "max": float(np.max(values)),
+        }
+    return summary
+
+
 def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -> SAFResult:
     """Prepare or execute Python SAF for one subject.
 
@@ -433,7 +485,7 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
     args = _build_saf_args(config, output_dir)
     manifest = {
         "kind": "saf_short_association_fibres",
-        "version": 1,
+        "version": 2,
         "subject_id": raw.subject_id,
         "backend": backend_status,
         "executed": bool(config.execute),
@@ -446,7 +498,12 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
             "pialfilter": config.pialfilter,
             "remesh_seeds": config.remesh_seeds,
             "maxlen": config.maxlen,
-            "tckgen_options": config.tckgen_options,
+            "random_seed": config.random_seed,
+            "tckgen_options": (
+                _effective_tckgen_options(config)
+                if config.pregenerated_tractogram is None
+                else config.tckgen_options
+            ),
             "mrtrix_bin_dir": config.mrtrix_bin_dir.expanduser().resolve().as_posix() if config.mrtrix_bin_dir else None,
             "mrtrix_prefix": config.mrtrix_prefix,
             "effective_mrtrix_prefix": _effective_mrtrix_prefix(config),
@@ -504,18 +561,37 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
     streamline_count: Optional[int] = None
     streamline_count_error: Optional[str] = None
     vtk_export_error: Optional[str] = None
+    scientific_output_summary: dict[str, Any] = {}
     cached_intermediates: dict[str, str] = {}
     if config.execute and execution_error is None and saf_tractogram.is_file():
         streamline_count, streamline_count_error = _count_tck_streamlines(saf_tractogram, config=config, log=log)
         vtk_ok, vtk_export_error = _export_tck_to_vtk(saf_tractogram, saf_vtk_path, config=config, log=log)
         if vtk_ok:
             vtk_export_error = None
+        try:
+            scientific_output_summary = _tractogram_summary(saf_tractogram)
+        except Exception as exc:
+            execution_error = f"Unable to decode SAF.tck for QC: {type(exc).__name__}: {exc}"
+        if execution_error is None:
+            measured_count = int(scientific_output_summary.get("streamline_count", 0) or 0)
+            length_summary = scientific_output_summary.get("length_mm") or {}
+            if streamline_count_error or streamline_count is None or streamline_count <= 0:
+                execution_error = streamline_count_error or "SAF.tck contains no streamlines."
+            elif measured_count != streamline_count or not scientific_output_summary.get("all_points_finite"):
+                execution_error = "SAF.tck failed decoded streamline-count or finite-coordinate QC."
+            elif config.maxlen is not None and (
+                not length_summary
+                or float(length_summary.get("max", float("inf"))) > float(config.maxlen) + 1e-3
+            ):
+                execution_error = f"SAF.tck contains streamlines longer than the configured {config.maxlen:g} mm limit."
+            elif vtk_export_error or not saf_vtk_path.is_file():
+                execution_error = vtk_export_error or "SAF VTK export is missing."
         if not config.diagnostics:
             cached_intermediates = _cache_saf_intermediates(output_dir)
         output_summary = _summarize_saf_outputs(output_dir)
     qc = {
         "kind": "saf_qc",
-        "version": 1,
+        "version": 2,
         "subject_id": raw.subject_id,
         "status": "failed" if execution_error else ("completed" if config.execute else "planned"),
         "executed": bool(config.execute),
@@ -527,6 +603,7 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
         "vtk_export_error": vtk_export_error,
         "cached_intermediates": cached_intermediates,
         "output_summary": output_summary,
+        "scientific_output_summary": scientific_output_summary,
         "error": execution_error,
     }
     qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -538,6 +615,7 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
     manifest["cached_intermediates"] = cached_intermediates
     manifest["error"] = execution_error
     manifest["outputs"]["summary"] = output_summary
+    manifest["scientific_output_summary"] = scientific_output_summary
     manifest["outputs"]["saf_vtk"] = saf_vtk_path.as_posix()
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if execution_error is not None:

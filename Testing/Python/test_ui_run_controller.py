@@ -259,6 +259,7 @@ class UIRunControllerTest(unittest.TestCase):
             surface_device="cpu",
             connectome_backend="python",
             connectome_compress_mrtrix_dense=True,
+            wma_input_tractography_text=(root / "sub-01" / "tractography" / "sub-01_ukf.vtk").as_posix(),
         )
 
     def test_build_run_kwargs_normalizes_single_subject_and_batch_state(self) -> None:
@@ -295,6 +296,10 @@ class UIRunControllerTest(unittest.TestCase):
         self.assertEqual(single["postprocess_freesurfer_home"], external_paths["postprocess_freesurfer_home"])
         self.assertEqual(single["wma_root"], external_paths["wma_root"])
         self.assertEqual(single["wma_atlas_dir"], external_paths["wma_atlas_dir"])
+        self.assertEqual(
+            single["wma_input_tractography"],
+            root / "sub-01" / "tractography" / "sub-01_ukf.vtk",
+        )
         self.assertEqual(single["slicer_executable"], external_paths["slicer_executable"])
         self.assertEqual(single["tractcloud_root"], external_paths["tractcloud_root"])
         self.assertEqual(single["preflight_blocked_targets"], {"bundles": "missing tract_querier"})
@@ -381,6 +386,7 @@ class UIRunControllerTest(unittest.TestCase):
             "microstructure_run_free_water": True,
             "microstructure_run_noddi": False,
             "connectome_compress_mrtrix_dense": True,
+            "wma_input_tractography": root / "sub-01" / "tractography" / "sub-01_ukf.vtk",
         }
 
     def test_build_background_cli_args_includes_paths_and_microstructure_stages(self) -> None:
@@ -405,6 +411,10 @@ class UIRunControllerTest(unittest.TestCase):
             self.assertEqual(args[args.index("--mrtrix-bin-dir") + 1], (root / "mrtrix" / "bin").as_posix())
             self.assertEqual(args[args.index("--preprocessing-mrtrix-bin-dir") + 1], (root / "mrtrix" / "bin").as_posix())
             self.assertEqual(args[args.index("--wma-root") + 1], (root / "wma").as_posix())
+            self.assertEqual(
+                args[args.index("--wma-input-tractography") + 1],
+                (root / "sub-01" / "tractography" / "sub-01_ukf.vtk").as_posix(),
+            )
 
     def test_build_batch_background_cli_args_uses_batch_script_and_bounds_batch_size(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -424,6 +434,7 @@ class UIRunControllerTest(unittest.TestCase):
             self.assertEqual(args[args.index("--batch-size") + 1], "1")
             self.assertEqual(args[args.index("--arrange-inputs") + 1], "symlink")
             self.assertNotIn("--print-manifest-only", args)
+            self.assertNotIn("--wma-input-tractography", args)
 
     def test_extract_background_manifest_path_uses_explicit_or_latest_existing_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

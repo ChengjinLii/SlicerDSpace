@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from shared import ensure_native_dti_bundle, find_subject_root
+from shared import ensure_native_dti_bundle, find_subject_root, resolve_preprocessed_input_bundle
 
 MICROSTRUCTURE_PYTHON_REQUIREMENTS: tuple[tuple[str, str], ...] = (
     ("numpy", "numpy"),
@@ -42,15 +42,19 @@ class MicrostructureLogicMixin:
             subject_root=raw_bundle.subject_root,
             task_name="microstructure",
         )
-        native_bundle = ensure_native_dti_bundle(
+        analysis_input_bundle = resolve_preprocessed_input_bundle(
             raw_bundle,
+            output_root=resolved_output_dir.parent if resolved_output_dir.name == "02_microstructure" else None,
+        )
+        native_bundle = ensure_native_dti_bundle(
+            analysis_input_bundle,
             fit_method=fit_method,
             reuse=True,
             log=self.log,
         )
         config = MicrostructureConfig(
             subject_id=subject_id,
-            raw_input_bundle=raw_bundle,
+            raw_input_bundle=analysis_input_bundle,
             native_bundle=native_bundle,
             output_dir=resolved_output_dir,
             roi_label_map=roi_label_map.expanduser().resolve() if roi_label_map is not None else None,

@@ -19,19 +19,81 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class MicrostructureDTIScalarsTest(unittest.TestCase):
-    def test_free_water_scalar_sanitizer_rejects_implausible_tissue_md(self) -> None:
+    def test_free_water_qc_validates_saved_maps(self) -> None:
+        from microstructure.pipeline import _output_paths, _write_free_water_qc
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = _output_paths("100307", root / "outputs" / "02_microstructure")
+            for path in paths.values():
+                path.parent.mkdir(parents=True, exist_ok=True)
+            affine = np.eye(4)
+            mask = np.asarray([1, 1, 0], dtype=np.uint8).reshape(3, 1, 1)
+            valid = np.asarray([1, 0, 0], dtype=np.uint8).reshape(3, 1, 1)
+            arrays = {
+                "fwf": np.asarray([0.2, 0.8, 0.0], dtype=np.float32).reshape(3, 1, 1),
+                "fw_tissue_fa": np.asarray([0.4, 0.0, 0.0], dtype=np.float32).reshape(3, 1, 1),
+                "fw_tissue_md": np.asarray([0.0008, 0.0, 0.0], dtype=np.float32).reshape(3, 1, 1),
+                "fw_tissue_valid_mask": valid,
+            }
+            input_paths = {name: root / name for name in ("dwi", "bval", "bvec")}
+            input_paths["mask"] = root / "mask.nii.gz"
+            nib.save(nib.Nifti1Image(mask, affine), input_paths["mask"])
+            for name in ("dwi", "bval", "bvec"):
+                input_paths[name].write_text("x", encoding="utf-8")
+            for key, array in arrays.items():
+                nib.save(nib.Nifti1Image(array, affine), paths[key])
+            raw = type(
+                "Raw",
+                (),
+                {
+                    "dwi_path": input_paths["dwi"],
+                    "bval_path": input_paths["bval"],
+                    "bvec_path": input_paths["bvec"],
+                    "mask_path": input_paths["mask"],
+                },
+            )()
+            config = type(
+                "Config",
+                (),
+                {
+                    "subject_id": "100307",
+                    "raw_input_bundle": raw,
+                    "free_water_max_fraction_for_tissue": 0.7,
+                },
+            )()
+
+            payload = _write_free_water_qc(config, paths)
+
+            self.assertEqual(payload["status"], "completed")
+            self.assertEqual(payload["validity"]["brain_mask_voxels"], 2)
+            self.assertEqual(payload["validity"]["valid_tissue_voxels"], 1)
+            self.assertTrue(paths["free_water_qc"].is_file())
+
+    def test_free_water_scalar_sanitizer_rejects_unreliable_tissue_fits(self) -> None:
         from microstructure.pipeline import _sanitize_free_water_scalars
 
-        fwf, tissue_fa, tissue_md, invalid_count = _sanitize_free_water_scalars(
-            np.asarray([0.25, np.nan, 1.2], dtype=np.float32),
-            np.asarray([0.4, 0.7, 0.5], dtype=np.float32),
-            np.asarray([7.0e-4, 39_608.0, 4.0e-3], dtype=np.float32),
+        fwf, tissue_fa, tissue_md, valid, invalid_count = _sanitize_free_water_scalars(
+            np.asarray([0.25, np.nan, 0.8, 0.4, 0.3], dtype=np.float32),
+            np.asarray([0.4, 0.7, 0.5, 1.0, 0.5], dtype=np.float32),
+            np.asarray([7.0e-4, 8.0e-4, 9.0e-4, 3.3e-4, 4.0e-3], dtype=np.float32),
+            np.asarray(
+                [
+                    [1.2e-3, 7.0e-4, 2.0e-4],
+                    [1.2e-3, 7.0e-4, 2.0e-4],
+                    [1.2e-3, 7.0e-4, 2.0e-4],
+                    [1.0e-3, 0.0, 0.0],
+                    [6.0e-3, 4.0e-3, 2.0e-3],
+                ],
+                dtype=np.float32,
+            ),
         )
 
-        np.testing.assert_allclose(fwf, [0.25, 0.0, 1.0])
-        np.testing.assert_allclose(tissue_fa, [0.4, 0.0, 0.0])
-        np.testing.assert_allclose(tissue_md, [7.0e-4, 0.0, 0.0])
-        self.assertEqual(invalid_count, 2)
+        np.testing.assert_allclose(fwf, [0.25, 0.0, 0.8, 0.4, 0.3])
+        np.testing.assert_allclose(tissue_fa, [0.4, 0.0, 0.0, 0.0, 0.0])
+        np.testing.assert_allclose(tissue_md, [7.0e-4, 0.0, 0.0, 0.0, 0.0])
+        np.testing.assert_array_equal(valid, [True, False, False, False, False])
+        self.assertEqual(invalid_count, 4)
 
     def test_expected_manifest_distinguishes_selected_and_available_optional_maps(self) -> None:
         from microstructure.pipeline import (
@@ -72,6 +134,7 @@ class MicrostructureDTIScalarsTest(unittest.TestCase):
             object.__setattr__(config, "free_water_engine", "serial")
             object.__setattr__(config, "free_water_n_jobs", None)
             object.__setattr__(config, "free_water_vox_per_chunk", None)
+            object.__setattr__(config, "free_water_max_fraction_for_tissue", 0.7)
             object.__setattr__(config, "noddi_directional_average", False)
             object.__setattr__(config, "noddi_b0_threshold", 50)
             object.__setattr__(config, "noddi_lmax", 12)
@@ -79,6 +142,7 @@ class MicrostructureDTIScalarsTest(unittest.TestCase):
             object.__setattr__(config, "noddi_nthreads", 1)
             object.__setattr__(config, "noddi_solver_lambda1", 0.5)
             object.__setattr__(config, "noddi_solver_lambda2", 0.001)
+            object.__setattr__(config, "noddi_max_isotropic_fraction_for_tissue", 0.7)
 
             manifest = _expected_manifest(
                 config,
@@ -87,9 +151,23 @@ class MicrostructureDTIScalarsTest(unittest.TestCase):
                 noddi_available=True,
             )
             paths = _output_paths("100307", root / "outputs" / "02_microstructure")
-            for key in ("fwf", "fw_tissue_fa", "fw_tissue_md", "noddi_ndi", "noddi_odi", "noddi_fwf"):
+            for key in (
+                "fwf",
+                "fw_tissue_fa",
+                "fw_tissue_md",
+                "fw_tissue_valid_mask",
+                "free_water_qc",
+                "noddi_ndi",
+                "noddi_odi",
+                "noddi_fwf",
+                "noddi_tissue_valid_mask",
+                "noddi_rmse",
+                "noddi_nrmse",
+                "noddi_qc",
+            ):
                 paths[key].parent.mkdir(parents=True, exist_ok=True)
                 paths[key].write_text("map", encoding="utf-8")
+            paths["free_water_qc"].write_text('{"status":"completed"}\n', encoding="utf-8")
             paths["free_water_manifest"].write_text(
                 json.dumps(_expected_free_water_manifest(config)),
                 encoding="utf-8",
@@ -123,8 +201,32 @@ class MicrostructureDTIScalarsTest(unittest.TestCase):
             self.assertEqual(paths["l2"].name, "100307_dti_L2.nii.gz")
             self.assertEqual(paths["l3"].name, "100307_dti_L3.nii.gz")
             self.assertEqual(paths["trace"].name, "100307_dti_Trace.nii.gz")
+            self.assertEqual(paths["fw_tissue_valid_mask"].name, "100307_fw_tissue_valid_mask.nii.gz")
+            self.assertEqual(paths["free_water_qc"].name, "freewater_qc.json")
+            self.assertEqual(paths["noddi_tissue_valid_mask"].name, "100307_noddi_tissue_valid_mask.nii.gz")
+            self.assertEqual(paths["noddi_rmse"].name, "100307_noddi_RMSE.nii.gz")
+            self.assertEqual(paths["noddi_nrmse"].name, "100307_noddi_NRMSE.nii.gz")
+            self.assertEqual(paths["noddi_qc"].name, "noddi_qc.json")
             self.assertEqual(paths["free_water_progress"].name, "freewater_progress.json")
             self.assertEqual(paths["noddi_progress"].name, "noddi_progress.json")
+
+    def test_noddi_sanitizer_preserves_display_map_but_masks_tissue_statistics(self) -> None:
+        from microstructure.pipeline import _sanitize_noddi_maps
+
+        ndi, odi, isovf, valid, qc = _sanitize_noddi_maps(
+            np.asarray([0.2, 0.99, 0.99, np.nan], dtype=np.float32),
+            np.asarray([0.4, 0.7, 0.6, 0.2], dtype=np.float32),
+            np.asarray([0.2, 0.8, 0.7, 0.1], dtype=np.float32),
+            np.asarray([True, True, True, True]),
+            max_isotropic_fraction=0.7,
+        )
+
+        np.testing.assert_array_equal(valid, [True, False, True, False])
+        np.testing.assert_allclose(ndi, [0.2, 0.99, 0.99, 0.0])
+        np.testing.assert_allclose(odi, [0.4, 0.7, 0.6, 0.0])
+        np.testing.assert_allclose(isovf, [0.2, 0.8, 0.7, 0.1])
+        self.assertEqual(qc["excluded_high_isotropic_voxels"], 1)
+        self.assertEqual(qc["excluded_nonfinite_or_out_of_range_voxels"], 1)
 
     def test_roi_stats_exclude_zero_pair_used_for_invalid_free_water_tissue_fit(self) -> None:
         from microstructure.pipeline import _compute_roi_stats

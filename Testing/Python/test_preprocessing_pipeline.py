@@ -297,6 +297,23 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
                 "corrected-dwi-mask",
             )
 
+            changed_config = DwiPreprocessingConfig(
+                subject_id="100307",
+                input_root=subject,
+                backend="mrtrix_fsl",
+                execute=True,
+                mrtrix_bin_dir=bin_dir,
+                fsl_bin_dir=bin_dir,
+                eddy_second_level_model="linear",
+            )
+            changed = run_dwi_preprocessing(changed_config)
+            changed_manifest = json.loads(changed.manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(changed.status, "completed")
+            self.assertEqual(
+                changed_manifest["cache_key"]["parameters"]["eddy_second_level_model"],
+                "linear",
+            )
+
     def test_mrtrix_rpe_none_forwards_phase_encoding_and_readout(self) -> None:
         from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
 
@@ -463,6 +480,9 @@ sys.exit(9)
 
         with tempfile.TemporaryDirectory() as tmp:
             subject = _write_subject(Path(tmp))
+            stale_final = subject / "outputs" / "01_preproc" / "100307_dwi_final.nii.gz"
+            stale_final.parent.mkdir(parents=True)
+            stale_final.write_text("stale preprocessed data", encoding="utf-8")
             result = run_dwi_preprocessing(
                 DwiPreprocessingConfig(
                     subject_id="100307",
@@ -480,8 +500,14 @@ sys.exit(9)
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
             self.assertEqual(result.status, "completed")
             self.assertTrue(result.final_dwi_path.exists())
+            self.assertEqual(
+                result.final_dwi_path.resolve(),
+                (subject / "input" / "data.nii.gz").resolve(),
+            )
             self.assertEqual(manifest["status"], "completed")
             self.assertTrue(qc["backend_details"]["fast_path"])
+            self.assertEqual(len(qc["warnings"]), 5)
+            self.assertTrue(any("Bias-field" in warning for warning in qc["warnings"]))
 
 
 if __name__ == "__main__":

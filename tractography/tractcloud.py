@@ -20,10 +20,25 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from shared.external_process import merged_startup_environment
+from shared.output_contracts import vtp_streamline_count
 
 
 TRACTCLOUD_REPOSITORY = "https://github.com/SlicerDMRI/TractCloud"
 VALID_TRACTCLOUD_DEVICES = {"auto", "cpu", "cuda"}
+
+
+def _file_info(path: Path) -> dict[str, object]:
+    expanded = path.expanduser()
+    if not expanded.exists():
+        return {"path": expanded.as_posix(), "exists": False}
+    stat = expanded.stat()
+    return {
+        "path": expanded.resolve().as_posix(),
+        "exists": True,
+        "is_file": expanded.is_file(),
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+    }
 
 
 @dataclass(frozen=True)
@@ -248,18 +263,7 @@ def summarize_tractcloud_outputs(output_dir: Path) -> dict[str, Any]:
     line_counts: dict[str, Optional[int]] = {}
     for path in bundle_files:
         relative = path.relative_to(root).as_posix()
-        try:
-            with path.open("rb") as stream:
-                header = stream.read(64 * 1024)
-        except OSError:
-            line_counts[relative] = None
-            continue
-        match = re.search(
-            rb'<Piece\b[^>]*\bNumberOfLines=["\'](\d+)["\']',
-            header,
-            flags=re.DOTALL,
-        )
-        line_counts[relative] = int(match.group(1)) if match else None
+        line_counts[relative] = vtp_streamline_count(path)
     readable_line_counts = {
         name: count for name, count in line_counts.items() if count is not None
     }
@@ -282,6 +286,20 @@ def summarize_tractcloud_outputs(output_dir: Path) -> dict[str, Any]:
     }
 
 
+def _tractcloud_output_contract_error(output_summary: dict[str, Any]) -> Optional[str]:
+    bundle_count = int(output_summary.get("bundle_count", 0) or 0)
+    readable_count = int(output_summary.get("bundle_readable_count", 0) or 0)
+    nonempty_count = int(output_summary.get("bundle_nonempty_count", 0) or 0)
+    assigned_count = int(output_summary.get("assigned_streamline_count", 0) or 0)
+    if bundle_count <= 0:
+        return "TractCloud did not produce any bundle files."
+    if readable_count != bundle_count:
+        return "TractCloud produced one or more VTP files that could not be decoded."
+    if nonempty_count != bundle_count or assigned_count <= 0:
+        return "TractCloud produced empty bundle outputs or assigned no streamlines."
+    return None
+
+
 def run_tractcloud_parcellation(
     config: TractCloudConfig,
     *,
@@ -301,7 +319,7 @@ def run_tractcloud_parcellation(
 
     manifest = {
         "kind": "tractcloud_parcellation",
-        "version": 1,
+        "version": 2,
         "name": "TractCloud registration-free tractography parcellation",
         "subject_id": config.subject_id,
         "input_tractography": config.input_tractography.expanduser().resolve().as_posix(),
@@ -316,6 +334,10 @@ def run_tractcloud_parcellation(
         "status": "planned" if not config.execute else "running",
         "command": list(command),
         "backend": backend_status,
+        "dependencies": {
+            "input_tractography": _file_info(config.input_tractography),
+            "data_dir": _file_info(config.data_dir) if config.data_dir else None,
+        },
         "outputs": {
             "qc": qc_path.as_posix(),
             "summary": output_summary,
@@ -331,6 +353,7 @@ def run_tractcloud_parcellation(
     start_time = time.monotonic()
     return_code: Optional[int] = None
     execution_error: Optional[str] = None
+    execution_exception: Optional[Exception] = None
     if config.execute:
         env = merged_startup_environment(_tractcloud_env(config, backend_status))
         try:
@@ -339,14 +362,20 @@ def run_tractcloud_parcellation(
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode
             execution_error = str(exc)
-            raise
+            execution_exception = exc
+        except OSError as exc:
+            execution_error = f"{type(exc).__name__}: {exc}"
+            execution_exception = exc
         finally:
             output_summary = summarize_tractcloud_outputs(output_dir)
+
+    if config.execute and execution_error is None:
+        execution_error = _tractcloud_output_contract_error(output_summary)
 
     elapsed_seconds = time.monotonic() - start_time
     qc = {
         "kind": "tractcloud_parcellation_qc",
-        "version": 1,
+        "version": 2,
         "subject_id": config.subject_id,
         "status": "failed" if execution_error else ("completed" if config.execute else "planned"),
         "executed": bool(config.execute),
@@ -363,6 +392,9 @@ def run_tractcloud_parcellation(
     manifest["return_code"] = return_code
     manifest["outputs"]["summary"] = output_summary
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    if execution_exception is not None:
+        raise execution_exception
 
     return TractCloudResult(
         subject_id=config.subject_id,

@@ -72,6 +72,16 @@ def _run() -> None:
         logic_ready = bool(getattr(widget, "logic", None))
         parameter_node_ready = bool(getattr(widget, "_parameterNode", None))
         run_panel_ready = bool(getattr(widget, "_runStatusPanel", None))
+        wma_input_control = getattr(widget.ui, "wmaInputTractographyPath", None)
+        wma_input_ready = False
+        if parameter_node_ready and wma_input_control is not None:
+            widget._parameterNode.orchestrationBundleBackend = "wma"
+            widget._refresh_bundle_backend_highlight(bundle_backend="wma")
+            widget._onWmaInputTractographyPathChanged("/tmp/subject_ukf.vtk")
+            wma_input_ready = bool(
+                wma_input_control.enabled
+                and widget._parameterNode.wmaInputTractography == "/tmp/subject_ukf.vtk"
+            )
         env_paths_ready = bool(getattr(widget, "_environmentPathLineEdits", None))
         prepare_widgets = getattr(widget, "_prepareInputWidgets", {}) or {}
         prepare_required = {
@@ -225,6 +235,7 @@ def _run() -> None:
         print(f"SLICERDDSURFER_EXTENSION_LOGIC_READY={logic_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_PARAMETER_NODE_READY={parameter_node_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_RUN_PANEL_READY={run_panel_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTENSION_WMA_INPUT_READY={wma_input_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_ENV_PATHS_READY={env_paths_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_PREPARE_INPUTS_READY={prepare_inputs_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTENSION_MODEL_ASSETS_READY={model_assets_ready}", flush=True)
@@ -250,6 +261,7 @@ def _run() -> None:
             or not logic_ready
             or not parameter_node_ready
             or not run_panel_ready
+            or not wma_input_ready
             or not env_paths_ready
             or not prepare_inputs_ready
             or not model_assets_ready

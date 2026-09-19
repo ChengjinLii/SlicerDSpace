@@ -240,6 +240,49 @@ def find_subject_root(
     )
 
 
+def resolve_preprocessed_input_bundle(
+    raw: RawInputBundle,
+    *,
+    output_root: Optional[Path] = None,
+) -> RawInputBundle:
+    """Use completed preprocessing outputs as an analysis bundle when available.
+
+    Downstream quantitative models must consume the same dMRI, gradients and
+    mask emitted by preprocessing. If the user has not run preprocessing, the
+    canonical input bundle remains the explicit fallback.
+    """
+    resolved_output_root = (
+        output_root.expanduser().resolve()
+        if output_root is not None
+        else raw.subject_root / "outputs"
+    )
+    preproc_dir = resolved_output_root / "01_preproc"
+    manifest_path = preproc_dir / f"{raw.subject_id}_preproc_manifest.json"
+    candidates = {
+        "dwi": preproc_dir / f"{raw.subject_id}_dwi_final.nii.gz",
+        "bval": preproc_dir / f"{raw.subject_id}_dwi_final.bval",
+        "bvec": preproc_dir / f"{raw.subject_id}_dwi_final.bvec",
+        "mask": preproc_dir / f"{raw.subject_id}_brain_mask_final.nii.gz",
+    }
+    if not manifest_path.is_file() or not all(path.is_file() for path in candidates.values()):
+        return raw
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return raw
+    if manifest.get("status") not in {"completed", "cached"}:
+        return raw
+    return RawInputBundle(
+        subject_root=raw.subject_root,
+        subject_id=raw.subject_id,
+        input_dir=preproc_dir,
+        dwi_path=candidates["dwi"],
+        bval_path=candidates["bval"],
+        bvec_path=candidates["bvec"],
+        mask_path=candidates["mask"],
+    )
+
+
 def _has_registered_inputs(subject_dir: Path, subject_id: str) -> bool:
     expected = [
         f"{subject_id}-dti-FractionalAnisotropy-Reg.nii.gz",

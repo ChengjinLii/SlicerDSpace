@@ -536,9 +536,10 @@ WMA 是可选外部 bundle backend，插件不把 WMA 作为内置运行依赖�
 - ORG atlas 目录，必须包含：
   - `ORG-RegAtlas-100HCP`
   - `ORG-800FC-100HCP`
-- 原生 RAS 坐标中的全脑 tractogram（`.vtk`、`.vtp` 或 `.tck`）。`.tck`
-  输入会通过配置的 MRtrix3 `tckconvert` 自动转换。SAF 短联络纤维和已拆分的
-  单束文件不适合作为 ORG 全脑图谱输入
+- 原生 RAS 坐标中的全脑 tractogram（`.vtk`、`.vtp` 或 `.tck`），并具有适合
+  ORG atlas 的长程白质覆盖。推荐使用 UKF 全脑 tractography；`.tck` 输入会通过
+  配置的 MRtrix3 `tckconvert` 自动转换。SAF 短联络纤维、已拆分的单束文件以及
+  为 ACT/connectome 优化但长程覆盖不足的 tractogram 不适合作为 ORG 输入
 - Slicer executable
 - 可选：SlicerDMRI `FiberTractMeasurements` CLI，用于 diffusion measures 导出
 - headless 环境可选：`xvfb-run` 或可用 `DISPLAY`
@@ -566,10 +567,11 @@ python3 run_subject_pipeline.py \
   --wma-use-virtual-x
 ```
 
-自动发现只检查全脑 tractography 目录，并排除 `saf/`、`bundles/`、WMA、
-WMQL 和 TractCloud 派生目录。图形界面同时选择 CSD/ACT tractography 和 WMA
-时会直接复用本次全脑 `.tck`；命令行也可用 `--wma-input-tractography` 指定
-位于其他位置的输入。
+自动发现只接受文件名明确包含 `ukf`、`wma_input` 或 `org_input` 的候选文件，
+并排除 `saf/`、`bundles/`、WMA、WMQL 和 TractCloud 派生目录。普通 CSD/ACT
+tractogram 不会被静默复用：代表性受试者实测表明，增加其长程流线数量仍未满足
+ORG 解剖束覆盖 QC。其他算法生成的全脑 tractogram 可通过
+`--wma-input-tractography` 显式选择，运行后仍须通过非空解剖束检查。
 
 ## 9. WMQL / Tract Querier
 

@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from vtp_fixture import vtp_lines
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -35,9 +36,9 @@ for arg in "$@"; do
   prev="$arg"
 done
 mkdir -p "$out/Association"
-printf '<VTKFile></VTKFile>' > "$out/Association/arcuate_fasciculus.vtp"
+printf 'VTP_FIXTURE' > "$out/Association/arcuate_fasciculus.vtp"
 exit 0
-""",
+""".replace("VTP_FIXTURE", vtp_lines(3)),
             encoding="utf-8",
         )
         self.python.chmod(0o755)
@@ -125,6 +126,7 @@ exit 0
         qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
         self.assertEqual(qc["status"], "completed")
         self.assertEqual(qc["output_summary"]["bundle_count"], 1)
+        self.assertEqual(qc["output_summary"]["assigned_streamline_count"], 3)
 
     def test_output_summary_reports_nonempty_bundle_streamlines(self) -> None:
         from tractography.tractcloud import summarize_tractcloud_outputs
@@ -132,11 +134,11 @@ exit 0
         association = self.output_dir / "Association"
         association.mkdir(parents=True)
         (association / "AF.vtp").write_text(
-            '<VTKFile><PolyData><Piece NumberOfPoints="8" NumberOfLines="3"/></PolyData></VTKFile>',
+            vtp_lines(3),
             encoding="utf-8",
         )
         (association / "UF.vtp").write_text(
-            '<VTKFile><PolyData><Piece NumberOfPoints="0" NumberOfLines="0"/></PolyData></VTKFile>',
+            vtp_lines(0),
             encoding="utf-8",
         )
 

@@ -62,10 +62,11 @@ def _flip_ras_to_lps(vertices: np.ndarray) -> np.ndarray:
 
 
 def _apply_transform(mesh: trimesh.Trimesh, transform_path: Path) -> np.ndarray:
+    """Map atlas RAS predictions through the ITK atlas-to-native LPS transform."""
     transform = sitk.ReadTransform(str(transform_path))
-    vertices_ras = _flip_lps_to_ras(mesh.vertices.astype(np.float64))
+    vertices_lps = _flip_ras_to_lps(mesh.vertices.astype(np.float64))
     transformed = np.asarray(
-        [transform.TransformPoint(tuple(vertex)) for vertex in vertices_ras],
+        [transform.TransformPoint(tuple(vertex)) for vertex in vertices_lps],
         dtype=np.float64,
     )
     return transformed
@@ -75,7 +76,7 @@ def convert_meshes_to_native_space(
     config: PostprocessingConfig,
     predictions: Iterable[PredictionResult],
 ) -> Dict[str, List[Path]]:
-    """Convert predicted OBJ meshes into native-space STL files."""
+    """Write native LPS STL plus historical ``_orig`` RAS companion files."""
 
     _ensure_imports_ready()
 
@@ -102,21 +103,21 @@ def convert_meshes_to_native_space(
                 surface,
                 subject,
             )
-            mesh_lps = trimesh.load(mesh_path.as_posix(), process=False)
-            transformed_ras = _apply_transform(mesh_lps, config.transform_path)
+            mesh_atlas_ras = trimesh.load(mesh_path.as_posix(), process=False)
+            transformed_lps = _apply_transform(mesh_atlas_ras, config.transform_path)
 
-            mesh_ras = trimesh.Trimesh(vertices=transformed_ras, faces=mesh_lps.faces, process=False)
-            ras_path = native_dir / f"{subject}_predicted_{surface}_{hemi_short[result.hemisphere]}.stl"
-            mesh_ras.export(ras_path.as_posix())
+            mesh_lps = trimesh.Trimesh(vertices=transformed_lps, faces=mesh_atlas_ras.faces, process=False)
+            lps_path = native_dir / f"{subject}_predicted_{surface}_{hemi_short[result.hemisphere]}.stl"
+            mesh_lps.export(lps_path.as_posix())
 
-            mesh_lps_out = trimesh.Trimesh(
-                vertices=_flip_ras_to_lps(transformed_ras),
-                faces=mesh_lps.faces,
+            mesh_ras = trimesh.Trimesh(
+                vertices=_flip_lps_to_ras(transformed_lps),
+                faces=mesh_atlas_ras.faces,
                 process=False,
             )
-            lps_path = native_dir / f"{subject}_predicted_{surface}_{hemi_short[result.hemisphere]}_orig.stl"
-            mesh_lps_out.export(lps_path.as_posix())
+            ras_path = native_dir / f"{subject}_predicted_{surface}_{hemi_short[result.hemisphere]}_orig.stl"
+            mesh_ras.export(ras_path.as_posix())
 
-            outputs.setdefault(surface, []).extend([ras_path, lps_path])
+            outputs.setdefault(surface, []).extend([lps_path, ras_path])
 
     return outputs

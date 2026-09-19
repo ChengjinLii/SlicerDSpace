@@ -21,6 +21,23 @@ finally:
 
 
 class SharedModuleLogicTest(unittest.TestCase):
+    def test_surface_loader_explicitly_distinguishes_native_and_ras_companion(self):
+        from unittest.mock import Mock
+
+        for filename, expected in (("s_predicted_wm_lh.stl", 1),
+                                   ("s_predicted_wm_lh_orig.stl", 0)):
+            with self.subTest(filename=filename):
+                node = Mock()
+                loader = Mock(return_value=(True, node))
+                fake = types.SimpleNamespace(
+                    util=types.SimpleNamespace(loadNodeFromFile=loader),
+                    vtkMRMLStorageNode=types.SimpleNamespace(CoordinateSystemRAS=0, CoordinateSystemLPS=1),
+                )
+                with patch.object(shared_module_logic, "slicer", fake):
+                    self.assertTrue(SharedLogicMixin()._load_model_node(Path(filename), "wm", "s"))
+                self.assertEqual(loader.call_args.kwargs["properties"]["coordinateSystem"], expected)
+                node.SetName.assert_called_once_with("s_wm_lh")
+
     def test_release_version_handles_torch_build_suffix(self) -> None:
         self.assertEqual(_release_version("2.2.2+cpu"), (2, 2, 2))
         self.assertLess(_release_version("1.8.1+cpu"), _release_version("2.0.0"))

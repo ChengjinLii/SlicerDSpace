@@ -9,6 +9,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import nibabel as nib
+import numpy as np
+
 from shared.input_import import InputImportConfig, detect_import_source_kind, prepare_inputs
 
 
@@ -27,7 +30,8 @@ class InputImportTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "dwi.nii.gz"
-            source.write_text("dwi\n", encoding="utf-8")
+            source_data = np.arange(16, dtype=np.float32).reshape(2, 2, 2, 2)
+            nib.save(nib.Nifti1Image(source_data, np.eye(4)), str(source))
             (root / "dwi.bval").write_text("0 1000\n", encoding="utf-8")
             (root / "dwi.bvec").write_text("0 1\n0 0\n0 0\n", encoding="utf-8")
             (root / "dwi.json").write_text('{"PhaseEncodingDirection": "j"}\n', encoding="utf-8")
@@ -43,7 +47,8 @@ class InputImportTest(unittest.TestCase):
             )
 
             self.assertEqual(manifest["status"], "completed")
-            self.assertEqual((subject_root / "input" / "data.nii.gz").read_text(encoding="utf-8"), "dwi\n")
+            imported = nib.load(str(subject_root / "input" / "data.nii.gz"))
+            np.testing.assert_array_equal(np.asarray(imported.dataobj), source_data)
             self.assertTrue((subject_root / "input" / "bvals").is_file())
             self.assertTrue((subject_root / "input" / "bvecs").is_file())
             self.assertEqual(json.loads((subject_root / "input" / "dwi.json").read_text())["PhaseEncodingDirection"], "j")

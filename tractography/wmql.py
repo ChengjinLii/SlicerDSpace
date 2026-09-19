@@ -19,6 +19,20 @@ TRACT_QUERIER_REPOSITORY = "https://github.com/demianw/tract_querier"
 VALID_TRACT_EXTENSIONS = {".vtk", ".vtp", ".trk"}
 
 
+def _file_info(path: Path) -> dict[str, object]:
+    expanded = path.expanduser()
+    if not expanded.exists():
+        return {"path": expanded.as_posix(), "exists": False}
+    stat = expanded.stat()
+    return {
+        "path": expanded.resolve().as_posix(),
+        "exists": True,
+        "is_file": expanded.is_file(),
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+    }
+
+
 @dataclass(frozen=True)
 class WMQLConfig:
     subject_id: str
@@ -249,14 +263,62 @@ def summarize_wmql_outputs(output_dir: Path) -> dict[str, Any]:
                 detail["streamline_count"] = len(nib.streamlines.load(path.as_posix()).streamlines)
             except Exception as exc:  # pragma: no cover - best-effort QC
                 detail["streamline_count_error"] = str(exc)
+        elif path.suffix.lower() in {".vtk", ".vtp"}:
+            try:
+                import re
+
+                header = path.read_bytes()[: 64 * 1024]
+                if path.suffix.lower() == ".vtp":
+                    match = re.search(
+                        rb'<Piece\b[^>]*\bNumberOfLines=["\'](\d+)["\']',
+                        header,
+                        flags=re.DOTALL,
+                    )
+                else:
+                    match = re.search(rb"(?im)^\s*LINES\s+(\d+)\s+", header)
+                if match is None:
+                    raise ValueError("streamline count was not found in the VTK header")
+                detail["streamline_count"] = int(match.group(1))
+            except Exception as exc:  # pragma: no cover - best-effort QC
+                detail["streamline_count_error"] = str(exc)
         bundle_details.append(detail)
+    readable = [item for item in bundle_details if "streamline_count" in item]
+    nonempty = [item for item in readable if int(item["streamline_count"]) > 0]
     return {
         "root": root.as_posix(),
         "root_exists": root.is_dir(),
         "bundle_count": len(bundle_files),
         "bundle_files": [path.as_posix() for path in bundle_files],
         "bundles": bundle_details,
+        "bundle_readable_count": len(readable),
+        "bundle_nonempty_count": len(nonempty),
+        "streamline_count": sum(int(item["streamline_count"]) for item in readable),
+        "unreadable_bundle_files": [
+            str(item["path"]) for item in bundle_details if "streamline_count_error" in item
+        ],
+        "empty_bundle_files": [
+            str(item["path"])
+            for item in readable
+            if int(item["streamline_count"]) == 0
+        ],
     }
+
+
+def _wmql_output_contract_error(
+    output_summary: dict[str, Any],
+    expected_bundle_count: int,
+) -> Optional[str]:
+    bundle_count = int(output_summary.get("bundle_count", 0) or 0)
+    readable_count = int(output_summary.get("bundle_readable_count", 0) or 0)
+    nonempty_count = int(output_summary.get("bundle_nonempty_count", 0) or 0)
+    expected = max(1, expected_bundle_count)
+    if bundle_count < expected:
+        return f"WMQL produced {bundle_count} bundle files; at least {expected} were requested."
+    if readable_count != bundle_count:
+        return "WMQL produced one or more bundle files that could not be decoded."
+    if nonempty_count < expected:
+        return f"WMQL produced only {nonempty_count} non-empty bundles; at least {expected} were requested."
+    return None
 
 
 def _validate_wmql_config(config: WMQLConfig, backend_status: dict[str, Any]) -> None:
@@ -310,7 +372,7 @@ def run_wmql_bundle_segmentation(
     output_summary = summarize_wmql_outputs(output_dir)
     manifest: dict[str, Any] = {
         "kind": "wmql_bundle_segmentation",
-        "version": 1,
+        "version": 2,
         "subject_id": config.subject_id,
         "input_tractography": config.input_tractography.expanduser().resolve().as_posix(),
         "atlas_path": config.atlas_path.expanduser().resolve().as_posix(),
@@ -324,6 +386,11 @@ def run_wmql_bundle_segmentation(
         "command": list(command),
         "execution_cwd": queries_dir.as_posix() if _requires_windows_query_staging() else None,
         "backend": backend_status,
+        "dependencies": {
+            "input_tractography": _file_info(config.input_tractography),
+            "atlas": _file_info(config.atlas_path),
+            "query": _file_info(query_path),
+        },
         "outputs": {"qc": qc_path.as_posix(), "summary": output_summary},
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -343,6 +410,10 @@ def run_wmql_bundle_segmentation(
             root = config.tract_querier_root.expanduser().resolve()
             env["PYTHONPATH"] = root.as_posix() + os.pathsep + env.get("PYTHONPATH", "")
         try:
+            output_prefix = f"{config.subject_id}_desc-wmql_"
+            for stale_output in output_dir.glob(f"{output_prefix}*"):
+                if stale_output.is_file() and stale_output.suffix.lower() in VALID_TRACT_EXTENSIONS:
+                    stale_output.unlink()
             completed = subprocess.run(
                 command,
                 check=True,
@@ -362,10 +433,16 @@ def run_wmql_bundle_segmentation(
         finally:
             output_summary = summarize_wmql_outputs(output_dir)
 
+    if config.execute and execution_error is None:
+        execution_error = _wmql_output_contract_error(
+            output_summary,
+            len(config.query_selection),
+        )
+
     elapsed_seconds = time.monotonic() - start_time
     qc = {
         "kind": "wmql_bundle_segmentation_qc",
-        "version": 1,
+        "version": 2,
         "subject_id": config.subject_id,
         "status": "failed" if execution_error else ("completed" if config.execute else "planned"),
         "executed": bool(config.execute),

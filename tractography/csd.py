@@ -41,10 +41,14 @@ class CSDActConfig:
     tractogram_dir: Optional[Path] = None
     algorithm: str = "iFOD2"
     select_streamlines: int = 1_000_000
+    min_length_mm: float = 10.0
+    max_length_mm: float = 250.0
     step_size_mm: Optional[float] = None
     cutoff: Optional[float] = None
+    random_seed: int = 12345
     use_sift2: bool = True
     export_trk: bool = False
+    export_vtk: bool = False
     mrtrix_bin_dir: Optional[Path] = None
     execute: bool = False
 
@@ -57,6 +61,7 @@ class CSDActResult:
     wm_fod_norm_path: Path
     tractogram_path: Path
     tractogram_trk_path: Optional[Path]
+    tractogram_vtk_path: Optional[Path]
     sift2_weights_path: Optional[Path]
     manifest_path: Path
     qc_path: Path
@@ -93,10 +98,15 @@ def _resolve_command(name: str, bin_dir: Optional[Path] = None) -> Optional[str]
     return shutil.which(name)
 
 
-def inspect_mrtrix_csd_backend(bin_dir: Optional[Path] = None) -> dict[str, object]:
+def inspect_mrtrix_csd_backend(
+    bin_dir: Optional[Path] = None,
+    *,
+    require_tckconvert: bool = False,
+) -> dict[str, object]:
     commands: dict[str, Optional[str]] = {}
     missing: list[str] = []
-    for command in REQUIRED_MRTRIX_COMMANDS:
+    required_commands = (*REQUIRED_MRTRIX_COMMANDS, "tckconvert") if require_tckconvert else REQUIRED_MRTRIX_COMMANDS
+    for command in required_commands:
         resolved = _resolve_command(command, bin_dir)
         commands[command] = resolved
         if resolved is None:
@@ -119,6 +129,10 @@ def _validate_config(config: CSDActConfig) -> None:
         raise ValueError("subject_id is required.")
     if config.select_streamlines <= 0:
         raise ValueError("select_streamlines must be > 0.")
+    if config.min_length_mm <= 0 or config.max_length_mm <= config.min_length_mm:
+        raise ValueError("CSD/ACT streamline lengths require 0 < min_length_mm < max_length_mm.")
+    if config.random_seed < 0:
+        raise ValueError("random_seed must be >= 0.")
     for label, path in (
         ("dwi_path", config.dwi_path),
         ("bval_path", config.bval_path),
@@ -177,6 +191,9 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
             csf_response.as_posix(),
             "-mask",
             mask_mif.as_posix(),
+            "-config",
+            "RandomSeed",
+            str(config.random_seed),
             "-force",
         ),
         (
@@ -220,6 +237,13 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
         "-crop_at_gmwmi",
         "-select",
         str(config.select_streamlines),
+        "-minlength",
+        str(config.min_length_mm),
+        "-maxlength",
+        str(config.max_length_mm),
+        "-config",
+        "RandomSeed",
+        str(config.random_seed),
         "-force",
     ]
     if config.step_size_mm is not None:
@@ -239,7 +263,130 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
                 "-force",
             )
         )
+    if config.export_vtk:
+        commands.append(
+            (
+                _cmd("tckconvert", config.mrtrix_bin_dir),
+                tractogram.as_posix(),
+                tractogram.with_suffix(".vtk").as_posix(),
+                "-force",
+            )
+        )
     return tuple(commands)
+
+
+def _tractogram_summary(path: Path) -> dict[str, object]:
+    """Decode every streamline and return the evidence used by CSD/ACT QC."""
+
+    import nibabel as nib
+    import numpy as np
+
+    lengths: list[float] = []
+    all_points_finite = True
+    for streamline in nib.streamlines.load(str(path), lazy_load=True).streamlines:
+        points = np.asarray(streamline, dtype=np.float64)
+        if points.ndim != 2 or points.shape[0] < 2 or points.shape[1] != 3:
+            all_points_finite = False
+            continue
+        if not np.isfinite(points).all():
+            all_points_finite = False
+            continue
+        lengths.append(float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum()))
+    values = np.asarray(lengths, dtype=np.float64)
+    summary: dict[str, object] = {
+        "file": _file_info(path),
+        "streamline_count": int(values.size),
+        "all_points_finite": bool(all_points_finite),
+    }
+    if values.size:
+        summary["length_mm"] = {
+            "min": float(np.min(values)),
+            "p05": float(np.percentile(values, 5)),
+            "median": float(np.median(values)),
+            "p95": float(np.percentile(values, 95)),
+            "max": float(np.max(values)),
+        }
+    return summary
+
+
+def _sift2_summary(path: Path, expected_count: int) -> dict[str, object]:
+    import numpy as np
+
+    values = np.asarray(np.loadtxt(path, ndmin=1), dtype=np.float64).reshape(-1)
+    return {
+        "file": _file_info(path),
+        "weight_count": int(values.size),
+        "expected_count": int(expected_count),
+        "all_finite": bool(np.isfinite(values).all()),
+        "all_nonnegative": bool(np.all(values >= 0.0)),
+        "positive_count": int(np.count_nonzero(values > 0.0)),
+        "sum": float(np.sum(values)) if values.size else 0.0,
+    }
+
+
+def _vtk_streamline_summary(path: Path) -> dict[str, object]:
+    import re
+
+    match = None
+    with path.open("rb") as stream:
+        for line in stream:
+            match = re.match(rb"(?i)^\s*LINES\s+(\d+)\s+", line)
+            if match is not None:
+                break
+    if match is None:
+        raise ValueError("VTK LINES count was not found")
+    return {
+        "file": _file_info(path),
+        "streamline_count": int(match.group(1)),
+    }
+
+
+def _validate_generated_outputs(
+    config: CSDActConfig,
+    tractogram: Path,
+    tractogram_trk: Optional[Path],
+    tractogram_vtk: Optional[Path],
+    weights: Optional[Path],
+) -> tuple[dict[str, object], Optional[str]]:
+    """Validate generated tractography before a run can report completion."""
+
+    try:
+        tck_summary = _tractogram_summary(tractogram)
+        summaries: dict[str, object] = {"tck": tck_summary}
+        expected_count = int(config.select_streamlines)
+        count = int(tck_summary["streamline_count"])
+        length_summary = dict(tck_summary.get("length_mm") or {})
+        valid = (
+            bool(tck_summary["all_points_finite"])
+            and count == expected_count
+            and bool(length_summary)
+            and float(length_summary["min"]) + 1e-3 >= float(config.min_length_mm)
+            and float(length_summary["max"]) - 1e-3 <= float(config.max_length_mm)
+        )
+        if tractogram_trk is not None:
+            trk_summary = _tractogram_summary(tractogram_trk)
+            summaries["trk"] = trk_summary
+            valid = valid and int(trk_summary["streamline_count"]) == count and bool(
+                trk_summary["all_points_finite"]
+            )
+        if tractogram_vtk is not None:
+            vtk_summary = _vtk_streamline_summary(tractogram_vtk)
+            summaries["vtk"] = vtk_summary
+            valid = valid and int(vtk_summary["streamline_count"]) == count
+        if weights is not None:
+            weight_summary = _sift2_summary(weights, count)
+            summaries["sift2"] = weight_summary
+            valid = valid and (
+                int(weight_summary["weight_count"]) == count
+                and bool(weight_summary["all_finite"])
+                and bool(weight_summary["all_nonnegative"])
+                and int(weight_summary["positive_count"]) > 0
+            )
+        if not valid:
+            return summaries, "Generated CSD/ACT tractography failed its scientific output contract."
+        return summaries, None
+    except Exception as exc:
+        return {}, f"Unable to validate generated CSD/ACT outputs: {type(exc).__name__}: {exc}"
 
 
 def export_tck_to_trk(tck_path: Path, reference_image_path: Path, trk_path: Path) -> Path:
@@ -294,12 +441,16 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
     manifest_path = output_dir / "csd_act_manifest.json"
     qc_path = output_dir / "csd_act_qc.json"
     tractogram_trk = tractogram.with_suffix(".trk") if config.export_trk else None
-    backend_status = inspect_mrtrix_csd_backend(config.mrtrix_bin_dir)
+    tractogram_vtk = tractogram.with_suffix(".vtk") if config.export_vtk else None
+    backend_status = inspect_mrtrix_csd_backend(
+        config.mrtrix_bin_dir,
+        require_tckconvert=config.export_vtk,
+    )
     commands = build_csd_act_commands(config)
 
     manifest: dict[str, object] = {
         "kind": "mrtrix_csd_act",
-        "version": 1,
+        "version": 2,
         "subject_id": config.subject_id,
         "executed": bool(config.execute),
         "status": "running" if config.execute else "planned",
@@ -307,10 +458,14 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
         "parameters": {
             "algorithm": config.algorithm,
             "select_streamlines": config.select_streamlines,
+            "min_length_mm": config.min_length_mm,
+            "max_length_mm": config.max_length_mm,
             "step_size_mm": config.step_size_mm,
             "cutoff": config.cutoff,
+            "random_seed": config.random_seed,
             "use_sift2": config.use_sift2,
             "export_trk": config.export_trk,
+            "export_vtk": config.export_vtk,
             "tractogram_dir": tractogram_dir.as_posix(),
             "mrtrix_bin_dir": config.mrtrix_bin_dir.expanduser().resolve().as_posix()
             if config.mrtrix_bin_dir is not None
@@ -329,6 +484,7 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
             "wm_fod_norm": wm_fod_norm.as_posix(),
             "tractogram": tractogram.as_posix(),
             "tractogram_trk": tractogram_trk.as_posix() if tractogram_trk else None,
+            "tractogram_vtk": tractogram_vtk.as_posix() if tractogram_vtk else None,
             "sift2_weights": weights.as_posix() if weights else None,
             "qc": qc_path.as_posix(),
         },
@@ -336,7 +492,7 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
     }
     qc: dict[str, object] = {
         "kind": "mrtrix_csd_act_qc",
-        "version": 1,
+        "version": 2,
         "subject_id": config.subject_id,
         "status": "planned",
         "executed": False,
@@ -346,10 +502,12 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
         "wm_fod_norm_exists": wm_fod_norm.is_file(),
         "tractogram_exists": tractogram.is_file(),
         "tractogram_trk_exists": tractogram_trk.is_file() if tractogram_trk else None,
+        "tractogram_vtk_exists": tractogram_vtk.is_file() if tractogram_vtk else None,
         "sift2_weights_exists": weights.is_file() if weights else None,
         "return_code": None,
         "elapsed_seconds": 0.0,
         "error": None,
+        "scientific_output_summary": {},
     }
 
     return_code: Optional[int] = None
@@ -371,6 +529,16 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
             if config.export_trk and tractogram_trk is not None:
                 _emit(f"[Tractography] Exporting ACT TCK to TRK for WMQL: {tractogram_trk}", log)
                 export_tck_to_trk(tractogram, config.dwi_path, tractogram_trk)
+            scientific_summary, validation_error = _validate_generated_outputs(
+                config,
+                tractogram,
+                tractogram_trk,
+                tractogram_vtk,
+                weights,
+            )
+            qc["scientific_output_summary"] = scientific_summary
+            if validation_error is not None:
+                error = validation_error
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode
             error = str(exc)
@@ -387,6 +555,7 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
                 "wm_fod_norm_exists": wm_fod_norm.is_file(),
                 "tractogram_exists": tractogram.is_file(),
                 "tractogram_trk_exists": tractogram_trk.is_file() if tractogram_trk else None,
+                "tractogram_vtk_exists": tractogram_vtk.is_file() if tractogram_vtk else None,
                 "sift2_weights_exists": weights.is_file() if weights else None,
                 "error": error,
             }
@@ -405,6 +574,7 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
         wm_fod_norm_path=wm_fod_norm,
         tractogram_path=tractogram,
         tractogram_trk_path=tractogram_trk,
+        tractogram_vtk_path=tractogram_vtk,
         sift2_weights_path=weights,
         manifest_path=manifest_path,
         qc_path=qc_path,

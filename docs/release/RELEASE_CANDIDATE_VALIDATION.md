@@ -12,6 +12,21 @@ probability-QC, full scientific-route and staged-Slicer evidence. The preceding
 release-focused audit remains available in
 [`VALIDATION_20260812.md`](VALIDATION_20260812.md).
 
+The latest Linux anomaly audit (2026-09-19) is stored locally at:
+
+```text
+/data/chengjin/SlicerDDSurfer-validation/VALIDATION_20260919.md
+```
+
+It records 397 passing Python tests (3 Windows-only skips), 214/219 passing
+checks in the representative all-route run, and a separately passing 8/8 WMA
+positive-control audit. The five representative-run failures all derive from
+the deliberately retained negative CSD-to-WMA experiment. Current routing no
+longer chooses that tractogram implicitly. Additional real-data checks passed
+for 8/8 PPMI input-validation reruns after mask generation, 4/4 PPMI DTI and
+tractography subjects, 4/4 filtered tractography subjects, and 2/2 PPMI
+DDSeg/DDParcel/DDSurfer subjects.
+
 ## Verified Baseline
 
 - Repository: `/data/chengjin/SlicerDDSurfer`
@@ -53,8 +68,12 @@ Key results:
 - MRtrix/FSL preprocessing completed `topup + eddy` using the AP/PA pair,
   retained 11 QC diagnostics and produced finite corrected DWI values, rotated
   gradients and a final `dwi2mask` mask generated from the corrected image.
-- WMA completed on a 100,000-streamline whole-brain CSD/ACT tractogram:
-  10 registration iterations, 800 clusters and 74 anatomical tracts.
+- WMA completed registration and 800-cluster propagation on a whole-brain
+  CSD/ACT tractogram, but later content-aware QC showed that atlas filenames
+  alone were insufficient evidence: too many anatomical tract files were
+  empty. A separate UKF whole-brain fixture produced 74/74 readable, non-empty
+  anatomical tracts. WMA therefore requires an explicit compatible input and
+  no longer reuses the connectome CSD/ACT tractogram automatically.
 - ANTs was used only by the old SAF T1w/FreeSurfer-to-dMRI registration branch.
   That branch and its dependency were removed. SAF now requires surfaces
   already expressed in native dMRI space.
@@ -268,23 +287,26 @@ paths and data requirements are supplied:
   revalidation.
 - `saf`: requires completed DDSurfer post-processing outputs or an explicit
   dMRI-space `--saf-fs-dir`.
-- `wma`: requires WhiteMatterAnalysis, an ORG atlas and a Slicer/SlicerDMRI
-  runtime; the representative-subject closure is recorded above.
+- `wma`: requires WhiteMatterAnalysis, an ORG atlas, a Slicer/SlicerDMRI
+  runtime and an explicit WMA-compatible whole-brain tractogram (UKF
+  recommended); the compatible-input closure is recorded above.
 - `tractcloud`: requires an explicit VTK/VTP tractogram plus a TractCloud
   Python/model runtime.
 
 These blockers do not stop runnable targets unless `--strict-environment` is used.
 
 WMA and TractCloud remain explicit optional external backends rather than
-zero-configuration default features. WMA now has a dedicated
-representative-subject validation, while the combined historical backend
-closure remains summarized in:
+zero-configuration default features. The combined historical backend closure
+is retained for provenance in:
 
 ```text
 /data/chengjin/SlicerDDSurfer-test/100307/outputs/00_run_metadata/bundle_backend_closure.json
 ```
 
-That closure records WMA 800 clusters / 74 anatomical tracts and TractCloud 17 bundles / 5 categories.
+That historical closure records WMA 800 clusters / 74 output filenames and
+TractCloud 17 bundles / 5 categories. Current release acceptance additionally
+requires WMA tract files to be readable and at least 55 to contain streamlines;
+the UKF validation fixture has 74/74 non-empty tracts.
 
 ## Output Audit
 

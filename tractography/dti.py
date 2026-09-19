@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
-from shared import NativeDTIBundle, default_task_output_dir, find_subject_root
+from shared import NativeDTIBundle, RawInputBundle, default_task_output_dir, find_subject_root
 
 
 SUPPORTED_TRACKING_METHODS = {"deterministic"}
@@ -20,6 +20,7 @@ SUPPORTED_OUTPUT_FORMATS = {"trk", "tck"}
 class DTITrackingConfig:
     subject_id: str
     input_root: Path
+    input_bundle: Optional[RawInputBundle] = None
     output_dir: Optional[Path] = None
     fit_method: str = "wls"
     tracking_method: str = "deterministic"
@@ -254,7 +255,10 @@ def _run_dipy_dti_tracking(
     except ImportError as exc:  # pragma: no cover - environment dependent
         raise RuntimeError("DTI tractography execution requires DIPY, nibabel, and numpy.") from exc
 
-    raw = find_subject_root(config.input_root.expanduser().resolve(), config.subject_id)
+    raw = config.input_bundle or find_subject_root(
+        config.input_root.expanduser().resolve(),
+        config.subject_id,
+    )
     _emit("[Tractography] Loading DWI, gradients, and mask for DIPY DTI tracking", log)
     dwi_img = nib.load(raw.dwi_path.as_posix())
     data = dwi_img.get_fdata(dtype=np.float32)
@@ -381,7 +385,12 @@ def run_dti_tracking(config: DTITrackingConfig, *, log: Optional[Callable[[str],
     """Prepare or execute DTI tractography outputs and manifests."""
 
     _validate_config(config)
-    raw = find_subject_root(config.input_root.expanduser().resolve(), config.subject_id)
+    raw = config.input_bundle or find_subject_root(
+        config.input_root.expanduser().resolve(),
+        config.subject_id,
+    )
+    if raw.subject_id != config.subject_id:
+        raise ValueError("input_bundle subject_id does not match DTITrackingConfig.subject_id.")
     fit_method = config.fit_method.lower()
     tracking_method = config.tracking_method.lower()
     output_format = config.output_format.lower()

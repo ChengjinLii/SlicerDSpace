@@ -39,8 +39,9 @@ for arg in "$@"; do
   prev="$arg"
 done
 mkdir -p "$(dirname "$out")"
-printf '# vtk DataFile Version 3.0\\n' > "${out}_AF.left.vtk"
-printf '# vtk DataFile Version 3.0\\n' > "${out}_CST.left.vtk"
+for name in AF.left AF.right CST.left CST.right; do
+  printf '# vtk DataFile Version 3.0\\nASCII\\nDATASET POLYDATA\\nPOINTS 2 float\\n0 0 0 1 0 0\\nLINES 1 3\\n2 0 1\\n' > "${out}_${name}.vtk"
+done
 exit 0
 """,
             encoding="utf-8",
@@ -122,8 +123,9 @@ exit 0
         self.assertEqual(result.return_code, 0)
         qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
         self.assertEqual(qc["status"], "completed")
-        self.assertEqual(qc["output_summary"]["bundle_count"], 2)
-        self.assertEqual(len(qc["output_summary"]["bundles"]), 2)
+        self.assertEqual(qc["output_summary"]["bundle_count"], 4)
+        self.assertEqual(qc["output_summary"]["bundle_nonempty_count"], 4)
+        self.assertEqual(len(qc["output_summary"]["bundles"]), 4)
         self.assertIn("size", qc["output_summary"]["bundles"][0])
 
     def test_windows_stages_query_includes_without_drive_separated_I_argument(self) -> None:

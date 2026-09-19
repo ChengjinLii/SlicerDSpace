@@ -51,6 +51,7 @@ class CSDActBackendTest(unittest.TestCase):
                     tractogram_dir=root / "outputs" / "04_tractography" / "tractograms" / "csd_act_test",
                     select_streamlines=10,
                     export_trk=True,
+                    export_vtk=True,
                     mrtrix_bin_dir=root / "fake_mrtrix_bin",
                 )
             )
@@ -58,7 +59,7 @@ class CSDActBackendTest(unittest.TestCase):
             self.assertFalse(result.executed)
             self.assertTrue(result.manifest_path.is_file())
             self.assertTrue(result.qc_path.is_file())
-            self.assertGreaterEqual(len(result.commands), 6)
+            self.assertGreaterEqual(len(result.commands), 7)
             manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["kind"], "mrtrix_csd_act")
@@ -69,11 +70,21 @@ class CSDActBackendTest(unittest.TestCase):
                 (root / "outputs" / "04_tractography" / "tractograms" / "csd_act_test").as_posix(),
             )
             self.assertTrue(manifest["parameters"]["export_trk"])
+            self.assertTrue(manifest["parameters"]["export_vtk"])
             self.assertIsNotNone(manifest["outputs"]["tractogram_trk"])
+            self.assertIsNotNone(manifest["outputs"]["tractogram_vtk"])
             self.assertFalse(qc["tractogram_trk_exists"])
+            self.assertFalse(qc["tractogram_vtk_exists"])
             self.assertIsNotNone(result.tractogram_trk_path)
+            self.assertIsNotNone(result.tractogram_vtk_path)
             self.assertIn("dwi2response", " ".join(" ".join(command) for command in result.commands))
             self.assertIn("tckgen", " ".join(" ".join(command) for command in result.commands))
+            self.assertIn("tckconvert", " ".join(" ".join(command) for command in result.commands))
+            dwi2response = next(command for command in result.commands if "dwi2response" in command[0])
+            tckgen = next(command for command in result.commands if "tckgen" in command[0])
+            self.assertIn(("-config", "RandomSeed", "12345"), tuple(zip(dwi2response, dwi2response[1:], dwi2response[2:])))
+            self.assertIn(("-config", "RandomSeed", "12345"), tuple(zip(tckgen, tckgen[1:], tckgen[2:])))
+            self.assertEqual(manifest["parameters"]["random_seed"], 12345)
 
     def test_backend_inspection_honors_explicit_bin_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

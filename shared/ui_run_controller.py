@@ -58,6 +58,7 @@ class RunSelection:
     connectome_backend: str
     connectome_compress_mrtrix_dense: bool
     preprocessing_backend: str = "dipy"
+    wma_input_tractography_text: str = ""
 
 
 @dataclass(frozen=True)
@@ -257,12 +258,12 @@ def streamline_control_state(tractography_backend: str) -> StreamlineControlStat
     if backend == "csd_act":
         description = (
             "Number of streamlines requested from MRtrix CSD/ACT. "
-            "Use 100000 or more for analysis-scale bundle/connectome tests."
+            "One million is recommended for analysis-scale bundle and connectome coverage."
         )
     elif backend == "saf":
         description = (
             "Number of streamlines generated during the MRtrix CSD/ACT stage before SAF filtering. "
-            "Use 100000 or more for analysis-scale SAF tests."
+            "One million is recommended when SAF, bundle analysis or connectome outputs are selected."
         )
     else:
         description = (
@@ -393,6 +394,11 @@ def build_single_subject_run_kwargs(
         "tract_querier_root": external_paths.get("tract_querier_root"),
         "wma_root": external_paths.get("wma_root"),
         "wma_atlas_dir": external_paths.get("wma_atlas_dir"),
+        "wma_input_tractography": (
+            Path(selection.wma_input_tractography_text).expanduser()
+            if selection.wma_input_tractography_text.strip()
+            else None
+        ),
         "slicer_executable": external_paths.get("slicer_executable"),
         "fiber_tract_measurements_cli": external_paths.get("fiber_tract_measurements_cli"),
         "tractcloud_root": external_paths.get("tractcloud_root"),
@@ -668,6 +674,9 @@ def build_background_cli_args(
     args.extend(["--microstructure-stages", microstructure_stages_arg(common_run_kwargs)])
     if common_run_kwargs.get("connectome_compress_mrtrix_dense"):
         args.append("--compress-mrtrix-dense")
+    wma_input = common_run_kwargs.get("wma_input_tractography")
+    if wma_input is not None:
+        args.extend(["--wma-input-tractography", _path_text(wma_input)])
     _append_optional_path_args(args, external_paths)
     return args
 

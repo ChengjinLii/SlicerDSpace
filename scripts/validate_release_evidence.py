@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -22,7 +23,7 @@ def _read_json(path: Path) -> dict[str, Any]:
     return payload
 
 
-def validate_fresh_clone_report(path: Path) -> dict[str, Any]:
+def validate_fresh_clone_report(path: Path, expected_commit: str | None = None) -> dict[str, Any]:
     payload = _read_json(path)
     errors: list[str] = []
     if payload.get("kind") != "slicerdsurfer_fresh_clone_smoke_report":
@@ -32,15 +33,36 @@ def validate_fresh_clone_report(path: Path) -> dict[str, Any]:
     code_checkout = payload.get("code_checkout")
     if not isinstance(code_checkout, dict) or not code_checkout.get("separate_from_model_assets"):
         errors.append("missing code_checkout.separate_from_model_assets=true")
-    model_asset_download = payload.get("model_asset_download")
+    model_asset_download = payload.get("model_asset_check")
     if not isinstance(model_asset_download, dict) or not model_asset_download.get("separate_from_code_checkout"):
-        errors.append("missing model_asset_download.separate_from_code_checkout=true")
-    step_names = {str(step.get("name")) for step in payload.get("steps", []) if isinstance(step, dict)}
+        errors.append("missing model_asset_check.separate_from_code_checkout=true")
+    commit = payload.get("resolved_commit", "")
+    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        errors.append("missing resolved full commit SHA")
+    if expected_commit is not None and commit != expected_commit:
+        errors.append("tested commit differs from expected commit")
+    if payload.get("asset_mode") != "download" or payload.get("asset_profile") != "core":
+        errors.append("release requires a real core asset download, not a plan or sentinel")
+    steps = payload.get("steps")
+    if not isinstance(steps, list):
+        steps = []
+        errors.append("steps must be a list")
+    step_names: set[str] = set()
+    for step in steps:
+        if not isinstance(step, dict) or not isinstance(step.get("name"), str):
+            errors.append("malformed step")
+            continue
+        name = step["name"]
+        if name in step_names:
+            errors.append(f"duplicate step {name}")
+        step_names.add(name)
+        if step.get("status") != "passed" or type(step.get("exit_code")) is not int or step["exit_code"] != 0:
+            errors.append(f"step {name} did not pass with exit code 0")
     for required in ("git_clone", "git_checkout", "make_test_fast"):
         if required not in step_names:
             errors.append(f"missing step {required}")
     asset_profile = str(payload.get("asset_profile") or "core")
-    for required in (f"download_model_assets_{asset_profile}", f"verify_model_assets_{asset_profile}"):
+    for required in (f"model_assets_download_{asset_profile}", f"verify_model_assets_{asset_profile}"):
         if required not in step_names:
             errors.append(f"missing step {required}")
     if errors:
@@ -50,6 +72,7 @@ def validate_fresh_clone_report(path: Path) -> dict[str, Any]:
         "status": "passed",
         "asset_profile": asset_profile,
         "step_count": len(step_names),
+        "resolved_commit": commit,
     }
 
 
@@ -71,7 +94,7 @@ def validate_asset_mirror_manifest(path: Path) -> dict[str, Any]:
         if not isinstance(record.get("size_bytes"), int) or int(record.get("size_bytes") or 0) <= 0:
             errors.append(f"record {index} missing positive size_bytes")
         sha = str(record.get("sha256") or "")
-        if len(sha) != 64:
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", sha):
             errors.append(f"record {index} missing sha256")
         expected_sha = str(record.get("expected_sha256") or "")
         if expected_sha and expected_sha != sha:
@@ -92,6 +115,7 @@ def validate_asset_mirror_manifest(path: Path) -> dict[str, Any]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fresh-clone-report", type=Path, help="fresh_clone_smoke_report.json to validate.")
+    parser.add_argument("--expected-commit", help="Require fresh-clone evidence for this exact full commit SHA.")
     parser.add_argument("--asset-mirror-manifest", action="append", type=Path, help="asset_mirror_manifest.json to validate. Can be repeated.")
     return parser
 
@@ -106,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
             "asset_mirror_manifests": [],
         }
         if args.fresh_clone_report:
-            results["fresh_clone_report"] = validate_fresh_clone_report(args.fresh_clone_report)
+            results["fresh_clone_report"] = validate_fresh_clone_report(args.fresh_clone_report, args.expected_commit)
         for manifest in args.asset_mirror_manifest or []:
             results["asset_mirror_manifests"].append(validate_asset_mirror_manifest(manifest))
         if not args.fresh_clone_report and not args.asset_mirror_manifest:

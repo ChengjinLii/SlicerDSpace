@@ -37,14 +37,14 @@ class ValidateReleaseEvidenceTest(unittest.TestCase):
                         "kind": "slicerdsurfer_fresh_clone_smoke_report",
                         "status": "passed",
                         "asset_profile": "core",
+                        "asset_mode": "download",
+                        "resolved_commit": "a" * 40,
                         "code_checkout": {"separate_from_model_assets": True},
-                        "model_asset_download": {"separate_from_code_checkout": True},
+                        "model_asset_check": {"separate_from_code_checkout": True},
                         "steps": [
-                            {"name": "git_clone"},
-                            {"name": "git_checkout"},
-                            {"name": "download_model_assets_core"},
-                            {"name": "make_test_fast"},
-                            {"name": "verify_model_assets_core"},
+                            {"name": name, "status": "passed", "exit_code": 0}
+                            for name in ("git_clone", "git_checkout", "model_assets_download_core",
+                                         "make_test_fast", "verify_model_assets_core")
                         ],
                     }
                 ),
@@ -52,6 +52,23 @@ class ValidateReleaseEvidenceTest(unittest.TestCase):
             )
 
             result = module.validate_fresh_clone_report(path)
+            original = json.loads(path.read_text())
+            for status, code in (("failed", 1), ("skipped", 0), ("passed", 1), ("passed", None)):
+                broken = json.loads(json.dumps(original))
+                broken["steps"][2].update(status=status, exit_code=code)
+                path.write_text(json.dumps(broken))
+                with self.subTest(status=status, code=code), self.assertRaises(RuntimeError):
+                    module.validate_fresh_clone_report(path)
+            for key, value in (("asset_mode", "plan"), ("asset_profile", "sentinel"),
+                               ("resolved_commit", "main"), ("steps", None)):
+                broken = dict(original, **{key: value})
+                path.write_text(json.dumps(broken))
+                with self.subTest(key=key), self.assertRaises(RuntimeError):
+                    module.validate_fresh_clone_report(path)
+            path.write_text(json.dumps(original))
+            with self.assertRaises(RuntimeError):
+                module.validate_fresh_clone_report(path, expected_commit="b" * 40)
+            module.validate_fresh_clone_report(path, expected_commit="a" * 40)
 
         self.assertEqual(result["status"], "passed")
         self.assertEqual(result["asset_profile"], "core")

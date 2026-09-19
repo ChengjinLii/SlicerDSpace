@@ -100,7 +100,8 @@ class SlicerDDSurferParameterNode:
     orchestrationRunName: str = "Test1"
     orchestrationTractographyBackend: Annotated[str, Choice(["csd_act", "dti_det", "saf"])] = "csd_act"
     orchestrationBundleBackend: Annotated[str, Choice(["wmql", "wma", "tractcloud", "all"])] = "wmql"
-    orchestrationSelectStreamlines: int = 100000
+    wmaInputTractography: str = ""
+    orchestrationSelectStreamlines: int = 1000000
     orchestrationMicrostructureStages: Annotated[str, Choice(["dti", "dti,freewater", "dti,freewater,noddi"])] = "dti"
     orchestrationRunFreeWater: bool = False
     orchestrationRunNoddi: bool = False

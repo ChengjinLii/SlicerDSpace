@@ -123,14 +123,20 @@ def ensure_amico(bootstrap: bool) -> None:
 
 def _stage_timestamps(output_dir: Path, subject_id: str) -> dict[str, int]:
     files = {
-        "fwf": output_dir / f"{subject_id}-freewater-Fraction.nii.gz",
-        "fw_tissue_fa": output_dir / f"{subject_id}-freewater-TissueFA.nii.gz",
-        "fw_tissue_md": output_dir / f"{subject_id}-freewater-TissueMD.nii.gz",
-        "noddi_ndi": output_dir / f"{subject_id}-noddi-NDI.nii.gz",
-        "noddi_odi": output_dir / f"{subject_id}-noddi-ODI.nii.gz",
-        "noddi_fwf": output_dir / f"{subject_id}-noddi-FWF.nii.gz",
-        "freewater_manifest": output_dir / "freewater_manifest.json",
-        "noddi_manifest": output_dir / "noddi_manifest.json",
+        "fwf": output_dir / "freewater" / f"{subject_id}_fw_fraction.nii.gz",
+        "fw_tissue_fa": output_dir / "freewater" / f"{subject_id}_fw_FA.nii.gz",
+        "fw_tissue_md": output_dir / "freewater" / f"{subject_id}_fw_MD.nii.gz",
+        "fw_tissue_valid_mask": output_dir / "freewater" / f"{subject_id}_fw_tissue_valid_mask.nii.gz",
+        "freewater_qc": output_dir / "freewater" / "freewater_qc.json",
+        "noddi_ndi": output_dir / "noddi" / f"{subject_id}_noddi_NDI.nii.gz",
+        "noddi_odi": output_dir / "noddi" / f"{subject_id}_noddi_ODI.nii.gz",
+        "noddi_fwf": output_dir / "noddi" / f"{subject_id}_noddi_IsoVF.nii.gz",
+        "noddi_tissue_valid_mask": output_dir / "noddi" / f"{subject_id}_noddi_tissue_valid_mask.nii.gz",
+        "noddi_rmse": output_dir / "noddi" / f"{subject_id}_noddi_RMSE.nii.gz",
+        "noddi_nrmse": output_dir / "noddi" / f"{subject_id}_noddi_NRMSE.nii.gz",
+        "noddi_qc": output_dir / "noddi" / "noddi_qc.json",
+        "freewater_manifest": output_dir / "freewater" / "freewater_manifest.json",
+        "noddi_manifest": output_dir / "noddi" / "noddi_manifest.json",
     }
     timestamps: dict[str, int] = {}
     for key, path in files.items():
@@ -140,7 +146,13 @@ def _stage_timestamps(output_dir: Path, subject_id: str) -> dict[str, int]:
     return timestamps
 
 
-def _assert_columns(result, expected_roi_count: int) -> None:
+def _assert_columns(
+    result,
+    expected_roi_count: int,
+    *,
+    run_free_water: bool,
+    run_noddi: bool,
+) -> None:
     if result.roi_stats_csv_path is None or result.roi_stats_json_path is None:
         raise RuntimeError("ROI-wise statistics were not produced.")
     payload = json.loads(result.roi_stats_json_path.read_text(encoding="utf-8"))
@@ -152,13 +164,11 @@ def _assert_columns(result, expected_roi_count: int) -> None:
     expected_columns = {
         "fa_mean",
         "md_mean",
-        "fwf_mean",
-        "fw_tissue_fa_mean",
-        "fw_tissue_md_mean",
-        "noddi_ndi_mean",
-        "noddi_odi_mean",
-        "noddi_fwf_mean",
     }
+    if run_free_water:
+        expected_columns.update({"fwf_mean", "fw_tissue_fa_mean", "fw_tissue_md_mean"})
+    if run_noddi:
+        expected_columns.update({"noddi_ndi_mean", "noddi_odi_mean", "noddi_fwf_mean"})
     row_keys = set(payload["rows"][0].keys()) if payload.get("rows") else set()
     missing_columns = sorted(expected_columns - row_keys)
     if missing_columns:
@@ -192,15 +202,31 @@ def _run_once(
     required = [
         result.fa_path,
         result.md_path,
-        result.fwf_path,
-        result.fw_tissue_fa_path,
-        result.fw_tissue_md_path,
-        result.noddi_ndi_path,
-        result.noddi_odi_path,
-        result.noddi_fwf_path,
-        output_dir / "freewater_manifest.json",
-        output_dir / "noddi_manifest.json",
     ]
+    if run_free_water:
+        required.extend(
+            [
+                result.fwf_path,
+                result.fw_tissue_fa_path,
+                result.fw_tissue_md_path,
+                result.fw_tissue_valid_mask_path,
+                result.free_water_qc_path,
+                output_dir / "freewater" / "freewater_manifest.json",
+            ]
+        )
+    if run_noddi:
+        required.extend(
+            [
+                result.noddi_ndi_path,
+                result.noddi_odi_path,
+                result.noddi_fwf_path,
+                result.noddi_tissue_valid_mask_path,
+                result.noddi_rmse_path,
+                result.noddi_nrmse_path,
+                result.noddi_qc_path,
+                output_dir / "noddi" / "noddi_manifest.json",
+            ]
+        )
     if result.roi_stats_csv_path is None or result.roi_stats_json_path is None:
         raise RuntimeError("ROI-wise statistics were not produced.")
     required.extend([result.roi_stats_csv_path, result.roi_stats_json_path])
@@ -208,7 +234,12 @@ def _run_once(
     if missing:
         missing_str = "\n".join(str(path) for path in missing)
         raise FileNotFoundError(f"Regression output missing:\n{missing_str}")
-    _assert_columns(result, args.expected_roi_count)
+    _assert_columns(
+        result,
+        args.expected_roi_count,
+        run_free_water=run_free_water,
+        run_noddi=run_noddi,
+    )
     return result
 
 
@@ -226,7 +257,7 @@ def main() -> int:
     if need_amico:
         ensure_amico(args.bootstrap_amico)
 
-    from shared import ensure_native_dti_bundle, find_subject_root
+    from shared import ensure_native_dti_bundle, find_subject_root, resolve_preprocessed_input_bundle
 
     subject_root = Path(args.subject_root).expanduser().resolve()
     output_dir = (
@@ -238,7 +269,10 @@ def main() -> int:
     if args.clean_output and output_dir.exists():
         shutil.rmtree(output_dir)
 
-    raw = find_subject_root(subject_root, args.subject_id)
+    raw = resolve_preprocessed_input_bundle(
+        find_subject_root(subject_root, args.subject_id),
+        output_root=subject_root / "outputs",
+    )
     native_bundle = ensure_native_dti_bundle(raw, fit_method=args.fit_method, reuse=True, log=print)
     if args.validate_stage_reuse:
         print("Stage reuse regression: pass-1 full recompute")
@@ -267,10 +301,19 @@ def main() -> int:
         ts2 = _stage_timestamps(output_dir, args.subject_id)
         time.sleep(1.2)
 
-        for key in ("fwf", "fw_tissue_fa", "fw_tissue_md", "freewater_manifest"):
+        for key in ("fwf", "fw_tissue_fa", "fw_tissue_md", "fw_tissue_valid_mask", "freewater_qc", "freewater_manifest"):
             if ts2[key] != ts1[key]:
                 raise RuntimeError(f"Expected Free Water output to be reused, but mtime changed: {key}")
-        for key in ("noddi_ndi", "noddi_odi", "noddi_fwf", "noddi_manifest"):
+        for key in (
+            "noddi_ndi",
+            "noddi_odi",
+            "noddi_fwf",
+            "noddi_tissue_valid_mask",
+            "noddi_rmse",
+            "noddi_nrmse",
+            "noddi_qc",
+            "noddi_manifest",
+        ):
             if ts2[key] <= ts1[key]:
                 raise RuntimeError(f"Expected NODDI output to be recomputed, but mtime did not advance: {key}")
 
@@ -315,8 +358,8 @@ def main() -> int:
     print(f"REGRESSION PASS: {args.subject_id}")
     print(f"  output_dir={output_dir}")
     print(f"  stages={stage_mode}")
-    print(f"  freewater_manifest={(output_dir / 'freewater_manifest.json').name}")
-    print(f"  noddi_manifest={(output_dir / 'noddi_manifest.json').name}")
+    print(f"  freewater_manifest={(output_dir / 'freewater' / 'freewater_manifest.json').name}")
+    print(f"  noddi_manifest={(output_dir / 'noddi' / 'noddi_manifest.json').name}")
     print(f"  roi_count={roi_count}")
     return 0
 

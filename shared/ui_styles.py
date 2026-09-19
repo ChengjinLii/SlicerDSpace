@@ -95,7 +95,8 @@ QLabel#advancedRunSectionLabel {
 QLabel#batchModeLabel,
 QLabel#batchRootLabel,
 QLabel#batchSizeLabel,
-QLabel#batchArrangeInputsLabel {
+QLabel#batchArrangeInputsLabel,
+QLabel#wmaInputTractographyLabel {
   color: #244D3A;
   font-weight: 700;
   padding: 5px 0;
@@ -103,7 +104,8 @@ QLabel#batchArrangeInputsLabel {
 QCheckBox#batchModeCheckBox,
 QSpinBox#batchSizeSpinBox,
 QComboBox#batchArrangeInputsComboBox,
-ctkPathLineEdit#batchRootPath {
+ctkPathLineEdit#batchRootPath,
+ctkPathLineEdit#wmaInputTractographyPath {
   background: #FBFEFC;
   border: 1px solid #CFE0D5;
   border-radius: 8px;
@@ -117,7 +119,8 @@ QCheckBox#batchModeCheckBox {
 QCheckBox#batchModeCheckBox:hover,
 QSpinBox#batchSizeSpinBox:hover,
 QComboBox#batchArrangeInputsComboBox:hover,
-ctkPathLineEdit#batchRootPath:hover {
+ctkPathLineEdit#batchRootPath:hover,
+ctkPathLineEdit#wmaInputTractographyPath:hover {
   border: 1px solid #9EC6AD;
   background: #F6FBF8;
 }

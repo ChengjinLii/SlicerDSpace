@@ -151,6 +151,15 @@ class SharedWidgetMixin:
                 self.ui.batchRootPath.currentPathChanged.connect(self._onBatchRootPathChanged)
             except Exception:
                 self.ui.batchRootPath.connect("currentPathChanged(QString)", self._onBatchRootPathChanged)
+        if hasattr(self.ui, "wmaInputTractographyPath"):
+            try:
+                self.ui.wmaInputTractographyPath.currentPathChanged.connect(
+                    self._onWmaInputTractographyPathChanged
+                )
+            except Exception:
+                self.ui.wmaInputTractographyPath.connect(
+                    "currentPathChanged(QString)", self._onWmaInputTractographyPathChanged
+                )
 
     def _initialize_common_ui_state(self) -> None:
         self._populateDeviceCombo()
@@ -357,7 +366,7 @@ class SharedWidgetMixin:
                 node.orchestrationMicrostructureStages = ",".join(str(value) for value in stages)
                 node.connectomeBackend = str(defaults.get("connectome_backend") or node.connectomeBackend or "python")
                 node.orchestrationSelectStreamlines = int(
-                    defaults.get("select_streamlines") or node.orchestrationSelectStreamlines or 100000
+                    defaults.get("select_streamlines") or node.orchestrationSelectStreamlines or 1_000_000
                 )
                 node.autoInstallPythonDependencies = bool(
                     defaults.get("auto_install_python_dependencies", node.autoInstallPythonDependencies)
@@ -1634,6 +1643,9 @@ class SharedWidgetMixin:
     def _onBatchRootPathChanged(self, value: str) -> None:
         self._update_parameter_node("batchRoot", str(value or "").strip())
 
+    def _onWmaInputTractographyPathChanged(self, value: str) -> None:
+        self._update_parameter_node("wmaInputTractography", str(value or "").strip())
+
     def _default_run_name_for_backend(self, backend: str) -> str:
         return default_run_name_for_backend(backend)
 
@@ -1664,6 +1676,14 @@ class SharedWidgetMixin:
 
     def _refresh_bundle_backend_highlight(self, *, bundle_backend: Optional[str] = None) -> None:
         active_sections = active_bundle_backend_sections(bundle_backend or self._bundle_backend_text())
+
+        wma_input_widgets = (
+            getattr(self.ui, "wmaInputTractographyLabel", None),
+            getattr(self.ui, "wmaInputTractographyPath", None),
+        )
+        for widget in wma_input_widgets:
+            if widget is not None:
+                widget.enabled = "wma" in active_sections
 
         label_groups = getattr(self, "_environmentBackendSectionLabels", {}) or {}
         row_groups = getattr(self, "_environmentBackendSectionRows", {}) or {}
@@ -2243,6 +2263,9 @@ class SharedWidgetMixin:
             connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
             connectome_compress_mrtrix_dense=bool(self._parameterNode.connectomeCompressMrtrixDense),
             preprocessing_backend=(self._parameterNode.preprocessingBackend or "dipy").strip() or "dipy",
+            wma_input_tractography_text=(
+                getattr(self._parameterNode, "wmaInputTractography", "") or ""
+            ).strip(),
         )
 
         if batch_mode:

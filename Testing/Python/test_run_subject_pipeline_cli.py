@@ -325,6 +325,8 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
                     "4",
                     "--microstructure-free-water-vox-per-chunk",
                     "128",
+                    "--microstructure-free-water-max-fraction-for-tissue",
+                    "0.65",
                     "--print-manifest-only",
                 ],
                 check=True,
@@ -338,6 +340,7 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
             self.assertEqual(manifest["microstructure_free_water_engine"], "joblib")
             self.assertEqual(manifest["microstructure_free_water_n_jobs"], 4)
             self.assertEqual(manifest["microstructure_free_water_vox_per_chunk"], 128)
+            self.assertEqual(manifest["microstructure_free_water_max_fraction_for_tissue"], 0.65)
             self.assertEqual(manifest["microstructure_stages"], ["dti", "freewater"])
 
     def test_cli_accepts_surface_postprocess_target(self) -> None:

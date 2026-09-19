@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from vtp_fixture import vtp_lines
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -23,6 +24,8 @@ class ScientificOutputAuditTest(unittest.TestCase):
         invalid_fa: bool = False,
         ddseg_only: bool = False,
         full_routes: bool = False,
+        tractography_qc_length_offset_mm: float | None = None,
+        legacy_wma_qc: bool = False,
     ) -> Path:
         import nibabel as nib
         import numpy as np
@@ -33,6 +36,7 @@ class ScientificOutputAuditTest(unittest.TestCase):
         affine = np.eye(4)
         dwi = np.ones((3, 3, 3, 7), dtype=np.float32)
         mask = np.ones((3, 3, 3), dtype=np.uint8)
+        mask[0, 0, 0] = 0
         nib.save(nib.Nifti1Image(dwi, affine), input_dir / "data.nii.gz")
         nib.save(nib.Nifti1Image(mask, affine), input_dir / "nodif_brain_mask.nii.gz")
 
@@ -70,13 +74,31 @@ class ScientificOutputAuditTest(unittest.TestCase):
             affine_to_rasmm=np.eye(4),
         )
         nib.streamlines.save(tractogram, tract_path.as_posix())
+        tractography_task = {
+            "name": "tractography.dti_det",
+            "status": "completed",
+            "outputs": {"tractogram_trk": tract_path.as_posix()},
+        }
+        if tractography_qc_length_offset_mm is not None:
+            saved_streamline = next(iter(nib.streamlines.load(tract_path.as_posix()).streamlines))
+            saved_length = float(
+                np.linalg.norm(np.diff(saved_streamline, axis=0), axis=1).sum()
+            )
+            tractography_qc = tract_dir / "tractography_qc.json"
+            tractography_qc.write_text(
+                json.dumps(
+                    {
+                        "streamline_count": 1,
+                        "length_min_mm": saved_length + tractography_qc_length_offset_mm,
+                        "length_max_mm": saved_length + tractography_qc_length_offset_mm,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            tractography_task["qc_path"] = tractography_qc.as_posix()
         tasks = [
             {"name": "microstructure.dti", "status": "completed", "outputs": outputs},
-            {
-                "name": "tractography.dti_det",
-                "status": "completed",
-                "outputs": {"tractogram_trk": tract_path.as_posix()},
-            },
+            tractography_task,
         ]
         if ddseg_only:
             ddseg_dir = subject_output / "03_structural" / "ddseg"
@@ -111,15 +133,59 @@ class ScientificOutputAuditTest(unittest.TestCase):
             freewater_dir.mkdir(parents=True)
             noddi_dir.mkdir(parents=True)
             freewater_outputs = {}
-            for key, value in (("fwf", 0.2), ("fw_fa", 0.4), ("fw_md", 0.001)):
+            for key, value in (("fwf", 0.2), ("fw_fa", 0.4), ("fw_md", 0.001), ("valid_mask", 1.0)):
                 path = freewater_dir / f"sub-01_{key}.nii.gz"
                 nib.save(nib.Nifti1Image(np.full(mask.shape, value, dtype=np.float32), affine), path)
                 freewater_outputs[key] = path.as_posix()
+            freewater_qc = freewater_dir / "freewater_qc.json"
+            freewater_qc.write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "input": {"mask": (input_dir / "nodif_brain_mask.nii.gz").as_posix()},
+                        "checks": {"synthetic_contract": True},
+                        "validity": {"valid_tissue_fraction": 1.0},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            freewater_outputs["qc"] = freewater_qc.as_posix()
             noddi_outputs = {}
-            for key, value in (("ndi", 0.6), ("odi", 0.3), ("isovf", 0.1)):
+            for key, value in (
+                ("ndi", 0.6),
+                ("odi", 0.3),
+                ("isovf", 0.1),
+                ("rmse", 0.01),
+                ("nrmse", 0.01),
+                ("valid_mask", 1.0),
+            ):
                 path = noddi_dir / f"sub-01_{key}.nii.gz"
-                nib.save(nib.Nifti1Image(np.full(mask.shape, value, dtype=np.float32), affine), path)
-                noddi_outputs[key] = path.as_posix()
+                array = np.full(mask.shape, value, dtype=np.float32)
+                if key in {"ndi", "odi"}:
+                    array[mask == 0] = 0.0
+                nib.save(nib.Nifti1Image(array, affine), path)
+                output_key = {
+                    "ndi": "noddi_ndi",
+                    "odi": "noddi_odi",
+                    "isovf": "noddi_fwf",
+                    "rmse": "noddi_rmse",
+                    "nrmse": "noddi_nrmse",
+                    "valid_mask": "noddi_tissue_valid_mask",
+                }[key]
+                noddi_outputs[output_key] = path.as_posix()
+            noddi_qc = noddi_dir / "noddi_qc.json"
+            noddi_qc.write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "input": {"mask": (input_dir / "nodif_brain_mask.nii.gz").as_posix()},
+                        "validity": {"valid_tissue_fraction": 1.0},
+                        "summary": {"nrmse_valid_tissue": {"p95": 0.01}},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            noddi_outputs["qc"] = noddi_qc.as_posix()
             tasks.extend(
                 [
                     {"name": "microstructure.freewater", "status": "completed", "outputs": freewater_outputs},
@@ -130,12 +196,40 @@ class ScientificOutputAuditTest(unittest.TestCase):
             csd_dir = subject_output / "04_tractography" / "tractograms" / "Test1"
             csd_dir.mkdir(parents=True)
             csd_tck = csd_dir / "sub-01_csd_act_ifod2.tck"
+            csd_vtk = csd_dir / "sub-01_csd_act_ifod2.vtk"
             nib.streamlines.save(tractogram, csd_tck.as_posix())
+            csd_vtk.write_text(
+                "# vtk DataFile Version 3.0\nASCII\nDATASET POLYDATA\n"
+                "POINTS 2 float\n0 0 0 1 0 0\nLINES 1 3\n2 0 1\n",
+                encoding="utf-8",
+            )
+            csd_manifest = csd_dir / "csd_act_manifest.json"
+            csd_qc = csd_dir / "csd_act_qc.json"
+            csd_manifest.write_text(
+                json.dumps({"parameters": {"min_length_mm": 1.0, "max_length_mm": 250.0}}),
+                encoding="utf-8",
+            )
+            csd_qc.write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "scientific_output_summary": {
+                            "tck": {"streamline_count": 1, "all_points_finite": True}
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
             tasks.append(
                 {
                     "name": "tractography.csd_act",
                     "status": "completed",
-                    "outputs": {"tractogram": csd_tck.as_posix()},
+                    "qc_path": csd_qc.as_posix(),
+                    "manifest_path": csd_manifest.as_posix(),
+                    "outputs": {
+                        "tractogram": csd_tck.as_posix(),
+                        "tractogram_vtk": csd_vtk.as_posix(),
+                    },
                 }
             )
 
@@ -155,6 +249,11 @@ class ScientificOutputAuditTest(unittest.TestCase):
                         "output_summary": {
                             "saf_tractogram": {"path": saf_tck.as_posix()},
                             "saf_vtk": {"path": saf_vtk.as_posix()},
+                        },
+                        "scientific_output_summary": {
+                            "streamline_count": 1,
+                            "all_points_finite": True,
+                            "length_mm": {"min": 1.0, "max": 2.0},
                         },
                     }
                 ),
@@ -180,7 +279,12 @@ class ScientificOutputAuditTest(unittest.TestCase):
                 json.dumps(
                     {
                         "status": "completed",
-                        "output_summary": {"bundle_count": 1, "bundle_files": [wmql_bundle.as_posix()]},
+                        "output_summary": {
+                            "bundle_count": 1,
+                            "bundle_readable_count": 1,
+                            "bundle_nonempty_count": 1,
+                            "bundle_files": [wmql_bundle.as_posix()],
+                        },
                     }
                 ),
                 encoding="utf-8",
@@ -188,25 +292,47 @@ class ScientificOutputAuditTest(unittest.TestCase):
             tasks.append({"name": "bundles.wmql", "status": "completed", "qc_path": wmql_qc.as_posix()})
 
             wma_dir = subject_output / "04_tractography" / "bundles" / "wma" / "Test1"
-            anatomy_dir = wma_dir / "AnatomicalTracts"
+            wma_input = subject_output / "04_tractography" / "subject_ukf_whole_brain.vtk"
+            wma_input.write_text("vtk\n", encoding="utf-8")
+            anatomy_dir = (
+                wma_dir / wma_input.stem / "AnatomicalTracts"
+                if legacy_wma_qc
+                else wma_dir / "AnatomicalTracts"
+            )
             anatomy_dir.mkdir(parents=True)
             for index in range(73):
-                (anatomy_dir / f"tract-{index:02d}.vtp").write_text("vtp\n", encoding="utf-8")
+                (anatomy_dir / f"tract-{index:02d}.vtp").write_text(
+                    vtp_lines(1),
+                    encoding="utf-8",
+                )
             wma_qc = wma_dir / "wma_qc.json"
             wma_manifest = wma_dir / "wma_manifest.json"
+            wma_summary = {
+                "anatomical_tract_count": 73,
+                "anatomical_tract_readable_count": 73,
+                "anatomical_tract_nonempty_count": 73,
+                "anatomical_tracts_dir": anatomy_dir.as_posix(),
+            }
+            if legacy_wma_qc:
+                wma_summary = {"anatomical_tract_count": 73}
             wma_qc.write_text(
                 json.dumps(
                     {
                         "status": "completed",
-                        "output_summary": {
-                            "anatomical_tract_count": 73,
-                            "anatomical_tracts_dir": anatomy_dir.as_posix(),
-                        },
+                        "output_summary": wma_summary,
                     }
                 ),
                 encoding="utf-8",
             )
-            wma_manifest.write_text(json.dumps({"input_tractography": csd_tck.as_posix()}), encoding="utf-8")
+            wma_manifest.write_text(
+                json.dumps(
+                    {
+                        "input_tractography": wma_input.as_posix(),
+                        "output_dir": wma_dir.as_posix(),
+                    }
+                ),
+                encoding="utf-8",
+            )
             tasks.append(
                 {
                     "name": "bundles.wma",
@@ -219,20 +345,26 @@ class ScientificOutputAuditTest(unittest.TestCase):
             tractcloud_dir = subject_output / "04_tractography" / "bundles" / "tractcloud" / "Test1"
             tractcloud_dir.mkdir(parents=True)
             tractcloud_bundle = tractcloud_dir / "bundle.vtp"
-            tractcloud_bundle.write_text("vtp\n", encoding="utf-8")
+            tractcloud_bundle.write_text(vtp_lines(1), encoding="utf-8")
             tractcloud_qc = tractcloud_dir / "tractcloud_qc.json"
             tractcloud_manifest = tractcloud_dir / "tractcloud_manifest.json"
             tractcloud_qc.write_text(
                 json.dumps(
                     {
                         "status": "completed",
-                        "output_summary": {"bundle_count": 1, "bundle_files": [tractcloud_bundle.as_posix()]},
+                        "output_summary": {
+                            "bundle_count": 1,
+                            "bundle_readable_count": 1,
+                            "bundle_nonempty_count": 1,
+                            "assigned_streamline_count": 1,
+                            "bundle_files": [tractcloud_bundle.as_posix()],
+                        },
                     }
                 ),
                 encoding="utf-8",
             )
             tractcloud_manifest.write_text(
-                json.dumps({"input_tractography": saf_vtk.as_posix()}),
+                json.dumps({"input_tractography": csd_vtk.as_posix()}),
                 encoding="utf-8",
             )
             tasks.append(
@@ -309,6 +441,78 @@ class ScientificOutputAuditTest(unittest.TestCase):
         self.assertEqual(report["status"], "passed")
         self.assertEqual(report["summary"]["passed_subjects"], 1)
 
+    def test_single_subject_output_root_is_supported(self) -> None:
+        from scripts.audit_scientific_outputs import audit_output_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_root = self._fixture(Path(tmp))
+            report = audit_output_root(
+                output_root / "sub-01",
+                require_dti=True,
+                require_tractography=True,
+            )
+
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(report["summary"]["subject_count"], 1)
+
+    def test_failed_validation_run_cannot_pass_scientific_audit(self) -> None:
+        from scripts.audit_scientific_outputs import audit_output_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_output = Path(tmp) / "outputs" / "sub-01"
+            metadata_dir = subject_output / "00_run_metadata"
+            validation_dir = metadata_dir / "validation"
+            validation_dir.mkdir(parents=True)
+            report_path = validation_dir / "sub-01_input_validation.json"
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "passed": False,
+                        "error_count": 1,
+                        "warning_count": 0,
+                        "metrics": {
+                            "files": {
+                                "dwi": {"exists": False, "is_file": False},
+                                "bval": {"exists": True, "is_file": True},
+                                "bvec": {"exists": True, "is_file": True},
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest = {
+                "status": "failed",
+                "subject_id": "sub-01",
+                "subject_root": (Path(tmp) / "input-subject").as_posix(),
+                "output_root": subject_output.as_posix(),
+                "tasks": [
+                    {
+                        "name": "validation",
+                        "status": "failed",
+                        "qc_path": report_path.as_posix(),
+                    }
+                ],
+            }
+            (metadata_dir / "validation_orchestration_manifest.json").write_text(
+                json.dumps(manifest),
+                encoding="utf-8",
+            )
+            report = audit_output_root(subject_output)
+
+        self.assertEqual(report["status"], "failed")
+        failed_names = {
+            check["name"]
+            for check in report["subjects"][0]["checks"]
+            if not check["passed"]
+        }
+        self.assertIn("orchestration.status", failed_names)
+        self.assertIn("orchestration.task_statuses", failed_names)
+        self.assertIn("validation.task_status", failed_names)
+        self.assertIn("validation.report_status", failed_names)
+        self.assertIn("validation.required_files", failed_names)
+
     def test_out_of_range_fa_fails(self) -> None:
         from scripts.audit_scientific_outputs import audit_output_root
 
@@ -323,6 +527,34 @@ class ScientificOutputAuditTest(unittest.TestCase):
             if not check["passed"]
         }
         self.assertIn("dti.fa.range", failed_names)
+
+    def test_tractography_qc_length_summary_allows_only_storage_quantization(self) -> None:
+        from scripts.audit_scientific_outputs import audit_output_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_root = self._fixture(
+                Path(tmp) / "quantized",
+                tractography_qc_length_offset_mm=2e-5,
+            )
+            quantized_report = audit_output_root(output_root, require_tractography=True)
+            mismatch_root = self._fixture(
+                Path(tmp) / "mismatch",
+                tractography_qc_length_offset_mm=1e-2,
+            )
+            mismatch_report = audit_output_root(mismatch_root, require_tractography=True)
+
+        quantized_check = next(
+            check
+            for check in quantized_report["subjects"][0]["checks"]
+            if check["name"] == "tractography.qc_length_summary"
+        )
+        mismatch_check = next(
+            check
+            for check in mismatch_report["subjects"][0]["checks"]
+            if check["name"] == "tractography.qc_length_summary"
+        )
+        self.assertTrue(quantized_check["passed"])
+        self.assertFalse(mismatch_check["passed"])
 
     def test_explicit_run_name_is_stable_after_partial_rerun(self) -> None:
         from scripts.audit_scientific_outputs import audit_output_root
@@ -390,8 +622,35 @@ class ScientificOutputAuditTest(unittest.TestCase):
         checks = {check["name"]: check for check in report["subjects"][0]["checks"]}
         self.assertTrue(checks["required.full_routes"]["passed"])
         self.assertTrue(checks["freewater.fwf.range"]["passed"])
-        self.assertTrue(checks["tractcloud.input_matches_same_run_saf"]["passed"])
+        self.assertTrue(checks["noddi.ndi.zero_outside_brain_mask"]["passed"])
+        self.assertTrue(checks["noddi.odi.zero_outside_brain_mask"]["passed"])
+        self.assertTrue(checks["tractcloud.input_matches_same_run_tractography"]["passed"])
+        self.assertTrue(checks["wma.input_tractography_exists"]["passed"])
         self.assertTrue(checks["connectome_streamline_count.assigned_streamlines"]["passed"])
+
+    def test_legacy_wma_qc_is_redecoded_from_real_vtp_content(self) -> None:
+        from scripts.audit_scientific_outputs import audit_output_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_root = self._fixture(Path(tmp), full_routes=True, legacy_wma_qc=True)
+            report = audit_output_root(output_root, require_full_routes=True)
+
+        self.assertEqual(report["status"], "passed")
+        checks = {check["name"]: check for check in report["subjects"][0]["checks"]}
+        self.assertEqual(checks["wma.anatomical_tracts_readable"]["value"], 73)
+        self.assertEqual(checks["wma.anatomical_tracts_nonempty"]["value"]["nonempty"], 73)
+
+    def test_old_completed_qc_does_not_hide_corrupted_bundle_geometry(self) -> None:
+        from scripts.audit_scientific_outputs import audit_output_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._fixture(Path(tmp), full_routes=True)
+            next(root.rglob("tract-00.vtp")).write_text("truncated")
+            next(root.rglob("bundle.vtp")).write_text("truncated")
+            report = audit_output_root(root, require_full_routes=True)
+            checks = {item["name"]: item for item in report["subjects"][0]["checks"]}
+            self.assertFalse(checks["wma.anatomical_tracts_readable"]["passed"])
+            self.assertFalse(checks["tractcloud.bundles_decoded_nonempty"]["passed"])
 
 
 if __name__ == "__main__":

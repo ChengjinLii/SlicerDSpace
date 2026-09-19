@@ -198,8 +198,8 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 def _link_or_copy(src: Path, dest: Path) -> None:
     src = src.expanduser().resolve()
     dest.parent.mkdir(parents=True, exist_ok=True)
-    if dest.exists():
-        return
+    if dest.exists() or dest.is_symlink():
+        dest.unlink()
     try:
         dest.symlink_to(src)
         return
@@ -222,6 +222,48 @@ def _file_record(path: Path) -> dict[str, Any]:
         "exists": True,
         "size": stat.st_size,
         "mtime_ns": stat.st_mtime_ns,
+    }
+
+
+def _preprocessing_cache_key(
+    raw: RawInputBundle,
+    config: DwiPreprocessingConfig,
+    backend: dict[str, Any],
+) -> dict[str, Any]:
+    """Describe every input and setting that can change preprocessing output."""
+
+    reverse_phase = config.reverse_phase_b0.expanduser().resolve() if config.reverse_phase_b0 else None
+    executables = {
+        name: _file_record(Path(value))
+        for name, value in dict(backend.get("commands") or {}).items()
+        if value
+    }
+    return {
+        "kind": "dwi_preprocessing_cache_key",
+        "version": 2,
+        "backend": str(backend.get("backend") or config.backend).lower(),
+        "inputs": {
+            "dwi": _file_record(raw.dwi_path),
+            "bval": _file_record(raw.bval_path),
+            "bvec": _file_record(raw.bvec_path),
+            "mask": _file_record(raw.mask_path),
+            "reverse_phase_b0": _file_record(reverse_phase) if reverse_phase else None,
+        },
+        "parameters": {
+            "dipy_denoise_method": config.dipy_denoise_method.lower(),
+            "dipy_run_gibbs": bool(config.dipy_run_gibbs),
+            "dipy_run_motion_correction": bool(config.dipy_run_motion_correction),
+            "b0_threshold": float(config.b0_threshold),
+            "phase_encoding_direction": config.phase_encoding_direction,
+            "readout_time": config.readout_time,
+            "eddy_threads": _resolved_eddy_threads(config),
+            "eddy_second_level_model": (
+                config.eddy_second_level_model.strip().lower()
+                if config.eddy_second_level_model is not None
+                else None
+            ),
+        },
+        "executables": executables,
     }
 
 
@@ -824,6 +866,30 @@ def _execute_preprocessing_backend(
     }
 
 
+def _preprocessing_warnings(
+    backend: dict[str, Any],
+    backend_details: dict[str, Any],
+) -> list[str]:
+    warnings = [
+        f"Diagnostic command not found: {command}"
+        for command in backend.get("missing_diagnostic", [])
+    ]
+    capabilities = backend.get("capabilities") or {}
+    if capabilities.get("denoise") in {False, None, "none", "skip", ""}:
+        warnings.append("Denoising was not applied by the selected preprocessing configuration.")
+    for capability, message in (
+        ("gibbs_removal", "Gibbs-ringing removal was not applied."),
+        ("between_volume_motion_correction", "Between-volume motion correction was not applied."),
+        ("susceptibility_distortion_correction", "Susceptibility-distortion correction was not applied."),
+    ):
+        if capabilities.get(capability) is False:
+            warnings.append(message)
+    bias_status = backend_details.get("bias_correction") or {}
+    if bias_status.get("status") in {"not_available", "not_supported", "not_run", "skipped"}:
+        warnings.append("Bias-field correction was not applied by the selected backend.")
+    return list(dict.fromkeys(warnings))
+
+
 def run_dwi_preprocessing(
     config: DwiPreprocessingConfig,
     *,
@@ -839,13 +905,18 @@ def run_dwi_preprocessing(
     backend = inspect_preprocessing_backend(config)
     commands = _build_commands(raw, config, paths, backend)
     command_records = [{"argv": command} for command in commands]
+    try:
+        previous_manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        previous_manifest = {}
+    cache_key = _preprocessing_cache_key(raw, config, backend)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     status = "skipped" if config.skip else ("planned" if not config.execute else "completed")
 
     manifest: dict[str, Any] = {
         "kind": "dwi_preprocessing",
-        "version": 1,
+        "version": 2,
         "subject_id": raw.subject_id,
         "status": status,
         "optional": True,
@@ -878,6 +949,7 @@ def run_dwi_preprocessing(
         },
         "outputs": {key: value.as_posix() for key, value in paths.items() if key not in {"import_dir", "gradients_dir", "denoise_dir", "motion_dir", "mask_dir", "qc_dir"}},
         "commands": command_records,
+        "cache_key": cache_key,
     }
     _write_json(paths["manifest"], manifest)
 
@@ -895,6 +967,7 @@ def run_dwi_preprocessing(
 
     cached_core_ready = (
         not config.force
+        and previous_manifest.get("cache_key") == cache_key
         and paths["final_dwi"].is_file()
         and paths["final_bval"].is_file()
         and paths["final_bvec"].is_file()
@@ -928,7 +1001,14 @@ def run_dwi_preprocessing(
     if cached_core_ready and paths["final_mask"].is_file():
         manifest["status"] = "cached"
         _write_json(paths["manifest"], manifest)
-        backend_details: dict[str, Any] = {}
+        try:
+            previous_qc = json.loads(paths["qc"].read_text(encoding="utf-8")) if paths["qc"].is_file() else {}
+        except (OSError, ValueError):
+            previous_qc = {}
+        previous_details = previous_qc.get("backend_details") if isinstance(previous_qc, dict) else None
+        backend_details: dict[str, Any] = (
+            dict(previous_details) if isinstance(previous_details, dict) else {}
+        )
         if backend.get("backend") == "mrtrix_fsl":
             backend_details = {
                 "diagnostics": _collect_dwifslpreproc_diagnostics(paths, raw.subject_id),
@@ -957,6 +1037,7 @@ def run_dwi_preprocessing(
                     "eddy_residuals": _file_record(paths["eddy_residuals"]),
                 },
                 "backend_details": backend_details,
+                "warnings": _preprocessing_warnings(backend, backend_details),
             },
         )
         return DwiPreprocessingResult(raw.subject_id, "cached", output_dir, paths["manifest"], paths["qc"], paths["final_dwi"], paths["final_bval"], paths["final_bvec"], paths["final_mask"])
@@ -1039,10 +1120,7 @@ def run_dwi_preprocessing(
             "eddy_cnr_maps": _file_record(paths["eddy_cnr_maps"]),
             "eddy_residuals": _file_record(paths["eddy_residuals"]),
         },
-        "warnings": [
-            f"Diagnostic command not found: {command}"
-            for command in backend.get("missing_diagnostic", [])
-        ],
+        "warnings": _preprocessing_warnings(backend, backend_details),
         "mask_generation": {
             "method": (
                 "dwi2mask_corrected_dwi"

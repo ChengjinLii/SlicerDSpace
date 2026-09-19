@@ -292,11 +292,31 @@ class SAFIntegrationTest(unittest.TestCase):
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["kind"], "saf_short_association_fibres")
             self.assertEqual(manifest["parameters"]["surface_space"], "native_dMRI")
+            self.assertEqual(manifest["parameters"]["random_seed"], 12345)
             self.assertNotIn("mrtrix:tckgen", manifest["backend"]["missing_required"])
             self.assertEqual(qc["status"], "planned")
             self.assertFalse(result.executed)
             self.assertIn("saf_vtk", manifest["outputs"])
             self.assertIn("saf_vtk", manifest["outputs"]["summary"])
+
+    def test_saf_adds_default_seed_without_overriding_explicit_seed(self) -> None:
+        from tractography.saf import SAFConfig, _effective_tckgen_options
+
+        base = dict(
+            subject_id="100307",
+            input_root=Path("/tmp/subject"),
+            fs_dir=Path("/tmp/fs"),
+            fod_path=Path("/tmp/fod.mif"),
+        )
+        default_options = _effective_tckgen_options(
+            SAFConfig(**base, tckgen_options="-select 1000")
+        )
+        explicit_options = _effective_tckgen_options(
+            SAFConfig(**base, tckgen_options="-select 1000 -config RandomSeed 7")
+        )
+
+        self.assertEqual(default_options, "-select 1000 -config RandomSeed 12345")
+        self.assertEqual(explicit_options, "-select 1000 -config RandomSeed 7")
 
     def test_saf_failure_finalizes_manifest_and_qc_before_raising(self) -> None:
         from tractography import saf as saf_module
@@ -454,6 +474,14 @@ class SAFIntegrationTest(unittest.TestCase):
                 saf_module,
                 "_export_tck_to_vtk",
                 side_effect=fake_export,
+            ), mock.patch.object(
+                saf_module,
+                "_tractogram_summary",
+                return_value={
+                    "streamline_count": 42,
+                    "all_points_finite": True,
+                    "length_mm": {"min": 5.0, "median": 18.0, "max": 39.0},
+                },
             ):
                 result = run_saf(
                     SAFConfig(

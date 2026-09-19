@@ -21,6 +21,16 @@ FREE_WATER_ENGINES = {"serial", "joblib", "dask", "ray"}
 # (typically caused by ill-conditioned low-signal voxel fits) and must not be
 # propagated into regional statistics.
 FREE_WATER_MAX_TISSUE_MD = 3.0e-3
+# DIPY's reference free-water example excludes tissue metrics when the fitted
+# free-water fraction exceeds 0.7 because tissue FA becomes unstable there.
+FREE_WATER_MAX_FRACTION_FOR_TISSUE = 0.7
+# NODDI's NDI and ODI are conditional tissue parameters. In voxels dominated
+# by the fitted isotropic compartment they are not interpretable and AMICO can
+# legitimately return a dictionary-boundary value. Public maps retain bounded
+# brain estimates for continuous display; this threshold defines the separate
+# validity mask used by quantitative summaries.
+NODDI_MAX_ISOTROPIC_FRACTION_FOR_TISSUE = 0.7
+NODDI_UPPER_BOUND = 0.99
 
 try:
     import nibabel as nib
@@ -66,6 +76,7 @@ class MicrostructureConfig:
     free_water_engine: str = "serial"
     free_water_n_jobs: int | None = None
     free_water_vox_per_chunk: int | None = None
+    free_water_max_fraction_for_tissue: float = FREE_WATER_MAX_FRACTION_FOR_TISSUE
     run_free_water: bool = True
     run_noddi: bool = True
     force_recompute: bool = False
@@ -76,6 +87,7 @@ class MicrostructureConfig:
     noddi_nthreads: int = 1
     noddi_solver_lambda1: float = 0.5
     noddi_solver_lambda2: float = 0.001
+    noddi_max_isotropic_fraction_for_tissue: float = NODDI_MAX_ISOTROPIC_FRACTION_FOR_TISSUE
 
 
 @dataclass(frozen=True)
@@ -93,9 +105,15 @@ class MicrostructureResult:
     fwf_path: Path
     fw_tissue_fa_path: Path
     fw_tissue_md_path: Path
+    fw_tissue_valid_mask_path: Path
+    free_water_qc_path: Path
     noddi_ndi_path: Path
     noddi_odi_path: Path
     noddi_fwf_path: Path
+    noddi_tissue_valid_mask_path: Path
+    noddi_rmse_path: Path
+    noddi_nrmse_path: Path
+    noddi_qc_path: Path
     roi_label_map: Path | None
     roi_stats_csv_path: Path | None
     roi_stats_json_path: Path | None
@@ -276,9 +294,15 @@ def _output_paths(
         "fwf": freewater_dir / f"{subject_id}_fw_fraction.nii.gz",
         "fw_tissue_fa": freewater_dir / f"{subject_id}_fw_FA.nii.gz",
         "fw_tissue_md": freewater_dir / f"{subject_id}_fw_MD.nii.gz",
+        "fw_tissue_valid_mask": freewater_dir / f"{subject_id}_fw_tissue_valid_mask.nii.gz",
+        "free_water_qc": freewater_dir / "freewater_qc.json",
         "noddi_ndi": noddi_dir / f"{subject_id}_noddi_NDI.nii.gz",
         "noddi_odi": noddi_dir / f"{subject_id}_noddi_ODI.nii.gz",
         "noddi_fwf": noddi_dir / f"{subject_id}_noddi_IsoVF.nii.gz",
+        "noddi_tissue_valid_mask": noddi_dir / f"{subject_id}_noddi_tissue_valid_mask.nii.gz",
+        "noddi_rmse": noddi_dir / f"{subject_id}_noddi_RMSE.nii.gz",
+        "noddi_nrmse": noddi_dir / f"{subject_id}_noddi_NRMSE.nii.gz",
+        "noddi_qc": noddi_dir / "noddi_qc.json",
         "roi_stats_csv": roi_dir / f"{subject_id}_ROIWise-Microstructure.csv",
         "roi_stats_json": roi_dir / f"{subject_id}_ROIWise-Microstructure.json",
         "free_water_manifest": freewater_dir / "freewater_manifest.json",
@@ -326,6 +350,7 @@ def _expected_manifest(
             "n_jobs": config.free_water_n_jobs,
             "vox_per_chunk": config.free_water_vox_per_chunk,
             "max_tissue_md_mm2_s": FREE_WATER_MAX_TISSUE_MD,
+            "max_free_water_fraction_for_tissue": float(config.free_water_max_fraction_for_tissue),
             "run_enabled": bool(config.run_free_water),
             "outputs_available": free_water_available,
         },
@@ -343,6 +368,7 @@ def _expected_manifest(
                 "lambda1": float(config.noddi_solver_lambda1),
                 "lambda2": float(config.noddi_solver_lambda2),
             },
+            "max_isotropic_fraction_for_tissue": float(config.noddi_max_isotropic_fraction_for_tissue),
         },
         "roi_label_map": _file_signature(roi_label_map) if roi_label_map is not None else None,
     }
@@ -351,7 +377,7 @@ def _expected_manifest(
 def _expected_free_water_manifest(config: MicrostructureConfig) -> dict[str, object]:
     return {
         "kind": "microstructure_freewater_stage",
-        "version": 1,
+        "version": 2,
         "subject_id": config.subject_id,
         "raw_input_bundle": {
             "dwi": _file_signature(config.raw_input_bundle.dwi_path),
@@ -366,6 +392,7 @@ def _expected_free_water_manifest(config: MicrostructureConfig) -> dict[str, obj
             "n_jobs": config.free_water_n_jobs,
             "vox_per_chunk": config.free_water_vox_per_chunk,
             "max_tissue_md_mm2_s": FREE_WATER_MAX_TISSUE_MD,
+            "max_free_water_fraction_for_tissue": float(config.free_water_max_fraction_for_tissue),
         },
     }
 
@@ -373,7 +400,7 @@ def _expected_free_water_manifest(config: MicrostructureConfig) -> dict[str, obj
 def _expected_noddi_manifest(config: MicrostructureConfig) -> dict[str, object]:
     return {
         "kind": "microstructure_noddi_stage",
-        "version": 1,
+        "version": 2,
         "subject_id": config.subject_id,
         "raw_input_bundle": {
             "dwi": _file_signature(config.raw_input_bundle.dwi_path),
@@ -393,6 +420,8 @@ def _expected_noddi_manifest(config: MicrostructureConfig) -> dict[str, object]:
                 "lambda1": float(config.noddi_solver_lambda1),
                 "lambda2": float(config.noddi_solver_lambda2),
             },
+            "max_isotropic_fraction_for_tissue": float(config.noddi_max_isotropic_fraction_for_tissue),
+            "residual_maps": ["RMSE", "NRMSE"],
         },
     }
 
@@ -416,23 +445,59 @@ def _outputs_complete(
         paths["manifest"],
     ]
     if free_water_enabled:
-        required.extend([paths["fwf"], paths["fw_tissue_fa"], paths["fw_tissue_md"], paths["free_water_manifest"]])
+        required.extend(
+            [
+                paths["fwf"],
+                paths["fw_tissue_fa"],
+                paths["fw_tissue_md"],
+                paths["fw_tissue_valid_mask"],
+                paths["free_water_qc"],
+                paths["free_water_manifest"],
+            ]
+        )
     if noddi_enabled:
-        required.extend([paths["noddi_ndi"], paths["noddi_odi"], paths["noddi_fwf"], paths["noddi_manifest"]])
+        required.extend(
+            [
+                paths["noddi_ndi"],
+                paths["noddi_odi"],
+                paths["noddi_fwf"],
+                paths["noddi_tissue_valid_mask"],
+                paths["noddi_rmse"],
+                paths["noddi_nrmse"],
+                paths["noddi_qc"],
+                paths["noddi_manifest"],
+            ]
+        )
     if roi_enabled:
         required.extend([paths["roi_stats_csv"], paths["roi_stats_json"]])
     return all(path.is_file() for path in required)
 
 
 def _free_water_outputs_complete(paths: dict[str, Path]) -> bool:
+    return _free_water_maps_complete(paths) and paths["free_water_qc"].is_file() and (
+        _read_json(paths["free_water_qc"]).get("status") == "completed"
+    )
+
+
+def _free_water_maps_complete(paths: dict[str, Path]) -> bool:
     return all(
-        paths[key].is_file() for key in ("fwf", "fw_tissue_fa", "fw_tissue_md")
+        paths[key].is_file()
+        for key in ("fwf", "fw_tissue_fa", "fw_tissue_md", "fw_tissue_valid_mask")
     )
 
 
 def _noddi_outputs_complete(paths: dict[str, Path]) -> bool:
     return all(
-        paths[key].is_file() for key in ("noddi_ndi", "noddi_odi", "noddi_fwf")
+        paths[key].is_file()
+        for key in (
+            "noddi_ndi",
+            "noddi_odi",
+            "noddi_fwf",
+            "noddi_tissue_valid_mask",
+            "noddi_rmse",
+            "noddi_nrmse",
+            "noddi_qc",
+        )
     )
 
 
@@ -511,29 +576,46 @@ def _save_scalar_nifti(data: np.ndarray, reference_img: nib.Nifti1Image, output_
     nib.save(image, str(output_path))
 
 
+def _save_mask_nifti(data: np.ndarray, reference_img: nib.Nifti1Image, output_path: Path) -> None:
+    header = reference_img.header.copy()
+    header.set_data_dtype(np.uint8)
+    image = nib.Nifti1Image(data.astype(np.uint8), reference_img.affine, header)
+    nib.save(image, str(output_path))
+
+
 def _sanitize_free_water_scalars(
     fwf: np.ndarray,
     tissue_fa: np.ndarray,
     tissue_md: np.ndarray,
+    tissue_evals: np.ndarray,
     *,
     max_tissue_md: float = FREE_WATER_MAX_TISSUE_MD,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
-    """Return finite, physically bounded free-water scalar arrays.
+    max_free_water_fraction: float = FREE_WATER_MAX_FRACTION_FOR_TISSUE,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
+    """Return free-water maps and an explicit tissue-fit validity mask.
 
-    The WLS refinement can produce a handful of extremely large tissue
-    eigenvalues in ill-conditioned voxels even though the rest of the volume
-    is well behaved.  Mark the tissue FA/MD pair as unavailable (zero) for
-    those voxels as an all-zero tissue FA/MD pair rather than clipping MD to
-    a plausible-looking boundary. ROI summaries recognize that pair as an
-    unavailable fit and exclude it from tissue measurements.
+    Tissue FA and MD are unavailable when free water dominates the voxel or
+    when DIPY's tensor decomposition reaches a non-positive boundary. The
+    original FWF estimate remains available; unavailable tissue metrics are
+    zeroed and accompanied by a machine-readable validity mask.
     """
 
     raw_fwf = np.asarray(fwf, dtype=np.float32)
     raw_fa = np.asarray(tissue_fa, dtype=np.float32)
     raw_md = np.asarray(tissue_md, dtype=np.float32)
+    raw_evals = np.asarray(tissue_evals, dtype=np.float32)
+    if raw_evals.shape != raw_fa.shape + (3,):
+        raise ValueError(
+            f"Expected tissue eigenvalues with shape {raw_fa.shape + (3,)}, got {raw_evals.shape}."
+        )
     valid_tissue = (
-        np.isfinite(raw_fa)
+        np.isfinite(raw_fwf)
+        & (raw_fwf >= 0.0)
+        & (raw_fwf <= float(max_free_water_fraction))
+        & np.isfinite(raw_fa)
         & np.isfinite(raw_md)
+        & np.all(np.isfinite(raw_evals), axis=-1)
+        & np.all(raw_evals > 0.0, axis=-1)
         & (raw_fa >= 0.0)
         & (raw_fa <= 1.0)
         & (raw_md >= 0.0)
@@ -547,7 +629,98 @@ def _sanitize_free_water_scalars(
     ).astype(np.float32, copy=False)
     clean_fa = np.where(valid_tissue, raw_fa, 0.0).astype(np.float32, copy=False)
     clean_md = np.where(valid_tissue, raw_md, 0.0).astype(np.float32, copy=False)
-    return clean_fwf, clean_fa, clean_md, invalid_count
+    return clean_fwf, clean_fa, clean_md, valid_tissue, invalid_count
+
+
+def _write_free_water_qc(config: MicrostructureConfig, paths: dict[str, Path]) -> dict[str, object]:
+    """Validate saved Free Water maps and persist a reusable scientific QC record."""
+
+    _ensure_base_imports_ready()
+    mask_image = nib.load(str(config.raw_input_bundle.mask_path))
+    mask = np.asarray(mask_image.dataobj) > 0
+    images = {
+        "fwf": nib.load(str(paths["fwf"])),
+        "fw_tissue_fa": nib.load(str(paths["fw_tissue_fa"])),
+        "fw_tissue_md": nib.load(str(paths["fw_tissue_md"])),
+        "valid_mask": nib.load(str(paths["fw_tissue_valid_mask"])),
+    }
+    arrays = {key: np.asarray(image.dataobj, dtype=np.float64) for key, image in images.items()}
+    valid = arrays["valid_mask"] > 0.0
+    brain_voxels = int(np.count_nonzero(mask))
+    valid_voxels = int(np.count_nonzero(valid))
+    checks = {
+        "shape_matches_mask": all(array.shape == mask.shape for array in arrays.values()),
+        "affine_matches_mask": all(
+            bool(np.allclose(image.affine, mask_image.affine, atol=1e-4))
+            for image in images.values()
+        ),
+        "all_values_finite": all(bool(np.isfinite(array).all()) for array in arrays.values()),
+        "valid_mask_binary": bool(np.all(np.isin(arrays["valid_mask"], (0.0, 1.0)))),
+        "valid_mask_within_brain": bool(np.all(~valid | mask)),
+        "fwf_in_range": bool(
+            np.all((arrays["fwf"][mask] >= 0.0) & (arrays["fwf"][mask] <= 1.0))
+        ),
+        "tissue_fa_in_range": bool(
+            np.all((arrays["fw_tissue_fa"][valid] >= 0.0) & (arrays["fw_tissue_fa"][valid] <= 1.0))
+        ),
+        "tissue_md_in_range": bool(
+            np.all(
+                (arrays["fw_tissue_md"][valid] >= 0.0)
+                & (arrays["fw_tissue_md"][valid] <= FREE_WATER_MAX_TISSUE_MD)
+            )
+        ),
+        "invalid_tissue_metrics_zero": bool(
+            np.allclose(arrays["fw_tissue_fa"][~valid], 0.0, atol=1e-7)
+            and np.allclose(arrays["fw_tissue_md"][~valid], 0.0, atol=1e-9)
+        ),
+        "maps_zero_outside_brain": bool(
+            all(np.allclose(array[~mask], 0.0, atol=1e-7) for array in arrays.values())
+        ),
+        "nonempty_valid_tissue": valid_voxels > 0,
+    }
+    payload: dict[str, object] = {
+        "kind": "freewater_qc",
+        "version": 1,
+        "status": "completed" if all(checks.values()) else "failed",
+        "subject_id": config.subject_id,
+        "model": "DIPY FreeWaterTensorModel",
+        "input": {
+            "dwi": str(config.raw_input_bundle.dwi_path.resolve()),
+            "bval": str(config.raw_input_bundle.bval_path.resolve()),
+            "bvec": str(config.raw_input_bundle.bvec_path.resolve()),
+            "mask": str(config.raw_input_bundle.mask_path.resolve()),
+        },
+        "public_maps": {
+            "fwf": str(paths["fwf"].resolve()),
+            "tissue_fa": str(paths["fw_tissue_fa"].resolve()),
+            "tissue_md": str(paths["fw_tissue_md"].resolve()),
+            "tissue_valid_mask": str(paths["fw_tissue_valid_mask"].resolve()),
+        },
+        "parameters": {
+            "max_free_water_fraction_for_tissue": float(config.free_water_max_fraction_for_tissue),
+            "max_tissue_md_mm2_s": FREE_WATER_MAX_TISSUE_MD,
+        },
+        "checks": checks,
+        "validity": {
+            "brain_mask_voxels": brain_voxels,
+            "valid_tissue_voxels": valid_voxels,
+            "valid_tissue_fraction": float(valid_voxels / max(1, brain_voxels)),
+            "excluded_tissue_voxels": int(np.count_nonzero(mask & ~valid)),
+        },
+        "summary": {
+            "fwf_brain_mask": _scalar_summary(arrays["fwf"], mask),
+            "tissue_fa_valid": _scalar_summary(arrays["fw_tissue_fa"], valid),
+            "tissue_md_valid": _scalar_summary(arrays["fw_tissue_md"], valid),
+        },
+        "warnings": [
+            "Tissue FA and MD are interpreted only where the tissue-validity mask is non-zero."
+        ],
+    }
+    _write_json(paths["free_water_qc"], payload)
+    if payload["status"] != "completed":
+        failed = ", ".join(name for name, passed in checks.items() if not passed)
+        raise RuntimeError(f"Free Water outputs failed scientific QC: {failed}")
+    return payload
 
 
 def _compute_free_water_maps(
@@ -588,6 +761,7 @@ def _compute_free_water_maps(
     fwf_map = np.zeros(mask.shape, dtype=np.float32)
     fw_tissue_fa_map = np.zeros(mask.shape, dtype=np.float32)
     fw_tissue_md_map = np.zeros(mask.shape, dtype=np.float32)
+    fw_tissue_valid_mask = np.zeros(mask.shape, dtype=bool)
 
     z_size = mask.shape[2]
     chunk_count = (z_size + chunk_size - 1) // chunk_size
@@ -612,6 +786,7 @@ def _compute_free_water_maps(
         "total_voxels": total_voxels,
         "gradient_count": int(gradient_count),
         "shells": rounded_shells,
+        "max_free_water_fraction_for_tissue": float(config.free_water_max_fraction_for_tissue),
     }
     _write_progress(
         progress_path,
@@ -672,25 +847,30 @@ def _compute_free_water_maps(
             fit_kwargs["vox_per_chunk"] = int(vox_per_chunk)
         fit = fw_model.fit(voxel_signals, **fit_kwargs)
 
-        fwf, fw_fa, fw_md, invalid_count = _sanitize_free_water_scalars(
+        fwf, fw_fa, fw_md, valid_tissue, invalid_count = _sanitize_free_water_scalars(
             fit.f,
             fit.fa,
             fit.md,
+            fit.evals,
+            max_free_water_fraction=config.free_water_max_fraction_for_tissue,
         )
         invalid_tissue_voxels += invalid_count
 
         fwf_chunk = np.zeros(mask_chunk.shape, dtype=np.float32)
         fw_fa_chunk = np.zeros(mask_chunk.shape, dtype=np.float32)
         fw_md_chunk = np.zeros(mask_chunk.shape, dtype=np.float32)
+        valid_chunk = np.zeros(mask_chunk.shape, dtype=bool)
 
         flat_mask = mask_chunk.reshape(-1)
         fwf_chunk.reshape(-1)[flat_mask] = fwf
         fw_fa_chunk.reshape(-1)[flat_mask] = fw_fa
         fw_md_chunk.reshape(-1)[flat_mask] = fw_md
+        valid_chunk.reshape(-1)[flat_mask] = valid_tissue
 
         fwf_map[:, :, z_start:z_stop] = fwf_chunk
         fw_tissue_fa_map[:, :, z_start:z_stop] = fw_fa_chunk
         fw_tissue_md_map[:, :, z_start:z_stop] = fw_md_chunk
+        fw_tissue_valid_mask[:, :, z_start:z_stop] = valid_chunk
         completed_chunks += 1
         completed_voxels += voxel_count
         _write_progress(
@@ -711,6 +891,8 @@ def _compute_free_water_maps(
     _save_scalar_nifti(fwf_map, mask_img, paths["fwf"])
     _save_scalar_nifti(fw_tissue_fa_map, mask_img, paths["fw_tissue_fa"])
     _save_scalar_nifti(fw_tissue_md_map, mask_img, paths["fw_tissue_md"])
+    _save_mask_nifti(fw_tissue_valid_mask, mask_img, paths["fw_tissue_valid_mask"])
+    _write_free_water_qc(config, paths)
     _write_progress(
         progress_path,
         {
@@ -720,12 +902,14 @@ def _compute_free_water_maps(
             "completed_voxels": completed_voxels,
             "invalid_tissue_voxels": invalid_tissue_voxels,
             "max_tissue_md_mm2_s": FREE_WATER_MAX_TISSUE_MD,
+            "max_free_water_fraction_for_tissue": float(config.free_water_max_fraction_for_tissue),
             "current_chunk": None,
             "elapsed_seconds": round(time.monotonic() - started, 3),
             "outputs": {
                 "fwf": paths["fwf"].as_posix(),
                 "fw_tissue_fa": paths["fw_tissue_fa"].as_posix(),
                 "fw_tissue_md": paths["fw_tissue_md"].as_posix(),
+                "fw_tissue_valid_mask": paths["fw_tissue_valid_mask"].as_posix(),
             },
         },
     )
@@ -772,6 +956,84 @@ def _prepare_amico_inputs(
         log,
     )
     return study_dir, dwi_path, mask_path, bval_path, scheme_path
+
+
+def _sanitize_noddi_maps(
+    ndi: np.ndarray,
+    odi: np.ndarray,
+    isovf: np.ndarray,
+    brain_mask: np.ndarray,
+    *,
+    max_isotropic_fraction: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[str, object]]:
+    """Sanitize public NODDI maps and derive a separate tissue-validity mask.
+
+    AMICO preserves its raw estimates in ``_amico_noddi``. The public NDI/ODI
+    maps retain finite, bounded estimates throughout the brain mask so that
+    display does not create artificial holes. Quantitative summaries use the
+    separate tissue-validity mask because conditional tissue fractions are not
+    interpreted in voxels dominated by the isotropic component.
+    """
+    raw_ndi = np.asarray(ndi, dtype=np.float32)
+    raw_odi = np.asarray(odi, dtype=np.float32)
+    raw_isovf = np.asarray(isovf, dtype=np.float32)
+    mask = np.asarray(brain_mask, dtype=bool)
+    if not (raw_ndi.shape == raw_odi.shape == raw_isovf.shape == mask.shape):
+        raise ValueError("NODDI maps and brain mask must have identical shapes.")
+
+    finite_and_bounded = (
+        np.isfinite(raw_ndi)
+        & np.isfinite(raw_odi)
+        & np.isfinite(raw_isovf)
+        & (raw_ndi >= 0.0)
+        & (raw_ndi <= 1.0)
+        & (raw_odi >= 0.0)
+        & (raw_odi <= 1.0)
+        & (raw_isovf >= 0.0)
+        & (raw_isovf <= 1.0)
+    )
+    high_isotropic = raw_isovf > float(max_isotropic_fraction)
+    valid_tissue = mask & finite_and_bounded & ~high_isotropic
+    valid_brain_estimate = mask & finite_and_bounded
+    clean_ndi = np.where(valid_brain_estimate, raw_ndi, 0.0).astype(np.float32, copy=False)
+    clean_odi = np.where(valid_brain_estimate, raw_odi, 0.0).astype(np.float32, copy=False)
+    clean_isovf = np.where(
+        mask,
+        np.clip(np.nan_to_num(raw_isovf, nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0),
+        0.0,
+    ).astype(np.float32, copy=False)
+    valid_count = int(np.count_nonzero(valid_tissue))
+    valid_ndi = raw_ndi[valid_tissue]
+    qc = {
+        "brain_mask_voxels": int(np.count_nonzero(mask)),
+        "valid_tissue_voxels": valid_count,
+        "valid_tissue_fraction": float(valid_count / max(1, int(np.count_nonzero(mask)))),
+        "excluded_high_isotropic_voxels": int(np.count_nonzero(mask & high_isotropic)),
+        "excluded_nonfinite_or_out_of_range_voxels": int(np.count_nonzero(mask & ~finite_and_bounded)),
+        "max_isotropic_fraction_for_tissue": float(max_isotropic_fraction),
+        "ndi_upper_boundary_voxels_in_valid_tissue": int(
+            np.count_nonzero(valid_ndi >= NODDI_UPPER_BOUND)
+        ),
+        "ndi_upper_boundary_fraction_in_valid_tissue": float(
+            np.count_nonzero(valid_ndi >= NODDI_UPPER_BOUND) / max(1, valid_ndi.size)
+        ),
+    }
+    return clean_ndi, clean_odi, clean_isovf, valid_tissue, qc
+
+
+def _scalar_summary(data: np.ndarray, mask: np.ndarray) -> dict[str, float | int]:
+    values = np.asarray(data, dtype=np.float32)[np.asarray(mask, dtype=bool)]
+    values = values[np.isfinite(values)]
+    if values.size == 0:
+        return {"count": 0, "min": 0.0, "p50": 0.0, "p95": 0.0, "p99": 0.0, "max": 0.0}
+    return {
+        "count": int(values.size),
+        "min": float(np.min(values)),
+        "p50": float(np.percentile(values, 50)),
+        "p95": float(np.percentile(values, 95)),
+        "p99": float(np.percentile(values, 99)),
+        "max": float(np.max(values)),
+    }
 
 
 def _compute_noddi_maps(
@@ -847,8 +1109,8 @@ def _compute_noddi_maps(
     )
     evaluation.set_config("doDirectionalAverage", bool(config.noddi_directional_average))
     evaluation.set_config("doSaveModulatedMaps", False)
-    evaluation.set_config("doComputeRMSE", False)
-    evaluation.set_config("doComputeNRMSE", False)
+    evaluation.set_config("doComputeRMSE", True)
+    evaluation.set_config("doComputeNRMSE", True)
     evaluation.set_config("nthreads", int(config.noddi_nthreads))
     evaluation.set_config("BLAS_nthreads", 1)
     evaluation.load_data(
@@ -892,11 +1154,70 @@ def _compute_noddi_maps(
         "noddi_ndi": source_dir / "fit_NDI.nii.gz",
         "noddi_odi": source_dir / "fit_ODI.nii.gz",
         "noddi_fwf": source_dir / "fit_FWF.nii.gz",
+        "noddi_rmse": source_dir / "fit_RMSE.nii.gz",
+        "noddi_nrmse": source_dir / "fit_NRMSE.nii.gz",
     }
     for key, src in noddi_sources.items():
         if not src.is_file():
             raise FileNotFoundError(f"AMICO did not produce expected NODDI map: {src}")
-        _copy_if_needed(src, paths[key])
+
+    mask_img = nib.load(str(config.raw_input_bundle.mask_path))
+    mask = mask_img.get_fdata(dtype=np.float32) > 0.0
+    source_images = {key: nib.load(str(src)) for key, src in noddi_sources.items()}
+    source_arrays = {
+        key: image.get_fdata(dtype=np.float32)
+        for key, image in source_images.items()
+    }
+    for key, image in source_images.items():
+        if image.shape != mask.shape or not np.allclose(image.affine, mask_img.affine, atol=1e-4):
+            raise ValueError(f"AMICO {key} output does not match the NODDI input mask grid.")
+    clean_ndi, clean_odi, clean_isovf, valid_tissue, validity_qc = _sanitize_noddi_maps(
+        source_arrays["noddi_ndi"],
+        source_arrays["noddi_odi"],
+        source_arrays["noddi_fwf"],
+        mask,
+        max_isotropic_fraction=config.noddi_max_isotropic_fraction_for_tissue,
+    )
+    _save_scalar_nifti(clean_ndi, mask_img, paths["noddi_ndi"])
+    _save_scalar_nifti(clean_odi, mask_img, paths["noddi_odi"])
+    _save_scalar_nifti(clean_isovf, mask_img, paths["noddi_fwf"])
+    _save_mask_nifti(valid_tissue, mask_img, paths["noddi_tissue_valid_mask"])
+    shutil.copy2(noddi_sources["noddi_rmse"], paths["noddi_rmse"])
+    shutil.copy2(noddi_sources["noddi_nrmse"], paths["noddi_nrmse"])
+    qc_payload = {
+        "kind": "noddi_qc",
+        "version": 1,
+        "status": "completed",
+        "subject_id": config.subject_id,
+        "model": "AMICO NODDI",
+        "input": {
+            "dwi": str(config.raw_input_bundle.dwi_path.resolve()),
+            "bval": str(config.raw_input_bundle.bval_path.resolve()),
+            "bvec": str(config.raw_input_bundle.bvec_path.resolve()),
+            "mask": str(config.raw_input_bundle.mask_path.resolve()),
+        },
+        "source_maps": {key: str(path.resolve()) for key, path in noddi_sources.items()},
+        "public_maps": {
+            "ndi": str(paths["noddi_ndi"].resolve()),
+            "odi": str(paths["noddi_odi"].resolve()),
+            "isovf": str(paths["noddi_fwf"].resolve()),
+            "tissue_valid_mask": str(paths["noddi_tissue_valid_mask"].resolve()),
+            "rmse": str(paths["noddi_rmse"].resolve()),
+            "nrmse": str(paths["noddi_nrmse"].resolve()),
+        },
+        "validity": validity_qc,
+        "summary": {
+            "ndi_valid_tissue": _scalar_summary(source_arrays["noddi_ndi"], valid_tissue),
+            "odi_valid_tissue": _scalar_summary(source_arrays["noddi_odi"], valid_tissue),
+            "isovf_brain_mask": _scalar_summary(source_arrays["noddi_fwf"], mask),
+            "rmse_valid_tissue": _scalar_summary(source_arrays["noddi_rmse"], valid_tissue),
+            "nrmse_valid_tissue": _scalar_summary(source_arrays["noddi_nrmse"], valid_tissue),
+        },
+        "warnings": [
+            "NDI and ODI are displayed within the brain mask; quantitative summaries additionally exclude voxels where NODDI IsoVF exceeds the tissue-validity threshold."
+        ],
+    }
+    _write_json(paths["noddi_qc"], qc_payload)
     write_noddi_progress(
         "completed",
         "completed",
@@ -905,6 +1226,10 @@ def _compute_noddi_maps(
             "noddi_ndi": paths["noddi_ndi"].as_posix(),
             "noddi_odi": paths["noddi_odi"].as_posix(),
             "noddi_fwf": paths["noddi_fwf"].as_posix(),
+            "noddi_tissue_valid_mask": paths["noddi_tissue_valid_mask"].as_posix(),
+            "noddi_rmse": paths["noddi_rmse"].as_posix(),
+            "noddi_nrmse": paths["noddi_nrmse"].as_posix(),
+            "noddi_qc": paths["noddi_qc"].as_posix(),
         },
     )
 
@@ -916,6 +1241,7 @@ def _compute_roi_stats(
     lut_path: Path | None,
     csv_path: Path,
     json_path: Path,
+    validity_masks: dict[str, np.ndarray] | None = None,
 ) -> int:
     roi_img = nib.load(str(roi_label_map))
     roi_data = roi_img.get_fdata(dtype=np.float32)
@@ -941,7 +1267,13 @@ def _compute_roi_stats(
             ]
         )
 
-    metric_validity_masks: dict[str, np.ndarray] = {}
+    metric_validity_masks: dict[str, np.ndarray] = dict(validity_masks or {})
+    for metric_key, valid_mask in metric_validity_masks.items():
+        if metric_key not in metric_arrays:
+            raise ValueError(f"Validity mask supplied for unknown metric: {metric_key}.")
+        if np.asarray(valid_mask).shape != roi_data.shape:
+            raise ValueError(f"Validity mask shape does not match ROI label map for {metric_key}.")
+        metric_validity_masks[metric_key] = np.asarray(valid_mask, dtype=bool)
     if {"fw_tissue_fa", "fw_tissue_md"}.issubset(metric_arrays):
         tissue_fa = metric_arrays["fw_tissue_fa"]
         tissue_md = metric_arrays["fw_tissue_md"]
@@ -1033,10 +1365,23 @@ def run_microstructure(
         raise ValueError("free_water_engine must be one of: serial, joblib, dask, ray.")
     if config.free_water_vox_per_chunk is not None and config.free_water_vox_per_chunk <= 0:
         raise ValueError("free_water_vox_per_chunk must be > 0 when provided.")
+    if not 0.0 < float(config.free_water_max_fraction_for_tissue) < 1.0:
+        raise ValueError("free_water_max_fraction_for_tissue must be between 0 and 1.")
+    if not 0.0 < float(config.noddi_max_isotropic_fraction_for_tissue) < 1.0:
+        raise ValueError("noddi_max_isotropic_fraction_for_tissue must be between 0 and 1.")
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
     paths = _output_paths(subject_id, output_dir)
+    expected_free_water_manifest = _expected_free_water_manifest(config)
+    if (
+        bool(config.run_free_water)
+        and _read_json(paths["free_water_manifest"]) == expected_free_water_manifest
+        and _free_water_maps_complete(paths)
+        and not _free_water_outputs_complete(paths)
+    ):
+        _emit("[Microstructure] Backfilling scientific QC for reusable Free Water outputs", log)
+        _write_free_water_qc(config, paths)
     roi_label_map = _resolve_roi_label_map(config)
     free_water_available = bool(config.run_free_water) or _free_water_outputs_current(config, paths)
     noddi_available = bool(config.run_noddi) or _noddi_outputs_current(config, paths)
@@ -1075,9 +1420,15 @@ def run_microstructure(
             fwf_path=paths["fwf"],
             fw_tissue_fa_path=paths["fw_tissue_fa"],
             fw_tissue_md_path=paths["fw_tissue_md"],
+            fw_tissue_valid_mask_path=paths["fw_tissue_valid_mask"],
+            free_water_qc_path=paths["free_water_qc"],
             noddi_ndi_path=paths["noddi_ndi"],
             noddi_odi_path=paths["noddi_odi"],
             noddi_fwf_path=paths["noddi_fwf"],
+            noddi_tissue_valid_mask_path=paths["noddi_tissue_valid_mask"],
+            noddi_rmse_path=paths["noddi_rmse"],
+            noddi_nrmse_path=paths["noddi_nrmse"],
+            noddi_qc_path=paths["noddi_qc"],
             roi_label_map=roi_label_map,
             roi_stats_csv_path=paths["roi_stats_csv"] if roi_enabled else None,
             roi_stats_json_path=paths["roi_stats_json"] if roi_enabled else None,
@@ -1090,7 +1441,6 @@ def run_microstructure(
     _export_dti_scalar_maps(config, paths)
     _remove_legacy_roi_outputs(output_dir, subject_id)
 
-    expected_free_water_manifest = _expected_free_water_manifest(config)
     actual_free_water_manifest = _read_json(paths["free_water_manifest"])
     if bool(config.run_free_water):
         if (
@@ -1183,6 +1533,13 @@ def run_microstructure(
                     "noddi_fwf": paths["noddi_fwf"],
                 }
             )
+        validity_masks: dict[str, np.ndarray] = {}
+        if _noddi_outputs_current(config, paths):
+            noddi_valid_mask = nib.load(str(paths["noddi_tissue_valid_mask"])).get_fdata(dtype=np.float32) > 0.0
+            validity_masks = {
+                "noddi_ndi": noddi_valid_mask,
+                "noddi_odi": noddi_valid_mask,
+            }
         _emit(f"[Microstructure] Computing ROI-wise statistics from {roi_label_map}", log)
         roi_count = _compute_roi_stats(
             metric_paths=metric_paths,
@@ -1190,6 +1547,7 @@ def run_microstructure(
             lut_path=lut_path,
             csv_path=paths["roi_stats_csv"],
             json_path=paths["roi_stats_json"],
+            validity_masks=validity_masks,
         )
         _emit(
             f"[Microstructure] ROI-wise statistics written for {roi_count} labels",
@@ -1218,9 +1576,15 @@ def run_microstructure(
         fwf_path=paths["fwf"],
         fw_tissue_fa_path=paths["fw_tissue_fa"],
         fw_tissue_md_path=paths["fw_tissue_md"],
+        fw_tissue_valid_mask_path=paths["fw_tissue_valid_mask"],
+        free_water_qc_path=paths["free_water_qc"],
         noddi_ndi_path=paths["noddi_ndi"],
         noddi_odi_path=paths["noddi_odi"],
         noddi_fwf_path=paths["noddi_fwf"],
+        noddi_tissue_valid_mask_path=paths["noddi_tissue_valid_mask"],
+        noddi_rmse_path=paths["noddi_rmse"],
+        noddi_nrmse_path=paths["noddi_nrmse"],
+        noddi_qc_path=paths["noddi_qc"],
         roi_label_map=roi_label_map,
         roi_stats_csv_path=paths["roi_stats_csv"] if roi_label_map is not None else None,
         roi_stats_json_path=paths["roi_stats_json"] if roi_label_map is not None else None,

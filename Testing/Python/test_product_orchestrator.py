@@ -16,6 +16,44 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
+def _write_test_volume(path: Path) -> None:
+    import nibabel as nib
+    import numpy as np
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = np.ones((2, 2, 2), dtype=np.float32)
+    image = nib.MGHImage(data, np.eye(4)) if path.name.endswith(".mgz") else nib.Nifti1Image(data, np.eye(4))
+    nib.save(image, str(path))
+
+
+def _write_test_surface(path: Path) -> None:
+    import trimesh
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    trimesh.creation.icosphere(subdivisions=1).export(path)
+
+
+def _write_test_tractogram(path: Path, *, length_mm: float = 20.0) -> None:
+    import nibabel as nib
+    import numpy as np
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    streamline = np.asarray(((0.0, 0.0, 0.0), (length_mm, 0.0, 0.0)), dtype=np.float32)
+    tractogram = nib.streamlines.Tractogram([streamline], affine_to_rasmm=np.eye(4))
+    nib.streamlines.save(tractogram, path.as_posix())
+
+
+def _file_record(path: Path) -> dict[str, object]:
+    stat = path.stat()
+    return {
+        "path": path.resolve().as_posix(),
+        "exists": True,
+        "is_file": path.is_file(),
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+    }
+
+
 class ProductOrchestratorTest(unittest.TestCase):
     def test_reusing_run_name_archives_previous_manifest_and_plan(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
@@ -139,6 +177,17 @@ class ProductOrchestratorTest(unittest.TestCase):
                     )
                 )
 
+            with self.assertRaisesRegex(ValueError, "microstructure_free_water_max_fraction_for_tissue"):
+                run_subject_products(
+                    ProductOrchestratorConfig(
+                        subject_id="100307",
+                        subject_root=subject_root,
+                        targets=("microstructure",),
+                        execute=False,
+                        microstructure_free_water_max_fraction_for_tissue=1.0,
+                    )
+                )
+
     def test_dry_run_plans_structural_targets(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 
@@ -214,7 +263,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(manifest["run_name"], "csd_act_test")
             self.assertEqual(manifest["tractography_backend"], "csd_act")
             self.assertFalse(manifest["execute"])
-            self.assertEqual(manifest["select_streamlines"], 100000)
+            self.assertEqual(manifest["select_streamlines"], 1000000)
             self.assertEqual(manifest["connectome_backend"], "python")
 
     def test_preflight_blocked_targets_are_recorded_but_do_not_stop_other_targets(self) -> None:
@@ -550,7 +599,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(manifest["targets"], ["bundles", "wma", "tractcloud"])
             self.assertEqual(manifest["bundle_backends"], ["wmql", "wma", "tractcloud"])
 
-    def test_wma_plan_consumes_the_selected_csd_tractogram_after_tractography(self) -> None:
+    def test_wma_plan_does_not_reuse_connectome_csd_tractogram_implicitly(self) -> None:
         from shared import ProductOrchestratorConfig, plan_subject_products
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -583,9 +632,9 @@ class ProductOrchestratorTest(unittest.TestCase):
 
             items = {item.target: item for item in plan.items}
             self.assertEqual(items["tractography"].status, "will_run")
-            self.assertEqual(items["wma"].status, "will_run")
-            self.assertEqual(items["wma"].dependencies["input_tractography"], "will_run:tractography")
-            self.assertTrue(items["wma"].inputs["input_tractography"].endswith("_csd_act_ifod2.tck"))
+            self.assertEqual(items["wma"].status, "blocked")
+            self.assertIn("WMA-compatible", items["wma"].reason)
+            self.assertNotIn("input_tractography", items["wma"].inputs)
 
     def test_saf_tractography_backend_expands_surface_postprocess_and_saf(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
@@ -695,7 +744,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["targets"], ["saf", "wma", "tractcloud"])
 
-    def test_tractcloud_selected_with_saf_uses_same_run_output(self) -> None:
+    def test_tractcloud_uses_same_run_whole_brain_tractography_not_saf(self) -> None:
         from shared import ProductOrchestratorConfig, plan_subject_products, subject_layout
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -709,14 +758,21 @@ class ProductOrchestratorTest(unittest.TestCase):
             csd_dir = layout.csd / run_name
             csd_dir.mkdir(parents=True)
             (csd_dir / "100307_wmfod_norm.mif").write_text("fod", encoding="utf-8")
+            layout.ddseg.mkdir(parents=True)
+            (layout.ddseg / "SegmentationMap_GMWMCSF.nii.gz").write_text("seg", encoding="utf-8")
             fs_dir = Path(tmp) / "native-dmri-surfaces"
             fs_dir.mkdir()
+
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("x", encoding="utf-8")
 
             plan = plan_subject_products(
                 ProductOrchestratorConfig(
                     subject_id="100307",
                     subject_root=subject_root,
-                    targets=("saf", "tractcloud"),
+                    targets=("tractography", "saf", "tractcloud"),
                     run_name=run_name,
                     saf_fs_dir=fs_dir,
                     execute=True,
@@ -729,9 +785,12 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(items["tractcloud"].status, "will_run")
             self.assertEqual(
                 items["tractcloud"].inputs["input_tractography"],
-                items["saf"].outputs["tractogram_vtk"],
+                items["tractography"].outputs["tractogram_vtk"],
             )
-            self.assertEqual(items["tractcloud"].dependencies["input_tractography"], "will_run:saf")
+            self.assertEqual(
+                items["tractcloud"].dependencies["input_tractography"],
+                "will_run:tractography.csd_act",
+            )
             self.assertNotEqual(
                 items["tractcloud"].inputs["input_tractography"],
                 (old_saf_dir / "SAF.vtk").resolve(),
@@ -1003,6 +1062,10 @@ class ProductOrchestratorTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = Path(tmp) / "100307"
+            input_dir = subject_root / "input"
+            input_dir.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (input_dir / name).write_text("input", encoding="utf-8")
             layout = subject_layout(subject_root)
             run_name = "csd_act_test"
             csd_dir = layout.csd / run_name
@@ -1044,20 +1107,76 @@ class ProductOrchestratorTest(unittest.TestCase):
                 "100307-dti-MinEigenvalue-Reg-NormMasked.nii.gz",
                 "100307-dti-MidEigenvalue-Reg-NormMasked.nii.gz",
             ):
-                (parcel_dir / name).write_text(name, encoding="utf-8")
+                _write_test_volume(parcel_dir / name)
             for name in (
                 "100307_predicted_wm_lh.stl",
                 "100307_predicted_wm_rh.stl",
                 "100307_predicted_pial_lh.stl",
                 "100307_predicted_pial_rh.stl",
             ):
-                (surface_dir / name).write_text(name, encoding="utf-8")
-            (csd_dir / "csd_act_qc.json").write_text('{"status": "completed"}\n', encoding="utf-8")
-            (csd_dir / "csd_act_manifest.json").write_text("{}\n", encoding="utf-8")
-            (tract_dir / "100307_csd_act_ifod2.tck").write_text("tck", encoding="utf-8")
-            (tract_dir / "100307_csd_act_ifod2.trk").write_text("trk", encoding="utf-8")
+                _write_test_surface(surface_dir / name)
+            csd_tck = tract_dir / "100307_csd_act_ifod2.tck"
+            csd_trk = tract_dir / "100307_csd_act_ifod2.trk"
+            csd_vtk = tract_dir / "100307_csd_act_ifod2.vtk"
+            csd_weights = tract_dir / "100307_csd_act_ifod2_sift2_weights.txt"
+            _write_test_tractogram(csd_tck)
+            _write_test_tractogram(csd_trk)
+            csd_vtk.write_text(
+                "# vtk DataFile Version 3.0\nASCII\nDATASET POLYDATA\n"
+                "POINTS 2 float\n0 0 0 20 0 0\nLINES 1 3\n2 0 1\n",
+                encoding="utf-8",
+            )
+            csd_weights.write_text("1.0\n", encoding="utf-8")
+            raw_paths = {
+                "dwi": input_dir / "data.nii.gz",
+                "bval": input_dir / "bvals",
+                "bvec": input_dir / "bvecs",
+                "mask": input_dir / "nodif_brain_mask.nii.gz",
+            }
+            csd_summary = {
+                "tck": {
+                    "file": _file_record(csd_tck),
+                    "streamline_count": 1,
+                    "all_points_finite": True,
+                    "length_mm": {"min": 20.0, "median": 20.0, "max": 20.0},
+                },
+                "trk": {
+                    "file": _file_record(csd_trk),
+                    "streamline_count": 1,
+                    "all_points_finite": True,
+                },
+                "vtk": {
+                    "file": _file_record(csd_vtk),
+                    "streamline_count": 1,
+                },
+                "sift2": {
+                    "file": _file_record(csd_weights),
+                    "weight_count": 1,
+                    "all_finite": True,
+                    "all_nonnegative": True,
+                },
+            }
+            (csd_dir / "csd_act_qc.json").write_text(
+                json.dumps({"status": "completed", "scientific_output_summary": csd_summary}) + "\n",
+                encoding="utf-8",
+            )
+            (csd_dir / "csd_act_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "parameters": {
+                            "select_streamlines": 1,
+                            "min_length_mm": 10.0,
+                            "max_length_mm": 250.0,
+                        },
+                        "dependencies": {key: _file_record(path) for key, path in raw_paths.items()},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             wmql_bundle = wmql_dir / "100307_desc-wmql_CST.left.trk"
-            wmql_bundle.write_text("bundle", encoding="utf-8")
+            _write_test_tractogram(wmql_bundle)
             (wmql_dir / "wmql_qc.json").write_text(
                 json.dumps(
                     {
@@ -1068,23 +1187,84 @@ class ProductOrchestratorTest(unittest.TestCase):
                 + "\n",
                 encoding="utf-8",
             )
-            (wmql_dir / "wmql_manifest.json").write_text("{}\n", encoding="utf-8")
+            parcellation_path = parcel_dir / "100307-DDSurfer-wmparc.nii.gz"
+            (wmql_dir / "wmql_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "query_selection": ["CST.left"],
+                        "dependencies": {
+                            "input_tractography": _file_record(csd_trk),
+                            "atlas": _file_record(parcellation_path),
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             (conn_dir / "100307-connectome-streamline_count_qc.json").write_text(
                 '{"status": "completed", "node_count": 2, "edge_count": 1}\n', encoding="utf-8"
             )
-            (conn_dir / "100307-connectome-streamline_count_manifest.json").write_text("{}\n", encoding="utf-8")
+            (conn_dir / "100307-connectome-streamline_count_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "dependencies": {
+                            "tractography": _file_record(csd_tck),
+                            "ddparcel_parcellation": _file_record(parcellation_path),
+                        }
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             (conn_dir / "100307-connectome-streamline_count.csv").write_text(
                 "source_node,target_node,streamline_count\n10,20,1\n", encoding="utf-8"
             )
             (conn_dir / "100307-connectome-nodes.tsv").write_text(
                 "node_id\tlabel\tname\n10\t10\tLeft\n20\t20\tRight\n", encoding="utf-8"
             )
+            weighted_dir = conn_dir / "sift2_weighted_streamline_count"
+            weighted_dir.mkdir()
+            weighted_stem = "100307-connectome-sift2_weighted_streamline_count"
+            (weighted_dir / f"{weighted_stem}_qc.json").write_text(
+                '{"status": "completed", "node_count": 2, "edge_count": 1}\n',
+                encoding="utf-8",
+            )
+            (weighted_dir / f"{weighted_stem}.csv").write_text(
+                "source_node,target_node,sift2_weighted_streamline_count\n10,20,1.0\n",
+                encoding="utf-8",
+            )
+            (weighted_dir / "100307-connectome-nodes.tsv").write_text(
+                "node_id\tlabel\tname\n10\t10\tLeft\n20\t20\tRight\n",
+                encoding="utf-8",
+            )
+            (weighted_dir / f"{weighted_stem}_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "dependencies": {
+                            "tractography": _file_record(csd_tck),
+                            "ddparcel_parcellation": _file_record(parcellation_path),
+                            "sift2_weights": _file_record(csd_weights),
+                        }
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
 
             micro_dir = layout.microstructure_dti
             micro_dir.mkdir(parents=True)
             for suffix in ("FA", "MD", "AD", "RD", "L1", "L2", "L3", "Trace"):
-                (micro_dir / f"100307_dti_{suffix}.nii.gz").write_text(suffix, encoding="utf-8")
-            (layout.microstructure / "manifest.json").write_text("{}\n", encoding="utf-8")
+                _write_test_volume(micro_dir / f"100307_dti_{suffix}.nii.gz")
+            (layout.microstructure / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "raw_input_bundle": {key: _file_record(path) for key, path in raw_paths.items()},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
 
             result = run_subject_products(
                 ProductOrchestratorConfig(
@@ -1092,12 +1272,16 @@ class ProductOrchestratorTest(unittest.TestCase):
                     subject_root=subject_root,
                     targets=("segmentation", "parcellation", "surface", "microstructure", "tractography", "bundles", "connectome"),
                     run_name=run_name,
+                    select_streamlines=1,
                     execute=True,
                     resume=True,
                 )
             )
 
-            self.assertEqual([task.status for task in result.tasks], ["skipped", "skipped", "skipped", "skipped", "skipped", "skipped", "skipped"])
+            self.assertEqual(
+                [task.status for task in result.tasks],
+                ["skipped", "skipped", "skipped", "skipped", "skipped", "skipped", "skipped", "skipped"],
+            )
             self.assertTrue(all("completed" in task.reason for task in result.tasks))
 
     def test_resume_rejects_deleted_wmql_and_connectome_products(self) -> None:
@@ -1113,20 +1297,35 @@ class ProductOrchestratorTest(unittest.TestCase):
             run_name = "resume_artifacts"
             layout = subject_layout(subject_root)
             layout.ddparcel.mkdir(parents=True)
-            (layout.ddparcel / "100307-DDSurfer-wmparc.nii.gz").write_text("parcel", encoding="utf-8")
+            parcellation = layout.ddparcel / "100307-DDSurfer-wmparc.nii.gz"
+            parcellation.write_text("parcel", encoding="utf-8")
             tract_dir = layout.tractograms_dti_det / run_name
             tract_dir.mkdir(parents=True)
-            (tract_dir / "100307-dti-deterministic.trk").write_text("tractogram", encoding="utf-8")
+            tractogram = tract_dir / "100307-dti-deterministic.trk"
+            _write_test_tractogram(tractogram)
 
             wmql_dir = layout.bundles_wmql / run_name
             wmql_dir.mkdir(parents=True)
             bundle = wmql_dir / "100307_desc-wmql_CST.left.trk"
-            bundle.write_text("bundle", encoding="utf-8")
+            _write_test_tractogram(bundle)
             (wmql_dir / "wmql_qc.json").write_text(
                 json.dumps(
                     {
                         "status": "completed",
                         "output_summary": {"bundle_files": [bundle.as_posix()]},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (wmql_dir / "wmql_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "query_selection": ["CST.left"],
+                        "dependencies": {
+                            "input_tractography": _file_record(tractogram),
+                            "atlas": _file_record(parcellation),
+                        },
                     }
                 )
                 + "\n",
@@ -1141,6 +1340,18 @@ class ProductOrchestratorTest(unittest.TestCase):
             conn_qc.write_text('{"status": "completed", "node_count": 2, "edge_count": 1}\n', encoding="utf-8")
             conn_matrix.write_text("source_node,target_node,streamline_count\n10,20,1\n", encoding="utf-8")
             conn_nodes.write_text("node_id\tlabel\tname\n10\t10\tLeft\n20\t20\tRight\n", encoding="utf-8")
+            (conn_dir / "100307-connectome-streamline_count_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "dependencies": {
+                            "tractography": _file_record(tractogram),
+                            "ddparcel_parcellation": _file_record(parcellation),
+                        }
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
 
             config = ProductOrchestratorConfig(
                 subject_id="100307",
@@ -1167,7 +1378,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(empty_statuses["bundles"], "will_run")
             self.assertEqual(empty_statuses["connectome"], "will_run")
 
-            bundle.write_text("bundle", encoding="utf-8")
+            _write_test_tractogram(bundle)
             conn_matrix.write_text("source_node,target_node,streamline_count\n10,20,1\n", encoding="utf-8")
             bundle.unlink()
             conn_matrix.unlink()
@@ -1221,7 +1432,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                 "100307-dti-MinEigenvalue-Reg-NormMasked.nii.gz",
                 "100307-dti-MidEigenvalue-Reg-NormMasked.nii.gz",
             ):
-                (layout.ddparcel / name).write_text(name, encoding="utf-8")
+                _write_test_volume(layout.ddparcel / name)
 
             surface_dir = layout.ddsurfer / "pred_results_SlicerDDSurfer" / "native" / "100307"
             surface_dir.mkdir(parents=True)
@@ -1231,7 +1442,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                 "100307_predicted_pial_lh.stl",
                 "100307_predicted_pial_rh.stl",
             ):
-                (surface_dir / name).write_text(name, encoding="utf-8")
+                _write_test_surface(surface_dir / name)
 
             plan = plan_subject_products(
                 ProductOrchestratorConfig(

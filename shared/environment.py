@@ -1218,6 +1218,8 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
 
         if target == "wma":
             _add_core_python(specs, target)
+            _python(specs, target=target, import_name="vtk", package="vtk",
+                    notes="Required by the pipeline host to decode bundle geometry; bundled with Slicer.")
             _command(
                 specs,
                 target=target,
@@ -1365,6 +1367,8 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
 
         if target == "tractcloud":
             _add_core_python(specs, target)
+            _python(specs, target=target, import_name="vtk", package="vtk",
+                    notes="Required by the pipeline host to decode bundle geometry; bundled with Slicer.")
             tractcloud_root_source = "user setting"
             tractcloud_root = _resolve_path(config.tractcloud_root)
             if tractcloud_root is None:

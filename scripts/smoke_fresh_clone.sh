@@ -102,6 +102,7 @@ write_report() {
   python3 - "$SMOKE_REPORT" "$steps_jsonl" "$status" "$started_at" "$ended_at" "$SMOKE_REPO_URL" "$SMOKE_REF" "$SMOKE_ASSET_PROFILE" "$SMOKE_ASSET_MODE" "$SMOKE_ROOT" "$clone_dir" <<'PY'
 import json
 import platform
+import subprocess
 import sys
 from pathlib import Path
 
@@ -127,6 +128,10 @@ if steps_path.is_file():
             if line.strip():
                 steps.append(json.loads(line))
 
+revision = subprocess.run(
+    ["git", "-C", clone_dir, "rev-parse", "HEAD"],
+    capture_output=True, text=True, check=False,
+)
 report = {
     "kind": "slicerdsurfer_fresh_clone_smoke_report",
     "version": 1,
@@ -135,6 +140,7 @@ report = {
     "ended_at": ended_at,
     "repo_url": repo_url,
     "ref": ref,
+    "resolved_commit": revision.stdout.strip() if revision.returncode == 0 else None,
     "asset_profile": asset_profile,
     "asset_mode": asset_mode,
     "code_checkout": {
