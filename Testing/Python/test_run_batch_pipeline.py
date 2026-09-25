@@ -73,7 +73,10 @@ class RunBatchPipelineCliTest(unittest.TestCase):
 
         self.assertIn("--run-name", command)
         self.assertEqual(command[command.index("--run-name") + 1], "Test1")
-        self.assertEqual(command[command.index("--output-root") + 1], "/tmp/outputs/100307")
+        # build_subject_command() resolves the output root (e.g. macOS's
+        # /tmp -> /private/tmp symlink); compare against the resolved form.
+        expected_output_root = (Path("/tmp/outputs").resolve() / "100307").as_posix()
+        self.assertEqual(command[command.index("--output-root") + 1], expected_output_root)
         self.assertIn("--execute", command)
         self.assertEqual(command[-3:], ["--all", "--bundle-backend", "all"])
 

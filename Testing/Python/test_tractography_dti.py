@@ -118,7 +118,9 @@ class DTITractographyScaffoldTest(unittest.TestCase):
 
     def test_writes_manifest_and_qc_when_native_cache_exists(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            subject_root = _make_subject_root(Path(tmp))
+            # run_dti_tracking() resolves cache paths; resolve here too so the
+            # comparison holds under macOS's /tmp -> /private/tmp symlink.
+            subject_root = _make_subject_root(Path(tmp).resolve())
             cache_dir = _make_native_cache(subject_root)
             output_dir = subject_root / "outputs" / "tractography"
 

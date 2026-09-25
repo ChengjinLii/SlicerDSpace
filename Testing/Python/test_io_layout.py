@@ -218,7 +218,10 @@ class IOLayoutTest(unittest.TestCase):
         from shared import archive_development_outputs, materialize_canonical_output_tree, subject_layout
 
         with tempfile.TemporaryDirectory() as tmp:
-            subject_root = Path(tmp) / "100307"
+            # Resolve so comparisons against the archiver's returned paths
+            # (which resolve symlinks, e.g. macOS's /tmp -> /private/tmp)
+            # use the same canonical form.
+            subject_root = Path(tmp).resolve() / "100307"
             legacy_csd = subject_root / "outputs" / "04_tractography" / "csd_act"
             legacy_csd.mkdir(parents=True)
             (legacy_csd / "csd_act_qc.json").write_text("{}", encoding="utf-8")
@@ -237,7 +240,7 @@ class IOLayoutTest(unittest.TestCase):
         from shared import archive_development_outputs, materialize_canonical_output_tree, subject_layout
 
         with tempfile.TemporaryDirectory() as tmp:
-            subject_root = Path(tmp) / "100307"
+            subject_root = Path(tmp).resolve() / "100307"
             legacy_metric_dir = subject_root / "outputs" / "04_tractography" / "connectome" / "csd_act_mean_fa"
             legacy_metric_dir.mkdir(parents=True)
             (legacy_metric_dir / "100307-connectome-mean_fa_qc.json").write_text("{}", encoding="utf-8")

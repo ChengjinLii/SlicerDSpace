@@ -450,7 +450,10 @@ class ProductOrchestratorTest(unittest.TestCase):
                 )
             )
 
-            self.assertTrue(result.run_manifest_path.is_relative_to(output_root))
+            # run_manifest_path is written under the resolved output root
+            # (see manifest["output_root"] below); resolve here too so the
+            # comparison holds under macOS's /tmp -> /private/tmp symlink.
+            self.assertTrue(result.run_manifest_path.is_relative_to(output_root.resolve()))
             manifest = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["output_root"], output_root.resolve().as_posix())
             self.assertEqual(manifest["tractography_backend"], "csd_act")

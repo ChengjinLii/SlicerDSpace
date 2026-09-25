@@ -150,7 +150,9 @@ class CreateGithubReleaseTest(unittest.TestCase):
         self.assertTrue(plan.prerelease)
         self.assertTrue(plan.reuse_existing)
         self.assertTrue(plan.replace_existing_assets)
-        self.assertIn(smoke_report, plan.assets)
+        # build_release_plan() resolves asset paths; resolve here too so the
+        # comparison holds under macOS's /tmp -> /private/tmp symlink.
+        self.assertIn(smoke_report.resolve(), plan.assets)
 
 
 if __name__ == "__main__":

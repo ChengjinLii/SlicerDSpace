@@ -15,6 +15,9 @@ class ResultSelectionTest(unittest.TestCase):
             self.assertEqual(summary, {"passed": 0, "issues": 1, "unavailable": 1})
     def test_only_successful_manifest_outputs_are_candidates(self):
         with tempfile.TemporaryDirectory() as tmp:
+            # result_candidates() reports str(path.resolve()); resolve here
+            # too so the comparison holds under macOS's /tmp -> /private/tmp.
+            tmp = str(Path(tmp).resolve())
             good = Path(tmp) / "fa.nii.gz"
             good.touch()
             old = Path(tmp) / "old.nii.gz"
@@ -40,6 +43,7 @@ class ResultSelectionTest(unittest.TestCase):
 
     def test_unique_files_prioritize_scalars_over_tractograms(self):
         with tempfile.TemporaryDirectory() as tmp:
+            tmp = str(Path(tmp).resolve())
             paths = [Path(tmp) / name for name in ("all.tck", "fa.nii.gz")]
             for path in paths:
                 path.touch()

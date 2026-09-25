@@ -90,7 +90,10 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
 
     def test_explicit_dependency_profile_overrides_saved_dependency_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            # The environment doctor resolves user-supplied bin dirs before
+            # reporting them; resolve here too so the comparison holds under
+            # macOS's /tmp -> /private/tmp symlink.
+            root = Path(tmp).resolve()
             subject_root = root / "sub-01"
             subject_root.mkdir()
             saved_bin = root / "saved" / "mrtrix" / "bin"

@@ -14,7 +14,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 class DependencyProfileMatrixTest(unittest.TestCase):
     def test_matrix_script_writes_per_platform_profiles(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            output_dir = Path(tmp) / "matrix"
+            # The script prints a resolved path; resolve here too so the
+            # comparison holds under macOS's /tmp -> /private/tmp symlink.
+            output_dir = Path(tmp).resolve() / "matrix"
             completed = subprocess.run(
                 [
                     sys.executable,

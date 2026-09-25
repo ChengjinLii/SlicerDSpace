@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import subprocess
 import sys
 import tempfile
@@ -176,7 +177,7 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
 
     def test_user_path_source_overrides_environment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
+            tmp_path = Path(tmp).resolve()
             user_bin = self._make_mrtrix_bin(tmp_path / "user")
             env_bin = self._make_mrtrix_bin(tmp_path / "env")
             old_env = os.environ.get("SLICERDDSURFER_MRTRIX_BIN_DIR")
@@ -333,7 +334,7 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
 
     def test_platform_override_is_reported_and_used_for_windows_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
+            tmp_path = Path(tmp).resolve()
             user_bin = self._make_windows_mrtrix_bin(tmp_path)
             result = run_environment_doctor(
                 EnvironmentDoctorConfig(
@@ -360,7 +361,7 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
 
     def test_platform_override_is_reported_and_used_for_macos_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
+            tmp_path = Path(tmp).resolve()
             user_bin = self._make_mrtrix_bin(tmp_path)
             result = run_environment_doctor(
                 EnvironmentDoctorConfig(
@@ -381,7 +382,14 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             written = write_environment_report(result, tmp_path / "report")
             profile = json.loads(written["profile"].read_text(encoding="utf-8"))
             self.assertEqual(profile["platform"], "Darwin")
-            self.assertNotEqual(profile["platform"], profile["host_platform"])
+            # The override is honored regardless of the host: when the test
+            # itself runs on a Darwin host, the override and host platform
+            # legitimately coincide, so only assert divergence when the host
+            # is something else (the common CI case).
+            if platform.system() != "Darwin":
+                self.assertNotEqual(profile["platform"], profile["host_platform"])
+            else:
+                self.assertEqual(profile["platform"], profile["host_platform"])
             self.assertTrue(profile["portability_policy"]["revalidate_after_import"])
 
     def test_common_platform_paths_include_macos_and_windows_runtime_locations(self) -> None:
@@ -420,7 +428,10 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
 
     def test_freesurfer_home_is_discovered_from_local_software_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
+            # Resolve up front: on macOS `tempfile` returns a path under the
+            # `/tmp` -> `/private/tmp` symlink, while the code under test
+            # resolves user-supplied paths before reporting them.
+            tmp_path = Path(tmp).resolve()
             freesurfer_home = self._make_freesurfer_home(tmp_path)
             old_home = os.environ.get("HOME")
             old_user = os.environ.get("USER")

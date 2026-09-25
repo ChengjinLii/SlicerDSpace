@@ -15,7 +15,7 @@ class ReleaseValidationTest(unittest.TestCase):
         from scripts.release_validation import build_validation_steps
 
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             subject_root = root / "subject"
             batch_root = root / "batch"
             subject_root.mkdir()

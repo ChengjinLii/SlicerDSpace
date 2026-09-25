@@ -20,7 +20,10 @@ if str(REPO_ROOT) not in sys.path:
 class WMQLIntegrationTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
-        self.tmp_path = Path(self.tmp.name)
+        # Resolve so paths recorded by the code under test (which resolves
+        # its cwd/output paths) compare equal under macOS's /tmp ->
+        # /private/tmp symlink.
+        self.tmp_path = Path(self.tmp.name).resolve()
         self.python = self.tmp_path / "python"
         self.python.write_text(
             """#!/bin/sh
