@@ -32,5 +32,5 @@ This license applies to the SlicerDDSurfer source code unless a file or bundled
 third-party component states different terms. Model weights, templates,
 example neuroimaging data, external tools, and Git LFS-managed assets may have
 separate source, redistribution, citation, or access restrictions. See
-docs/assets/MODEL_ASSETS.md, docs/setup/EXTERNAL_DEPENDENCIES.md, and third_party/REFERENCE_SOURCES.md
-before redistributing assets or building a DOI archive.
+docs/assets/MODEL_ASSETS.md, docs/setup/EXTERNAL_DEPENDENCIES.md, and
+THIRD_PARTY_NOTICES.md before redistributing assets or building a DOI archive.

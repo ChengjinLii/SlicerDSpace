@@ -23,3 +23,25 @@ preferred-citation:
       given-names: Chengjin
   year: 2026
   notes: "Manuscript in preparation; replace this entry with the final publication metadata after acceptance."
+references:
+  - type: article
+    title: "DDSurfer cortical-surface reconstruction method paper"
+    authors:
+      - family-names: Li
+        given-names: Chengjin
+    year: 2026
+    # DOI intentionally left as a TODO: a prior code review of this
+    # repository asserted "Advanced Science 2026, doi 10.1002/advs.76596"
+    # for this paper, but that DOI, journal name, and full author list do
+    # not appear anywhere in this repository's README or docs/ as of this
+    # entry, so it was not copied here without independent confirmation.
+    # TODO: confirm the exact title, full author list, journal, and DOI
+    # directly from the publisher, then fill in `doi:` and `journal:` below.
+    notes: >-
+      DDParcel and DDSeg also have their own peer-reviewed method papers
+      that docs/assets/MODEL_ASSET_TERMS.md says must be cited when their
+      model weights are used, but this repository does not record either
+      paper's title, authors, journal, or DOI anywhere, so no `references:`
+      entry was added for them here to avoid fabricating bibliographic
+      metadata. Add entries for DDParcel and DDSeg once their citation
+      details are available.

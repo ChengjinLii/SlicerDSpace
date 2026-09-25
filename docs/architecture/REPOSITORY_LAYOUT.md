@@ -71,10 +71,19 @@ Slicer extension compatibility. If the helper set grows further, split it into
 
 ## Third-Party Or Reference Code
 
-- `tractography/saf_backend/` is bundled runtime code used by SAF tracking.
+- `tractography/saf_backend/` is bundled runtime code used by SAF tracking
+  (MIT License; from https://github.com/dmitrishastin/SAF).
 - `tractography/slicer_dmri_reference/` is reference material and should not be
   packaged as runtime extension code. Both CMake builds and local extension
   staging explicitly exclude it; `tractography/saf_backend/` remains packaged.
+- `parcellation/models/` and `parcellation/data_loader/` are derived from
+  FastSurfer (Apache License 2.0; https://github.com/Deep-MI/FastSurfer).
+- `parcellation/conversion/` is attributed in-repo to
+  https://github.com/pnlbwh/conversion; its license is not recorded in this
+  repository and must be confirmed against that project before redistribution.
+- `parcellation/conversion/data/FreeSurferColorLUT.txt` is copied from
+  FreeSurfer and is governed by the FreeSurfer Software License, not this
+  repository's BSD-3-Clause license.
 - `third_party/` is ignored and must not be used for packaged runtime content.
 
 Workflow packages expose `SUPPORTED_WORKFLOWS`. The older
@@ -82,4 +91,6 @@ Workflow packages expose `SUPPORTED_WORKFLOWS`. The older
 root catalog now marks tractography and connectome as implemented because their
 Python/MRtrix execution paths are part of the product pipeline.
 
-Any bundled third-party code must include provenance and license information.
+Any bundled third-party code must include provenance and license information;
+see [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) at the repository
+root for the full inventory.

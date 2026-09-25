@@ -42,6 +42,10 @@ file(GLOB_RECURSE DDSURFER_POSTPROCESS_RELEASE_FILES
   "surface/ddsurfer_postprocess_release/config/*"
   "surface/ddsurfer_postprocess_release/scripts/*"
   )
+# Third-party license/notice files that must travel with the bundled code
+# they cover (see THIRD_PARTY_NOTICES.md); these are not *.py and were
+# previously never packaged even though the code itself was.
+file(GLOB LICENSE_FILES "licenses/*")
 
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
@@ -59,10 +63,14 @@ set(MODULE_PYTHON_RESOURCES
   ${CONNECTOME_PYTHON_SCRIPTS}
   ${SCRIPT_TOOL_FILES}
   ${DDSURFER_POSTPROCESS_RELEASE_FILES}
+  ${LICENSE_FILES}
   models/assets_manifest.json
   Resources/Icons/${MODULE_NAME}.png
   Resources/UI/${MODULE_NAME}.ui
   parcellation/conversion/data/FreeSurferColorLUT.txt
+  tractography/saf_backend/LICENSE.md
+  LICENSE
+  THIRD_PARTY_NOTICES.md
   )
 
 #-----------------------------------------------------------------------------

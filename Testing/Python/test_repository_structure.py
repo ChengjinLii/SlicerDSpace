@@ -44,6 +44,7 @@ ALLOWED_ROOT_FILES = {
     "requirements-ci.txt",
     "run_postprocess_docker.py",
     "run_subject_pipeline.py",
+    "THIRD_PARTY_NOTICES.md",
     "workflow_catalog.py",
 }
 FORBIDDEN_TRACKED_PATH_PARTS = (
