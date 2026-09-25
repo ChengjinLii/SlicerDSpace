@@ -46,6 +46,22 @@ class CSDActConfig:
     step_size_mm: Optional[float] = None
     cutoff: Optional[float] = None
     random_seed: int = 12345
+    # Pins MRtrix3's own "-nthreads" for tckgen/tcksift2 when set. Off
+    # (None) by default: MRtrix3 then uses its own default thread count
+    # (normally the number of hardware threads detected on the machine),
+    # unchanged from this module's behavior before this field existed.
+    #
+    # IMPORTANT: pinning this does NOT make tckgen bit-reproducible by
+    # itself. MRtrix3's own documentation notes that multi-threaded track
+    # generation consumes the shared random-number stream in whatever
+    # order threads happen to finish their work, which is not deterministic
+    # across runs even for a fixed random_seed and a fixed thread count.
+    # Only "-nthreads 0" (fully single-threaded) is bit-reproducible with a
+    # fixed seed; pinning to any other value only makes the *degree* of
+    # parallelism (and therefore performance) consistent across runs, not
+    # the output itself. See the "nthreads"/"random_seed" manifest fields
+    # and "reproducibility_note" this module records for every run.
+    nthreads: Optional[int] = None
     use_sift2: bool = True
     export_trk: bool = False
     export_vtk: bool = False
@@ -133,6 +149,8 @@ def _validate_config(config: CSDActConfig) -> None:
         raise ValueError("CSD/ACT streamline lengths require 0 < min_length_mm < max_length_mm.")
     if config.random_seed < 0:
         raise ValueError("random_seed must be >= 0.")
+    if config.nthreads is not None and config.nthreads < 0:
+        raise ValueError("nthreads must be >= 0 when set.")
     for label, path in (
         ("dwi_path", config.dwi_path),
         ("bval_path", config.bval_path),
@@ -244,19 +262,22 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
         tckgen.extend(["-step", str(config.step_size_mm)])
     if config.cutoff is not None:
         tckgen.extend(["-cutoff", str(config.cutoff)])
+    if config.nthreads is not None:
+        tckgen.extend(["-nthreads", str(config.nthreads)])
     commands.append(tuple(tckgen))
     if config.use_sift2:
-        commands.append(
-            (
-                _cmd("tcksift2", config.mrtrix_bin_dir),
-                tractogram.as_posix(),
-                wm_fod_norm.as_posix(),
-                weights.as_posix(),
-                "-act",
-                config.five_tt_path.expanduser().resolve().as_posix(),
-                "-force",
-            )
-        )
+        tcksift2 = [
+            _cmd("tcksift2", config.mrtrix_bin_dir),
+            tractogram.as_posix(),
+            wm_fod_norm.as_posix(),
+            weights.as_posix(),
+            "-act",
+            config.five_tt_path.expanduser().resolve().as_posix(),
+            "-force",
+        ]
+        if config.nthreads is not None:
+            tcksift2.extend(["-nthreads", str(config.nthreads)])
+        commands.append(tuple(tcksift2))
     if config.export_vtk:
         commands.append(
             (
@@ -457,6 +478,7 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
             "step_size_mm": config.step_size_mm,
             "cutoff": config.cutoff,
             "random_seed": config.random_seed,
+            "nthreads": config.nthreads,
             "use_sift2": config.use_sift2,
             "export_trk": config.export_trk,
             "export_vtk": config.export_vtk,
@@ -483,6 +505,16 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
             "qc": qc_path.as_posix(),
         },
         "commands": [list(command) for command in commands],
+        "reproducibility_note": (
+            "random_seed is forwarded to tckgen/tcksift2 via MRTRIX_RNG_SEED. "
+            "nthreads (null unless explicitly pinned) is MRtrix3's own "
+            "-nthreads: multi-threaded tckgen is NOT bit-reproducible even "
+            "with a fixed random_seed, because threads consume the shared "
+            "random-number stream in a run-dependent order. Only "
+            "nthreads=0 (fully single-threaded) is bit-reproducible for a "
+            "given random_seed; any other nthreads value only keeps the "
+            "degree of parallelism consistent across runs, not the output."
+        ),
     }
     qc: dict[str, object] = {
         "kind": "mrtrix_csd_act_qc",

@@ -78,6 +78,7 @@ class TractographyLogicMixin:
         step_size_mm: Optional[float] = None,
         cutoff: Optional[float] = None,
         use_sift2: bool = True,
+        nthreads: Optional[int] = None,
         execute: bool = False,
     ) -> CSDActResult:
         config = CSDActConfig(
@@ -94,6 +95,10 @@ class TractographyLogicMixin:
             step_size_mm=step_size_mm,
             cutoff=cutoff,
             use_sift2=use_sift2,
+            # Off (None) by default: MRtrix3 keeps using its own default
+            # thread count. See CSDActConfig.nthreads for why pinning this
+            # does not, by itself, make tckgen bit-reproducible.
+            nthreads=nthreads,
             execute=execute,
         )
         result = run_csd_act(config, log=self.log)

@@ -539,6 +539,16 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
             "force_recompute": config.force_recompute,
             "diagnostics": config.diagnostics,
         },
+        "reproducibility_note": (
+            "random_seed is forwarded to tckgen via MRTRIX_RNG_SEED. A "
+            "thread count can be pinned by passing -nthreads N as part of "
+            "tckgen_options above (it is recorded verbatim there when set); "
+            "multi-threaded tckgen is NOT bit-reproducible even with a "
+            "fixed random_seed, because threads consume the shared "
+            "random-number stream in a run-dependent order. Only "
+            "-nthreads 0 (fully single-threaded) is bit-reproducible for a "
+            "given random_seed."
+        ),
         "inputs": {
             "subject_root": raw.subject_root.as_posix(),
             "fs_dir": _file_info(config.fs_dir),

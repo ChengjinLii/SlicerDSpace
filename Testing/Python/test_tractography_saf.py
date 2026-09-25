@@ -294,6 +294,8 @@ class SAFIntegrationTest(unittest.TestCase):
             self.assertEqual(manifest["kind"], "saf_short_association_fibres")
             self.assertEqual(manifest["parameters"]["surface_space"], "native_dMRI")
             self.assertEqual(manifest["parameters"]["random_seed"], 12345)
+            self.assertIn("reproducibility_note", manifest)
+            self.assertIn("NOT bit-reproducible", manifest["reproducibility_note"])
             self.assertNotIn("mrtrix:tckgen", manifest["backend"]["missing_required"])
             self.assertEqual(qc["status"], "planned")
             self.assertFalse(result.executed)

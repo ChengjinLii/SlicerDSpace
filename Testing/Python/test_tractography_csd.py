@@ -88,6 +88,69 @@ class CSDActBackendTest(unittest.TestCase):
             self.assertNotIn("RandomSeed", dwi2response)
             self.assertNotIn("RandomSeed", tckgen)
             self.assertEqual(manifest["parameters"]["random_seed"], 12345)
+            self.assertIsNone(manifest["parameters"]["nthreads"])
+            self.assertNotIn("-nthreads", tckgen)
+            self.assertIn("reproducibility_note", manifest)
+            self.assertIn("NOT bit-reproducible", manifest["reproducibility_note"])
+
+    def test_pinned_nthreads_is_passed_to_tckgen_and_tcksift2_and_recorded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dwi = root / "data.nii.gz"
+            mask = root / "mask.nii.gz"
+            five_tt = root / "5tt.nii.gz"
+            gmwmi = root / "gmwmi.nii.gz"
+            bval = root / "bvals"
+            bvec = root / "bvecs"
+            nib.save(nib.Nifti1Image(np.ones((2, 2, 2, 2), dtype=np.float32), np.eye(4)), str(dwi))
+            nib.save(nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4)), str(mask))
+            nib.save(nib.Nifti1Image(np.ones((2, 2, 2, 5), dtype=np.float32), np.eye(4)), str(five_tt))
+            nib.save(nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4)), str(gmwmi))
+            bval.write_text("0 1000\n", encoding="utf-8")
+            bvec.write_text("0 1\n0 0\n0 0\n", encoding="utf-8")
+
+            result = run_csd_act(
+                CSDActConfig(
+                    subject_id="100307",
+                    dwi_path=dwi,
+                    bval_path=bval,
+                    bvec_path=bvec,
+                    mask_path=mask,
+                    five_tt_path=five_tt,
+                    gmwmi_path=gmwmi,
+                    output_dir=root / "outputs" / "04_tractography" / "csd",
+                    select_streamlines=10,
+                    mrtrix_bin_dir=root / "fake_mrtrix_bin",
+                    use_sift2=True,
+                    nthreads=4,
+                )
+            )
+
+            manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["parameters"]["nthreads"], 4)
+            tckgen = next(command for command in result.commands if "tckgen" in command[0])
+            tcksift2 = next(command for command in result.commands if "tcksift2" in command[0])
+            self.assertIn("-nthreads", tckgen)
+            self.assertEqual(tckgen[tckgen.index("-nthreads") + 1], "4")
+            self.assertIn("-nthreads", tcksift2)
+            self.assertEqual(tcksift2[tcksift2.index("-nthreads") + 1], "4")
+
+    def test_negative_nthreads_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = CSDActConfig(
+                subject_id="100307",
+                dwi_path=root / "data.nii.gz",
+                bval_path=root / "bvals",
+                bvec_path=root / "bvecs",
+                mask_path=root / "mask.nii.gz",
+                five_tt_path=root / "5tt.nii.gz",
+                gmwmi_path=root / "gmwmi.nii.gz",
+                output_dir=root / "outputs",
+                nthreads=-1,
+            )
+            with self.assertRaises(ValueError):
+                run_csd_act(config)
 
     def test_execute_sets_mrtrix_rng_seed_env_for_every_command(self) -> None:
         from unittest import mock
