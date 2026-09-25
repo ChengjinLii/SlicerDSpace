@@ -672,6 +672,60 @@ class ModelAssetRootSecurityTest(unittest.TestCase):
                 with self.assertRaises(self.model_assets_module.ModelAssetIntegrityError):
                     self.model_assets_module.model_asset_path("segmentation/weights", repo_root=repo_root)
 
+    def test_model_asset_path_or_none_reports_failure_instead_of_raising(self) -> None:
+        # Callers that only auto-populate a UI field or report a doctor
+        # status (module_widget.py's initializeParameterNode,
+        # environment.py's _model_asset_spec_path) must not have a tampered
+        # asset abort them entirely -- that would leave the user unable to
+        # reach the environment-check/redownload UI at all.
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_root = tmp_path / "user-assets"
+            repo_root = tmp_path / "repo"
+            planted = user_root / "segmentation" / "weights" / "dti_axial.pt"
+            planted.parent.mkdir(parents=True)
+            planted.write_bytes(b"a planted, untrusted checkpoint")
+            self._write_manifest(
+                repo_root,
+                {"segmentation/weights/dti_axial.pt": {"sha256": "0" * 64}},
+            )
+
+            with mock.patch.object(
+                self.model_assets_module, "default_user_model_assets_root", return_value=user_root
+            ):
+                path, error = self.model_assets_module.model_asset_path_or_none(
+                    "segmentation/weights", repo_root=repo_root
+                )
+
+            self.assertIsNone(path)
+            self.assertIsNotNone(error)
+            self.assertIn("does not match", error)
+
+    def test_model_asset_path_or_none_returns_the_path_on_success(self) -> None:
+        from shared.model_asset_integrity import sha256_of_file
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_root = tmp_path / "user-assets"
+            repo_root = tmp_path / "repo"
+            genuine = user_root / "segmentation" / "weights" / "dti_axial.pt"
+            genuine.parent.mkdir(parents=True)
+            genuine.write_bytes(b"the real, trusted checkpoint bytes")
+            self._write_manifest(
+                repo_root,
+                {"segmentation/weights/dti_axial.pt": {"sha256": sha256_of_file(genuine)}},
+            )
+
+            with mock.patch.object(
+                self.model_assets_module, "default_user_model_assets_root", return_value=user_root
+            ):
+                path, error = self.model_assets_module.model_asset_path_or_none(
+                    "segmentation/weights", repo_root=repo_root
+                )
+
+            self.assertIsNone(error)
+            self.assertEqual(path, user_root.resolve() / "segmentation" / "weights")
+
     def test_resolve_accepts_a_root_whose_required_file_matches_the_manifest(self) -> None:
         from shared.model_asset_integrity import sha256_of_file
 

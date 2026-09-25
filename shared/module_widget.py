@@ -20,7 +20,7 @@ from qt import QPixmap, QSignalBlocker
 from shared.dependency_config import UI_DEPENDENCY_PATHS
 from shared.docs import doc_path
 from shared.input_import import InputImportConfig, detect_import_source_kind, prepare_inputs
-from shared.model_assets import model_asset_path
+from shared.model_assets import model_asset_path_or_none
 from shared.ui_error_dialogs import show_actionable_error_dialog
 from shared.ui_environment_dialog import show_environment_results_dialog
 from shared.ui_environment_paths import (
@@ -1491,12 +1491,28 @@ class SharedWidgetMixin:
 
         if not (self._parameterNode.ddparcelAtlasPath or "").strip():
             module_root = Path(__file__).resolve().parent.parent
-            atlas_path = model_asset_path("Resources/Data/100HCP-population-mean-T2.nii.gz", repo_root=module_root)
-            if atlas_path.is_file():
+            atlas_path, atlas_error = model_asset_path_or_none(
+                "Resources/Data/100HCP-population-mean-T2.nii.gz", repo_root=module_root
+            )
+            if atlas_error is not None:
+                # A tampered/corrupt asset must not abort module
+                # initialization (that would leave the user unable to reach
+                # the environment-check/redownload UI at all); log it and
+                # leave the field for the user to fill in after redownloading.
+                self.appendLog(f"[Model assets] DDParcel atlas failed integrity check: {atlas_error}")
+            elif atlas_path is not None and atlas_path.is_file():
                 self._parameterNode.ddparcelAtlasPath = atlas_path.as_posix()
 
-        ddseg_weights_dir = model_asset_path("segmentation/weights", repo_root=Path(__file__).resolve().parent.parent)
-        if not (self._parameterNode.ddsegWeightsDir or "").strip() and ddseg_weights_dir.is_dir():
+        ddseg_weights_dir, ddseg_weights_error = model_asset_path_or_none(
+            "segmentation/weights", repo_root=Path(__file__).resolve().parent.parent
+        )
+        if ddseg_weights_error is not None:
+            self.appendLog(f"[Model assets] DDSeg weights failed integrity check: {ddseg_weights_error}")
+        elif (
+            not (self._parameterNode.ddsegWeightsDir or "").strip()
+            and ddseg_weights_dir is not None
+            and ddseg_weights_dir.is_dir()
+        ):
             self._parameterNode.ddsegWeightsDir = ddseg_weights_dir.as_posix()
 
         slicer_base = self._default_slicer_base_dir()

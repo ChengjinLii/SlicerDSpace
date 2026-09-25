@@ -20,6 +20,7 @@ from shared.environment import (
     _common_command_dirs,
     _common_freesurfer_homes,
     _common_slicer_executables,
+    _model_asset_spec_path,
     _parse_json_probe_output,
     _python_requirement_details,
     build_dependency_specs,
@@ -589,6 +590,82 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
         self.assertEqual(status.status, "missing")
         self.assertIn("timed out", status.details["error"])
         self.assertEqual(mock_run.call_args.kwargs["timeout"], DEPENDENCY_PROBE_TIMEOUT_SECONDS)
+
+
+class ModelAssetIntegrityDoesNotAbortTheDoctorScanTest(unittest.TestCase):
+    """A tampered model checkpoint must become one "missing" dependency item
+    with an actionable note, not an exception that aborts build_dependency_specs()
+    (and therefore run_environment_doctor()) before every other target's
+    checks even run.
+    """
+
+    def setUp(self) -> None:
+        import shared.model_assets as model_assets_module
+
+        self.model_assets_module = model_assets_module
+        self._cache_tmp = tempfile.TemporaryDirectory()
+        cache_path = Path(self._cache_tmp.name) / "model_asset_sha256_cache.json"
+        model_assets_module._SHA256_CACHE = None
+        self._cache_path_patch = mock.patch.object(
+            model_assets_module, "_sha256_cache_path", return_value=cache_path
+        )
+        self._cache_path_patch.start()
+        self.addCleanup(self._cache_path_patch.stop)
+        self.addCleanup(setattr, model_assets_module, "_SHA256_CACHE", None)
+        self.addCleanup(self._cache_tmp.cleanup)
+
+    def test_model_asset_spec_path_reports_failure_without_raising(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_root = tmp_path / "user-assets"
+            repo_root = tmp_path / "repo"
+            planted = user_root / "segmentation" / "weights" / "dti_axial.pt"
+            planted.parent.mkdir(parents=True)
+            planted.write_bytes(b"a planted, untrusted checkpoint")
+            manifest_dir = repo_root / "models"
+            manifest_dir.mkdir(parents=True)
+            (manifest_dir / "assets_manifest.json").write_text(
+                json.dumps({"asset_records": {"segmentation/weights/dti_axial.pt": {"sha256": "0" * 64}}}),
+                encoding="utf-8",
+            )
+            config = EnvironmentDoctorConfig(targets=("segmentation",), repo_root=repo_root)
+
+            with mock.patch.object(
+                self.model_assets_module, "default_user_model_assets_root", return_value=user_root
+            ):
+                path, candidates, notes = _model_asset_spec_path(config, "segmentation/weights")
+
+            self.assertFalse(path.exists())
+            self.assertIn("Integrity check failed", notes)
+            self.assertIn("re-download", notes)
+
+    def test_build_dependency_specs_completes_and_reports_the_blocker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_root = tmp_path / "user-assets"
+            repo_root = tmp_path / "repo"
+            planted = user_root / "segmentation" / "weights" / "dti_axial.pt"
+            planted.parent.mkdir(parents=True)
+            planted.write_bytes(b"a planted, untrusted checkpoint")
+            manifest_dir = repo_root / "models"
+            manifest_dir.mkdir(parents=True)
+            (manifest_dir / "assets_manifest.json").write_text(
+                json.dumps({"asset_records": {"segmentation/weights/dti_axial.pt": {"sha256": "0" * 64}}}),
+                encoding="utf-8",
+            )
+            config = EnvironmentDoctorConfig(targets=("segmentation",), repo_root=repo_root)
+
+            with mock.patch.object(
+                self.model_assets_module, "default_user_model_assets_root", return_value=user_root
+            ):
+                # Must not raise ModelAssetIntegrityError.
+                specs = build_dependency_specs(config)
+
+            ddseg_spec = next(spec for spec in specs if spec.key == "path:ddseg_weights")
+            self.assertIn("Integrity check failed", ddseg_spec.notes)
+            status = _check_spec(ddseg_spec, "Linux")
+            self.assertEqual(status.status, "missing")
+            self.assertIn("Integrity check failed", status.details["notes"])
 
 
 if __name__ == "__main__":

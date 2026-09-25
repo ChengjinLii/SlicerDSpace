@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from shared.external_process import text_subprocess_kwargs
-from shared.model_assets import model_asset_candidates, model_asset_path
+from shared.model_assets import model_asset_candidates, model_asset_path_or_none
 
 
 # Dependency probes launch a short-lived Python subprocess (e.g. to check
@@ -906,13 +906,35 @@ def _resource_root(config: EnvironmentDoctorConfig) -> Path:
     return config.repo_root.expanduser().resolve()
 
 
-def _model_asset_spec_path(config: EnvironmentDoctorConfig, relative: str) -> tuple[Path, tuple[Path, ...]]:
+def _model_asset_spec_path(config: EnvironmentDoctorConfig, relative: str) -> tuple[Path, tuple[Path, ...], str]:
+    """Resolve one model asset for a dependency spec, without letting a
+    tampered/corrupt file abort the whole environment-doctor scan.
+
+    A ``ModelAssetIntegrityError`` here must become one "missing" dependency
+    item with an actionable note, not an unhandled exception that prevents
+    every other target's dependency check from running too. The returned
+    placeholder path is guaranteed not to exist, so the resulting
+    DependencySpec correctly reports "not found" rather than accidentally
+    resolving to an unrelated real path. On failure, ``common_paths`` is
+    also returned empty: ``_check_spec()``'s own common-path fallback
+    accepts the first *existing* candidate with no sha256 check of its own,
+    so leaving the (still unverified) candidate list in place would let
+    that fallback silently re-accept the very file that just failed
+    verification.
+    """
+
     repo_root = _resource_root(config)
     explicit_root = _resolve_path(config.model_assets_dir)
-    return (
-        model_asset_path(relative, repo_root=repo_root, explicit_root=explicit_root),
-        model_asset_candidates(relative, repo_root=repo_root, explicit_root=explicit_root),
-    )
+    candidates = model_asset_candidates(relative, repo_root=repo_root, explicit_root=explicit_root)
+    resolved, error = model_asset_path_or_none(relative, repo_root=repo_root, explicit_root=explicit_root)
+    if error is not None:
+        placeholder = repo_root / (relative + ".integrity-check-failed")
+        notes = (
+            f"Integrity check failed: {error} Delete the file and re-download it with "
+            "scripts/download_model_assets.py (or the Slicer UI's model-asset download button)."
+        )
+        return placeholder, (), notes
+    return resolved, candidates, ""
 
 
 def _effective_platform_name(config: EnvironmentDoctorConfig) -> str:
@@ -1025,7 +1047,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 _python(specs, target=target, import_name=import_name, package=package)
             _add_deep_learning_stack(specs, target)
             _device(specs, target=target, device=config.ddseg_device, python_executable=config.python_executable)
-            ddseg_weights, ddseg_candidates = _model_asset_spec_path(config, "segmentation/weights")
+            ddseg_weights, ddseg_candidates, ddseg_notes = _model_asset_spec_path(config, "segmentation/weights")
             _path(
                 specs,
                 target=target,
@@ -1034,6 +1056,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 path=ddseg_weights,
                 path_kind="nonempty_dir",
                 group="model-resources",
+                notes=ddseg_notes,
                 discovery_source="model asset root",
                 common_paths=ddseg_candidates,
             )
@@ -1051,7 +1074,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             ):
                 _python(specs, target=target, import_name=import_name, package=package)
             _add_deep_learning_stack(specs, target)
-            ddparcel_weights, ddparcel_candidates = _model_asset_spec_path(config, "parcellation/weights")
+            ddparcel_weights, ddparcel_candidates, ddparcel_notes = _model_asset_spec_path(config, "parcellation/weights")
             _path(
                 specs,
                 target=target,
@@ -1060,6 +1083,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 path=ddparcel_weights,
                 path_kind="nonempty_dir",
                 group="model-resources",
+                notes=ddparcel_notes,
                 discovery_source="model asset root",
                 common_paths=ddparcel_candidates,
             )
@@ -1076,13 +1100,15 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 _python(specs, target=target, import_name=import_name, package=package)
             _add_deep_learning_stack(specs, target)
             _device(specs, target=target, device=config.surface_device, python_executable=config.python_executable)
-            template_path, template_candidates = _model_asset_spec_path(
+            template_path, template_candidates, template_notes = _model_asset_spec_path(
                 config, "Resources/Data/template/100307-FA.nii.gz"
             )
-            atlas_path, atlas_candidates = _model_asset_spec_path(
+            atlas_path, atlas_candidates, atlas_notes = _model_asset_spec_path(
                 config, "Resources/Data/100HCP-population-mean-T2.nii.gz"
             )
-            checkpoint_path, checkpoint_candidates = _model_asset_spec_path(config, "Resources/Data/ckpts/hcp")
+            checkpoint_path, checkpoint_candidates, checkpoint_notes = _model_asset_spec_path(
+                config, "Resources/Data/ckpts/hcp"
+            )
             _path(
                 specs,
                 target=target,
@@ -1091,6 +1117,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 path=template_path,
                 path_kind="file",
                 group="model-resources",
+                notes=template_notes,
                 discovery_source="model asset root",
                 common_paths=template_candidates,
             )
@@ -1102,6 +1129,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 path=atlas_path,
                 path_kind="file",
                 group="model-resources",
+                notes=atlas_notes,
                 discovery_source="model asset root",
                 common_paths=atlas_candidates,
             )
@@ -1113,6 +1141,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 path=checkpoint_path,
                 path_kind="nonempty_dir",
                 group="model-resources",
+                notes=checkpoint_notes,
                 discovery_source="model asset root",
                 common_paths=checkpoint_candidates,
             )

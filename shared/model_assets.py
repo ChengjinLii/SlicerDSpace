@@ -227,6 +227,28 @@ def model_asset_path(relative: str, *, repo_root: Path, explicit_root: Path | No
     return candidate
 
 
+def model_asset_path_or_none(
+    relative: str, *, repo_root: Path, explicit_root: Path | None = None
+) -> tuple[Path | None, str | None]:
+    """Return ``(model_asset_path(...), None)``, or ``(None, message)`` on integrity failure.
+
+    Callers that only use the result to *auto-populate a UI field* or to
+    *report a doctor/dependency status* must not let
+    :class:`~shared.model_asset_integrity.ModelAssetIntegrityError` propagate:
+    doing so aborts the whole caller (module initialization, or the entire
+    environment-doctor scan for every target, not just the one asset),
+    which is worse than just reporting one item as unavailable. Callers that
+    hand the result straight to ``torch.load()`` should keep calling
+    :func:`model_asset_path` directly so a tampered checkpoint is a hard,
+    unmissable error.
+    """
+
+    try:
+        return model_asset_path(relative, repo_root=repo_root, explicit_root=explicit_root), None
+    except ModelAssetIntegrityError as exc:
+        return None, str(exc)
+
+
 def model_asset_candidates(relative: str, *, repo_root: Path, explicit_root: Path | None = None) -> tuple[Path, ...]:
     """Return ordered candidate paths for diagnostics."""
 
