@@ -8,11 +8,14 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from shared.environment import (
+    DEPENDENCY_PROBE_TIMEOUT_SECONDS,
     DependencySpec,
     EnvironmentDoctorConfig,
     _apply_default_python,
+    _check_cuda_device,
     _check_spec,
     _common_command_dirs,
     _common_freesurfer_homes,
@@ -557,6 +560,35 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             )
 
             self.assertEqual(result.python_executable, expected_python.resolve().as_posix())
+
+    def test_cuda_probe_reports_timeout_status_instead_of_hanging(self) -> None:
+        timeout_exc = subprocess.TimeoutExpired(cmd=["python", "-c", "..."], timeout=DEPENDENCY_PROBE_TIMEOUT_SECONDS)
+        with mock.patch("shared.environment.subprocess.run", side_effect=timeout_exc) as mock_run:
+            available, details = _check_cuda_device("cuda:0", None)
+
+        self.assertFalse(available)
+        self.assertIn("timed out", details["error"])
+        self.assertEqual(mock_run.call_args.kwargs["timeout"], DEPENDENCY_PROBE_TIMEOUT_SECONDS)
+
+    def test_python_package_probe_reports_timeout_status_instead_of_hanging(self) -> None:
+        timeout_exc = subprocess.TimeoutExpired(cmd=["python", "-c", "..."], timeout=DEPENDENCY_PROBE_TIMEOUT_SECONDS)
+        spec = DependencySpec(
+            key="python:slow_package",
+            kind="python",
+            label="slow_package",
+            required=True,
+            targets=("validation",),
+            python_import="slow_package",
+            python_package="slow_package",
+            python_executable=Path(sys.executable).with_name("external-python.exe"),
+        )
+
+        with mock.patch("shared.environment.subprocess.run", side_effect=timeout_exc) as mock_run:
+            status = _check_spec(spec, "Linux")
+
+        self.assertEqual(status.status, "missing")
+        self.assertIn("timed out", status.details["error"])
+        self.assertEqual(mock_run.call_args.kwargs["timeout"], DEPENDENCY_PROBE_TIMEOUT_SECONDS)
 
 
 if __name__ == "__main__":

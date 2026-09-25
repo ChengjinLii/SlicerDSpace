@@ -18,6 +18,18 @@ from shared.external_process import text_subprocess_kwargs
 from shared.model_assets import model_asset_candidates, model_asset_path
 
 
+# Dependency probes launch a short-lived Python subprocess (e.g. to check
+# whether a package imports, or whether CUDA is available) and must never
+# block the caller indefinitely: environment discovery can run on Slicer's
+# main thread, and a hung probe (e.g. a broken CUDA driver making `import
+# torch` never return) would freeze the whole application.
+DEPENDENCY_PROBE_TIMEOUT_SECONDS = 30
+
+
+def _probe_timeout_error(exc: subprocess.TimeoutExpired) -> str:
+    return f"Dependency probe timed out after {exc.timeout:g}s"
+
+
 @dataclass(frozen=True)
 class DependencySpec:
     """One Python package, external command, environment variable, or resource."""
@@ -1590,9 +1602,18 @@ def _check_cuda_device(
             [python_path.as_posix(), "-c", probe],
             check=True,
             capture_output=True,
+            timeout=DEPENDENCY_PROBE_TIMEOUT_SECONDS,
             **text_subprocess_kwargs(),
         )
         details = _parse_json_probe_output(completed.stdout)
+    except subprocess.TimeoutExpired as exc:
+        details = {
+            "torch_importable": False,
+            "cuda_available": False,
+            "device_count": 0,
+            "torch_version": None,
+            "error": _probe_timeout_error(exc),
+        }
     except Exception as exc:
         details = {
             "torch_importable": False,
@@ -1699,12 +1720,16 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
                     check=True,
                     capture_output=True,
                     env=env,
+                    timeout=DEPENDENCY_PROBE_TIMEOUT_SECONDS,
                     **text_subprocess_kwargs(),
                 )
                 probe_details = _parse_json_probe_output(completed.stdout)
                 available = bool(probe_details.get("available"))
                 installed_version = probe_details.get("version")
                 error = None
+            except subprocess.TimeoutExpired as exc:
+                available = False
+                error = _probe_timeout_error(exc)
             except Exception as exc:
                 available = False
                 error = str(exc)
