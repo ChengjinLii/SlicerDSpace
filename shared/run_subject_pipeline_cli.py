@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import signal
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -26,6 +28,7 @@ from shared import (
     summarize_environment_doctor,
     write_environment_report,
 )
+from shared.run_cancellation import orchestration_manifest_path, write_cancelled_manifest
 from shared.dependency_config import (
     DEPENDENCY_CONFIG_KEYS,
     add_dependency_config_arguments,
@@ -240,6 +243,30 @@ def _print_run_plan_summary(plan, *, stream) -> None:
     for item in plan.items:
         detail = f" ({item.reason})" if item.reason else ""
         print(f"- {item.target}: {item.status}{detail}", file=stream)
+
+
+def _make_sigterm_handler(manifest_path: Path, *, subject_id: str, run_name: str):
+    """Return a signal handler that writes a terminal "cancelled" manifest.
+
+    Installed via ``signal.signal(signal.SIGTERM, handler)`` before
+    ``run_subject_products()`` starts, so that if the whole process group is
+    killed (see shared/process_group.py), the manifest ends up recording
+    "cancelled" instead of being left at "running" or never written.
+    Returned as a plain function (rather than only installed inline) so it
+    can be called directly in tests with a fake manifest path, without
+    sending a real signal.
+    """
+
+    def _handle_sigterm(signum, frame) -> None:
+        write_cancelled_manifest(
+            manifest_path,
+            subject_id=subject_id,
+            run_name=run_name,
+            cancelled_at=datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        )
+        sys.exit(143)
+
+    return _handle_sigterm
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -773,6 +800,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.execute:
         plan = plan_subject_products(config, write=True)
         _print_run_plan_summary(plan, stream=sys.stderr)
+        # If Cancel kills this process's whole process group (see
+        # shared/process_group.py), leave a terminal "cancelled" manifest
+        # instead of letting run_subject_products() vanish mid-flight with
+        # the manifest stuck at "running" (or never written at all).
+        cancellation_manifest_path = orchestration_manifest_path(
+            config.subject_root, output_root=config.output_root, run_name=config.run_name
+        )
+        signal.signal(
+            signal.SIGTERM,
+            _make_sigterm_handler(
+                cancellation_manifest_path,
+                subject_id=config.subject_id,
+                run_name=config.run_name,
+            ),
+        )
 
     result = run_subject_products(config, log=print)
     try:

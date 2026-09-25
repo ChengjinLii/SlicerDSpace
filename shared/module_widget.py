@@ -101,6 +101,7 @@ from shared.ui_background_process import (
     build_background_run_context,
     qprocess_is_running,
 )
+from shared.process_group import grouped_launch_command, kill_process_tree
 from shared.ui_run_status_panel import (
     install_run_status_panel,
     mark_unfinished_rows,
@@ -1946,8 +1947,13 @@ class SharedWidgetMixin:
 
         program = self._slicer_launcher_program()
         args = self._build_background_cli_args(common_run_kwargs, external_paths)
+        # Run the CLI in its own process group so Cancel can kill the whole
+        # descendant tree (MRtrix, FreeSurfer, dcm2niix, ...), not just the
+        # launcher process. See shared/process_group.py.
+        program, args, grouped = grouped_launch_command(program, args)
         self._reset_result_scene_actions()
         self._backgroundProcess = process
+        self._backgroundProcessGrouped = grouped
         self._backgroundOutputBuffer = ""
         self._backgroundManifestPath = None
         self._backgroundCancelRequested = False
@@ -1996,8 +2002,12 @@ class SharedWidgetMixin:
             batch_size=batch_size,
             arrange_inputs=arrange_inputs,
         )
+        # Run the CLI in its own process group so Cancel can kill the whole
+        # descendant tree, not just the launcher process.
+        program, args, grouped = grouped_launch_command(program, args)
         self._reset_result_scene_actions()
         self._backgroundProcess = process
+        self._backgroundProcessGrouped = grouped
         self._backgroundOutputBuffer = ""
         self._backgroundManifestPath = None
         self._backgroundCancelRequested = False
@@ -2233,13 +2243,29 @@ class SharedWidgetMixin:
         self._backgroundCancelRequested = True
         self.appendLog("[Background] Cancellation requested by user.")
         self._set_run_progress_message("Cancelling background job...")
-        process.terminate()
+        self._signal_background_process(process, force=False)
         qt.QTimer.singleShot(3000, lambda: self._kill_background_process_if_running(process))
+
+    def _signal_background_process(self, process, *, force: bool) -> None:
+        # Signal the whole process group/tree (see shared/process_group.py),
+        # not just the top-level QProcess: that process is typically a
+        # launcher whose actual pipeline work happens in child subprocesses
+        # (MRtrix, FreeSurfer, dcm2niix, ...) that QProcess.terminate()/.kill()
+        # never reach on their own.
+        try:
+            pid = int(process.processId())
+        except Exception:
+            pid = 0
+        grouped = bool(getattr(self, "_backgroundProcessGrouped", False))
+        if pid > 0:
+            kill_process_tree(pid, grouped=grouped, force=force)
+        elif process:
+            process.kill() if force else process.terminate()
 
     def _kill_background_process_if_running(self, process) -> None:
         try:
             if process and process.state() != qt.QProcess.NotRunning:
-                process.kill()
+                self._signal_background_process(process, force=True)
         except Exception:
             pass
 
