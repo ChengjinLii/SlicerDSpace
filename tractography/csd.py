@@ -191,9 +191,6 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
             csf_response.as_posix(),
             "-mask",
             mask_mif.as_posix(),
-            "-config",
-            "RandomSeed",
-            str(config.random_seed),
             "-force",
         ),
         (
@@ -241,9 +238,6 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
         str(config.min_length_mm),
         "-maxlength",
         str(config.max_length_mm),
-        "-config",
-        "RandomSeed",
-        str(config.random_seed),
         "-force",
     ]
     if config.step_size_mm is not None:
@@ -518,8 +512,11 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
             missing = ", ".join(str(item) for item in backend_status["missing_commands"])
             raise RuntimeError(f"MRtrix3 CSD/ACT backend is incomplete. Missing command(s): {missing}")
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        # MRtrix3 ignores "-config RandomSeed <n>" on the command line; the
+        # seed must be provided via the MRTRIX_RNG_SEED environment variable.
         command_env = external_python_environment(
-            path_prepend=[config.mrtrix_bin_dir] if config.mrtrix_bin_dir is not None else None
+            extra_env={"MRTRIX_RNG_SEED": str(config.random_seed)},
+            path_prepend=[config.mrtrix_bin_dir] if config.mrtrix_bin_dir is not None else None,
         )
         try:
             for command in commands:

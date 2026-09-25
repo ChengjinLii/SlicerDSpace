@@ -299,7 +299,11 @@ class SAFIntegrationTest(unittest.TestCase):
             self.assertIn("saf_vtk", manifest["outputs"])
             self.assertIn("saf_vtk", manifest["outputs"]["summary"])
 
-    def test_saf_adds_default_seed_without_overriding_explicit_seed(self) -> None:
+    def test_effective_tckgen_options_does_not_inject_ignored_config_seed(self) -> None:
+        # MRtrix3 ignores "-config RandomSeed <n>" on the command line, so
+        # SAF must not inject it; the seed is applied via MRTRIX_RNG_SEED
+        # (see test_saf_execute_sets_mrtrix_rng_seed_env) and still recorded
+        # in the manifest for provenance.
         from tractography.saf import SAFConfig, _effective_tckgen_options
 
         base = dict(
@@ -315,8 +319,72 @@ class SAFIntegrationTest(unittest.TestCase):
             SAFConfig(**base, tckgen_options="-select 1000 -config RandomSeed 7")
         )
 
-        self.assertEqual(default_options, "-select 1000 -config RandomSeed 12345")
+        self.assertEqual(default_options, "-select 1000")
+        self.assertNotIn("RandomSeed", default_options)
+        # An explicitly user-supplied token is left untouched (not our concern
+        # to strip), but SAF itself never adds one.
         self.assertEqual(explicit_options, "-select 1000 -config RandomSeed 7")
+
+    def test_saf_execute_sets_mrtrix_rng_seed_env(self) -> None:
+        from tractography import saf as saf_module
+        from tractography.saf import SAFConfig, run_saf
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subject = self._make_subject(root)
+            fs_dir = self._make_fs_dir(root)
+            fod = root / "wmfod.mif"
+            fod.write_text("stub", encoding="utf-8")
+            tractogram = root / "input.tck"
+            tractogram.write_text("stub", encoding="utf-8")
+            output_dir = root / "seed-env-saf"
+            backend = root / "fake_saf_backend"
+            backend.mkdir()
+            observed_path = root / "observed_seed.txt"
+            (backend / "SAF_pipeline.py").write_text(
+                "import os\n"
+                f"def SAF_pipeline(*args):\n"
+                f"    with open({str(observed_path)!r}, 'w') as handle:\n"
+                "        handle.write(os.environ.get('MRTRIX_RNG_SEED', ''))\n",
+                encoding="utf-8",
+            )
+            backend_status = {"available": True, "missing_required": []}
+
+            self.assertNotIn("MRTRIX_RNG_SEED", os.environ)
+            sys.modules.pop("SAF_pipeline", None)
+            try:
+                with mock.patch.object(
+                    saf_module,
+                    "inspect_saf_backend",
+                    return_value=backend_status,
+                ), mock.patch.object(
+                    saf_module,
+                    "bundled_saf_backend_dir",
+                    return_value=backend,
+                ):
+                    # The fake backend does not produce SAF.tck, so run_saf()
+                    # still raises after recording the observed seed; that
+                    # failure is expected and orthogonal to this assertion.
+                    with self.assertRaises(RuntimeError):
+                        run_saf(
+                            SAFConfig(
+                                subject_id=subject.name,
+                                input_root=subject,
+                                fs_dir=fs_dir,
+                                fod_path=fod,
+                                output_dir=output_dir,
+                                pregenerated_tractogram=tractogram,
+                                maxlen=None,
+                                random_seed=424242,
+                                execute=True,
+                            )
+                        )
+            finally:
+                sys.modules.pop("SAF_pipeline", None)
+
+            self.assertEqual(observed_path.read_text(encoding="utf-8"), "424242")
+            # The environment variable must not leak past the call.
+            self.assertNotIn("MRTRIX_RNG_SEED", os.environ)
 
     def test_saf_failure_finalizes_manifest_and_qc_before_raising(self) -> None:
         from tractography import saf as saf_module

@@ -11,7 +11,6 @@ import importlib
 import importlib.util
 import json
 import os
-import shlex
 import shutil
 import subprocess
 import sys
@@ -243,15 +242,36 @@ def _validate_config(config: SAFConfig) -> None:
 
 
 def _effective_tckgen_options(config: SAFConfig) -> str:
-    """Add a reproducible MRtrix seed unless the user already supplied one."""
+    """Return the tckgen options SAF should use.
 
-    options = config.tckgen_options.strip()
-    tokens = shlex.split(options)
-    for index in range(len(tokens) - 2):
-        if tokens[index : index + 2] == ["-config", "RandomSeed"]:
-            return options
-    seed_option = f"-config RandomSeed {config.random_seed}"
-    return f"{options} {seed_option}".strip()
+    MRtrix3 ignores ``-config RandomSeed <n>`` passed on the command line, so
+    the reproducible seed is applied via the ``MRTRIX_RNG_SEED`` environment
+    variable (see ``_mrtrix_rng_seed_env``) instead of being injected here.
+    """
+
+    return config.tckgen_options.strip()
+
+
+@contextmanager
+def _mrtrix_rng_seed_env(seed: int) -> Iterator[None]:
+    """Temporarily export MRTRIX_RNG_SEED for the SAF backend's subprocess calls.
+
+    The bundled SAF backend shells out to MRtrix3 commands (see
+    ``saf_backend/Support/sys_exec.py``); those subprocesses inherit their
+    environment from ``os.environ`` at call time, so setting it here (and
+    restoring it afterward) makes MRtrix3's RNG seed reproducible without
+    relying on the ineffective ``-config RandomSeed`` command-line option.
+    """
+
+    previous = os.environ.get("MRTRIX_RNG_SEED")
+    os.environ["MRTRIX_RNG_SEED"] = str(seed)
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("MRTRIX_RNG_SEED", None)
+        else:
+            os.environ["MRTRIX_RNG_SEED"] = previous
 
 
 def _effective_mrtrix_prefix(config: SAFConfig) -> str:
@@ -542,7 +562,7 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
         else:
             cwd = Path.cwd()
             try:
-                with _saf_backend_import_path():
+                with _mrtrix_rng_seed_env(config.random_seed), _saf_backend_import_path():
                     module = importlib.import_module("SAF_pipeline")
                     module.SAF_pipeline(*args)
                 return_code = 0
