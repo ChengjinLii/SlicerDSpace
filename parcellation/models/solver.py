@@ -11,6 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# Modified by the SlicerDDSurfer project (see THIRD_PARTY_NOTICES.md /
+# licenses/NOTICE-FastSurfer.txt): the training-resumption checkpoint
+# torch.load() call now passes map_location="cpu" and weights_only=True,
+# restricting unpickling to a safe allow-list instead of arbitrary pickle
+# execution. See this file's own git history for the exact changes.
 
 
 # IMPORTS

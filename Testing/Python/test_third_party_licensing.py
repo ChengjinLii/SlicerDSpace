@@ -97,6 +97,35 @@ class LicensesDirectoryTest(unittest.TestCase):
             self.assertIn("Licensed under the Apache License, Version 2.0", header)
 
 
+class FastSurferModifiedNoticesTest(unittest.TestCase):
+    """Apache-2.0 Section 4(b) requires modified files to carry a notice."""
+
+    def test_files_actually_changed_from_upstream_carry_a_modified_notice(self) -> None:
+        for modified_file in (
+            "parcellation/models/networks.py",
+            "parcellation/models/solver.py",
+            "parcellation/data_loader/conform.py",
+            "parcellation/data_loader/load_neuroimaging_data.py",
+        ):
+            text = (REPO_ROOT / modified_file).read_text(encoding="utf-8")
+            self.assertIn(
+                "Modified by the SlicerDDSurfer project",
+                text,
+                f"{modified_file} was changed from its FastSurfer original but has no Apache-2.0 4(b) notice",
+            )
+
+    def test_unmodified_fastsurfer_files_are_not_falsely_marked_as_modified(self) -> None:
+        # These carry the same Apache header but were not touched, so they
+        # must not claim a modification that did not happen.
+        for unmodified_file in (
+            "parcellation/models/losses.py",
+            "parcellation/models/sub_module.py",
+            "parcellation/data_loader/augmentation.py",
+        ):
+            text = (REPO_ROOT / unmodified_file).read_text(encoding="utf-8")
+            self.assertNotIn("Modified by the SlicerDDSurfer project", text)
+
+
 class CMakePackagingTest(unittest.TestCase):
     def setUp(self) -> None:
         self.text = (REPO_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")

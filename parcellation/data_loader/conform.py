@@ -12,6 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# Modified by the SlicerDDSurfer project (see THIRD_PARTY_NOTICES.md /
+# licenses/NOTICE-FastSurfer.txt): replaced sys.exit() calls on invalid
+# input with raised ValueError exceptions, so a caller (e.g. the Slicer
+# module) can catch and report the failure instead of the whole process
+# being silently terminated. See this file's own git history for the
+# exact changes.
 
 
 # IMPORTS
