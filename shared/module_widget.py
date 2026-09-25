@@ -101,7 +101,7 @@ from shared.ui_background_process import (
     build_background_run_context,
     qprocess_is_running,
 )
-from shared.process_group import grouped_launch_command, kill_process_tree
+from shared.process_group import capture_process_group_id, grouped_launch_command, kill_process_tree
 from shared.ui_run_status_panel import (
     install_run_status_panel,
     mark_unfinished_rows,
@@ -1970,6 +1970,7 @@ class SharedWidgetMixin:
         self._reset_result_scene_actions()
         self._backgroundProcess = process
         self._backgroundProcessGrouped = grouped
+        self._backgroundProcessGroupId = None
         self._backgroundOutputBuffer = ""
         self._backgroundManifestPath = None
         self._backgroundCancelRequested = False
@@ -1982,6 +1983,8 @@ class SharedWidgetMixin:
             self._setPipelineActive(False)
             self._setStatus("error", "Failed to start background job")
             self.appendLog("[Background] Failed to start process.")
+        else:
+            self._backgroundProcessGroupId = self._capture_background_process_group_id(process, grouped)
 
     def _startBackgroundBatchPipeline(
         self,
@@ -2024,6 +2027,7 @@ class SharedWidgetMixin:
         self._reset_result_scene_actions()
         self._backgroundProcess = process
         self._backgroundProcessGrouped = grouped
+        self._backgroundProcessGroupId = None
         self._backgroundOutputBuffer = ""
         self._backgroundManifestPath = None
         self._backgroundCancelRequested = False
@@ -2041,6 +2045,8 @@ class SharedWidgetMixin:
             self._setPipelineActive(False)
             self._setStatus("error", "Failed to start batch job")
             self.appendLog("[Background] Failed to start batch process.")
+        else:
+            self._backgroundProcessGroupId = self._capture_background_process_group_id(process, grouped)
 
     def _onBackgroundProcessReadyRead(self) -> None:
         process = getattr(self, "_backgroundProcess", None)
@@ -2262,6 +2268,21 @@ class SharedWidgetMixin:
         self._signal_background_process(process, force=False)
         qt.QTimer.singleShot(3000, lambda: self._kill_background_process_if_running(process))
 
+    def _capture_background_process_group_id(self, process, grouped: bool) -> Optional[int]:
+        # Capture the pgid once, right here, while the process is guaranteed
+        # to still be alive (waitForStarted() just returned True). Trying to
+        # re-derive it later, at kill time, is unreliable: os.getpgid(pid)
+        # raises once the group's leader process has exited, which routinely
+        # happens well before the descendants it spawned (MRtrix, FreeSurfer,
+        # ...) finish -- see shared/process_group.py.
+        if not grouped:
+            return None
+        try:
+            pid = int(process.processId())
+        except Exception:
+            return None
+        return capture_process_group_id(pid)
+
     def _signal_background_process(self, process, *, force: bool) -> None:
         # Signal the whole process group/tree (see shared/process_group.py),
         # not just the top-level QProcess: that process is typically a
@@ -2273,8 +2294,9 @@ class SharedWidgetMixin:
         except Exception:
             pid = 0
         grouped = bool(getattr(self, "_backgroundProcessGrouped", False))
-        if pid > 0:
-            kill_process_tree(pid, grouped=grouped, force=force)
+        pgid = getattr(self, "_backgroundProcessGroupId", None)
+        if pid > 0 or (grouped and pgid):
+            kill_process_tree(pid, grouped=grouped, force=force, pgid=pgid)
         elif process:
             process.kill() if force else process.terminate()
 

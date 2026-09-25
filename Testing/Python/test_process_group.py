@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from shared.process_group import grouped_launch_command, kill_process_tree
+from shared.process_group import capture_process_group_id, grouped_launch_command, kill_process_tree
 
 
 class GroupedLaunchCommandTest(unittest.TestCase):
@@ -28,10 +28,34 @@ class GroupedLaunchCommandTest(unittest.TestCase):
         self.assertEqual(args, ["/usr/bin/python3", "-m", "pipeline"])
         self.assertTrue(grouped)
 
-    def test_leaves_command_unchanged_when_setsid_is_unavailable(self) -> None:
+    def test_falls_back_to_perl_setpgrp_when_setsid_is_unavailable(self) -> None:
+        # This is the macOS case: util-linux's setsid(1) is not shipped, so
+        # shutil.which("setsid") is always None there.
         with mock.patch("shared.process_group.os.name", "posix"), mock.patch(
             "shared.process_group.shutil.which", return_value=None
-        ):
+        ), mock.patch("shared.process_group.os.path.exists", return_value=True):
+            program, args, grouped = grouped_launch_command("/usr/bin/python3", ["-m", "pipeline"])
+
+        self.assertEqual(program, "/usr/bin/perl")
+        self.assertEqual(args, ["-e", "setpgrp(0, 0); exec @ARGV", "--", "/usr/bin/python3", "-m", "pipeline"])
+        self.assertTrue(grouped)
+
+    def test_falls_back_to_perl_on_path_when_not_at_canonical_location(self) -> None:
+        def fake_which(name: str):
+            return None if name == "setsid" else "/opt/local/bin/perl"
+
+        with mock.patch("shared.process_group.os.name", "posix"), mock.patch(
+            "shared.process_group.shutil.which", side_effect=fake_which
+        ), mock.patch("shared.process_group.os.path.exists", return_value=False):
+            program, args, grouped = grouped_launch_command("/usr/bin/python3", ["-m", "pipeline"])
+
+        self.assertEqual(program, "/opt/local/bin/perl")
+        self.assertTrue(grouped)
+
+    def test_leaves_command_unchanged_when_neither_setsid_nor_perl_available(self) -> None:
+        with mock.patch("shared.process_group.os.name", "posix"), mock.patch(
+            "shared.process_group.shutil.which", return_value=None
+        ), mock.patch("shared.process_group.os.path.exists", return_value=False):
             program, args, grouped = grouped_launch_command("/usr/bin/python3", ["-m", "pipeline"])
 
         self.assertEqual(program, "/usr/bin/python3")
@@ -45,6 +69,24 @@ class GroupedLaunchCommandTest(unittest.TestCase):
         self.assertEqual(program, "C:/Python/python.exe")
         self.assertEqual(args, ["-m", "pipeline"])
         self.assertFalse(grouped)
+
+
+@unittest.skipIf(os.name != "posix", "requires POSIX process-group APIs")
+class CaptureProcessGroupIdTest(unittest.TestCase):
+    def test_returns_getpgid_result_for_a_positive_pid(self) -> None:
+        with mock.patch("shared.process_group.os.getpgid", return_value=4242) as mock_getpgid:
+            result = capture_process_group_id(555)
+        mock_getpgid.assert_called_once_with(555)
+        self.assertEqual(result, 4242)
+
+    def test_returns_none_when_the_process_is_already_gone(self) -> None:
+        with mock.patch("shared.process_group.os.getpgid", side_effect=ProcessLookupError):
+            result = capture_process_group_id(555)
+        self.assertIsNone(result)
+
+    def test_returns_none_for_a_non_positive_pid(self) -> None:
+        self.assertIsNone(capture_process_group_id(0))
+        self.assertIsNone(capture_process_group_id(-1))
 
 
 class KillProcessTreeTest(unittest.TestCase):
@@ -61,36 +103,49 @@ class KillProcessTreeTest(unittest.TestCase):
         command = mock_run.call_args.args[0]
         self.assertEqual(command, ["taskkill", "/PID", "4242", "/T", "/F"])
 
-    def test_posix_grouped_uses_killpg_when_pid_is_group_leader(self) -> None:
-        with mock.patch("shared.process_group.os.getpgid", return_value=555), mock.patch(
-            "shared.process_group.os.killpg"
-        ) as mock_killpg:
+    @unittest.skipIf(os.name != "posix", "requires POSIX process-group APIs")
+    def test_posix_grouped_uses_killpg_against_pid_when_no_pgid_is_given(self) -> None:
+        with mock.patch("shared.process_group.os.killpg") as mock_killpg:
             kill_process_tree(555, grouped=True, force=False, platform_name="Linux")
         mock_killpg.assert_called_once_with(555, signal.SIGTERM)
 
+    @unittest.skipIf(os.name != "posix", "requires POSIX process-group APIs")
     def test_posix_grouped_force_sends_sigkill(self) -> None:
-        with mock.patch("shared.process_group.os.getpgid", return_value=555), mock.patch(
-            "shared.process_group.os.killpg"
-        ) as mock_killpg:
+        with mock.patch("shared.process_group.os.killpg") as mock_killpg:
             kill_process_tree(555, grouped=True, force=True, platform_name="Linux")
         mock_killpg.assert_called_once_with(555, signal.SIGKILL)
 
+    @unittest.skipIf(os.name != "posix", "requires POSIX process-group APIs")
+    def test_posix_grouped_uses_explicit_pgid_over_pid(self) -> None:
+        with mock.patch("shared.process_group.os.killpg") as mock_killpg:
+            kill_process_tree(555, grouped=True, force=False, pgid=777, platform_name="Linux")
+        mock_killpg.assert_called_once_with(777, signal.SIGTERM)
+
+    @unittest.skipIf(os.name != "posix", "requires POSIX process-group APIs")
+    def test_posix_grouped_kills_via_pgid_after_leader_pid_is_already_gone(self) -> None:
+        # The launcher pid has already been reaped (QProcess now reports 0
+        # for it), but the group id captured at launch is still recorded and
+        # its descendants (MRtrix, FreeSurfer, ...) may still be running.
+        with mock.patch("shared.process_group.os.killpg") as mock_killpg, mock.patch(
+            "shared.process_group.os.getpgid"
+        ) as mock_getpgid, mock.patch("shared.process_group.os.kill") as mock_kill:
+            kill_process_tree(0, grouped=True, force=True, pgid=777, platform_name="Linux")
+        mock_killpg.assert_called_once_with(777, signal.SIGKILL)
+        mock_getpgid.assert_not_called()
+        mock_kill.assert_not_called()
+
+    @unittest.skipIf(os.name != "posix", "requires POSIX process-group APIs")
+    def test_posix_grouped_ignores_esrch_from_killpg(self) -> None:
+        with mock.patch("shared.process_group.os.killpg", side_effect=ProcessLookupError):
+            kill_process_tree(555, grouped=True, force=True, pgid=777, platform_name="Linux")  # must not raise
+
+    @unittest.skipIf(os.name != "posix", "requires POSIX process-group APIs")
     def test_posix_falls_back_to_os_kill_when_not_grouped(self) -> None:
         with mock.patch("shared.process_group.os.kill") as mock_kill:
             kill_process_tree(555, grouped=False, force=False, platform_name="Linux")
         mock_kill.assert_called_once_with(555, signal.SIGTERM)
 
-    def test_posix_falls_back_to_os_kill_when_pid_is_not_the_group_leader(self) -> None:
-        # grouped=True but the pid is not itself the process-group leader
-        # (os.getpgid(pid) != pid): fall back rather than killpg-ing a group
-        # this pid does not actually lead.
-        with mock.patch("shared.process_group.os.getpgid", return_value=999), mock.patch(
-            "shared.process_group.os.killpg"
-        ) as mock_killpg, mock.patch("shared.process_group.os.kill") as mock_kill:
-            kill_process_tree(555, grouped=True, force=False, platform_name="Linux")
-        mock_killpg.assert_not_called()
-        mock_kill.assert_called_once_with(555, signal.SIGTERM)
-
+    @unittest.skipIf(os.name != "posix", "requires POSIX process-group APIs")
     def test_ignores_process_lookup_error(self) -> None:
         with mock.patch("shared.process_group.os.kill", side_effect=ProcessLookupError):
             kill_process_tree(555, grouped=False, force=False, platform_name="Linux")  # must not raise
