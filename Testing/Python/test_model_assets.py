@@ -380,7 +380,7 @@ class ModelAssetsTest(unittest.TestCase):
             self.assertEqual(target.read_bytes(), b"y" * 10)
             self.assertFalse(partial.exists())
 
-    def test_mismatched_content_range_on_resume_raises_and_keeps_part_untouched(self) -> None:
+    def test_mismatched_content_range_on_resume_discards_the_part_file_and_raises(self) -> None:
         module = _load_downloader_module()
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -388,7 +388,6 @@ class ModelAssetsTest(unittest.TestCase):
             target = root / "target.bin"
             partial = target.with_name(target.name + ".part")
             partial.write_bytes(b"a" * 100)
-            original_partial_bytes = partial.read_bytes()
 
             fake_response = mock.MagicMock()
             fake_response.status = 206
@@ -407,8 +406,13 @@ class ModelAssetsTest(unittest.TestCase):
                     )
 
             self.assertFalse(target.exists())
-            self.assertTrue(partial.is_file())
-            self.assertEqual(partial.read_bytes(), original_partial_bytes)
+            # A Content-Range that disagrees with the resume offset we asked
+            # for means the local .part is not a valid prefix of what the
+            # server is serving now (e.g. the remote file changed); keeping
+            # it around would just repeat this same mismatch on every future
+            # resume attempt, so it must be discarded here (matching the 416
+            # handling in test_416_response_discards_stale_part_and_raises).
+            self.assertFalse(partial.exists())
 
     def test_416_response_discards_stale_part_and_raises(self) -> None:
         module = _load_downloader_module()

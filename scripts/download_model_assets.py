@@ -622,9 +622,19 @@ def _download_url_to_path(
             if append:
                 content_range = response.headers.get("Content-Range", "")
                 if not _content_range_starts_at(content_range, resume_from):
+                    # The server's own Content-Range disagrees with the byte
+                    # offset we asked it to resume from: the local .part is
+                    # not a byte-for-byte prefix of what this URL is
+                    # actually serving right now (e.g. the remote file
+                    # changed), so keeping it around would just make the
+                    # next resume attempt hit this same mismatch again.
+                    # Discard it, mirroring the 416 handling below.
+                    if tmp.is_file():
+                        tmp.unlink()
                     raise DownloadIntegrityError(
                         f"Server returned Content-Range {content_range!r} for {target.name}, "
-                        f"expected a range starting at byte {resume_from}; refusing to append."
+                        f"expected a range starting at byte {resume_from}; removed the stale "
+                        ".part file so the next attempt restarts from scratch."
                     )
             if resume_from and not append:
                 print("[model-assets] Server did not resume partial download; restarting " + target.name, file=sys.stderr)
