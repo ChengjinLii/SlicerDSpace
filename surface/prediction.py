@@ -191,7 +191,10 @@ class SurfacePredictor:
         if not ckpt_path.exists():
             raise FileNotFoundError(f"Model checkpoint not found: {ckpt_path}")
 
-        state_dict = torch.load(ckpt_path, map_location=self.device)
+        # weights_only=True restricts unpickling to a safe allow-list
+        # (tensors, OrderedDict, basic scalars); this checkpoint is loaded
+        # straight into load_state_dict() and never needs a full unpickle.
+        state_dict = torch.load(ckpt_path, map_location=self.device, weights_only=True)
         model.load_state_dict(state_dict)
         model.to(self.device)
         model.eval()

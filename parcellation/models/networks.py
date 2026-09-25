@@ -276,7 +276,13 @@ class FastSurferCNN_Fuse_Unet(nn.Module):
             backbone_model = FastSurferCNN_return_all(params)
             if params['backbone_model'] is not None:
                 # backbone_model = nn.DataParallel(backbone_model)
-                model_state = torch.load(params['backbone_model'][idx])
+                # weights_only=True restricts unpickling to a safe allow-list
+                # (tensors, OrderedDict, basic scalars); only
+                # model_state["model_state_dict"] is ever read below.
+                backbone_map_location = torch.device('cuda') if params.get('use_cuda') else torch.device('cpu')
+                model_state = torch.load(
+                    params['backbone_model'][idx], map_location=backbone_map_location, weights_only=True
+                )
                 new_state_dict = OrderedDict()
                 for k, v in model_state["model_state_dict"].items():
                     if k[:7] == "module.":
@@ -432,7 +438,13 @@ class FastSurferCNN_Fuse_Unet_v1(nn.Module):
             if params['backbone_model'] is not None:
                 # backbone_model = nn.DataParallel(backbone_model)
                 print('Loading: %s' % params['backbone_model'][idx+1])
-                model_state = torch.load(params['backbone_model'][idx+1])
+                # weights_only=True restricts unpickling to a safe allow-list
+                # (tensors, OrderedDict, basic scalars); only
+                # model_state["model_state_dict"] is ever read below.
+                backbone_map_location = torch.device('cuda') if params.get('use_cuda') else torch.device('cpu')
+                model_state = torch.load(
+                    params['backbone_model'][idx+1], map_location=backbone_map_location, weights_only=True
+                )
                 new_state_dict = OrderedDict()
                 for k, v in model_state["model_state_dict"].items():
                     if k[:7] == "module.":
@@ -624,7 +636,13 @@ class FastSurferCNN_Fuse_Unet_v2(nn.Module):
             if params['backbone_model'] is not None:
                 # backbone_model = nn.DataParallel(backbone_model)
                 print('Loading: %s' % params['backbone_model'][idx])
-                model_state = torch.load(params['backbone_model'][idx])
+                # weights_only=True restricts unpickling to a safe allow-list
+                # (tensors, OrderedDict, basic scalars); only
+                # model_state["model_state_dict"] is ever read below.
+                backbone_map_location = torch.device('cuda') if params.get('use_cuda') else torch.device('cpu')
+                model_state = torch.load(
+                    params['backbone_model'][idx], map_location=backbone_map_location, weights_only=True
+                )
                 new_state_dict = OrderedDict()
                 for k, v in model_state["model_state_dict"].items():
                     if k[:7] == "module.":
@@ -771,7 +789,13 @@ class FastSurferCNN_Fuse_Unet_v2_extended(nn.Module):
             if params['backbone_model'] is not None:
                 # backbone_model = nn.DataParallel(backbone_model)
                 print('Loading: %s' % params['backbone_model'][idx])
-                model_state = torch.load(params['backbone_model'][idx])
+                # weights_only=True restricts unpickling to a safe allow-list
+                # (tensors, OrderedDict, basic scalars); only
+                # model_state["model_state_dict"] is ever read below.
+                backbone_map_location = torch.device('cuda') if params.get('use_cuda') else torch.device('cpu')
+                model_state = torch.load(
+                    params['backbone_model'][idx], map_location=backbone_map_location, weights_only=True
+                )
                 new_state_dict = OrderedDict()
                 for k, v in model_state["model_state_dict"].items():
                     if k[:7] == "module.":
@@ -916,7 +940,13 @@ class FastSurferCNN_Fuse_Unet_v3(nn.Module):
             if params['backbone_model'] is not None:
                 # backbone_model = nn.DataParallel(backbone_model)
                 print('Loading: %s' % params['backbone_model'][idx])
-                model_state = torch.load(params['backbone_model'][idx])
+                # weights_only=True restricts unpickling to a safe allow-list
+                # (tensors, OrderedDict, basic scalars); only
+                # model_state["model_state_dict"] is ever read below.
+                backbone_map_location = torch.device('cuda') if params.get('use_cuda') else torch.device('cpu')
+                model_state = torch.load(
+                    params['backbone_model'][idx], map_location=backbone_map_location, weights_only=True
+                )
                 new_state_dict = OrderedDict()
                 for k, v in model_state["model_state_dict"].items():
                     if k[:7] == "module.":
@@ -1072,10 +1102,17 @@ class FastSurferCNN_Fuse_Unet_v3_extended(nn.Module):
             if params['backbone_model'] is not None:
                 # backbone_model = nn.DataParallel(backbone_model)
                 print('Loading: %s' % params['backbone_model'][idx])
-                if params["use_cuda"]:
-                    model_state = torch.load(params['backbone_model'][idx])
-                else:
-                    model_state = torch.load(params['backbone_model'][idx], map_location=torch.device('cpu'))
+                # weights_only=True restricts unpickling to a safe allow-list
+                # (tensors, OrderedDict, basic scalars); only
+                # model_state["model_state_dict"] is ever read below. Always
+                # pass an explicit map_location instead of only doing so on
+                # the CPU branch: without it, loading a checkpoint saved from
+                # a CUDA tensor can fail to deserialize if the exact original
+                # device index is not available, even when CUDA itself is.
+                backbone_map_location = torch.device('cuda') if params.get('use_cuda') else torch.device('cpu')
+                model_state = torch.load(
+                    params['backbone_model'][idx], map_location=backbone_map_location, weights_only=True
+                )
                 new_state_dict = OrderedDict()
                 for k, v in model_state["model_state_dict"].items():
                     if k[:7] == "module.":
@@ -1231,7 +1268,13 @@ class FastSurferCNN_Fuse_Unet_v4(nn.Module):
             if params['backbone_model'] is not None:
                 # backbone_model = nn.DataParallel(backbone_model)
                 print('Loading: %s' % params['backbone_model'][idx])
-                model_state = torch.load(params['backbone_model'][idx])
+                # weights_only=True restricts unpickling to a safe allow-list
+                # (tensors, OrderedDict, basic scalars); only
+                # model_state["model_state_dict"] is ever read below.
+                backbone_map_location = torch.device('cuda') if params.get('use_cuda') else torch.device('cpu')
+                model_state = torch.load(
+                    params['backbone_model'][idx], map_location=backbone_map_location, weights_only=True
+                )
                 new_state_dict = OrderedDict()
                 for k, v in model_state["model_state_dict"].items():
                     if k[:7] == "module.":
@@ -1387,7 +1430,13 @@ class FastSurferCNN_Fuse_Unet_v4_extended(nn.Module):
             if params['backbone_model'] is not None:
                 # backbone_model = nn.DataParallel(backbone_model)
                 print('Loading: %s' % params['backbone_model'][idx])
-                model_state = torch.load(params['backbone_model'][idx])
+                # weights_only=True restricts unpickling to a safe allow-list
+                # (tensors, OrderedDict, basic scalars); only
+                # model_state["model_state_dict"] is ever read below.
+                backbone_map_location = torch.device('cuda') if params.get('use_cuda') else torch.device('cpu')
+                model_state = torch.load(
+                    params['backbone_model'][idx], map_location=backbone_map_location, weights_only=True
+                )
                 new_state_dict = OrderedDict()
                 for k, v in model_state["model_state_dict"].items():
                     if k[:7] == "module.":

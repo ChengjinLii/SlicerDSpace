@@ -263,7 +263,13 @@ class Solver(object):
                 if prior_model_paths:
                     current_model = prior_model_paths.pop()
 
-                state = torch.load(current_model)
+                # weights_only=True restricts unpickling to a safe allow-list
+                # (tensors, OrderedDict, basic scalars); only
+                # model/optimizer/scheduler state dicts and the epoch int are
+                # ever read from this checkpoint below. Note: this training
+                # resumption path is not reachable from the shipped Slicer
+                # inference pipeline (no runtime code imports this module).
+                state = torch.load(current_model, map_location="cpu", weights_only=True)
 
                 # Restore model dictionary
                 model.load_state_dict(state["model_state_dict"])

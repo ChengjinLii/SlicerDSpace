@@ -64,7 +64,7 @@ Download model assets into a user-selected cache:
 ```bash
 python3 scripts/download_model_assets.py \
   --profile core \
-  --asset-root /data/shared/SlicerDDSurfer-model-assets \
+  --asset-root /srv/slicerddsurfer/model-assets \
   --source url \
   --source-id slicerdsurfer_models_git
 ```
@@ -84,7 +84,7 @@ Generate an install plan without changing the system:
 ```bash
 python3 scripts/install_dependencies.py \
   --profile core \
-  --model-assets-dir /data/shared/SlicerDDSurfer-model-assets \
+  --model-assets-dir /srv/slicerddsurfer/model-assets \
   --output-dir /tmp/slicerdsurfer-install-plan
 ```
 
@@ -103,7 +103,7 @@ Build a preflight/run plan with an explicit model asset root:
 python3 shared/run_subject_pipeline_cli.py \
   --subject-root /path/to/sub-01 \
   --targets validation,preprocessing,segmentation,parcellation,surface \
-  --model-assets-dir /data/shared/SlicerDDSurfer-model-assets \
+  --model-assets-dir /srv/slicerddsurfer/model-assets \
   --doctor
 ```
 

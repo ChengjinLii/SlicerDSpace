@@ -48,7 +48,7 @@ git diff --check
 ```bash
 python3 scripts/download_model_assets.py \
   --profile core \
-  --asset-root /data/shared/SlicerDDSurfer-model-assets \
+  --asset-root /srv/slicerddsurfer/model-assets \
   --source url \
   --source-id slicerdsurfer_models_git \
   --verify-only
@@ -57,7 +57,7 @@ python3 scripts/download_model_assets.py \
 ```bash
 python3 scripts/install_dependencies.py \
   --profile core \
-  --model-assets-dir /data/shared/SlicerDDSurfer-model-assets \
+  --model-assets-dir /srv/slicerddsurfer/model-assets \
   --output-dir /tmp/slicerdsurfer-install-plan
 ```
 

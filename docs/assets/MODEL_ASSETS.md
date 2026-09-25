@@ -36,12 +36,15 @@ the Slicer extension checkout:
 | Windows | `%LOCALAPPDATA%\\SlicerDDSurfer\\model-assets` |
 
 Users can override this with the Slicer UI `Model assets root` field, the
-`SLICERDDSURFER_MODEL_ASSETS_DIR` environment variable, or `--asset-root`:
+`SLICERDDSURFER_MODEL_ASSETS_DIR` environment variable, or `--asset-root`.
+Only the per-user default above is ever scanned automatically; any other
+location (e.g. a shared cache on a multi-user cluster) must be explicit --
+callers do not silently trust well-known/guessable shared paths:
 
 ```bash
 python3 scripts/download_model_assets.py \
   --profile core \
-  --asset-root /data/shared/SlicerDDSurfer-model-assets
+  --asset-root /srv/slicerddsurfer/model-assets
 ```
 
 The downloader reads `models/assets_manifest.json`, resolves the selected
@@ -81,7 +84,7 @@ paths:
 ```bash
 python3 scripts/download_model_assets.py \
   --profile core \
-  --asset-root /data/shared/SlicerDDSurfer-model-assets \
+  --asset-root /srv/slicerddsurfer/model-assets \
   --source url \
   --source-id slicerdsurfer_models_git
 ```
@@ -152,7 +155,7 @@ Examples:
 scripts/download_model_assets.sh --profile core
 
 # Equivalent explicit Python entrypoint
-python3 scripts/download_model_assets.py --profile core --asset-root /data/shared/SlicerDDSurfer-model-assets
+python3 scripts/download_model_assets.py --profile core --asset-root /srv/slicerddsurfer/model-assets
 
 # Only run DDSeg
 scripts/download_model_assets.sh --profile segmentation

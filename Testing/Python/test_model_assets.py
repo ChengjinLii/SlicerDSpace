@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -382,6 +384,140 @@ class ModelAssetsTest(unittest.TestCase):
         self.assertEqual(plan.asset_groups, ("download sentinel",))
         self.assertLess(plan.asset_records["sentinel/slicerdsurfer_sentinel.txt"]["size_bytes"], 1024)
         self.assertEqual(plan.source_ids, ("slicerdsurfer_models_git",))
+
+
+class ModelAssetRootSecurityTest(unittest.TestCase):
+    """shared.model_assets: narrowed automatic scan roots + sha256 gating.
+
+    Regression coverage for removing the hardcoded, guessable shared/dev
+    scan paths (e.g. /data/shared/..., /opt/..., a specific developer's home
+    directory) and for verifying resolved asset roots against
+    models/assets_manifest.json before trusting them.
+    """
+
+    def setUp(self) -> None:
+        import shared.model_assets as model_assets_module
+
+        self.model_assets_module = model_assets_module
+        # Isolate the in-process sha256 cache and its on-disk path so tests
+        # never touch the real user config directory or leak state between
+        # tests (the cache is a lazily-initialized module-level singleton).
+        self._cache_tmp = tempfile.TemporaryDirectory()
+        self._cache_path = Path(self._cache_tmp.name) / "model_asset_sha256_cache.json"
+        model_assets_module._SHA256_CACHE = None
+        self._cache_path_patch = mock.patch.object(
+            model_assets_module, "_sha256_cache_path", return_value=self._cache_path
+        )
+        self._cache_path_patch.start()
+
+    def tearDown(self) -> None:
+        self._cache_path_patch.stop()
+        self.model_assets_module._SHA256_CACHE = None
+        self._cache_tmp.cleanup()
+
+    def _write_manifest(self, repo_root: Path, records: dict) -> None:
+        manifest_dir = repo_root / "models"
+        manifest_dir.mkdir(parents=True, exist_ok=True)
+        (manifest_dir / "assets_manifest.json").write_text(
+            json.dumps({"asset_records": records}), encoding="utf-8"
+        )
+
+    def test_common_model_asset_roots_has_no_hardcoded_shared_or_dev_paths(self) -> None:
+        roots = self.model_assets_module.common_model_asset_roots()
+
+        self.assertEqual(roots, (self.model_assets_module.default_user_model_assets_root(),))
+        for forbidden in ("/data/", "/opt/", "/Users/Shared", "chengjin", "/usr/local/share"):
+            for root in roots:
+                self.assertNotIn(forbidden, root.as_posix())
+
+    def test_model_asset_path_raises_on_a_file_that_fails_sha256_verification(self) -> None:
+        # resolve_model_assets_root() still legitimately falls back to the
+        # user's own default directory even when nothing there verifies
+        # (that default is also the intended download target when nothing
+        # has been fetched yet). The hard security boundary is
+        # model_asset_path(): callers hand its result straight to
+        # torch.load(), so an existing-but-tampered file there must raise
+        # rather than be silently returned.
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_root = tmp_path / "user-assets"
+            repo_root = tmp_path / "repo"
+            planted = user_root / "segmentation" / "weights" / "dti_axial.pt"
+            planted.parent.mkdir(parents=True)
+            planted.write_bytes(b"a planted, untrusted checkpoint")
+            # The manifest expects a different digest than what was planted.
+            self._write_manifest(
+                repo_root,
+                {"segmentation/weights/dti_axial.pt": {"sha256": "0" * 64}},
+            )
+
+            with mock.patch.object(
+                self.model_assets_module, "default_user_model_assets_root", return_value=user_root
+            ):
+                with self.assertRaises(self.model_assets_module.ModelAssetIntegrityError):
+                    self.model_assets_module.model_asset_path("segmentation/weights", repo_root=repo_root)
+
+    def test_resolve_accepts_a_root_whose_required_file_matches_the_manifest(self) -> None:
+        from shared.model_asset_integrity import sha256_of_file
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_root = tmp_path / "user-assets"
+            repo_root = tmp_path / "repo"
+            genuine = user_root / "segmentation" / "weights" / "dti_axial.pt"
+            genuine.parent.mkdir(parents=True)
+            genuine.write_bytes(b"the real, trusted checkpoint bytes")
+            self._write_manifest(
+                repo_root,
+                {"segmentation/weights/dti_axial.pt": {"sha256": sha256_of_file(genuine)}},
+            )
+
+            with mock.patch.object(
+                self.model_assets_module, "default_user_model_assets_root", return_value=user_root
+            ):
+                resolved = self.model_assets_module.resolve_model_assets_root(
+                    repo_root=repo_root, required_paths=("segmentation/weights",)
+                )
+                asset_path = self.model_assets_module.model_asset_path(
+                    "segmentation/weights", repo_root=repo_root
+                )
+
+            self.assertEqual(resolved, user_root.resolve())
+            self.assertEqual(asset_path, user_root.resolve() / "segmentation" / "weights")
+
+    def test_explicit_root_bypasses_verification(self) -> None:
+        # An explicitly user-supplied root is the user's own informed
+        # choice, not an automatically-guessed path; it is trusted directly.
+        with tempfile.TemporaryDirectory() as tmp:
+            explicit_root = Path(tmp) / "explicit-assets"
+            explicit_root.mkdir()
+
+            resolved = self.model_assets_module.resolve_model_assets_root(
+                explicit=explicit_root, required_paths=("segmentation/weights",)
+            )
+
+            self.assertEqual(resolved, explicit_root.resolve())
+
+    def test_directory_with_no_manifest_coverage_falls_back_to_plain_existence(self) -> None:
+        # A required directory the manifest does not track at all (nothing
+        # recorded to verify against) keeps the old, best-effort behavior.
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_root = tmp_path / "user-assets"
+            repo_root = tmp_path / "repo"
+            unlisted_dir = user_root / "Resources" / "Data" / "unlisted"
+            unlisted_dir.mkdir(parents=True)
+            (unlisted_dir / "some_file.bin").write_bytes(b"not tracked by the manifest")
+            self._write_manifest(repo_root, {})
+
+            with mock.patch.object(
+                self.model_assets_module, "default_user_model_assets_root", return_value=user_root
+            ):
+                resolved = self.model_assets_module.resolve_model_assets_root(
+                    repo_root=repo_root, required_paths=("Resources/Data/unlisted",)
+                )
+
+            self.assertEqual(resolved, user_root.resolve())
 
 
 if __name__ == "__main__":

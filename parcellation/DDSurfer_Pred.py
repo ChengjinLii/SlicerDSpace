@@ -119,7 +119,10 @@ def run_network(img_filename, orig_data, prediction_probability, plane, ckpts, p
 
     backbones = copy.deepcopy(model.FastSurferCNNs) # Somthing related to parallel: may need to be "model.module.FastSurferCNNs"
 
-    model_state = torch.load(ckpts, map_location=params_model["device"])
+    # weights_only=True restricts unpickling to a safe allow-list (tensors,
+    # OrderedDict, basic scalars); only model_state["model_state_dict"] is
+    # ever read below, so a full unpickle is never needed here.
+    model_state = torch.load(ckpts, map_location=params_model["device"], weights_only=True)
     new_state_dict = OrderedDict()
     for k, v in model_state["model_state_dict"].items():
         if k[:7] == "module." and not params_model["model_parallel"]:
