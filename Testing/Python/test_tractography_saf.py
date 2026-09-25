@@ -327,6 +327,14 @@ class SAFIntegrationTest(unittest.TestCase):
         self.assertEqual(explicit_options, "-select 1000 -config RandomSeed 7")
 
     def test_saf_execute_sets_mrtrix_rng_seed_env(self) -> None:
+        # This must exercise the real Support.sys_exec (not just check
+        # os.environ directly): sys_exec's env comes from
+        # startup_environment(), which inside real Slicer is a fixed
+        # snapshot from slicer.util.startupEnvironment() that does not
+        # reflect anything set on os.environ afterward. A fake backend that
+        # only reads os.environ.get('MRTRIX_RNG_SEED') itself would pass
+        # even if sys_exec never actually forwarded the seed to the
+        # subprocess it launches -- exactly the bug this test must catch.
         from tractography import saf as saf_module
         from tractography.saf import SAFConfig, run_saf
 
@@ -341,15 +349,35 @@ class SAFIntegrationTest(unittest.TestCase):
             output_dir = root / "seed-env-saf"
             backend = root / "fake_saf_backend"
             backend.mkdir()
-            observed_path = root / "observed_seed.txt"
             (backend / "SAF_pipeline.py").write_text(
-                "import os\n"
-                f"def SAF_pipeline(*args):\n"
-                f"    with open({str(observed_path)!r}, 'w') as handle:\n"
-                "        handle.write(os.environ.get('MRTRIX_RNG_SEED', ''))\n",
+                "from Support.sys_exec import sys_exec\n"
+                "class _PS:\n"
+                "    dgn = False\n"
+                "def SAF_pipeline(*args):\n"
+                "    sys_exec('echo mrtrix-seed-probe', _PS())\n",
                 encoding="utf-8",
             )
             backend_status = {"available": True, "missing_required": []}
+
+            # Simulate startup_environment() returning a real-Slicer-style
+            # snapshot that predates the seed being set, i.e. one that does
+            # NOT itself contain MRTRIX_RNG_SEED, to prove sys_exec forwards
+            # the seed explicitly (via its own extra_env argument) rather
+            # than happening to inherit it from a snapshot that already had
+            # it (a fixed mocked env with no extra_env support would let a
+            # broken sys_exec pass this test by accident).
+            fixed_snapshot = {"PATH": "/usr/bin"}
+            observed_envs: list[dict] = []
+
+            def fake_startup_environment(extra_env=None):
+                merged = dict(fixed_snapshot)
+                if extra_env:
+                    merged.update(extra_env)
+                return merged
+
+            def fake_run(cmd, **kwargs):
+                observed_envs.append(dict(kwargs.get("env") or {}))
+                return mock.Mock(returncode=0, stdout="", stderr="")
 
             self.assertNotIn("MRTRIX_RNG_SEED", os.environ)
             sys.modules.pop("SAF_pipeline", None)
@@ -362,9 +390,13 @@ class SAFIntegrationTest(unittest.TestCase):
                     saf_module,
                     "bundled_saf_backend_dir",
                     return_value=backend,
+                ), mock.patch(
+                    "Support.sys_exec.startup_environment", side_effect=fake_startup_environment
+                ), mock.patch(
+                    "Support.sys_exec.subprocess.run", side_effect=fake_run
                 ):
                     # The fake backend does not produce SAF.tck, so run_saf()
-                    # still raises after recording the observed seed; that
+                    # still raises after the sys_exec call above; that
                     # failure is expected and orthogonal to this assertion.
                     with self.assertRaises(RuntimeError):
                         run_saf(
@@ -383,7 +415,11 @@ class SAFIntegrationTest(unittest.TestCase):
             finally:
                 sys.modules.pop("SAF_pipeline", None)
 
-            self.assertEqual(observed_path.read_text(encoding="utf-8"), "424242")
+            self.assertTrue(observed_envs, "sys_exec's subprocess.run was never called")
+            self.assertEqual(observed_envs[0].get("MRTRIX_RNG_SEED"), "424242")
+            # The rest of the (mocked) snapshot must still be present --
+            # forwarding the seed must not replace the whole environment.
+            self.assertEqual(observed_envs[0].get("PATH"), "/usr/bin")
             # The environment variable must not leak past the call.
             self.assertNotIn("MRTRIX_RNG_SEED", os.environ)
 
