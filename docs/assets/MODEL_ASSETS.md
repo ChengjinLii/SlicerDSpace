@@ -47,6 +47,31 @@ python3 scripts/download_model_assets.py \
   --asset-root /srv/slicerddsurfer/model-assets
 ```
 
+### Runtime sha256 Verification at Load Time
+
+This is separate from the CLI's own `--verify-only` pass described below.
+Whenever the module code (not the downloader script) resolves a model
+checkpoint or template for use -- e.g. before handing a path to
+`torch.load()` -- it checks the file's sha256 against the recorded digest
+in `models/assets_manifest.json`:
+
+- An **auto-discovered** root -- the per-user default above, or the
+  extension's own checkout used as a legacy fallback -- is only trusted
+  once every manifest-recorded file present under the requested path
+  verifies. A file that exists but does not match its recorded sha256
+  raises a `ModelAssetIntegrityError`, which the Slicer module and the
+  environment doctor surface as a status message rather than letting it
+  abort module load or the whole doctor scan.
+- An **explicitly configured** root -- via `--asset-root`, the Slicer UI's
+  `Model assets root` field, or the `SLICERDDSURFER_MODEL_ASSETS_DIR`
+  environment variable -- is used as-is, **without** this sha256 check.
+  Pointing SlicerDDSurfer at an explicit root is treated as the user's own
+  informed choice; a tampered or stale file there is not caught until you
+  explicitly run `--verify-only` (or the Slicer UI's `Verify` action)
+  yourself. Setting `SLICERDDSURFER_MODEL_ASSETS_DIR` therefore comes with
+  the same responsibility as passing `--asset-root` directly -- only point
+  it at a location you trust or have verified.
+
 The downloader reads `models/assets_manifest.json`, resolves the selected
 profile, downloads from the independent repository or configured URL mirrors, and verifies that the
 selected files are real materialized objects with the expected file size and
