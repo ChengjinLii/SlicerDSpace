@@ -768,94 +768,64 @@ class SharedLogicMixin:
             self.log(f"[Slicer] Failed to convert streamline file {fiber_path}: {exc}")
             return False
 
-    def loadKeyResultsFromManifest(self, manifest_path: Path, *, max_items: int = 40) -> dict[str, Any]:
-        """Load key product outputs from an orchestration manifest into the MRML scene."""
+    def clearResultsFromManifest(self, manifest_path: Path) -> int:
+        from shared.result_scene import clear_run
+        return clear_run(slicer, str(manifest_path.expanduser().resolve()))
 
+    def loadKeyResultsFromManifest(self, manifest_path: Path, *, max_items: int = 40, mode: str = "reuse") -> dict[str, Any]:
+        """Load only explicitly successful manifest outputs, grouped by subject/run."""
+        from shared.result_scene import result_candidates, owned_nodes, clear_run, register_node, scalar_preset, source_stamp
+        if mode not in {"reuse", "replace", "append"}:
+            raise ValueError("Result mode must be reuse, replace or append")
         manifest_path = manifest_path.expanduser().resolve()
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        output_root = Path(str(manifest.get("output_root") or manifest_path.parents[1])).expanduser()
-        run_name = str(manifest.get("run_name") or "csd_act")
-        loaded: list[dict[str, str]] = []
-        skipped: list[dict[str, str]] = []
-        seen: set[str] = set()
-
-        def add_candidate(path_text: object, label: str) -> None:
-            if len(loaded) >= max_items:
-                return
-            if not path_text:
-                return
-            path = Path(str(path_text)).expanduser()
-            if not path.is_file():
-                return
-            suffix = "".join(path.suffixes).lower()
-            if suffix not in {".nii.gz", ".mgz", ".csv", ".tsv", ".stl", ".vtk", ".vtp", ".trk", ".tck"}:
-                return
-            key = path.resolve().as_posix()
-            if key in seen:
-                return
-            seen.add(key)
-            name = f"{manifest.get('subject_id') or 'subject'}_{label}_{path.stem}".replace(".nii", "")
+        run_id = str(manifest_path)
+        subject = str(manifest.get("subject_id") or "subject")
+        run_name = str(manifest.get("run_name") or "Test1")
+        if mode == "replace":
+            clear_run(slicer, run_id)
+        existing = {node.GetAttribute("SlicerDDSurfer.SourcePath"): node for node in owned_nodes(slicer, run_id)}
+        candidates, skipped = result_candidates(manifest)
+        loaded, reused = [], []
+        for candidate in candidates[:max(0, max_items)]:
+            path, label = Path(candidate["path"]), candidate["label"]
+            if mode == "reuse" and candidate["path"] in existing:
+                node = existing[candidate["path"]]
+                if node.GetAttribute("SlicerDDSurfer.SourceStamp") == source_stamp(path):
+                    reused.append(candidate)
+                else:
+                    skipped.append({"path": str(path), "reason": "Source changed since loading; use Replace to reload this run"})
+                continue
+            before = {node.GetID() for node in slicer.util.getNodesByClass("vtkMRMLDisplayableNode")}
             try:
-                if suffix in {".nii.gz", ".mgz"}:
-                    success = self._load_scalar_volume_node(path, name)
+                suffix = "".join(path.suffixes).lower()
+                name = f"{subject}_{label}"
+                if suffix in {".nii", ".nii.gz", ".mgz"}:
+                    categorical = candidate["product"].startswith(("segmentation.", "parcellation.")) and any(
+                        word in candidate["key"].lower() for word in ("label", "segmentation", "wmparc", "aparc"))
+                    if categorical:
+                        success = bool(slicer.util.loadLabelVolume(str(path), properties={"name": name, "show": False}))
+                    else:
+                        success = self._load_scalar_volume_node(path, name)
                 elif suffix in {".csv", ".tsv"}:
                     success = self._load_table_node(path, name)
                 elif suffix == ".stl":
-                    success = self._load_model_node(path, label, str(manifest.get("subject_id") or "subject"))
-                elif suffix in {".vtk", ".vtp", ".trk", ".tck"}:
+                    success = self._load_model_node(path, candidate["product"], subject)
+                else:
                     success = self._load_fiber_bundle_node(path, name)
-                else:
-                    success = False
-                if success:
-                    loaded.append({"path": path.as_posix(), "label": label})
-                else:
-                    skipped.append(
-                        {
-                            "path": path.as_posix(),
-                            "label": label,
-                            "reason": "Slicer loader unavailable or returned no node",
-                        }
-                    )
-            except Exception as exc:  # pragma: no cover - loader availability depends on Slicer extensions
-                skipped.append({"path": path.as_posix(), "label": label, "reason": str(exc)})
-
-        for task in manifest.get("tasks", []) or []:
-            if not isinstance(task, dict):
-                continue
-            task_name = str(task.get("name") or "task")
-            if task_name.startswith("preprocessing."):
-                continue
-            for key, value in (task.get("outputs") or {}).items():
-                add_candidate(value, f"{task_name}_{key}")
-
-        # Some backends do not put every product in task.outputs; scan compact,
-        # user-facing folders only and avoid cache/log directories.
-        scan_roots = [
-            output_root / "02_microstructure",
-            output_root / "03_structural",
-            output_root / "04_tractography" / "saf" / run_name,
-            output_root / "04_tractography" / "bundles" / "wmql" / run_name,
-            output_root / "04_tractography" / "connectome" / run_name,
-        ]
-        preferred_suffixes = (".nii.gz", ".mgz", ".csv", ".tsv", ".stl", ".vtk", ".vtp", ".trk", ".tck")
-        for root in scan_roots:
-            if len(loaded) >= max_items or not root.exists():
-                continue
-            for path in sorted(root.rglob("*")):
-                if len(loaded) >= max_items:
-                    break
-                if "cache" in path.parts or not path.is_file():
-                    continue
-                if not any(path.name.endswith(suffix) for suffix in preferred_suffixes):
-                    continue
-                add_candidate(path, root.name)
-
-        self.log(f"[Slicer] Auto-loaded {len(loaded)} key result node(s) from {manifest_path}")
-        return {
-            "loaded": loaded,
-            "skipped": skipped,
-            "manifest_path": manifest_path.as_posix(),
-        }
+                nodes = [node for node in slicer.util.getNodesByClass("vtkMRMLDisplayableNode") if node.GetID() not in before]
+                if not success or not nodes:
+                    raise RuntimeError("Slicer loader returned no result node")
+                for node in nodes:
+                    register_node(slicer, node, run_id, subject, run_name, candidate["product"], str(path))
+                    if node.IsA("vtkMRMLScalarVolumeNode") and not node.IsA("vtkMRMLLabelMapVolumeNode"):
+                        scalar_preset(node, label)
+                loaded.append(candidate)
+            except Exception as exc:
+                skipped.append({"path": str(path), "label": label, "reason": str(exc)})
+        deferred = candidates[max(0, max_items):]
+        self.log(f"[Slicer] Loaded {len(loaded)}, reused {len(reused)}, deferred {len(deferred)} result(s).")
+        return {"loaded": loaded, "reused": reused, "skipped": skipped, "deferred": deferred, "manifest_path": run_id}
 
     def _resolve_template_dir(self, *, required: bool = True) -> Path:
         candidates = []

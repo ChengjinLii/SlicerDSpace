@@ -38,13 +38,30 @@ def install_run_status_panel(widget) -> None:
     report_button.enabled = False
     report_button.setToolTip("Open the latest generated SlicerDDSurfer HTML report.")
     report_button.connect("clicked()", widget._on_open_latest_report_clicked)
-    panel_layout.addWidget(report_button)
+    report_row = qt.QHBoxLayout()
+    report_row.addWidget(report_button)
 
     output_tree_button = qt.QPushButton("Open output tree")
     output_tree_button.enabled = False
     output_tree_button.setToolTip("Open the latest annotated SlicerDDSurfer output-tree HTML report.")
     output_tree_button.connect("clicked()", widget._on_open_output_tree_report_clicked)
-    panel_layout.addWidget(output_tree_button)
+    report_row.addWidget(output_tree_button)
+    panel_layout.addLayout(report_row)
+    review = qt.QLabel("Execution: not started   |   QC: consult report   |   Visual review: pending")
+    review.wordWrap = True
+    review.setStyleSheet("QLabel { color: #74562D; background: #FAF4E9; padding: 8px; border: 1px solid #E6D8BD; border-radius: 5px; }")
+    panel_layout.addWidget(review)
+    widget._reviewStateLabel = review
+    result_row = qt.QHBoxLayout()
+    widget._resultSceneButtons = []
+    for label, mode in (("Load / reuse", "reuse"), ("Replace", "replace"), ("Append copy", "append"), ("Clear run", "clear")):
+        button = qt.QPushButton(label)
+        button.enabled = False
+        button.setToolTip("Manage only scene nodes owned by this run; source files are never deleted.")
+        button.connect("clicked()", lambda mode=mode: widget._manage_result_scene(mode))
+        result_row.addWidget(button)
+        widget._resultSceneButtons.append(button)
+    panel_layout.addLayout(result_row)
 
     table = qt.QTableWidget()
     table.setColumnCount(6)

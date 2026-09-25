@@ -58,7 +58,7 @@ class SlicerUiLayoutContractTest(unittest.TestCase):
         self.assertEqual(_property_text(environment, "collapsed"), "true")
         self.assertEqual(
             _property_text(advanced, "text"),
-            "Advanced settings: backends, batch, streamlines",
+            "Analysis settings",
         )
         self.assertEqual(_property_text(advanced, "collapsed"), "true")
         self.assertIsNotNone(_layout(root, "advancedRunFormLayout"))

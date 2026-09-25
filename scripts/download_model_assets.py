@@ -832,6 +832,7 @@ def main(argv: list[str] | None = None) -> int:
                 force=bool(args.force),
             )
         if not args.no_verify:
+            print(f"[model-assets] Verifying checksums for profile={plan.profile}...", flush=True)
             result = verify_asset_plan(asset_root, plan)
             if not result["ok"]:
                 print(json.dumps({"profile": plan.profile, "verification": result}, indent=2, sort_keys=True), file=sys.stderr)

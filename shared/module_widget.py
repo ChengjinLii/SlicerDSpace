@@ -229,7 +229,7 @@ class SharedWidgetMixin:
         text_updates = {
             "environmentCollapsibleButton": "Advanced: Dependency profile",
             "configurationCollapsibleButton": "Run workflow",
-            "advancedRunCollapsibleButton": "Advanced settings: backends, batch, streamlines",
+            "advancedRunCollapsibleButton": "Analysis settings",
             "runSelectedButton": "Preflight and run",
         }
         for widget_name, text in text_updates.items():
@@ -462,6 +462,8 @@ class SharedWidgetMixin:
         return str(value or "").strip()
 
     def _save_environment_path_setting(self, dependency_id: str, value: str) -> None:
+        self._lastEnvironmentResult = None
+        self._lastEnvironmentSignature = None
         settings = slicer.app.userSettings()
         clean_value = (value or "").strip()
         if clean_value:
@@ -1454,6 +1456,9 @@ class SharedWidgetMixin:
             self._set_environment_path_status_label(label, text, state)
 
     def cleanup(self) -> None:
+        job = getattr(self, "_setupJob", None)
+        if job:
+            job.cancel()
         self.removeObservers()
 
     def enter(self) -> None:
@@ -1653,6 +1658,19 @@ class SharedWidgetMixin:
         return is_auto_generated_run_name(run_name)
 
     def _refresh_advanced_run_settings(self, *, backend: Optional[str] = None) -> None:
+        node = self._parameterNode
+        if node:
+            groups = (
+                (bool(node.targetMicrostructure), ("orchestrationMicrostructureStagesLabel", "orchestrationMicrostructureStagesComboBox")),
+                (bool(node.targetBundles), ("orchestrationBundleBackendLabel", "orchestrationBundleBackendComboBox")),
+                (bool(node.targetTractography or node.targetConnectome), ("orchestrationTractographyBackendLabel", "orchestrationTractographyBackendComboBox")),
+                (bool(node.batchMode), ("batchRootLabel", "batchRootPath", "batchSizeLabel", "batchSizeSpinBox", "batchArrangeInputsLabel", "batchArrangeInputsComboBox")),
+            )
+            for visible, names in groups:
+                for name in names:
+                    control = getattr(self.ui, name, None)
+                    if control:
+                        control.visible = visible
         backend = (backend or self._tractography_backend_text() or "csd_act").strip() or "csd_act"
         run_name_edit = getattr(self.ui, "orchestrationRunNameLineEdit", None)
         current_run_name = self._line_edit_text(run_name_edit) if run_name_edit else ""
@@ -1669,6 +1687,9 @@ class SharedWidgetMixin:
 
         control_state = streamline_control_state(backend)
         streamline_spinbox.enabled = control_state.enabled
+        streamlines_visible = control_state.enabled and (not node or bool(node.targetTractography or node.targetConnectome))
+        streamline_spinbox.visible = streamlines_visible
+        streamline_label.visible = streamlines_visible
         streamline_label.text = control_state.label
         streamline_label.toolTip = control_state.tooltip
         streamline_spinbox.toolTip = control_state.tooltip
@@ -1684,6 +1705,7 @@ class SharedWidgetMixin:
         for widget in wma_input_widgets:
             if widget is not None:
                 widget.enabled = "wma" in active_sections
+                widget.visible = "wma" in active_sections
 
         label_groups = getattr(self, "_environmentBackendSectionLabels", {}) or {}
         row_groups = getattr(self, "_environmentBackendSectionRows", {}) or {}
@@ -1885,6 +1907,14 @@ class SharedWidgetMixin:
             preprocessing_backend=(node.preprocessingBackend or "dipy").strip() if node else "dipy",
         )
 
+    def _reset_result_scene_actions(self) -> None:
+        self._latestResultManifestPath = None
+        for button in getattr(self, "_resultSceneButtons", []):
+            button.enabled = False
+        review = getattr(self, "_reviewStateLabel", None)
+        if review:
+            review.text = "Execution: starting   |   QC: not available yet   |   Visual review: pending"
+
     def _startBackgroundPipeline(
         self,
         common_run_kwargs: dict[str, Any],
@@ -1906,6 +1936,7 @@ class SharedWidgetMixin:
 
         program = self._slicer_launcher_program()
         args = self._build_background_cli_args(common_run_kwargs, external_paths)
+        self._reset_result_scene_actions()
         self._backgroundProcess = process
         self._backgroundOutputBuffer = ""
         self._backgroundManifestPath = None
@@ -1951,6 +1982,7 @@ class SharedWidgetMixin:
             batch_size=batch_size,
             arrange_inputs=arrange_inputs,
         )
+        self._reset_result_scene_actions()
         self._backgroundProcess = process
         self._backgroundOutputBuffer = ""
         self._backgroundManifestPath = None
@@ -2061,7 +2093,17 @@ class SharedWidgetMixin:
         elif blocked:
             self._setStatus("error", f"Completed with {blocked} blocked task(s)")
         else:
-            self._setStatus("ready", "Pipeline completed")
+            self._setStatus("warning", "Execution completed; review QC and images")
+        self._latestResultManifestPath = manifest_path
+        for button in getattr(self, "_resultSceneButtons", []):
+            button.enabled = True
+        review = getattr(self, "_reviewStateLabel", None)
+        if review:
+            from shared.result_scene import recorded_qc_summary
+            qc = recorded_qc_summary(manifest)
+            review.text = (("Execution: issues found" if failed or blocked else "Execution: completed") +
+                           f"  |  Recorded QC: {qc['passed']} passed, {qc['issues']} issues, {qc['unavailable']} unavailable"
+                           "  |  Visual review: pending")
         report_path = ""
         report_paths = manifest.get("report_paths") or {}
         if isinstance(report_paths, dict):
@@ -2096,6 +2138,24 @@ class SharedWidgetMixin:
         if output_tree_path:
             message += f" Output tree: {output_tree_path}"
         self._set_run_progress_message(message)
+
+    def _manage_result_scene(self, mode: str) -> None:
+        manifest = getattr(self, "_latestResultManifestPath", None)
+        if not manifest or not self.logic:
+            return
+        if mode in {"replace", "clear"} and not slicer.util.confirmYesNoDisplay(
+                "Remove scene nodes loaded for this run? Source files will be kept.", parent=self.parent):
+            return
+        if mode == "clear":
+            count = self.logic.clearResultsFromManifest(Path(manifest))
+            self.appendLog(f"[Scene] Removed {count} owned node(s); files unchanged.")
+            return
+        result = self.logic.loadKeyResultsFromManifest(Path(manifest), mode=mode)
+        self._set_run_progress_message(
+            f"Loaded {len(result['loaded'])}; reused {len(result['reused'])}; "
+            f"not loaded {len(result['skipped'])}; deferred {len(result['deferred'])}. See log for details.")
+        for item in result["skipped"]:
+            self.appendLog("[Scene] " + str(item))
 
     def _load_background_batch_manifest_result(self, manifest_path: Path, manifest: dict[str, Any]) -> None:
         rows, counts = rows_from_batch_manifest(manifest_path, manifest)
@@ -2134,6 +2194,10 @@ class SharedWidgetMixin:
         return manifest_path
 
     def _onCancelRunClicked(self) -> None:
+        job = getattr(self, "_setupJob", None)
+        if job:
+            job.cancel()
+            return
         process = getattr(self, "_backgroundProcess", None)
         if process is None:
             return
@@ -2195,36 +2259,9 @@ class SharedWidgetMixin:
             return None
 
     def _install_missing_python_before_run(self, doctor_result, doctor_kwargs: dict, doctor_signature: tuple):
-        self.appendLog(
-            "Missing Python packages detected; installing before run: "
-            + ", ".join(doctor_result.missing_python_packages)
-        )
-        self._setPipelineActive(True)
-        self._setStatus("running", "Installing Python dependencies...")
-        slicer.util.showStatusMessage("Installing missing Python dependencies...", 0)
-        try:
-            packages = tuple(doctor_result.missing_python_packages)
-            self.logic.installMissingPythonDependencies(packages)
-            self._save_python_install_status(packages, "completed")
-            updated_result = self.logic.runEnvironmentDoctor(**doctor_kwargs)
-            self._cache_environment_result(updated_result, doctor_signature)
-            self._update_environment_result_label(updated_result)
-            self._update_environment_path_status_labels(updated_result)
-            return updated_result
-        except Exception as exc:
-            self._save_python_install_status(tuple(doctor_result.missing_python_packages), "failed", str(exc))
-            self.appendLog(f"Dependency installation failed: {exc}")
-            self._show_actionable_error(
-                title="Python Dependency Installation Failed",
-                what="SlicerDDSurfer could not install the missing Python packages into the selected Python environment.",
-                why="pip returned an error, the Python executable is not writable, or the package is unavailable for this platform.",
-                next_step="Open the generated install_missing_python script from the environment report and run it in a terminal to inspect the full pip output.",
-                auto_fix="Automatic Python install was attempted and failed. External tools still require manual setup.",
-                details=exc,
-            )
-            self._setPipelineActive(False)
-            self._setStatus("error", "Dependency installation failed")
-            return None
+        self._install_python_packages_from_environment_dialog(tuple(doctor_result.missing_python_packages))
+        self.appendLog("[Setup] After installation, review dependencies and click Preflight and run again.")
+        return None
 
     def _onRunSelectedClicked(self) -> None:
         if not self._parameterNode or not self.logic:
@@ -2490,8 +2527,11 @@ class SharedWidgetMixin:
             return
         model_missing = self._missing_model_resource_items(result)
         if result.missing_python_packages:
-            self._install_python_packages_from_environment_dialog(tuple(result.missing_python_packages))
-        if model_missing:
+            self._install_python_packages_from_environment_dialog(
+                tuple(result.missing_python_packages),
+                on_complete=(lambda ok: self._install_model_assets_from_environment_dialog(profile="core") if ok and model_missing else None),
+            )
+        elif model_missing:
             self._install_model_assets_from_environment_dialog(profile="core")
         external_missing = [
             item
@@ -2519,59 +2559,65 @@ class SharedWidgetMixin:
             return
         self._show_environment_install_notes_for_item(item)
 
-    def _install_python_packages_from_environment_dialog(self, packages: tuple[str, ...]) -> None:
-        unique_packages = tuple(dict.fromkeys(package for package in packages if package and package.strip()))
-        if not unique_packages:
-            slicer.util.infoDisplay("No auto-installable Python packages are missing.", parent=self.parent)
-            return
-        if not self.logic:
-            slicer.util.errorDisplay("Logic is unavailable; cannot install dependencies.", parent=self.parent)
-            return
+    def _setup_python_command(self, python_override=None):
+        result = getattr(self, "_lastEnvironmentResult", None)
+        python = str(python_override or getattr(result, "python_executable", "") or "")
+        if python and Path(python).resolve() != Path(sys.executable).resolve():
+            return python, []
+        return self._slicer_launcher_program(), ["--launch", "PythonSlicer"]
 
-        self.appendLog("[Environment] Installing from UI: " + ", ".join(unique_packages))
-        self._setStatus("running", "Installing Python dependencies...")
-        progress = qt.QProgressDialog("Installing Python dependencies...", "Cancel", 0, len(unique_packages), slicer.util.mainWindow())
-        progress.setWindowTitle("SlicerDDSurfer dependency install")
-        progress.setWindowModality(qt.Qt.WindowModal)
-        progress.setMinimumDuration(0)
-        progress.show()
-
-        def on_progress(index: int, total: int, message: str) -> None:
-            progress.setMaximum(max(1, total))
-            progress.setValue(max(0, min(index, total)))
-            progress.setLabelText(message)
-            slicer.app.processEvents()
-
-        try:
-            self.logic.installMissingPythonDependencies(unique_packages, progress_callback=on_progress)
-            progress.setValue(len(unique_packages))
-            self._save_python_install_status(tuple(unique_packages), "completed")
-        except Exception as exc:
-            self._save_python_install_status(tuple(unique_packages), "failed", str(exc))
-            self.appendLog(f"[Environment] Dependency installation failed: {exc}")
-            self._setStatus("error", "Dependency installation failed")
-            self._show_actionable_error(
-                title="Python Dependency Installation Failed",
-                what="SlicerDDSurfer could not install the selected Python package(s).",
-                why="pip returned an error, the selected Slicer Python is not writable, or the package is unavailable for this platform.",
-                next_step="Use the generated install_missing_python script from the environment report, or install the package manually into Slicer Python.",
-                auto_fix="Automatic Python install was attempted and failed. External tools are not installed automatically.",
-                details=exc,
-            )
+    def _install_python_packages_from_environment_dialog(self, packages: tuple[str, ...], on_complete=None) -> None:
+        from shared.ui_setup_jobs import start_setup_job
+        packages = tuple(dict.fromkeys(p.strip() for p in packages if p.strip()))
+        if not packages:
             return
-        finally:
-            try:
-                progress.close()
-            except Exception:
-                pass
-
-        result = self._run_environment_dependency_check()
-        if result is None:
+        if any(p == "torch" or p.startswith(("torch>", "torch=", "torch<")) for p in packages):
+            slicer.util.infoDisplay(
+                "Install or update PyTorch through the Slicer PyTorch extension, then check dependencies again. "
+                "This avoids replacing Slicer's torch runtime with an incompatible build.", parent=self.parent)
             return
-        self._update_environment_result_label(result)
-        self._update_environment_path_status_labels(result)
-        self._update_environment_status(result)
-        self._show_environment_results_dialog(result)
+        commands = []
+        for package in packages:
+            environment = {}
+            requirement = package
+            result = getattr(self, "_lastEnvironmentResult", None)
+            details = next((item.details for item in getattr(result, "statuses", ())
+                            if item.kind == "python" and package in {
+                                item.details.get("package"), item.details.get("install_requirement")}), {})
+            requirement = details.get("install_requirement") or requirement
+            program, prefix = self._setup_python_command(details.get("python_executable"))
+            if requirement == "git+https://github.com/demianw/tract_querier.git":
+                root = self._environment_dependency_path_kwargs().get("tract_querier_root")
+                if root and (Path(root) / "pyproject.toml").is_file():
+                    requirement = str(root)
+                    environment["SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRACT_QUERIER"] = "0+local"
+            commands.append((program, [*prefix, "-u", "-m", "pip", "install", "--", requirement], environment))
+
+        def done(status, details, log_path):
+            self._save_python_install_status(packages, status, str(log_path))
+            self._lastEnvironmentResult = None
+            self._lastEnvironmentSignature = None
+            self._setStatus("warning" if status != "completed" else "ready",
+                            "Setup " + status + "; check dependencies before running")
+            if status == "failed":
+                self._show_actionable_error(
+                    title="Python dependency installation failed",
+                    what="The background installer stopped.",
+                    why="See the recorded pip output and exact command.",
+                    next_step="Open install logs, correct the reported problem, then check dependencies again.",
+                    auto_fix="No external software was installed.", details=details + "\\nLog: " + str(log_path))
+            elif status == "cancelled":
+                slicer.util.infoDisplay(
+                    "Installation stopped. Packages already installed were not rolled back. "
+                    "Check dependencies before retrying.", parent=self.parent)
+            else:
+                if not on_complete:
+                    slicer.util.infoDisplay(
+                        "Installation finished. Check dependencies again; a Slicer restart may be needed "
+                        "for packages already imported.", parent=self.parent)
+            if on_complete:
+                on_complete(status == "completed")
+        start_setup_job(self, "Install Python dependencies", commands, done)
 
     def _show_environment_install_notes(self, result) -> None:
         missing = [item for item in self._missing_environment_items(result) if item.kind != "python"]
@@ -2675,135 +2721,44 @@ class SharedWidgetMixin:
         return asset_root
 
     def _install_model_assets_from_environment_dialog(
-        self,
-        *,
-        profile: str = "core",
-        prompt_for_root: bool = True,
+        self, *, profile: str = "core", prompt_for_root: bool = True, on_complete=None,
     ) -> bool:
-        module = self._load_model_assets_module()
-        repo_root = Path(__file__).resolve().parent.parent
+        from shared.ui_setup_jobs import start_setup_job
+        if getattr(self, "_setupJob", None) or getattr(self, "_pipelineActive", False):
+            slicer.util.infoDisplay("Wait for the current job or cancel it before changing setup.", parent=self.parent)
+            return False
         if prompt_for_root:
             asset_root = self._choose_model_assets_root()
             if asset_root is None:
-                self.appendLog("[Model assets] Download cancelled before a destination folder was selected.")
                 return False
         else:
+            module = self._load_model_assets_module()
             configured = self._environment_dependency_path_kwargs().get("model_assets_dir")
-            asset_root = configured if isinstance(configured, Path) and str(configured) else module.configured_model_assets_root()
-            asset_root = asset_root.expanduser().resolve()
-            self._save_environment_path_setting("model_assets_dir", asset_root.as_posix())
+            asset_root = Path(configured or module.configured_model_assets_root()).expanduser().resolve()
+        script = Path(__file__).resolve().parents[1] / "scripts" / "download_model_assets.py"
+        program, prefix = self._slicer_launcher_program(), ["--launch", "PythonSlicer"]
+        command = (program, [*prefix, "-u", str(script), "--profile", profile,
+                             "--asset-root", str(asset_root), "--source", "url",
+                             "--source-id", "slicerdsurfer_models_git"], {})
 
-        progress = qt.QProgressDialog("Preparing model asset download...", "Cancel", 0, 1000, slicer.util.mainWindow())
-        progress.setWindowTitle("SlicerDDSurfer model assets")
-        progress.setWindowModality(qt.Qt.WindowModal)
-        progress.setMinimumDuration(0)
-        progress.setAutoClose(False)
-        progress.setValue(0)
-        progress.show()
-
-        def progress_was_cancelled() -> bool:
-            value = getattr(progress, "wasCanceled", False)
-            try:
-                return bool(value() if callable(value) else value)
-            except Exception:
-                return False
-
-        def human_size(value: int) -> str:
-            size = float(max(0, int(value or 0)))
-            for unit in ("B", "KiB", "MiB", "GiB"):
-                if size < 1024.0 or unit == "GiB":
-                    return f"{size:.1f} {unit}" if unit != "B" else f"{int(size)} B"
-                size /= 1024.0
-            return f"{size:.1f} GiB"
-
-        def on_download_progress(event: dict[str, Any]) -> None:
-            phase = str(event.get("phase") or "downloading")
-            relative = str(event.get("path") or "model asset")
-            downloaded = int(event.get("downloaded_bytes") or 0)
-            total = int(event.get("total_bytes") or 0)
-            file_index = int(event.get("file_index") or 1)
-            file_count = int(event.get("file_count") or 1)
-            resumed = bool(event.get("resumed"))
-            if total > 0:
-                progress.setRange(0, 1000)
-                progress.setValue(min(1000, int(1000 * downloaded / max(1, total))))
-                amount = f"{human_size(downloaded)} / {human_size(total)}"
-            else:
-                progress.setRange(0, 0)
-                amount = human_size(downloaded) if downloaded else "waiting for server"
-            resume_text = " (resuming partial download)" if resumed and phase != "complete" else ""
-            progress.setLabelText(
-                f"File {file_index}/{file_count}: {relative}\n{amount}{resume_text}"
-            )
-            slicer.app.processEvents()
-
-        try:
-            manifest = module.load_manifest(repo_root / "models" / "assets_manifest.json")
-            plan = module.resolve_asset_plan(manifest, profile)
-            self.appendLog(f"[Model assets] Downloading profile={profile} into {asset_root}")
-            progress.setLabelText(f"Downloading model assets to {asset_root} ...")
-            slicer.app.processEvents()
-            module.download_asset_plan(
-                asset_root,
-                plan,
-                manifest,
-                source="url",
-                source_ids=("slicerdsurfer_models_git",),
-                base_urls=(),
-                allow_planned_sources=False,
-                force=False,
-                progress_callback=on_download_progress,
-                cancel_check=progress_was_cancelled,
-            )
-            if progress_was_cancelled():
-                raise module.DownloadCancelledError(
-                    "Model asset download cancelled; the partial file was kept for resume."
-                )
-            progress.setRange(0, 100)
-            progress.setValue(80)
-            progress.setLabelText("Verifying model asset checksums...")
-            slicer.app.processEvents()
-            verification = module.verify_asset_plan(asset_root, plan)
-            if not verification.get("ok"):
-                raise RuntimeError(json.dumps(verification, indent=2, sort_keys=True))
-            progress.setValue(100)
-        except module.DownloadCancelledError as exc:
-            self.appendLog(f"[Model assets] {exc}")
-            self._set_model_assets_status_text(
-                f"Download paused. Partial files were kept at {asset_root}; run Download again to resume."
-            )
-            slicer.util.infoDisplay(
-                "Model download was paused. Partial files were kept and the next download will resume when the server supports it.",
-                windowTitle="SlicerDDSurfer model assets",
-                parent=self.parent,
-            )
-            return False
-        except Exception as exc:
-            self.appendLog(f"[Model assets] Download/verification failed: {exc}")
-            self._show_actionable_error(
-                title="Model Asset Download Failed",
-                what="SlicerDDSurfer could not download or verify the selected model assets.",
-                why="The asset source may be unreachable, the selected directory may not be writable, or checksum verification failed.",
-                next_step=(
-                    "Choose a writable Model assets root, or run "
-                    f"python3 scripts/download_model_assets.py --profile {profile} --asset-root {asset_root} "
-                    "--source url --source-id slicerdsurfer_models_git in a terminal."
-                ),
-                auto_fix="No system-level software was modified. Only the selected model asset directory was targeted.",
-                details=exc,
-            )
-            return False
-        finally:
-            try:
-                progress.close()
-            except Exception:
-                pass
-
-        self._set_model_assets_status_text(f"Model assets profile={profile} verified at {asset_root}")
-        result = self._run_environment_dependency_check()
-        if result is not None:
-            self._show_environment_results_dialog(result)
-        return True
+        def done(status, details, log_path):
+            message = ("Model assets downloaded and checksum-verified." if status == "completed" else
+                       "Download stopped; partial files are retained for retry." if status == "cancelled" else
+                       "Download or checksum verification failed.")
+            self._set_model_assets_status_text(message + " " + str(asset_root))
+            self._setStatus("ready" if status == "completed" else "warning", message)
+            self._lastEnvironmentResult = None
+            self._lastEnvironmentSignature = None
+            if status == "failed":
+                self._show_actionable_error(
+                    title="Model asset setup failed", what=message,
+                    why="Network, file permissions or checksum validation may have failed.",
+                    next_step="Inspect the install log and retry using the same asset directory.",
+                    auto_fix="Partial downloads are retained; no scientific outputs were modified.",
+                    details=details + "\\nLog: " + str(log_path))
+            if on_complete:
+                on_complete(status == "completed", message)
+        return start_setup_job(self, "Download and verify model assets", [command], done)
 
     def _setPipelineActive(self, active: bool) -> None:
         self._pipelineActive = active

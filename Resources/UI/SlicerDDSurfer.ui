@@ -51,14 +51,14 @@
          <item>
          <widget class="QLabel" name="headlineLabel">
            <property name="text">
-            <string>SlicerDDSurfer Release Workbench</string>
+            <string>SlicerDDSurfer</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QLabel" name="subtitleLabel">
            <property name="text">
-            <string>Prepare one subject root, preflight external dependencies, and run reusable diffusion products from one monitored pipeline.</string>
+            <string>Prepare inputs · Choose analyses · Review results</string>
            </property>
            <property name="wordWrap">
             <bool>true</bool>
@@ -153,7 +153,7 @@
            <string>Install missing Python packages before running</string>
           </property>
           <property name="toolTip">
-           <string>Only Python packages are installed automatically. External tools are reported in the environment notes.</string>
+           <string>Missing Python packages are installed in the background. Review setup, then click Preflight and run again. External tools are not installed silently.</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -242,7 +242,7 @@
           <set>ctkPathLineEdit::Dirs</set>
           </property>
           <property name="placeholderText" stdset="0">
-           <string>Preferred: &lt;subject_root&gt; containing input/data.nii.gz, input/bvals, input/bvecs, and input/nodif_brain_mask.nii.gz</string>
+           <string>Subject folder with input/data.nii.gz, bvals and bvecs. Brain mask is optional and can be generated. Use Prepare inputs for DICOM or NRRD conversion.</string>
           </property>
          </widget>
         </item>
@@ -495,7 +495,7 @@
       <item>
        <widget class="ctkCollapsibleButton" name="advancedRunCollapsibleButton">
         <property name="text">
-         <string>Advanced settings: backends, batch, streamlines</string>
+         <string>Analysis settings</string>
         </property>
         <property name="collapsed">
          <bool>true</bool>

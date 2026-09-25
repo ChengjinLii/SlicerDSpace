@@ -178,7 +178,7 @@ class OnboardingHelpersTest(unittest.TestCase):
         apply_onboarding_language(owner, "en")
 
         self.assertEqual(owner._onboardingLanguage, "en")
-        self.assertEqual(owner.ui.headlineLabel.value, "SlicerDDSurfer Release Workbench")
+        self.assertEqual(owner.ui.headlineLabel.value, "SlicerDDSurfer")
         self.assertEqual(owner.ui.subjectIdLabel.value, "Subject ID")
         self.assertEqual(owner.ui.targetSurfaceLabel.value, "Surface (native)")
         self.assertEqual(owner.ui.targetSurfacePostprocessLabel.value, "Surface postprocess")

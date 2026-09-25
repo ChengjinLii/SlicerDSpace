@@ -35,10 +35,9 @@ TRANSLATIONS = {
             "Examples: Subject root /Users/name/data/sub-01 | Output /Users/name/data/sub-01/outputs | "
             "Model assets /Users/name/SlicerDDSurfer-model-assets | MRtrix bin /opt/mrtrix3/bin"
         ),
-        "headline": "SlicerDDSurfer Release Workbench",
+        "headline": "SlicerDDSurfer",
         "subtitle": (
-            "Prepare one subject root, preflight external dependencies, and run reusable diffusion products "
-            "from one monitored pipeline."
+            "Prepare inputs. Choose analyses. Review results."
         ),
         "choose_input": "<b>1. Choose input</b>",
         "choose_products": "<b>2. Choose products</b>",
@@ -85,7 +84,7 @@ TRANSLATIONS = {
         "bundles_option": "Bundle extraction: WMQL presets, WMA, or TractCloud",
         "connectome": "Connectome",
         "connectome_option": "Streamline-count and scalar-weighted connectivity matrices",
-        "advanced_settings": "Advanced settings: backends, batch, streamlines",
+        "advanced_settings": "Analysis settings",
         "advanced_hint": "Change these only for non-default backends, batch runs, or optional microstructure stages.",
         "run_name": "Run name",
         "tractography_backend": "Tractography backend",
@@ -986,6 +985,10 @@ def apply_onboarding_language(owner: Any, language: str) -> None:
 
     lang = normalized_language(language)
     owner._onboardingLanguage = lang
+    scene_labels = (("加载 / 复用", "替换", "追加副本", "清除此运行") if lang == "zh" else
+                    ("Load / reuse", "Replace", "Append copy", "Clear run"))
+    for button, text in zip(getattr(owner, "_resultSceneButtons", []), scene_labels):
+        _set_widget_text(button, text)
     widgets = getattr(owner, "_onboardingWidgets", {}) or {}
     for name, key in (
         ("title", "beginner_title"),
@@ -1223,12 +1226,15 @@ def show_first_run_wizard(owner: Any) -> None:
         root = owner._choose_model_assets_root()
         return (root is not None), (str(root) if root is not None else copy["cancelled"])
 
-    def models_action() -> tuple[bool, str]:
-        ok = bool(owner._install_model_assets_from_environment_dialog(profile="core", prompt_for_root=False))
-        if not ok:
-            return False, copy["download_failed"]
-        _, _, verification = owner._model_asset_verification("core", check_hashes=False)
-        return True, owner._format_model_asset_status_line("core", verification)
+    def models_action() -> tuple[bool | None, str]:
+        def completed(ok, detail):
+            try:
+                set_step_status(2, "ready" if ok else "failed", detail)
+            except RuntimeError:
+                pass  # The wizard may have been closed while setup ran.
+        started = owner._install_model_assets_from_environment_dialog(
+            profile="core", prompt_for_root=False, on_complete=completed)
+        return (None, "Downloading and verifying in background...") if started else (False, copy["download_failed"])
 
     def scan_action() -> tuple[bool, str]:
         result = owner._onValidateClicked()
@@ -1289,7 +1295,7 @@ def show_first_run_wizard(owner: Any) -> None:
             ok, detail = callback()
         except Exception as exc:
             ok, detail = False, str(exc)
-        set_step_status(index, "ready" if ok else "failed", detail)
+        set_step_status(index, "working" if ok is None else "ready" if ok else "failed", detail)
 
     for index, (title_text, body_text, action_text, callback) in enumerate(steps):
         frame = qt.QFrame()
