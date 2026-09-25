@@ -788,6 +788,106 @@ class ModelAssetRootSecurityTest(unittest.TestCase):
 
             self.assertEqual(resolved, user_root.resolve())
 
+    def test_directory_with_one_stale_file_among_several_is_rejected(self) -> None:
+        # A directory containing several manifest-recorded files, all but
+        # one of which verify, must be rejected outright -- not accepted
+        # because "at least one" file matched. The caller only verifies at
+        # the directory level; a substituted/tampered file the caller later
+        # loads by itself (e.g. one of several backbone checkpoints picked
+        # at runtime) would otherwise never be re-checked.
+        from shared.model_asset_integrity import sha256_of_file
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_root = tmp_path / "user-assets"
+            repo_root = tmp_path / "repo"
+            weights_dir = user_root / "parcellation" / "weights" / "backbones"
+            weights_dir.mkdir(parents=True)
+            genuine_a = weights_dir / "axial.pkl"
+            genuine_b = weights_dir / "coronal.pkl"
+            stale = weights_dir / "sagittal.pkl"
+            genuine_a.write_bytes(b"genuine axial weights")
+            genuine_b.write_bytes(b"genuine coronal weights")
+            stale.write_bytes(b"a stale/substituted file")
+            self._write_manifest(
+                repo_root,
+                {
+                    "parcellation/weights/backbones/axial.pkl": {"sha256": sha256_of_file(genuine_a)},
+                    "parcellation/weights/backbones/coronal.pkl": {"sha256": sha256_of_file(genuine_b)},
+                    # Manifest records a *different* digest than what is on
+                    # disk for this one file.
+                    "parcellation/weights/backbones/sagittal.pkl": {"sha256": "0" * 64},
+                },
+            )
+
+            with mock.patch.object(
+                self.model_assets_module, "default_user_model_assets_root", return_value=user_root
+            ):
+                with self.assertRaises(self.model_assets_module.ModelAssetIntegrityError):
+                    self.model_assets_module.model_asset_path(
+                        "parcellation/weights/backbones", repo_root=repo_root
+                    )
+
+    def test_directory_with_all_recorded_files_verified_is_accepted(self) -> None:
+        # The positive counterpart: every recorded file present verifies,
+        # so the directory as a whole is accepted.
+        from shared.model_asset_integrity import sha256_of_file
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_root = tmp_path / "user-assets"
+            repo_root = tmp_path / "repo"
+            weights_dir = user_root / "parcellation" / "weights" / "backbones"
+            weights_dir.mkdir(parents=True)
+            genuine_a = weights_dir / "axial.pkl"
+            genuine_b = weights_dir / "coronal.pkl"
+            genuine_a.write_bytes(b"genuine axial weights")
+            genuine_b.write_bytes(b"genuine coronal weights")
+            self._write_manifest(
+                repo_root,
+                {
+                    "parcellation/weights/backbones/axial.pkl": {"sha256": sha256_of_file(genuine_a)},
+                    "parcellation/weights/backbones/coronal.pkl": {"sha256": sha256_of_file(genuine_b)},
+                },
+            )
+
+            with mock.patch.object(
+                self.model_assets_module, "default_user_model_assets_root", return_value=user_root
+            ):
+                resolved = self.model_assets_module.model_asset_path(
+                    "parcellation/weights/backbones", repo_root=repo_root
+                )
+
+            self.assertEqual(resolved, weights_dir.resolve())
+
+    def test_verification_always_persists_the_sha256_cache(self) -> None:
+        # Every code path that computes a digest must persist it, not just
+        # some of them -- otherwise a large weight file gets re-hashed on
+        # every single call instead of only when it actually changes.
+        from shared.model_asset_integrity import sha256_of_file
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            user_root = tmp_path / "user-assets"
+            repo_root = tmp_path / "repo"
+            weights_dir = user_root / "segmentation" / "weights"
+            weights_dir.mkdir(parents=True)
+            asset = weights_dir / "dti_axial.pt"
+            asset.write_bytes(b"genuine weights")
+            self._write_manifest(
+                repo_root,
+                {"segmentation/weights/dti_axial.pt": {"sha256": sha256_of_file(asset)}},
+            )
+
+            with mock.patch.object(
+                self.model_assets_module, "default_user_model_assets_root", return_value=user_root
+            ):
+                self.model_assets_module.model_asset_path("segmentation/weights", repo_root=repo_root)
+
+            on_disk_cache = self.model_assets_module.load_sha256_cache(self._cache_path)
+            self.assertIn(str(asset), on_disk_cache)
+            self.assertEqual(on_disk_cache[str(asset)]["sha256"], sha256_of_file(asset))
+
 
 if __name__ == "__main__":
     unittest.main()

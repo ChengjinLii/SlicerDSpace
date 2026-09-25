@@ -131,40 +131,55 @@ def _has_verified_required_asset(
 
     A required path that is itself a file is checked directly. A required
     path that is a directory (the common case: callers ask for e.g.
-    ``"segmentation/weights"``) is accepted only if at least one file the
-    manifest actually records underneath it exists and matches its recorded
-    sha256; a directory with no manifest coverage at all falls back to
-    plain non-emptiness, since there is nothing recorded to verify it
-    against.
+    ``"segmentation/weights"``) is accepted only if *every* file the
+    manifest actually records under that prefix that is currently present
+    on disk matches its recorded sha256 -- not just any one of them:
+    otherwise a directory containing one genuine file alongside tampered or
+    substituted ones would be accepted wholesale, and the caller only
+    verifies at the directory level (individual files loaded from it later,
+    e.g. one of several backbone checkpoints picked at runtime, are never
+    re-checked). A manifest-recorded file that is simply not present yet
+    (not downloaded) does not by itself fail the directory -- but if none of
+    the recorded files are present at all, the directory does not count as
+    verified either. A directory with no manifest coverage at all falls
+    back to plain non-emptiness, since there is nothing recorded to verify
+    it against.
     """
 
     cache = _sha256_cache()
     verified_anything = False
+    accepted = False
     for relative in required_paths:
+        if accepted:
+            break
         candidate = root / relative
         if candidate.is_file():
             ok, _reason = verify_against_manifest(candidate, relative, manifest_records, cache=cache)
+            verified_anything = True
             if ok:
-                return True
+                accepted = True
             continue
         if not candidate.is_dir():
             continue
         manifest_keys = _relative_manifest_keys(relative, manifest_records)
         if not manifest_keys:
             if any(candidate.iterdir()):
-                return True
+                accepted = True
             continue
-        for key in manifest_keys:
-            file_path = root / key
-            if not file_path.is_file():
-                continue
-            ok, _reason = verify_against_manifest(file_path, key, manifest_records, cache=cache)
+        existing_keys = [key for key in manifest_keys if (root / key).is_file()]
+        if not existing_keys:
+            continue
+        all_verified = True
+        for key in existing_keys:
+            ok, _reason = verify_against_manifest(root / key, key, manifest_records, cache=cache)
             verified_anything = True
-            if ok:
-                return True
+            if not ok:
+                all_verified = False
+        if all_verified:
+            accepted = True
     if verified_anything:
         _persist_sha256_cache()
-    return False
+    return accepted
 
 
 def resolve_model_assets_root(
