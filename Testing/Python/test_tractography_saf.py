@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -679,6 +680,31 @@ class SAFIntegrationTest(unittest.TestCase):
         self.assertEqual(status["mrtrix"]["discovery"], "prefix_unchecked")
         self.assertEqual(status["mrtrix_required"]["tckgen"], "singularity exec mrtrix.sif tckgen")
         self.assertEqual(status["missing_required"], [])
+
+    def test_effective_mrtrix_prefix_quotes_bin_dir_with_shell_metacharacters(self) -> None:
+        # _effective_mrtrix_prefix() builds "PATH=<bin_dir>:$PATH " that is
+        # interpolated verbatim into shell=True command strings by the
+        # bundled SAF backend; bin_dir must be shell-quoted so a directory
+        # name containing a space or ";" cannot corrupt the command.
+        from tractography.saf import SAFConfig, _effective_mrtrix_prefix
+
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_dir = Path(tmp) / "unsafe dir; touch pwned" / "mrtrix-bin"
+            bin_dir.mkdir(parents=True)
+
+            prefix = _effective_mrtrix_prefix(
+                SAFConfig(
+                    subject_id="100307",
+                    input_root=Path("/tmp/subject"),
+                    fs_dir=Path("/tmp/fs"),
+                    fod_path=Path("/tmp/fod.mif"),
+                    mrtrix_bin_dir=bin_dir,
+                )
+            )
+
+            quoted_bin_dir = shlex.quote(bin_dir.resolve().as_posix())
+            self.assertEqual(prefix, f"PATH={quoted_bin_dir}:$PATH ")
+            self.assertEqual(shlex.split(prefix.replace(":$PATH", "")), [f"PATH={bin_dir.resolve().as_posix()}"])
 
 
 if __name__ == "__main__":

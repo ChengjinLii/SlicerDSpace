@@ -6,14 +6,10 @@ from pathlib import Path
 from typing import Optional
 
 
-def _quote(p: Path) -> str:
-    return f"\"{p}\""
-
-
-def _launcher(cli: Path, slicer_exe: Optional[Path]) -> str:
+def _launcher(cli: Path, slicer_exe: Optional[Path]) -> list[str]:
     if slicer_exe and slicer_exe.exists():
-        return f"{_quote(slicer_exe)} --launch {_quote(cli)}"
-    return _quote(cli)
+        return [str(slicer_exe), "--launch", str(cli)]
+    return [str(cli)]
 
 
 def _find_slicer_lib_dir(slicer_base: Path) -> Path:
@@ -60,30 +56,40 @@ def run_dti_feature_extraction(
     e2_nrrd = output_folder / "DTI_E2.nrrd"
     e3_nrrd = output_folder / "DTI_E3.nrrd"
 
-    launcher = _launcher(dwi_convert, slicer_exe)
-    dwi_convert_cmd = (
-        f"{launcher} --conversionMode FSLToNrrd "
-        f"--inputBVectors {_quote(bvec_file)} "
-        f"--inputBValues {_quote(bval_file)} "
-        f"--fslNIFTIFile {_quote(nii_file)} "
-        f"--outputVolume {_quote(dwi_nrrd)} "
-        f"--allowLossyConversion"
-    )
+    # Argument lists passed to subprocess.run() without shell=True: no shell
+    # is involved, so paths containing spaces, semicolons, or other shell
+    # metacharacters are passed through literally with no quoting needed.
+    dwi_convert_cmd = _launcher(dwi_convert, slicer_exe) + [
+        "--conversionMode",
+        "FSLToNrrd",
+        "--inputBVectors",
+        str(bvec_file),
+        "--inputBValues",
+        str(bval_file),
+        "--fslNIFTIFile",
+        str(nii_file),
+        "--outputVolume",
+        str(dwi_nrrd),
+        "--allowLossyConversion",
+    ]
 
-    launcher = _launcher(dti_est, slicer_exe)
-    dti_est_cmd = (
-        f"{launcher} --enumeration LS {_quote(dwi_nrrd)} {_quote(dti_nrrd)} {_quote(b0_nrrd)}"
-    )
+    dti_est_cmd = _launcher(dti_est, slicer_exe) + [
+        "--enumeration",
+        "LS",
+        str(dwi_nrrd),
+        str(dti_nrrd),
+        str(b0_nrrd),
+    ]
 
-    launcher = _launcher(dti_scalar, slicer_exe)
-    fa_cmd = f"{launcher} --enumeration FractionalAnisotropy {_quote(dti_nrrd)} {_quote(fa_nrrd)}"
-    md_cmd = f"{launcher} --enumeration Trace {_quote(dti_nrrd)} {_quote(md_nrrd)}"
-    e1_cmd = f"{launcher} --enumeration MinEigenvalue {_quote(dti_nrrd)} {_quote(e3_nrrd)}"
-    e2_cmd = f"{launcher} --enumeration MidEigenvalue {_quote(dti_nrrd)} {_quote(e2_nrrd)}"
-    e3_cmd = f"{launcher} --enumeration MaxEigenvalue {_quote(dti_nrrd)} {_quote(e1_nrrd)}"
+    scalar_launcher = _launcher(dti_scalar, slicer_exe)
+    fa_cmd = scalar_launcher + ["--enumeration", "FractionalAnisotropy", str(dti_nrrd), str(fa_nrrd)]
+    md_cmd = scalar_launcher + ["--enumeration", "Trace", str(dti_nrrd), str(md_nrrd)]
+    e1_cmd = scalar_launcher + ["--enumeration", "MinEigenvalue", str(dti_nrrd), str(e3_nrrd)]
+    e2_cmd = scalar_launcher + ["--enumeration", "MidEigenvalue", str(dti_nrrd), str(e2_nrrd)]
+    e3_cmd = scalar_launcher + ["--enumeration", "MaxEigenvalue", str(dti_nrrd), str(e1_nrrd)]
 
     for cmd in [dwi_convert_cmd, dti_est_cmd, fa_cmd, md_cmd, e1_cmd, e2_cmd, e3_cmd]:
-        subprocess.run(cmd, shell=True, check=True)
+        subprocess.run(cmd, check=True)
 
     if not dti_e3.exists():
         raise RuntimeError("DTI parameter extraction failed. Check Slicer CLI paths.")

@@ -6,6 +6,7 @@ from Support.make_full_path import make_full_path
 from Support.Supp_gz_fileparts import Supp_gz_fileparts
 from Support.verb_msg import verb_msg
 from Support.sys_exec import sys_exec
+from Support.shell_quote import shell_quote
 
 
 class init_class:
@@ -188,7 +189,12 @@ class init_class:
             self.fs_dir = make_full_path(self.fs_dir)
         elif not os.path.isdir(self.fs_dir) and not os.path.exists(def_dir):
             verb_msg(f'Running Freesurfer recon-all on {self.fs_dir}... will take a while ;)', self)
-            sys_exec(f"recon-all -subject FS_reconall -sd {Supp_gz_fileparts(self.fod)[0]} -i {self.fs_dir} -all", self)
+            sys_exec(
+                "recon-all -subject FS_reconall "
+                f"-sd {shell_quote(Supp_gz_fileparts(self.fod)[0])} "
+                f"-i {shell_quote(self.fs_dir)} -all",
+                self,
+            )
             self.fs_dir = def_dir
 
 

@@ -4,6 +4,7 @@ import time
 from Support.verb_msg import verb_msg
 from Support.sys_exec import sys_exec
 from Support.pts_to_tck import pts_to_tck
+from Support.shell_quote import shell_quote
 from .read_prefilter_tracks import read_prefilter_tracks
 
 
@@ -21,9 +22,13 @@ def tractography_mrtrix(PS, SD):
 
         seed_str = ''
         if PS.surfseed:
-            seed_str = f" -seed_coordinates_global {SD.DWI.seed_coords_file_in}"
+            seed_str = f" -seed_coordinates_global {shell_quote(SD.DWI.seed_coords_file_in)}"
 
-        command = f"{PS.mrtrix_prefix} tckgen{seed_str} -output_seeds {SD.DWI.seed_coords_file_out} {PS.tckgen} {PS.fod} {SD.DWI.sl_init} -force"
+        command = (
+            f"{PS.mrtrix_prefix} tckgen{seed_str} "
+            f"-output_seeds {shell_quote(SD.DWI.seed_coords_file_out)} {PS.tckgen} "
+            f"{shell_quote(PS.fod)} {shell_quote(SD.DWI.sl_init)} -force"
+        )
         verb_msg('tckgen string:', PS)
         verb_msg(command, PS)
         sys_exec(command, PS)

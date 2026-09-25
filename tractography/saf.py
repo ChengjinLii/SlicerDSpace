@@ -11,6 +11,7 @@ import importlib
 import importlib.util
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -280,7 +281,12 @@ def _effective_mrtrix_prefix(config: SAFConfig) -> str:
     bin_dir = _configured_mrtrix_bin_dir(config.mrtrix_bin_dir)
     if bin_dir is None:
         return ""
-    return f"PATH={bin_dir.as_posix()}:$PATH "
+    # This prefix is interpolated verbatim into shell=True command strings
+    # by the bundled SAF backend (see saf_backend/Support/sys_exec.py and its
+    # callers), so bin_dir must be shell-quoted even though it is a trusted
+    # configuration path: a space or shell metacharacter in the directory
+    # name would otherwise corrupt every downstream MRtrix command.
+    return f"PATH={shlex.quote(bin_dir.as_posix())}:$PATH "
 
 
 def _resolved_mrtrix_command(config: SAFConfig, command: str) -> Optional[str]:

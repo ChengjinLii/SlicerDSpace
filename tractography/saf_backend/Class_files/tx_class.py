@@ -1,6 +1,7 @@
 ﻿import os
 
 from Support.sys_exec import sys_exec
+from Support.shell_quote import shell_quote
 
 
 class tx_class:
@@ -12,5 +13,6 @@ class tx_class:
         self.iwarp = ''
 
         if not os.path.exists(self.t1):
-            command = f"{PS.mrtrix_prefix} mrconvert {os.path.join(PS.fs_dir, 'mri', 'brain.mgz')} {self.t1}"
+            brain_mgz = os.path.join(PS.fs_dir, 'mri', 'brain.mgz')
+            command = f"{PS.mrtrix_prefix} mrconvert {shell_quote(brain_mgz)} {shell_quote(self.t1)}"
             sys_exec(command, PS)
