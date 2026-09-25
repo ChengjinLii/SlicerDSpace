@@ -31,6 +31,18 @@ class CancelledManifestPayloadTest(unittest.TestCase):
         self.assertEqual(payload["cancelled_at"], "2026-01-01T00:00:00Z")
         self.assertEqual(payload["tasks"], [])
 
+    def test_fresh_payload_kind_matches_the_orchestrators_own_kind(self) -> None:
+        # A run cancelled before the orchestrator wrote any checkpoint gets
+        # a manifest built entirely from scratch here. Its "kind" must be
+        # the exact string shared/orchestrator.py's own orchestration
+        # manifest writes use, so a consumer that discriminates on this
+        # field (e.g. scripts/generate_protocol_benchmarks.py's
+        # ORCHESTRATION_KIND filter) still recognizes it.
+        payload = cancelled_manifest_payload(
+            None, subject_id="100307", run_name="Test1", cancelled_at="2026-01-01T00:00:00Z"
+        )
+        self.assertEqual(payload["kind"], "slicerddsurfer_product_orchestration")
+
     def test_preserves_completed_tasks_and_cancels_unfinished_ones(self) -> None:
         existing = {
             "kind": "slicerdsurfer_orchestration",

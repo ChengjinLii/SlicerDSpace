@@ -64,7 +64,16 @@ def cancelled_manifest_payload(
         dict(existing)
         if existing
         else {
-            "kind": "slicerdsurfer_orchestration",
+            # Must match the "kind" shared/orchestrator.py's own
+            # orchestration manifest writes use (see
+            # shared/orchestrator.py:1896/1937/3665,
+            # shared/ui_run_controller.py:814), so a consumer that
+            # discriminates on this field -- e.g.
+            # scripts/generate_protocol_benchmarks.py's
+            # ORCHESTRATION_KIND filter -- still recognizes a manifest
+            # this module created from scratch (no checkpoint had been
+            # written yet when the run was cancelled).
+            "kind": "slicerddsurfer_product_orchestration",
             "subject_id": subject_id,
             "run_name": run_name,
             "tasks": [],
