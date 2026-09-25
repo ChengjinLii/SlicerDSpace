@@ -32,6 +32,7 @@ from shared import (
     validate_subject_inputs,
     write_environment_report,
 )
+from shared.external_process import text_subprocess_kwargs
 from shared.model_assets import model_asset_candidates
 
 LOGGER = logging.getLogger(__name__)
@@ -186,8 +187,8 @@ class SharedLogicMixin:
                 [python_bin, "-m", "pip", "install", resolved_requirement],
                 check=True,
                 capture_output=True,
-                text=True,
                 env=env,
+                **text_subprocess_kwargs(),
             )
             if completed.stdout.strip():
                 self.log("[Environment] pip stdout:\n" + completed.stdout.strip())

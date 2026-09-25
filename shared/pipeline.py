@@ -15,7 +15,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from shared.external_process import merged_startup_environment
+from shared.external_process import merged_startup_environment, text_subprocess_kwargs
 from shared.brain_mask import generate_brain_mask_with_dwi2mask
 
 LOGGER = logging.getLogger(__name__)
@@ -328,8 +328,7 @@ def _run_cli(cmd: list[str], log: Optional[Callable[[str], None]] = None) -> Non
         env=merged_startup_environment(build_cli_environment(cmd[0])),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
+        **text_subprocess_kwargs(bufsize=1),
     )
     if process.stdout:
         for line in process.stdout:

@@ -6,12 +6,20 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from shared.ui_background_process import build_background_run_context, qprocess_is_running
+from shared.ui_background_process import (
+    background_process_env_overrides,
+    build_background_run_context,
+    qprocess_is_running,
+)
 
 
 class UIBackgroundProcessTest(unittest.TestCase):
     def test_missing_process_is_not_running(self) -> None:
         self.assertFalse(qprocess_is_running(None))
+
+    def test_background_process_env_overrides_forces_unbuffered_stdout(self) -> None:
+        overrides = background_process_env_overrides()
+        self.assertEqual(overrides, {"PYTHONUNBUFFERED": "1"})
 
     def test_build_single_subject_background_context(self) -> None:
         context = build_background_run_context(

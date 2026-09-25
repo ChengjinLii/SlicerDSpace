@@ -25,6 +25,7 @@ LFS_POINTER_HEADER = b"version https://git-lfs.github.com/spec/v1"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from shared.external_process import text_subprocess_kwargs
 from shared.model_assets import MODEL_ASSETS_ENV, configured_model_assets_root, resolve_model_assets_root
 
 
@@ -211,7 +212,9 @@ def resolve_asset_plan(manifest: dict[str, Any], profile: str | None = None) -> 
 
 
 def _run(command: list[str], *, cwd: Path, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=cwd, check=check, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return subprocess.run(
+        command, cwd=cwd, check=check, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **text_subprocess_kwargs()
+    )
 
 
 def _check_git_checkout(repo_root: Path) -> None:

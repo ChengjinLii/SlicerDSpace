@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from shared.external_process import merged_startup_environment
+from shared.external_process import merged_startup_environment, text_subprocess_kwargs
 from shared.output_contracts import vtp_streamline_count
 
 
@@ -142,8 +142,8 @@ def _tractcloud_source_info(root: Optional[Path]) -> dict[str, Any] | None:
         try:
             commit = subprocess.check_output(
                 ["git", "-C", root.as_posix(), "rev-parse", "HEAD"],
-                text=True,
                 stderr=subprocess.DEVNULL,
+                **text_subprocess_kwargs(),
             ).strip()
             info["commit"] = commit
         except Exception:
@@ -197,8 +197,8 @@ def inspect_tractcloud_backend(
             [python_path.as_posix(), "-c", probe],
             check=True,
             capture_output=True,
-            text=True,
             env=env,
+            **text_subprocess_kwargs(),
         )
         packages = json.loads(completed.stdout.strip() or "{}")
         status["packages"].update({key: bool(packages.get(key)) for key in status["packages"]})

@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 from typing import Callable, Optional
 
+from shared.external_process import text_subprocess_kwargs
+
 REQUIRED_MRI_FILES = ("brain.mgz", "DDSurfer-wmparc.nii.gz")
 
 
@@ -99,8 +101,7 @@ def run_docker(
         cwd=str(postprocess_repo),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
+        **text_subprocess_kwargs(bufsize=1),
     )
     if process.stdout:
         for line in process.stdout:

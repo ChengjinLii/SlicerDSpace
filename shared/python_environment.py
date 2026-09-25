@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from shared.external_process import text_subprocess_kwargs
+
 
 def _looks_like_path(value: str) -> bool:
     return "/" in value or "\\" in value or value.startswith(".") or value.startswith("~")
@@ -59,9 +61,9 @@ def resolve_python_executable(
                 "import sys; print(sys.executable)",
             ],
             check=False,
-            text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            **text_subprocess_kwargs(),
         )
         if completed.returncode != 0:
             raise RuntimeError(

@@ -12,7 +12,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from shared.external_process import merged_startup_environment
+from shared.external_process import merged_startup_environment, text_subprocess_kwargs
 
 
 TRACT_QUERIER_REPOSITORY = "https://github.com/demianw/tract_querier"
@@ -102,8 +102,8 @@ def _probe_python_package(python_path: Path, tract_querier_root: Optional[Path])
             [python_path.as_posix(), "-c", probe],
             check=True,
             capture_output=True,
-            text=True,
             env=env,
+            **text_subprocess_kwargs(),
         )
         return json.loads(completed.stdout.strip() or "{}")
     except Exception as exc:

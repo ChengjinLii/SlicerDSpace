@@ -7,6 +7,19 @@ from pathlib import Path
 from typing import Any
 
 
+def background_process_env_overrides() -> dict[str, str]:
+    """Return environment overrides for the pipeline CLI's background QProcess.
+
+    ``PYTHONUNBUFFERED=1`` keeps the child CLI's stdout unbuffered even
+    though QProcess redirects it through a pipe (Python otherwise switches
+    to full block buffering for a non-tty stdout), so the widget's status
+    table keeps updating live instead of only after large buffered chunks
+    or process exit.
+    """
+
+    return {"PYTHONUNBUFFERED": "1"}
+
+
 def qprocess_is_running(process: Any) -> bool:
     """Return True if a Qt process appears to be running."""
 

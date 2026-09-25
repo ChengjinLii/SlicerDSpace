@@ -22,6 +22,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from shared.environment import EnvironmentDoctorConfig, run_environment_doctor, write_environment_report
+from shared.external_process import text_subprocess_kwargs
 from shared.dependency_config import add_dependency_config_arguments, apply_dependency_config, write_dependency_config
 from shared.python_environment import resolve_python_executable
 
@@ -141,9 +142,9 @@ def _install_python_packages(
         completed = subprocess.run(
             list(command),
             check=False,
-            text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            **text_subprocess_kwargs(),
         )
         safe_name = _safe_log_name(requirement)
         stdout_path = log_dir / f"{safe_name}.stdout.log"

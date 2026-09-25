@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from shared.external_process import text_subprocess_kwargs
 from shared.pipeline import RAW_INPUT_FILES, inspect_subject_directory, is_raw_subject_root
 
 
@@ -177,7 +178,7 @@ def _run_subject(command: list[str], subject: BatchSubject, log_dir: Path) -> Su
     stdout_log = log_dir / f"{safe_id}.stdout.log"
     stderr_log = log_dir / f"{safe_id}.stderr.log"
     started = time.time()
-    completed = subprocess.run(command, capture_output=True, text=True)
+    completed = subprocess.run(command, capture_output=True, **text_subprocess_kwargs())
     stdout_log.write_text(completed.stdout, encoding="utf-8")
     stderr_log.write_text(completed.stderr, encoding="utf-8")
     return SubjectRunResult(

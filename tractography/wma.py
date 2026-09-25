@@ -19,7 +19,11 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from shared.external_process import external_python_environment, merged_startup_environment
+from shared.external_process import (
+    external_python_environment,
+    merged_startup_environment,
+    text_subprocess_kwargs,
+)
 from shared.output_contracts import vtp_streamline_count
 
 
@@ -148,8 +152,8 @@ def wma_source_info(wma_root: Path) -> dict[str, str]:
         try:
             commit = subprocess.check_output(
                 ["git", "-C", wma_root.as_posix(), "rev-parse", "HEAD"],
-                text=True,
                 stderr=subprocess.DEVNULL,
+                **text_subprocess_kwargs(),
             ).strip()
             info["commit"] = commit
         except Exception:
@@ -704,7 +708,7 @@ def run_wma_org_atlas(
                     check=True,
                     env=conversion_env,
                     capture_output=True,
-                    text=True,
+                    **text_subprocess_kwargs(),
                 )
                 conversion_stdout_log.write_text(converted.stdout or "", encoding="utf-8")
                 conversion_stderr_log.write_text(converted.stderr or "", encoding="utf-8")
@@ -758,7 +762,7 @@ def run_wma_org_atlas(
                 cwd=wma_root.as_posix(),
                 env=env,
                 capture_output=True,
-                text=True,
+                **text_subprocess_kwargs(),
             )
             stdout_log.write_text(completed.stdout or "", encoding="utf-8")
             stderr_log.write_text(completed.stderr or "", encoding="utf-8")

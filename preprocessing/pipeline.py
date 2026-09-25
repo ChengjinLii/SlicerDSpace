@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from shared.io_layout import default_task_output_dir
-from shared.external_process import external_python_environment
+from shared.external_process import external_python_environment, text_subprocess_kwargs
 from shared.pipeline import RawInputBundle, find_subject_root
 
 
@@ -275,8 +275,7 @@ def _run_command(cmd: list[str], *, env: dict[str, str], log: Optional[Callable[
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
+        **text_subprocess_kwargs(bufsize=1),
     )
     if process.stdout:
         for line in process.stdout:

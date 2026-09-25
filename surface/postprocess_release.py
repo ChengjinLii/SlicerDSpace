@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from shared.environment import resolve_freesurfer_home
-from shared.external_process import merged_startup_environment
+from shared.external_process import merged_startup_environment, text_subprocess_kwargs
 
 import nibabel as nib
 import numpy as np
@@ -363,8 +363,7 @@ def run_ddsurfer_postprocess(
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
+        **text_subprocess_kwargs(bufsize=1),
     )
     try:
         if process.stdout:

@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from shared.external_process import text_subprocess_kwargs
 from shared.model_assets import model_asset_candidates, model_asset_path
 
 
@@ -1589,7 +1590,7 @@ def _check_cuda_device(
             [python_path.as_posix(), "-c", probe],
             check=True,
             capture_output=True,
-            text=True,
+            **text_subprocess_kwargs(),
         )
         details = _parse_json_probe_output(completed.stdout)
     except Exception as exc:
@@ -1697,8 +1698,8 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
                     [python_path.as_posix(), "-c", probe],
                     check=True,
                     capture_output=True,
-                    text=True,
                     env=env,
+                    **text_subprocess_kwargs(),
                 )
                 probe_details = _parse_json_probe_output(completed.stdout)
                 available = bool(probe_details.get("available"))

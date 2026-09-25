@@ -11,6 +11,7 @@ from typing import Callable, Optional
 
 from .conversion.nhdr_write import nhdr_write
 from .conversion.nifti_write import nifti_write
+from shared.external_process import text_subprocess_kwargs
 from shared.model_assets import model_asset_path
 from shared.pipeline import RegisteredDTIBundle, build_cli_environment, resolve_cli_executable
 
@@ -52,8 +53,7 @@ def _run_cli(cmd: list[str], log: Optional[Callable[[str], None]] = None) -> Non
         env=build_cli_environment(cmd[0]),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
+        **text_subprocess_kwargs(bufsize=1),
     )
     if process.stdout:
         for line in process.stdout:

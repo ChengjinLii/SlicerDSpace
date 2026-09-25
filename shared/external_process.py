@@ -80,6 +80,25 @@ def _dedupe_paths(paths: Iterable[str]) -> list[str]:
     return result
 
 
+def text_subprocess_kwargs(**overrides: object) -> dict[str, object]:
+    """Return kwargs for a text-mode ``subprocess.run``/``Popen`` call.
+
+    Passing only ``text=True`` lets Python decode subprocess output with
+    ``locale.getpreferredencoding()``, which is not guaranteed to be UTF-8
+    (notably on Windows). A byte sequence that is valid UTF-8 but not valid
+    under that locale encoding then raises ``UnicodeDecodeError`` partway
+    through an otherwise-successful run, losing output instead of just a
+    few unrepresentable characters. Force UTF-8 and replace undecodable
+    bytes instead of raising.
+
+    Extra keyword arguments (e.g. ``bufsize=1`` for a streaming ``Popen``)
+    are merged into the returned dict so call sites can still do
+    ``subprocess.Popen(cmd, **text_subprocess_kwargs(bufsize=1), ...)``.
+    """
+
+    return {"text": True, "encoding": "utf-8", "errors": "replace", **overrides}
+
+
 def external_python_environment(
     extra_env: Optional[Mapping[str, str]] = None,
     *,

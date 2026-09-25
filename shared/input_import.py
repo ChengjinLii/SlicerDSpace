@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from shared.external_process import text_subprocess_kwargs
+
 
 ImportSourceKind = Literal["canonical", "dicom", "nifti", "nrrd"]
 ImportBackend = Literal["auto", "copy", "dcm2niix", "mrconvert", "dwiconvert"]
@@ -109,9 +111,9 @@ def _run(command: list[str], *, dry_run: bool, cwd: Path | None = None) -> dict[
             command,
             cwd=cwd,
             check=False,
-            text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            **text_subprocess_kwargs(),
         )
     except FileNotFoundError as exc:
         raise RuntimeError(

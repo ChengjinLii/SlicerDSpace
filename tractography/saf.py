@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, Optional
 
 from shared import default_task_output_dir, find_subject_root
-from shared.external_process import startup_environment
+from shared.external_process import startup_environment, text_subprocess_kwargs
 
 
 REQUIRED_SAF_PYTHON_PACKAGES = ("numpy", "scipy", "sklearn", "nibabel")
@@ -296,7 +296,9 @@ def _resolved_mrtrix_command(config: SAFConfig, command: str) -> Optional[str]:
 
 def _run_mrtrix_command(args: list[str], *, log: Optional[Callable[[str], None]] = None) -> subprocess.CompletedProcess[str]:
     _emit("[SAF] " + " ".join(args), log)
-    return subprocess.run(args, check=True, capture_output=True, text=True, env=startup_environment())
+    return subprocess.run(
+        args, check=True, capture_output=True, env=startup_environment(), **text_subprocess_kwargs()
+    )
 
 
 def _count_tck_streamlines(tck_path: Path, *, config: SAFConfig, log: Optional[Callable[[str], None]] = None) -> tuple[Optional[int], Optional[str]]:

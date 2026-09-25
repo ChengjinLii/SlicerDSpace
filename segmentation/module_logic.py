@@ -9,6 +9,7 @@ from typing import Optional
 
 from shared import ensure_native_dti_bundle, find_subject_root, resolve_pythonslicer_executable
 from shared.environment import resolve_auto_torch_device
+from shared.external_process import text_subprocess_kwargs
 
 DDSEG_PYTHON_REQUIREMENTS: tuple[tuple[str, str], ...] = (
     ("numpy", "numpy"),
@@ -127,9 +128,8 @@ class SegmentationLogicMixin:
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
             env=os.environ.copy(),
+            **text_subprocess_kwargs(bufsize=1),
         )
         if process.stdout:
             for line in process.stdout:

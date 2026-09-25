@@ -46,7 +46,11 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 def _git_value(args: list[str]) -> str:
     import subprocess
 
-    result = subprocess.run(["git", *args], cwd=REPO_ROOT, check=False, text=True, stdout=subprocess.PIPE)
+    from shared.external_process import text_subprocess_kwargs
+
+    result = subprocess.run(
+        ["git", *args], cwd=REPO_ROOT, check=False, stdout=subprocess.PIPE, **text_subprocess_kwargs()
+    )
     return result.stdout.strip() if result.returncode == 0 else "unknown"
 
 

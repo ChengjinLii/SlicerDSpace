@@ -94,7 +94,11 @@ from shared.ui_status_log import (
     set_run_summary_message,
     set_status,
 )
-from shared.ui_background_process import build_background_run_context, qprocess_is_running
+from shared.ui_background_process import (
+    background_process_env_overrides,
+    build_background_run_context,
+    qprocess_is_running,
+)
 from shared.ui_run_status_panel import (
     install_run_status_panel,
     mark_unfinished_rows,
@@ -1930,6 +1934,10 @@ class SharedWidgetMixin:
         process = qt.QProcess(self.parent)
         process.setWorkingDirectory(Path(__file__).resolve().parent.parent.as_posix())
         process.setProcessChannelMode(qt.QProcess.MergedChannels)
+        process_environment = qt.QProcessEnvironment.systemEnvironment()
+        for key, value in background_process_env_overrides().items():
+            process_environment.insert(key, value)
+        process.setProcessEnvironment(process_environment)
         process.connect("readyReadStandardOutput()", self._onBackgroundProcessReadyRead)
         process.connect("finished(int,QProcess::ExitStatus)", self._onBackgroundProcessFinished)
         process.connect("errorOccurred(QProcess::ProcessError)", self._onBackgroundProcessError)
@@ -1970,6 +1978,10 @@ class SharedWidgetMixin:
         process = qt.QProcess(self.parent)
         process.setWorkingDirectory(Path(__file__).resolve().parent.parent.as_posix())
         process.setProcessChannelMode(qt.QProcess.MergedChannels)
+        process_environment = qt.QProcessEnvironment.systemEnvironment()
+        for key, value in background_process_env_overrides().items():
+            process_environment.insert(key, value)
+        process.setProcessEnvironment(process_environment)
         process.connect("readyReadStandardOutput()", self._onBackgroundProcessReadyRead)
         process.connect("finished(int,QProcess::ExitStatus)", self._onBackgroundProcessFinished)
         process.connect("errorOccurred(QProcess::ProcessError)", self._onBackgroundProcessError)

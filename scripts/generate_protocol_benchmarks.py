@@ -321,6 +321,8 @@ def _report_generation_system() -> dict[str, Any]:
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         gpu_names = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
@@ -335,6 +337,8 @@ def _report_generation_system() -> dict[str, Any]:
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         git_revision = completed.stdout.strip() or None
@@ -344,6 +348,8 @@ def _report_generation_system() -> dict[str, Any]:
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         git_dirty = bool(status.stdout.strip())
