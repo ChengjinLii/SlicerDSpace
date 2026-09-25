@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import http.client
 import importlib.util
 import json
 import os
@@ -349,6 +350,203 @@ class ModelAssetsTest(unittest.TestCase):
             self.assertTrue(partial.is_file())
             self.assertGreaterEqual(partial.stat().st_size, 1024 * 1024)
             self.assertFalse(target.exists())
+
+    def test_content_range_starts_at_validates_rfc7233_header(self) -> None:
+        module = _load_downloader_module()
+
+        self.assertTrue(module._content_range_starts_at("bytes 100-999/1000", 100))
+        self.assertFalse(module._content_range_starts_at("bytes 0-999/1000", 100))
+        self.assertFalse(module._content_range_starts_at("", 100))
+        self.assertFalse(module._content_range_starts_at("not-a-content-range", 100))
+
+    def test_oversized_part_file_is_discarded_and_download_restarts(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "target.bin"
+            partial = target.with_name(target.name + ".part")
+            partial.write_bytes(b"x" * 1000)  # larger than expected_size below
+            source = root / "source.bin"
+            source.write_bytes(b"y" * 10)
+
+            module._download_url_to_path(
+                source.resolve().as_uri(),
+                target,
+                relative_path="weights/model.bin",
+                expected_size=10,
+            )
+
+            self.assertEqual(target.read_bytes(), b"y" * 10)
+            self.assertFalse(partial.exists())
+
+    def test_mismatched_content_range_on_resume_raises_and_keeps_part_untouched(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "target.bin"
+            partial = target.with_name(target.name + ".part")
+            partial.write_bytes(b"a" * 100)
+            original_partial_bytes = partial.read_bytes()
+
+            fake_response = mock.MagicMock()
+            fake_response.status = 206
+            fake_response.headers = {"Content-Range": "bytes 0-899/900", "Content-Length": "900"}
+            fake_response.read.return_value = b""
+            fake_response.__enter__.return_value = fake_response
+            fake_response.__exit__.return_value = False
+
+            with mock.patch("urllib.request.urlopen", return_value=fake_response):
+                with self.assertRaises(module.DownloadIntegrityError):
+                    module._download_url_to_path(
+                        "https://example.invalid/weights/model.bin",
+                        target,
+                        relative_path="weights/model.bin",
+                        expected_size=900,
+                    )
+
+            self.assertFalse(target.exists())
+            self.assertTrue(partial.is_file())
+            self.assertEqual(partial.read_bytes(), original_partial_bytes)
+
+    def test_416_response_discards_stale_part_and_raises(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "target.bin"
+            partial = target.with_name(target.name + ".part")
+            partial.write_bytes(b"a" * 5)
+
+            import io
+
+            http_error = module.urllib.error.HTTPError(
+                "https://example.invalid/weights/model.bin", 416, "Range Not Satisfiable", {}, io.BytesIO(b"")
+            )
+            self.addCleanup(http_error.close)
+
+            with mock.patch("urllib.request.urlopen", side_effect=http_error):
+                with self.assertRaises(module.DownloadIntegrityError):
+                    module._download_url_to_path(
+                        "https://example.invalid/weights/model.bin",
+                        target,
+                        relative_path="weights/model.bin",
+                        expected_size=5,
+                    )
+
+            self.assertFalse(partial.exists())
+            self.assertFalse(target.exists())
+
+    def test_incomplete_read_keeps_part_file_for_resume(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "target.bin"
+            partial = target.with_name(target.name + ".part")
+
+            fake_response = mock.MagicMock()
+            fake_response.status = None
+            fake_response.headers = {"Content-Length": "1000"}
+            fake_response.read.side_effect = [
+                b"first-chunk-bytes",
+                http.client.IncompleteRead(b"partial", expected=500),
+            ]
+            fake_response.__enter__.return_value = fake_response
+            fake_response.__exit__.return_value = False
+
+            with mock.patch("urllib.request.urlopen", return_value=fake_response):
+                with self.assertRaises(module.DownloadIntegrityError):
+                    module._download_url_to_path(
+                        "https://example.invalid/weights/model.bin",
+                        target,
+                        relative_path="weights/model.bin",
+                        expected_size=1000,
+                    )
+
+            self.assertFalse(target.exists())
+            self.assertTrue(partial.is_file())
+            self.assertEqual(partial.read_bytes(), b"first-chunk-bytes")
+
+    def test_short_read_without_server_error_does_not_promote_the_part_file(self) -> None:
+        # Simulates a connection that closes cleanly (empty read = EOF) but
+        # before delivering all the bytes the server itself declared -- no
+        # exception is raised by http.client, so this must be caught by the
+        # downloaded/expected_total size check, not by exception handling.
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "target.bin"
+            partial = target.with_name(target.name + ".part")
+
+            fake_response = mock.MagicMock()
+            fake_response.status = None
+            fake_response.headers = {"Content-Length": "1000"}
+            fake_response.read.side_effect = [b"only-part-of-the-data", b""]
+            fake_response.__enter__.return_value = fake_response
+            fake_response.__exit__.return_value = False
+
+            with mock.patch("urllib.request.urlopen", return_value=fake_response):
+                with self.assertRaises(module.DownloadIntegrityError):
+                    module._download_url_to_path(
+                        "https://example.invalid/weights/model.bin",
+                        target,
+                        relative_path="weights/model.bin",
+                        expected_size=1000,
+                    )
+
+            self.assertFalse(target.exists())
+            self.assertTrue(partial.is_file())
+            self.assertEqual(partial.read_bytes(), b"only-part-of-the-data")
+
+    def test_force_discards_a_stale_part_file_before_redownloading(self) -> None:
+        module = _load_downloader_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            repo_root = tmp_path / "repo"
+            mirror = tmp_path / "mirror"
+            source_file = mirror / "weights" / "model.pt"
+            source_file.parent.mkdir(parents=True)
+            source_file.write_bytes(b"the-real-content")
+            target = repo_root / "weights" / "model.pt"
+            stale_part = target.with_name(target.name + ".part")
+            stale_part.parent.mkdir(parents=True)
+            stale_part.write_bytes(b"leftover-garbage-from-a-previous-attempt")
+            plan = module.AssetPlan(
+                profile="unit",
+                resolved_profiles=("unit",),
+                all_lfs=False,
+                include_patterns=(),
+                required_paths=("weights/model.pt",),
+                external_overrides=(),
+                asset_groups=(),
+                terms_notices=(),
+                source_ids=("unit_mirror",),
+                asset_records={
+                    "weights/model.pt": {
+                        "path": "weights/model.pt",
+                        "source_ids": ["unit_mirror"],
+                        "size_bytes": source_file.stat().st_size,
+                        "sha256": module._sha256(source_file),
+                    }
+                },
+            )
+
+            module.download_asset_urls(
+                repo_root,
+                plan,
+                {"asset_sources": {}},
+                source_ids=("unit_mirror",),
+                base_urls=(mirror.resolve().as_uri(),),
+                allow_planned_sources=True,
+                force=True,
+            )
+
+            self.assertEqual(target.read_bytes(), b"the-real-content")
+            self.assertFalse(stale_part.exists())
 
     def test_model_asset_setup_guidance_summarizes_missing_assets(self) -> None:
         module = _load_downloader_module()

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import hashlib
+import http.client
 import json
 import os
 import subprocess
@@ -63,6 +64,36 @@ DownloadCancelCheck = Callable[[], bool]
 
 class DownloadCancelledError(RuntimeError):
     """Raised when an interactive model-asset download is cancelled."""
+
+
+class DownloadIntegrityError(RuntimeError):
+    """Raised when a partial/resumed download's byte range or size is untrustworthy.
+
+    Covers: a resumed (206) response whose Content-Range does not actually
+    start where we asked it to, a short read that ended without the server
+    reporting an error, and a connection dropped mid-transfer. In every
+    case the caller should treat this like any other per-source download
+    failure (try the next mirror / surface the error) rather than promoting
+    a corrupt or incomplete .part file to the final asset path.
+    """
+
+
+def _content_range_starts_at(content_range: str, expected_start: int) -> bool:
+    """Return True if an RFC 7233 ``Content-Range: bytes <start>-<end>/<total>`` value starts at ``expected_start``.
+
+    Returns False for a missing or malformed header, since that means the
+    actual starting byte cannot be confirmed at all.
+    """
+
+    prefix = "bytes "
+    if not content_range.startswith(prefix):
+        return False
+    range_part = content_range[len(prefix):].split("/", 1)[0]
+    start_text = range_part.split("-", 1)[0].strip()
+    try:
+        return int(start_text) == expected_start
+    except ValueError:
+        return False
 
 
 def _emit_download_progress(
@@ -557,6 +588,18 @@ def _download_url_to_path(
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_name(target.name + ".part")
     resume_from = tmp.stat().st_size if tmp.is_file() else 0
+    if expected_size and resume_from > int(expected_size):
+        # A .part larger than the asset's recorded size cannot be a valid
+        # prefix of it (e.g. left over from a previous, different version of
+        # the asset); asking the server to resume from an out-of-range byte
+        # would otherwise just get a 416 on every future attempt.
+        print(
+            f"[model-assets] Existing .part for {target.name} is larger than the expected size; "
+            "discarding it and restarting the download.",
+            file=sys.stderr,
+        )
+        tmp.unlink()
+        resume_from = 0
     display_path = relative_path or target.name
     _raise_if_download_cancelled(cancel_check)
     _emit_download_progress(
@@ -572,52 +615,90 @@ def _download_url_to_path(
     if resume_from:
         headers["Range"] = f"bytes={resume_from}-"
     request = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        status = getattr(response, "status", None)
-        append = bool(resume_from and status == 206)
-        if resume_from and not append:
-            print("[model-assets] Server did not resume partial download; restarting " + target.name, file=sys.stderr)
-            resume_from = 0
-        total_header = response.headers.get("Content-Length")
-        header_total = int(total_header) + resume_from if total_header and str(total_header).isdigit() else 0
-        expected_total = header_total or max(0, int(expected_size or 0))
-        if expected_total:
-            print(f"[model-assets]   target size: {_format_bytes(expected_total)}")
-        downloaded = resume_from
-        _emit_download_progress(
-            progress_callback,
-            phase="downloading",
-            relative_path=display_path,
-            downloaded_bytes=downloaded,
-            total_bytes=expected_total,
-            resumed=bool(resume_from),
-            source_id=source_id,
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            status = getattr(response, "status", None)
+            append = bool(resume_from and status == 206)
+            if append:
+                content_range = response.headers.get("Content-Range", "")
+                if not _content_range_starts_at(content_range, resume_from):
+                    raise DownloadIntegrityError(
+                        f"Server returned Content-Range {content_range!r} for {target.name}, "
+                        f"expected a range starting at byte {resume_from}; refusing to append."
+                    )
+            if resume_from and not append:
+                print("[model-assets] Server did not resume partial download; restarting " + target.name, file=sys.stderr)
+                resume_from = 0
+            total_header = response.headers.get("Content-Length")
+            header_total = int(total_header) + resume_from if total_header and str(total_header).isdigit() else 0
+            expected_total = header_total or max(0, int(expected_size or 0))
+            if expected_total:
+                print(f"[model-assets]   target size: {_format_bytes(expected_total)}")
+            downloaded = resume_from
+            _emit_download_progress(
+                progress_callback,
+                phase="downloading",
+                relative_path=display_path,
+                downloaded_bytes=downloaded,
+                total_bytes=expected_total,
+                resumed=bool(resume_from),
+                source_id=source_id,
+            )
+            next_report = downloaded + 16 * 1024 * 1024
+            mode = "ab" if append else "wb"
+            with tmp.open(mode) as stream:
+                while True:
+                    _raise_if_download_cancelled(cancel_check)
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    stream.write(chunk)
+                    downloaded += len(chunk)
+                    _emit_download_progress(
+                        progress_callback,
+                        phase="downloading",
+                        relative_path=display_path,
+                        downloaded_bytes=downloaded,
+                        total_bytes=expected_total,
+                        resumed=bool(resume_from),
+                        source_id=source_id,
+                    )
+                    if expected_total and downloaded >= next_report:
+                        percent = 100.0 * downloaded / max(1, expected_total)
+                        print(f"[model-assets]   progress: {_format_bytes(downloaded)} / {_format_bytes(expected_total)} ({percent:.1f}%)")
+                        next_report = downloaded + 16 * 1024 * 1024
+            if expected_total:
+                print(f"[model-assets]   complete: {_format_bytes(downloaded)} / {_format_bytes(expected_total)}")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 416:
+            # Range Not Satisfiable: the local .part is stale/invalid for
+            # this URL (e.g. the remote file changed). Discard it so the
+            # next attempt restarts cleanly instead of repeating the same
+            # failed Range request forever.
+            if tmp.is_file():
+                tmp.unlink()
+            raise DownloadIntegrityError(
+                f"Server rejected the resume range for {target.name} (416 Range Not Satisfiable); "
+                "removed the stale .part file so the next attempt restarts from scratch."
+            ) from exc
+        raise
+    except (http.client.IncompleteRead, ConnectionError) as exc:
+        # The .part file on disk keeps whatever was already written (the
+        # exception unwinds out of the `with tmp.open(...)` block, which
+        # flushes and closes it); do not delete it, so the next attempt can
+        # resume instead of restarting from byte zero.
+        raise DownloadIntegrityError(
+            f"Connection interrupted while downloading {target.name}: {exc}. "
+            "Kept the partial .part file for the next resume attempt."
+        ) from exc
+    if expected_total and downloaded < expected_total:
+        # The read loop exited (EOF/short read) without the server raising
+        # an error we would otherwise catch above: never promote a short
+        # .part file to be the final asset.
+        raise DownloadIntegrityError(
+            f"Downloaded {downloaded} of {expected_total} expected bytes for {target.name}; "
+            "keeping the .part file for the next resume attempt."
         )
-        next_report = downloaded + 16 * 1024 * 1024
-        mode = "ab" if append else "wb"
-        with tmp.open(mode) as stream:
-            while True:
-                _raise_if_download_cancelled(cancel_check)
-                chunk = response.read(1024 * 1024)
-                if not chunk:
-                    break
-                stream.write(chunk)
-                downloaded += len(chunk)
-                _emit_download_progress(
-                    progress_callback,
-                    phase="downloading",
-                    relative_path=display_path,
-                    downloaded_bytes=downloaded,
-                    total_bytes=expected_total,
-                    resumed=bool(resume_from),
-                    source_id=source_id,
-                )
-                if expected_total and downloaded >= next_report:
-                    percent = 100.0 * downloaded / max(1, expected_total)
-                    print(f"[model-assets]   progress: {_format_bytes(downloaded)} / {_format_bytes(expected_total)} ({percent:.1f}%)")
-                    next_report = downloaded + 16 * 1024 * 1024
-        if expected_total:
-            print(f"[model-assets]   complete: {_format_bytes(downloaded)} / {_format_bytes(expected_total)}")
     os.replace(tmp, target)
     _emit_download_progress(
         progress_callback,
@@ -649,6 +730,13 @@ def download_asset_urls(
         _raise_if_download_cancelled(cancel_check)
         record = plan.asset_records.get(relative, {"path": relative, "source_ids": list(plan.source_ids)})
         target = repo_root / relative
+        if force:
+            # --force means "redownload from scratch": also discard any
+            # stale .part left over from a prior attempt, rather than
+            # silently resuming it.
+            stale_part = target.with_name(target.name + ".part")
+            if stale_part.is_file():
+                stale_part.unlink()
         if not force and _asset_record_ok(target, record):
             print(f"[model-assets] Existing verified asset: {relative}")
             if progress_callback is not None:
