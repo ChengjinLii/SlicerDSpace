@@ -105,7 +105,7 @@ def getscale(data, dst_min, dst_max, f_low=0.0, f_high=0.999):
     src_max = np.max(data)
 
     if src_min < 0.0:
-        sys.exit('ERROR: Min value in input is below 0.0!')
+        raise ValueError("Min value in input is below 0.0!")
 
     print("Input:    min: " + format(src_min) + "  max: " + format(src_max))
 
@@ -280,7 +280,7 @@ def is_conform(img, eps=1e-06):
     ishape = img.shape
 
     if len(ishape) > 3 and ishape[3] != 1:
-        sys.exit('ERROR: Multiple input frames (' + format(img.shape[3]) + ') not supported!')
+        raise ValueError(f"Multiple input frames ({img.shape[3]}) not supported!")
 
     # check dimensions
     if ishape[0] != 256 or ishape[1] != 256 or ishape[2] != 256:

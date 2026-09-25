@@ -52,12 +52,12 @@ def load_and_conform_image(img_filename, interpol=1, logger=None, imagetype='ima
             print('Conforming image to RAS orientation, and 1mm isotropic voxels')
 
         if len(orig.shape) > 3 and orig.shape[3] != 1:
-            sys.exit('ERROR: Multiple input frames (' + format(orig.shape[3]) + ') not supported!')
+            raise ValueError(f"Multiple input frames ({orig.shape[3]}) not supported: {img_filename}")
 
         # Check affine if image is nifti image
         if img_filename[-7:] == ".nii.gz" or img_filename[-4:] == ".nii":
             if not check_affine_in_nifti(orig, logger=logger):
-                sys.exit("ERROR: inconsistency in nifti-header. Exiting now.\n")
+                raise ValueError(f"Inconsistency in nifti-header: {img_filename}")
 
         # conform
         orig = conform(orig, interpol, imagetype=imagetype)
@@ -711,6 +711,7 @@ class OrigDataThickSlices(Dataset):
 
         except Exception as e:
             print("Loading failed. {}".format(e))
+            raise
 
     def __getitem__(self, index):
 
@@ -768,6 +769,7 @@ class OrigDataThickSlices_Fused_Input(Dataset):
 
         except Exception as e:
             print("Loading failed. {}".format(e))
+            raise
 
     def __getitem__(self, index):
 
@@ -810,6 +812,7 @@ class AsegDatasetWithAugmentation(Dataset):
 
         except Exception as e:
             print("Loading failed: {}".format(e))
+            raise
 
     def get_subject_names(self):
         return self.subjects
@@ -862,6 +865,7 @@ class AsegDatasetWithAugmentation_Fused_Input(Dataset):
 
         except Exception as e:
             print("Loading failed: {}".format(e))
+            raise
 
     def get_subject_names(self):
         return self.subjects
@@ -902,6 +906,7 @@ class AsegDatasetWithAugmentation_Slice(Dataset):
 
         except Exception as e:
             print("Loading failed: {}".format(e))
+            raise
 
     def get_subject_names(self):
         return self.subjects
@@ -943,8 +948,7 @@ class AsegDatasetWithAugmentation_Slice_Fused_Input(Dataset):
                 tmp_len.append(len(filelist))
 
             if np.unique(tmp_len).shape[0] != 1:
-                print("Error: Input data should have the same number of hdf5 files!")
-                exit()
+                raise ValueError("Input data should have the same number of hdf5 files!")
 
             self.hdf5_files = np.array(self.hdf5_files)
             self.count = np.unique(tmp_len)[0]
@@ -954,6 +958,7 @@ class AsegDatasetWithAugmentation_Slice_Fused_Input(Dataset):
 
         except Exception as e:
             print("Loading failed: {}".format(e))
+            raise
 
     def get_subject_names(self):
         return self.subjects
@@ -962,9 +967,7 @@ class AsegDatasetWithAugmentation_Slice_Fused_Input(Dataset):
 
         hdf5s = self.hdf5_files[:, index]
         if np.unique([os.path.split(n)[1] for n in hdf5s]).shape[0] != 1:
-            print("Error: Must have the same file name!")
-            print(hdf5s)
-            exit()
+            raise ValueError(f"Must have the same file name across datasets: {hdf5s}")
 
         img = []
         for idx, hdf5 in enumerate(hdf5s):
