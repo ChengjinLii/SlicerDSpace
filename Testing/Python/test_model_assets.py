@@ -621,12 +621,29 @@ class ModelAssetRootSecurityTest(unittest.TestCase):
         )
 
     def test_common_model_asset_roots_has_no_hardcoded_shared_or_dev_paths(self) -> None:
+        # The only automatically-scanned root is the current user's own
+        # per-user default. This is deliberately checked by exact equality,
+        # not by rejecting substrings like "chengjin" or "/data/": on the
+        # project's own server the real (legitimate) account is named
+        # chengjin and its home directory is under /data/, so those
+        # substrings appear in a perfectly correct per-user default path
+        # too and cannot be used to detect the removed, literal hardcoded
+        # entries (e.g. "/data/chengjin/SlicerDDSurfer-model-assets",
+        # distinct from that user's real default under ~/.local/share/...).
         roots = self.model_assets_module.common_model_asset_roots()
 
         self.assertEqual(roots, (self.model_assets_module.default_user_model_assets_root(),))
-        for forbidden in ("/data/", "/opt/", "/Users/Shared", "chengjin", "/usr/local/share"):
-            for root in roots:
-                self.assertNotIn(forbidden, root.as_posix())
+        removed_literal_roots = (
+            Path("/data/shared/SlicerDDSurfer-model-assets"),
+            Path("/data/shared/SlicerDDSurfer-models"),
+            Path("/data/chengjin/SlicerDDSurfer-model-assets"),
+            Path("/data/chengjin/SlicerDDSurfer-models"),
+            Path("/opt/SlicerDDSurfer/model-assets"),
+            Path("/usr/local/share/SlicerDDSurfer/model-assets"),
+            Path("/Users/Shared/SlicerDDSurfer/model-assets"),
+        )
+        for removed in removed_literal_roots:
+            self.assertNotIn(removed, roots)
 
     def test_model_asset_path_raises_on_a_file_that_fails_sha256_verification(self) -> None:
         # resolve_model_assets_root() still legitimately falls back to the
