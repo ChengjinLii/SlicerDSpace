@@ -6,11 +6,6 @@ and reference material that carries different terms, and states honestly
 where full license/provenance information is not yet available in this
 repository.
 
-This replaces an earlier reference to a `third_party/REFERENCE_SOURCES.md`
-file: that path is listed in `.gitignore`, is never committed, and does not
-exist in a fresh checkout, so the link was broken for every user who was not
-the original developer.
-
 ## FastSurfer-derived code (Apache License 2.0)
 
 - `parcellation/models/losses.py`
@@ -74,15 +69,16 @@ not SlicerDDSurfer's BSD-3-Clause license.** Confirm the FreeSurfer license's
 redistribution terms for this file before redistributing a build that
 includes it; do not assume it is as permissive as BSD-3-Clause.
 
-## Method papers requiring citation but not yet documented here
+## Method papers
 
 `docs/assets/MODEL_ASSET_TERMS.md` states that the DDSeg and DDParcel model
 weights each "require ... citation of the peer-reviewed [DDSeg/DDParcel]
-method paper," but this repository does not record either paper's title,
-authors, journal, or DOI anywhere. `CITATION.cff` records a `references:`
-entry for the DDSurfer method paper with a `TODO` for its DOI (the
-DOI proposed in the review that produced this notice,
-10.1002/advs.76596, does not appear anywhere in this repository's own
-README or docs/, so it was not recorded without independent confirmation)
-and a `notes:` line naming DDParcel and DDSeg as also requiring citation
-once their bibliographic metadata is available.
+method paper." The DDSurfer, DDSeg, and DDParcel method papers are recorded
+as `references:` entries in [`CITATION.cff`](CITATION.cff), each verified
+against its DOI's own Crossref record
+(`https://api.crossref.org/works/<doi>`):
+
+- DDSurfer: *Advanced Science*, e76596 (2026), doi:10.1002/advs.76596
+- DDSeg: *NeuroImage* 233:117934 (2021), doi:10.1016/j.neuroimage.2021.117934
+- DDParcel: *IEEE Transactions on Medical Imaging* 43(3):1191-1202 (2024),
+  doi:10.1109/TMI.2023.3331691

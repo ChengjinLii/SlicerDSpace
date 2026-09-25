@@ -24,24 +24,88 @@ preferred-citation:
   year: 2026
   notes: "Manuscript in preparation; replace this entry with the final publication metadata after acceptance."
 references:
+  # The three method papers below were verified individually against
+  # Crossref (https://api.crossref.org/works/<doi>) before being added
+  # here; author lists are copied exactly as Crossref returns them
+  # (including each paper's own choice of hyphen/apostrophe glyphs), so
+  # the DDSurfer and DDSeg/DDParcel entries differ slightly in that regard.
   - type: article
-    title: "DDSurfer cortical-surface reconstruction method paper"
+    title: "DDSurfer: A Weakly‐Supervised Dual‐Stream Deep Learning Framework for Cortical Surface Reconstruction From Diffusion MRI"
     authors:
-      - family-names: Li
-        given-names: Chengjin
+      - given-names: Chengjin
+        family-names: Li
+      - given-names: Wei
+        family-names: Zhang
+      - given-names: Xi
+        family-names: Zhu
+      - given-names: Yuqian
+        family-names: Chen
+      - given-names: "Nir A."
+        family-names: Sochen
+      - given-names: Jarrett
+        family-names: Rushmore
+      - given-names: "Carl‐Fredrik"
+        family-names: Westin
+      - given-names: Yogesh
+        family-names: Rathi
+      - given-names: "Lauren J."
+        family-names: O'Donnell
+      - given-names: Ofer
+        family-names: Pasternak
+      - given-names: Fan
+        family-names: Zhang
+    journal: "Advanced Science"
     year: 2026
-    # DOI intentionally left as a TODO: a prior code review of this
-    # repository asserted "Advanced Science 2026, doi 10.1002/advs.76596"
-    # for this paper, but that DOI, journal name, and full author list do
-    # not appear anywhere in this repository's README or docs/ as of this
-    # entry, so it was not copied here without independent confirmation.
-    # TODO: confirm the exact title, full author list, journal, and DOI
-    # directly from the publisher, then fill in `doi:` and `journal:` below.
-    notes: >-
-      DDParcel and DDSeg also have their own peer-reviewed method papers
-      that docs/assets/MODEL_ASSET_TERMS.md says must be cited when their
-      model weights are used, but this repository does not record either
-      paper's title, authors, journal, or DOI anywhere, so no `references:`
-      entry was added for them here to avoid fabricating bibliographic
-      metadata. Add entries for DDParcel and DDSeg once their citation
-      details are available.
+    start: "e76596"
+    doi: "10.1002/advs.76596"
+    notes: "e76596 is the article number (continuous-publication journal; CFF has no dedicated article-number field, so it is recorded via `start`)."
+  - type: article
+    title: "Deep learning based segmentation of brain tissue from diffusion MRI"
+    authors:
+      - given-names: Fan
+        family-names: Zhang
+      - given-names: Anna
+        family-names: Breger
+      - given-names: "Kang Ik Kevin"
+        family-names: Cho
+      - given-names: Lipeng
+        family-names: Ning
+      - given-names: "Carl-Fredrik"
+        family-names: Westin
+      - given-names: "Lauren J."
+        family-names: "O’Donnell"
+      - given-names: Ofer
+        family-names: Pasternak
+    journal: "NeuroImage"
+    year: 2021
+    volume: "233"
+    start: "117934"
+    doi: "10.1016/j.neuroimage.2021.117934"
+  - type: article
+    title: "DDParcel: Deep Learning Anatomical Brain Parcellation From Diffusion MRI"
+    authors:
+      - given-names: Fan
+        family-names: Zhang
+      - given-names: "Kang Ik Kevin"
+        family-names: Cho
+      - given-names: Johanna
+        family-names: Seitz-Holland
+      - given-names: Lipeng
+        family-names: Ning
+      - given-names: "Jon Haitz"
+        family-names: Legarreta
+      - given-names: Yogesh
+        family-names: Rathi
+      - given-names: "Carl-Fredrik"
+        family-names: Westin
+      - given-names: "Lauren J."
+        family-names: "O’Donnell"
+      - given-names: Ofer
+        family-names: Pasternak
+    journal: "IEEE Transactions on Medical Imaging"
+    year: 2024
+    volume: "43"
+    issue: "3"
+    start: "1191"
+    end: "1202"
+    doi: "10.1109/TMI.2023.3331691"

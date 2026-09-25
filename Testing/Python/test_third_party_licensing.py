@@ -51,10 +51,19 @@ class ThirdPartyNoticesTest(unittest.TestCase):
         self.assertIn("FreeSurferColorLUT.txt", self.text)
         self.assertIn("FreeSurfer", self.text)
 
-    def test_does_not_assert_the_unverified_ddsurfer_doi_as_fact(self) -> None:
-        # The DOI may be *mentioned* while explaining why it was not
-        # recorded, but this file must not present it as a confirmed fact.
-        self.assertIn("does not appear anywhere in this repository", self.text)
+    def test_documents_all_three_verified_method_paper_dois(self) -> None:
+        # All three DOIs were individually verified against Crossref
+        # (https://api.crossref.org/works/<doi>) before being recorded here
+        # and in CITATION.cff's `references:` section.
+        self.assertIn("10.1002/advs.76596", self.text)
+        self.assertIn("10.1016/j.neuroimage.2021.117934", self.text)
+        self.assertIn("10.1109/TMI.2023.3331691", self.text)
+
+    def test_no_longer_narrates_the_review_process(self) -> None:
+        # This file documents third-party licensing/attribution facts, not
+        # the history of the code review that prompted fixing them.
+        self.assertNotIn("the review that produced this notice", self.text)
+        self.assertNotIn(".gitignore", self.text)
 
 
 class LicensesDirectoryTest(unittest.TestCase):
@@ -109,21 +118,19 @@ class CitationCffTest(unittest.TestCase):
         self.assertIn("references:", self.text)
         self.assertIn("DDSurfer", self.text)
 
-    def test_does_not_assert_the_unverified_doi(self) -> None:
-        # The brief that prompted this file's update proposed
-        # doi 10.1002/advs.76596 for the DDSurfer paper; that DOI does not
-        # appear anywhere in this repository's own README/docs, so it must
-        # not be recorded as a `doi:` field (a bare mention while explaining
-        # the omission, as in the TODO comment, is fine).
-        self.assertNotIn("doi: 10.1002/advs.76596", self.text)
-        self.assertNotIn('doi: "10.1002/advs.76596"', self.text)
+    def test_records_the_verified_ddsurfer_doi(self) -> None:
+        # Verified directly against Crossref
+        # (https://api.crossref.org/works/10.1002/advs.76596) before being
+        # recorded here as a `doi:` field rather than left as a TODO.
+        self.assertIn('doi: "10.1002/advs.76596"', self.text)
 
-    def test_has_a_todo_for_the_unverified_doi(self) -> None:
-        self.assertIn("TODO", self.text)
+    def test_no_longer_has_a_todo_for_the_doi(self) -> None:
+        self.assertNotIn("TODO", self.text)
 
-    def test_notes_that_ddparcel_and_ddseg_also_need_citation(self) -> None:
+    def test_records_ddparcel_and_ddseg_method_paper_references(self) -> None:
         self.assertIn("DDParcel", self.text)
-        self.assertIn("DDSeg", self.text)
+        self.assertIn('doi: "10.1109/TMI.2023.3331691"', self.text)
+        self.assertIn('doi: "10.1016/j.neuroimage.2021.117934"', self.text)
 
 
 if __name__ == "__main__":
