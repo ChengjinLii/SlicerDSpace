@@ -35,10 +35,32 @@ class ValidateStagingSubjectIdTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_staging_subject_id(subject_id)
 
-    def test_rejects_other_shell_or_glob_metacharacters(self) -> None:
-        for subject_id in ("sub;rm -rf", "sub*", "sub?", "sub id", "sub\x00id"):
+    def test_permissive_by_default_allows_spaces_and_unicode(self) -> None:
+        # No file is deleted just by resolving a directory to read from or
+        # write into, and the containment check in
+        # resolve_staging_subject_dir() is what actually prevents escaping
+        # staging_root -- not this character-level check. A legitimate
+        # subject id containing a space or non-ASCII characters (e.g. an
+        # accented name pulled from a DICOM header) must not be rejected
+        # here just because nothing is being deleted.
+        for subject_id in ("sub 01", "José", "受检者01", "sub;name", "sub*name"):
+            self.assertEqual(validate_staging_subject_id(subject_id), subject_id)
+
+    def test_strict_allow_list_applies_only_for_delete(self) -> None:
+        # Glob/shell metacharacters and a bare space are rejected once the
+        # value may go on to be rmtree()-ed, even though they are accepted
+        # above when nothing is being deleted.
+        for subject_id in ("sub;rm -rf", "sub*", "sub?", "sub id"):
             with self.assertRaises(ValueError):
-                validate_staging_subject_id(subject_id)
+                validate_staging_subject_id(subject_id, for_delete=True)
+
+    def test_strict_allow_list_for_delete_still_accepts_unicode_word_characters(self) -> None:
+        # "Unicode word characters" (the review's own wording) is wider than
+        # ASCII: a legitimate accented or CJK subject id must remain
+        # deletable, since the point of the allow-list is to exclude
+        # glob/shell metacharacters and whitespace, not non-ASCII scripts.
+        for subject_id in ("100307", "sub-01", "subject_01", "S1.2", "José", "受检者01"):
+            self.assertEqual(validate_staging_subject_id(subject_id, for_delete=True), subject_id)
 
 
 class ResolveStagingSubjectDirTest(unittest.TestCase):
@@ -86,6 +108,23 @@ class ResolveStagingSubjectDirTest(unittest.TestCase):
                 resolve_staging_subject_dir(staging_root, "100307")
 
             self.assertTrue((outside_target / "keepme.txt").is_file())
+
+    def test_allows_a_subject_id_with_a_space_when_not_deleting(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging_root = Path(tmp) / "staging"
+            staging_root.mkdir()
+
+            resolved = resolve_staging_subject_dir(staging_root, "sub 01")
+
+            self.assertEqual(resolved, (staging_root / "sub 01").resolve())
+
+    def test_rejects_a_subject_id_with_a_space_when_deleting(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            staging_root = Path(tmp) / "staging"
+            staging_root.mkdir()
+
+            with self.assertRaises(ValueError):
+                resolve_staging_subject_dir(staging_root, "sub 01", for_delete=True)
 
 
 if __name__ == "__main__":

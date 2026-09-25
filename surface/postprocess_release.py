@@ -258,7 +258,7 @@ def stage_postprocess_inputs(
     force: bool,
     stage_mode: str = "copy",
 ) -> Path:
-    subject_input_dir = resolve_staging_subject_dir(staging_inputs_root, subject_id)
+    subject_input_dir = resolve_staging_subject_dir(staging_inputs_root, subject_id, for_delete=force)
     surf_dir = subject_input_dir / "surf"
     mri_out_dir = subject_input_dir / "mri"
     if force and subject_input_dir.exists():

@@ -45,7 +45,7 @@ def stage_subject_inputs(
     clobber: bool,
     log_callback: Optional[Callable[[str], None]] = None,
 ) -> Path:
-    subject_input_dir = resolve_staging_subject_dir(inputs_dir, subject_id)
+    subject_input_dir = resolve_staging_subject_dir(inputs_dir, subject_id, for_delete=clobber)
     surf_dir = subject_input_dir / "surf"
     mri_out_dir = subject_input_dir / "mri"
 
