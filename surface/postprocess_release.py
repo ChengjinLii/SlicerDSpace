@@ -19,6 +19,7 @@ from nibabel.freesurfer.mghformat import MGHImage
 from nibabel.processing import resample_from_to
 
 from shared.io_layout import subject_layout
+from shared.staging_paths import resolve_staging_subject_dir
 
 REQUIRED_MRI_FILES = ("brain.mgz", "DDSurfer-wmparc.nii.gz")
 FS_BRAIN_TEMPLATE_SHAPE = (256, 256, 256)
@@ -257,7 +258,7 @@ def stage_postprocess_inputs(
     force: bool,
     stage_mode: str = "copy",
 ) -> Path:
-    subject_input_dir = staging_inputs_root / subject_id
+    subject_input_dir = resolve_staging_subject_dir(staging_inputs_root, subject_id)
     surf_dir = subject_input_dir / "surf"
     mri_out_dir = subject_input_dir / "mri"
     if force and subject_input_dir.exists():
