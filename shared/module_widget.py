@@ -59,10 +59,12 @@ from shared.ui_run_controller import (
     build_batch_background_cli_args,
     build_single_subject_run_kwargs,
     cancelled_manifest_path_and_payload,
+    classify_background_run_outcome,
     default_run_name_for_backend,
     extract_background_manifest_path,
     is_auto_generated_run_name,
     microstructure_stage_flags,
+    parse_manifest_line,
     blocked_plan_items,
     blocked_plan_log_text,
     environment_blockers_from_plan,
@@ -2034,8 +2036,9 @@ class SharedWidgetMixin:
         if line.startswith("[Orchestrator] Running "):
             keys = self._task_keys_for_running_line(line)
             self._update_run_status_table_item(keys, "running", line.replace("[Orchestrator] ", "", 1))
-        if line.endswith("_orchestration_manifest.json"):
-            path = Path(line.strip())
+        path_text = parse_manifest_line(line)
+        if path_text:
+            path = Path(path_text)
             if path.is_file():
                 self._backgroundManifestPath = path
 
@@ -2052,10 +2055,15 @@ class SharedWidgetMixin:
             for line in tail.splitlines():
                 self._handleBackgroundOutputLine(line.rstrip())
         cancelled = bool(getattr(self, "_backgroundCancelRequested", False))
-        process_failed = exit_code != 0 and not cancelled
         manifest_path = self._extract_background_manifest_path()
+        manifest_available = bool(manifest_path and manifest_path.is_file())
+        outcome = classify_background_run_outcome(
+            exit_code=exit_code,
+            cancelled=cancelled,
+            manifest_available=manifest_available,
+        )
         self._setPipelineActive(False)
-        if cancelled:
+        if outcome == "cancelled":
             cancel_manifest = self._write_cancelled_manifest()
             self._mark_unfinished_rows("cancelled", "User cancelled the background job.")
             self.appendLog(f"[Background] Cancelled. Manifest: {cancel_manifest}")
@@ -2064,15 +2072,19 @@ class SharedWidgetMixin:
             self._set_latest_output_tree_path(None)
             self._set_run_progress_message(f"Pipeline cancelled. Manifest: {cancel_manifest}")
             self._set_run_summary_message("Status: cancelled | User cancelled the background job.", "cancelled")
-        elif process_failed:
+        elif outcome == "manifest":
+            # A manifest was written even though the process may have exited
+            # non-zero (e.g. exit code 2 for "some tasks failed"): it is
+            # authoritative, so load per-task status from it rather than
+            # treating a non-zero exit as a blanket process failure.
+            self._load_background_manifest_result(manifest_path)
+        elif outcome == "process_failed":
             self._mark_unfinished_rows("failed", f"Background process exited with code {exit_code}")
             self._setStatus("error", f"Pipeline failed: exit code {exit_code}")
             self._set_latest_report_path(None)
             self._set_latest_output_tree_path(None)
             self._set_run_progress_message(f"Pipeline failed: exit code {exit_code}")
             self._set_run_summary_message(f"Status: failed | Background process exited with code {exit_code}.", "failed")
-        elif manifest_path and manifest_path.is_file():
-            self._load_background_manifest_result(manifest_path)
         else:
             self._mark_unfinished_rows("failed", "Background process finished without a manifest path.")
             self._setStatus("error", "Pipeline failed: no manifest")

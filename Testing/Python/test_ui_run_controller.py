@@ -20,11 +20,13 @@ from shared.ui_run_controller import (
     build_batch_background_cli_args,
     build_single_subject_run_kwargs,
     cancelled_manifest_path_and_payload,
+    classify_background_run_outcome,
     default_run_name_for_backend,
     extract_background_manifest_path,
     environment_blockers_from_plan,
     is_auto_generated_run_name,
     microstructure_stage_flags,
+    parse_manifest_line,
     partial_run_notice_text,
     rows_from_batch_manifest,
     rows_from_plan,
@@ -449,6 +451,58 @@ class UIRunControllerTest(unittest.TestCase):
                 extract_background_manifest_path(f"log\n{first}\nmissing_orchestration_manifest.json\n{second}\n"),
                 second,
             )
+
+    def test_extract_background_manifest_path_recognizes_batch_marker_line(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            batch_manifest = root / "00_batch_metadata" / "batch_20260101_000000.json"
+            batch_manifest.parent.mkdir(parents=True)
+            batch_manifest.write_text("{}", encoding="utf-8")
+
+            self.assertEqual(
+                extract_background_manifest_path(f"some log line\n[Batch] manifest: {batch_manifest}\nmore log\n"),
+                batch_manifest,
+            )
+
+    def test_parse_manifest_line_recognizes_single_subject_and_batch_formats(self) -> None:
+        self.assertEqual(
+            parse_manifest_line("/out/Test1_orchestration_manifest.json"),
+            "/out/Test1_orchestration_manifest.json",
+        )
+        self.assertEqual(
+            parse_manifest_line("  /out/Test1_orchestration_manifest.json  "),
+            "/out/Test1_orchestration_manifest.json",
+        )
+        self.assertEqual(
+            parse_manifest_line("[Batch] manifest: /out/00_batch_metadata/batch_20260101_000000.json"),
+            "/out/00_batch_metadata/batch_20260101_000000.json",
+        )
+
+    def test_parse_manifest_line_ignores_unrelated_lines(self) -> None:
+        for line in ("", "   ", "[Orchestrator] Running validation", "not a manifest line", "[Batch] manifest:"):
+            self.assertIsNone(parse_manifest_line(line))
+
+    def test_classify_background_run_outcome_cancelled_takes_priority(self) -> None:
+        outcome = classify_background_run_outcome(exit_code=1, cancelled=True, manifest_available=True)
+        self.assertEqual(outcome, "cancelled")
+
+    def test_classify_background_run_outcome_prefers_manifest_over_nonzero_exit(self) -> None:
+        # Exit code 2 ("some tasks failed") with a manifest present must load
+        # the manifest, not be treated as a blanket process failure.
+        outcome = classify_background_run_outcome(exit_code=2, cancelled=False, manifest_available=True)
+        self.assertEqual(outcome, "manifest")
+
+    def test_classify_background_run_outcome_success_with_manifest(self) -> None:
+        outcome = classify_background_run_outcome(exit_code=0, cancelled=False, manifest_available=True)
+        self.assertEqual(outcome, "manifest")
+
+    def test_classify_background_run_outcome_process_failed_without_manifest(self) -> None:
+        outcome = classify_background_run_outcome(exit_code=1, cancelled=False, manifest_available=False)
+        self.assertEqual(outcome, "process_failed")
+
+    def test_classify_background_run_outcome_no_manifest_on_clean_exit(self) -> None:
+        outcome = classify_background_run_outcome(exit_code=0, cancelled=False, manifest_available=False)
+        self.assertEqual(outcome, "no_manifest")
 
     def test_cancelled_manifest_payload_resolves_output_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -360,6 +360,11 @@ def main(argv: list[str] | None = None) -> int:
     payload["manifest_path"] = written_manifest.as_posix()
     _write_manifest(written_manifest, payload)
     print(json.dumps(payload, indent=2, ensure_ascii=False))
+    # Machine-readable line for callers (e.g. the Slicer widget's background
+    # QProcess reader) that watch stdout for a manifest path: unlike the
+    # single-subject pipeline CLI's manifest, this file is not named
+    # "*_orchestration_manifest.json", so it needs an explicit marker.
+    print(f"[Batch] manifest: {written_manifest.as_posix()}")
     print(written_manifest.as_posix(), file=sys.stderr)
 
     if failures:

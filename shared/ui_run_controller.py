@@ -734,17 +734,68 @@ def build_batch_background_cli_args(
     return args
 
 
+_BATCH_MANIFEST_LINE_PREFIX = "[Batch] manifest:"
+
+
+def parse_manifest_line(line: str) -> Optional[str]:
+    """Return the manifest path encoded in one line of background process output.
+
+    Recognizes two formats emitted on the (merged) stdout stream:
+    - A bare line ending in "_orchestration_manifest.json" -- the
+      single-subject pipeline CLI's manifest filename convention.
+    - "[Batch] manifest: <path>" -- scripts/run_batch_pipeline.py's batch
+      manifest, whose filename ("batch_<timestamp>.json") does not match
+      the single-subject convention and so needs an explicit marker.
+
+    Returns None if the line matches neither format.
+    """
+
+    stripped = (line or "").strip()
+    if not stripped:
+        return None
+    if stripped.endswith("_orchestration_manifest.json"):
+        return stripped
+    if stripped.startswith(_BATCH_MANIFEST_LINE_PREFIX):
+        path_text = stripped[len(_BATCH_MANIFEST_LINE_PREFIX):].strip()
+        return path_text or None
+    return None
+
+
 def extract_background_manifest_path(buffer_text: str, explicit_path: Optional[Path] = None) -> Optional[Path]:
-    """Extract the latest existing orchestration manifest path from process output."""
+    """Extract the latest existing orchestration/batch manifest path from process output."""
 
     if explicit_path:
         return explicit_path
     candidates: list[Path] = []
     for line in (buffer_text or "").splitlines():
-        stripped = line.strip()
-        if stripped.endswith("_orchestration_manifest.json"):
-            candidates.append(Path(stripped))
+        path_text = parse_manifest_line(line)
+        if path_text:
+            candidates.append(Path(path_text))
     return next((path for path in reversed(candidates) if path.is_file()), None)
+
+
+def classify_background_run_outcome(*, exit_code: int, cancelled: bool, manifest_available: bool) -> str:
+    """Classify how a finished background pipeline QProcess should be handled.
+
+    A manifest, when present, is authoritative: the single-subject pipeline
+    CLI returns exit code 2 (not 0) whenever any task failed, even though it
+    still writes a complete manifest with correct per-task statuses. That
+    manifest must be loaded and its per-row statuses shown -- via
+    "manifest" -- instead of the whole run being marked as a blanket
+    process failure. "process_failed" is reserved for what it actually
+    means: the process exited non-zero and produced no manifest to explain
+    why (e.g. a crash before any task ran).
+
+    Returns one of "cancelled", "manifest", "process_failed", "no_manifest".
+    """
+
+    if cancelled:
+        return "cancelled"
+    if manifest_available:
+        return "manifest"
+    if exit_code != 0:
+        return "process_failed"
+    return "no_manifest"
 
 
 def cancelled_manifest_path_and_payload(
