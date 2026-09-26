@@ -1,5 +1,7 @@
 """Fail-closed, format-aware contracts shared by planning and execution."""
 
+from __future__ import annotations
+
 import json
 from collections.abc import Iterable
 from pathlib import Path
