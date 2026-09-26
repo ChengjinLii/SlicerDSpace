@@ -27,7 +27,8 @@ _PERL_SETPGRP_PATH = "/usr/bin/perl"
 # string) when the launched program is invoked with zero arguments, i.e.
 # @ARGV has exactly one element; if that one argument contained shell
 # metacharacters (e.g. a path with a space), it would be misinterpreted.
-_PERL_SETPGRP_SCRIPT = "setpgrp(0, 0); exec { $ARGV[0] } @ARGV"
+# "or die" makes a failed exec exit non-zero; perl would otherwise exit 0.
+_PERL_SETPGRP_SCRIPT = 'setpgrp(0, 0); exec { $ARGV[0] } @ARGV or die "exec failed: $!\\n"'
 
 
 def _perl_setpgrp_launcher() -> Optional[str]:

@@ -2304,7 +2304,12 @@ class SharedWidgetMixin:
         grouped = bool(getattr(self, "_backgroundProcessGrouped", False))
         pgid = getattr(self, "_backgroundProcessGroupId", None)
         if pid > 0 or (grouped and pgid):
-            kill_process_tree(pid, grouped=grouped, force=force, pgid=pgid)
+            try:
+                kill_process_tree(pid, grouped=grouped, force=force, pgid=pgid)
+            except OSError as exc:
+                # A Qt slot must not propagate e.g. PermissionError; the
+                # forced follow-up timer still gets its chance to kill.
+                self.appendLog(f"[Run] Could not signal the background process group: {exc}")
         elif process:
             process.kill() if force else process.terminate()
 

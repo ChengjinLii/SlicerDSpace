@@ -38,7 +38,15 @@ class GroupedLaunchCommandTest(unittest.TestCase):
 
         self.assertEqual(program, "/usr/bin/perl")
         self.assertEqual(
-            args, ["-e", "setpgrp(0, 0); exec { $ARGV[0] } @ARGV", "--", "/usr/bin/python3", "-m", "pipeline"]
+            args,
+            [
+                "-e",
+                'setpgrp(0, 0); exec { $ARGV[0] } @ARGV or die "exec failed: $!\\n"',
+                "--",
+                "/usr/bin/python3",
+                "-m",
+                "pipeline",
+            ],
         )
         self.assertTrue(grouped)
 
