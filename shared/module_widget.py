@@ -2317,8 +2317,14 @@ class SharedWidgetMixin:
             # process.state(): killpg() targets the recorded process group
             # directly (which also reaches the launcher itself, if it is
             # still alive) and shared/process_group.py already ignores
-            # ESRCH on its own.
-            kill_process_tree(0, grouped=True, force=True, pgid=pgid)
+            # ESRCH on its own. Still guard the call itself: a Qt timer
+            # callback must not propagate an unexpected exception (e.g.
+            # PermissionError, if the pgid were somehow reused by another
+            # user's process in the meantime).
+            try:
+                kill_process_tree(0, grouped=True, force=True, pgid=pgid)
+            except Exception:
+                pass
             return
         try:
             if process and process.state() != qt.QProcess.NotRunning:

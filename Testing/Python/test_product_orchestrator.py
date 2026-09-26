@@ -1572,5 +1572,40 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(captured["fs_dir"], post_dir)
 
 
+class MrtrixNthreadsValidationTest(unittest.TestCase):
+    """Invalid mrtrix_nthreads must fail fast, before any target runs."""
+
+    def test_negative_mrtrix_nthreads_is_rejected_by_run_subject_products(self) -> None:
+        from shared import ProductOrchestratorConfig, run_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            with self.assertRaises(ValueError):
+                run_subject_products(
+                    ProductOrchestratorConfig(
+                        subject_id="100307",
+                        subject_root=subject_root,
+                        targets=("tractography",),
+                        execute=False,
+                        mrtrix_nthreads=-1,
+                    )
+                )
+
+    def test_negative_mrtrix_nthreads_is_rejected_by_plan_subject_products(self) -> None:
+        from shared import ProductOrchestratorConfig, plan_subject_products
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject_root = Path(tmp) / "100307"
+            with self.assertRaises(ValueError):
+                plan_subject_products(
+                    ProductOrchestratorConfig(
+                        subject_id="100307",
+                        subject_root=subject_root,
+                        targets=("tractography",),
+                        mrtrix_nthreads=-1,
+                    )
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

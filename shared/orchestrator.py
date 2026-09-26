@@ -1262,6 +1262,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         raise ValueError("select_streamlines must be > 0.")
     if config.dti_min_length_mm < 0 or config.dti_max_length_mm <= config.dti_min_length_mm:
         raise ValueError("DTI streamline lengths require 0 <= dti_min_length_mm < dti_max_length_mm.")
+    if config.mrtrix_nthreads is not None and config.mrtrix_nthreads < 0:
+        raise ValueError("mrtrix_nthreads must be >= 0 when set.")
     if config.microstructure_free_water_chunk_size <= 0:
         raise ValueError("microstructure_free_water_chunk_size must be > 0.")
     if config.microstructure_free_water_engine not in {"serial", "joblib", "dask", "ray"}:
@@ -2349,6 +2351,8 @@ def _run_subject_products_impl(
         raise ValueError("select_streamlines must be > 0.")
     if config.dti_min_length_mm < 0 or config.dti_max_length_mm <= config.dti_min_length_mm:
         raise ValueError("DTI streamline lengths require 0 <= dti_min_length_mm < dti_max_length_mm.")
+    if config.mrtrix_nthreads is not None and config.mrtrix_nthreads < 0:
+        raise ValueError("mrtrix_nthreads must be >= 0 when set.")
     if config.microstructure_free_water_chunk_size <= 0:
         raise ValueError("microstructure_free_water_chunk_size must be > 0.")
     if config.microstructure_free_water_engine not in {"serial", "joblib", "dask", "ray"}:
