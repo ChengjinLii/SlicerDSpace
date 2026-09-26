@@ -118,6 +118,12 @@ class ProductOrchestratorConfig:
     dti_min_length_mm: float = 10.0
     dti_max_length_mm: float = 250.0
     mrtrix_bin_dir: Optional[Path] = None
+    # Off (None) by default: MRtrix3 keeps using its own default thread
+    # count for tckgen/tcksift2. Pinning this does NOT by itself make
+    # tckgen bit-reproducible -- see tractography/csd.py's CSDActConfig
+    # .nthreads docstring and the "reproducibility_note" the CSD/ACT
+    # manifest records for every run.
+    mrtrix_nthreads: Optional[int] = None
     tract_querier_root: Optional[Path] = None
     connectome_backend: str = "python"
     connectome_compress_mrtrix_dense: bool = False
@@ -3131,6 +3137,7 @@ def _run_subject_products_impl(
                         export_trk=True,
                         export_vtk=True,
                         mrtrix_bin_dir=config.mrtrix_bin_dir,
+                        nthreads=config.mrtrix_nthreads,
                         execute=True,
                     ),
                     log=log,
@@ -3744,6 +3751,7 @@ def _run_subject_products_impl(
         "select_streamlines": config.select_streamlines,
         "dti_min_length_mm": config.dti_min_length_mm,
         "dti_max_length_mm": config.dti_max_length_mm,
+        "mrtrix_nthreads": config.mrtrix_nthreads,
         "connectome_backend": config.connectome_backend,
         "connectome_compress_mrtrix_dense": config.connectome_compress_mrtrix_dense,
         "saf_fs_dir": config.saf_fs_dir.expanduser().resolve().as_posix() if config.saf_fs_dir else None,

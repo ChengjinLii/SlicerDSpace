@@ -14,6 +14,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CLI_PATH = REPO_ROOT / "run_subject_pipeline.py"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 
 class RunSubjectPipelineCliTest(unittest.TestCase):
@@ -584,6 +586,33 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 2)
             self.assertIn("Aborting before execution", completed.stderr)
+
+
+class MrtrixNthreadsArgumentTest(unittest.TestCase):
+    """--mrtrix-nthreads is an optional, off-by-default passthrough setting."""
+
+    def test_defaults_to_none(self) -> None:
+        from shared.run_subject_pipeline_cli import build_parser
+
+        args = build_parser().parse_args([])
+        self.assertIsNone(args.mrtrix_nthreads)
+
+    def test_accepts_an_explicit_value(self) -> None:
+        from shared.run_subject_pipeline_cli import build_parser
+
+        args = build_parser().parse_args(["--mrtrix-nthreads", "4"])
+        self.assertEqual(args.mrtrix_nthreads, 4)
+
+    def test_reaches_the_orchestrator_config(self) -> None:
+        from shared.orchestrator import ProductOrchestratorConfig
+        from shared.run_subject_pipeline_cli import build_parser
+
+        args = build_parser().parse_args(["--mrtrix-nthreads", "8"])
+        self.assertEqual(args.mrtrix_nthreads, 8)
+        # ProductOrchestratorConfig.mrtrix_nthreads must exist with the same
+        # off-by-default (None) semantics as the CLI flag, so
+        # args.mrtrix_nthreads can be forwarded to it directly.
+        self.assertIsNone(ProductOrchestratorConfig.__dataclass_fields__["mrtrix_nthreads"].default)
 
 
 if __name__ == "__main__":

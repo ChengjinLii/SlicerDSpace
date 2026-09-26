@@ -461,6 +461,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum retained DTI deterministic streamline length in millimetres.",
     )
     parser.add_argument(
+        "--mrtrix-nthreads",
+        type=int,
+        default=None,
+        help=(
+            "Optional: pin MRtrix3's own -nthreads for tckgen/tcksift2. Off (unset) by default, "
+            "meaning MRtrix3 uses its own default thread count. NOTE: pinning this does NOT by "
+            "itself make tckgen bit-reproducible -- multi-threaded track generation is not "
+            "bit-reproducible even with a fixed random seed; only -nthreads 0 is."
+        ),
+    )
+    parser.add_argument(
         "--micro-fit-method",
         default="wls",
         choices=("wls", "ls"),
@@ -758,6 +769,7 @@ def main(argv: list[str] | None = None) -> int:
         dti_min_length_mm=args.dti_min_length_mm,
         dti_max_length_mm=args.dti_max_length_mm,
         mrtrix_bin_dir=args.mrtrix_bin_dir,
+        mrtrix_nthreads=args.mrtrix_nthreads,
         tract_querier_root=args.tract_querier_root,
         connectome_backend=args.connectome_backend,
         connectome_compress_mrtrix_dense=bool(args.compress_mrtrix_dense),
