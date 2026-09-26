@@ -37,7 +37,9 @@ class GroupedLaunchCommandTest(unittest.TestCase):
             program, args, grouped = grouped_launch_command("/usr/bin/python3", ["-m", "pipeline"])
 
         self.assertEqual(program, "/usr/bin/perl")
-        self.assertEqual(args, ["-e", "setpgrp(0, 0); exec @ARGV", "--", "/usr/bin/python3", "-m", "pipeline"])
+        self.assertEqual(
+            args, ["-e", "setpgrp(0, 0); exec { $ARGV[0] } @ARGV", "--", "/usr/bin/python3", "-m", "pipeline"]
+        )
         self.assertTrue(grouped)
 
     def test_falls_back_to_perl_on_path_when_not_at_canonical_location(self) -> None:
@@ -73,20 +75,24 @@ class GroupedLaunchCommandTest(unittest.TestCase):
 
 @unittest.skipIf(os.name != "posix", "requires POSIX process-group APIs")
 class CaptureProcessGroupIdTest(unittest.TestCase):
-    def test_returns_getpgid_result_for_a_positive_pid(self) -> None:
-        with mock.patch("shared.process_group.os.getpgid", return_value=4242) as mock_getpgid:
+    def test_returns_the_pid_itself_without_calling_getpgid(self) -> None:
+        # Must NOT call os.getpgid(): waitForStarted() returns as soon as
+        # exec of setsid/perl succeeds, before that process has actually
+        # called setsid()/setpgrp(0, 0) to become its own group leader.
+        # Querying os.getpgid(pid) in that window can observe the
+        # *inherited* pgid (e.g. Slicer's own) instead, and a later forced
+        # killpg() against that stale value would signal the wrong group.
+        # A mocked os.getpgid returning a different value must not affect
+        # the result: it must not be consulted at all.
+        with mock.patch("shared.process_group.os.getpgid", return_value=555 + 1000) as mock_getpgid:
             result = capture_process_group_id(555)
-        mock_getpgid.assert_called_once_with(555)
-        self.assertEqual(result, 4242)
-
-    def test_returns_none_when_the_process_is_already_gone(self) -> None:
-        with mock.patch("shared.process_group.os.getpgid", side_effect=ProcessLookupError):
-            result = capture_process_group_id(555)
-        self.assertIsNone(result)
+        mock_getpgid.assert_not_called()
+        self.assertEqual(result, 555)
 
     def test_returns_none_for_a_non_positive_pid(self) -> None:
         self.assertIsNone(capture_process_group_id(0))
         self.assertIsNone(capture_process_group_id(-1))
+        self.assertIsNone(capture_process_group_id(None))
 
 
 class KillProcessTreeTest(unittest.TestCase):

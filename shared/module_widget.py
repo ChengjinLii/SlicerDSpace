@@ -2266,15 +2266,23 @@ class SharedWidgetMixin:
         self.appendLog("[Background] Cancellation requested by user.")
         self._set_run_progress_message("Cancelling background job...")
         self._signal_background_process(process, force=False)
-        qt.QTimer.singleShot(3000, lambda: self._kill_background_process_if_running(process))
+        # Capture grouped/pgid now, not inside the lambda: if a new
+        # background run were started during the 3s grace period (replacing
+        # self._backgroundProcessGrouped/self._backgroundProcessGroupId),
+        # reading them fresh when the timer fires would kill the *new*
+        # run's process group instead of the one actually being cancelled.
+        grouped = bool(getattr(self, "_backgroundProcessGrouped", False))
+        pgid = getattr(self, "_backgroundProcessGroupId", None)
+        qt.QTimer.singleShot(
+            3000, lambda: self._kill_background_process_if_running(process, grouped=grouped, pgid=pgid)
+        )
 
     def _capture_background_process_group_id(self, process, grouped: bool) -> Optional[int]:
-        # Capture the pgid once, right here, while the process is guaranteed
-        # to still be alive (waitForStarted() just returned True). Trying to
-        # re-derive it later, at kill time, is unreliable: os.getpgid(pid)
-        # raises once the group's leader process has exited, which routinely
-        # happens well before the descendants it spawned (MRtrix, FreeSurfer,
-        # ...) finish -- see shared/process_group.py.
+        # Capture the pgid once, right here, at launch time, and reuse it for
+        # every later kill attempt -- see capture_process_group_id()'s own
+        # docstring in shared/process_group.py for why it deliberately does
+        # not query os.getpgid() at kill time (or here: getpgid would race
+        # the launched process's own setsid()/setpgrp() call).
         if not grouped:
             return None
         try:
@@ -2300,7 +2308,18 @@ class SharedWidgetMixin:
         elif process:
             process.kill() if force else process.terminate()
 
-    def _kill_background_process_if_running(self, process) -> None:
+    def _kill_background_process_if_running(self, process, *, grouped: bool, pgid: Optional[int]) -> None:
+        if grouped and pgid:
+            # The launcher process itself may have already exited by the
+            # time this forced follow-up fires -- routine, since launchers
+            # exit well before the descendants they spawned (MRtrix,
+            # FreeSurfer, ...) finish -- so this must not gate on
+            # process.state(): killpg() targets the recorded process group
+            # directly (which also reaches the launcher itself, if it is
+            # still alive) and shared/process_group.py already ignores
+            # ESRCH on its own.
+            kill_process_tree(0, grouped=True, force=True, pgid=pgid)
+            return
         try:
             if process and process.state() != qt.QProcess.NotRunning:
                 self._signal_background_process(process, force=True)

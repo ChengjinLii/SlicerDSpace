@@ -20,7 +20,14 @@ import subprocess
 from typing import Optional
 
 _PERL_SETPGRP_PATH = "/usr/bin/perl"
-_PERL_SETPGRP_SCRIPT = "setpgrp(0, 0); exec @ARGV"
+# The indirect-object form, "exec { $ARGV[0] } @ARGV", always runs the
+# program directly via execvp() -- never through a shell -- regardless of
+# how many elements @ARGV has. Plain "exec @ARGV" would do the same for two
+# or more elements, but degrades to shell interpretation (of the single
+# string) when the launched program is invoked with zero arguments, i.e.
+# @ARGV has exactly one element; if that one argument contained shell
+# metacharacters (e.g. a path with a space), it would be misinterpreted.
+_PERL_SETPGRP_SCRIPT = "setpgrp(0, 0); exec { $ARGV[0] } @ARGV"
 
 
 def _perl_setpgrp_launcher() -> Optional[str]:
@@ -69,26 +76,38 @@ def grouped_launch_command(program: str, args: list[str]) -> tuple[str, list[str
 
 
 def capture_process_group_id(pid: int) -> Optional[int]:
-    """Return ``pid``'s process-group id, or ``None`` if it cannot be determined.
+    """Return the process-group id ``pid`` will have as a grouped-launch leader.
 
-    Call this once, right after a grouped launch, while the launched process
-    is known to still be alive (e.g. immediately after
-    ``QProcess.waitForStarted()`` succeeds) and store the result. Passing
-    that stored value to :func:`kill_process_tree` later -- rather than
-    re-deriving the pgid from the pid at kill time -- matters because
-    ``os.getpgid(pid)`` raises ``ProcessLookupError`` once the group's
-    leader process has already exited, which happens routinely: launchers
-    often exit quickly while the descendants they spawned (MRtrix,
-    FreeSurfer, dcm2niix, ...) keep running well past that point, and those
-    descendants are the whole reason a group kill is needed.
+    Call this once, right after a grouped launch (``grouped_launch_command``
+    returned ``grouped=True``), while the launched process is known to still
+    be alive (e.g. immediately after ``QProcess.waitForStarted()`` succeeds),
+    and store the result for :func:`kill_process_tree` to use later.
+
+    This deliberately does **not** call ``os.getpgid(pid)`` to look the pgid
+    up. Two reasons:
+
+    1. It would race the launched process's own ``setsid()``/``setpgrp(0,
+       0)`` call: ``waitForStarted()`` returns as soon as ``exec`` of
+       ``setsid``/perl succeeds, which is *before* that process has actually
+       made itself its own group leader. Calling ``os.getpgid(pid)`` in that
+       window can observe the *inherited* pgid instead (e.g. Slicer's own),
+       and a later forced ``killpg()`` against that stale value would signal
+       the wrong process group entirely.
+    2. It is unnecessary: POSIX only allows a process to make itself the
+       leader of a *new* group by setting its own pgid to its own pid
+       (that is what both ``setsid()`` and ``setpgrp(0, 0)`` do here -- see
+       :func:`grouped_launch_command`). So once that call completes, this
+       process's pgid is guaranteed to equal its own pid; there is no other
+       value it could be.
+
+    ``pid`` is returned as-is (once validated), letting the eventual
+    ``killpg()`` no-op with ``ESRCH`` if called before that setup completes,
+    rather than risk targeting the wrong group.
     """
 
     if os.name != "posix" or pid is None or pid <= 0:
         return None
-    try:
-        return os.getpgid(pid)
-    except ProcessLookupError:
-        return None
+    return pid
 
 
 def kill_process_tree(
