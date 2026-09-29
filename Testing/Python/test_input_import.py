@@ -61,15 +61,16 @@ class InputImportTest(unittest.TestCase):
             dicom_dir.mkdir()
             (dicom_dir / "IM0001.dcm").write_text("dicom\n", encoding="utf-8")
 
-            manifest = prepare_inputs(
-                InputImportConfig(
-                    source=dicom_dir,
-                    subject_root=root / "sub-01",
-                    subject_id="sub-01",
-                    source_kind="dicom",
-                    dry_run=True,
+            with patch("shared.input_import.shutil.which", return_value="/tools/dcm2niix"):
+                manifest = prepare_inputs(
+                    InputImportConfig(
+                        source=dicom_dir,
+                        subject_root=root / "sub-01",
+                        subject_id="sub-01",
+                        source_kind="dicom",
+                        dry_run=True,
+                    )
                 )
-            )
 
             plan = manifest["plan"]
             self.assertEqual(manifest["status"], "planned")

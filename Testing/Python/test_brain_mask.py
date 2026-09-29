@@ -19,7 +19,7 @@ class BrainMaskTest(unittest.TestCase):
     def _write_fake_dwi2mask(self, bin_dir: Path) -> None:
         tool = bin_dir / "dwi2mask"
         tool.write_text(
-            "#!/usr/bin/env python3\n"
+            f"#!{sys.executable}\n"
             "import pathlib, sys\n"
             "pathlib.Path(sys.argv[2]).write_text('mask\\n', encoding='utf-8')\n",
             encoding="utf-8",
