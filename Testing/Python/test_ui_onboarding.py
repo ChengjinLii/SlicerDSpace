@@ -101,11 +101,14 @@ class FakeLanguageUi:
             "environmentCollapsibleButton",
             "environmentResultLabel",
             "configurationCollapsibleButton",
-            "configurationSectionLabel",
+            "targetsCollapsibleButton",
+            "parametersCollapsibleButton",
+            "runCollapsibleButton",
+            "resultsCollapsibleButton",
+            "preprocessingReadoutTimeLabel",
             "subjectIdLabel",
             "inputDirectoryLabel",
             "outputDirectoryLabel",
-            "targetsSectionLabel",
             "targetSurfaceLabel",
             "targetSurfaceCheckBox",
             "targetSurfacePostprocessLabel",
@@ -114,7 +117,6 @@ class FakeLanguageUi:
             "targetBundlesCheckBox",
             "advancedRunCollapsibleButton",
             "orchestrationBundleBackendLabel",
-            "runStepSectionLabel",
             "validateButton",
             "runSelectedButton",
             "logCollapsibleButton",
@@ -165,13 +167,15 @@ class OnboardingHelpersTest(unittest.TestCase):
         self.assertEqual(owner.ui.subjectIdLabel.value, "受试者 ID")
         self.assertEqual(owner.ui.targetSurfaceLabel.value, "表面重建（原生）")
         self.assertEqual(owner.ui.targetSurfacePostprocessLabel.value, "表面后处理")
-        self.assertEqual(owner.ui.targetSurfacePostprocessCheckBox.value, "FreeSurfer 风格 DDSurfer 后处理")
+        self.assertEqual(owner.ui.targetSurfacePostprocessCheckBox.value, "FreeSurfer 风格后处理")
         self.assertIn("不会创建完整的 FreeSurfer 受试者目录", owner.ui.targetSurfaceCheckBox.tooltip)
         self.assertIn("需要完整的 FreeSurfer 安装", owner.ui.targetSurfacePostprocessCheckBox.tooltip)
         self.assertEqual(owner.ui.targetBundlesLabel.value, "纤维束")
         self.assertEqual(owner.ui.runSelectedButton.value, "预检查并运行")
         self.assertEqual(owner.ui.statusLabel.value, "等待输入")
-        self.assertEqual(owner._runStatusPanel.value, "运行计划与进度")
+        self.assertEqual(owner.ui.configurationCollapsibleButton.value, "1. 输入")
+        self.assertEqual(owner.ui.resultsCollapsibleButton.value, "5. 结果")
+        self.assertEqual(owner.ui.preprocessingReadoutTimeLabel.value, "总读出时间（秒）")
         self.assertEqual(owner._runStatusTable.headers, ["目标", "状态", "原因", "清单", "质控", "日志"])
         self.assertEqual(owner._onboardingWidgets["language_combo"].currentIndex, 1)
 
@@ -182,15 +186,32 @@ class OnboardingHelpersTest(unittest.TestCase):
         self.assertEqual(owner.ui.subjectIdLabel.value, "Subject ID")
         self.assertEqual(owner.ui.targetSurfaceLabel.value, "Surface (native)")
         self.assertEqual(owner.ui.targetSurfacePostprocessLabel.value, "Surface postprocess")
-        self.assertEqual(owner.ui.targetSurfacePostprocessCheckBox.value, "FreeSurfer-style DDSurfer postprocess")
+        self.assertEqual(owner.ui.targetSurfacePostprocessCheckBox.value, "FreeSurfer-style postprocess")
         self.assertIn("does not create a complete FreeSurfer subject", owner.ui.targetSurfaceCheckBox.tooltip)
         self.assertIn("Requires a complete FreeSurfer installation", owner.ui.targetSurfacePostprocessCheckBox.tooltip)
         self.assertEqual(owner.ui.targetBundlesLabel.value, "Bundles")
         self.assertEqual(owner.ui.runSelectedButton.value, "Preflight and run")
         self.assertEqual(owner.ui.statusLabel.value, "Waiting for input")
-        self.assertEqual(owner._runStatusPanel.value, "Run Plan & Progress")
+        self.assertEqual(owner.ui.configurationCollapsibleButton.value, "1. Inputs")
+        self.assertEqual(owner.ui.targetsCollapsibleButton.value, "2. Targets")
+        self.assertEqual(owner.ui.parametersCollapsibleButton.value, "3. Route and parameters")
+        self.assertEqual(owner.ui.runCollapsibleButton.value, "4. Run")
+        self.assertEqual(owner.ui.resultsCollapsibleButton.value, "5. Results")
+        self.assertEqual(owner.ui.preprocessingReadoutTimeLabel.value, "Total readout time (s)")
         self.assertEqual(owner._runStatusTable.headers, ["Target", "State", "Reason", "Manifest", "QC", "Logs"])
         self.assertEqual(owner._onboardingWidgets["language_combo"].currentIndex, 0)
+
+    def test_every_workflow_text_key_has_english_and_chinese(self) -> None:
+        from shared.ui_onboarding import TRANSLATIONS
+        from shared.ui_workflow_text import WORKFLOW_TEXT, WORKFLOW_TEXT_BINDINGS, WORKFLOW_TOOLTIP_BINDINGS
+
+        self.assertEqual(set(WORKFLOW_TEXT["en"]), set(WORKFLOW_TEXT["zh"]))
+        for key in list(WORKFLOW_TEXT_BINDINGS.values()) + list(WORKFLOW_TOOLTIP_BINDINGS.values()):
+            self.assertIn(key, TRANSLATIONS["en"])
+            self.assertIn(key, TRANSLATIONS["zh"])
+        self.assertEqual(onboarding_text("en", "browse_runs"), "Browse…")
+        self.assertEqual(onboarding_text("en", "run_selector_label"), "Run")
+        self.assertEqual(onboarding_text("en", "preprocessing_backend"), "Preprocessing route")
 
     def test_known_status_messages_follow_selected_language(self) -> None:
         self.assertEqual(translated_ui_message("zh", "Environment ready"), "环境已就绪")

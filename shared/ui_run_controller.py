@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from shared.orchestrator import normalize_orchestrator_targets
+from shared.topup_parameters import TopupParameters, topup_cli_args, topup_orchestrator_kwargs
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,7 @@ class RunSelection:
     connectome_compress_mrtrix_dense: bool
     preprocessing_backend: str = "dipy"
     wma_input_tractography_text: str = ""
+    topup: TopupParameters = TopupParameters()
 
 
 @dataclass(frozen=True)
@@ -407,6 +409,7 @@ def build_single_subject_run_kwargs(
         "connectome_backend": selection.connectome_backend,
         "connectome_compress_mrtrix_dense": selection.connectome_compress_mrtrix_dense,
         "preflight_blocked_targets": dict(preflight_blocked_targets),
+        **topup_orchestrator_kwargs(selection.topup),
     }
 
 
@@ -432,6 +435,14 @@ def build_batch_run_kwargs(selection: RunSelection, *, batch_root: Path) -> dict
         "connectome_backend": selection.connectome_backend,
         "connectome_compress_mrtrix_dense": selection.connectome_compress_mrtrix_dense,
         "preflight_blocked_targets": {},
+        # One reverse-PE b=0 file cannot describe every subject, so batch runs
+        # only forward the per-protocol values (validation blocks the file).
+        **topup_orchestrator_kwargs(
+            TopupParameters(
+                phase_encoding_direction=selection.topup.phase_encoding_direction,
+                readout_time=selection.topup.readout_time,
+            )
+        ),
     }
 
 
@@ -546,6 +557,20 @@ def rows_from_single_subject_manifest(manifest: dict[str, Any]) -> tuple[list[di
                 "logs_dir": str(task.get("normalized_logs_dir") or ""),
             }
         )
+    if not rows and str(manifest.get("status") or "") == "cancelled":
+        # GUI cancellation manifests record targets but no tasks.
+        reason = str(manifest.get("reason") or "Run was cancelled.")
+        for target in manifest.get("targets") or ():
+            rows.append(
+                {
+                    "target": str(target),
+                    "status": "cancelled",
+                    "reason": reason,
+                    "manifest_path": "",
+                    "qc_path": "",
+                    "logs_dir": "",
+                }
+            )
     return rows, counts
 
 
@@ -607,6 +632,17 @@ EXTERNAL_PATH_CLI_FLAGS: tuple[tuple[str, str], ...] = (
 
 def _path_text(value: Path) -> str:
     return value.expanduser().as_posix()
+
+
+def topup_parameters_from_run_kwargs(common_run_kwargs: dict[str, Any]) -> TopupParameters:
+    """Recover the topup values carried in orchestration kwargs."""
+
+    reverse = common_run_kwargs.get("preprocessing_reverse_phase_b0")
+    return TopupParameters(
+        phase_encoding_direction=common_run_kwargs.get("preprocessing_phase_encoding_direction") or None,
+        readout_time=common_run_kwargs.get("preprocessing_readout_time"),
+        reverse_phase_b0=Path(reverse) if reverse else None,
+    )
 
 
 def _append_optional_path_args(args: list[str], external_paths: dict[str, Optional[Path]]) -> None:
@@ -677,6 +713,7 @@ def build_background_cli_args(
     wma_input = common_run_kwargs.get("wma_input_tractography")
     if wma_input is not None:
         args.extend(["--wma-input-tractography", _path_text(wma_input)])
+    args.extend(topup_cli_args(topup_parameters_from_run_kwargs(common_run_kwargs)))
     _append_optional_path_args(args, external_paths)
     return args
 
@@ -730,6 +767,8 @@ def build_batch_background_cli_args(
     args.extend(["--microstructure-stages", microstructure_stages_arg(common_run_kwargs)])
     if common_run_kwargs.get("connectome_compress_mrtrix_dense"):
         args.append("--compress-mrtrix-dense")
+    # Forwarded unchanged to every subject's run_subject_pipeline.py call.
+    args.extend(topup_cli_args(topup_parameters_from_run_kwargs(common_run_kwargs)))
     _append_optional_path_args(args, external_paths)
     return args
 

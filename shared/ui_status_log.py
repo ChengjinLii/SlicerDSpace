@@ -6,6 +6,7 @@ from pathlib import Path
 from time import monotonic
 from typing import Any
 
+from shared.ui_run_state import log_line_html
 from shared.ui_styles import RUN_STATUS_TABLE_STYLE, SLICERDDSURFER_UI_STYLE, run_summary_label_style
 
 
@@ -127,7 +128,13 @@ def append_log(owner: Any, text: str) -> None:
     import slicer
 
     if hasattr(owner.ui, "logPlainTextEdit"):
-        owner.ui.logPlainTextEdit.appendPlainText(text)
+        log_widget = owner.ui.logPlainTextEdit
+        for line in str(text).splitlines() or [""]:
+            try:
+                # Colour errors, warnings and stage transitions (see ui_run_state).
+                log_widget.appendHtml(log_line_html(line))
+            except Exception:
+                log_widget.appendPlainText(line)
         owner._logAppendCount = int(getattr(owner, "_logAppendCount", 0) or 0) + 1
         if owner._logAppendCount % 100 == 0:
             owner._trim_log_widget(owner.ui.logPlainTextEdit)

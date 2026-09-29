@@ -97,6 +97,11 @@ class SlicerDDSurferParameterNode:
     microstructureForceRecompute: bool = False
     targetPreprocessing: bool = True
     preprocessingBackend: Annotated[str, Choice(["dipy", "mrtrix_fsl"])] = "dipy"
+    # Topup / distortion correction for the MRtrix3/FSL route. Empty/0 means
+    # "not set", so nothing is forwarded and dwifslpreproc defaults apply.
+    preprocessingPhaseEncodingDirection: str = ""
+    preprocessingReadoutTime: float = 0.0
+    preprocessingReversePhaseB0: str = ""
     orchestrationRunName: str = "Test1"
     orchestrationTractographyBackend: Annotated[str, Choice(["csd_act", "dti_det", "saf"])] = "csd_act"
     orchestrationBundleBackend: Annotated[str, Choice(["wmql", "wma", "tractcloud", "all"])] = "wmql"

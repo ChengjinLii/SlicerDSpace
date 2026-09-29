@@ -13,6 +13,7 @@ from typing import Any
 
 from shared.demo_data import DEMO_SUBJECT_ID, create_synthetic_demo_subject
 from shared.user_config import default_user_config_path, load_user_config, update_user_config
+from shared.ui_workflow_text import WORKFLOW_TEXT, WORKFLOW_TEXT_BINDINGS, WORKFLOW_TOOLTIP_BINDINGS
 
 
 LANGUAGE_SETTING = "SlicerDDSurfer/UserSettings/language"
@@ -39,9 +40,6 @@ TRANSLATIONS = {
         "subtitle": (
             "Prepare inputs. Choose analyses. Review results."
         ),
-        "choose_input": "<b>1. Choose input</b>",
-        "choose_products": "<b>2. Choose products</b>",
-        "run": "<b>3. Run</b>",
         "check_env": "Check environment dependencies",
         "preflight_run": "Preflight and run",
         "status_waiting": "Waiting for input",
@@ -51,21 +49,20 @@ TRANSLATIONS = {
         "torch_device": "Torch device",
         "missing_python_dependencies": "Missing Python deps",
         "install_python_dependencies": "Install missing Python packages before running",
-        "workflow": "Run workflow",
         "subject_id": "Subject ID",
         "subject_root": "Subject root",
         "output_directory": "Output directory",
         "preprocessing": "Preprocessing",
-        "preprocessing_option": "Optional DWI denoise / Gibbs / eddy-motion correction",
-        "preprocessing_backend": "Preproc backend",
+        "preprocessing_option": "Denoise, Gibbs, eddy",
+        "preprocessing_backend": "Preprocessing route",
         "surface": "Surface (native)",
-        "surface_option": "DDSurfer native white / pial STL surfaces",
+        "surface_option": "Native white / pial STL",
         "surface_tooltip": (
             "Run DDSurfer neural surface inference and produce native STL meshes only. "
             "This does not create a complete FreeSurfer subject directory or FreeSurfer-derived outputs."
         ),
         "surface_postprocess": "Surface postprocess",
-        "surface_postprocess_option": "FreeSurfer-style DDSurfer postprocess",
+        "surface_postprocess_option": "FreeSurfer-style postprocess",
         "surface_postprocess_tooltip": (
             "Optional. Stage DDSurfer native surfaces and MRI inputs, then run the FreeSurfer-style postprocess. "
             "This does not run recon-all or produce a complete T1-derived FreeSurfer subject. "
@@ -73,17 +70,17 @@ TRANSLATIONS = {
             "Select Surface and Parcellation too unless completed native surfaces and wmparc already exist."
         ),
         "parcellation": "Parcellation",
-        "parcellation_option": "DDParcel aparc / wmparc labels",
+        "parcellation_option": "DDParcel aparc / wmparc",
         "segmentation": "Segmentation",
         "segmentation_option": "DDSeg WM / GM / CSF",
         "microstructure": "Microstructure",
-        "microstructure_option": "FA / MD, ROI stats, Free Water, NODDI",
+        "microstructure_option": "FA / MD, Free Water, NODDI",
         "tractography": "Tractography",
-        "tractography_option": "DTI tractogram, MRtrix CSD / FOD / ACT when backend is available",
+        "tractography_option": "DTI or CSD / ACT tractogram",
         "bundles": "Bundles",
-        "bundles_option": "Bundle extraction: WMQL presets, WMA, or TractCloud",
+        "bundles_option": "WMQL / WMA / TractCloud",
         "connectome": "Connectome",
-        "connectome_option": "Streamline-count and scalar-weighted connectivity matrices",
+        "connectome_option": "Connectivity matrices",
         "advanced_settings": "Analysis settings",
         "advanced_hint": "Change these only for non-default backends, batch runs, or optional microstructure stages.",
         "run_name": "Run name",
@@ -97,7 +94,6 @@ TRANSLATIONS = {
         "batch_root": "Batch root",
         "batch_size": "Batch size",
         "arrange_inputs": "Arrange inputs",
-        "run_plan_progress": "Run Plan & Progress",
         "run_plan_pending": "Run plan has not been generated yet.",
         "run_summary_pending": "Run summary will appear after a plan or run completes.",
         "open_latest_report": "Open latest report",
@@ -220,9 +216,6 @@ TRANSLATIONS = {
         ),
         "headline": "SlicerDDSurfer 运行工作台",
         "subtitle": "准备一个 subject root，检查依赖环境，并从同一个监控流程运行可复用的 dMRI 分析产品。",
-        "choose_input": "<b>1. 选择输入</b>",
-        "choose_products": "<b>2. 选择要运行的结果</b>",
-        "run": "<b>3. 检查并运行</b>",
         "check_env": "检查环境依赖",
         "preflight_run": "预检查并运行",
         "status_waiting": "等待输入",
@@ -232,21 +225,20 @@ TRANSLATIONS = {
         "torch_device": "Torch 设备",
         "missing_python_dependencies": "缺少的 Python 依赖",
         "install_python_dependencies": "运行前安装缺少的 Python 包",
-        "workflow": "运行工作流",
         "subject_id": "受试者 ID",
         "subject_root": "受试者根目录",
         "output_directory": "输出目录",
         "preprocessing": "预处理",
-        "preprocessing_option": "可选 DWI 降噪、Gibbs 校正及涡流/运动校正",
-        "preprocessing_backend": "预处理后端",
+        "preprocessing_option": "降噪、Gibbs、涡流校正",
+        "preprocessing_backend": "预处理路线",
         "surface": "表面重建（原生）",
-        "surface_option": "DDSurfer 原生白质面 / 软脑膜面 STL",
+        "surface_option": "原生白质面 / 软脑膜面",
         "surface_tooltip": (
             "运行 DDSurfer 神经网络表面推理，仅生成原生 STL 网格。"
             "不会创建完整的 FreeSurfer 受试者目录或 FreeSurfer 派生产物。"
         ),
         "surface_postprocess": "表面后处理",
-        "surface_postprocess_option": "FreeSurfer 风格 DDSurfer 后处理",
+        "surface_postprocess_option": "FreeSurfer 风格后处理",
         "surface_postprocess_tooltip": (
             "可选。暂存 DDSurfer 原生表面和 MRI 输入，然后运行 FreeSurfer 风格后处理。"
             "它不会运行 recon-all，也不会生成基于 T1 的完整 FreeSurfer 受试者目录。"
@@ -258,13 +250,13 @@ TRANSLATIONS = {
         "segmentation": "组织分割",
         "segmentation_option": "DDSeg 白质 / 灰质 / 脑脊液",
         "microstructure": "微结构",
-        "microstructure_option": "FA / MD、ROI 统计、自由水、NODDI",
+        "microstructure_option": "FA / MD、自由水、NODDI",
         "tractography": "纤维追踪",
-        "tractography_option": "DTI 纤维追踪；后端可用时可运行 MRtrix CSD / FOD / ACT",
+        "tractography_option": "DTI 或 CSD / ACT 纤维追踪",
         "bundles": "纤维束",
-        "bundles_option": "纤维束提取：WMQL 预设、WMA 或 TractCloud",
+        "bundles_option": "WMQL / WMA / TractCloud",
         "connectome": "连接组",
-        "connectome_option": "流线计数及标量加权连接矩阵",
+        "connectome_option": "结构连接矩阵",
         "advanced_settings": "高级设置：后端、批处理、流线数量",
         "advanced_hint": "仅在使用非默认后端、批处理或可选微结构阶段时修改这些设置。",
         "run_name": "运行名称",
@@ -278,7 +270,6 @@ TRANSLATIONS = {
         "batch_root": "批处理根目录",
         "batch_size": "并行批大小",
         "arrange_inputs": "整理输入",
-        "run_plan_progress": "运行计划与进度",
         "run_plan_pending": "尚未生成运行计划。",
         "run_summary_pending": "生成计划或运行完成后将在此显示摘要。",
         "open_latest_report": "打开最新报告",
@@ -500,12 +491,9 @@ MAIN_UI_TEXT_BINDINGS = {
     "unifiedTorchDeviceLabel": "torch_device",
     "autoInstallPythonDependenciesLabel": "missing_python_dependencies",
     "autoInstallPythonDependenciesCheckBox": "install_python_dependencies",
-    "configurationCollapsibleButton": "workflow",
-    "configurationSectionLabel": "choose_input",
     "subjectIdLabel": "subject_id",
     "inputDirectoryLabel": "subject_root",
     "outputDirectoryLabel": "output_directory",
-    "targetsSectionLabel": "choose_products",
     "targetPreprocessingLabel": "preprocessing",
     "targetPreprocessingCheckBox": "preprocessing_option",
     "preprocessingBackendLabel": "preprocessing_backend",
@@ -538,7 +526,6 @@ MAIN_UI_TEXT_BINDINGS = {
     "batchRootLabel": "batch_root",
     "batchSizeLabel": "batch_size",
     "batchArrangeInputsLabel": "arrange_inputs",
-    "runStepSectionLabel": "run",
     "validateButton": "check_env",
     "runSelectedButton": "preflight_run",
     "logCollapsibleButton": "log_title",
@@ -555,13 +542,19 @@ MAIN_UI_TOOLTIP_BINDINGS = {
 
 DYNAMIC_UI_TEXT_BINDINGS = {
     "_cancelRunButton": "cancel_job",
-    "_runStatusPanel": "run_plan_progress",
     "_runReportButton": "open_latest_report",
     "_runOutputTreeButton": "open_output_tree",
     "_environmentAdvancedPathsWidget": "external_runtime_paths",
     "_environmentImportConfigButton": "import_dependency_config",
     "_environmentExportConfigButton": "export_dependency_config",
 }
+
+TRANSLATIONS = {
+    language: {**TRANSLATIONS[language], **WORKFLOW_TEXT.get(language, {})} for language in TRANSLATIONS
+}
+MAIN_UI_TEXT_BINDINGS = {**MAIN_UI_TEXT_BINDINGS, **WORKFLOW_TEXT_BINDINGS}
+MAIN_UI_TOOLTIP_BINDINGS = {**MAIN_UI_TOOLTIP_BINDINGS, **WORKFLOW_TOOLTIP_BINDINGS}
+MAIN_UI_TITLE_BINDINGS = {"topupCollapsibleGroupBox": "topup_group"}
 
 
 def normalized_language(value: str | None) -> str:
@@ -901,10 +894,9 @@ def install_onboarding_panel(owner: Any, parent_layout: Any) -> None:
 
     panel = qt.QFrame()
     panel.setObjectName("onboardingPanel")
-    panel.setStyleSheet(
-        "QFrame#onboardingPanel { background: #F7FBF8; border: 1px solid #CFE4D5; "
-        "border-radius: 10px; padding: 10px; }"
-    )
+    # The "Getting started" collapsible already frames this panel.
+    panel.setStyleSheet("QFrame#onboardingPanel { border: none; }")
+    panel.setContentsMargins(0, 0, 0, 0)
     layout = qt.QVBoxLayout(panel)
 
     top = qt.QHBoxLayout()
@@ -927,16 +919,16 @@ def install_onboarding_panel(owner: Any, parent_layout: Any) -> None:
     body.setStyleSheet("QLabel { color: #426154; }")
     layout.addWidget(body)
 
-    buttons = qt.QHBoxLayout()
+    # 2 x 2 grid so the panel stays usable in a narrow module panel.
+    buttons = qt.QGridLayout()
     wizard_button = qt.QPushButton()
     demo_button = qt.QPushButton()
     diagnostic_button = qt.QPushButton()
     config_button = qt.QPushButton()
-    buttons.addWidget(wizard_button)
-    buttons.addWidget(demo_button)
-    buttons.addWidget(diagnostic_button)
-    buttons.addWidget(config_button)
-    buttons.addStretch(1)
+    buttons.addWidget(wizard_button, 0, 0)
+    buttons.addWidget(demo_button, 0, 1)
+    buttons.addWidget(diagnostic_button, 1, 0)
+    buttons.addWidget(config_button, 1, 1)
     layout.addLayout(buttons)
 
     dashboard = qt.QLabel()
@@ -1020,6 +1012,14 @@ def apply_onboarding_language(owner: Any, language: str) -> None:
 
     for widget_name, key in MAIN_UI_TOOLTIP_BINDINGS.items():
         _set_widget_tooltip(getattr(ui, widget_name, None), onboarding_text(lang, key))
+
+    for widget_name, key in MAIN_UI_TITLE_BINDINGS.items():
+        widget = getattr(ui, widget_name, None)
+        if widget is not None:
+            try:
+                widget.setTitle(onboarding_text(lang, key))
+            except Exception:
+                pass
 
     for attribute, key in DYNAMIC_UI_TEXT_BINDINGS.items():
         _set_widget_text(getattr(owner, attribute, None), onboarding_text(lang, key))

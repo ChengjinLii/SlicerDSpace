@@ -52,6 +52,20 @@ def sync_parameter_node_to_ui(widget) -> None:
     widget._sync_checkbox(getattr(ui, "ddsegSoftmaxCheckBox", None), bool(node.ddsegApplySoftmax))
 
     widget._sync_checkbox(getattr(ui, "targetPreprocessingCheckBox", None), bool(node.targetPreprocessing))
+    sync_combo_data = getattr(widget, "_sync_combo_data", None)
+    if sync_combo_data is not None:
+        sync_combo_data(
+            getattr(ui, "preprocessingPhaseEncodingDirectionComboBox", None),
+            getattr(node, "preprocessingPhaseEncodingDirection", "") or "",
+        )
+        widget._sync_double_spinbox(
+            getattr(ui, "preprocessingReadoutTimeSpinBox", None),
+            float(getattr(node, "preprocessingReadoutTime", 0.0) or 0.0),
+        )
+        widget._sync_path_widget(
+            getattr(ui, "preprocessingReversePhaseB0Path", None),
+            getattr(node, "preprocessingReversePhaseB0", "") or "",
+        )
     widget._sync_combo_text(getattr(ui, "preprocessingBackendComboBox", None), node.preprocessingBackend or "dipy", via_index=False)
     widget._sync_line_edit(getattr(ui, "orchestrationRunNameLineEdit", None), node.orchestrationRunName or "")
     widget._sync_combo_text(
