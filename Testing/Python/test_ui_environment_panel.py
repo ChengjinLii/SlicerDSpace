@@ -296,7 +296,7 @@ class UIEnvironmentPanelTest(unittest.TestCase):
         active_title, active_description = optional_backend_label_styles(True)
         inactive_title, inactive_description = optional_backend_label_styles(False)
 
-        self.assertIn("border-left", active_title)
+        self.assertNotIn("border-left", active_title)
         self.assertNotEqual(active_description, inactive_description)
         self.assertIn("QLabel", inactive_title)
         self.assertIn("QPushButton", optional_backend_widget_style("QPushButton", True))

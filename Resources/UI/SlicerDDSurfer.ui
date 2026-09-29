@@ -241,7 +241,10 @@
           <property name="filters">
           <set>ctkPathLineEdit::Dirs</set>
           </property>
-          <property name="placeholderText" stdset="0">
+         <property name="placeholderText" stdset="0">
+           <string>Select a subject folder</string>
+          </property>
+          <property name="toolTip">
            <string>Subject folder with input/data.nii.gz, bvals and bvecs. Brain mask is optional and can be generated. Use Prepare inputs for DICOM or NRRD conversion.</string>
           </property>
          </widget>
@@ -258,8 +261,11 @@
           <property name="filters">
           <set>ctkPathLineEdit::Dirs</set>
           </property>
-          <property name="placeholderText" stdset="0">
-           <string>Optional. Product defaults use &lt;subject_root&gt;/outputs/&lt;product&gt; when left empty.</string>
+         <property name="placeholderText" stdset="0">
+           <string>Optional output folder</string>
+          </property>
+          <property name="toolTip">
+           <string>Product defaults use &lt;subject_root&gt;/outputs/&lt;product&gt; when left empty.</string>
           </property>
          </widget>
         </item>

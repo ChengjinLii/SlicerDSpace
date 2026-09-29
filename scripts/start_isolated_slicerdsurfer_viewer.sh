@@ -55,7 +55,8 @@ def open_module():
     try:
         mw = slicer.util.mainWindow()
         if mw:
-            mw.resize(1600, 1000)
+            mw.move(0, 0)
+            mw.resize(1800, 1100)
             mw.raise_()
             mw.activateWindow()
         mm = slicer.app.moduleManager()

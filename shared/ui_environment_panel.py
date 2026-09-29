@@ -149,7 +149,7 @@ PATH_STATUS_COLORS = {
 
 OPTIONAL_BACKEND_TITLE_STYLES = {
     True: (
-        "QLabel { background: #E4F4EA; border: 1px solid #AFCDBA; border-left: 4px solid #287A4A; "
+        "QLabel { background: #E4F4EA; border: 1px solid #AFCDBA; "
         "border-radius: 8px; color: #173D2A; font-weight: 800; padding: 7px 10px; }"
     ),
     False: (

@@ -62,7 +62,6 @@ QLabel#targetsSectionLabel,
 QLabel#runStepSectionLabel {
   background: #ECF5EF;
   border: 1px solid #CFE1D5;
-  border-left: 5px solid #1D6C45;
   border-radius: 9px;
   color: #173126;
   font-size: 14px;
@@ -149,7 +148,6 @@ QWidget#externalBackendsGroup QPushButton:hover:!disabled {
 QLabel#selectedProductsSummaryLabel {
   background-color: #F8FBF8;
   border: 1px solid #D6E3DA;
-  border-left: 4px solid #1D6C45;
   border-radius: 7px;
   color: #294B3B;
   padding: 8px 10px;
@@ -159,7 +157,6 @@ QLabel#selectedProductsSummaryLabel {
 QLabel#runSummaryLabel {
   background-color: #F7FAF8;
   border: 1px solid #D8E4DD;
-  border-left: 4px solid #6B7E73;
   border-radius: 7px;
   color: #2F4038;
   padding: 7px 9px;
@@ -265,26 +262,26 @@ QScrollArea {
 ENVIRONMENT_READY_LABEL_STYLE = "QLabel { color: #2E7D32; padding: 12px; }"
 
 RUN_SUMMARY_PALETTE = {
-    "completed": ("#F0FAF3", "#1D6C45", "#174D32"),
-    "passed": ("#F0FAF3", "#1D6C45", "#174D32"),
-    "skipped": ("#F3F7F4", "#6B7E73", "#2F4038"),
-    "planned": ("#EEF6FF", "#2D7C92", "#163E50"),
-    "running": ("#EEF6FF", "#2D7C92", "#163E50"),
-    "partial": ("#FFF8EA", "#E28A11", "#6B3F00"),
-    "blocked": ("#FFF3E8", "#EF6C00", "#6B3F00"),
-    "failed": ("#FDECEC", "#C62828", "#6B1A1A"),
-    "cancelled": ("#FFF3E8", "#EF6C00", "#6B3F00"),
-    "unknown": ("#F3F7F4", "#6B7E73", "#2F4038"),
+    "completed": ("#F0FAF3", "#174D32"),
+    "passed": ("#F0FAF3", "#174D32"),
+    "skipped": ("#F3F7F4", "#2F4038"),
+    "planned": ("#EEF6FF", "#163E50"),
+    "running": ("#EEF6FF", "#163E50"),
+    "partial": ("#FFF8EA", "#6B3F00"),
+    "blocked": ("#FFF3E8", "#6B3F00"),
+    "failed": ("#FDECEC", "#6B1A1A"),
+    "cancelled": ("#FFF3E8", "#6B3F00"),
+    "unknown": ("#F3F7F4", "#2F4038"),
 }
 
 
 def run_summary_label_style(state: str) -> str:
     """Return the stylesheet for the run-summary label state."""
 
-    background, accent, text = RUN_SUMMARY_PALETTE.get(state, RUN_SUMMARY_PALETTE["unknown"])
+    background, text = RUN_SUMMARY_PALETTE.get(state, RUN_SUMMARY_PALETTE["unknown"])
     return (
         "QLabel#runSummaryLabel { "
         f"background-color: {background}; border: 1px solid #D8E4DD; "
-        f"border-left: 4px solid {accent}; border-radius: 7px; color: {text}; "
+        f"border-radius: 7px; color: {text}; "
         "padding: 7px 9px; font-size: 11px; }"
     )

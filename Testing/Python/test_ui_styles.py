@@ -20,6 +20,7 @@ class UIStylesTest(unittest.TestCase):
         self.assertIn("QWidget#externalBackendsGroup", SLICERDDSURFER_UI_STYLE)
         self.assertIn("QPushButton#runSelectedButton", SLICERDDSURFER_UI_STYLE)
         self.assertIn("QPlainTextEdit#logPlainTextEdit", SLICERDDSURFER_UI_STYLE)
+        self.assertNotIn("border-left", SLICERDDSURFER_UI_STYLE)
 
     def test_run_status_table_style_contains_header_and_selection_rules(self) -> None:
         self.assertIn("QTableWidget", RUN_STATUS_TABLE_STYLE)
@@ -37,9 +38,10 @@ class UIStylesTest(unittest.TestCase):
         unknown = run_summary_label_style("not-a-state")
 
         self.assertIn("#FDECEC", failed)
-        self.assertIn("#C62828", failed)
+        self.assertIn("#6B1A1A", failed)
         self.assertIn("#F3F7F4", unknown)
         self.assertIn("QLabel#runSummaryLabel", unknown)
+        self.assertNotIn("border-left", failed)
 
 
 if __name__ == "__main__":
