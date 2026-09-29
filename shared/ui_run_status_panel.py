@@ -4,95 +4,19 @@ from __future__ import annotations
 
 
 def install_run_status_panel(widget) -> None:
-    """Create and attach the run-plan/progress panel to a Slicer widget."""
+    """Create the run progress area (4. Run) and the results panel (5. Results).
+
+    Kept as the historical entry point; the widgets are built by
+    ``shared.ui_run_history`` so the run selector, stage table and scene
+    actions live together under 5. Results.
+    """
 
     if getattr(widget, "_runStatusTable", None) is not None:
         return
-    configuration_layout = getattr(widget.ui, "configurationLayout", None)
-    if not configuration_layout:
-        return
-    import qt
+    from shared.ui_run_history import install_results_panel, install_run_progress_panel
 
-    try:
-        import ctk
-
-        panel = ctk.ctkCollapsibleButton()
-        panel.text = "Run Plan & Progress"
-        panel.collapsed = False
-        panel_layout = qt.QVBoxLayout(panel)
-    except Exception:
-        panel = qt.QGroupBox("Run Plan & Progress")
-        panel_layout = qt.QVBoxLayout(panel)
-
-    hint = qt.QLabel("Run plan has not been generated yet.")
-    hint.setWordWrap(True)
-    hint.setStyleSheet("QLabel { color: #546E7A; }")
-    panel_layout.addWidget(hint)
-
-    summary = qt.QLabel("Run summary will appear after a plan or run completes.")
-    summary.wordWrap = True
-    summary.setObjectName("runSummaryLabel")
-    panel_layout.addWidget(summary)
-
-    report_button = qt.QPushButton("Open latest report")
-    report_button.enabled = False
-    report_button.setToolTip("Open the latest generated SlicerDDSurfer HTML report.")
-    report_button.connect("clicked()", widget._on_open_latest_report_clicked)
-    report_row = qt.QHBoxLayout()
-    report_row.addWidget(report_button)
-
-    output_tree_button = qt.QPushButton("Open output tree")
-    output_tree_button.enabled = False
-    output_tree_button.setToolTip("Open the latest annotated SlicerDDSurfer output-tree HTML report.")
-    output_tree_button.connect("clicked()", widget._on_open_output_tree_report_clicked)
-    report_row.addWidget(output_tree_button)
-    panel_layout.addLayout(report_row)
-    review = qt.QLabel("Execution: not started   |   QC: consult report   |   Visual review: pending")
-    review.wordWrap = True
-    review.setStyleSheet("QLabel { color: #74562D; background: #FAF4E9; padding: 8px; border: 1px solid #E6D8BD; border-radius: 5px; }")
-    panel_layout.addWidget(review)
-    widget._reviewStateLabel = review
-    result_row = qt.QHBoxLayout()
-    widget._resultSceneButtons = []
-    for label, mode in (("Load / reuse", "reuse"), ("Replace", "replace"), ("Append copy", "append"), ("Clear run", "clear")):
-        button = qt.QPushButton(label)
-        button.enabled = False
-        button.setToolTip("Manage only scene nodes owned by this run; source files are never deleted.")
-        button.connect("clicked()", lambda mode=mode: widget._manage_result_scene(mode))
-        result_row.addWidget(button)
-        widget._resultSceneButtons.append(button)
-    panel_layout.addLayout(result_row)
-
-    table = qt.QTableWidget()
-    table.setColumnCount(6)
-    table.setHorizontalHeaderLabels(["Target", "State", "Reason", "Manifest", "QC", "Logs"])
-    table.setMinimumHeight(150)
-    table.setAlternatingRowColors(True)
-    table.setEditTriggers(qt.QAbstractItemView.NoEditTriggers)
-    table.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
-    try:
-        table.horizontalHeader().setStretchLastSection(True)
-        table.horizontalHeader().setSectionResizeMode(0, qt.QHeaderView.ResizeToContents)
-        table.horizontalHeader().setSectionResizeMode(1, qt.QHeaderView.ResizeToContents)
-    except Exception:
-        pass
-    table.cellDoubleClicked.connect(widget._on_run_status_table_double_clicked)
-    panel_layout.addWidget(table)
-
-    try:
-        insert_index = max(0, configuration_layout.count() - 1)
-        configuration_layout.insertWidget(insert_index, panel)
-    except Exception:
-        configuration_layout.addWidget(panel)
-
-    widget._runStatusPanel = panel
-    widget._runStatusHintLabel = hint
-    widget._runSummaryLabel = summary
-    widget._runReportButton = report_button
-    widget._runOutputTreeButton = output_tree_button
-    widget._latestReportPath = None
-    widget._latestOutputTreePath = None
-    widget._runStatusTable = table
+    install_run_progress_panel(widget)
+    install_results_panel(widget)
 
 
 def table_item(text: str, state: str = ""):

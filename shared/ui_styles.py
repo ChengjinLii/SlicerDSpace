@@ -5,14 +5,14 @@ from __future__ import annotations
 
 SLICERDDSURFER_UI_STYLE = """
 QFrame#headerFrame {
-  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F2F8F4, stop:1 #E9F2F5);
-  border: 1px solid #CBD8D2;
-  border-radius: 10px;
-  padding: 14px;
+  background-color: #F5F7FA;
+  border: 1px solid #D0D3D8;
+  border-radius: 8px;
+  padding: 4px;
 }
 QLabel#headlineLabel {
-  color: #163526;
-  font-size: 21px;
+  color: #263238;
+  font-size: 18px;
   font-weight: 700;
 }
 QWidget#externalBackendsGroup,
@@ -22,6 +22,10 @@ QGroupBox#externalBackendsGroup {
   border: 1px solid #CADBD0;
   border-radius: 14px;
   padding: 8px;
+}
+QLabel#environmentResultLabel {
+  color: #546E7A;
+  padding-top: 4px;
 }
 QLabel#subtitleLabel,
 QLabel#environmentHintLabel,
@@ -57,24 +61,6 @@ QLabel#externalSubsectionDescriptionLabel {
   font-size: 11px;
   padding: 1px 8px 5px 9px;
 }
-QLabel#configurationSectionLabel,
-QLabel#targetsSectionLabel,
-QLabel#runStepSectionLabel {
-  background: #ECF5EF;
-  border: 1px solid #CFE1D5;
-  border-radius: 9px;
-  color: #173126;
-  font-size: 14px;
-  font-weight: 800;
-  padding: 9px 11px;
-}
-ctkCollapsibleButton#advancedRunCollapsibleButton,
-QGroupBox#advancedRunCollapsibleButton {
-  background: #FBFDFB;
-  border: 1px solid #D7E4DC;
-  border-radius: 12px;
-  padding: 7px;
-}
 QLabel#modelAssetsSummaryLabel {
   background-color: #F6FAF7;
   border: 1px solid #D6E3DA;
@@ -83,45 +69,23 @@ QLabel#modelAssetsSummaryLabel {
   padding: 8px 10px;
   font-size: 11px;
 }
-QLabel#advancedRunSectionLabel {
-  background: #F7FAF8;
-  border: 1px solid #DFE9E2;
-  border-radius: 8px;
-  color: #42584D;
-  font-size: 12px;
-  padding: 8px 10px;
+QLabel#advancedRunSectionLabel,
+QLabel#runDetailsLabel,
+QLabel#runMessageLabel,
+QLabel#runStageLabel {
+  color: #546E7A;
+  font-size: 11px;
 }
-QLabel#batchModeLabel,
-QLabel#batchRootLabel,
-QLabel#batchSizeLabel,
-QLabel#batchArrangeInputsLabel,
-QLabel#wmaInputTractographyLabel {
-  color: #244D3A;
-  font-weight: 700;
-  padding: 5px 0;
-}
-QCheckBox#batchModeCheckBox,
-QSpinBox#batchSizeSpinBox,
-QComboBox#batchArrangeInputsComboBox,
-ctkPathLineEdit#batchRootPath,
-ctkPathLineEdit#wmaInputTractographyPath {
-  background: #FBFEFC;
-  border: 1px solid #CFE0D5;
-  border-radius: 8px;
-  padding: 6px 8px;
-  min-height: 24px;
-}
-QCheckBox#batchModeCheckBox {
-  color: #243A31;
+QLabel#runStageLabel {
   font-weight: 600;
 }
-QCheckBox#batchModeCheckBox:hover,
-QSpinBox#batchSizeSpinBox:hover,
-QComboBox#batchArrangeInputsComboBox:hover,
-ctkPathLineEdit#batchRootPath:hover,
-ctkPathLineEdit#wmaInputTractographyPath:hover {
-  border: 1px solid #9EC6AD;
-  background: #F6FBF8;
+QLabel#reviewStateLabel {
+  color: #74562D;
+  background: #FAF4E9;
+  border: 1px solid #E6D8BD;
+  border-radius: 5px;
+  padding: 6px 8px;
+  font-size: 11px;
 }
 QWidget#externalBackendsGroup QLineEdit {
   background: white;
@@ -148,6 +112,7 @@ QWidget#externalBackendsGroup QPushButton:hover:!disabled {
 QLabel#selectedProductsSummaryLabel {
   background-color: #F8FBF8;
   border: 1px solid #D6E3DA;
+  border-left: 4px solid #1D6C45;
   border-radius: 7px;
   color: #294B3B;
   padding: 8px 10px;
@@ -157,6 +122,7 @@ QLabel#selectedProductsSummaryLabel {
 QLabel#runSummaryLabel {
   background-color: #F7FAF8;
   border: 1px solid #D8E4DD;
+  border-left: 4px solid #6B7E73;
   border-radius: 7px;
   color: #2F4038;
   padding: 7px 9px;
@@ -165,24 +131,47 @@ QLabel#runSummaryLabel {
 QPushButton#runSelectedButton {
   background-color: #1D6C45;
   border: 1px solid #155336;
-  border-radius: 7px;
+  border-radius: 5px;
   color: white;
   font-weight: 700;
-  padding: 8px 16px;
+  padding: 7px 16px;
 }
 QPushButton#runSelectedButton:hover:!disabled {
   background-color: #155336;
 }
+QPushButton#runSelectedButton:disabled {
+  background-color: #B0BEC5;
+  border: 1px solid #A0AEB5;
+  color: #ECEFF1;
+}
+QPushButton#cancelRunButton {
+  border: 1px solid #C62828;
+  border-radius: 5px;
+  color: #C62828;
+  padding: 7px 14px;
+  background: transparent;
+}
+QPushButton#cancelRunButton:hover:!disabled {
+  background-color: rgba(198, 40, 40, 0.10);
+}
+QPushButton#cancelRunButton:disabled {
+  border: 1px solid #CFD8DC;
+  color: #90A4AE;
+}
 QPushButton#validateButton {
   background-color: transparent;
   border: 1px solid #2D7C92;
-  border-radius: 7px;
+  border-radius: 5px;
   color: #2D7C92;
   font-weight: 600;
-  padding: 6px 12px;
+  padding: 5px 12px;
 }
 QPushButton#validateButton:hover:!disabled {
   background-color: rgba(45, 124, 146, 0.10);
+}
+QPushButton#validateButton:disabled {
+  border: 1px solid #CFD8DC;
+  color: #90A4AE;
 }
 QPushButton#clearLogButton {
   background-color: transparent;
@@ -195,11 +184,11 @@ QPushButton#clearLogButton:hover:!disabled {
   background-color: rgba(184, 198, 192, 0.28);
 }
 QPlainTextEdit#logPlainTextEdit {
-  background-color: #132018;
-  border: 1px solid #2E4B39;
-  border-radius: 8px;
-  color: #E5F0DF;
-  font-family: "Menlo", "Consolas", monospace;
+  background-color: #1E1F22;
+  border: 1px solid #3A3D41;
+  border-radius: 6px;
+  color: #E0E0E0;
+  font-family: "Menlo", "Consolas", "DejaVu Sans Mono", monospace;
   font-size: 11px;
   selection-background-color: #2D7C92;
 }
@@ -262,26 +251,26 @@ QScrollArea {
 ENVIRONMENT_READY_LABEL_STYLE = "QLabel { color: #2E7D32; padding: 12px; }"
 
 RUN_SUMMARY_PALETTE = {
-    "completed": ("#F0FAF3", "#174D32"),
-    "passed": ("#F0FAF3", "#174D32"),
-    "skipped": ("#F3F7F4", "#2F4038"),
-    "planned": ("#EEF6FF", "#163E50"),
-    "running": ("#EEF6FF", "#163E50"),
-    "partial": ("#FFF8EA", "#6B3F00"),
-    "blocked": ("#FFF3E8", "#6B3F00"),
-    "failed": ("#FDECEC", "#6B1A1A"),
-    "cancelled": ("#FFF3E8", "#6B3F00"),
-    "unknown": ("#F3F7F4", "#2F4038"),
+    "completed": ("#F0FAF3", "#1D6C45", "#174D32"),
+    "passed": ("#F0FAF3", "#1D6C45", "#174D32"),
+    "skipped": ("#F3F7F4", "#6B7E73", "#2F4038"),
+    "planned": ("#EEF6FF", "#2D7C92", "#163E50"),
+    "running": ("#EEF6FF", "#2D7C92", "#163E50"),
+    "partial": ("#FFF8EA", "#E28A11", "#6B3F00"),
+    "blocked": ("#FFF3E8", "#EF6C00", "#6B3F00"),
+    "failed": ("#FDECEC", "#C62828", "#6B1A1A"),
+    "cancelled": ("#FFF3E8", "#EF6C00", "#6B3F00"),
+    "unknown": ("#F3F7F4", "#6B7E73", "#2F4038"),
 }
 
 
 def run_summary_label_style(state: str) -> str:
     """Return the stylesheet for the run-summary label state."""
 
-    background, text = RUN_SUMMARY_PALETTE.get(state, RUN_SUMMARY_PALETTE["unknown"])
+    background, accent, text = RUN_SUMMARY_PALETTE.get(state, RUN_SUMMARY_PALETTE["unknown"])
     return (
         "QLabel#runSummaryLabel { "
         f"background-color: {background}; border: 1px solid #D8E4DD; "
-        f"border-radius: 7px; color: {text}; "
+        f"border-left: 4px solid {accent}; border-radius: 7px; color: {text}; "
         "padding: 7px 9px; font-size: 11px; }"
     )

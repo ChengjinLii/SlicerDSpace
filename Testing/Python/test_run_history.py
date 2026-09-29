@@ -1,0 +1,348 @@
+#!/usr/bin/env python3
+"""Tests for run discovery and manifest parsing used by the Results run selector."""
+
+from __future__ import annotations
+
+import json
+import os
+import tempfile
+import time
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+
+from shared.run_history import (
+    BATCH_MANIFEST_KIND,
+    SUBJECT_MANIFEST_KIND,
+    ManifestError,
+    candidate_run_roots,
+    discover_manifest_paths,
+    discover_runs,
+    manifest_path_for_plan,
+    manifest_timestamp,
+    parse_run_manifest,
+    progress_from_manifest,
+    progress_from_payloads,
+    remember_directory,
+    run_record_details,
+    run_record_label,
+)
+
+
+def _write(path: Path, payload) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload) if not isinstance(payload, str) else payload, encoding="utf-8")
+    return path
+
+
+def _subject_manifest(**overrides):
+    payload = {
+        "kind": SUBJECT_MANIFEST_KIND,
+        "version": 1,
+        "status": "completed",
+        "subject_id": "sub-01",
+        "run_name": "GUI1",
+        "targets": ["segmentation", "microstructure"],
+        "tasks": [],
+    }
+    payload.update(overrides)
+    return payload
+
+
+class ManifestParsingTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_subject_manifest_record_fields(self) -> None:
+        path = _write(
+            self.root / "outputs/00_run_metadata/GUI1_orchestration_manifest.json",
+            _subject_manifest(ended_at="2026-09-20T10:15:00+00:00", run_targets=["segmentation"]),
+        )
+        record = parse_run_manifest(path)
+        self.assertEqual(record.kind, "subject")
+        self.assertEqual(record.subject_id, "sub-01")
+        self.assertEqual(record.run_name, "GUI1")
+        self.assertEqual(record.targets, ("segmentation",))
+        self.assertEqual(record.status, "completed")
+        self.assertEqual(record.timestamp, datetime(2026, 9, 20, 10, 15, tzinfo=timezone.utc))
+        self.assertFalse(record.is_batch)
+
+    def test_batch_manifest_record_fields(self) -> None:
+        path = _write(
+            self.root / "batch_outputs/00_batch_metadata/batch_20260921_083000.json",
+            {
+                "kind": BATCH_MANIFEST_KIND,
+                "version": 1,
+                "run_name": "Test1",
+                "execute": True,
+                "forwarded_args": ["--targets", "segmentation,connectome", "--execute"],
+                "subjects": [{"subject_id": "a"}, {"subject_id": "b"}],
+                "results": [{"subject_id": "a", "returncode": 0}, {"subject_id": "b", "returncode": 2}],
+            },
+        )
+        record = parse_run_manifest(path)
+        self.assertTrue(record.is_batch)
+        self.assertEqual(record.subject_count, 2)
+        self.assertEqual(record.subject_id, "batch (2 subjects)")
+        self.assertEqual(record.targets, ("segmentation", "connectome"))
+        self.assertEqual(record.status, "failed")
+        # No ISO time in a batch manifest: the file name carries it.
+        self.assertEqual(record.timestamp.strftime("%Y%m%d_%H%M%S"), "20260921_083000")
+        self.assertIn("pick one subject", run_record_details(record))
+
+    def test_wrong_kind_is_rejected_with_actionable_message(self) -> None:
+        path = _write(self.root / "x_orchestration_manifest.json", {"kind": "slicerddsurfer_run_plan", "version": 1})
+        with self.assertRaises(ManifestError) as ctx:
+            parse_run_manifest(path)
+        self.assertIn("not a SlicerDDSurfer run manifest", str(ctx.exception))
+        self.assertIn("00_run_metadata", str(ctx.exception))
+
+    def test_unsupported_and_non_integer_versions_are_rejected(self) -> None:
+        newer = _write(self.root / "a_orchestration_manifest.json", _subject_manifest(version=2))
+        with self.assertRaises(ManifestError) as ctx:
+            parse_run_manifest(newer)
+        self.assertIn("version 2", str(ctx.exception))
+        self.assertIn("Update the extension", str(ctx.exception))
+        for bad in ("1", True, None, 1.0):
+            path = _write(self.root / "b_orchestration_manifest.json", _subject_manifest(version=bad))
+            with self.assertRaises(ManifestError, msg=repr(bad)):
+                parse_run_manifest(path)
+
+    def test_invalid_json_and_missing_file(self) -> None:
+        broken = _write(self.root / "c_orchestration_manifest.json", "{not json")
+        with self.assertRaisesRegex(ManifestError, "not valid JSON"):
+            parse_run_manifest(broken)
+        with self.assertRaisesRegex(ManifestError, "not found"):
+            parse_run_manifest(self.root / "missing_orchestration_manifest.json")
+        not_object = _write(self.root / "d_orchestration_manifest.json", "[1, 2]")
+        with self.assertRaisesRegex(ManifestError, "JSON object"):
+            parse_run_manifest(not_object)
+
+    def test_timestamp_preference_order(self) -> None:
+        path = self.root / "t.json"
+        _write(path, {})
+        self.assertEqual(
+            manifest_timestamp({"ended_at": "2026-01-02T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}, path).day,
+            2,
+        )
+        self.assertEqual(manifest_timestamp({"cancelled_at": "2026-01-03T00:00:00Z"}, path).day, 3)
+        from_tasks = manifest_timestamp(
+            {"tasks": [{"ended_at": "2026-01-04T00:00:00+00:00"}, {"ended_at": "2026-01-05T00:00:00+00:00"}]}, path
+        )
+        self.assertEqual(from_tasks.day, 5)
+
+    def test_timestamp_falls_back_to_file_mtime(self) -> None:
+        path = _write(self.root / "m_orchestration_manifest.json", _subject_manifest())
+        stamp = time.mktime((2025, 6, 7, 8, 9, 10, 0, 0, -1))
+        os.utime(path, (stamp, stamp))
+        record = parse_run_manifest(path)
+        self.assertAlmostEqual(record.timestamp.timestamp(), stamp, delta=1)
+
+    def test_status_derived_from_tasks_when_missing(self) -> None:
+        path = _write(
+            self.root / "s_orchestration_manifest.json",
+            _subject_manifest(status="", tasks=[{"name": "a", "status": "completed"}, {"name": "b", "status": "blocked"}]),
+        )
+        self.assertEqual(parse_run_manifest(path).status, "completed_with_blocks")
+
+    def test_label_contains_time_subject_run_and_status(self) -> None:
+        path = _write(
+            self.root / "l_orchestration_manifest.json",
+            _subject_manifest(status="completed_with_blocks", ended_at="2026-09-20T10:15:00+00:00"),
+        )
+        label = run_record_label(parse_run_manifest(path))
+        self.assertIn("sub-01", label)
+        self.assertIn("GUI1", label)
+        self.assertIn("completed, some blocked", label)
+        self.assertRegex(label, r"^2026-09-2\d \d\d:\d\d")
+
+
+class DiscoveryTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_discovers_gui_cli_cancelled_and_batch_runs_but_not_history_or_tasks(self) -> None:
+        meta = self.root / "sub-01/outputs/00_run_metadata"
+        gui = _write(meta / "GUI1_orchestration_manifest.json", _subject_manifest(ended_at="2026-09-20T10:00:00Z"))
+        cli = _write(
+            meta / "cli_orchestration_manifest.json",
+            _subject_manifest(run_name="cli", ended_at="2026-09-22T10:00:00Z"),
+        )
+        cancelled = _write(
+            meta / "GUI2_cancelled_orchestration_manifest.json",
+            _subject_manifest(run_name="GUI2", status="cancelled", cancelled_at="2026-09-21T10:00:00Z"),
+        )
+        _write(meta / "history/GUI1/20260101T000000Z/GUI1_orchestration_manifest.json", _subject_manifest())
+        _write(meta / "tasks/GUI1/segmentation_ddseg/manifest.json", {"kind": "slicerddsurfer_task_manifest", "version": 1})
+        _write(meta / "GUI1_run_plan.json", {"kind": "slicerddsurfer_run_plan", "version": 1})
+        batch = _write(
+            self.root / "batch_outputs/00_batch_metadata/batch_20260923_101010.json",
+            {"kind": BATCH_MANIFEST_KIND, "version": 1, "subjects": [], "results": []},
+        )
+        batch_subject = _write(
+            self.root / "batch_outputs/sub-02/00_run_metadata/Test1_orchestration_manifest.json",
+            _subject_manifest(subject_id="sub-02", run_name="Test1", ended_at="2026-09-23T11:00:00Z"),
+        )
+
+        discovery = discover_runs([self.root])
+        paths = [record.manifest_path for record in discovery.records]
+        self.assertEqual(set(paths), {gui, cli, cancelled, batch, batch_subject})
+        self.assertEqual(paths[0], batch_subject, "newest first")
+        self.assertEqual(paths[-1], gui)
+        self.assertFalse(discovery.truncated)
+
+    def test_invalid_manifests_are_skipped_with_reason(self) -> None:
+        meta = self.root / "outputs/00_run_metadata"
+        _write(meta / "good_orchestration_manifest.json", _subject_manifest())
+        _write(meta / "bad_orchestration_manifest.json", _subject_manifest(version=99))
+        discovery = discover_runs([self.root])
+        self.assertEqual(len(discovery.records), 1)
+        self.assertEqual(len(discovery.skipped), 1)
+        self.assertIn("version 99", discovery.skipped[0][1])
+
+    def test_depth_limit_and_manifest_file_roots(self) -> None:
+        deep = _write(
+            self.root / "a/b/c/d/00_run_metadata/deep_orchestration_manifest.json", _subject_manifest()
+        )
+        self.assertEqual(discover_manifest_paths([self.root])[0], [])
+        self.assertEqual(discover_manifest_paths([self.root], max_depth=5)[0], [deep])
+        self.assertEqual(discover_manifest_paths([deep])[0], [deep])
+        self.assertEqual(discover_manifest_paths([deep.parent])[0], [deep])
+
+    def test_directory_cap_marks_truncated(self) -> None:
+        for index in range(12):
+            (self.root / f"d{index:02d}").mkdir()
+        _paths, truncated = discover_manifest_paths([self.root], max_dirs=5)
+        self.assertTrue(truncated)
+
+    def test_symlink_cycles_do_not_loop_and_duplicates_collapse(self) -> None:
+        manifest = _write(self.root / "real/00_run_metadata/r_orchestration_manifest.json", _subject_manifest())
+        try:
+            os.symlink(self.root, self.root / "real" / "loop")
+            os.symlink(self.root / "real", self.root / "alias")
+        except (OSError, NotImplementedError):
+            self.skipTest("symlinks unavailable")
+        paths, _ = discover_manifest_paths([self.root, self.root / "alias"], max_depth=6)
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(os.path.realpath(paths[0]), os.path.realpath(manifest))
+
+    def test_missing_roots_are_ignored(self) -> None:
+        self.assertEqual(discover_runs([self.root / "nope", "", None]).records, ())
+
+
+class RootsAndSettingsTest(unittest.TestCase):
+    def test_candidate_roots_cover_output_subject_batch_and_extra(self) -> None:
+        roots = candidate_run_roots(
+            subject_root_text="/data/sub-01",
+            output_root_text="",
+            batch_root_text="/data/study",
+            extra_dirs=["/data/old_runs", "", "/data/sub-01"],
+        )
+        self.assertEqual(
+            [root.as_posix() for root in roots],
+            ["/data/sub-01/outputs", "/data/sub-01", "/data/study/batch_outputs", "/data/study", "/data/old_runs"],
+        )
+
+    def test_explicit_output_root_replaces_default_outputs(self) -> None:
+        roots = candidate_run_roots(subject_root_text="/s", output_root_text="/o")
+        self.assertEqual([root.as_posix() for root in roots], ["/o", "/s"])
+
+    def test_remember_directory_is_mru_and_capped(self) -> None:
+        self.assertEqual(remember_directory(["/a", "/b"], "/b"), ("/b", "/a"))
+        self.assertEqual(remember_directory(["/a", "/b", "/c"], "/d", limit=2), ("/d", "/a"))
+        self.assertEqual(remember_directory(["/a", ""], ""), ("/a",))
+
+
+class CancelledManifestRowsTest(unittest.TestCase):
+    def test_gui_cancellation_manifest_yields_cancelled_rows_per_target(self) -> None:
+        from shared.ui_run_controller import cancelled_manifest_path_and_payload, rows_from_single_subject_manifest
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path, payload = cancelled_manifest_path_and_payload(
+                {"subject_root": tmp, "subject_id": "sub-01", "run_name": "GUI1", "targets": ["segmentation", "connectome"]},
+                cancelled_at="2026-09-26T10:00:00Z",
+            )
+            _write(path, payload)
+            record = parse_run_manifest(path)
+            self.assertEqual(record.status, "cancelled")
+            rows, counts = rows_from_single_subject_manifest(payload)
+        self.assertEqual([row["target"] for row in rows], ["segmentation", "connectome"])
+        self.assertEqual({row["status"] for row in rows}, {"cancelled"})
+        self.assertIn("cancelled", rows[0]["reason"])
+        self.assertEqual(counts["failed"], 0)
+
+
+class ProgressTest(unittest.TestCase):
+    PLAN = {
+        "items": [
+            {"target": "preprocessing", "task_name": "preprocessing.dwi", "will_run": False, "status": "skipped"},
+            {"target": "segmentation", "task_name": "segmentation.ddseg", "will_run": True},
+            {"target": "parcellation", "task_name": "parcellation.ddparcel", "will_run": True},
+            {"target": "microstructure", "task_name": "microstructure.dti", "will_run": True},
+        ]
+    }
+
+    def test_progress_counts_will_run_items_and_names_current_stage(self) -> None:
+        manifest = {
+            "status": "running",
+            "tasks": [
+                {"name": "segmentation.ddseg", "status": "completed"},
+                {"name": "segmentation.extra_substage", "status": "completed"},
+            ],
+        }
+        snapshot = progress_from_payloads(manifest, self.PLAN)
+        self.assertEqual((snapshot.done, snapshot.total), (1, 3))
+        self.assertEqual(snapshot.current_stage, "parcellation.ddparcel")
+        self.assertEqual(snapshot.percent, 33)
+
+    def test_progress_matches_by_target_prefix_and_clamps(self) -> None:
+        manifest = {
+            "status": "completed",
+            "tasks": [
+                {"name": "segmentation.ddseg", "status": "completed"},
+                {"name": "parcellation.other_name", "status": "failed"},
+                {"name": "microstructure.dti", "status": "blocked"},
+            ],
+        }
+        snapshot = progress_from_payloads(manifest, self.PLAN)
+        self.assertEqual((snapshot.done, snapshot.total, snapshot.current_stage), (3, 3, ""))
+        self.assertEqual(snapshot.fraction, 1.0)
+
+    def test_progress_without_plan_counts_finished_tasks(self) -> None:
+        snapshot = progress_from_payloads({"tasks": [{"name": "a", "status": "completed"}]}, None)
+        self.assertEqual((snapshot.done, snapshot.total), (1, 1))
+        self.assertEqual(progress_from_payloads({}, None).fraction, 0.0)
+
+    def test_progress_from_manifest_reads_plan_and_ignores_stale_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            meta = Path(tmp) / "00_run_metadata"
+            plan_path = _write(meta / "GUI1_run_plan.json", self.PLAN)
+            manifest = manifest_path_for_plan(plan_path, "GUI1")
+            self.assertEqual(manifest.name, "GUI1_orchestration_manifest.json")
+            self.assertIsNone(progress_from_manifest(manifest))
+            _write(
+                manifest,
+                _subject_manifest(
+                    status="running",
+                    run_plan_path=plan_path.as_posix(),
+                    tasks=[{"name": "segmentation.ddseg", "status": "completed"}],
+                ),
+            )
+            snapshot = progress_from_manifest(manifest)
+            self.assertEqual((snapshot.done, snapshot.total), (1, 3))
+            old = time.time() - 3600
+            os.utime(manifest, (old, old))
+            self.assertIsNone(progress_from_manifest(manifest, not_before=time.time()))
+            self.assertIsNotNone(progress_from_manifest(manifest, not_before=old))
+
+
+if __name__ == "__main__":
+    unittest.main()

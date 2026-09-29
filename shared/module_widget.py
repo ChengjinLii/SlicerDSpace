@@ -47,6 +47,25 @@ from shared.ui_environment_panel import (
     python_install_target_text,
 )
 from shared.ui_prepare_inputs import install_prepare_inputs_panel
+from shared.run_history import manifest_path_for_plan
+from shared.topup_parameters import (
+    PHASE_ENCODING_CHOICES,
+    TopupValidation,
+    route_uses_topup,
+    topup_summary_text,
+    validate_topup_parameters,
+)
+from shared.ui_run_history import (
+    browse_run_directory,
+    on_run_selection_changed,
+    poll_run_progress,
+    refresh_run_history,
+    set_run_state,
+    start_progress_polling,
+    stop_progress_polling,
+    validated_selected_manifest,
+)
+from shared.ui_run_state import run_button_state, run_state_from_manifest_status
 from shared.ui_output_loading import qbytearray_to_text
 from shared.ui_parameter_sync import sync_parameter_node_to_ui
 from shared.ui_run_controller import (
@@ -167,6 +186,151 @@ class SharedWidgetMixin:
                 self.ui.wmaInputTractographyPath.connect(
                     "currentPathChanged(QString)", self._onWmaInputTractographyPathChanged
                 )
+        self._connect_topup_ui()
+
+    def _connect_topup_ui(self) -> None:
+        """Bind the distortion-correction widgets to the parameter node by hand.
+
+        The phase-encoding combo stores canonical values as item data while
+        showing readable labels, so it is synchronized explicitly instead of
+        through SlicerParameterName.
+        """
+
+        combo = getattr(self.ui, "preprocessingPhaseEncodingDirectionComboBox", None)
+        if combo is not None and combo.count == 0:
+            for value, label in PHASE_ENCODING_CHOICES:
+                combo.addItem(label, value)
+            # Do not let the longest item label dictate the panel's minimum width.
+            combo.setSizeAdjustPolicy(qt.QComboBox.AdjustToMinimumContentsLengthWithIcon)
+            combo.setMinimumContentsLength(8)
+            combo.currentIndexChanged.connect(self._onPhaseEncodingDirectionChanged)
+        spin = getattr(self.ui, "preprocessingReadoutTimeSpinBox", None)
+        if spin is not None:
+            spin.valueChanged.connect(self._onReadoutTimeChanged)
+        path = getattr(self.ui, "preprocessingReversePhaseB0Path", None)
+        if path is not None:
+            try:
+                path.currentPathChanged.connect(self._onReversePhaseB0Changed)
+            except Exception:
+                path.connect("currentPathChanged(QString)", self._onReversePhaseB0Changed)
+
+    def _onPhaseEncodingDirectionChanged(self, index: int) -> None:
+        combo = getattr(self.ui, "preprocessingPhaseEncodingDirectionComboBox", None)
+        value = str(combo.itemData(index) or "") if combo is not None and index >= 0 else ""
+        self._update_parameter_node("preprocessingPhaseEncodingDirection", value)
+
+    def _onReadoutTimeChanged(self, value: float) -> None:
+        self._update_parameter_node("preprocessingReadoutTime", float(value or 0.0))
+
+    def _onReversePhaseB0Changed(self, value: str) -> None:
+        self._update_parameter_node("preprocessingReversePhaseB0", str(value or "").strip())
+
+    def _sync_combo_data(self, widget, desired: str) -> None:
+        if not widget:
+            return
+        index = widget.findData(desired)
+        if index < 0 or widget.currentIndex == index:
+            return
+        blocker = QSignalBlocker(widget)
+        widget.setCurrentIndex(index)
+        del blocker
+
+    def _sync_double_spinbox(self, widget, desired: float) -> None:
+        if not widget or abs(float(widget.value) - float(desired)) < 1e-12:
+            return
+        blocker = QSignalBlocker(widget)
+        widget.value = float(desired)
+        del blocker
+
+    def _topup_validation(self, *, batch_mode: Optional[bool] = None) -> TopupValidation:
+        node = self._parameterNode
+        if not node:
+            return validate_topup_parameters(backend="dipy", preprocessing_selected=False)
+        return validate_topup_parameters(
+            backend=(node.preprocessingBackend or "dipy").strip() or "dipy",
+            preprocessing_selected=bool(node.targetPreprocessing),
+            phase_encoding_direction=getattr(node, "preprocessingPhaseEncodingDirection", "") or "",
+            readout_time=float(getattr(node, "preprocessingReadoutTime", 0.0) or 0.0),
+            reverse_phase_b0=getattr(node, "preprocessingReversePhaseB0", "") or "",
+            batch_mode=bool(getattr(node, "batchMode", False)) if batch_mode is None else batch_mode,
+        )
+
+    def _refresh_topup_controls(self) -> TopupValidation:
+        """Show the topup group only for the MRtrix3/FSL route and flag bad values."""
+
+        node = self._parameterNode
+        validation = self._topup_validation()
+        preprocessing_on = bool(node.targetPreprocessing) if node else False
+        for name in ("preprocessingBackendLabel", "preprocessingBackendComboBox"):
+            control = getattr(self.ui, name, None)
+            if control is not None:
+                control.visible = preprocessing_on
+        group = getattr(self.ui, "topupCollapsibleGroupBox", None)
+        if group is not None:
+            group.visible = bool(node) and route_uses_topup(node.preprocessingBackend or "dipy", preprocessing_on)
+        hint = getattr(self.ui, "topupHintLabel", None)
+        if hint is not None:
+            hint.setText(topup_summary_text(validation))
+            color = "#C62828" if validation.errors else ("#E65100" if validation.warnings else "#607D8B")
+            hint.setStyleSheet(f"QLabel#topupHintLabel {{ color: {color}; }}")
+        errors = " ".join(validation.errors).lower()
+        self._setWidgetError(getattr(self.ui, "preprocessingPhaseEncodingDirectionComboBox", None), "phase-encoding" in errors)
+        self._setWidgetError(getattr(self.ui, "preprocessingReadoutTimeSpinBox", None), "readout" in errors)
+        self._setWidgetError(getattr(self.ui, "preprocessingReversePhaseB0Path", None), "reverse-pe" in errors)
+        return validation
+
+    def _refresh_run_button_state(self, validation: Optional[TopupValidation] = None) -> None:
+        button = getattr(self.ui, "runSelectedButton", None)
+        node = self._parameterNode
+        if button is None:
+            return
+        if not node:
+            button.enabled = False
+            return
+        validation = validation or self._topup_validation()
+        state = run_button_state(
+            pipeline_active=bool(getattr(self, "_pipelineActive", False)),
+            selected_targets=self._selected_product_targets(),
+            batch_mode=bool(getattr(node, "batchMode", False)),
+            subject_id=node.subjectId or "",
+            subject_root_text=node.inputDirectory or "",
+            batch_root_text=getattr(node, "batchRoot", "") or "",
+            topup_errors=validation.errors,
+        )
+        button.enabled = state.enabled
+        button.setToolTip(state.tooltip)
+
+    def _schedule_run_history_refresh(self) -> None:
+        node = self._parameterNode
+        if not node:
+            return
+        key = (node.inputDirectory or "", node.outputDirectory or "", getattr(node, "batchRoot", "") or "")
+        if key == getattr(self, "_runHistoryRootsKey", None):
+            return
+        self._runHistoryRootsKey = key
+        timer = getattr(self, "_runHistoryRefreshTimer", None)
+        if timer is None:
+            timer = qt.QTimer()
+            timer.setSingleShot(True)
+            timer.setInterval(600)
+            timer.connect("timeout()", self._refresh_run_history)
+            self._runHistoryRefreshTimer = timer
+        timer.start()
+
+    def _refresh_run_history(self, select_path=None) -> None:
+        try:
+            refresh_run_history(self, select_path=select_path)
+        except Exception as exc:
+            self.appendLog(f"[Results] Could not scan for previous runs: {exc}")
+
+    def _on_run_history_selection_changed(self) -> None:
+        on_run_selection_changed(self)
+
+    def _on_browse_run_directory_clicked(self) -> None:
+        browse_run_directory(self)
+
+    def _poll_run_progress(self) -> None:
+        poll_run_progress(self)
 
     def _initialize_common_ui_state(self) -> None:
         self._populateDeviceCombo()
@@ -212,6 +376,10 @@ class SharedWidgetMixin:
             if widget:
                 widget.visible = False
 
+        headline = getattr(self.ui, "headlineLabel", None)
+        if headline is not None:
+            # Let the header shrink with narrow module panels instead of forcing a scroll bar.
+            headline.setMinimumWidth(80)
         logo_label = getattr(self.ui, "logoLabel", None)
         if logo_label:
             logo_path = self.resourcePath("Icons/SlicerDDSurfer.png")
@@ -235,7 +403,7 @@ class SharedWidgetMixin:
 
         text_updates = {
             "environmentCollapsibleButton": "Advanced: Dependency profile",
-            "configurationCollapsibleButton": "Run workflow",
+            "configurationCollapsibleButton": "1. Inputs",
             "advancedRunCollapsibleButton": "Analysis settings",
             "runSelectedButton": "Preflight and run",
         }
@@ -249,15 +417,6 @@ class SharedWidgetMixin:
                         widget.setText(text)
                     except Exception:
                         pass
-        label_updates = {
-            "configurationSectionLabel": "<b>1. Choose input</b>",
-            "targetsSectionLabel": "<b>2. Choose products</b>",
-            "runStepSectionLabel": "<b>3. Run</b>",
-        }
-        for widget_name, text in label_updates.items():
-            widget = getattr(self.ui, widget_name, None)
-            if widget:
-                widget.setText(text)
         for widget_name in ("environmentCollapsibleButton", "advancedRunCollapsibleButton"):
             widget = getattr(self.ui, widget_name, None)
             if widget:
@@ -265,12 +424,19 @@ class SharedWidgetMixin:
                     widget.collapsed = True
                 except Exception:
                     pass
-        workflow = getattr(self.ui, "configurationCollapsibleButton", None)
-        if workflow:
-            try:
-                workflow.collapsed = False
-            except Exception:
-                pass
+        for widget_name in (
+            "configurationCollapsibleButton",
+            "targetsCollapsibleButton",
+            "parametersCollapsibleButton",
+            "runCollapsibleButton",
+            "resultsCollapsibleButton",
+        ):
+            section = getattr(self.ui, widget_name, None)
+            if section:
+                try:
+                    section.collapsed = False
+                except Exception:
+                    pass
 
     def _initialize_background_run_controls(self) -> None:
         if getattr(self, "_cancelRunButton", None) is not None:
@@ -279,14 +445,15 @@ class SharedWidgetMixin:
         if not actions_layout:
             return
         cancel_button = qt.QPushButton("Cancel running job")
+        cancel_button.setObjectName("cancelRunButton")
         cancel_button.enabled = False
         cancel_button.setToolTip("Stop the background SlicerDDSurfer pipeline process and write a cancellation manifest.")
-        cancel_button.setStyleSheet(
-            "QPushButton { border: 1px solid #C62828; color: #C62828; border-radius: 6px; padding: 7px 14px; background: transparent; } "
-            "QPushButton:hover:!disabled { background-color: rgba(198,40,40,0.1); }"
-        )
         cancel_button.connect("clicked()", self._onCancelRunClicked)
         actions_layout.addWidget(cancel_button)
+        try:
+            qt.QWidget.setTabOrder(self.ui.runSelectedButton, cancel_button)
+        except Exception:
+            pass
         self._cancelRunButton = cancel_button
         self._backgroundProcess = None
         self._backgroundOutputBuffer = ""
@@ -546,10 +713,22 @@ class SharedWidgetMixin:
     def _initialize_onboarding_panel(self) -> None:
         if getattr(self, "_onboardingWidgets", None) is not None:
             return
-        configuration_layout = getattr(self.ui, "configurationLayout", None)
-        if not configuration_layout:
+        from shared.ui_run_history import section_layout
+
+        parent_layout = section_layout(self, "gettingStartedCollapsibleButton", "gettingStartedLayout")
+        if parent_layout is None:
             return
-        install_onboarding_panel(self, configuration_layout)
+        install_onboarding_panel(self, parent_layout)
+        section = getattr(self.ui, "gettingStartedCollapsibleButton", None)
+        if section is not None:
+            # Expanded for newcomers; collapsed once the first-run wizard was seen.
+            try:
+                from shared.ui_onboarding import FIRST_RUN_SETTING
+
+                seen = str(slicer.app.userSettings().value(FIRST_RUN_SETTING, "false")).lower() in {"1", "true", "yes"}
+            except Exception:
+                seen = False
+            section.collapsed = seen
         settings = slicer.app.userSettings()
         try:
             config = load_user_config()
@@ -1155,8 +1334,11 @@ class SharedWidgetMixin:
     def _initialize_product_selection_summary(self) -> None:
         if getattr(self, "_selectedProductsSummaryLabel", None) is not None:
             return
+        targets_layout = getattr(self.ui, "targetsLayout", None)
         configuration_layout = getattr(self.ui, "configurationLayout", None)
-        if not configuration_layout:
+        if targets_layout is not None:
+            configuration_layout = None
+        elif configuration_layout is None:
             return
         summary = qt.QLabel("Selected products will appear here after the parameter node is ready.")
         summary.wordWrap = True
@@ -1167,10 +1349,7 @@ class SharedWidgetMixin:
             pass
         summary.visible = False
         self._selectedProductsSummaryLabel = summary
-        try:
-            configuration_layout.insertWidget(2, summary)
-        except Exception:
-            configuration_layout.addWidget(summary)
+        (targets_layout if targets_layout is not None else configuration_layout).addWidget(summary)
 
     def _refresh_selected_products_summary(self) -> None:
         label = getattr(self, "_selectedProductsSummaryLabel", None)
@@ -1198,6 +1377,9 @@ class SharedWidgetMixin:
 
     def _configure_log_widget(self) -> None:
         configure_log_widget(getattr(self.ui, "logPlainTextEdit", None), line_limit=int(self._logLineLimit))
+        clear_button = getattr(self.ui, "clearLogButton", None)
+        if clear_button is not None:
+            clear_button.setSizePolicy(qt.QSizePolicy.Fixed, qt.QSizePolicy.Fixed)
 
     def _apply_slicerddsurfer_ui_style(self) -> None:
         apply_widget_styles(self)
@@ -1466,10 +1648,16 @@ class SharedWidgetMixin:
         job = getattr(self, "_setupJob", None)
         if job:
             job.cancel()
+        stop_progress_polling(self)
+        timer = getattr(self, "_runHistoryRefreshTimer", None)
+        if timer is not None:
+            timer.stop()
         self.removeObservers()
 
     def enter(self) -> None:
         self.initializeParameterNode()
+        # Runs may have been produced from the command line or another session.
+        self._refresh_run_history()
 
     def exit(self) -> None:
         if self._parameterNode:
@@ -1644,6 +1832,8 @@ class SharedWidgetMixin:
         self._refresh_selected_products_summary()
         self._refresh_advanced_run_settings()
         self.validateInputs(manual=False)
+        self._refresh_run_button_state(self._refresh_topup_controls())
+        self._schedule_run_history_refresh()
         self._schedule_common_user_settings_save()
 
     def _update_parameter_node(self, attribute: str, value: Any) -> bool:
@@ -1978,9 +2168,15 @@ class SharedWidgetMixin:
         self.appendLog("[Background] Starting: " + program + " " + " ".join(args))
         self._setPipelineActive(True)
         self._set_run_progress_message("Background execution submitted.")
+        manifest_path = getattr(self, "_pendingRunManifestPath", None)
+        self._pendingRunManifestPath = None
+        start_progress_polling(self, manifest_path)
+        set_run_state(self, "running")
         process.start(program, args)
         if not process.waitForStarted(5000):
+            stop_progress_polling(self)
             self._setPipelineActive(False)
+            set_run_state(self, "failed")
             self._setStatus("error", "Failed to start background job")
             self.appendLog("[Background] Failed to start process.")
         else:
@@ -2040,9 +2236,13 @@ class SharedWidgetMixin:
         self.appendLog("[Background] Starting batch: " + program + " " + " ".join(args))
         self._setPipelineActive(True)
         self._set_run_progress_message(f"Batch execution submitted for {batch_root}.")
+        # Batch runs write their manifest only at the end: show a busy bar.
+        start_progress_polling(self, None)
+        set_run_state(self, "running")
         process.start(program, args)
         if not process.waitForStarted(5000):
             self._setPipelineActive(False)
+            set_run_state(self, "failed")
             self._setStatus("error", "Failed to start batch job")
             self.appendLog("[Background] Failed to start batch process.")
         else:
@@ -2087,6 +2287,8 @@ class SharedWidgetMixin:
             for line in tail.splitlines():
                 self._handleBackgroundOutputLine(line.rstrip())
         cancelled = bool(getattr(self, "_backgroundCancelRequested", False))
+        self._poll_run_progress()
+        stop_progress_polling(self)
         manifest_path = self._extract_background_manifest_path()
         manifest_available = bool(manifest_path and manifest_path.is_file())
         outcome = classify_background_run_outcome(
@@ -2104,6 +2306,10 @@ class SharedWidgetMixin:
             self._set_latest_output_tree_path(None)
             self._set_run_progress_message(f"Pipeline cancelled. Manifest: {cancel_manifest}")
             self._set_run_summary_message("Status: cancelled | User cancelled the background job.", "cancelled")
+            set_run_state(self, "cancelled")
+            # Keep the live rows (completed stages + cancelled ones) visible.
+            self._refresh_run_history(select_path=cancel_manifest)
+            self._tableShowsLiveRun = False
         elif outcome == "manifest":
             # A manifest was written even though the process may have exited
             # non-zero (e.g. exit code 2 for "some tasks failed"): it is
@@ -2117,6 +2323,7 @@ class SharedWidgetMixin:
             self._set_latest_output_tree_path(None)
             self._set_run_progress_message(f"Pipeline failed: exit code {exit_code}")
             self._set_run_summary_message(f"Status: failed | Background process exited with code {exit_code}.", "failed")
+            set_run_state(self, "failed")
         else:
             self._mark_unfinished_rows("failed", "Background process finished without a manifest path.")
             self._setStatus("error", "Pipeline failed: no manifest")
@@ -2124,6 +2331,7 @@ class SharedWidgetMixin:
             self._set_latest_output_tree_path(None)
             self._set_run_progress_message("Pipeline failed: no manifest path was reported.")
             self._set_run_summary_message("Status: failed | Background process finished without a manifest path.", "failed")
+            set_run_state(self, "failed")
         self._backgroundProcess = None
         self._backgroundCancelRequested = False
 
@@ -2136,7 +2344,12 @@ class SharedWidgetMixin:
             return
         if manifest.get("kind") == "slicerdsurfer_batch_run":
             self._load_background_batch_manifest_result(manifest_path, manifest)
+            self._tableShowsLiveRun = False
+            set_run_state(self, "failed" if rows_from_batch_manifest(manifest_path, manifest)[1]["failed"] else "completed")
+            self._refresh_run_history(select_path=manifest_path)
             return
+        finished_state = run_state_from_manifest_status(str(manifest.get("status") or ""))
+        set_run_state(self, finished_state if finished_state not in {"idle", "running"} else "completed")
         rows, counts = rows_from_single_subject_manifest(manifest)
         blocked = counts["blocked"]
         failed = counts["failed"]
@@ -2194,10 +2407,24 @@ class SharedWidgetMixin:
         if output_tree_path:
             message += f" Output tree: {output_tree_path}"
         self._set_run_progress_message(message)
+        self._tableShowsLiveRun = False
+        self._refresh_run_history(select_path=manifest_path)
 
     def _manage_result_scene(self, mode: str) -> None:
-        manifest = getattr(self, "_latestResultManifestPath", None)
-        if not manifest or not self.logic:
+        if not self.logic:
+            return
+        manifest, error = validated_selected_manifest(self)
+        if error or manifest is None:
+            show_actionable_error_dialog(
+                parent=self.parent,
+                title="Cannot load this run",
+                what="The selected run could not be loaded into the scene.",
+                why=error,
+                next_step="Click Refresh to rescan run folders, or use Browse… to pick the run's output folder.",
+                auto_fix="Not available; no scene nodes were changed.",
+                details=str(getattr(self, "_latestResultManifestPath", "") or "no run selected"),
+                actions=(("Refresh", self._refresh_run_history), ("Browse…", self._on_browse_run_directory_clicked)),
+            )
             return
         if mode in {"replace", "clear"} and not slicer.util.confirmYesNoDisplay(
                 "Remove scene nodes loaded for this run? Source files will be kept.", parent=self.parent):
@@ -2392,6 +2619,12 @@ class SharedWidgetMixin:
 
         self._apply_shared_inputs_to_workflow_fields()
         batch_mode = bool(getattr(self._parameterNode, "batchMode", False))
+        topup_validation = self._topup_validation(batch_mode=batch_mode)
+        if topup_validation.errors:
+            self._show_topup_error(topup_validation)
+            return
+        for warning in topup_validation.warnings:
+            self.appendLog("[Preprocessing] WARNING: " + warning)
         subject_root_text = (self._parameterNode.inputDirectory or "").strip()
         subject_id = (self._parameterNode.subjectId or "").strip()
         output_root_text = (self._parameterNode.outputDirectory or "").strip()
@@ -2421,6 +2654,7 @@ class SharedWidgetMixin:
             wma_input_tractography_text=(
                 getattr(self._parameterNode, "wmaInputTractography", "") or ""
             ).strip(),
+            topup=topup_validation.parameters,
         )
 
         if batch_mode:
@@ -2496,7 +2730,31 @@ class SharedWidgetMixin:
             return
 
         self.appendLog("Submitting selected products to background runner: " + ", ".join(selected))
+        self._pendingRunManifestPath = manifest_path_for_plan(plan.run_plan_path, plan.run_name)
         self._startBackgroundPipeline(common_run_kwargs, external_paths, selected)
+
+    def _show_topup_error(self, validation: TopupValidation) -> None:
+        section = getattr(self.ui, "parametersCollapsibleButton", None)
+        if section is not None:
+            section.collapsed = False
+        group = getattr(self.ui, "topupCollapsibleGroupBox", None)
+        if group is not None:
+            try:
+                group.collapsed = False
+            except Exception:
+                pass
+        show_actionable_error_dialog(
+            parent=self.parent,
+            title="Distortion-correction settings need attention",
+            what="The run was not started because a topup setting is invalid.",
+            why="\n".join(validation.errors),
+            next_step=(
+                "Open 3. Route and parameters > Distortion correction (topup) and correct the highlighted field, "
+                "or switch Preprocessing route to dipy if you do not need MRtrix3/FSL correction."
+            ),
+            auto_fix="Not available; nothing was written.",
+            details="dwifslpreproc options: -pe_dir, -readout_time, -rpe_pair -se_epi",
+        )
 
     def _show_partial_run_notice(self, blockers: dict[str, str], runnable_targets: tuple[str, ...]) -> None:
         message = partial_run_notice_text(blockers, runnable_targets)
@@ -2880,6 +3138,7 @@ class SharedWidgetMixin:
 
     def _setPipelineActive(self, active: bool) -> None:
         self._pipelineActive = active
+        self._refresh_run_button_state()
         if active:
             if hasattr(self.ui, "applyButton"):
                 self.ui.applyButton.enabled = False
@@ -2892,8 +3151,7 @@ class SharedWidgetMixin:
             self._setStatus("running", "Running pipeline...")
             self._lastStatusMessage = "Running pipeline..."
         else:
-            if hasattr(self.ui, "runSelectedButton"):
-                self.ui.runSelectedButton.enabled = True
+            self._refresh_run_button_state()
             self.validateInputs(manual=False)
             if getattr(self, "_cancelRunButton", None):
                 self._cancelRunButton.enabled = False

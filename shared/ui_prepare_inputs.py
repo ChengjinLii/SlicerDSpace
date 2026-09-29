@@ -155,10 +155,8 @@ def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
     buttons.addStretch(1)
     _add_labeled_row(owner, form_layout, "actions", buttons)
 
-    try:
-        configuration_layout.insertWidget(2, panel)
-    except Exception:
-        configuration_layout.addWidget(panel)
+    # Optional pre-step: keep it collapsed below the primary input fields.
+    configuration_layout.addWidget(panel)
 
 
 def _path_row(owner: Any, *, key: str, placeholder: str, browse_callback):
