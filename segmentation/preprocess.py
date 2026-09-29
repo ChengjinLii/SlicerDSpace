@@ -1,51 +1,96 @@
 from __future__ import annotations
 
-import numpy as np
-import nibabel as nib
-import nrrd
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict
 
+import nibabel as nib
+import numpy as np
+
 from .feature_defs import FEATURES
-from .utils import padding_unpadding, normalize_vector, load_nii_matlab_like
+from .orientation import axcodes, nrrd_header_affine, require_same_orientation, to_model_orientation
+from .utils import normalize_vector, padding_unpadding
 
 
-def load_parameter_map(path: Path) -> np.ndarray:
+@dataclass(frozen=True)
+class OrientedMask:
+    """Brain mask in model (RAS) orientation plus the on-disk geometry to map back to."""
+
+    model_mask: np.ndarray
+    image: nib.Nifti1Image
+
+    @property
+    def affine(self) -> np.ndarray:
+        return self.image.affine
+
+    @property
+    def disk_shape(self) -> tuple[int, int, int]:
+        return tuple(int(v) for v in self.image.shape[:3])  # type: ignore[return-value]
+
+
+def load_volume_with_affine(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Load a NIfTI or NRRD volume in on-disk voxel order with its RAS+ affine."""
+
     if not path.exists():
         raise FileNotFoundError(f"Missing parameter map: {path}")
     suffixes = "".join(path.suffixes).lower()
     if suffixes.endswith(".nii.gz") or path.suffix.lower() == ".nii":
-        img = load_nii_matlab_like(path)
-        return img.get_fdata()
+        img = nib.load(path.as_posix())
+        return np.asarray(img.dataobj, dtype=np.float64), img.affine
     if path.suffix.lower() in {".nrrd", ".nhdr"}:
-        data, _ = nrrd.read(path.as_posix())
-        data = np.fliplr(data)
-        data = np.flipud(data)
-        return data
+        import nrrd  # lazy: optional outside the Slicer runtime
+
+        data, header = nrrd.read(path.as_posix())
+        return np.asarray(data, dtype=np.float64), nrrd_header_affine(header)
     raise ValueError(f"Unsupported parameter map format: {path}")
 
 
-def masking_and_normalizing(parameter_folder: Path, mask_file: Path, parameter_type: str) -> Dict[str, np.ndarray]:
+def load_mask(mask_file: Path) -> OrientedMask:
+    image = nib.load(Path(mask_file).as_posix())
+    data = np.asarray(image.dataobj) > 0
+    return OrientedMask(model_mask=to_model_orientation(data, image.affine), image=image)
+
+
+def load_parameter_map(path: Path, mask: OrientedMask) -> tuple[np.ndarray, float]:
+    """Load one feature map reoriented to the model orientation of ``mask``.
+
+    The feature must be stored on the mask's voxel grid orientation; the
+    reorientation uses the mask affine so features and mask always receive the
+    identical permutation/flip. Returns the array and the max affine difference.
+    """
+
+    data, affine = load_volume_with_affine(path)
+    affine_difference = require_same_orientation(mask.affine, mask.disk_shape, affine, data.shape, path.name)
+    return to_model_orientation(data, mask.affine), affine_difference
+
+
+def masking_and_normalizing(
+    parameter_folder: Path,
+    mask: OrientedMask,
+    parameter_type: str,
+) -> tuple[Dict[str, np.ndarray], dict[str, object]]:
     feature_info = FEATURES[parameter_type]
     feature_list = feature_info["list"]
     feature_range = feature_info["range"]
+    brain_mask = mask.model_mask
 
-    mask_img = load_nii_matlab_like(mask_file)
-    brain_mask = mask_img.get_fdata() > 0
-
-    outputs = {}
+    outputs: Dict[str, np.ndarray] = {}
+    affine_differences: dict[str, float] = {}
     for feat, (low, high) in zip(feature_list, feature_range):
-        path = parameter_folder / f"{feat}.nrrd"
-        param_map = load_parameter_map(path)
+        param_map, affine_differences[feat] = load_parameter_map(Path(parameter_folder) / f"{feat}.nrrd", mask)
+        param_map = np.array(param_map, dtype=np.float64)
         param_map[~brain_mask] = np.nan
         param_map[param_map < low] = low
         param_map[param_map > high] = high
-        vec = param_map[brain_mask]
-        vec = normalize_vector(vec)
-        out = np.full_like(param_map, np.nan, dtype=np.float32)
+        vec = normalize_vector(param_map[brain_mask])
+        out = np.full(param_map.shape, np.nan, dtype=np.float32)
         out[brain_mask] = vec.astype(np.float32)
         outputs[feat] = out
-    return outputs
+    geometry = {
+        "mask_axcodes": axcodes(mask.affine),
+        "feature_affine_max_abs_difference_mm": max(affine_differences.values()) if affine_differences else 0.0,
+    }
+    return outputs, geometry
 
 
 def stack_features(feature_maps: Dict[str, np.ndarray], parameter_type: str) -> np.ndarray:

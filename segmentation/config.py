@@ -21,3 +21,5 @@ class DDSegConfig:
     bvec: Optional[Path] = None
     slicer_base: Optional[Path] = None
     slicer_ext: Optional[Path] = None
+    # Provenance only: the DWI the DTI features were computed from.
+    source_dwi: Optional[Path] = None

@@ -124,6 +124,16 @@ class ProductOrchestratorConfig:
     # .nthreads docstring and the "reproducibility_note" the CSD/ACT
     # manifest records for every run.
     mrtrix_nthreads: Optional[int] = None
+    # MRtrix3 RNG seed (MRTRIX_RNG_SEED). When set, tckgen is pinned to
+    # -nthreads 0 so the tractogram is bit-reproducible; None = unseeded.
+    mrtrix_random_seed: Optional[int] = None
+    # CSD/ACT seeding: "dynamic" (default, -seed_dynamic on the WM FOD) or
+    # "gmwmi" (-seed_gmwmi on the 5tt2gmwmi interface).
+    tractography_seeding: str = "dynamic"
+    # World-space QC gate: minimum Dice between DDSeg WM and DDParcel WM.
+    ddseg_min_wm_dice: float = 0.70
+    # ACT anatomy must come from the CSD DWI unless this is set.
+    allow_anatomy_space_mismatch: bool = False
     tract_querier_root: Optional[Path] = None
     connectome_backend: str = "python"
     connectome_compress_mrtrix_dense: bool = False
@@ -870,6 +880,97 @@ def _resolve_segmentation(subject_root: Path, output_root: Optional[Path] = None
     return next((path for path in candidates if path.is_file()), None)
 
 
+def _anatomy_input_bundle(
+    subject_root: Path,
+    subject_id: str,
+    output_root: Optional[Path],
+    mrtrix_bin_dir: Optional[Path],
+):
+    """DWI bundle for DDSeg/DDParcel/DDSurfer: the preprocessed DWI when preprocessing completed.
+
+    Tractography (CSD/ACT) consumes the preprocessed DWI, so the anatomy used
+    for ACT must be derived from the same image; otherwise distortion/motion
+    correction displaces the 5TT against the FODs.
+    """
+
+    from shared.pipeline import find_subject_root, resolve_preprocessed_input_bundle
+
+    raw_bundle = find_subject_root(subject_root, subject_id, mrtrix_bin_dir=mrtrix_bin_dir)
+    return resolve_preprocessed_input_bundle(raw_bundle, output_root=output_root)
+
+
+def _write_anatomy_source(path: Path, bundle) -> None:
+    record = {
+        "kind": "anatomy_source",
+        "version": 1,
+        "dwi": Path(bundle.dwi_path).resolve().as_posix(),
+        "mask": Path(bundle.mask_path).resolve().as_posix(),
+        "preprocessed": Path(bundle.input_dir).resolve() != (Path(bundle.subject_root) / "input").resolve(),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _anatomy_dwi_for_check(sources: dict[str, Optional[str]]) -> Optional[Path]:
+    """Recorded anatomy DWI to compare against the CSD DWI (a mismatching one first)."""
+
+    csd_dwi = sources.get("csd_dwi")
+    recorded = [value for key, value in sources.items() if key != "csd_dwi" and value]
+    for value in recorded:
+        if csd_dwi and Path(value).resolve() != Path(csd_dwi).resolve():
+            return Path(value)
+    return Path(recorded[0]) if recorded else None
+
+
+def _run_ddseg_world_qc_gate(
+    config: "ProductOrchestratorConfig",
+    segmentation: Optional[Path],
+    parcellation: Optional[Path],
+    qc_path: Path,
+    tasks: list,
+    log: Optional[Callable[[str], None]],
+) -> Optional[str]:
+    """World-space DDSeg-vs-DDParcel WM overlap gate; returns a failure reason or None."""
+
+    if not config.execute:
+        return None
+    if segmentation is None or parcellation is None:
+        _emit("[Orchestrator] WARNING: DDSeg world-space QC gate skipped (DDSeg or DDParcel output missing).", log)
+        return None
+    from segmentation.world_qc import write_ddseg_world_qc
+
+    try:
+        record = write_ddseg_world_qc(segmentation, parcellation, qc_path, min_wm_dice=config.ddseg_min_wm_dice)
+        wm_dice = float(record["metrics"]["wm_dice"])
+        passed = record["status"] == "passed"
+        reason = f"DDSeg WM vs DDParcel WM world-space Dice {wm_dice:.3f} (gate >= {config.ddseg_min_wm_dice:.2f})"
+    except Exception as exc:
+        passed = False
+        reason = f"world-space QC could not be computed: {type(exc).__name__}: {exc}"
+    if not passed:
+        _emit(f"[Orchestrator] ERROR: DDSeg world-space QC gate FAILED: {reason}", log)
+    else:
+        _emit(f"[Orchestrator] {reason}", log)
+    tasks.append(
+        ProductTaskRecord(
+            name="segmentation.ddseg_world_qc",
+            status="completed" if passed else "failed",
+            reason=reason,
+            qc_path=qc_path,
+            outputs={"qc": qc_path.as_posix()},
+        )
+    )
+    return None if passed else reason
+
+
+def _recorded_source_dwi(path: Path, key: str) -> Optional[str]:
+    try:
+        value = _read_json(path).get(key)
+    except Exception:
+        return None
+    return str(value) if value else None
+
+
 def _resolve_parcellation(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> Optional[Path]:
     layout = subject_layout(subject_root, output_root=output_root)
     candidates = [
@@ -921,8 +1022,13 @@ def _segmentation_complete(subject_root: Path, output_root: Optional[Path] = Non
         label_agreement = float(probability_qc.get("label_agreement", 0.0))
     except Exception:
         return False
+    from segmentation.orientation import ORIENTATION_CONVENTION
+    from segmentation.qc import DDSEG_QC_SCHEMA_VERSION
+
     return (
         qc.get("status") == "completed"
+        and int(qc.get("schema_version") or 0) >= DDSEG_QC_SCHEMA_VERSION
+        and qc.get("orientation_convention") == ORIENTATION_CONVENTION
         and qc.get("probability_semantics") == "four_class_softmax_tissue_channels_v1"
         and bool(probability_qc.get("finite_and_bounded"))
         and mass_fraction >= 0.999
@@ -1050,8 +1156,15 @@ def _act_prep_outputs(subject_root: Path, subject_id: str, output_root: Optional
 
 
 def _act_prep_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+    from tractography.act_prep import ACT_PREP_VERSION
+
     outputs = _act_prep_outputs(subject_root, subject_id, output_root)
-    return outputs["five_tt"].is_file() and outputs["gmwmi"].is_file() and _qc_completed(outputs["qc"])
+    if not (outputs["five_tt"].is_file() and outputs["gmwmi"].is_file() and _qc_completed(outputs["qc"])):
+        return False
+    try:
+        return int(_read_json(outputs["qc"]).get("version") or 0) >= ACT_PREP_VERSION
+    except Exception:
+        return False
 
 
 def _microstructure_dti_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -1132,6 +1245,32 @@ def _microstructure_noddi_complete(subject_root: Path, subject_id: str, output_r
     )
 
 
+def _act_inputs_current(csd_manifest_path: Path) -> bool:
+    """True when the CSD manifest's 5TT/GMWMI are unchanged, current-version ACT prep outputs."""
+
+    from tractography.act_prep import ACT_PREP_VERSION
+
+    try:
+        dependencies = _read_json(csd_manifest_path).get("dependencies") or {}
+        act_paths = {key: Path(str((dependencies.get(key) or {}).get("path") or "")) for key in ("five_tt", "gmwmi")}
+        if not all(_file_record_matches(dependencies.get(key), path) for key, path in act_paths.items()):
+            return False
+        act_dir = act_paths["five_tt"].parent
+        act_qc = _read_json(act_dir / "act_prep_qc.json")
+        act_manifest = _read_json(act_dir / "act_prep_manifest.json")
+        if act_qc.get("status") != "completed" or int(act_qc.get("version") or 0) < ACT_PREP_VERSION:
+            return False
+        inputs = act_manifest.get("inputs") or {}
+        for key in ("segmentation", "parcellation"):
+            record = inputs.get(key)
+            if isinstance(record, dict) and record.get("exists"):
+                if not _file_record_matches(record, Path(str(record.get("path") or ""))):
+                    return False
+        return True
+    except Exception:
+        return False
+
+
 def _csd_act_complete(
     qc_path: Path,
     manifest_path: Path,
@@ -1141,13 +1280,22 @@ def _csd_act_complete(
     weights: Path,
     analysis_inputs: dict[str, Path],
 ) -> bool:
-    """Require current inputs and decoded output evidence before CSD/ACT reuse."""
+    """Require current inputs and decoded output evidence before CSD/ACT reuse.
+
+    The recorded 5TT/GMWMI must still be the current, version-2 ACT prep
+    outputs built from the current DDSeg/DDParcel files, so a tractogram built
+    from an outdated 5TT (e.g. the pre-v2 mirrored DDSeg) is never reused.
+    """
+
+    from tractography.csd import CSD_ACT_MANIFEST_VERSION
 
     if not _qc_completed(qc_path) or not _manifest_inputs_match(
         manifest_path,
         analysis_inputs,
         "dependencies",
     ):
+        return False
+    if not _act_inputs_current(manifest_path):
         return False
     try:
         qc = _read_json(qc_path)
@@ -1161,6 +1309,8 @@ def _csd_act_complete(
         vtk = summary.get("vtk")
         sift2 = summary.get("sift2")
         if not all(isinstance(item, dict) for item in (tck, trk, vtk, sift2)):
+            return False
+        if int(manifest.get("version") or 0) < CSD_ACT_MANIFEST_VERSION:
             return False
         expected_count = int(parameters.get("select_streamlines", 0) or 0)
         length_summary = tck.get("length_mm")
@@ -1253,6 +1403,17 @@ def _write_run_plan(plan: RunPlanResult) -> Path:
     return plan.run_plan_path
 
 
+def _validate_tractography_settings(config: ProductOrchestratorConfig) -> None:
+    from tractography.csd import SEEDING_MODES
+
+    if config.mrtrix_random_seed is not None and config.mrtrix_random_seed < 0:
+        raise ValueError("mrtrix_random_seed must be >= 0 when set.")
+    if config.tractography_seeding not in SEEDING_MODES:
+        raise ValueError(f"tractography_seeding must be one of: {', '.join(SEEDING_MODES)}.")
+    if not 0.0 <= float(config.ddseg_min_wm_dice) <= 1.0:
+        raise ValueError("ddseg_min_wm_dice must be within [0, 1].")
+
+
 def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = True) -> RunPlanResult:
     """Build a target-level run plan without executing product algorithms."""
 
@@ -1264,6 +1425,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         raise ValueError("DTI streamline lengths require 0 <= dti_min_length_mm < dti_max_length_mm.")
     if config.mrtrix_nthreads is not None and config.mrtrix_nthreads < 0:
         raise ValueError("mrtrix_nthreads must be >= 0 when set.")
+    _validate_tractography_settings(config)
     if config.microstructure_free_water_chunk_size <= 0:
         raise ValueError("microstructure_free_water_chunk_size must be > 0.")
     if config.microstructure_free_water_engine not in {"serial", "joblib", "dask", "ray"}:
@@ -2353,6 +2515,7 @@ def _run_subject_products_impl(
         raise ValueError("DTI streamline lengths require 0 <= dti_min_length_mm < dti_max_length_mm.")
     if config.mrtrix_nthreads is not None and config.mrtrix_nthreads < 0:
         raise ValueError("mrtrix_nthreads must be >= 0 when set.")
+    _validate_tractography_settings(config)
     if config.microstructure_free_water_chunk_size <= 0:
         raise ValueError("microstructure_free_water_chunk_size must be > 0.")
     if config.microstructure_free_water_engine not in {"serial", "joblib", "dask", "ray"}:
@@ -2605,15 +2768,12 @@ def _run_subject_products_impl(
         else:
             from segmentation.config import DDSegConfig
             from segmentation.pipeline import run_ddseg
-            from shared.pipeline import ensure_native_dti_bundle, find_subject_root
+            from shared.pipeline import ensure_native_dti_bundle
 
             _emit("[Orchestrator] Running DDSeg", log)
             task_started = _start_task_timer("DDSeg", log)
-            raw_bundle = find_subject_root(
-                subject_root,
-                config.subject_id,
-                mrtrix_bin_dir=mask_mrtrix_bin_dir,
-            )
+            raw_bundle = _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir)
+            _emit(f"[Orchestrator] DDSeg input DWI: {raw_bundle.dwi_path}", log)
             native_bundle = ensure_native_dti_bundle(raw_bundle, fit_method="ls", reuse=bool(config.resume), log=log)
             run_ddseg(
                 DDSegConfig(
@@ -2623,6 +2783,7 @@ def _run_subject_products_impl(
                     weights_dir=_default_ddseg_weights(model_assets_dir),
                     dti_feature_dir=native_bundle.bundle_dir,
                     device=ddseg_device,
+                    source_dwi=raw_bundle.dwi_path,
                 )
             )
             _finish_task_timer("DDSeg", task_started, log)
@@ -2654,15 +2815,12 @@ def _run_subject_products_impl(
             tasks.append(ProductTaskRecord(name="parcellation.ddparcel", status="blocked", reason="missing raw input: " + ", ".join(missing)))
         else:
             from parcellation import DDParcelRegisteredConfig, run_ddparcel_from_registered_bundle
-            from shared.pipeline import ensure_registered_dti_bundle, find_subject_root
+            from shared.pipeline import ensure_registered_dti_bundle
 
             _emit("[Orchestrator] Running DDParcel", log)
             task_started = _start_task_timer("DDParcel", log)
-            raw_bundle = find_subject_root(
-                subject_root,
-                config.subject_id,
-                mrtrix_bin_dir=mask_mrtrix_bin_dir,
-            )
+            raw_bundle = _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir)
+            _emit(f"[Orchestrator] DDParcel input DWI: {raw_bundle.dwi_path}", log)
             registered = ensure_registered_dti_bundle(
                 raw_bundle,
                 atlas_t2=atlas_t2,
@@ -2685,6 +2843,7 @@ def _run_subject_products_impl(
                 ),
                 log=log,
             )
+            _write_anatomy_source(layout.ddparcel / "ddparcel_source.json", raw_bundle)
             _finish_task_timer("DDParcel", task_started, log)
             tasks.append(
                 ProductTaskRecord(
@@ -2694,6 +2853,27 @@ def _run_subject_products_impl(
                 )
             )
             parcellation = _resolve_parcellation(subject_root, config.subject_id, output_root)
+
+    ddseg_world_qc_state: dict[str, Optional[str]] = {}
+
+    def ddseg_world_qc_gate() -> Optional[str]:
+        """Run the DDSeg/DDParcel world-space gate once per invocation; return a failure reason."""
+
+        if "failure" not in ddseg_world_qc_state:
+            ddseg_world_qc_state["failure"] = _run_ddseg_world_qc_gate(
+                config,
+                segmentation,
+                parcellation,
+                layout.ddseg / "ddseg_world_qc.json",
+                tasks,
+                log,
+            )
+        return ddseg_world_qc_state["failure"]
+
+    if any(
+        task.name in {"segmentation.ddseg", "parcellation.ddparcel"} and task.status == "completed" for task in tasks
+    ):
+        ddseg_world_qc_gate()
 
     if "surface" in run_targets:
         if config.resume and _surface_complete(subject_root, config.subject_id, output_root):
@@ -2719,6 +2899,11 @@ def _run_subject_products_impl(
                 model_assets_dir=model_assets_dir,
                 registration_atlas=atlas_t2,
                 execute=True,
+                input_bundle=(
+                    _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir)
+                    if not any(not path.is_file() for path in raw.values())
+                    else None
+                ),
             )
             resources = inspect_surface_resources(surface_config)
             if not resources["available"]:
@@ -3107,6 +3292,14 @@ def _run_subject_products_impl(
             tasks.append(ProductTaskRecord(name=tractography_task_name, status="blocked", reason="missing raw input: " + ", ".join(missing)))
         elif primary_tractography_backend == "csd_act" and segmentation is None:
             tasks.append(ProductTaskRecord(name=tractography_task_name, status="blocked", reason="missing DDSeg segmentation"))
+        elif primary_tractography_backend == "csd_act" and ddseg_world_qc_gate() is not None:
+            tasks.append(
+                ProductTaskRecord(
+                    name=tractography_task_name,
+                    status="blocked",
+                    reason="DDSeg world-space QC gate failed: " + str(ddseg_world_qc_state["failure"]),
+                )
+            )
         else:
             if primary_tractography_backend == "csd_act":
                 from tractography.act_prep import ACTPrepConfig, run_act_prep
@@ -3114,12 +3307,22 @@ def _run_subject_products_impl(
 
                 _emit(f"[Orchestrator] Running CSD/ACT {run_name}", log)
                 task_started = _start_task_timer(f"CSD/ACT {run_name}", log)
+                anatomy_sources = {
+                    "ddseg_source_dwi": _recorded_source_dwi(layout.ddseg / "ddseg_qc.json", "source_dwi"),
+                    "ddparcel_source_dwi": _recorded_source_dwi(layout.ddparcel / "ddparcel_source.json", "dwi"),
+                    "csd_dwi": analysis_inputs["dwi"].resolve().as_posix(),
+                }
+                if parcellation is None:
+                    _emit("[Orchestrator] WARNING: DDParcel output missing; ACT 5TT has no sub-cortical GM channel.", log)
                 act_prep = run_act_prep(
                     ACTPrepConfig(
                         subject_id=config.subject_id,
                         segmentation_path=segmentation,
                         output_dir=layout.act_prep,
                         execute=True,
+                        parcellation_path=parcellation,
+                        mrtrix_bin_dir=config.mrtrix_bin_dir,
+                        anatomy_source=anatomy_sources,
                     ),
                     log=log,
                 )
@@ -3142,6 +3345,10 @@ def _run_subject_products_impl(
                         export_vtk=True,
                         mrtrix_bin_dir=config.mrtrix_bin_dir,
                         nthreads=config.mrtrix_nthreads,
+                        random_seed=config.mrtrix_random_seed,
+                        seeding=config.tractography_seeding,
+                        anatomy_source_dwi=_anatomy_dwi_for_check(anatomy_sources),
+                        allow_anatomy_space_mismatch=config.allow_anatomy_space_mismatch,
                         execute=True,
                     ),
                     log=log,
@@ -3756,6 +3963,11 @@ def _run_subject_products_impl(
         "dti_min_length_mm": config.dti_min_length_mm,
         "dti_max_length_mm": config.dti_max_length_mm,
         "mrtrix_nthreads": config.mrtrix_nthreads,
+        "mrtrix_random_seed": config.mrtrix_random_seed,
+        "tractography_seeding": config.tractography_seeding,
+        "ddseg_min_wm_dice": config.ddseg_min_wm_dice,
+        "allow_anatomy_space_mismatch": config.allow_anatomy_space_mismatch,
+        "anatomy_input": "preprocessed DWI when preprocessing completed, else raw input (DDSeg/DDParcel/DDSurfer)",
         "connectome_backend": config.connectome_backend,
         "connectome_compress_mrtrix_dense": config.connectome_compress_mrtrix_dense,
         "saf_fs_dir": config.saf_fs_dir.expanduser().resolve().as_posix() if config.saf_fs_dir else None,

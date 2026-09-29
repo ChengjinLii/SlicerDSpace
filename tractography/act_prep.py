@@ -1,11 +1,40 @@
-"""ACT preparation helpers for deriving simple 5TT/GMWMI from tissue labels."""
+"""ACT preparation: partial-volume 5TT from DDSeg + DDParcel, GMWMI via MRtrix3.
+
+5TT channels (MRtrix convention): 0 cortical GM, 1 sub-cortical GM, 2 WM,
+3 CSF, 4 pathology.
+
+* Inside the DDSeg foreground, cGM/WM/CSF are the DDSeg tissue probabilities
+  renormalised to sum to one (partial volume instead of hard 0/1 labels).
+* DDParcel deep grey matter (thalamus, caudate, putamen, pallidum,
+  hippocampus, amygdala, accumbens, ventral DC) goes to the sGM channel as
+  ``1 - P(CSF)``; ventricles (lateral, inferior lateral, 3rd, 4th) become
+  pure CSF. DDParcel is resampled into the DDSeg grid through both affines;
+  it is never indexed by raw array position (the two are stored in different
+  voxel orders).
+* ``5ttcheck`` validates the image and ``5tt2gmwmi`` derives the seeding
+  interface, replacing the former binary dilation band.
+"""
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import shutil
+import subprocess
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Mapping, Optional
+
+ACT_PREP_VERSION = 2
+ACT_PREP_METHOD = "ddseg_partial_volume_ddparcel_sgm_5tt2gmwmi_v2"
+# Thalamus, caudate, putamen, pallidum, hippocampus, amygdala, accumbens, ventral DC (left, right).
+DEFAULT_SGM_LABELS: tuple[int, ...] = (10, 11, 12, 13, 17, 18, 26, 28, 49, 50, 51, 52, 53, 54, 58, 60)
+# Lateral ventricles, inferior lateral ventricles, 3rd and 4th ventricle.
+DEFAULT_CSF_LABELS: tuple[int, ...] = (4, 43, 5, 44, 14, 15)
+PROBABILITY_FILENAMES = {
+    "wm": "ProbabilisticMap_WM.nii.gz",
+    "gm": "ProbabilisticMap_GM.nii.gz",
+    "csf": "ProbabilisticMap_CSF.nii.gz",
+}
 
 
 @dataclass(frozen=True)
@@ -17,6 +46,12 @@ class ACTPrepConfig:
     gm_label: int = 2
     csf_label: int = 3
     execute: bool = False
+    probability_paths: Optional[Mapping[str, Path]] = None
+    parcellation_path: Optional[Path] = None
+    sgm_labels: tuple[int, ...] = DEFAULT_SGM_LABELS
+    csf_labels: tuple[int, ...] = DEFAULT_CSF_LABELS
+    mrtrix_bin_dir: Optional[Path] = None
+    anatomy_source: Mapping[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -30,7 +65,9 @@ class ACTPrepResult:
     executed: bool
 
 
-def _file_info(path: Path) -> dict[str, object]:
+def _file_info(path: Optional[Path]) -> dict[str, object]:
+    if path is None:
+        return {"path": None, "exists": False}
     if not path.exists():
         return {"path": path.as_posix(), "exists": False}
     stat = path.stat()
@@ -42,29 +79,192 @@ def _file_info(path: Path) -> dict[str, object]:
     }
 
 
-def _binary_dilation(mask):
-    try:
-        from scipy.ndimage import binary_dilation
+def _resolve_command(name: str, bin_dir: Optional[Path]) -> Optional[str]:
+    if bin_dir is not None:
+        candidate = Path(bin_dir).expanduser() / name
+        if candidate.is_file():
+            return candidate.resolve().as_posix()
+    return shutil.which(name)
 
-        return binary_dilation(mask)
-    except Exception:  # pragma: no cover - scipy unavailable fallback
-        import numpy as np
 
-        padded = np.pad(mask, 1, mode="constant", constant_values=False)
-        out = np.zeros_like(mask, dtype=bool)
-        for dx, dy, dz in (
-            (1, 0, 0),
-            (-1, 0, 0),
-            (0, 1, 0),
-            (0, -1, 0),
-            (0, 0, 1),
-            (0, 0, -1),
-        ):
-            xs = slice(1 + dx, 1 + dx + mask.shape[0])
-            ys = slice(1 + dy, 1 + dy + mask.shape[1])
-            zs = slice(1 + dz, 1 + dz + mask.shape[2])
-            out |= padded[xs, ys, zs]
-        return out
+def default_probability_paths(segmentation_path: Path) -> dict[str, Path]:
+    return {key: segmentation_path.parent / name for key, name in PROBABILITY_FILENAMES.items()}
+
+
+def build_partial_volume_5tt(
+    labels,
+    probabilities: Optional[Mapping[str, object]],
+    parcellation_on_grid=None,
+    *,
+    wm_label: int = 1,
+    gm_label: int = 2,
+    csf_label: int = 3,
+    sgm_labels: tuple[int, ...] = DEFAULT_SGM_LABELS,
+    csf_labels: tuple[int, ...] = DEFAULT_CSF_LABELS,
+):
+    """Return (5TT float32 array, stats) on the DDSeg grid.
+
+    ``parcellation_on_grid`` must already be resampled to the DDSeg grid.
+    Without probabilities the hard labels are used (legacy fallback).
+    """
+
+    import numpy as np
+
+    labels = np.rint(np.asarray(labels)).astype(np.int32)
+    foreground = labels > 0
+    five_tt = np.zeros((*labels.shape, 5), dtype=np.float32)
+    hard = {"gm": labels == gm_label, "wm": labels == wm_label, "csf": labels == csf_label}
+    if probabilities is not None:
+        stacked = np.stack([np.asarray(probabilities[key], dtype=np.float64) for key in ("gm", "wm", "csf")], axis=-1)
+        stacked = np.clip(np.nan_to_num(stacked, nan=0.0), 0.0, None)
+        total = stacked.sum(axis=-1)
+        usable = foreground & (total > 0)
+        fallback = foreground & ~usable
+        for channel, (index, key) in zip((0, 2, 3), enumerate(("gm", "wm", "csf"))):
+            values = np.zeros(labels.shape, dtype=np.float64)
+            values[usable] = stacked[..., index][usable] / total[usable]
+            values[fallback] = hard[key][fallback]
+            five_tt[..., channel] = values.astype(np.float32)
+    else:
+        five_tt[..., 0] = hard["gm"]
+        five_tt[..., 2] = hard["wm"]
+        five_tt[..., 3] = hard["csf"]
+
+    sgm = np.zeros(labels.shape, dtype=bool)
+    ventricles = np.zeros(labels.shape, dtype=bool)
+    if parcellation_on_grid is not None:
+        parcellation = np.rint(np.asarray(parcellation_on_grid)).astype(np.int32)
+        if parcellation.shape != labels.shape:
+            raise ValueError(f"Parcellation grid {parcellation.shape} does not match segmentation grid {labels.shape}.")
+        sgm = foreground & np.isin(parcellation, sgm_labels)
+        ventricles = foreground & np.isin(parcellation, csf_labels)
+        non_csf = 1.0 - five_tt[..., 3]
+        five_tt[..., 1][sgm] = non_csf[sgm]
+        five_tt[..., 0][sgm] = 0.0
+        five_tt[..., 2][sgm] = 0.0
+        five_tt[ventricles] = 0.0
+        five_tt[..., 3][ventricles] = 1.0
+
+    tissue_sum = five_tt.sum(axis=-1)
+    stats = {
+        "foreground_voxels": int(foreground.sum()),
+        "channel_voxels_ge_0p5": {
+            name: int((five_tt[..., index] >= 0.5).sum())
+            for index, name in enumerate(("cgm", "sgm", "wm", "csf", "pathology"))
+        },
+        "channel_volume_voxel_units": {
+            name: float(five_tt[..., index].sum()) for index, name in enumerate(("cgm", "sgm", "wm", "csf", "pathology"))
+        },
+        "sgm_override_voxels": int(sgm.sum()),
+        "ventricle_override_voxels": int(ventricles.sum()),
+        "partial_volume_voxels": int(((five_tt.max(axis=-1) < 0.999) & foreground).sum()),
+        "foreground_sum_min": float(tissue_sum[foreground].min()) if foreground.any() else None,
+        "foreground_sum_max": float(tissue_sum[foreground].max()) if foreground.any() else None,
+        "background_nonzero_voxels": int((tissue_sum[~foreground] > 0).sum()),
+    }
+    return five_tt, stats
+
+
+def _load_inputs(config: ACTPrepConfig, segmentation_path: Path):
+    import nibabel as nib
+    import numpy as np
+
+    from shared.world_space import resample_nearest_to_grid
+
+    img = nib.load(segmentation_path.as_posix())
+    labels = np.rint(np.asarray(img.dataobj)).astype(np.int32)
+    unique_labels = set(int(value) for value in np.unique(labels))
+    expected_labels = {0, int(config.wm_label), int(config.gm_label), int(config.csf_label)}
+    if not unique_labels.issubset(expected_labels):
+        raise ValueError(
+            "ACT prep expects a compact DDSeg-style segmentation with labels "
+            f"{sorted(expected_labels)}; got unexpected labels {sorted(unique_labels - expected_labels)} "
+            f"from {segmentation_path}"
+        )
+    probability_paths = dict(config.probability_paths or default_probability_paths(segmentation_path))
+    probabilities = None
+    if all(Path(path).is_file() for path in probability_paths.values()):
+        probabilities = {}
+        for key, path in probability_paths.items():
+            prob_img = nib.load(Path(path).as_posix())
+            if prob_img.shape[:3] != labels.shape or not np.allclose(prob_img.affine, img.affine, atol=1e-3):
+                raise ValueError(f"DDSeg probability map {path} is not on the segmentation grid.")
+            probabilities[key] = np.asarray(prob_img.dataobj, dtype=np.float64)
+    parcellation_on_grid = None
+    if config.parcellation_path is not None:
+        parc_img = nib.load(Path(config.parcellation_path).as_posix())
+        parcellation_on_grid = resample_nearest_to_grid(
+            np.rint(np.asarray(parc_img.dataobj)).astype(np.int32),
+            parc_img.affine,
+            labels.shape,
+            img.affine,
+        )
+    return img, labels, probabilities, probability_paths, parcellation_on_grid
+
+
+def _save_like(img, data, path: Path) -> None:
+    import nibabel as nib
+    import numpy as np
+
+    header = img.header.copy()
+    header.set_data_dtype(np.float32)
+    out = nib.Nifti1Image(np.asarray(data, dtype=np.float32), img.affine, header)
+    out.set_qform(img.affine, code=int(img.header["qform_code"]) or 1)
+    out.set_sform(img.affine, code=int(img.header["sform_code"]) or 1)
+    nib.save(out, path.as_posix())
+
+
+def _run_mrtrix(command: list[str], log: Optional[Callable[[str], None]]) -> dict[str, object]:
+    if log:
+        log(f"[ACT Prep] Running: {' '.join(command)}")
+    completed = subprocess.run(command, capture_output=True, text=True)
+    record = {
+        "command": command,
+        "returncode": completed.returncode,
+        "stdout": (completed.stdout or "")[-4000:],
+        "stderr": (completed.stderr or "")[-4000:],
+    }
+    if completed.returncode != 0:
+        raise RuntimeError(f"ACT prep command failed ({completed.returncode}): {' '.join(command)}\n{record['stderr']}")
+    return record
+
+
+def _gmwmi_voxels(gmwmi_path: Path) -> int:
+    import nibabel as nib
+    import numpy as np
+
+    return int(np.count_nonzero(np.asarray(nib.load(gmwmi_path.as_posix()).dataobj) > 0))
+
+
+def _base_manifest(config: ACTPrepConfig, segmentation_path: Path, five_tt_path: Path, gmwmi_path: Path, qc_path: Path):
+    probability_paths = dict(config.probability_paths or default_probability_paths(segmentation_path))
+    return {
+        "kind": "act_prep",
+        "version": ACT_PREP_VERSION,
+        "method": ACT_PREP_METHOD,
+        "subject_id": config.subject_id,
+        "executed": bool(config.execute),
+        "status": "planned" if not config.execute else "running",
+        "labels": {"wm": config.wm_label, "gm": config.gm_label, "csf": config.csf_label},
+        "sgm_labels": list(config.sgm_labels),
+        "csf_override_labels": list(config.csf_labels),
+        "anatomy_source": dict(config.anatomy_source),
+        "inputs": {
+            "segmentation": _file_info(segmentation_path),
+            "probabilities": {key: _file_info(Path(path)) for key, path in probability_paths.items()},
+            "parcellation": _file_info(Path(config.parcellation_path)) if config.parcellation_path else None,
+        },
+        "outputs": {"five_tt": five_tt_path.as_posix(), "gmwmi": gmwmi_path.as_posix(), "qc": qc_path.as_posix()},
+        "parcellation_resampling": "world-space nearest neighbour through both affines (no raw array indexing)",
+        "notes": [
+            "cGM/WM/CSF are DDSeg softmax probabilities renormalised to sum to 1 inside the DDSeg foreground.",
+            "sGM = 1 - P(CSF) on DDParcel deep GM labels (sgm_labels); ventricles (csf_override_labels) are pure CSF.",
+            "sgm_labels include hippocampus, amygdala and ventral DC; the 2026-09-26 diagnosis ablation used only "
+            "thalamus/caudate/putamen/pallidum/accumbens.",
+            "GMWMI is generated with MRtrix3 5tt2gmwmi; the 5TT is validated with 5ttcheck.",
+        ],
+        "warnings": [],
+    }
 
 
 def run_act_prep(config: ACTPrepConfig, *, log: Optional[Callable[[str], None]] = None) -> ACTPrepResult:
@@ -80,73 +280,55 @@ def run_act_prep(config: ACTPrepConfig, *, log: Optional[Callable[[str], None]] 
     gmwmi_path = output_dir / f"{config.subject_id}_gmwmi_from_labels.nii.gz"
     manifest_path = output_dir / "act_prep_manifest.json"
     qc_path = output_dir / "act_prep_qc.json"
-
-    manifest = {
-        "kind": "act_prep",
-        "version": 1,
-        "subject_id": config.subject_id,
-        "executed": bool(config.execute),
-        "status": "planned" if not config.execute else "running",
-        "labels": {"wm": config.wm_label, "gm": config.gm_label, "csf": config.csf_label},
-        "inputs": {"segmentation": _file_info(segmentation_path)},
-        "outputs": {"five_tt": five_tt_path.as_posix(), "gmwmi": gmwmi_path.as_posix(), "qc": qc_path.as_posix()},
-        "limitations": [
-            "This is a simple 5TT approximation from WM/GM/CSF labels, not a full FreeSurfer/5ttgen tissue model.",
-            "Subcortical GM is not separated from cortical GM.",
-        ],
-    }
-
+    manifest = _base_manifest(config, segmentation_path, five_tt_path, gmwmi_path, qc_path)
     qc: dict[str, object] = {
         "kind": "act_prep_qc",
-        "version": 1,
+        "version": ACT_PREP_VERSION,
         "subject_id": config.subject_id,
         "status": "planned",
         "executed": bool(config.execute),
     }
 
     if config.execute:
-        try:
-            import nibabel as nib
-            import numpy as np
-        except ImportError as exc:  # pragma: no cover
-            raise RuntimeError("ACT prep requires nibabel and numpy.") from exc
-
-        img = nib.load(segmentation_path.as_posix())
-        labels = img.get_fdata().astype(int)
-        unique_labels = set(int(value) for value in np.unique(labels))
-        expected_labels = {0, int(config.wm_label), int(config.gm_label), int(config.csf_label)}
-        if not unique_labels.issubset(expected_labels):
-            raise ValueError(
-                "ACT prep expects a compact DDSeg-style segmentation with labels "
-                f"{sorted(expected_labels)}; got unexpected labels {sorted(unique_labels - expected_labels)} "
-                f"from {segmentation_path}"
-            )
-        wm = labels == int(config.wm_label)
-        gm = labels == int(config.gm_label)
-        csf = labels == int(config.csf_label)
-        five_tt = np.zeros((*labels.shape, 5), dtype=np.float32)
-        five_tt[..., 0] = gm.astype(np.float32)
-        five_tt[..., 2] = wm.astype(np.float32)
-        five_tt[..., 3] = csf.astype(np.float32)
-        gmwmi = (gm & _binary_dilation(wm)) | (wm & _binary_dilation(gm))
-
-        header = img.header.copy()
-        header.set_data_dtype(np.float32)
-        five_tt_img = nib.Nifti1Image(five_tt, img.affine, header)
-        five_tt_img.set_qform(img.affine, code=int(img.header["qform_code"]) or 1)
-        five_tt_img.set_sform(img.affine, code=int(img.header["sform_code"]) or 1)
-        gmwmi_img = nib.Nifti1Image(gmwmi.astype(np.float32), img.affine, header)
-        gmwmi_img.set_qform(img.affine, code=int(img.header["qform_code"]) or 1)
-        gmwmi_img.set_sform(img.affine, code=int(img.header["sform_code"]) or 1)
-        nib.save(five_tt_img, five_tt_path.as_posix())
-        nib.save(gmwmi_img, gmwmi_path.as_posix())
+        commands = {name: _resolve_command(name, config.mrtrix_bin_dir) for name in ("5ttcheck", "5tt2gmwmi")}
+        missing = [name for name, resolved in commands.items() if resolved is None]
+        if missing:
+            raise RuntimeError(f"ACT prep requires MRtrix3 command(s): {', '.join(missing)}")
+        # Invalidate any previous completed record before touching outputs.
+        qc_path.write_text(json.dumps({**qc, "status": "running"}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        img, labels, probabilities, _, parcellation_on_grid = _load_inputs(config, segmentation_path)
+        if probabilities is None:
+            manifest["warnings"].append("DDSeg probability maps missing: hard labels used for the 5TT.")
+        if parcellation_on_grid is None:
+            manifest["warnings"].append("DDParcel unavailable: no sub-cortical GM channel and no ventricle prior.")
+        for warning in manifest["warnings"]:
+            if log:
+                log(f"[ACT Prep] WARNING: {warning}")
+        five_tt, stats = build_partial_volume_5tt(
+            labels,
+            probabilities,
+            parcellation_on_grid,
+            wm_label=config.wm_label,
+            gm_label=config.gm_label,
+            csf_label=config.csf_label,
+            sgm_labels=tuple(config.sgm_labels),
+            csf_labels=tuple(config.csf_labels),
+        )
+        _save_like(img, five_tt, five_tt_path)
+        check = _run_mrtrix([str(commands["5ttcheck"]), five_tt_path.as_posix()], log)
+        gmwmi = _run_mrtrix([str(commands["5tt2gmwmi"]), five_tt_path.as_posix(), gmwmi_path.as_posix(), "-force"], log)
+        manifest["commands"] = [check["command"], gmwmi["command"]]
         qc.update(
             {
                 "status": "completed",
-                "wm_voxels": int(wm.sum()),
-                "gm_voxels": int(gm.sum()),
-                "csf_voxels": int(csf.sum()),
-                "gmwmi_voxels": int(gmwmi.sum()),
+                "mode": "partial_volume" if probabilities is not None else "hard_labels",
+                "sgm_from_ddparcel": parcellation_on_grid is not None,
+                "five_tt_stats": stats,
+                "wm_voxels": stats["channel_voxels_ge_0p5"]["wm"],
+                "gm_voxels": stats["channel_voxels_ge_0p5"]["cgm"] + stats["channel_voxels_ge_0p5"]["sgm"],
+                "csf_voxels": stats["channel_voxels_ge_0p5"]["csf"],
+                "gmwmi_voxels": _gmwmi_voxels(gmwmi_path),
+                "5ttcheck": {"returncode": check["returncode"], "output": (check["stdout"] + check["stderr"])[-2000:]},
             }
         )
         manifest["status"] = "completed"

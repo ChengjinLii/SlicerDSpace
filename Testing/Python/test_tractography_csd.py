@@ -87,11 +87,21 @@ class CSDActBackendTest(unittest.TestCase):
             # MRTRIX_RNG_SEED environment variable at execution time instead.
             self.assertNotIn("RandomSeed", dwi2response)
             self.assertNotIn("RandomSeed", tckgen)
-            self.assertEqual(manifest["parameters"]["random_seed"], 12345)
+            # Unseeded by default: no MRTRIX_RNG_SEED, no pinned threads.
+            self.assertIsNone(manifest["parameters"]["random_seed"])
             self.assertIsNone(manifest["parameters"]["nthreads"])
             self.assertNotIn("-nthreads", tckgen)
+            self.assertFalse(manifest["reproducibility"]["tckgen_bit_reproducible"])
             self.assertIn("reproducibility_note", manifest)
-            self.assertIn("NOT bit-reproducible", manifest["reproducibility_note"])
+            # Dynamic seeding is the default, on the normalised WM FOD.
+            self.assertEqual(manifest["parameters"]["seeding"], "dynamic")
+            self.assertIn("-seed_dynamic", tckgen)
+            self.assertNotIn("-seed_gmwmi", tckgen)
+            self.assertEqual(tckgen[tckgen.index("-seed_dynamic") + 1], manifest["outputs"]["wm_fod_norm"])
+            # Explicit length limits are always passed (never MRtrix defaults).
+            self.assertEqual(tckgen[tckgen.index("-minlength") + 1], "10.0")
+            self.assertEqual(tckgen[tckgen.index("-maxlength") + 1], "250.0")
+            self.assertEqual(manifest["version"], 3)
 
     def test_pinned_nthreads_is_passed_to_tckgen_and_tcksift2_and_recorded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

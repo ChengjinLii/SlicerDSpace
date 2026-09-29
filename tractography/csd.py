@@ -18,6 +18,9 @@ from typing import Callable, Optional
 from shared.external_process import external_python_environment
 
 
+SEEDING_MODES = ("dynamic", "gmwmi")
+CSD_ACT_MANIFEST_VERSION = 3
+
 REQUIRED_MRTRIX_COMMANDS = (
     "mrconvert",
     "dwi2response",
@@ -45,24 +48,25 @@ class CSDActConfig:
     max_length_mm: float = 250.0
     step_size_mm: Optional[float] = None
     cutoff: Optional[float] = None
-    random_seed: int = 12345
-    # Pins MRtrix3's own "-nthreads" for tckgen/tcksift2 when set. Off
-    # (None) by default: MRtrix3 then uses its own default thread count
-    # (normally the number of hardware threads detected on the machine),
-    # unchanged from this module's behavior before this field existed.
-    #
-    # IMPORTANT: pinning this does NOT make tckgen bit-reproducible by
-    # itself. MRtrix3's own documentation notes that multi-threaded track
-    # generation consumes the shared random-number stream in whatever
-    # order threads happen to finish their work, which is not deterministic
-    # across runs even for a fixed random_seed and a fixed thread count.
-    # Only "-nthreads 0" (fully single-threaded) is bit-reproducible with a
-    # fixed seed; pinning to any other value only makes the *degree* of
-    # parallelism (and therefore performance) consistent across runs, not
-    # the output itself. See the "nthreads"/"random_seed" manifest fields
-    # and "reproducibility_note" this module records for every run.
+    # Seed for MRtrix3's RNG (exported as MRTRIX_RNG_SEED). None = unseeded.
+    random_seed: Optional[int] = None
+    # "dynamic" (default): -seed_dynamic on the normalised WM FOD (SIFT-style
+    # seeding; far less short-streamline bias than GMWMI seeding).
+    # "gmwmi": -seed_gmwmi on the 5tt2gmwmi interface image.
+    seeding: str = "dynamic"
+    # MRtrix3 "-nthreads" for tcksift2, and for tckgen when unseeded (None =
+    # MRtrix default). When random_seed is set, tckgen is always pinned to
+    # "-nthreads 0" (single-threaded): that is the only configuration in which
+    # a seeded tckgen run is bit-reproducible, because multi-threaded tckgen
+    # consumes the RNG stream in a run-dependent order (verified 2026-09-26 on
+    # HCP 100307: identical streamline data, only the header timestamp
+    # differs). The manifest's "reproducibility" block records the outcome.
     nthreads: Optional[int] = None
     use_sift2: bool = True
+    # DWI the anatomy (DDSeg/DDParcel -> 5TT) was derived from. When set, it
+    # must be the CSD DWI unless allow_anatomy_space_mismatch is True.
+    anatomy_source_dwi: Optional[Path] = None
+    allow_anatomy_space_mismatch: bool = False
     export_trk: bool = False
     export_vtk: bool = False
     mrtrix_bin_dir: Optional[Path] = None
@@ -147,10 +151,18 @@ def _validate_config(config: CSDActConfig) -> None:
         raise ValueError("select_streamlines must be > 0.")
     if config.min_length_mm <= 0 or config.max_length_mm <= config.min_length_mm:
         raise ValueError("CSD/ACT streamline lengths require 0 < min_length_mm < max_length_mm.")
-    if config.random_seed < 0:
+    if config.random_seed is not None and config.random_seed < 0:
         raise ValueError("random_seed must be >= 0.")
+    if config.seeding not in SEEDING_MODES:
+        raise ValueError(f"seeding must be one of {', '.join(SEEDING_MODES)}; got {config.seeding!r}.")
     if config.nthreads is not None and config.nthreads < 0:
         raise ValueError("nthreads must be >= 0 when set.")
+    if anatomy_space_matches(config) is False and not config.allow_anatomy_space_mismatch:
+        raise ValueError(
+            "ACT anatomy was derived from a different DWI than the CSD input "
+            f"(anatomy: {config.anatomy_source_dwi}; CSD: {config.dwi_path}). Run DDSeg/DDParcel on the same "
+            "(preprocessed) DWI, or explicitly allow the mismatch."
+        )
     for label, path in (
         ("dwi_path", config.dwi_path),
         ("bval_path", config.bval_path),
@@ -161,6 +173,43 @@ def _validate_config(config: CSDActConfig) -> None:
     ):
         if not path.expanduser().is_file():
             raise FileNotFoundError(f"{label} does not exist: {path}")
+
+
+def anatomy_space_matches(config: CSDActConfig) -> Optional[bool]:
+    if config.anatomy_source_dwi is None:
+        return None
+    return Path(config.anatomy_source_dwi).expanduser().resolve() == Path(config.dwi_path).expanduser().resolve()
+
+
+def tckgen_thread_count(config: CSDActConfig) -> Optional[int]:
+    """Effective tckgen -nthreads: 0 when seeded, else the requested value (None = MRtrix default)."""
+
+    if config.random_seed is not None:
+        return 0
+    return int(config.nthreads) if config.nthreads is not None else None
+
+
+def sift2_mu_path(tractogram: Path) -> Path:
+    return tractogram.with_name(f"{tractogram.stem}_sift2_mu.txt")
+
+
+def reproducibility_record(config: CSDActConfig) -> dict[str, object]:
+    threads = tckgen_thread_count(config)
+    seeded = config.random_seed is not None
+    return {
+        "random_seed": config.random_seed,
+        "seed_mechanism": "MRTRIX_RNG_SEED environment variable" if seeded else None,
+        "nthreads_requested": config.nthreads,
+        "tckgen_nthreads": threads,
+        "tckgen_nthreads_pinned_for_seed": seeded,
+        "tcksift2_nthreads": config.nthreads,
+        "tckgen_bit_reproducible": bool(seeded and threads == 0),
+        "note": (
+            "A seeded tckgen run is bit-reproducible only single-threaded (-nthreads 0); this was verified "
+            "on HCP 100307 (identical streamline data, header timestamp differs). With more threads the RNG "
+            "stream is consumed in a run-dependent order and repeats are only statistically equivalent."
+        ),
+    }
 
 
 def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
@@ -238,6 +287,10 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
             "-force",
         ),
     ]
+    if config.seeding == "dynamic":
+        seed_options = ["-seed_dynamic", wm_fod_norm.as_posix()]
+    else:
+        seed_options = ["-seed_gmwmi", config.gmwmi_path.expanduser().resolve().as_posix()]
     tckgen = [
         _cmd("tckgen", config.mrtrix_bin_dir),
         wm_fod_norm.as_posix(),
@@ -246,8 +299,7 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
         config.algorithm,
         "-act",
         config.five_tt_path.expanduser().resolve().as_posix(),
-        "-seed_gmwmi",
-        config.gmwmi_path.expanduser().resolve().as_posix(),
+        *seed_options,
         "-backtrack",
         "-crop_at_gmwmi",
         "-select",
@@ -262,8 +314,9 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
         tckgen.extend(["-step", str(config.step_size_mm)])
     if config.cutoff is not None:
         tckgen.extend(["-cutoff", str(config.cutoff)])
-    if config.nthreads is not None:
-        tckgen.extend(["-nthreads", str(config.nthreads)])
+    tckgen_threads = tckgen_thread_count(config)
+    if tckgen_threads is not None:
+        tckgen.extend(["-nthreads", str(tckgen_threads)])
     commands.append(tuple(tckgen))
     if config.use_sift2:
         tcksift2 = [
@@ -273,6 +326,8 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
             weights.as_posix(),
             "-act",
             config.five_tt_path.expanduser().resolve().as_posix(),
+            "-out_mu",
+            sift2_mu_path(tractogram).as_posix(),
             "-force",
         ]
         if config.nthreads is not None:
@@ -314,10 +369,12 @@ def _tractogram_summary(path: Path) -> dict[str, object]:
         "all_points_finite": bool(all_points_finite),
     }
     if values.size:
+        summary["fraction_shorter_than_20mm"] = float(np.mean(values < 20.0))
         summary["length_mm"] = {
             "min": float(np.min(values)),
             "p05": float(np.percentile(values, 5)),
             "median": float(np.median(values)),
+            "mean": float(np.mean(values)),
             "p95": float(np.percentile(values, 95)),
             "max": float(np.max(values)),
         }
@@ -336,6 +393,18 @@ def _sift2_summary(path: Path, expected_count: int) -> dict[str, object]:
         "all_nonnegative": bool(np.all(values >= 0.0)),
         "positive_count": int(np.count_nonzero(values > 0.0)),
         "sum": float(np.sum(values)) if values.size else 0.0,
+    }
+
+
+def _sift2_mu_summary(path: Path) -> dict[str, object]:
+    import numpy as np
+
+    values = np.asarray(np.loadtxt(path, ndmin=1), dtype=np.float64).reshape(-1)
+    value = float(values[0]) if values.size == 1 else None
+    return {
+        "file": _file_info(path),
+        "value": value,
+        "valid": bool(value is not None and np.isfinite(value) and value > 0.0),
     }
 
 
@@ -391,11 +460,14 @@ def _validate_generated_outputs(
         if weights is not None:
             weight_summary = _sift2_summary(weights, count)
             summaries["sift2"] = weight_summary
+            mu_summary = _sift2_mu_summary(sift2_mu_path(tractogram))
+            summaries["sift2_mu"] = mu_summary
             valid = valid and (
                 int(weight_summary["weight_count"]) == count
                 and bool(weight_summary["all_finite"])
                 and bool(weight_summary["all_nonnegative"])
                 and int(weight_summary["positive_count"]) > 0
+                and bool(mu_summary["valid"])
             )
         if not valid:
             return summaries, "Generated CSD/ACT tractography failed its scientific output contract."
@@ -465,7 +537,7 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
 
     manifest: dict[str, object] = {
         "kind": "mrtrix_csd_act",
-        "version": 2,
+        "version": CSD_ACT_MANIFEST_VERSION,
         "subject_id": config.subject_id,
         "executed": bool(config.execute),
         "status": "running" if config.execute else "planned",
@@ -478,7 +550,14 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
             "step_size_mm": config.step_size_mm,
             "cutoff": config.cutoff,
             "random_seed": config.random_seed,
+            "seeding": config.seeding,
+            "seed_image": (
+                wm_fod_norm.as_posix()
+                if config.seeding == "dynamic"
+                else config.gmwmi_path.expanduser().resolve().as_posix()
+            ),
             "nthreads": config.nthreads,
+            "tckgen_nthreads": tckgen_thread_count(config),
             "use_sift2": config.use_sift2,
             "export_trk": config.export_trk,
             "export_vtk": config.export_vtk,
@@ -502,23 +581,24 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
             "tractogram_trk": tractogram_trk.as_posix() if tractogram_trk else None,
             "tractogram_vtk": tractogram_vtk.as_posix() if tractogram_vtk else None,
             "sift2_weights": weights.as_posix() if weights else None,
+            "sift2_mu": sift2_mu_path(tractogram).as_posix() if weights else None,
             "qc": qc_path.as_posix(),
         },
         "commands": [list(command) for command in commands],
-        "reproducibility_note": (
-            "random_seed is forwarded to tckgen/tcksift2 via MRTRIX_RNG_SEED. "
-            "nthreads (null unless explicitly pinned) is MRtrix3's own "
-            "-nthreads: multi-threaded tckgen is NOT bit-reproducible even "
-            "with a fixed random_seed, because threads consume the shared "
-            "random-number stream in a run-dependent order. Only "
-            "nthreads=0 (fully single-threaded) is bit-reproducible for a "
-            "given random_seed; any other nthreads value only keeps the "
-            "degree of parallelism consistent across runs, not the output."
-        ),
+        "anatomy_space": {
+            "anatomy_source_dwi": Path(config.anatomy_source_dwi).expanduser().resolve().as_posix()
+            if config.anatomy_source_dwi is not None
+            else None,
+            "csd_dwi": Path(config.dwi_path).expanduser().resolve().as_posix(),
+            "same_dwi": anatomy_space_matches(config),
+            "mismatch_allowed": bool(config.allow_anatomy_space_mismatch),
+        },
+        "reproducibility": reproducibility_record(config),
+        "reproducibility_note": reproducibility_record(config)["note"],
     }
     qc: dict[str, object] = {
         "kind": "mrtrix_csd_act_qc",
-        "version": 2,
+        "version": CSD_ACT_MANIFEST_VERSION,
         "subject_id": config.subject_id,
         "status": "planned",
         "executed": False,
@@ -547,7 +627,7 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
         # MRtrix3 ignores "-config RandomSeed <n>" on the command line; the
         # seed must be provided via the MRTRIX_RNG_SEED environment variable.
         command_env = external_python_environment(
-            extra_env={"MRTRIX_RNG_SEED": str(config.random_seed)},
+            extra_env={"MRTRIX_RNG_SEED": str(config.random_seed)} if config.random_seed is not None else None,
             path_prepend=[config.mrtrix_bin_dir] if config.mrtrix_bin_dir is not None else None,
         )
         try:

@@ -54,6 +54,25 @@ def _file_record(path: Path) -> dict[str, object]:
     }
 
 
+def _write_current_act_prep(layout, subject_id: str, segmentation: Path) -> dict[str, Path]:
+    """Write version-2 ACT prep outputs whose manifest records the current segmentation."""
+
+    layout.act_prep.mkdir(parents=True, exist_ok=True)
+    five_tt = layout.act_prep / f"{subject_id}_5tt_from_labels.nii.gz"
+    gmwmi = layout.act_prep / f"{subject_id}_gmwmi_from_labels.nii.gz"
+    five_tt.write_text("5tt", encoding="utf-8")
+    gmwmi.write_text("gmwmi", encoding="utf-8")
+    seg_record = {**_file_record(segmentation), "exists": True}
+    (layout.act_prep / "act_prep_manifest.json").write_text(
+        json.dumps({"version": 2, "status": "completed", "inputs": {"segmentation": seg_record, "parcellation": None}}) + "\n",
+        encoding="utf-8",
+    )
+    (layout.act_prep / "act_prep_qc.json").write_text(
+        json.dumps({"version": 2, "status": "completed"}) + "\n", encoding="utf-8"
+    )
+    return {"five_tt": five_tt, "gmwmi": gmwmi}
+
+
 class ProductOrchestratorTest(unittest.TestCase):
     def test_reusing_run_name_archives_previous_manifest_and_plan(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
@@ -1091,6 +1110,8 @@ class ProductOrchestratorTest(unittest.TestCase):
                 json.dumps(
                     {
                         "status": "completed",
+                        "schema_version": 2,
+                        "orientation_convention": "affine_reoriented_ras_model_input_v2",
                         "probability_semantics": "four_class_softmax_tissue_channels_v1",
                         "probability_qc": {
                             "finite_and_bounded": True,
@@ -1163,16 +1184,21 @@ class ProductOrchestratorTest(unittest.TestCase):
                 json.dumps({"status": "completed", "scientific_output_summary": csd_summary}) + "\n",
                 encoding="utf-8",
             )
+            act_inputs = _write_current_act_prep(layout, "100307", seg_dir / "SegmentationMap_GMWMCSF.nii.gz")
             (csd_dir / "csd_act_manifest.json").write_text(
                 json.dumps(
                     {
                         "status": "completed",
+                        "version": 3,
                         "parameters": {
                             "select_streamlines": 1,
                             "min_length_mm": 10.0,
                             "max_length_mm": 250.0,
                         },
-                        "dependencies": {key: _file_record(path) for key, path in raw_paths.items()},
+                        "dependencies": {
+                            **{key: _file_record(path) for key, path in raw_paths.items()},
+                            **{key: _file_record(path) for key, path in act_inputs.items()},
+                        },
                     }
                 )
                 + "\n",
@@ -1414,6 +1440,8 @@ class ProductOrchestratorTest(unittest.TestCase):
                 json.dumps(
                     {
                         "status": "completed",
+                        "schema_version": 2,
+                        "orientation_convention": "affine_reoriented_ras_model_input_v2",
                         "probability_semantics": "four_class_softmax_tissue_channels_v1",
                         "probability_qc": {
                             "finite_and_bounded": True,
