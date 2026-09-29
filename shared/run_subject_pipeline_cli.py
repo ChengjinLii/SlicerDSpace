@@ -472,6 +472,32 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--mrtrix-seed",
+        type=int,
+        default=None,
+        help=(
+            "Optional MRtrix3 RNG seed (exported as MRTRIX_RNG_SEED). When set, tckgen runs with "
+            "-nthreads 0 so the tractogram is bit-reproducible (slower); tcksift2 keeps --mrtrix-nthreads."
+        ),
+    )
+    parser.add_argument(
+        "--tckgen-seeding",
+        default="dynamic",
+        choices=("dynamic", "gmwmi"),
+        help="CSD/ACT seeding: dynamic (default, -seed_dynamic on the WM FOD) or gmwmi (-seed_gmwmi).",
+    )
+    parser.add_argument(
+        "--ddseg-min-wm-dice",
+        type=float,
+        default=0.70,
+        help="World-space QC gate: minimum Dice of DDSeg WM vs DDParcel WM before ACT may run.",
+    )
+    parser.add_argument(
+        "--allow-anatomy-space-mismatch",
+        action="store_true",
+        help="Allow ACT anatomy derived from a different DWI than the CSD input (not recommended).",
+    )
+    parser.add_argument(
         "--micro-fit-method",
         default="wls",
         choices=("wls", "ls"),
@@ -770,6 +796,10 @@ def main(argv: list[str] | None = None) -> int:
         dti_max_length_mm=args.dti_max_length_mm,
         mrtrix_bin_dir=args.mrtrix_bin_dir,
         mrtrix_nthreads=args.mrtrix_nthreads,
+        mrtrix_random_seed=args.mrtrix_seed,
+        tractography_seeding=args.tckgen_seeding,
+        ddseg_min_wm_dice=args.ddseg_min_wm_dice,
+        allow_anatomy_space_mismatch=bool(args.allow_anatomy_space_mismatch),
         tract_querier_root=args.tract_querier_root,
         connectome_backend=args.connectome_backend,
         connectome_compress_mrtrix_dense=bool(args.compress_mrtrix_dense),

@@ -462,9 +462,24 @@ def _rewrite_nhdr_data_file(nhdr_path: Path, data_path: Path) -> None:
     nhdr_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
 
 
+def input_source_cache_prefix(raw: RawInputBundle) -> str:
+    """Cache-key prefix separating features of the raw input from preprocessed DWI.
+
+    Raw inputs keep the historical key; a bundle resolved from 01_preproc gets
+    its own ``preproc_`` subdirectory so alternating raw/preprocessed runs do
+    not overwrite (thrash) one another's cached DTI features.
+    """
+
+    try:
+        is_raw = Path(raw.input_dir).resolve() == (Path(raw.subject_root) / "input").resolve()
+    except OSError:
+        is_raw = True
+    return "" if is_raw else "preproc_"
+
+
 def _build_native_bundle(raw: RawInputBundle, fit_method: str) -> NativeDTIBundle:
     fit_key = fit_method.lower()
-    bundle_dir = raw.subject_root / "cache" / "native_dti" / fit_key
+    bundle_dir = raw.subject_root / "cache" / "native_dti" / f"{input_source_cache_prefix(raw)}{fit_key}"
     subject = raw.subject_id
     return NativeDTIBundle(
         subject_root=raw.subject_root,
@@ -636,7 +651,9 @@ def _atlas_key(atlas_path: Path) -> str:
 
 def _build_registered_bundle(raw: RawInputBundle, fit_method: str, atlas_path: Path) -> RegisteredDTIBundle:
     fit_key = fit_method.lower()
-    bundle_dir = raw.subject_root / "cache" / "registered_dti" / f"{_atlas_key(atlas_path)}__{fit_key}"
+    bundle_dir = (
+        raw.subject_root / "cache" / "registered_dti" / f"{input_source_cache_prefix(raw)}{_atlas_key(atlas_path)}__{fit_key}"
+    )
     subject = raw.subject_id
     return RegisteredDTIBundle(
         subject_root=raw.subject_root,

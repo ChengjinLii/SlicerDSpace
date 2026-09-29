@@ -3,13 +3,19 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
 from .config import DDSegConfig
+from .orientation import MODEL_INPUT_AXCODES, ORIENTATION_CONVENTION
 
 
 DDSEG_PROBABILITY_SEMANTICS = "four_class_softmax_tissue_channels_v1"
+# Schema 2: outputs are written on the brain mask's own voxel grid/affine after
+# affine-based reorientation to the model's RAS input order (schema 1 outputs
+# were mirrored anterior-posterior and must not be reused on --resume).
+DDSEG_QC_SCHEMA_VERSION = 2
 
 
 def write_ddseg_qc_record(
@@ -18,6 +24,7 @@ def write_ddseg_qc_record(
     labels: np.ndarray,
     probability_maps: np.ndarray,
     outputs: dict[str, Path],
+    geometry: Optional[dict[str, object]] = None,
 ) -> None:
     if labels.ndim != 3 or probability_maps.shape != (*labels.shape, 4):
         raise ValueError(
@@ -61,8 +68,13 @@ def write_ddseg_qc_record(
         )
 
     record = {
-        "schema_version": 1,
+        "schema_version": DDSEG_QC_SCHEMA_VERSION,
         "status": "completed",
+        "orientation_convention": ORIENTATION_CONVENTION,
+        "model_input_axcodes": "".join(MODEL_INPUT_AXCODES),
+        "geometry": dict(geometry or {}),
+        "input_mask": Path(cfg.input_mask_nii).expanduser().resolve().as_posix(),
+        "source_dwi": Path(cfg.source_dwi).expanduser().resolve().as_posix() if cfg.source_dwi else None,
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "probability_semantics": DDSEG_PROBABILITY_SEMANTICS,
         "label_mapping": {"0": "background", "1": "white_matter", "2": "gray_matter", "3": "csf"},

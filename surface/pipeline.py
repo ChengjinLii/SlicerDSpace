@@ -29,6 +29,10 @@ class SurfaceConfig:
     model_assets_dir: Optional[Path] = None
     cleanup_intermediates: bool = False
     execute: bool = False
+    # DWI bundle to derive the registered DTI inputs from. None = the raw
+    # subject input. The orchestrator passes the preprocessed bundle when
+    # preprocessing ran, so surfaces share the tractography space.
+    input_bundle: Optional[object] = None
 
 
 @dataclass(frozen=True)
@@ -188,7 +192,7 @@ def _resolve_surface_inputs(config: SurfaceConfig, registration_atlas: Path, log
         raise FileNotFoundError(f"Unable to resolve subject root for {config.subject_id}: {config.subject_root}")
     subject_dir = Path(inspected["subject_dir"]).resolve()
     if inspected["mode"] == "subject_root":
-        raw_bundle = find_subject_root(config.subject_root, config.subject_id)
+        raw_bundle = config.input_bundle or find_subject_root(config.subject_root, config.subject_id)
         registered = ensure_registered_dti_bundle(raw_bundle, atlas_t2=registration_atlas, fit_method="wls", reuse=True, log=log)
         return (
             {
@@ -242,6 +246,11 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
         "version": 1,
         "subject_id": config.subject_id,
         "subject_root": config.subject_root.expanduser().resolve().as_posix(),
+        "input_dwi": (
+            Path(str(config.input_bundle.dwi_path)).resolve().as_posix()  # type: ignore[union-attr]
+            if config.input_bundle is not None
+            else None
+        ),
         "output_dir": output_dir.as_posix(),
         "predict_mode": config.predict_mode,
         "device": config.device,
