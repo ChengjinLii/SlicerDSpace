@@ -547,8 +547,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Defaults to DIPY's reference threshold of 0.7."
         ),
     )
-    parser.add_argument("--postprocess-native-dir", type=Path, help="DDSurfer native STL directory for postprocess.")
-    parser.add_argument("--postprocess-mri-dir", type=Path, help="MRI directory containing brain.mgz and DDSurfer-wmparc.nii.gz.")
+    parser.add_argument("--postprocess-native-dir", type=Path, help="DDSurfer indexed native RAS OBJ directory (legacy *_orig.stl also supported).")
+    parser.add_argument("--postprocess-mri-dir", type=Path, help="Optional native brain.mgz directory; wmparc is required only by the legacy backend.")
     parser.add_argument("--postprocess-backend-root", type=Path, help="Optional override for bundled DDSurfer postprocess backend.")
     parser.add_argument("--postprocess-mode", default="whole", choices=("whole", "left", "right"), help="DDSurfer postprocess hemisphere mode.")
     parser.add_argument("--postprocess-python-bin", type=Path, help="Optional Python interpreter for DDSurfer postprocess backend.")
@@ -557,7 +557,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--postprocess-force", action="store_true", help="Force restaging DDSurfer postprocess inputs.")
     parser.add_argument("--mrtrix-bin-dir", type=Path, help="Optional MRtrix3 bin directory.")
     parser.add_argument("--tract-querier-root", type=Path, help="Optional TractQuerier checkout root.")
-    parser.add_argument("--atlas-t2", type=Path, help="Optional DDParcel/DDSurfer atlas T2 path override.")
+    parser.add_argument("--atlas-t2", type=Path, help="Optional DDParcel atlas T2 path override.")
+    parser.add_argument("--surface-atlas-t2", type=Path, help="Matching DDSurfer 1-mm atlas override (separate from DDParcel).")
+    parser.add_argument("--surface-python-bin", type=Path, help="Optional isolated DDSurfer Python runtime; also supports DDSURFER_PYTHON_BIN.")
+    parser.add_argument("--surface-precision", choices=('auto', 'bf16', 'fp32'), default='auto')
     parser.add_argument("--ddseg-device", default="auto", help="DDSeg torch device. auto uses cuda:0 when available, otherwise cpu.")
     parser.add_argument("--surface-device", default="auto", help="DDSurfer torch device. auto uses cuda:0 when available, otherwise cpu.")
     parser.add_argument(
@@ -788,6 +791,9 @@ def main(argv: list[str] | None = None) -> int:
         postprocess_atlases=_split_csv_preserve_case(args.postprocess_atlases) or None,
         postprocess_force=bool(args.postprocess_force),
         atlas_t2=args.atlas_t2,
+        surface_atlas_t2=args.surface_atlas_t2,
+        surface_python_bin=args.surface_python_bin,
+        surface_precision=args.surface_precision,
         model_assets_dir=args.model_assets_dir,
         ddseg_device=args.ddseg_device,
         surface_device=args.surface_device,

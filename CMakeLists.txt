@@ -24,6 +24,14 @@ set(MODULE_NAME SlicerDDSurfer)
 file(GLOB_RECURSE SHARED_PYTHON_SCRIPTS "shared/*.py")
 file(GLOB_RECURSE PREPROCESSING_PYTHON_SCRIPTS "preprocessing/*.py")
 file(GLOB_RECURSE SURFACE_PYTHON_SCRIPTS "surface/*.py")
+list(FILTER SURFACE_PYTHON_SCRIPTS EXCLUDE REGEX "/ddsurfer_backend/tests/")
+file(GLOB_RECURSE DDSURFER_BACKEND_RESOURCES
+  "surface/ddsurfer_backend/*.sh"
+  "surface/ddsurfer_backend/*.json"
+  "surface/ddsurfer_backend/*.md"
+  "surface/ddsurfer_backend/requirements.txt"
+  "surface/ddsurfer_backend/environment.yml"
+  )
 file(GLOB_RECURSE PARCELLATION_PYTHON_SCRIPTS "parcellation/*.py")
 list(FILTER PARCELLATION_PYTHON_SCRIPTS EXCLUDE REGEX "/tests/")
 file(GLOB_RECURSE SEGMENTATION_PYTHON_SCRIPTS "segmentation/*.py")
@@ -56,6 +64,7 @@ set(MODULE_PYTHON_RESOURCES
   ${SHARED_PYTHON_SCRIPTS}
   ${PREPROCESSING_PYTHON_SCRIPTS}
   ${SURFACE_PYTHON_SCRIPTS}
+  ${DDSURFER_BACKEND_RESOURCES}
   ${PARCELLATION_PYTHON_SCRIPTS}
   ${SEGMENTATION_PYTHON_SCRIPTS}
   ${MICROSTRUCTURE_PYTHON_SCRIPTS}

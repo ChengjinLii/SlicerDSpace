@@ -1,5 +1,4 @@
-"""Headless DDSurfer surface pipeline facade."""
-
+"""Slicer facade for the manifest-configured, unchanged DDSurfer backend."""
 from __future__ import annotations
 
 import json
@@ -10,10 +9,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
-from shared import ensure_registered_dti_bundle, find_subject_root, inspect_subject_directory
+from shared import find_subject_root, inspect_subject_directory
 from shared.model_assets import model_asset_candidates
+from .backend_bridge import BACKEND_ROOT, native_products, run_backend, runtime_info, sha256, upstream_record
 
-from .preprocessing import SubjectPreprocessingConfig, preprocess_subject
+ATLAS_NAME = '100HCP-population-mean-T2-1mm.nii.gz'
 
 
 @dataclass(frozen=True)
@@ -21,18 +21,18 @@ class SurfaceConfig:
     subject_id: str
     subject_root: Path
     output_dir: Path
-    predict_mode: str = "all"
-    device: str = "cpu"
+    predict_mode: str = 'all'
+    device: str = 'cpu'
     template_dir: Optional[Path] = None
     checkpoint_root: Optional[Path] = None
     registration_atlas: Optional[Path] = None
     model_assets_dir: Optional[Path] = None
     cleanup_intermediates: bool = False
     execute: bool = False
-    # DWI bundle to derive the registered DTI inputs from. None = the raw
-    # subject input. The orchestrator passes the preprocessed bundle when
-    # preprocessing ran, so surfaces share the tractography space.
     input_bundle: Optional[object] = None
+    precision: str = 'auto'
+    python_bin: Optional[Path] = None
+    slicer_home: Optional[Path] = None
 
 
 @dataclass(frozen=True)
@@ -45,312 +45,201 @@ class SurfaceResult:
     executed: bool
 
 
-METRIC_PATTERNS = {
-    "FractionalAnisotropy": "{subject_id}-dti-FractionalAnisotropy-Reg.nii.gz",
-    "MinEigenvalue": "{subject_id}-dti-MinEigenvalue-Reg.nii.gz",
-    "MidEigenvalue": "{subject_id}-dti-MidEigenvalue-Reg.nii.gz",
-    "MaxEigenvalue": "{subject_id}-dti-MaxEigenvalue-Reg.nii.gz",
-    "Trace": "{subject_id}-dti-Trace-Reg.nii.gz",
-    "MeanDiffusivity": "{subject_id}-dti-MeanDiffusivity-Reg.nii.gz",
-}
-
-
-def _emit(message: str, log: Optional[Callable[[str], None]] = None) -> None:
-    if log:
-        log(message)
-
-
-def _module_root() -> Path:
-    return Path(__file__).resolve().parents[1]
-
-
-def _first_existing(candidates: list[Path], *, required_child: Optional[Path] = None) -> Optional[Path]:
+def _resolve_resource(explicit, env_key, relative, required_child=None, model_assets_dir=None):
+    if explicit is not None:
+        return Path(explicit).expanduser().resolve()
+    if os.environ.get(env_key):
+        return Path(os.environ[env_key]).expanduser().resolve()
+    candidates = model_asset_candidates(relative, repo_root=Path(__file__).resolve().parents[1],
+                                        explicit_root=model_assets_dir)
     for candidate in candidates:
-        candidate = candidate.expanduser()
-        required = candidate / required_child if required_child is not None else candidate
-        if required.exists():
+        if (candidate / required_child if required_child else candidate).exists():
             return candidate.resolve()
     return None
 
 
-def resolve_surface_template_dir(
-    template_dir: Optional[Path] = None,
-    *,
-    model_assets_dir: Optional[Path] = None,
-) -> Optional[Path]:
-    candidates: list[Path] = []
-    if template_dir is not None:
-        candidates.append(template_dir)
-    env_template = os.environ.get("DDSURFER_TEMPLATE_DIR")
-    if env_template:
-        candidates.append(Path(env_template))
-    root = _module_root()
-    candidates.extend(model_asset_candidates("Resources/Data/template", repo_root=root, explicit_root=model_assets_dir))
-    candidates.extend(
-        [
-            root / "Resources" / "Data" / "template",
-            root / "Resources" / "template",
-            root / "surface" / "template",
-            root / "template",
-            root.parent / "template",
-        ]
-    )
-    return _first_existing(candidates, required_child=Path("100307-FA.nii.gz"))
+def resolve_surface_template_dir(template_dir=None, *, model_assets_dir=None):
+    return _resolve_resource(template_dir, 'DDSURFER_TEMPLATE_DIR', 'surface/template',
+                             'ddsurfer_lh_template.obj', model_assets_dir)
 
 
-def resolve_surface_checkpoint_root(
-    checkpoint_root: Optional[Path] = None,
-    *,
-    model_assets_dir: Optional[Path] = None,
-) -> Optional[Path]:
-    candidates: list[Path] = []
-    if checkpoint_root is not None:
-        candidates.append(checkpoint_root)
-    env_ckpt = os.environ.get("DDSURFER_CHECKPOINT_DIR")
-    if env_ckpt:
-        candidates.append(Path(env_ckpt))
-    root = _module_root()
-    candidates.extend(model_asset_candidates("Resources/Data/ckpts", repo_root=root, explicit_root=model_assets_dir))
-    candidates.extend(
-        [
-            root / "Resources" / "Data" / "ckpts",
-            root / "Resources" / "ckpts",
-            root / "surface" / "ckpts",
-            root / "ckpts",
-            root.parent / "ckpts",
-        ]
-    )
-    return _first_existing(candidates, required_child=Path("hcp"))
+def resolve_surface_checkpoint_root(checkpoint_root=None, *, model_assets_dir=None):
+    return _resolve_resource(checkpoint_root, 'DDSURFER_CHECKPOINT_DIR', 'surface/weights',
+                             'manifest.json', model_assets_dir)
 
 
-def resolve_surface_registration_atlas(
-    registration_atlas: Optional[Path] = None,
-    *,
-    model_assets_dir: Optional[Path] = None,
-) -> Optional[Path]:
-    candidates: list[Path] = []
-    if registration_atlas is not None:
-        candidates.append(registration_atlas)
-    env_atlas = os.environ.get("DDSURFER_REGISTRATION_ATLAS")
-    if env_atlas:
-        candidates.append(Path(env_atlas))
-    root = _module_root()
-    candidates.extend(
-        model_asset_candidates(
-            "Resources/Data/100HCP-population-mean-T2.nii.gz",
-            repo_root=root,
-            explicit_root=model_assets_dir,
-        )
-    )
-    candidates.extend(
-        [
-            root / "Resources" / "Data" / "100HCP-population-mean-T2.nii.gz",
-            root / "Resources" / "100HCP-population-mean-T2.nii.gz",
-        ]
-    )
-    return _first_existing(candidates)
+def resolve_surface_registration_atlas(registration_atlas=None, *, model_assets_dir=None):
+    return _resolve_resource(registration_atlas, 'DDSURFER_REGISTRATION_ATLAS',
+                             f'surface/template/{ATLAS_NAME}', model_assets_dir=model_assets_dir)
 
 
-def inspect_surface_resources(config: SurfaceConfig) -> dict[str, object]:
-    template_dir = resolve_surface_template_dir(config.template_dir, model_assets_dir=config.model_assets_dir)
-    checkpoint_root = resolve_surface_checkpoint_root(config.checkpoint_root, model_assets_dir=config.model_assets_dir)
-    registration_atlas = resolve_surface_registration_atlas(
-        config.registration_atlas,
-        model_assets_dir=config.model_assets_dir,
-    )
-    checkpoint_paths: list[Path] = []
-    if checkpoint_root is not None:
-        hcp_dir = checkpoint_root / "hcp"
-        checkpoint_paths = [
-            hcp_dir / "DDCSR_white_lh_Full_DualStream_no_b0_Cascaded.pt",
-            hcp_dir / "DDCSR_white_rh_Full_DualStream_no_b0_Cascaded.pt",
-            hcp_dir / "DDCSR_pial_lh_Full_DualStream_no_b0_Cascaded.pt",
-            hcp_dir / "DDCSR_pial_rh_Full_DualStream_no_b0_Cascaded.pt",
-        ]
-    template_paths: list[Path] = []
-    if template_dir is not None:
-        template_paths = [
-            template_dir / "100307-FA.nii.gz",
-            template_dir / "hcp_hemi-left_init_160k.obj",
-            template_dir / "hcp_hemi-right_init_160k.obj",
-        ]
-    missing = [path.as_posix() for path in checkpoint_paths + template_paths if not path.exists()]
-    if registration_atlas is None:
-        missing.append("registration_atlas")
-    return {
-        "available": not missing and template_dir is not None and checkpoint_root is not None and registration_atlas is not None,
-        "template_dir": template_dir.as_posix() if template_dir else None,
-        "checkpoint_root": checkpoint_root.as_posix() if checkpoint_root else None,
-        "registration_atlas": registration_atlas.as_posix() if registration_atlas else None,
-        "missing": missing,
-    }
+def inspect_surface_resources(config: SurfaceConfig) -> dict:
+    template = resolve_surface_template_dir(config.template_dir, model_assets_dir=config.model_assets_dir)
+    weights = resolve_surface_checkpoint_root(config.checkpoint_root, model_assets_dir=config.model_assets_dir)
+    atlas = resolve_surface_registration_atlas(config.registration_atlas, model_assets_dir=config.model_assets_dir)
+    missing, errors = [], []
+    model_config = None
+    if weights is None:
+        missing.append('surface/weights/manifest.json')
+    if template is None:
+        missing.append('surface/template/ddsurfer_lh_template.obj')
+    if atlas is None or not atlas.is_file():
+        missing.append(f'surface/template/{ATLAS_NAME}')
+    if weights is not None and template is not None:
+        try:
+            model_config = json.loads((weights / 'manifest.json').read_text())
+            expected_assets = json.loads((Path(__file__).resolve().parents[1] / 'models/assets_manifest.json').read_text())['asset_records']
+            for filename in ('manifest.json', 'SHA256SUMS'):
+                path = weights / filename
+                if sha256(path) != expected_assets[f'surface/weights/{filename}']['sha256']:
+                    raise ValueError(f'Model release metadata mismatch: {path}')
+            checksums = {}
+            for line in (weights / 'SHA256SUMS').read_text().splitlines():
+                if line.strip():
+                    digest, filename = line.split(maxsplit=1)
+                    filename = filename.lstrip('*')
+                    if Path(filename).name != filename or filename in checksums:
+                        raise ValueError('Invalid checkpoint checksum entry')
+                    checksums[filename] = digest
+            for hemi in ('left', 'right'):
+                entry = model_config['templates'][hemi]
+                if Path(entry['file']).name != entry['file']:
+                    raise ValueError('Invalid template filename')
+                paths = [(template / entry['file'], entry['sha256'])]
+                for kind in ('white', 'pial') if config.predict_mode == 'all' else ('white',):
+                    filename = model_config['checkpoint_files'][hemi][kind]
+                    if Path(filename).name != filename:
+                        raise ValueError('Invalid checkpoint filename')
+                    paths.append((weights / filename, checksums[filename]))
+                for path, digest in paths:
+                    if not path.is_file():
+                        missing.append(str(path))
+                    elif sha256(path) != digest:
+                        errors.append(f'Checksum mismatch: {path}')
+            if atlas is not None and atlas.is_file():
+                expected = expected_assets[f'surface/template/{ATLAS_NAME}']['sha256']
+                if sha256(atlas) != expected:
+                    errors.append('DDSurfer requires the matching trained 1-mm atlas; the DDParcel atlas is not interchangeable')
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            errors.append(str(exc))
+    return dict(available=not missing and not errors, missing=missing + errors,
+                template_dir=str(template) if template else None,
+                checkpoint_root=str(weights) if weights else None,
+                registration_atlas=str(atlas) if atlas else None,
+                upstream_commit=upstream_record()['commit'], model_config=model_config)
 
 
-def _resolve_surface_inputs(config: SurfaceConfig, registration_atlas: Path, log: Optional[Callable[[str], None]]) -> tuple[dict[str, Path], Path, Path]:
-    inspected = inspect_subject_directory(config.subject_root.expanduser().resolve(), config.subject_id)
-    if inspected["mode"] == "missing":
-        raise FileNotFoundError(f"Unable to resolve subject root for {config.subject_id}: {config.subject_root}")
-    subject_dir = Path(inspected["subject_dir"]).resolve()
-    if inspected["mode"] == "subject_root":
-        raw_bundle = config.input_bundle or find_subject_root(config.subject_root, config.subject_id)
-        registered = ensure_registered_dti_bundle(raw_bundle, atlas_t2=registration_atlas, fit_method="wls", reuse=True, log=log)
-        return (
-            {
-                "FractionalAnisotropy": registered.fa_reg_path,
-                "MinEigenvalue": registered.min_eig_reg_path,
-                "MidEigenvalue": registered.mid_eig_reg_path,
-                "MaxEigenvalue": registered.max_eig_reg_path,
-                "Trace": registered.trace_reg_path,
-                "MeanDiffusivity": registered.mean_diffusivity_reg_path,
-            },
-            registered.mask_reg_path,
-            registered.transform_path,
-        )
-
-    def resolve_default(filename: str) -> Path:
-        return subject_dir / filename.replace("{subject_id}", config.subject_id)
-
-    metric_paths = {metric: resolve_default(pattern) for metric, pattern in METRIC_PATTERNS.items()}
-    mask_path = resolve_default("{subject_id}-mask-Reg.nii.gz")
-    transform_path = resolve_default("{subject_id}-b0ToAtlasT2.tfm")
-    missing = [path for path in list(metric_paths.values()) + [mask_path, transform_path] if not path.exists()]
-    if missing:
-        raise FileNotFoundError("Required DDSurfer input files missing:\n" + "\n".join(path.as_posix() for path in missing))
-    return metric_paths, mask_path, transform_path
+def _raw_command(config, resources, output_dir):
+    bundle = config.input_bundle or find_subject_root(config.subject_root, config.subject_id)
+    command = [BACKEND_ROOT / 'run_ddsurfer_pipeline.py', '--subject', config.subject_id,
+               '--output-root', output_dir / 'upstream', '--predict-mode', config.predict_mode,
+               '--device', config.device, '--precision', config.precision,
+               '--checkpoint-root', resources['checkpoint_root'], '--template-dir', resources['template_dir']]
+    for flag, attribute in (('dwi', 'dwi_path'), ('bval', 'bval_path'), ('bvec', 'bvec_path'), ('mask', 'mask_path')):
+        path = getattr(bundle, attribute)
+        if path is None or not Path(path).is_file():
+            raise FileNotFoundError(f'DDSurfer requires a prepared {flag}; run input preparation first')
+        command.extend([f'--{flag}', path])
+    if not config.cleanup_intermediates:
+        command.append('--keep-cache')
+    home = config.slicer_home or os.environ.get('DTI_SLICER_PATH') or os.environ.get('SLICER_HOME')
+    if home is None:
+        from shared.pipeline import resolve_launcher_executable
+        home = Path(resolve_launcher_executable()).parent
+    return command, dict(DTI_SLICER_PATH=str(home), DTI_REFERENCE_IMAGE=resources['registration_atlas'])
 
 
-def _cleanup_intermediates(work_root: Path, *, keep_native: bool) -> None:
-    for name in ("raw", "preprocessed"):
-        path = work_root / name
-        if path.exists():
-            shutil.rmtree(path)
-    if not keep_native:
-        predictions = work_root / "pred_results_SlicerDDSurfer"
-        if predictions.exists():
-            shutil.rmtree(predictions)
+def _run_registered(config, resources, output_dir, subject_dir):
+    from .preprocessing import SubjectPreprocessingConfig, preprocess_subject
+    from .prediction import PredictionStageConfig, predict_subject
+    metrics = {name: subject_dir / f'{config.subject_id}-dti-{name}-Reg.nii.gz' for name in
+               ('FractionalAnisotropy', 'MinEigenvalue', 'MidEigenvalue', 'MaxEigenvalue', 'MeanDiffusivity')}
+    prepared = preprocess_subject(SubjectPreprocessingConfig(config.subject_id, metrics,
+        subject_dir / f'{config.subject_id}-mask-Reg.nii.gz',
+        subject_dir / f'{config.subject_id}-b0ToAtlasT2.tfm', output_dir,
+        Path(resources['registration_atlas']), python_bin=config.python_bin))
+    for hemi in ('left', 'right'):
+        predict_subject(PredictionStageConfig(config.subject_id, hemi, config.predict_mode,
+            config.device, 0.02, 2, 3, Path(resources['template_dir']), Path(resources['checkpoint_root']),
+            prepared.preprocessed_dir.parent, output_dir / 'pred_results_SlicerDDSurfer',
+            precision=config.precision, python_bin=config.python_bin))
+    run_backend([BACKEND_ROOT / 'inference/native.py', '--subject', config.subject_id,
+        '--data-root', prepared.preprocessed_dir.parent, '--pred-root', output_dir / 'pred_results_SlicerDDSurfer',
+        '--predict-mode', config.predict_mode, '--output-dir',
+        output_dir / 'pred_results_SlicerDDSurfer/native' / config.subject_id], python_bin=config.python_bin)
+    if config.cleanup_intermediates:
+        for path in (prepared.raw_dir, prepared.preprocessed_dir,
+                     output_dir / 'pred_results_SlicerDDSurfer/mni' / config.subject_id):
+            shutil.rmtree(path, ignore_errors=True)
 
 
 def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] = None) -> SurfaceResult:
-    if not config.subject_id.strip():
-        raise ValueError("subject_id is required.")
-    if config.predict_mode not in {"all", "wm"}:
-        raise ValueError("predict_mode must be one of: all, wm.")
-
+    if not config.subject_id.strip() or Path(config.subject_id).name != config.subject_id or config.subject_id in ('.', '..', 'fsaverage'):
+        raise ValueError('subject_id must be a nonempty directory name')
+    if config.predict_mode not in ('all', 'wm') or config.precision not in ('auto', 'bf16', 'fp32'):
+        raise ValueError('Invalid prediction mode or precision')
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    manifest_path = output_dir / "surface_manifest.json"
-    qc_path = output_dir / "surface_qc.json"
+    manifest_path, qc_path = output_dir / 'surface_manifest.json', output_dir / 'surface_qc.json'
     resources = inspect_surface_resources(config)
-    manifest = {
-        "kind": "ddsurfer_surface",
-        "version": 1,
-        "subject_id": config.subject_id,
-        "subject_root": config.subject_root.expanduser().resolve().as_posix(),
-        "input_dwi": (
-            Path(str(config.input_bundle.dwi_path)).resolve().as_posix()  # type: ignore[union-attr]
-            if config.input_bundle is not None
-            else None
-        ),
-        "output_dir": output_dir.as_posix(),
-        "predict_mode": config.predict_mode,
-        "device": config.device,
-        "executed": False,
-        "status": "planned",
-        "resources": resources,
-        "outputs": {},
-    }
-    qc = {
-        "subject_id": config.subject_id,
-        "status": "planned",
-        "executed": False,
-        "model_count": 0,
-        "elapsed_seconds": 0.0,
-        "error": None,
-    }
-    generated_models: list[Path] = []
-    start = time.monotonic()
-    execution_error: Optional[str] = None
-    if config.execute:
-        if not resources["available"]:
-            raise FileNotFoundError("DDSurfer surface resources are incomplete: " + ", ".join(resources["missing"]))  # type: ignore[index]
-        manifest["executed"] = True
-        manifest["status"] = "running"
-        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        try:
-            from .postprocessing import PostprocessingConfig, convert_meshes_to_native_space
-            from .prediction import PredictionStageConfig, predict_subject
-
-            template_dir = Path(str(resources["template_dir"]))
-            checkpoint_root = Path(str(resources["checkpoint_root"]))
-            registration_atlas = Path(str(resources["registration_atlas"]))
-            metric_paths, mask_path, transform_path = _resolve_surface_inputs(config, registration_atlas, log)
-            preprocess = preprocess_subject(
-                SubjectPreprocessingConfig(
-                    subject_id=config.subject_id,
-                    metric_paths=metric_paths,
-                    mask_path=mask_path,
-                    transform_path=transform_path,
-                    work_dir=output_dir,
-                    template_volume_path=template_dir / "100307-FA.nii.gz",
-                )
-            )
-            predictions = []
-            predictions_root = output_dir / "pred_results_SlicerDDSurfer"
-            for hemisphere in ("left", "right"):
-                _emit(f"[Surface] Running DDSurfer prediction for {hemisphere}", log)
-                predictions.append(
-                    predict_subject(
-                        PredictionStageConfig(
-                            subject_id=config.subject_id,
-                            hemisphere=hemisphere,
-                            predict_mode=config.predict_mode,
-                            device=config.device,
-                            step_size=0.02,
-                            n_svf=2,
-                            n_res=3,
-                            template_dir=template_dir,
-                            checkpoint_root=checkpoint_root,
-                            input_root=preprocess.preprocessed_dir.parent,
-                            output_root=predictions_root,
-                        )
-                    )
-                )
-            native_outputs = convert_meshes_to_native_space(
-                PostprocessingConfig(
-                    subject_id=config.subject_id,
-                    transform_path=preprocess.transform_copy_path,
-                    predictions_root=predictions_root,
-                ),
-                predictions,
-            )
-            for paths in native_outputs.values():
-                generated_models.extend(path for path in paths if not path.name.endswith("_orig.stl"))
-            if config.cleanup_intermediates:
-                _cleanup_intermediates(output_dir, keep_native=True)
-        except Exception as exc:
-            execution_error = str(exc)
-        finally:
-            qc.update(
-                {
-                    "status": "failed" if execution_error else "completed",
-                    "executed": True,
-                    "model_count": len(generated_models),
-                    "elapsed_seconds": time.monotonic() - start,
-                    "error": execution_error,
-                }
-            )
-            manifest["status"] = qc["status"]
-            manifest["outputs"] = {"models": [path.as_posix() for path in generated_models]}
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    if execution_error is not None:
-        raise RuntimeError(f"DDSurfer surface execution failed: {execution_error}")
-    _emit(f"[Surface] Manifest: {manifest_path}", log)
-    return SurfaceResult(
-        subject_id=config.subject_id,
-        output_dir=output_dir,
-        manifest_path=manifest_path,
-        qc_path=qc_path,
-        generated_models=tuple(generated_models),
-        executed=config.execute,
-    )
+    manifest = dict(kind='ddsurfer_surface', version=2, subject_id=config.subject_id,
+        subject_root=str(config.subject_root.expanduser().resolve()), output_dir=str(output_dir),
+        input_dwi=str(config.input_bundle.dwi_path) if config.input_bundle is not None else None,
+        predict_mode=config.predict_mode, device=config.device, precision=config.precision,
+        upstream_commit=resources['upstream_commit'], resources=resources,
+        executed=config.execute, status='planned', outputs={})
+    qc = dict(subject_id=config.subject_id, status='planned', executed=False, model_count=0,
+              elapsed_seconds=0., error=None, human_review='pending')
+    products = []
+    started, failure = time.monotonic(), None
+    try:
+        if config.execute:
+            if not resources['available']:
+                raise FileNotFoundError('DDSurfer resources invalid: ' + ', '.join(resources['missing']))
+            manifest['status'] = 'running'
+            manifest['runtime'] = runtime_info(config.python_bin)
+            manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
+            inspected = inspect_subject_directory(config.subject_root, config.subject_id)
+            if inspected['mode'] == 'missing':
+                for candidate in (config.subject_root, config.subject_root / config.subject_id):
+                    required = [candidate / f'{config.subject_id}-dti-{name}-Reg.nii.gz' for name in
+                                ('FractionalAnisotropy', 'MinEigenvalue', 'MidEigenvalue', 'MaxEigenvalue', 'MeanDiffusivity')]
+                    required += [candidate / f'{config.subject_id}-mask-Reg.nii.gz', candidate / f'{config.subject_id}-b0ToAtlasT2.tfm']
+                    if all(p.is_file() for p in required):
+                        inspected = dict(mode='legacy_registered', subject_dir=str(candidate))
+                        break
+            native_dir = output_dir / 'pred_results_SlicerDDSurfer/native' / config.subject_id
+            if config.input_bundle is not None or inspected['mode'] == 'subject_root':
+                command, env = _raw_command(config, resources, output_dir)
+                run_backend(command, python_bin=config.python_bin, env=env, log=log,
+                            log_path=output_dir / 'backend.log')
+                upstream = output_dir / 'upstream' / config.subject_id
+                native_dir.mkdir(parents=True, exist_ok=True)
+                for hemi in ('lh', 'rh'):
+                    for kind in ('white', 'pial') if config.predict_mode == 'all' else ('white',):
+                        shutil.copy2(upstream / 'ddsurfer' / f'{hemi}.{kind}.obj', native_dir / f'{hemi}.{kind}.obj')
+                manifest['upstream_pipeline'] = json.loads((upstream / 'logs/pipeline.json').read_text())
+                manifest['outputs']['native_dti'] = str(upstream / 'dti')
+            elif inspected['mode'] != 'missing':
+                _run_registered(config, resources, output_dir, Path(inspected['subject_dir']))
+            else:
+                raise FileNotFoundError(f'No DDSurfer subject input: {config.subject_root}')
+            products, checks = native_products(native_dir, config.subject_id, config.predict_mode)
+            qc.update(status='completed', executed=True, model_count=len(products), surfaces=checks,
+                      automatic_qc_passed=all(c['finite'] and c['watertight'] and c['euler_number'] == 2 for c in checks.values()))
+            manifest['outputs']['models'] = list(map(str, products))
+            manifest['outputs']['indexed_RAS_models'] = [c['indexed_master'] for c in checks.values()]
+            manifest['status'] = 'completed'
+    except Exception as exc:
+        failure = exc
+        manifest['status'] = 'failed'
+        qc.update(status='failed', executed=config.execute, error=str(exc), automatic_qc_passed=False)
+    finally:
+        qc['elapsed_seconds'] = time.monotonic() - started
+        manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+        qc_path.write_text(json.dumps(qc, indent=2) + '\n', encoding='utf-8')
+    if failure is not None:
+        raise RuntimeError(f'DDSurfer surface execution failed: {failure}') from failure
+    if log:
+        log(f'[Surface] Manifest: {manifest_path}')
+    return SurfaceResult(config.subject_id, output_dir, manifest_path, qc_path, tuple(products), config.execute)

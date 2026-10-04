@@ -6,6 +6,8 @@ SlicerDDSurfer 是一个 3D Slicer scripted module，用于扩散 MRI 的解剖�
 
 **English README:** [README.md](README.md)
 
+**DDSurfer 后端更新（2026-10-04）：** 已同步上游推理、四份 TANet 权重、变换后的初始化表面及 1 mm 图谱。迁移说明、运行环境选择与真实数据验证记录见 [同步与验证说明](docs/release/DDSURFER_SYNC_20261004.md)。
+
 ## 功能概览
 
 - Slicer 图形界面：设置 subject-root、依赖检查、run plan、后台运行和结果查看。

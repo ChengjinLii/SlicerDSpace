@@ -71,6 +71,14 @@ includes it; do not assume it is as permissive as BSD-3-Clause.
 
 ## Method papers
 
+The current DDSurfer runtime snapshot is under `surface/ddsurfer_backend/`.
+Its original source revision and per-file checksums are recorded in
+`UPSTREAM.json`; its weights and templates are distributed separately through
+the model-asset manifest. The source checkout supplied for this synchronization
+does not contain an upstream LICENSE file. This snapshot does not establish
+additional redistribution rights; confirm source, weight and atlas terms with
+the authors before publishing a release or DOI archive.
+
 `docs/assets/MODEL_ASSET_TERMS.md` states that the DDSeg and DDParcel model
 weights each "require ... citation of the peer-reviewed [DDSeg/DDParcel]
 method paper." The DDSurfer, DDSeg, and DDParcel method papers are recorded

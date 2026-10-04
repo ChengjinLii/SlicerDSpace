@@ -111,6 +111,9 @@ class ProductOrchestratorConfig:
     postprocess_atlases: Optional[tuple[str, ...]] = None
     postprocess_force: bool = False
     atlas_t2: Optional[Path] = None
+    surface_atlas_t2: Optional[Path] = None
+    surface_python_bin: Optional[Path] = None
+    surface_precision: str = 'auto'
     model_assets_dir: Optional[Path] = None
     ddseg_device: str = "auto"
     surface_device: str = "auto"
@@ -1063,6 +1066,16 @@ def _surface_outputs(subject_root: Path, subject_id: str, output_root: Optional[
 
 
 def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+    from surface.backend_bridge import upstream_record
+    surface_root = subject_layout(subject_root, output_root=output_root).ddsurfer
+    try:
+        manifest = json.loads((surface_root / 'surface_manifest.json').read_text())
+        qc = json.loads((surface_root / 'surface_qc.json').read_text())
+        if (manifest.get('upstream_commit') != upstream_record()['commit']
+                or manifest.get('status') != 'completed' or not qc.get('automatic_qc_passed')):
+            return False
+    except (OSError, ValueError):
+        return False
     return outputs_readable(_surface_outputs(subject_root, subject_id, output_root).values())
 
 
@@ -1081,6 +1094,9 @@ def _surface_postprocess_native_dir(
 
 def _surface_postprocess_native_ready(native_dir: Path, subject_id: str, mode: str) -> bool:
     hemispheres = ("lh",) if mode == "left" else ("rh",) if mode == "right" else ("lh", "rh")
+    if all((native_dir / f'{hemisphere}.{surface}.obj').is_file()
+           for hemisphere in hemispheres for surface in ('white', 'pial')):
+        return True
     return all(
         (native_dir / f"{subject_id}_predicted_{surface}_{hemisphere}_orig.stl").is_file()
         for hemisphere in hemispheres
@@ -1125,9 +1141,36 @@ def _surface_postprocess_complete(
     output_root: Optional[Path] = None,
     *,
     mode: str = "whole",
+    native_dir: Optional[Path] = None,
+    atlases: Optional[tuple[str, ...]] = None,
 ) -> bool:
     outputs = _surface_postprocess_outputs(subject_root, subject_id, output_root)
     structural_root = outputs["manifest"].parent
+    try:
+        manifest = json.loads(outputs['manifest'].read_text())
+    except (OSError, ValueError):
+        return False
+    native_dir = native_dir or Path(manifest.get('native_dir') or
+                                    _surface_postprocess_native_dir(subject_root, subject_id, output_root))
+    hemis = ('lh',) if mode == 'left' else ('rh',) if mode == 'right' else ('lh', 'rh')
+    if (manifest.get('kind') == 'ddsurfer_surface_only_postprocess' or
+            any((native_dir / f'{hemi}.{kind}.obj').is_file() for hemi in hemis for kind in ('white', 'pial'))):
+        from surface.backend_bridge import native_surface_hashes, upstream_record
+        try:
+            current = native_surface_hashes(native_dir, mode)
+            if (manifest.get('status') != 'completed'
+                    or manifest.get('upstream_commit') != upstream_record()['commit']
+                    or any(manifest.get('native_sha256', {}).get(k) != v for k, v in current.items())):
+                return False
+            expected_atlases = list(atlases or ('aparc', 'aparc.a2009s'))
+            if manifest.get('cache_signature', {}).get('atlases') != expected_atlases:
+                return False
+            if not all(_nonempty_file(structural_root / 'label' / f'{hemi}.{atlas}.annot')
+                       and _nonempty_file(outputs['stats'] / f'{hemi}.{atlas}.stats')
+                       for hemi in hemis for atlas in expected_atlases):
+                return False
+        except (OSError, ValueError):
+            return False
     return (
         _nonempty_file(outputs["manifest"])
         and _qc_completed(outputs["qc"])
@@ -1531,11 +1574,15 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         if target == "surface":
             return _surface_complete(subject_root, config.subject_id, output_root)
         if target == "surface_postprocess":
+            if config.postprocess_force:
+                return False
             return _surface_postprocess_complete(
                 subject_root,
                 config.subject_id,
                 output_root,
                 mode=config.postprocess_mode,
+                native_dir=_resolve_optional_path(config.postprocess_native_dir),
+                atlases=config.postprocess_atlases,
             )
         if target == "microstructure":
             return _microstructure_dti_complete(subject_root, config.subject_id, output_root)
@@ -1708,15 +1755,19 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             wmparc_path = _surface_postprocess_wmparc_path(config.subject_id, mri_dir)
             native_will_run = explicit_native_dir is None and available.get("surface", False)
             parcellation_will_run = explicit_mri_dir is None and available.get("parcellation", False)
+            current_backend = config.postprocess_backend_root is None and (
+                native_will_run or (native_dir / 'lh.white.obj').is_file() or (native_dir / 'rh.white.obj').is_file())
             dependencies = {
                 "surface": "available" if native_ready else "will_run" if native_will_run else "missing",
-                "parcellation": "available" if wmparc_path else "will_run" if parcellation_will_run else "missing",
+                "parcellation": 'not_required' if current_backend else "available" if wmparc_path else "will_run" if parcellation_will_run else "missing",
             }
-            if config.resume and _surface_postprocess_complete(
+            if config.resume and not config.postprocess_force and _surface_postprocess_complete(
                 subject_root,
                 config.subject_id,
                 output_root,
                 mode=config.postprocess_mode,
+                native_dir=explicit_native_dir,
+                atlases=config.postprocess_atlases,
             ):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=postprocess_outputs)
             elif explicit_native_dir is not None and not explicit_native_dir.is_dir():
@@ -1734,7 +1785,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                     dependencies=dependencies,
                     provides=False,
                 )
-            elif wmparc_path is None and not parcellation_will_run:
+            elif not current_backend and wmparc_path is None and not parcellation_will_run:
                 add(
                     target,
                     "blocked",
@@ -2897,7 +2948,9 @@ def _run_subject_products_impl(
                 predict_mode="all",
                 device=surface_device,
                 model_assets_dir=model_assets_dir,
-                registration_atlas=atlas_t2,
+                registration_atlas=_resolve_optional_path(config.surface_atlas_t2),
+                python_bin=_resolve_optional_path(config.surface_python_bin),
+                precision=config.surface_precision,
                 execute=True,
                 input_bundle=(
                     _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir)
@@ -2935,11 +2988,13 @@ def _run_subject_products_impl(
 
     if "surface_postprocess" in run_targets:
         postprocess_outputs = _surface_postprocess_outputs(subject_root, config.subject_id, output_root)
-        if config.resume and _surface_postprocess_complete(
+        if config.resume and not config.postprocess_force and _surface_postprocess_complete(
             subject_root,
             config.subject_id,
             output_root,
             mode=config.postprocess_mode,
+            native_dir=_resolve_optional_path(config.postprocess_native_dir),
+            atlases=config.postprocess_atlases,
         ):
             tasks.append(
                 ProductTaskRecord(
@@ -2988,7 +3043,8 @@ def _run_subject_products_impl(
                         reason="missing DDSurfer *_orig.stl inputs; run Surface or provide postprocess_native_dir",
                     )
                 )
-            elif _surface_postprocess_wmparc_path(config.subject_id, mri_dir) is None:
+            elif (config.postprocess_backend_root is not None or
+                  not any((native_dir / f'{hemi}.white.obj').is_file() for hemi in ('lh', 'rh'))) and _surface_postprocess_wmparc_path(config.subject_id, mri_dir) is None:
                 tasks.append(
                     ProductTaskRecord(
                         name="surface.ddsurfer_postprocess",
@@ -3019,6 +3075,8 @@ def _run_subject_products_impl(
                     config.subject_id,
                     output_root,
                     mode=config.postprocess_mode,
+                    native_dir=native_dir,
+                    atlases=config.postprocess_atlases,
                 )
                 tasks.append(
                     ProductTaskRecord(
@@ -3957,6 +4015,9 @@ def _run_subject_products_impl(
         "atlas_t2": atlas_t2.as_posix(),
         "ddseg_device": config.ddseg_device,
         "surface_device": config.surface_device,
+        "surface_atlas_t2": config.surface_atlas_t2.expanduser().resolve().as_posix() if config.surface_atlas_t2 else None,
+        "surface_python_bin": config.surface_python_bin.expanduser().resolve().as_posix() if config.surface_python_bin else None,
+        "surface_precision": config.surface_precision,
         "resolved_ddseg_device": ddseg_device,
         "resolved_surface_device": surface_device,
         "select_streamlines": config.select_streamlines,

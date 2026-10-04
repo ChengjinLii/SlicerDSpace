@@ -58,16 +58,16 @@ TRANSLATIONS = {
         "surface": "Surface (native)",
         "surface_option": "Native white / pial STL",
         "surface_tooltip": (
-            "Run DDSurfer neural surface inference and produce native STL meshes only. "
+            "Run DDSurfer neural surface inference and produce indexed native RAS OBJ surfaces and Slicer STL meshes. "
             "This does not create a complete FreeSurfer subject directory or FreeSurfer-derived outputs."
         ),
         "surface_postprocess": "Surface postprocess",
         "surface_postprocess_option": "FreeSurfer-style postprocess",
         "surface_postprocess_tooltip": (
-            "Optional. Stage DDSurfer native surfaces and MRI inputs, then run the FreeSurfer-style postprocess. "
+            "Optional. Compute cortical annotations and surface metrics from DDSurfer white and pial surfaces. "
             "This does not run recon-all or produce a complete T1-derived FreeSurfer subject. "
-            "Requires a complete FreeSurfer installation, a valid license, and the postprocess repository. "
-            "Select Surface and Parcellation too unless completed native surfaces and wmparc already exist."
+            "Requires FreeSurfer and a valid license. The backend is included in this extension. "
+            "Select Surface too unless native surfaces already exist; DDParcel is optional for the current backend."
         ),
         "parcellation": "Parcellation",
         "parcellation_option": "DDParcel aparc / wmparc",
@@ -234,16 +234,16 @@ TRANSLATIONS = {
         "surface": "表面重建（原生）",
         "surface_option": "原生白质面 / 软脑膜面",
         "surface_tooltip": (
-            "运行 DDSurfer 神经网络表面推理，仅生成原生 STL 网格。"
+            "运行 DDSurfer 神经网络表面推理，生成保留顶点索引的原生 RAS OBJ 表面及 Slicer STL 网格。"
             "不会创建完整的 FreeSurfer 受试者目录或 FreeSurfer 派生产物。"
         ),
         "surface_postprocess": "表面后处理",
         "surface_postprocess_option": "FreeSurfer 风格后处理",
         "surface_postprocess_tooltip": (
-            "可选。暂存 DDSurfer 原生表面和 MRI 输入，然后运行 FreeSurfer 风格后处理。"
+            "可选。基于 DDSurfer 白质与软脑膜表面计算皮层标注及表面指标。"
             "它不会运行 recon-all，也不会生成基于 T1 的完整 FreeSurfer 受试者目录。"
-            "需要完整的 FreeSurfer 安装、有效许可证和后处理代码库。"
-            "除非已有完整的原生表面和 wmparc，否则也请选择“表面重建（原生）”与“脑区分割”。"
+            "需要 FreeSurfer 安装及有效许可证，后处理代码已随插件提供。"
+            "未生成原生表面时请同时选择表面重建；新版后处理无需强制运行 DDParcel。"
         ),
         "parcellation": "脑区分割",
         "parcellation_option": "DDParcel aparc / wmparc 标签",

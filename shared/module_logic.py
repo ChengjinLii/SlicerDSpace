@@ -114,7 +114,7 @@ class SharedLogicMixin:
         # the first-run wizard is responsible for configuring/downloading them.
         self.template_dir = self._resolve_template_dir(required=False)
         self.checkpoint_root = self._resolve_checkpoint_root(required=False)
-        self.template_volume = self.template_dir / "100307-FA.nii.gz"
+        self.template_volume = self.template_dir / "100HCP-population-mean-T2-1mm.nii.gz"
         self.registration_atlas = self._resolve_registration_atlas(required=False)
         self.logCallback = None
 
@@ -841,85 +841,28 @@ class SharedLogicMixin:
         return {"loaded": loaded, "reused": reused, "skipped": skipped, "deferred": deferred, "manifest_path": run_id}
 
     def _resolve_template_dir(self, *, required: bool = True) -> Path:
-        candidates = []
-        env_template = os.environ.get("DDSURFER_TEMPLATE_DIR")
-        if env_template:
-            candidates.append(Path(env_template))
-        candidates.extend(
-            model_asset_candidates("Resources/Data/template", repo_root=self.module_dir)
-        )
-        candidates.extend(
-            [
-                self.module_dir / "Resources" / "Data" / "template",
-                self.module_dir / "Resources" / "template",
-                self.module_dir / "surface" / "template",
-                self.module_dir / "template",
-                self.module_dir.parent / "template",
-            ]
-        )
-        for candidate in candidates:
-            if candidate and candidate.exists():
-                template_file = candidate / "100307-FA.nii.gz"
-                if template_file.exists():
-                    return candidate
-        if not required and candidates:
-            return candidates[0].expanduser()
-        raise FileNotFoundError(
-            "Unable to locate SlicerDDSurfer template directory. "
-            "Provide DDSURFER_TEMPLATE_DIR or ensure template assets are bundled with the module."
-        )
+        from surface.pipeline import resolve_surface_template_dir
+        resolved = resolve_surface_template_dir()
+        if resolved is not None:
+            return resolved
+        if not required:
+            return self.module_dir / 'surface/template'
+        raise FileNotFoundError('Download the current DDSurfer surface asset profile first.')
 
     def _resolve_checkpoint_root(self, *, required: bool = True) -> Path:
-        candidates = []
-        env_ckpt = os.environ.get("DDSURFER_CHECKPOINT_DIR")
-        if env_ckpt:
-            candidates.append(Path(env_ckpt))
-        candidates.extend(
-            model_asset_candidates("Resources/Data/ckpts", repo_root=self.module_dir)
-        )
-        candidates.extend(
-            [
-                self.module_dir / "Resources" / "Data" / "ckpts",
-                self.module_dir / "Resources" / "ckpts",
-                self.module_dir / "surface" / "ckpts",
-                self.module_dir / "ckpts",
-                self.module_dir.parent / "ckpts",
-            ]
-        )
-        for candidate in candidates:
-            hcp_dir = candidate / "hcp"
-            if candidate and hcp_dir.exists():
-                return candidate
-        if not required and candidates:
-            return candidates[0].expanduser()
-        raise FileNotFoundError(
-            "Unable to locate SlicerDDSurfer checkpoint directory. "
-            "Provide DDSURFER_CHECKPOINT_DIR or ensure checkpoints are bundled with the module."
-        )
+        from surface.pipeline import resolve_surface_checkpoint_root
+        resolved = resolve_surface_checkpoint_root()
+        if resolved is not None:
+            return resolved
+        if not required:
+            return self.module_dir / 'surface/weights'
+        raise FileNotFoundError('Download the current DDSurfer surface asset profile first.')
 
     def _resolve_registration_atlas(self, *, required: bool = True) -> Path:
-        candidates = []
-        env_atlas = os.environ.get("DDSURFER_REGISTRATION_ATLAS")
-        if env_atlas:
-            candidates.append(Path(env_atlas))
-        candidates.extend(
-            model_asset_candidates(
-                "Resources/Data/100HCP-population-mean-T2.nii.gz",
-                repo_root=self.module_dir,
-            )
-        )
-        candidates.extend(
-            [
-                self.module_dir / "Resources" / "Data" / "100HCP-population-mean-T2.nii.gz",
-                self.module_dir / "Resources" / "100HCP-population-mean-T2.nii.gz",
-            ]
-        )
-        for candidate in candidates:
-            if candidate and candidate.exists():
-                return candidate
-        if not required and candidates:
-            return candidates[0].expanduser()
-        raise FileNotFoundError(
-            "Unable to locate the registration atlas for raw-input DDSurfer execution. "
-            "Provide DDSURFER_REGISTRATION_ATLAS or bundle 100HCP-population-mean-T2.nii.gz under Resources/Data."
-        )
+        from surface.pipeline import resolve_surface_registration_atlas
+        resolved = resolve_surface_registration_atlas()
+        if resolved is not None:
+            return resolved
+        if not required:
+            return self.module_dir / 'surface/template/100HCP-population-mean-T2-1mm.nii.gz'
+        raise FileNotFoundError('Download the current DDSurfer surface asset profile first.')

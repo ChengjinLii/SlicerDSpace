@@ -38,7 +38,7 @@ class SurfacePipelineTest(unittest.TestCase):
             self.assertIn("available", manifest["resources"])
             self.assertEqual(qc["status"], "planned")
 
-    def test_resource_inspection_accepts_explicit_fake_assets(self) -> None:
+    def test_resource_inspection_rejects_legacy_assets(self) -> None:
         from surface import SurfaceConfig, inspect_surface_resources
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -71,8 +71,8 @@ class SurfacePipelineTest(unittest.TestCase):
                 )
             )
 
-            self.assertTrue(status["available"])
-            self.assertEqual(status["missing"], [])
+            self.assertFalse(status["available"])
+            self.assertTrue(status["missing"])
 
 
 if __name__ == "__main__":

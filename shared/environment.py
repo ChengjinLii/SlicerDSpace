@@ -1101,19 +1101,19 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             _add_deep_learning_stack(specs, target)
             _device(specs, target=target, device=config.surface_device, python_executable=config.python_executable)
             template_path, template_candidates, template_notes = _model_asset_spec_path(
-                config, "Resources/Data/template/100307-FA.nii.gz"
+                config, "surface/template/ddsurfer_lh_template.obj"
             )
             atlas_path, atlas_candidates, atlas_notes = _model_asset_spec_path(
-                config, "Resources/Data/100HCP-population-mean-T2.nii.gz"
+                config, "surface/template/100HCP-population-mean-T2-1mm.nii.gz"
             )
             checkpoint_path, checkpoint_candidates, checkpoint_notes = _model_asset_spec_path(
-                config, "Resources/Data/ckpts/hcp"
+                config, "surface/weights/manifest.json"
             )
             _path(
                 specs,
                 target=target,
                 key="ddsurfer_template",
-                label="DDSurfer template 100307-FA.nii.gz",
+                label="DDSurfer transformed left template",
                 path=template_path,
                 path_kind="file",
                 group="model-resources",
@@ -1137,14 +1137,24 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 specs,
                 target=target,
                 key="ddsurfer_checkpoints",
-                label="DDSurfer HCP checkpoints",
+                label="DDSurfer model release manifest",
                 path=checkpoint_path,
-                path_kind="nonempty_dir",
+                path_kind="file",
                 group="model-resources",
                 notes=checkpoint_notes,
                 discovery_source="model asset root",
                 common_paths=checkpoint_candidates,
             )
+            for relative in (
+                'surface/template/ddsurfer_rh_template.obj', 'surface/weights/SHA256SUMS',
+                'surface/weights/ddsurfer_lh_wm.pt', 'surface/weights/ddsurfer_rh_wm.pt',
+                'surface/weights/ddsurfer_lh_pial.pt', 'surface/weights/ddsurfer_rh_pial.pt',
+            ):
+                path, candidates, notes = _model_asset_spec_path(config, relative)
+                _path(specs, target=target, key='ddsurfer_' + Path(relative).name.replace('.', '_'),
+                      label='DDSurfer ' + Path(relative).name, path=path, path_kind='file',
+                      group='model-resources', notes=notes, discovery_source='model asset root',
+                      common_paths=candidates)
 
         if target == "surface_postprocess":
             _add_core_python(specs, target)

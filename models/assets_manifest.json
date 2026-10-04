@@ -50,34 +50,6 @@
       "sha256": "b93f2272e4cf544727daa7b65018fb04003f3e4c25863610394332062de95bb7",
       "size_bytes": 39100303
     },
-    "Resources/Data/ckpts/hcp/DDCSR_pial_lh_Full_DualStream_no_b0_Cascaded.pt": {
-      "sha256": "dc78230c3b2ed831ff058555765ce4358f7fe005da99733ab2c0ee35afe64c21",
-      "size_bytes": 2415230
-    },
-    "Resources/Data/ckpts/hcp/DDCSR_pial_rh_Full_DualStream_no_b0_Cascaded.pt": {
-      "sha256": "4b95141f5870fbe830838ed8ec84385e914aff719cbf44a667c0e7f348f39c3c",
-      "size_bytes": 2420194
-    },
-    "Resources/Data/ckpts/hcp/DDCSR_white_lh_Full_DualStream_no_b0_Cascaded.pt": {
-      "sha256": "ca5782eb16591d6fe49f232d5326826611e579b203ecf6d289e55e0383348858",
-      "size_bytes": 12686434
-    },
-    "Resources/Data/ckpts/hcp/DDCSR_white_rh_Full_DualStream_no_b0_Cascaded.pt": {
-      "sha256": "03b85457c5d547d8315167e7adf347a6cf9583404b88666ad3e11a19f01cc9e6",
-      "size_bytes": 12687796
-    },
-    "Resources/Data/template/100307-FA.nii.gz": {
-      "sha256": "4e990cdaa733b3e021d710abe2f4f24920af2b25f6e6dfb63846bfe1071ce069",
-      "size_bytes": 5825886
-    },
-    "Resources/Data/template/hcp_hemi-left_init_160k.obj": {
-      "sha256": "8655ced8fb79dd04253b10cc8694be6e8789d23afba955fb42ac69d92c85b0cd",
-      "size_bytes": 13280597
-    },
-    "Resources/Data/template/hcp_hemi-right_init_160k.obj": {
-      "sha256": "f825b4978edb25bee55c4d8dda6aae5f216cd421d2cc97759114a0fe3ff992c1",
-      "size_bytes": 13419663
-    },
     "parcellation/conversion/tests/data/CONVERTED_WIP_dti_ax_601.nii.gz": {
       "sha256": "d5a797f5ed5ca3ab0c34b76a2af14874120db47b25f51d000d6d5037a5d4b03e",
       "size_bytes": 3205521
@@ -166,21 +138,72 @@
       "sha256": "5a150b5654d8f31ac03549bfd952aad40f176ffcd2c7bfb359ed9aaf3785612b",
       "size_bytes": 124476546
     },
-    "surface/template/100307-FA.nii.gz": {
-      "sha256": "4e990cdaa733b3e021d710abe2f4f24920af2b25f6e6dfb63846bfe1071ce069",
-      "size_bytes": 5825886
-    },
-    "surface/template/hcp_hemi-left_init_160k.obj": {
-      "sha256": "8655ced8fb79dd04253b10cc8694be6e8789d23afba955fb42ac69d92c85b0cd",
-      "size_bytes": 13280597
-    },
-    "surface/template/hcp_hemi-right_init_160k.obj": {
-      "sha256": "f825b4978edb25bee55c4d8dda6aae5f216cd421d2cc97759114a0fe3ff992c1",
-      "size_bytes": 13419663
-    },
     "sentinel/slicerdsurfer_sentinel.txt": {
       "sha256": "3a7dfbbf9ef3f95b485e5a412160a689448a6d31dd79202833f8c30ba6cc66f2",
       "size_bytes": 150,
+      "source_ids": [
+        "slicerdsurfer_models_git"
+      ]
+    },
+    "surface/weights/manifest.json": {
+      "sha256": "134b3a3e70a412a9c4722619b8428cf8aeb3a0e324ad40850b2e679d9180bfc6",
+      "size_bytes": 1641,
+      "source_ids": [
+        "slicerdsurfer_models_git"
+      ]
+    },
+    "surface/weights/SHA256SUMS": {
+      "sha256": "bccb1efa6cba8bc251e38f24dab2159cc13ffcd3163d549d953aeb836a1fe927",
+      "size_bytes": 340,
+      "source_ids": [
+        "slicerdsurfer_models_git"
+      ]
+    },
+    "surface/weights/ddsurfer_lh_wm.pt": {
+      "sha256": "0441f8991d2be2aa65c68fa7454b068d92f73089bdbd548b45f61a867ed5fa8f",
+      "size_bytes": 45716667,
+      "source_ids": [
+        "slicerdsurfer_models_git"
+      ]
+    },
+    "surface/weights/ddsurfer_rh_wm.pt": {
+      "sha256": "ec6e2c6844fae44a61cda92ae369c3f19b5c2d0c9452e4391ed142e2ab4c0030",
+      "size_bytes": 45716667,
+      "source_ids": [
+        "slicerdsurfer_models_git"
+      ]
+    },
+    "surface/weights/ddsurfer_lh_pial.pt": {
+      "sha256": "ac5a5f5b30fbb27627372447295e34f614e4b71e3f70551e44af88a635d97c27",
+      "size_bytes": 45718165,
+      "source_ids": [
+        "slicerdsurfer_models_git"
+      ]
+    },
+    "surface/weights/ddsurfer_rh_pial.pt": {
+      "sha256": "d22ed9df70e618f5e2c2319619aab3418388ce271427925bf15baf5bf3216a24",
+      "size_bytes": 45718165,
+      "source_ids": [
+        "slicerdsurfer_models_git"
+      ]
+    },
+    "surface/template/ddsurfer_lh_template.obj": {
+      "sha256": "4da63ee7b02bd3b45a1164c6c030fdd0e18903c821b47cdd7fc9d492b0a9ed1c",
+      "size_bytes": 13275275,
+      "source_ids": [
+        "slicerdsurfer_models_git"
+      ]
+    },
+    "surface/template/ddsurfer_rh_template.obj": {
+      "sha256": "74186754cdac0510a595bab82818329703c9906384f1e6a8d1c8cad4eddaf1fe",
+      "size_bytes": 13420964,
+      "source_ids": [
+        "slicerdsurfer_models_git"
+      ]
+    },
+    "surface/template/100HCP-population-mean-T2-1mm.nii.gz": {
+      "sha256": "9c0f03a07b0967052d2be81bc359d188940f89794cd95c1369c48bc3a14e644a",
+      "size_bytes": 13803987,
       "source_ids": [
         "slicerdsurfer_models_git"
       ]
@@ -197,39 +220,39 @@
       ]
     },
     "surface": {
-      "description": "DDSurfer checkpoints, surface templates, and registration atlas.",
+      "description": "Manifest-configured DDSurfer TANet weights, transformed templates and 1-mm atlas.",
       "asset_groups": [
-        "DDCSR surface model weights",
-        "HCP-like registration/template images",
-        "surface initialization meshes"
+        "DDSurfer TANet surface model weights",
+        "1-mm registration atlas",
+        "transformed surface initialization meshes"
       ],
       "terms_notice": [
         "DDCSR surface weights, HCP-like templates, surface initialization meshes, and subject-derived FA examples are provided through the external SlicerDDSurfer-models asset source, but public redistribution and DOI-archive terms require author confirmation before manuscript submission.",
         "If redistribution terms cannot be confirmed, document an alternate access route in Data and Code Availability."
       ],
       "include_patterns": [
-        "Resources/Data/100HCP-population-mean-T2.nii.gz",
-        "Resources/Data/ckpts/hcp/**",
-        "Resources/Data/template/**",
+        "surface/weights/**",
         "surface/template/**"
       ],
       "required_paths": [
-        "Resources/Data/100HCP-population-mean-T2.nii.gz",
-        "Resources/Data/ckpts/hcp/DDCSR_pial_lh_Full_DualStream_no_b0_Cascaded.pt",
-        "Resources/Data/ckpts/hcp/DDCSR_pial_rh_Full_DualStream_no_b0_Cascaded.pt",
-        "Resources/Data/ckpts/hcp/DDCSR_white_lh_Full_DualStream_no_b0_Cascaded.pt",
-        "Resources/Data/ckpts/hcp/DDCSR_white_rh_Full_DualStream_no_b0_Cascaded.pt",
-        "Resources/Data/template/100307-FA.nii.gz",
-        "Resources/Data/template/hcp_hemi-left_init_160k.obj",
-        "Resources/Data/template/hcp_hemi-right_init_160k.obj",
-        "surface/template/100307-FA.nii.gz",
-        "surface/template/hcp_hemi-left_init_160k.obj",
-        "surface/template/hcp_hemi-right_init_160k.obj"
+        "surface/weights/manifest.json",
+        "surface/weights/SHA256SUMS",
+        "surface/weights/ddsurfer_lh_wm.pt",
+        "surface/weights/ddsurfer_rh_wm.pt",
+        "surface/weights/ddsurfer_lh_pial.pt",
+        "surface/weights/ddsurfer_rh_pial.pt",
+        "surface/template/ddsurfer_lh_template.obj",
+        "surface/template/ddsurfer_rh_template.obj",
+        "surface/template/100HCP-population-mean-T2-1mm.nii.gz"
       ],
       "external_overrides": [
         "DDSURFER_CHECKPOINT_DIR",
         "DDSURFER_TEMPLATE_DIR",
         "DDSURFER_REGISTRATION_ATLAS"
+      ],
+      "terms_notices": [
+        "DDSurfer weights, transformed templates and the 1-mm atlas are mirrored from the recorded upstream revision. Public redistribution and DOI-archive terms require author confirmation before publication.",
+        "Subject-level diffusion data are not bundled with this profile."
       ]
     },
     "segmentation": {
@@ -258,7 +281,8 @@
         "DDParcel weights are needed for parcellation. Confirm redistribution terms and cite the peer-reviewed DDParcel method paper before treating these weights as unrestricted public assets."
       ],
       "include_patterns": [
-        "parcellation/weights/**"
+        "parcellation/weights/**",
+        "Resources/Data/100HCP-population-mean-T2.nii.gz"
       ],
       "required_paths": [
         "parcellation/weights/Fused-Unet-v3-noMax-axial.pkl",
@@ -275,7 +299,8 @@
         "parcellation/weights/backbones/dti-MinEigenvalue-reg-NormMasked-sagittal.pkl",
         "parcellation/weights/backbones/dti-Trace-reg-NormMasked-axial.pkl",
         "parcellation/weights/backbones/dti-Trace-reg-NormMasked-coronal.pkl",
-        "parcellation/weights/backbones/dti-Trace-reg-NormMasked-sagittal.pkl"
+        "parcellation/weights/backbones/dti-Trace-reg-NormMasked-sagittal.pkl",
+        "Resources/Data/100HCP-population-mean-T2.nii.gz"
       ]
     },
     "core": {
@@ -312,5 +337,6 @@
       "description": "Every asset record declared by this manifest.",
       "all_lfs": true
     }
-  }
+  },
+  "ddsurfer_upstream_commit": "c3fa631b340c3e06eb75ab4f0f9ac9a288a25488"
 }

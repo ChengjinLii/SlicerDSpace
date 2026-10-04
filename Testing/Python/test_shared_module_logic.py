@@ -89,11 +89,11 @@ class SharedModuleLogicTest(unittest.TestCase):
                 logic = DummyLogic()
                 logic._initialize_shared_logic_state()
 
-            self.assertEqual(logic.template_dir, candidates["Resources/Data/template"])
-            self.assertEqual(logic.checkpoint_root, candidates["Resources/Data/ckpts"])
+            self.assertEqual(logic.template_dir, logic.module_dir / 'surface/template')
+            self.assertEqual(logic.checkpoint_root, logic.module_dir / 'surface/weights')
             self.assertEqual(
                 logic.registration_atlas,
-                candidates["Resources/Data/100HCP-population-mean-T2.nii.gz"],
+                logic.module_dir / 'surface/template/100HCP-population-mean-T2-1mm.nii.gz',
             )
 
     def test_vtk_tractogram_falls_back_to_model_node_without_slicerdmri(self) -> None:

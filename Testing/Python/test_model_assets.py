@@ -64,7 +64,9 @@ class ModelAssetsTest(unittest.TestCase):
         self.assertIn("github_lfs", plan.source_ids)
         self.assertIn("slicerdsurfer_models_git", plan.source_ids)
         self.assertIn("DDSURFER_CHECKPOINT_DIR", plan.external_overrides)
-        self.assertIn("DDCSR surface model weights", plan.asset_groups)
+        self.assertIn("DDSurfer TANet surface model weights", plan.asset_groups)
+        self.assertIn("surface/weights/ddsurfer_lh_wm.pt", plan.required_paths)
+        self.assertIn("surface/template/100HCP-population-mean-T2-1mm.nii.gz", plan.required_paths)
         self.assertTrue(any("redistribution" in notice for notice in plan.terms_notices))
 
     def test_manifest_prefers_independent_model_repository_source(self) -> None:

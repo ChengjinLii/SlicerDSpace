@@ -26,5 +26,6 @@ goal_completion_audit.md
 # restore them with scripts/download_model_assets.py when needed.
 /Resources/Data/
 /surface/template/
+/surface/weights/
 /segmentation/weights/
 /parcellation/weights/

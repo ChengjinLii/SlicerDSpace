@@ -6,6 +6,9 @@ import os
 import shutil
 import subprocess
 import sys
+import json
+import hashlib
+from uuid import uuid4
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
@@ -295,6 +298,17 @@ def run_ddsurfer_postprocess(
     *,
     log: Optional[Callable[[str], None]] = None,
 ) -> DDSurferPostprocessResult:
+    if (not config.subject_id.strip() or Path(config.subject_id).name != config.subject_id
+            or config.subject_id in ('.', '..', 'fsaverage')):
+        raise ValueError('subject_id must be a nonempty directory name')
+    if config.mode not in ('whole', 'left', 'right'):
+        raise ValueError('mode must be whole, left, or right')
+    if config.backend_root is None:
+        subject_root = _resolve_subject_root(config)
+        native_dir = _resolve_native_dir(config, subject_root)
+        hemis = ('lh',) if config.mode == 'left' else ('rh',) if config.mode == 'right' else ('lh', 'rh')
+        if all((native_dir / f'{hemi}.{kind}.obj').is_file() for hemi in hemis for kind in ('white', 'pial')):
+            return _run_current_postprocess(config, subject_root, native_dir, log)
     backend_root = (config.backend_root or _default_backend_root()).expanduser().resolve()
     run_script = backend_root / "run.sh"
     if not run_script.is_file():
@@ -386,3 +400,66 @@ def run_ddsurfer_postprocess(
         stats_root=stats_root,
         staged_input_dir=staged_input_dir,
     )
+
+
+def _run_current_postprocess(config, subject_root, native_dir, log):
+    from .backend_bridge import BACKEND_ROOT, native_surface_hashes, run_backend, sha256, upstream_record
+    layout = subject_layout(subject_root, output_root=config.output_root)
+    home = config.freesurfer_home or _default_freesurfer_home()
+    brain = config.mri_dir / 'brain.mgz' if config.mri_dir is not None else None
+    brain = brain if brain is not None and brain.is_file() else None
+    inputs = native_surface_hashes(native_dir, config.mode)
+    signature = dict(upstream_commit=upstream_record()['commit'], native_dir=str(native_dir),
+                     native_sha256=inputs, mode=config.mode,
+                     atlases=list(config.atlases or ('aparc', 'aparc.a2009s')),
+                     freesurfer_home=str(home), brain_source=str(brain) if brain else None,
+                     brain_sha256=sha256(brain) if brain else None)
+    cache_key = hashlib.sha256(json.dumps(signature, sort_keys=True).encode()).hexdigest()[:20]
+    if config.force:
+        cache_key += '-' + uuid4().hex[:12]
+    runtime = layout.structural / 'cache/ddsurfer_surface_only' / cache_key
+    fs_subject = runtime / config.subject_id
+    command = [BACKEND_ROOT / 'postprocessing/pipeline.py', '--subject', config.subject_id,
+               '--output-root', runtime, '--hemi', 'both' if config.mode == 'whole' else config.mode,
+               '--atlases', ','.join(config.atlases or ('aparc', 'aparc.a2009s'))]
+    hemis = ('lh',) if config.mode == 'left' else ('rh',) if config.mode == 'right' else ('lh', 'rh')
+    for hemi in hemis:
+        for kind in ('white', 'pial'):
+            command += [f'--{hemi}-{kind}', native_dir / f'{hemi}.{kind}.obj']
+    if home is not None:
+        command += ['--freesurfer-home', home]
+    if brain is not None:
+        command += ['--brain-source', brain]
+    structural = layout.ddsurfer_postprocess
+    stats = layout.ddsurfer_postprocess_stats
+    structural.mkdir(parents=True, exist_ok=True)
+    stats.mkdir(parents=True, exist_ok=True)
+    manifest = dict(kind='ddsurfer_surface_only_postprocess', upstream_commit=upstream_record()['commit'],
+                    subject_id=config.subject_id, status='running', native_dir=str(native_dir),
+                    command=list(map(str, command)), requires_ddparcel=False,
+                    native_sha256=inputs, cache_signature=signature, cache_key=cache_key)
+    manifest_path, qc_path = structural / 'manifest.json', structural / 'qc.json'
+    manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
+    try:
+        run_backend(command, python_bin=config.python_bin, log=log, log_path=structural / 'backend.log')
+        checks = json.loads((fs_subject / 'logs/qc.json').read_text())
+        for source, destination in [(fs_subject / name, structural / name) for name in
+                                    ('surf', 'label', 'mri', 'fsaverage', 'logs')] + [(fs_subject / 'stats', stats / 'stats')]:
+            if destination.exists() and not destination.is_symlink():
+                backup = destination.parent / ('legacy_before_' + upstream_record()['commit'][:12]) / destination.name
+                backup.parent.mkdir(parents=True, exist_ok=True)
+                if backup.exists():
+                    raise FileExistsError(f'Existing postprocess output conflicts with preserved backup: {backup}')
+                destination.rename(backup)
+            _symlink_canonical_output(source, destination)
+        manifest['status'] = 'completed'
+        qc = dict(status='completed', upstream_commit=upstream_record()['commit'],
+                  automatic_qc=checks, human_review='pending')
+    except Exception as exc:
+        manifest['status'] = 'failed'
+        qc = dict(status='failed', error=str(exc))
+        raise
+    finally:
+        manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
+        qc_path.write_text(json.dumps(qc, indent=2) + '\n')
+    return DDSurferPostprocessResult(manifest_path, qc_path, structural, stats, native_dir)

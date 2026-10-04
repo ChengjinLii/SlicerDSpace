@@ -976,7 +976,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(items["parcellation"].status, "will_run")
             self.assertEqual(items["surface_postprocess"].status, "will_run")
             self.assertEqual(items["surface_postprocess"].dependencies["surface"], "will_run")
-            self.assertEqual(items["surface_postprocess"].dependencies["parcellation"], "will_run")
+            self.assertEqual(items["surface_postprocess"].dependencies["parcellation"], "not_required")
 
     def test_surface_postprocess_resume_and_fresh_run_require_all_core_files(self) -> None:
         from shared import ProductOrchestratorConfig, plan_subject_products, run_subject_products, subject_layout
@@ -1140,6 +1140,10 @@ class ProductOrchestratorTest(unittest.TestCase):
             ):
                 _write_test_surface(surface_dir / name)
             csd_tck = tract_dir / "100307_csd_act_ifod2.tck"
+            from surface.backend_bridge import upstream_record
+            (layout.ddsurfer / 'surface_manifest.json').write_text(json.dumps(
+                dict(status='completed', upstream_commit=upstream_record()['commit'])))
+            (layout.ddsurfer / 'surface_qc.json').write_text(json.dumps(dict(automatic_qc_passed=True)))
             csd_trk = tract_dir / "100307_csd_act_ifod2.trk"
             csd_vtk = tract_dir / "100307_csd_act_ifod2.vtk"
             csd_weights = tract_dir / "100307_csd_act_ifod2_sift2_weights.txt"
@@ -1474,6 +1478,10 @@ class ProductOrchestratorTest(unittest.TestCase):
                 "100307_predicted_pial_rh.stl",
             ):
                 _write_test_surface(surface_dir / name)
+            from surface.backend_bridge import upstream_record
+            (layout.ddsurfer / 'surface_manifest.json').write_text(json.dumps(
+                dict(status='completed', upstream_commit=upstream_record()['commit'])))
+            (layout.ddsurfer / 'surface_qc.json').write_text(json.dumps(dict(automatic_qc_passed=True)))
 
             plan = plan_subject_products(
                 ProductOrchestratorConfig(

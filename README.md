@@ -7,6 +7,11 @@ logs, quality-control files and provenance.
 
 **中文说明:** [README.zh-CN.md](README.zh-CN.md)
 
+**DDSurfer backend update (2026-10-04):** surface reconstruction now follows the
+matching upstream code, four TANet checkpoints, transformed templates and 1-mm
+atlas. See [synchronization and validation](docs/release/DDSURFER_SYNC_20261004.md)
+for migration, interpreter selection and reproducibility evidence.
+
 ## 5-Minute Start
 
 1. Install [3D Slicer](https://www.slicer.org/) and load the module using
