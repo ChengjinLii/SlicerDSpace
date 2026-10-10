@@ -14,6 +14,13 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class ProductFacadeTest(unittest.TestCase):
+    def test_root_catalog_reexports_shared_metadata(self) -> None:
+        import workflow_catalog
+        from shared import workflow_catalog as packaged_catalog
+
+        for name in workflow_catalog.__all__:
+            self.assertIs(getattr(workflow_catalog, name), getattr(packaged_catalog, name))
+
     def test_workflow_catalog_has_expected_areas(self) -> None:
         from workflow_catalog import IMPLEMENTED_WORKFLOW_AREAS, WORKFLOW_AREAS
 

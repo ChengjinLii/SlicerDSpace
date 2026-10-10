@@ -13,9 +13,15 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import run_postprocess_docker
+from surface import postprocess_docker
 
 
 class StageSubjectInputsTest(unittest.TestCase):
+    def test_root_entry_point_reexports_canonical_implementation(self) -> None:
+        for name in ("REQUIRED_MRI_FILES", "copy_file", "main", "parse_args",
+                     "run_docker", "run_postprocess", "stage_subject_inputs"):
+            self.assertIs(getattr(run_postprocess_docker, name), getattr(postprocess_docker, name))
+
     def _make_inputs(self, root: Path) -> tuple[Path, Path]:
         native_dir = root / "native"
         mri_dir = root / "mri"

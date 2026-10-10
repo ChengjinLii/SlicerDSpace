@@ -1,86 +1,15 @@
-"""Product-level workflow catalog for the SlicerDDSurfer extension.
+"""Compatibility imports; workflow metadata lives in shared.workflow_catalog."""
 
-This catalog keeps workflow taxonomy and navigation metadata in one place while
-implementation code lives under product packages.
-"""
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class WorkflowArea:
-    key: str
-    title: str
-    summary: str
-    package: str
-    status: str
-    navigation_label: str | None = None
-    navigation_target: str | None = None
-
-
-WORKFLOW_AREAS: tuple[WorkflowArea, ...] = (
-    WorkflowArea(
-        key="surface",
-        title="Surface",
-        summary="DDSurfer cortical surface reconstruction and native-space mesh export.",
-        package="surface",
-        status="implemented",
-        navigation_label="Surface (DDSurfer)",
-        navigation_target="LOCAL_DDSURFER",
-    ),
-    WorkflowArea(
-        key="parcellation",
-        title="Parcellation",
-        summary="DDParcel 101-region parcellation built on shared diffusion features.",
-        package="parcellation",
-        status="implemented",
-        navigation_label="Parcellation (DDParcel)",
-        navigation_target="DDParcel",
-    ),
-    WorkflowArea(
-        key="segmentation",
-        title="Segmentation",
-        summary="DDSeg WM/GM/CSF segmentation from DWI or cached DTI features.",
-        package="segmentation",
-        status="implemented",
-        navigation_label="Segmentation (DDSeg)",
-        navigation_target="DDSeg",
-    ),
-    WorkflowArea(
-        key="microstructure",
-        title="Microstructure",
-        summary="FA/MD, ROI-wise microstructure, Free Water, and AMICO NODDI.",
-        package="microstructure",
-        status="implemented",
-        navigation_label="Microstructure",
-        navigation_target="LOCAL_MICROSTRUCTURE",
-    ),
-    WorkflowArea(
-        key="tractography",
-        title="Tractography",
-        summary="DTI and CSD/ACT tracking, SAF extraction, and WMQL/WMA/TractCloud bundle parcellation.",
-        package="tractography",
-        status="implemented",
-    ),
-    WorkflowArea(
-        key="connectome",
-        title="Connectome",
-        summary="Python and MRtrix connectomes with parcel nodes and scalar, length, or SIFT2 edge weights.",
-        package="connectome",
-        status="implemented",
-    ),
+from shared.workflow_catalog import (
+    IMPLEMENTED_WORKFLOW_AREAS,
+    NAVIGATION_WORKFLOW_AREAS,
+    WORKFLOW_AREAS,
+    WorkflowArea,
 )
 
-
-IMPLEMENTED_WORKFLOW_AREAS: tuple[WorkflowArea, ...] = tuple(
-    area for area in WORKFLOW_AREAS if area.status == "implemented"
-)
-
-
-NAVIGATION_WORKFLOW_AREAS: tuple[WorkflowArea, ...] = tuple(
-    area
-    for area in WORKFLOW_AREAS
-    if area.navigation_label is not None and area.navigation_target is not None
-)
+__all__ = [
+    "WorkflowArea",
+    "WORKFLOW_AREAS",
+    "IMPLEMENTED_WORKFLOW_AREAS",
+    "NAVIGATION_WORKFLOW_AREAS",
+]

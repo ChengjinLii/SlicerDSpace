@@ -29,6 +29,18 @@ def _load_release_module():
 
 
 class CreateGithubReleaseTest(unittest.TestCase):
+    def test_default_assets_use_new_location_with_legacy_fallback(self) -> None:
+        module = _load_release_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "ignore/releases/v1.0"
+            legacy = root / "release_artifacts/v1.0"
+            self.assertEqual(module.default_assets(root, "v1.0")[0].parent, current)
+            legacy.mkdir(parents=True)
+            self.assertEqual(module.default_assets(root, "v1.0")[0].parent, legacy)
+            current.mkdir(parents=True)
+            self.assertEqual(module.default_assets(root, "v1.0")[0].parent, current)
+
     def _validated_plan(self, module, root):
         notes = root / "notes.md"
         notes.write_text("Release notes")

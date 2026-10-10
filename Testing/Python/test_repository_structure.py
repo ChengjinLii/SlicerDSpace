@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import unittest
 import subprocess
+import ast
 from pathlib import Path
 
 
@@ -26,6 +27,7 @@ SCAN_ROOTS = (
     "tractography",
     "connectome",
     "workflow_catalog.py",
+    "shared/workflow_catalog.py",
 )
 ALLOWED_ROOT_FILES = {
     ".gitattributes",
@@ -41,7 +43,6 @@ ALLOWED_ROOT_FILES = {
     "SlicerDDSurfer.s4ext",
     "codemeta.json",
     "pyproject.toml",
-    "requirements-ci.txt",
     "run_postprocess_docker.py",
     "run_subject_pipeline.py",
     "THIRD_PARTY_NOTICES.md",
@@ -67,7 +68,7 @@ FORBIDDEN_TRACKED_ROOT_PATTERNS = (
 class RepositoryStructureTest(unittest.TestCase):
     def test_tracked_root_files_stay_small_and_intentional(self) -> None:
         result = subprocess.run(
-            ["git", "ls-files"],
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
             cwd=REPO_ROOT,
             check=True,
             text=True,
@@ -76,9 +77,34 @@ class RepositoryStructureTest(unittest.TestCase):
         root_files = {
             relative
             for relative in result.stdout.splitlines()
-            if relative and "/" not in relative
+            if relative and "/" not in relative and (REPO_ROOT / relative).is_file()
         }
         self.assertEqual(sorted(root_files - ALLOWED_ROOT_FILES), [])
+
+    def test_root_helpers_remain_thin_compatibility_entry_points(self) -> None:
+        for name in ("run_subject_pipeline.py", "run_postprocess_docker.py", "workflow_catalog.py"):
+            tree = ast.parse((REPO_ROOT / name).read_text(encoding="utf-8"))
+            implementations = [node for node in ast.walk(tree) if isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))]
+            self.assertEqual(implementations, [], name)
+
+    def test_ci_dependencies_and_local_outputs_have_dedicated_locations(self) -> None:
+        self.assertTrue((REPO_ROOT / "scripts/dev/requirements-ci.txt").is_file())
+        self.assertFalse((REPO_ROOT / "requirements-ci.txt").exists())
+        self.assertFalse((REPO_ROOT / "release_artifacts").exists())
+        for name in ("ci.yml", "release.yml"):
+            text = (REPO_ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
+            self.assertIn("-r scripts/dev/requirements-ci.txt", text)
+
+    def test_cache_settings_preserve_scientific_evidence(self) -> None:
+        project = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        self.assertIn('cache_dir = "ignore/cache/pytest"', project)
+        self.assertIn("PYTHONPYCACHEPREFIX ?= $(CURDIR)/ignore/cache/pycache", makefile)
+        cleanup = makefile.split("\nclean-local:\n", 1)[1].split("\nlint:\n", 1)[0]
+        self.assertNotIn("ignore/local_reports", cleanup)
+        self.assertNotIn("SMOKE_ROOT", cleanup)
+        self.assertNotIn("ignore/releases", cleanup)
 
     def test_non_project_artifacts_are_not_tracked(self) -> None:
         result = subprocess.run(

@@ -15,6 +15,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class ReleaseArtifactsTest(unittest.TestCase):
+    def test_default_output_is_outside_the_root_directory(self) -> None:
+        from scripts.build_release_artifacts import build_parser
+
+        self.assertEqual(build_parser().parse_args([]).output_dir,
+                         REPO_ROOT / "ignore/releases/v0.1.0")
+
     def test_build_release_artifacts_writes_code_only_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "artifacts"

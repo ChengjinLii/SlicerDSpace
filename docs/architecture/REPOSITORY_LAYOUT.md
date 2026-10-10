@@ -15,17 +15,23 @@ Keep only:
 - `SlicerDDSurfer.s4ext`: Slicer extension metadata.
 - `CMakeLists.txt`: extension packaging.
 - `README.md` and `README.zh-CN.md`: short user entry points.
-- `LICENSE`, `CITATION.cff`, `codemeta.json`, `.zenodo.json`: project metadata.
-- `Makefile`, `pyproject.toml`, `requirements-ci.txt`: development and CI entry points.
+- `LICENSE`, `THIRD_PARTY_NOTICES.md`, `CITATION.cff`, `codemeta.json`,
+  `.zenodo.json`, `.gitattributes`, `.gitignore`: licensing and project metadata.
+- `Makefile`, `pyproject.toml`: development and test configuration.
 - `run_subject_pipeline.py`: stable CLI entry point documented for users.
-- `run_postprocess_docker.py`: legacy container helper retained for compatibility.
+- `run_postprocess_docker.py`: thin compatibility entry point; implementation
+  lives in `surface/postprocess_docker.py`.
 - `workflow_catalog.py`: stable source-tree compatibility entry point for
-  workflow metadata. It is intentionally not installed as a top-level Slicer
-  module resource.
+  workflow metadata in `shared/workflow_catalog.py`. It is intentionally not
+  installed as a top-level Slicer module resource.
 
 Do not add generated reports, manuscripts, release drafts, validation outputs,
 or long design notes to the root directory. Put durable documentation under
-`docs/`; put local reports under ignored `ignore/` or `local_reports/`.
+`docs/`; put local reports and generated evidence under ignored `ignore/`.
+
+The root compatibility files contain no processing implementations. Existing
+`python3 run_subject_pipeline.py ...`, `python3 run_postprocess_docker.py ...`
+and `import workflow_catalog` calls remain supported.
 
 ## Documentation
 
@@ -49,6 +55,30 @@ The current layout keeps each processing domain importable as a plain Python
 package. A future Slicer-style `Modules/Scripted/SlicerDDSurfer/` migration is
 possible, but it should be done as a dedicated compatibility release because it
 would affect module loading, packaging paths and documented CLI examples.
+
+## Developer Tools And Local Outputs
+
+- `scripts/`: command-line maintenance, installation, release and audit tools.
+- `scripts/dev/requirements-ci.txt`: pinned fast-test dependencies, separate
+  from scientific runtime installation. Install with
+  `python3 -m pip install -r scripts/dev/requirements-ci.txt`.
+- `ignore/releases/<tag>/`: generated release manifests, lockfiles and copied
+  validation reports. `scripts/build_release_artifacts.py` writes here by
+  default; `scripts/create_github_release.py` consumes the same location.
+  The uploader can still read an existing legacy `release_artifacts/<tag>/`
+  workspace if the new tag directory does not exist.
+- `ignore/cache/`: pytest cache and Python bytecode produced through `make`.
+  Direct Python invocations may create ignored `__pycache__/` directories;
+  they are disposable caches, not source files.
+- `ignore/archives/`: local material moved aside without deleting it.
+- `ignore/validation/` and `ignore/local_reports/`: reproducibility evidence
+  and local diagnostics. They are not shipped as runtime code.
+- `website/`: public presentation assets, separate from the Slicer module.
+
+`make clean-local` removes caches only. It does not remove release evidence,
+scientific outputs, local reports or a configured smoke-test workspace.
+The 2026-10-10 root cleanup archived the existing caches and moved the release
+directory without altering its contents or regenerating QC records.
 
 ## Resources And Assets
 

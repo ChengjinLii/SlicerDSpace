@@ -5,6 +5,7 @@ python_files = ["test_*.py"]
 python_classes = ["*Test", "Test*"]
 python_functions = ["test_*"]
 addopts = "-q"
+cache_dir = "ignore/cache/pytest"
 
 [tool.ruff]
 line-length = 120

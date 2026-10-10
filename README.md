@@ -7,6 +7,10 @@ logs, quality-control files and provenance.
 
 **中文说明:** [README.zh-CN.md](README.zh-CN.md)
 
+**Source navigation:** [repository layout](docs/architecture/REPOSITORY_LAYOUT.md).
+Processing code lives in the domain packages, tools in `scripts/`, and local
+reports, caches and release files in ignored `ignore/`.
+
 **DDSurfer backend update (2026-10-04):** surface reconstruction now follows the
 matching upstream code, four TANet checkpoints, transformed templates and 1-mm
 atlas. See [synchronization and validation](docs/release/DDSURFER_SYNC_20261004.md)

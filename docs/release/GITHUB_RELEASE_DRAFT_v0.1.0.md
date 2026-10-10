@@ -31,7 +31,7 @@ and provenance capture.
 - Explicit model-asset terms governance in `docs/assets/MODEL_ASSET_TERMS.md`.
 - Release metadata and validation support through `docs/release/RELEASE.md`,
   `docs/release/DOI_ARCHIVE_PREP.md`, `CITATION.cff`, `codemeta.json`,
-  `.zenodo.json` and `release_artifacts/v0.1.0`.
+  `.zenodo.json` and `ignore/releases/v0.1.0`.
 - Slicer UI and CLI support for external dependency path overrides,
   target-aware environment checking and conservative dependency installation.
 - Representative output-tree and release-validation reporting for the
@@ -64,7 +64,7 @@ SMOKE_ASSET_MODE=download scripts/smoke_fresh_clone.sh
 
 ### Recommended Attachments
 
-Attach these files from `release_artifacts/v0.1.0/`:
+Attach these files from `ignore/releases/v0.1.0/`:
 
 - `model_assets_core_lock.json`
 - `code_only_archive_manifest.json`
@@ -142,8 +142,8 @@ gh release create v0.1.0 \
   --title "SlicerDDSurfer v0.1.0" \
   --notes-file docs/release/GITHUB_RELEASE_DRAFT_v0.1.0.md \
   --draft \
-  release_artifacts/v0.1.0/model_assets_core_lock.json \
-  release_artifacts/v0.1.0/code_only_archive_manifest.json \
-  release_artifacts/v0.1.0/asset_exclusion_checklist.md \
-  release_artifacts/v0.1.0/release_validation_report.json
+  ignore/releases/v0.1.0/model_assets_core_lock.json \
+  ignore/releases/v0.1.0/code_only_archive_manifest.json \
+  ignore/releases/v0.1.0/asset_exclusion_checklist.md \
+  ignore/releases/v0.1.0/release_validation_report.json
 ```

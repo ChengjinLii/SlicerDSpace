@@ -66,7 +66,11 @@ class ReleasePlan:
 
 
 def default_assets(repo_root: Path, tag: str) -> tuple[Path, ...]:
-    artifact_dir = repo_root / "release_artifacts" / tag
+    artifact_dir = repo_root / "ignore" / "releases" / tag
+    legacy_dir = repo_root / "release_artifacts" / tag
+    # Existing release workspaces remain usable without regenerating evidence.
+    if not artifact_dir.is_dir() and legacy_dir.is_dir():
+        artifact_dir = legacy_dir
     return tuple(artifact_dir / name for name in DEFAULT_ARTIFACT_NAMES)
 
 

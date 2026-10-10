@@ -1,4 +1,5 @@
 PYTHON ?= python3
+export PYTHONPYCACHEPREFIX ?= $(CURDIR)/ignore/cache/pycache
 SLICERDDSURFER_RELEASE_ARGS ?=
 SLICERDDSURFER_TEST_PATTERN ?= test_*.py
 SLICERDDSURFER_SMOKE_SCRIPT ?= Testing/Python/slicer_extension_install_smoke.py
@@ -18,7 +19,7 @@ help:
 	@echo "  make subject-report Generate subject-level HTML/JSON/Markdown reports from a run manifest."
 	@echo "  make protocol-benchmarks Generate benchmark CSV/JSON and publication-oriented figures."
 	@echo "  make install-plan   Write a dependency plan without mutating the system."
-	@echo "  make clean-local    Remove ignored local caches and generated smoke/report artifacts."
+	@echo "  make clean-local    Remove caches only; preserve reports and release evidence."
 	@echo "  make lint           Run ruff if installed."
 
 test-fast:
@@ -109,9 +110,7 @@ install-plan:
 clean-local:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	find . -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete
-	rm -rf .pytest_cache .ruff_cache build dist install_plan
-	rm -rf ignore/local_reports/fresh_clone_smoke
-	rm -rf "$${SMOKE_ROOT:-/tmp/slicerdsurfer-fresh-clone-smoke}"
+	rm -rf .pytest_cache .ruff_cache .mypy_cache ignore/cache
 
 lint:
 	$(PYTHON) -m ruff check .

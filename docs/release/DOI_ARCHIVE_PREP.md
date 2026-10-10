@@ -52,7 +52,7 @@ Use `.zenodo.json` as the starting metadata file. Before publishing:
 
 For the current `v0.1.0` GitHub Release page, use
 `docs/release/GITHUB_RELEASE_DRAFT_v0.1.0.md` as the release body and attach the generated
-code-only support files from `release_artifacts/v0.1.0/`. The helper
+code-only support files from `ignore/releases/v0.1.0/`. The helper
 `scripts/create_github_release.py` can create the draft release and upload these
 artifacts when `GITHUB_TOKEN` or `GH_TOKEN` is available; the manual GitHub
 Actions `Release` workflow can run the same helper with
