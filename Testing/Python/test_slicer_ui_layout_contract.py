@@ -64,7 +64,7 @@ class SlicerUiLayoutContractTest(unittest.TestCase):
                     and isinstance(node.func, ast.Attribute) and node.func.attr == "_setPipelineActive")
         flag = next(arg.value for arg in call.keywords if arg.arg == "preserve_status")
         self.assertIs(flag.value, True)
-        source = REPO_ROOT / "surface/module_widget.py"
+        source = REPO_ROOT / "anatomy/surface/module_widget.py"
         method = next(node for node in ast.walk(ast.parse(source.read_text())) if
                       isinstance(node, ast.FunctionDef) and node.name == "validateInputs")
         namespace = {}

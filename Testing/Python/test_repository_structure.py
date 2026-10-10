@@ -7,6 +7,7 @@ import unittest
 import subprocess
 import ast
 import tokenize
+import sys
 from importlib.util import resolve_name
 from pathlib import Path
 
@@ -22,9 +23,7 @@ LEGACY_PACKAGE_NAMES = (
 SCAN_ROOTS = (
     "SlicerDDSurfer.py",
     "shared",
-    "surface",
-    "parcellation",
-    "segmentation",
+    "anatomy",
     "microstructure",
     "tractography",
     "connectome",
@@ -60,6 +59,10 @@ FORBIDDEN_TRACKED_ASSET_PREFIXES = (
     "surface/template/",
     "segmentation/weights/",
     "parcellation/weights/",
+    "anatomy/surface/template/",
+    "anatomy/surface/weights/",
+    "anatomy/segmentation/weights/",
+    "anatomy/parcellation/weights/",
 )
 FORBIDDEN_TRACKED_ROOT_PATTERNS = (
     "GOAL_PROGRESS_",
@@ -72,16 +75,54 @@ RETIRED_SOURCE_PATHS = (
     "parcellation/models/losses.py",
     "parcellation/models/solver.py",
     "parcellation/models/organize_weights.sh",
+    "anatomy/surface/models",
+    "anatomy/surface/networks",
+    "anatomy/parcellation/models/losses.py",
+    "anatomy/parcellation/models/solver.py",
+    "anatomy/parcellation/models/organize_weights.sh",
 )
 RETIRED_MODULES = (
-    "surface.models",
-    "surface.networks",
-    "parcellation.models.losses",
-    "parcellation.models.solver",
+    "anatomy.surface.models",
+    "anatomy.surface.networks",
+    "anatomy.parcellation.models.losses",
+    "anatomy.parcellation.models.solver",
 )
+RETIRED_IMPORT_ROOTS = ("surface", "parcellation", "segmentation")
 
 
 class RepositoryStructureTest(unittest.TestCase):
+    def test_anatomical_sources_share_one_namespace(self) -> None:
+        self.assertTrue((REPO_ROOT / "anatomy/__init__.py").is_file())
+        for domain in ("segmentation", "parcellation", "surface"):
+            self.assertTrue((REPO_ROOT / "anatomy" / domain / "__init__.py").is_file())
+            self.assertFalse((REPO_ROOT / domain).exists(), domain)
+        cmake = (REPO_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+        self.assertIn('file(GLOB_RECURSE ANATOMY_PYTHON_SCRIPTS "anatomy/*.py")', cmake)
+        self.assertIn("${ANATOMY_PYTHON_SCRIPTS}", cmake)
+        self.assertIn("anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt", cmake)
+
+    def test_microstructure_lut_resolves_after_anatomy_migration(self) -> None:
+        from microstructure.pipeline import _default_lut_path
+        from connectome.pipeline import _default_lut_path as connectome_lut
+
+        lut = _default_lut_path()
+        self.assertTrue(lut.is_file())
+        self.assertEqual(lut, REPO_ROOT / "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt")
+        self.assertEqual(connectome_lut(), lut)
+
+    def test_top_level_anatomy_import_is_lightweight(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-c", "import anatomy, sys; assert not any(name in sys.modules for name in ('torch', 'slicer', 'vtk'))"],
+            cwd=REPO_ROOT, check=False, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_upstream_sync_keeps_the_external_asset_namespace(self) -> None:
+        source = (REPO_ROOT / "scripts/sync_ddsurfer_upstream.py").read_text(encoding="utf-8")
+        self.assertIn("ROOT / 'anatomy/surface/ddsurfer_backend'", source)
+        self.assertIn("relative = f'surface/{folder}/{name}'", source)
+        self.assertNotIn("relative = f'anatomy/surface/{folder}/{name}'", source)
+
     def test_retired_sources_are_not_part_of_the_current_checkout(self) -> None:
         for relative in RETIRED_SOURCE_PATHS:
             self.assertFalse((REPO_ROOT / relative).exists(), relative)
@@ -106,7 +147,8 @@ class RepositoryStructureTest(unittest.TestCase):
                     else:
                         continue
                     for name in imported:
-                        if any(name == retired or name.startswith(retired + ".") for retired in RETIRED_MODULES):
+                        if any(name == retired or name.startswith(retired + ".")
+                               for retired in (*RETIRED_MODULES, *RETIRED_IMPORT_ROOTS)):
                             offenders.append(f"{source.relative_to(REPO_ROOT)}:{node.lineno}: {name}")
         self.assertEqual(offenders, [])
 

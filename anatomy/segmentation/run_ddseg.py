@@ -4,12 +4,12 @@ import argparse
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from segmentation.config import DDSegConfig
-from segmentation.pipeline import run_ddseg
+from anatomy.segmentation.config import DDSegConfig
+from anatomy.segmentation.pipeline import run_ddseg
 
 
 def _path_or_none(value: str | None) -> Path | None:

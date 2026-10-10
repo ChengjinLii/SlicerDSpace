@@ -14,10 +14,13 @@ class StageSlicerExtensionTest(unittest.TestCase):
             module_dir = Path(str(result["module_dir"]))
             self.assertTrue((module_dir / "models" / "assets_manifest.json").is_file())
             self.assertTrue((module_dir / "shared" / "workflow_catalog.py").is_file())
-            self.assertTrue((module_dir / "surface" / "postprocess_docker.py").is_file())
-            self.assertTrue((module_dir / "surface" / "ddsurfer_backend" / "model" / "ddsurfer.py").is_file())
-            for retired in ("surface/models", "surface/networks", "parcellation/models/solver.py",
-                            "parcellation/models/losses.py", "parcellation/models/organize_weights.sh",
+            self.assertTrue((module_dir / "anatomy" / "__init__.py").is_file())
+            self.assertTrue((module_dir / "anatomy" / "surface" / "postprocess_docker.py").is_file())
+            self.assertTrue((module_dir / "anatomy" / "surface" / "ddsurfer_backend" / "model" / "ddsurfer.py").is_file())
+            for legacy in ("surface", "segmentation", "parcellation"):
+                self.assertFalse((module_dir / legacy).exists(), legacy)
+            for retired in ("anatomy/surface/models", "anatomy/surface/networks", "anatomy/parcellation/models/solver.py",
+                            "anatomy/parcellation/models/losses.py", "anatomy/parcellation/models/organize_weights.sh",
                             "docs/archive/legacy-copy-20260523"):
                 self.assertFalse((module_dir / retired).exists(), retired)
             self.assertEqual(sorted(path.name for path in module_dir.glob("*.py")), ["SlicerDDSurfer.py"])
@@ -31,6 +34,20 @@ class StageSlicerExtensionTest(unittest.TestCase):
             result = stage_extension(Path(tmp), slicer_version="Slicer-5.6", clean=True, link_mode="hardlink")
             module_dir = Path(str(result["module_dir"]))
             self.assertFalse((module_dir / "tractography" / "slicer_dmri_reference").exists())
+
+    def test_clean_restaging_removes_the_old_flat_packages(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = stage_extension(root, slicer_version="Slicer-5.10", clean=True, link_mode="copy")
+            module_dir = Path(str(result["module_dir"]))
+            for domain in ("surface", "parcellation", "segmentation"):
+                legacy = module_dir / domain
+                legacy.mkdir()
+                (legacy / "__init__.py").write_text("# previous installation\n", encoding="utf-8")
+            stage_extension(root, slicer_version="Slicer-5.10", clean=True, link_mode="copy")
+            for domain in ("surface", "parcellation", "segmentation"):
+                self.assertFalse((module_dir / domain).exists())
+                self.assertTrue((module_dir / "anatomy" / domain / "__init__.py").is_file())
 
 
 if __name__ == "__main__":

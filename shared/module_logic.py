@@ -108,7 +108,7 @@ class SharedLogicMixin:
 
     def _initialize_shared_logic_state(self) -> None:
         self.module_dir = Path(__file__).resolve().parent.parent
-        self.segmentation_dir = self.module_dir / "segmentation"
+        self.segmentation_dir = self.module_dir / "anatomy" / "segmentation"
         self._pipeline_modules: Optional[Dict[str, Any]] = None
         # Missing model assets must not prevent the module UI from opening:
         # the first-run wizard is responsible for configuring/downloading them.
@@ -220,9 +220,9 @@ class SharedLogicMixin:
         import importlib
 
         try:
-            preprocessing = importlib.import_module("surface.preprocessing")
-            prediction = importlib.import_module("surface.prediction")
-            postprocessing = importlib.import_module("surface.postprocessing")
+            preprocessing = importlib.import_module("anatomy.surface.preprocessing")
+            prediction = importlib.import_module("anatomy.surface.prediction")
+            postprocessing = importlib.import_module("anatomy.surface.postprocessing")
         except ImportError as exc:  # pragma: no cover - surfaced at runtime
             raise RuntimeError(
                 "Failed to import SlicerDDSurfer surface workflow code. Ensure surface preprocessing, prediction, and postprocessing modules are available."
@@ -841,7 +841,7 @@ class SharedLogicMixin:
         return {"loaded": loaded, "reused": reused, "skipped": skipped, "deferred": deferred, "manifest_path": run_id}
 
     def _resolve_template_dir(self, *, required: bool = True) -> Path:
-        from surface.pipeline import resolve_surface_template_dir
+        from anatomy.surface.pipeline import resolve_surface_template_dir
         resolved = resolve_surface_template_dir()
         if resolved is not None:
             return resolved
@@ -850,7 +850,7 @@ class SharedLogicMixin:
         raise FileNotFoundError('Download the current DDSurfer surface asset profile first.')
 
     def _resolve_checkpoint_root(self, *, required: bool = True) -> Path:
-        from surface.pipeline import resolve_surface_checkpoint_root
+        from anatomy.surface.pipeline import resolve_surface_checkpoint_root
         resolved = resolve_surface_checkpoint_root()
         if resolved is not None:
             return resolved
@@ -859,7 +859,7 @@ class SharedLogicMixin:
         raise FileNotFoundError('Download the current DDSurfer surface asset profile first.')
 
     def _resolve_registration_atlas(self, *, required: bool = True) -> Path:
-        from surface.pipeline import resolve_surface_registration_atlas
+        from anatomy.surface.pipeline import resolve_surface_registration_atlas
         resolved = resolve_surface_registration_atlas()
         if resolved is not None:
             return resolved

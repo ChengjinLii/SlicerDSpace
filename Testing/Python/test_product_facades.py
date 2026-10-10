@@ -38,8 +38,18 @@ class ProductFacadeTest(unittest.TestCase):
         )
         self.assertEqual([area.key for area in IMPLEMENTED_WORKFLOW_AREAS], keys)
 
+    def test_workflow_catalog_resolves_nested_anatomy_packages(self) -> None:
+        from importlib import import_module
+        from workflow_catalog import WORKFLOW_AREAS
+
+        for area in WORKFLOW_AREAS:
+            module = import_module(area.package)
+            self.assertEqual(module.__name__, area.package)
+            if area.key in {"surface", "parcellation", "segmentation"}:
+                self.assertEqual(area.package, f"anatomy.{area.key}")
+
     def test_surface_facade_exports_core_aliases(self) -> None:
-        from surface import (
+        from anatomy.surface import (
             SurfaceConfig,
             SurfacePostprocessingConfig,
             SurfacePredictionConfig,
@@ -61,9 +71,9 @@ class ProductFacadeTest(unittest.TestCase):
 
     def test_facade_modules_are_importable_without_forcing_heavy_dependencies(self) -> None:
         import microstructure
-        import parcellation
+        from anatomy import parcellation
         import preprocessing
-        import segmentation
+        from anatomy import segmentation
         import shared
 
         self.assertIn("MicrostructureConfig", microstructure.__all__)

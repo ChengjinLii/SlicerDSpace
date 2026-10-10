@@ -50,7 +50,7 @@ def _resolve_resource(explicit, env_key, relative, required_child=None, model_as
         return Path(explicit).expanduser().resolve()
     if os.environ.get(env_key):
         return Path(os.environ[env_key]).expanduser().resolve()
-    candidates = model_asset_candidates(relative, repo_root=Path(__file__).resolve().parents[1],
+    candidates = model_asset_candidates(relative, repo_root=Path(__file__).resolve().parents[2],
                                         explicit_root=model_assets_dir)
     for candidate in candidates:
         if (candidate / required_child if required_child else candidate).exists():
@@ -88,7 +88,7 @@ def inspect_surface_resources(config: SurfaceConfig) -> dict:
     if weights is not None and template is not None:
         try:
             model_config = json.loads((weights / 'manifest.json').read_text())
-            expected_assets = json.loads((Path(__file__).resolve().parents[1] / 'models/assets_manifest.json').read_text())['asset_records']
+            expected_assets = json.loads((Path(__file__).resolve().parents[2] / 'models/assets_manifest.json').read_text())['asset_records']
             for filename in ('manifest.json', 'SHA256SUMS'):
                 path = weights / filename
                 if sha256(path) != expected_assets[f'surface/weights/{filename}']['sha256']:

@@ -8,11 +8,11 @@ repository.
 
 ## FastSurfer-derived code (Apache License 2.0)
 
-- `parcellation/models/networks.py`
-- `parcellation/models/sub_module.py`
-- `parcellation/data_loader/augmentation.py`
-- `parcellation/data_loader/conform.py`
-- `parcellation/data_loader/load_neuroimaging_data.py`
+- `anatomy/parcellation/models/networks.py`
+- `anatomy/parcellation/models/sub_module.py`
+- `anatomy/parcellation/data_loader/augmentation.py`
+- `anatomy/parcellation/data_loader/conform.py`
+- `anatomy/parcellation/data_loader/load_neuroimaging_data.py`
 
 These files carry an in-file copyright header ("Copyright 2019 Image
 Analysis Lab, German Center for Neurodegenerative Diseases (DZNE), Bonn")
@@ -37,15 +37,15 @@ M. Chamberland, "Surface-based tracking for short association fibre
 tractography", NeuroImage 2022,
 [doi:10.1016/j.neuroimage.2022.119423](https://doi.org/10.1016/j.neuroimage.2022.119423).
 
-## `parcellation/conversion/` (NRRD/NHDR conversion utilities)
+## `anatomy/parcellation/conversion/` (NRRD/NHDR conversion utilities)
 
-- `parcellation/conversion/` (all files under this directory)
+- `anatomy/parcellation/conversion/` (all files under this directory)
 
 This code is attributed in-repo to the
 [pnlbwh/conversion](https://github.com/pnlbwh/conversion) project (Tashrif
-Billah): `parcellation/conversion/nhdr_write.py` writes
+Billah): `anatomy/parcellation/conversion/nhdr_write.py` writes
 `"See https://github.com/pnlbwh/conversion for more info"` directly into its
-output file header, and `parcellation/conversion/_version.py` records
+output file header, and `anatomy/parcellation/conversion/_version.py` records
 `__version__ = '2.4'`, consistent with that project's own versioning.
 
 **License status: not recorded in this repository.** No `LICENSE` file for
@@ -54,7 +54,7 @@ this code, and no license header in its source files, is present here.
 [github.com/pnlbwh/conversion](https://github.com/pnlbwh/conversion) before
 redistributing this code or a build that includes it.**
 
-## `parcellation/conversion/data/FreeSurferColorLUT.txt`
+## `anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt`
 
 This is FreeSurfer's own color lookup table (RCS header:
 `$Id: FreeSurferColorLUT.txt,v 1.105 2015/07/29 18:23:03 greve Exp $`),
@@ -69,7 +69,7 @@ includes it; do not assume it is as permissive as BSD-3-Clause.
 
 ## Method papers
 
-The current DDSurfer runtime snapshot is under `surface/ddsurfer_backend/`.
+The current DDSurfer runtime snapshot is under `anatomy/surface/ddsurfer_backend/`.
 Its original source revision and per-file checksums are recorded in
 `UPSTREAM.json`; its weights and templates are distributed separately through
 the model-asset manifest. The source checkout supplied for this synchronization

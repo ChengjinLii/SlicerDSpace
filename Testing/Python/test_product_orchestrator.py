@@ -1039,8 +1039,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                 def __init__(self, **kwargs) -> None:
                     self.__dict__.update(kwargs)
 
-            import surface
-
+            from anatomy import surface
             with mock.patch.dict(
                 surface.__dict__,
                 {
@@ -1140,7 +1139,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             ):
                 _write_test_surface(surface_dir / name)
             csd_tck = tract_dir / "100307_csd_act_ifod2.tck"
-            from surface.backend_bridge import upstream_record
+            from anatomy.surface.backend_bridge import upstream_record
             (layout.ddsurfer / 'surface_manifest.json').write_text(json.dumps(
                 dict(status='completed', upstream_commit=upstream_record()['commit'])))
             (layout.ddsurfer / 'surface_qc.json').write_text(json.dumps(dict(automatic_qc_passed=True)))
@@ -1478,7 +1477,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                 "100307_predicted_pial_rh.stl",
             ):
                 _write_test_surface(surface_dir / name)
-            from surface.backend_bridge import upstream_record
+            from anatomy.surface.backend_bridge import upstream_record
             (layout.ddsurfer / 'surface_manifest.json').write_text(json.dumps(
                 dict(status='completed', upstream_commit=upstream_record()['commit'])))
             (layout.ddsurfer / 'surface_qc.json').write_text(json.dumps(dict(automatic_qc_passed=True)))

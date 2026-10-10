@@ -7,9 +7,9 @@ from pathlib import Path
 
 import numpy as np
 
-from segmentation.inference import combine_views, normalize_class_scores
-from segmentation.config import DDSegConfig
-from segmentation.qc import DDSEG_PROBABILITY_SEMANTICS, write_ddseg_qc_record
+from anatomy.segmentation.inference import combine_views, normalize_class_scores
+from anatomy.segmentation.config import DDSegConfig
+from anatomy.segmentation.qc import DDSEG_PROBABILITY_SEMANTICS, write_ddseg_qc_record
 
 
 class SegmentationInferenceTest(unittest.TestCase):

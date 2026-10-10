@@ -35,7 +35,7 @@ class ParcellationLogicMixin:
         atlas_t2: Path,
         flip: int = 1,
     ) -> None:
-        from parcellation import (
+        from anatomy.parcellation import (
             DDParcelConfig,
             DDParcelRegisteredConfig,
             run_ddparcel,

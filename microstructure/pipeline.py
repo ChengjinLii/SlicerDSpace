@@ -205,6 +205,7 @@ def _link_or_copy(src: Path, dest: Path) -> None:
 def _default_lut_path() -> Path:
     return (
         Path(__file__).resolve().parent.parent
+        / "anatomy"
         / "parcellation"
         / "conversion"
         / "data"

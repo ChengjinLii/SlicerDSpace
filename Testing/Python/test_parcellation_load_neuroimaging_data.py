@@ -84,7 +84,7 @@ def _stub_modules_for_import() -> dict[str, types.ModuleType]:
 # keeps its own bound references (e.g. its module-level `nib` name) after
 # import, so the module remains usable once sys.modules is restored below.
 with mock.patch.dict(sys.modules, _stub_modules_for_import()):
-    import parcellation.data_loader.load_neuroimaging_data as load_neuroimaging_data
+    import anatomy.parcellation.data_loader.load_neuroimaging_data as load_neuroimaging_data
 
 
 class FakeHeader:

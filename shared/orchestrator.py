@@ -940,7 +940,7 @@ def _run_ddseg_world_qc_gate(
     if segmentation is None or parcellation is None:
         _emit("[Orchestrator] WARNING: DDSeg world-space QC gate skipped (DDSeg or DDParcel output missing).", log)
         return None
-    from segmentation.world_qc import write_ddseg_world_qc
+    from anatomy.segmentation.world_qc import write_ddseg_world_qc
 
     try:
         record = write_ddseg_world_qc(segmentation, parcellation, qc_path, min_wm_dice=config.ddseg_min_wm_dice)
@@ -1025,8 +1025,8 @@ def _segmentation_complete(subject_root: Path, output_root: Optional[Path] = Non
         label_agreement = float(probability_qc.get("label_agreement", 0.0))
     except Exception:
         return False
-    from segmentation.orientation import ORIENTATION_CONVENTION
-    from segmentation.qc import DDSEG_QC_SCHEMA_VERSION
+    from anatomy.segmentation.orientation import ORIENTATION_CONVENTION
+    from anatomy.segmentation.qc import DDSEG_QC_SCHEMA_VERSION
 
     return (
         qc.get("status") == "completed"
@@ -1066,7 +1066,7 @@ def _surface_outputs(subject_root: Path, subject_id: str, output_root: Optional[
 
 
 def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
-    from surface.backend_bridge import upstream_record
+    from anatomy.surface.backend_bridge import upstream_record
     surface_root = subject_layout(subject_root, output_root=output_root).ddsurfer
     try:
         manifest = json.loads((surface_root / 'surface_manifest.json').read_text())
@@ -1155,7 +1155,7 @@ def _surface_postprocess_complete(
     hemis = ('lh',) if mode == 'left' else ('rh',) if mode == 'right' else ('lh', 'rh')
     if (manifest.get('kind') == 'ddsurfer_surface_only_postprocess' or
             any((native_dir / f'{hemi}.{kind}.obj').is_file() for hemi in hemis for kind in ('white', 'pial'))):
-        from surface.backend_bridge import native_surface_hashes, upstream_record
+        from anatomy.surface.backend_bridge import native_surface_hashes, upstream_record
         try:
             current = native_surface_hashes(native_dir, mode)
             if (manifest.get('status') != 'completed'
@@ -2817,8 +2817,8 @@ def _run_subject_products_impl(
             missing = [label for label, path in raw.items() if not path.is_file()]
             tasks.append(ProductTaskRecord(name="segmentation.ddseg", status="blocked", reason="missing raw input: " + ", ".join(missing)))
         else:
-            from segmentation.config import DDSegConfig
-            from segmentation.pipeline import run_ddseg
+            from anatomy.segmentation.config import DDSegConfig
+            from anatomy.segmentation.pipeline import run_ddseg
             from shared.pipeline import ensure_native_dti_bundle
 
             _emit("[Orchestrator] Running DDSeg", log)
@@ -2865,7 +2865,7 @@ def _run_subject_products_impl(
             missing = [label for label, path in raw.items() if not path.is_file()]
             tasks.append(ProductTaskRecord(name="parcellation.ddparcel", status="blocked", reason="missing raw input: " + ", ".join(missing)))
         else:
-            from parcellation import DDParcelRegisteredConfig, run_ddparcel_from_registered_bundle
+            from anatomy.parcellation import DDParcelRegisteredConfig, run_ddparcel_from_registered_bundle
             from shared.pipeline import ensure_registered_dti_bundle
 
             _emit("[Orchestrator] Running DDParcel", log)
@@ -2939,7 +2939,7 @@ def _run_subject_products_impl(
         elif not config.execute:
             tasks.append(ProductTaskRecord(name="surface.ddsurfer", status="planned", reason="execute=False"))
         else:
-            from surface import SurfaceConfig, inspect_surface_resources, run_surface
+            from anatomy.surface import SurfaceConfig, inspect_surface_resources, run_surface
 
             surface_config = SurfaceConfig(
                 subject_id=config.subject_id,
@@ -3009,7 +3009,7 @@ def _run_subject_products_impl(
         elif not config.execute:
             tasks.append(ProductTaskRecord(name="surface.ddsurfer_postprocess", status="planned", reason="execute=False"))
         else:
-            from surface import DDSurferPostprocessConfig, run_ddsurfer_postprocess
+            from anatomy.surface import DDSurferPostprocessConfig, run_ddsurfer_postprocess
 
             explicit_native_dir = _resolve_optional_path(config.postprocess_native_dir)
             explicit_mri_dir = _resolve_optional_path(config.postprocess_mri_dir)

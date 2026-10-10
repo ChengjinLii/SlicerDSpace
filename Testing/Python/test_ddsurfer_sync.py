@@ -11,8 +11,8 @@ from types import SimpleNamespace
 import numpy as np
 import trimesh
 
-from surface.backend_bridge import BACKEND_ROOT, native_products, runtime_info, sha256, upstream_record
-from surface.pipeline import SurfaceConfig, _raw_command, inspect_surface_resources, run_surface
+from anatomy.surface.backend_bridge import BACKEND_ROOT, native_products, runtime_info, sha256, upstream_record
+from anatomy.surface.pipeline import SurfaceConfig, _raw_command, inspect_surface_resources, run_surface
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -22,7 +22,7 @@ class DDSurferSyncTests(unittest.TestCase):
         completed = SimpleNamespace(returncode=0, stdout='{"python": "external"}\n')
         with patch.dict(os.environ, {'PYTHONHOME': '/Slicer/lib/Python', 'PYTHONPATH': '/Slicer/lib',
                                     'ITK_AUTOLOAD_PATH': '/Slicer/ITKFactories'}):
-            with patch('surface.backend_bridge.subprocess.run', return_value=completed) as run:
+            with patch('anatomy.surface.backend_bridge.subprocess.run', return_value=completed) as run:
                 self.assertEqual(runtime_info('/independent/bin/python')['python'], 'external')
         environment = run.call_args.kwargs['env']
         self.assertNotIn('PYTHONHOME', environment)
@@ -42,14 +42,14 @@ class DDSurferSyncTests(unittest.TestCase):
         self.assertFalse(any('ckpts/hcp' in p for p in assets['profiles']['surface']['required_paths']))
 
     def test_prediction_compatibility_accepts_subject_selection(self):
-        from surface.prediction import PredictionStageConfig, SurfacePredictor, discover_subject_directories
+        from anatomy.surface.prediction import PredictionStageConfig, SurfacePredictor, discover_subject_directories
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / 'x').mkdir()
             self.assertEqual(discover_subject_directories(root, ['x', 'missing']), {'x': root / 'x'})
             config = PredictionStageConfig('other', 'left', 'all', 'cpu', 0.02, 2, 3,
                 root, root, root, root)
-            with patch('surface.prediction.run_backend') as run:
+            with patch('anatomy.surface.prediction.run_backend') as run:
                 result = SurfacePredictor(config).predict(root / 'x')
             self.assertEqual(result.subject_id, 'x')
             self.assertEqual(run.call_args.args[0][2], 'x')
@@ -118,7 +118,7 @@ class DDSurferSyncTests(unittest.TestCase):
     def test_postprocess_cache_rejects_legacy_and_modified_surfaces(self):
         from shared.io_layout import subject_layout
         from shared.orchestrator import _surface_postprocess_complete
-        from surface.postprocess_release import DDSurferPostprocessConfig, run_ddsurfer_postprocess
+        from anatomy.surface.postprocess_release import DDSurferPostprocessConfig, run_ddsurfer_postprocess
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / 'x'
             layout = subject_layout(root)
@@ -142,7 +142,7 @@ class DDSurferSyncTests(unittest.TestCase):
                         (output / 'stats' / f'{hemi}.{atlas}.stats').write_text('statistics')
 
             config = DDSurferPostprocessConfig('x', layout.outputs, subject_root=root, native_dir=native)
-            with patch('surface.backend_bridge.run_backend', side_effect=fake_backend):
+            with patch('anatomy.surface.backend_bridge.run_backend', side_effect=fake_backend):
                 result = run_ddsurfer_postprocess(config)
                 original = json.loads(result.manifest_path.read_text())
                 self.assertFalse(original['requires_ddparcel'])

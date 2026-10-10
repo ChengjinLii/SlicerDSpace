@@ -24,7 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from segmentation.orientation import (  # noqa: E402
+from anatomy.segmentation.orientation import (  # noqa: E402
     MODEL_INPUT_AXCODES,
     ORIENTATION_CONVENTION,
     axcodes,
@@ -136,8 +136,8 @@ class DDSegPipelineOrientationTest(unittest.TestCase):
     """Run the real preprocessing/unpadding/saving code with an oracle network."""
 
     def _run(self, codes: str, root: Path):
-        from segmentation.config import DDSegConfig
-        from segmentation import pipeline
+        from anatomy.segmentation.config import DDSegConfig
+        from anatomy.segmentation import pipeline
 
         x, y, z = _world_grids()
         brain = np.ones(SHAPE_RAS, dtype=bool)
@@ -238,7 +238,7 @@ class DDSegPipelineOrientationTest(unittest.TestCase):
             self.assertTrue(qc["source_dwi"].endswith("dwi.nii.gz"))
 
     def test_feature_stored_in_a_different_orientation_is_rejected(self) -> None:
-        from segmentation.preprocess import load_mask, load_parameter_map
+        from anatomy.segmentation.preprocess import load_mask, load_parameter_map
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

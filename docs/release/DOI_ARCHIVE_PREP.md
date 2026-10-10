@@ -23,7 +23,7 @@ Exclude unless redistribution and DOI-archive permission are confirmed:
 - `surface/template/**`
 - `segmentation/weights/**`
 - `parcellation/weights/**`
-- `parcellation/conversion/tests/data/**`
+- `anatomy/parcellation/conversion/tests/data/**`
 
 ## Generate Archive Support Files
 

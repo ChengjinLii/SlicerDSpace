@@ -121,7 +121,7 @@ def _has_supported_parcellation_suffix(path: Path) -> bool:
 
 
 def _default_lut_path() -> Path:
-    return Path(__file__).resolve().parents[1] / "parcellation" / "conversion" / "data" / "FreeSurferColorLUT.txt"
+    return Path(__file__).resolve().parents[1] / "anatomy" / "parcellation" / "conversion" / "data" / "FreeSurferColorLUT.txt"
 
 
 def _resolve_lut_path(config: ConnectomeConfig) -> Optional[Path]:

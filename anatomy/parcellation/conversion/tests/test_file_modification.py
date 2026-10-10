@@ -8,7 +8,7 @@ from numpy import testing
 from .util import *
 from nrrd import read
 from nibabel import load
-conversion = import_module("parcellation.conversion")
+conversion = import_module("anatomy.parcellation.conversion")
 
 
 class TestFileConversion(unittest.TestCase):

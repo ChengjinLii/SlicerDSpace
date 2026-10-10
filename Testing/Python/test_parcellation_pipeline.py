@@ -21,7 +21,7 @@ class DDParcelPipelineTest(unittest.TestCase):
         captured_calls: list[tuple[list[str], str, str, bool]] = []
         log_messages: list[str] = []
 
-        fake_module = types.ModuleType("parcellation.DDSurfer_Pred")
+        fake_module = types.ModuleType("anatomy.parcellation.DDSurfer_Pred")
         fake_nrrd = types.ModuleType("nrrd")
 
         def fake_options_parse():
@@ -43,10 +43,10 @@ class DDParcelPipelineTest(unittest.TestCase):
             sys.modules,
             {
                 "nrrd": fake_nrrd,
-                "parcellation.DDSurfer_Pred": fake_module,
+                "anatomy.parcellation.DDSurfer_Pred": fake_module,
             },
         ):
-            from parcellation import pipeline
+            from anatomy.parcellation import pipeline
 
             output_dir = Path(tmp) / "ddparcel"
             weights_dir = Path(tmp) / "weights"
@@ -67,14 +67,14 @@ class DDParcelPipelineTest(unittest.TestCase):
         self.assertEqual(sum("DDSurfer prediction finished for 100307" in message for message in log_messages), 1)
 
     def test_cuda_device_mapping_does_not_mutate_visible_devices(self) -> None:
-        from parcellation.device import logical_cuda_index
+        from anatomy.parcellation.device import logical_cuda_index
 
         self.assertEqual(logical_cuda_index("1", ""), 1)
         self.assertEqual(logical_cuda_index("1", "1"), 0)
         self.assertEqual(logical_cuda_index("3", "1,3"), 1)
 
     def test_inference_moves_batches_to_selected_device(self) -> None:
-        source = (REPO_ROOT / "parcellation" / "DDSurfer_Pred.py").read_text(encoding="utf-8")
+        source = (REPO_ROOT / "anatomy" / "parcellation" / "DDSurfer_Pred.py").read_text(encoding="utf-8")
 
         self.assertIn('images_batch.to(params_model["device"])', source)
         self.assertNotIn("images_batch = images_batch.cuda()", source)

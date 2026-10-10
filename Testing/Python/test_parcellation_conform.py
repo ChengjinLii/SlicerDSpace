@@ -28,7 +28,7 @@ if str(REPO_ROOT) not in sys.path:
 # time. Scoping the stub to this import keeps it from leaking into other
 # test files in the same process that need the real nibabel installed.
 with mock.patch.dict(sys.modules, {"nibabel": types.ModuleType("nibabel")}):
-    from parcellation.data_loader import conform
+    from anatomy.parcellation.data_loader import conform
 
 
 class GetscaleRaisesInsteadOfExitingTest(unittest.TestCase):

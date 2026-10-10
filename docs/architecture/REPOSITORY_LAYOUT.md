@@ -20,7 +20,7 @@ Keep only:
 - `Makefile`, `pyproject.toml`: development and test configuration.
 - `run_subject_pipeline.py`: stable CLI entry point documented for users.
 - `run_postprocess_docker.py`: thin compatibility entry point; implementation
-  lives in `surface/postprocess_docker.py`.
+  lives in `anatomy/surface/postprocess_docker.py`.
 - `workflow_catalog.py`: stable source-tree compatibility entry point for
   workflow metadata in `shared/workflow_catalog.py`. It is intentionally not
   installed as a top-level Slicer module resource.
@@ -52,15 +52,49 @@ parcellation training helpers. See [source hygiene](SOURCE_HYGIENE.md) for the
 evidence and retained-file policy.
 
 - `shared/`: common Slicer UI, dependency, IO, reporting and orchestration code.
-- `preprocessing/`, `segmentation/`, `parcellation/`, `surface/`,
-  `microstructure/`, `tractography/`, `connectome/`: domain-specific pipeline
-  packages.
+- `preprocessing/`: diffusion preprocessing (denoising, Gibbs correction,
+  motion correction and associated QC). Input import and standardisation use
+  `shared/input_import.py` with the stable `scripts/prepare_inputs.py` CLI.
+- `anatomy/`: anatomical reconstruction, grouped into `segmentation/` (DDSeg),
+  `parcellation/` (DDParcel) and `surface/` (DDSurfer). The pinned upstream
+  DDSurfer snapshot and surface postprocessing also live inside this group.
+- `microstructure/`: DTI, Free-water, NODDI and regional quantitative summaries
+  share one pipeline and Slicer facade; they are not separate root packages.
+- `tractography/`: tracking, SAF and bundle analysis.
+- `connectome/`: structural connectivity and network visualisation.
 - `models/assets_manifest.json`: canonical model/template asset manifest.
 
-The current layout keeps each processing domain importable as a plain Python
-package. A future Slicer-style `Modules/Scripted/SlicerDDSurfer/` migration is
-possible, but it should be done as a dedicated compatibility release because it
-would affect module loading, packaging paths and documented CLI examples.
+The scientific source tree is:
+
+```text
+preprocessing/
+anatomy/
+  segmentation/
+  parcellation/
+  surface/
+microstructure/
+tractography/
+connectome/
+```
+
+Python integrations now import `anatomy.segmentation`, `anatomy.parcellation`
+and `anatomy.surface`. No duplicate root packages or directory symlinks are
+retained. CMake packaging, local extension staging, dynamic imports and the
+workflow catalog all use these paths. The root Slicer and CLI entry points
+remain unchanged.
+
+This is a source-only reorganisation: scientific task IDs (for example,
+`surface.ddsurfer`), subject output directories and the independent model-asset
+namespace (`surface/weights`, `surface/template`, `segmentation/weights`,
+`parcellation/weights`) deliberately retain their original names. Existing
+weights, result manifests and QC records do not need conversion.
+
+An existing copied extension must be restaged; it does not update itself when
+the source tree changes. Use `scripts/stage_slicer_extension.py --clean` for a
+managed installation to remove the old flat packages, then restart Slicer.
+Back up any manually added files before cleaning the installation; external
+model assets and subject outputs should never be stored inside that disposable
+installation directory.
 
 ## Developer Tools And Local Outputs
 
@@ -112,12 +146,12 @@ Slicer extension compatibility. If the helper set grows further, split it into
 - `tractography/slicer_dmri_reference/` is reference material and should not be
   packaged as runtime extension code. Both CMake builds and local extension
   staging explicitly exclude it; `tractography/saf_backend/` remains packaged.
-- `parcellation/models/` and `parcellation/data_loader/` are derived from
+- `parcellation/models/` and `anatomy/parcellation/data_loader/` are derived from
   FastSurfer (Apache License 2.0; https://github.com/Deep-MI/FastSurfer).
-- `parcellation/conversion/` is attributed in-repo to
+- `anatomy/parcellation/conversion/` is attributed in-repo to
   https://github.com/pnlbwh/conversion; its license is not recorded in this
   repository and must be confirmed against that project before redistribution.
-- `parcellation/conversion/data/FreeSurferColorLUT.txt` is copied from
+- `anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt` is copied from
   FreeSurfer and is governed by the FreeSurfer Software License, not this
   repository's BSD-3-Clause license.
 - `third_party/` is ignored and must not be used for packaged runtime content.

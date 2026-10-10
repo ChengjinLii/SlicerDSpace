@@ -25,7 +25,11 @@ ASSET_EXCLUSION_PATTERNS = (
     "surface/template/**",
     "segmentation/weights/**",
     "parcellation/weights/**",
-    "parcellation/conversion/tests/data/**",
+    "anatomy/parcellation/conversion/tests/data/**",
+    "anatomy/surface/template/**",
+    "anatomy/surface/weights/**",
+    "anatomy/segmentation/weights/**",
+    "anatomy/parcellation/weights/**",
 )
 
 

@@ -20,8 +20,8 @@ The full Apache License, Version 2.0 text is in licenses/Apache-2.0.txt.
 The following files in this repository are derived from FastSurfer
 (https://github.com/Deep-MI/FastSurfer) and carry the header above:
 
-  parcellation/models/networks.py
-  parcellation/models/sub_module.py
-  parcellation/data_loader/augmentation.py
-  parcellation/data_loader/conform.py
-  parcellation/data_loader/load_neuroimaging_data.py
+  anatomy/parcellation/models/networks.py
+  anatomy/parcellation/models/sub_module.py
+  anatomy/parcellation/data_loader/augmentation.py
+  anatomy/parcellation/data_loader/conform.py
+  anatomy/parcellation/data_loader/load_neuroimaging_data.py

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Compatibility entry point; implementation is in surface.postprocess_docker."""
+"""Compatibility entry point for anatomy.surface.postprocess_docker."""
 
 from __future__ import annotations
 
 import sys
 
-from surface.postprocess_docker import (
+from anatomy.surface.postprocess_docker import (
     REQUIRED_MRI_FILES,
     copy_file,
     main,

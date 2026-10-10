@@ -17,7 +17,7 @@ def main():
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='ddsurfer-upstream-tests-') as temp:
         snapshot = Path(temp) / 'backend'
-        shutil.copytree(ROOT / 'surface/ddsurfer_backend', snapshot,
+        shutil.copytree(ROOT / 'anatomy/surface/ddsurfer_backend', snapshot,
                         ignore=shutil.ignore_patterns('__pycache__'))
         for name in ('weights', 'template'):
             (snapshot / name).mkdir()

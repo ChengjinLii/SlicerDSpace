@@ -44,8 +44,8 @@ def _run() -> None:
         ddseg_runtime_import_ready = False
         ddseg_runtime_paths = []
         try:
-            import segmentation.pipeline as ddseg_pipeline
-            import segmentation.qc as ddseg_qc
+            import anatomy.segmentation.pipeline as ddseg_pipeline
+            import anatomy.segmentation.qc as ddseg_qc
 
             ddseg_runtime_paths = [
                 Path(ddseg_pipeline.__file__).resolve(),

@@ -25,7 +25,7 @@ class SurfacePostprocessReportTest(unittest.TestCase):
         path.write_text("\n".join(content) + "\n", encoding="utf-8")
 
     def test_compute_stats_requires_every_mode_specific_file_to_have_data(self) -> None:
-        from surface.ddsurfer_postprocess_release.src.write_pipeline_report import stage_statuses
+        from anatomy.surface.ddsurfer_postprocess_release.src.write_pipeline_report import stage_statuses
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -85,7 +85,7 @@ class SurfacePostprocessReportTest(unittest.TestCase):
             )
 
     def test_qc_reports_expected_nonempty_missing_empty_and_row_counts(self) -> None:
-        from surface.ddsurfer_postprocess_release.src import write_pipeline_report
+        from anatomy.surface.ddsurfer_postprocess_release.src import write_pipeline_report
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

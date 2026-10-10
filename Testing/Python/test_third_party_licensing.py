@@ -31,8 +31,8 @@ class ThirdPartyNoticesTest(unittest.TestCase):
 
     def test_documents_fastsurfer_derived_code(self) -> None:
         self.assertIn("FastSurfer", self.text)
-        self.assertIn("parcellation/models/networks.py", self.text)
-        self.assertIn("parcellation/data_loader/conform.py", self.text)
+        self.assertIn("anatomy/parcellation/models/networks.py", self.text)
+        self.assertIn("anatomy/parcellation/data_loader/conform.py", self.text)
         self.assertIn("Apache", self.text)
 
     def test_documents_saf_backend(self) -> None:
@@ -42,7 +42,7 @@ class ThirdPartyNoticesTest(unittest.TestCase):
 
     def test_documents_pnlbwh_conversion_honestly(self) -> None:
         self.assertIn("pnlbwh/conversion", self.text)
-        self.assertIn("parcellation/conversion", self.text)
+        self.assertIn("anatomy/parcellation/conversion", self.text)
         # Must not claim a specific license for this code: it is not
         # recorded anywhere in this repository.
         self.assertIn("not recorded", self.text.lower())
@@ -82,11 +82,11 @@ class LicensesDirectoryTest(unittest.TestCase):
         self.assertTrue(path.is_file())
         text = path.read_text(encoding="utf-8")
         for derived_file in (
-            "parcellation/models/networks.py",
-            "parcellation/models/sub_module.py",
-            "parcellation/data_loader/augmentation.py",
-            "parcellation/data_loader/conform.py",
-            "parcellation/data_loader/load_neuroimaging_data.py",
+            "anatomy/parcellation/models/networks.py",
+            "anatomy/parcellation/models/sub_module.py",
+            "anatomy/parcellation/data_loader/augmentation.py",
+            "anatomy/parcellation/data_loader/conform.py",
+            "anatomy/parcellation/data_loader/load_neuroimaging_data.py",
         ):
             self.assertIn(derived_file, text)
             # Every listed file must actually carry the header this notice
@@ -100,9 +100,9 @@ class FastSurferModifiedNoticesTest(unittest.TestCase):
 
     def test_files_actually_changed_from_upstream_carry_a_modified_notice(self) -> None:
         for modified_file in (
-            "parcellation/models/networks.py",
-            "parcellation/data_loader/conform.py",
-            "parcellation/data_loader/load_neuroimaging_data.py",
+            "anatomy/parcellation/models/networks.py",
+            "anatomy/parcellation/data_loader/conform.py",
+            "anatomy/parcellation/data_loader/load_neuroimaging_data.py",
         ):
             text = (REPO_ROOT / modified_file).read_text(encoding="utf-8")
             self.assertIn(
@@ -115,8 +115,8 @@ class FastSurferModifiedNoticesTest(unittest.TestCase):
         # These carry the same Apache header but were not touched, so they
         # must not claim a modification that did not happen.
         for unmodified_file in (
-            "parcellation/models/sub_module.py",
-            "parcellation/data_loader/augmentation.py",
+            "anatomy/parcellation/models/sub_module.py",
+            "anatomy/parcellation/data_loader/augmentation.py",
         ):
             text = (REPO_ROOT / unmodified_file).read_text(encoding="utf-8")
             self.assertNotIn("Modified by the SlicerDDSurfer project", text)

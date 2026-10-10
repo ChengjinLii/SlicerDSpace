@@ -33,18 +33,18 @@ older standalone pipeline directories.
   - input validation and lightweight QC report
   - native DTI cache
   - registered DTI cache
-- `surface/`
+- `anatomy/surface/`
   - preprocessing
   - prediction
   - postprocessing
   - sculpting
-- `parcellation/`
+- `anatomy/parcellation/`
   - pipeline
   - conversion
   - data loader
   - model code
   - weights
-- `segmentation/`
+- `anatomy/segmentation/`
   - DDSeg package
   - PythonSlicer runner
   - weights

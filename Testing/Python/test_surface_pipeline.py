@@ -17,7 +17,7 @@ if str(REPO_ROOT) not in sys.path:
 
 class SurfacePipelineTest(unittest.TestCase):
     def test_dry_run_writes_manifest_and_qc(self) -> None:
-        from surface import SurfaceConfig, run_surface
+        from anatomy.surface import SurfaceConfig, run_surface
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -39,7 +39,7 @@ class SurfacePipelineTest(unittest.TestCase):
             self.assertEqual(qc["status"], "planned")
 
     def test_resource_inspection_rejects_legacy_assets(self) -> None:
-        from surface import SurfaceConfig, inspect_surface_resources
+        from anatomy.surface import SurfaceConfig, inspect_surface_resources
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from segmentation.dti_slicer import run_dti_feature_extraction
+from anatomy.segmentation.dti_slicer import run_dti_feature_extraction
 
 
 class DtiSlicerCommandConstructionTest(unittest.TestCase):
@@ -42,7 +42,7 @@ class DtiSlicerCommandConstructionTest(unittest.TestCase):
                 path.write_text("stub", encoding="utf-8")
             output_folder = root / "out put"
 
-            with mock.patch("segmentation.dti_slicer.subprocess.run") as mock_run:
+            with mock.patch("anatomy.segmentation.dti_slicer.subprocess.run") as mock_run:
                 mock_run.return_value = mock.Mock(returncode=0)
                 with self.assertRaises(RuntimeError):
                     # The mocked subprocess never creates DTI_E3.nrrd, so the
@@ -82,7 +82,7 @@ class DtiSlicerCommandConstructionTest(unittest.TestCase):
                 path.write_text("stub", encoding="utf-8")
             output_folder = root / "out"
 
-            with mock.patch("segmentation.dti_slicer.subprocess.run") as mock_run:
+            with mock.patch("anatomy.segmentation.dti_slicer.subprocess.run") as mock_run:
                 mock_run.return_value = mock.Mock(returncode=0)
                 with self.assertRaises(RuntimeError):
                     run_dti_feature_extraction(

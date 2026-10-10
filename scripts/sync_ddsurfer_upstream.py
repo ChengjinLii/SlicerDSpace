@@ -26,7 +26,7 @@ def synchronize(upstream, assets):
     dirty = subprocess.check_output(['git', '-C', str(upstream), 'status', '--porcelain'], text=True).strip()
     if dirty:
         raise ValueError('Commit the upstream changes before creating a reproducible snapshot')
-    backend = ROOT / 'surface/ddsurfer_backend'
+    backend = ROOT / 'anatomy/surface/ddsurfer_backend'
     files = []
     for directory in ('model', 'inference', 'preprocessing', 'postprocessing', 'utils', 'tools', 'tests'):
         files.extend(p for p in (upstream / directory).rglob('*')

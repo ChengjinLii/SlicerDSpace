@@ -16,16 +16,16 @@ from slicer.util import VTKObservationMixin
 from connectome.module_logic import ConnectomeLogicMixin
 from microstructure.module_logic import MicrostructureLogicMixin
 from microstructure.module_widget import MicrostructureWidgetMixin
-from parcellation.module_logic import ParcellationLogicMixin
-from parcellation.module_widget import ParcellationWidgetMixin
+from anatomy.parcellation.module_logic import ParcellationLogicMixin
+from anatomy.parcellation.module_widget import ParcellationWidgetMixin
 from preprocessing.module_logic import PreprocessingLogicMixin
-from segmentation.module_logic import SegmentationLogicMixin
-from segmentation.module_widget import SegmentationWidgetMixin
+from anatomy.segmentation.module_logic import SegmentationLogicMixin
+from anatomy.segmentation.module_widget import SegmentationWidgetMixin
 from shared.module_logic import SharedLogicMixin
 from shared.module_widget import SharedWidgetMixin
 from shared.ui_run_controller import ProductTargetFlags
-from surface.module_logic import PipelineResult, SurfaceLogicMixin
-from surface.module_widget import SurfaceWidgetMixin
+from anatomy.surface.module_logic import PipelineResult, SurfaceLogicMixin
+from anatomy.surface.module_widget import SurfaceWidgetMixin
 from tractography.module_logic import TractographyLogicMixin
 
 

@@ -155,7 +155,7 @@ def _run_ddsurfer_pred(
 def _default_weights_dir(explicit: Optional[Path] = None) -> Path:
     if explicit is not None:
         return explicit.expanduser().resolve()
-    return model_asset_path("parcellation/weights", repo_root=Path(__file__).resolve().parents[1])
+    return model_asset_path("parcellation/weights", repo_root=Path(__file__).resolve().parents[2])
 
 
 def run_ddparcel_from_registered_bundle(

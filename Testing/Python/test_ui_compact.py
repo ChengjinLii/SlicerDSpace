@@ -49,7 +49,7 @@ class CompactUiTest(unittest.TestCase):
         self.assertEqual(translated_ui_message("en", chinese), english)
 
     def test_empty_inputs_are_neutral_until_manual_validation(self):
-        path = Path(__file__).resolve().parents[2] / "surface/module_widget.py"
+        path = Path(__file__).resolve().parents[2] / "anatomy/surface/module_widget.py"
         method = next(node for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))) if
                       isinstance(node, ast.FunctionDef) and node.name == "validateInputs")
         namespace = {}

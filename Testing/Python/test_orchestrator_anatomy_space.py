@@ -108,7 +108,7 @@ class ResumeInvalidationTest(unittest.TestCase):
 
     def test_schema_v1_ddseg_outputs_are_not_reused(self) -> None:
         from shared.orchestrator import _segmentation_complete
-        from segmentation.orientation import ORIENTATION_CONVENTION
+        from anatomy.segmentation.orientation import ORIENTATION_CONVENTION
 
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = _subject(tmp)

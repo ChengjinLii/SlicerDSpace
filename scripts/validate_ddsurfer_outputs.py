@@ -10,7 +10,7 @@ import trimesh
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from surface.backend_bridge import sha256, upstream_record
+from anatomy.surface.backend_bridge import sha256, upstream_record
 
 
 def mesh_difference(first, second):

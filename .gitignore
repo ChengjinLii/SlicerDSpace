@@ -29,3 +29,7 @@ goal_completion_audit.md
 /surface/weights/
 /segmentation/weights/
 /parcellation/weights/
+/anatomy/surface/template/
+/anatomy/surface/weights/
+/anatomy/segmentation/weights/
+/anatomy/parcellation/weights/

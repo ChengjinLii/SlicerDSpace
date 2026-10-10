@@ -21,7 +21,7 @@ if str(REPO_ROOT) not in sys.path:
 
 class SurfacePostprocessReleaseTest(unittest.TestCase):
     def test_windows_prefers_configured_slicer_bash_bridge(self) -> None:
-        from surface.postprocess_release import _resolve_bash_executable
+        from anatomy.surface.postprocess_release import _resolve_bash_executable
 
         with tempfile.TemporaryDirectory() as tmp:
             slicer_root = Path(tmp) / "Slicer 5.6.2"
@@ -37,7 +37,7 @@ class SurfacePostprocessReleaseTest(unittest.TestCase):
             )
 
     def test_extract_ctab_preserves_annotation_ids_and_rgb(self) -> None:
-        from surface.ddsurfer_postprocess_release.src.extract_ctab import extract_and_save_ctab
+        from anatomy.surface.ddsurfer_postprocess_release.src.extract_ctab import extract_and_save_ctab
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -75,8 +75,8 @@ class SurfacePostprocessReleaseTest(unittest.TestCase):
                 self.assertEqual(rows[name][4], 255 - int(expected[3]))
 
     def test_regional_stats_accepts_legacy_duplicate_annotation_ids(self) -> None:
-        from surface.ddsurfer_postprocess_release.src.compute_regional_stats import main as compute_stats
-        from surface.ddsurfer_postprocess_release.src.extract_ctab import extract_and_save_ctab
+        from anatomy.surface.ddsurfer_postprocess_release.src.compute_regional_stats import main as compute_stats
+        from anatomy.surface.ddsurfer_postprocess_release.src.extract_ctab import extract_and_save_ctab
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -130,7 +130,7 @@ class SurfacePostprocessReleaseTest(unittest.TestCase):
             self.assertFalse(any(line.startswith("FreeSurfer_Defined_Medial_Wall ") for line in rows))
 
     def test_stage_inputs_respects_left_mode(self) -> None:
-        from surface.postprocess_release import stage_postprocess_inputs
+        from anatomy.surface.postprocess_release import stage_postprocess_inputs
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -168,7 +168,7 @@ class SurfacePostprocessReleaseTest(unittest.TestCase):
                 self.assertFalse(staged_file.is_symlink())
 
     def test_run_returns_canonical_paths(self) -> None:
-        from surface.postprocess_release import DDSurferPostprocessConfig, run_ddsurfer_postprocess
+        from anatomy.surface.postprocess_release import DDSurferPostprocessConfig, run_ddsurfer_postprocess
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -248,7 +248,7 @@ printf '{"status":"completed"}' > "${structural_root}/qc.json"
             self.assertEqual(qc["status"], "completed")
 
     def test_run_generates_brain_mgz_from_subject_fa_when_missing(self) -> None:
-        from surface.postprocess_release import DDSurferPostprocessConfig, run_ddsurfer_postprocess
+        from anatomy.surface.postprocess_release import DDSurferPostprocessConfig, run_ddsurfer_postprocess
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -302,8 +302,8 @@ printf '{"status":"completed"}' > "${structural_root}/qc.json"
             )
             run_sh.chmod(0o755)
 
-            with mock.patch("surface.postprocess_release.FS_BRAIN_TEMPLATE_SHAPE", (32, 32, 32)), mock.patch(
-                "surface.postprocess_release.FS_BRAIN_TEMPLATE_AFFINE",
+            with mock.patch("anatomy.surface.postprocess_release.FS_BRAIN_TEMPLATE_SHAPE", (32, 32, 32)), mock.patch(
+                "anatomy.surface.postprocess_release.FS_BRAIN_TEMPLATE_AFFINE",
                 np.eye(4, dtype=np.float32),
             ):
                 result = run_ddsurfer_postprocess(

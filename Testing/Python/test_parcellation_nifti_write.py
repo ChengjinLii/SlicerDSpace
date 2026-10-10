@@ -54,8 +54,8 @@ class NiftiWriteErrorHandlingTest(unittest.TestCase):
         self._modules_patch.start()
         self.addCleanup(self._modules_patch.stop)
         # Re-import fresh each test so the stubbed nrrd/nibabel are bound.
-        sys.modules.pop("parcellation.conversion.nifti_write", None)
-        import parcellation.conversion.nifti_write as nifti_write_module
+        sys.modules.pop("anatomy.parcellation.conversion.nifti_write", None)
+        import anatomy.parcellation.conversion.nifti_write as nifti_write_module
 
         self.nifti_write_module = nifti_write_module
         self.nifti_write = nifti_write_module.nifti_write

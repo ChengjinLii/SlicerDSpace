@@ -5,7 +5,7 @@
 The active surface workflow now uses an unmodified snapshot of
 `/data/chengjin/DDSurfer` at commit
 `c3fa631b340c3e06eb75ab4f0f9ac9a288a25488`.
-`surface/ddsurfer_backend/UPSTREAM.json` records SHA256 checksums for 59 source
+`anatomy/surface/ddsurfer_backend/UPSTREAM.json` records SHA256 checksums for 59 source
 and configuration files. GUI and batch execution call this backend in a
 separate Python process rather than reimplementing its neural network.
 

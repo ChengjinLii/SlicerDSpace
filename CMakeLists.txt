@@ -23,18 +23,15 @@ set(MODULE_NAME SlicerDDSurfer)
 #-----------------------------------------------------------------------------
 file(GLOB_RECURSE SHARED_PYTHON_SCRIPTS "shared/*.py")
 file(GLOB_RECURSE PREPROCESSING_PYTHON_SCRIPTS "preprocessing/*.py")
-file(GLOB_RECURSE SURFACE_PYTHON_SCRIPTS "surface/*.py")
-list(FILTER SURFACE_PYTHON_SCRIPTS EXCLUDE REGEX "/ddsurfer_backend/tests/")
+file(GLOB_RECURSE ANATOMY_PYTHON_SCRIPTS "anatomy/*.py")
+list(FILTER ANATOMY_PYTHON_SCRIPTS EXCLUDE REGEX "/tests/")
 file(GLOB_RECURSE DDSURFER_BACKEND_RESOURCES
-  "surface/ddsurfer_backend/*.sh"
-  "surface/ddsurfer_backend/*.json"
-  "surface/ddsurfer_backend/*.md"
-  "surface/ddsurfer_backend/requirements.txt"
-  "surface/ddsurfer_backend/environment.yml"
+  "anatomy/surface/ddsurfer_backend/*.sh"
+  "anatomy/surface/ddsurfer_backend/*.json"
+  "anatomy/surface/ddsurfer_backend/*.md"
+  "anatomy/surface/ddsurfer_backend/requirements.txt"
+  "anatomy/surface/ddsurfer_backend/environment.yml"
   )
-file(GLOB_RECURSE PARCELLATION_PYTHON_SCRIPTS "parcellation/*.py")
-list(FILTER PARCELLATION_PYTHON_SCRIPTS EXCLUDE REGEX "/tests/")
-file(GLOB_RECURSE SEGMENTATION_PYTHON_SCRIPTS "segmentation/*.py")
 file(GLOB_RECURSE MICROSTRUCTURE_PYTHON_SCRIPTS "microstructure/*.py")
 file(GLOB_RECURSE TRACTOGRAPHY_PYTHON_SCRIPTS "tractography/*.py")
 # Local copies used only to study SlicerDMRI APIs are deliberately not runtime
@@ -45,10 +42,10 @@ file(GLOB_RECURSE CONNECTOME_PYTHON_SCRIPTS "connectome/*.py")
 file(GLOB_RECURSE SCRIPT_TOOL_FILES "scripts/*.py" "scripts/*.sh" "scripts/*.ps1")
 file(GLOB_RECURSE DOC_FILES "docs/*.md")
 file(GLOB_RECURSE DDSURFER_POSTPROCESS_RELEASE_FILES
-  "surface/ddsurfer_postprocess_release/*.md"
-  "surface/ddsurfer_postprocess_release/*.sh"
-  "surface/ddsurfer_postprocess_release/config/*"
-  "surface/ddsurfer_postprocess_release/scripts/*"
+  "anatomy/surface/ddsurfer_postprocess_release/*.md"
+  "anatomy/surface/ddsurfer_postprocess_release/*.sh"
+  "anatomy/surface/ddsurfer_postprocess_release/config/*"
+  "anatomy/surface/ddsurfer_postprocess_release/scripts/*"
   )
 # Third-party license/notice files that must travel with the bundled code
 # they cover (see THIRD_PARTY_NOTICES.md); these are not *.py and were
@@ -63,10 +60,8 @@ set(MODULE_PYTHON_RESOURCES
   ${DOC_FILES}
   ${SHARED_PYTHON_SCRIPTS}
   ${PREPROCESSING_PYTHON_SCRIPTS}
-  ${SURFACE_PYTHON_SCRIPTS}
+  ${ANATOMY_PYTHON_SCRIPTS}
   ${DDSURFER_BACKEND_RESOURCES}
-  ${PARCELLATION_PYTHON_SCRIPTS}
-  ${SEGMENTATION_PYTHON_SCRIPTS}
   ${MICROSTRUCTURE_PYTHON_SCRIPTS}
   ${TRACTOGRAPHY_PYTHON_SCRIPTS}
   ${CONNECTOME_PYTHON_SCRIPTS}
@@ -76,7 +71,7 @@ set(MODULE_PYTHON_RESOURCES
   models/assets_manifest.json
   Resources/Icons/${MODULE_NAME}.png
   Resources/UI/${MODULE_NAME}.ui
-  parcellation/conversion/data/FreeSurferColorLUT.txt
+  anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt
   tractography/saf_backend/LICENSE.md
   LICENSE
   THIRD_PARTY_NOTICES.md

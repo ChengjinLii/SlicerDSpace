@@ -9,7 +9,7 @@ import slicer
 
 
 def main():
-    from surface.pipeline import SurfaceConfig, inspect_surface_resources
+    from anatomy.surface.pipeline import SurfaceConfig, inspect_surface_resources
     from shared.module_logic import SharedLogicMixin
     import trimesh
     root = Path(os.environ['DDSURFER_SYNC_VALIDATION_ROOT'])

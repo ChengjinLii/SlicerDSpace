@@ -552,7 +552,7 @@ def _native_outputs_complete(bundle: NativeDTIBundle) -> bool:
 
 
 def _convert_nrrd_to_nifti(in_path: Path, out_path: Path) -> None:
-    from parcellation.conversion.nifti_write import nifti_write
+    from anatomy.parcellation.conversion.nifti_write import nifti_write
 
     prefix = out_path.as_posix().replace(".nii.gz", "")
     nifti_write(in_path.as_posix(), prefix)
@@ -580,7 +580,7 @@ def ensure_native_dti_bundle(
     _emit(f"[Shared] Building native DTI bundle ({fit_key}) in {bundle.bundle_dir}", log)
     bundle.bundle_dir.mkdir(parents=True, exist_ok=True)
 
-    from parcellation.conversion.nhdr_write import nhdr_write
+    from anatomy.parcellation.conversion.nhdr_write import nhdr_write
 
     nhdr_write(raw.dwi_path.as_posix(), raw.bval_path.as_posix(), raw.bvec_path.as_posix(), bundle.dwi_nhdr_path.as_posix())
     _rewrite_nhdr_data_file(bundle.dwi_nhdr_path, raw.dwi_path)

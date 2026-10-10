@@ -20,7 +20,7 @@ from vtk.util.numpy_support import vtk_to_numpy
 def run():
     try:
         from shared.module_logic import SharedLogicMixin
-        from surface.postprocessing import PostprocessingConfig, convert_meshes_to_native_space
+        from anatomy.surface.postprocessing import PostprocessingConfig, convert_meshes_to_native_space
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
