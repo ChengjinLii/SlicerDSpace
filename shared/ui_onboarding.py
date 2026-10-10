@@ -41,7 +41,7 @@ TRANSLATIONS = {
             "Prepare inputs. Choose analyses. Review results."
         ),
         "check_env": "Check environment dependencies",
-        "preflight_run": "Preflight and run",
+        "preflight_run": "Run SlicerDDSurfer",
         "status_waiting": "Waiting for input",
         "status_waiting_ellipsis": "Waiting for input...",
         "environment_section": "Advanced: Dependency profile",
@@ -217,7 +217,7 @@ TRANSLATIONS = {
         "headline": "SlicerDDSurfer 运行工作台",
         "subtitle": "准备一个 subject root，检查依赖环境，并从同一个监控流程运行可复用的 dMRI 分析产品。",
         "check_env": "检查环境依赖",
-        "preflight_run": "预检查并运行",
+        "preflight_run": "运行 SlicerDDSurfer",
         "status_waiting": "等待输入",
         "status_waiting_ellipsis": "等待输入…",
         "environment_section": "高级：依赖配置",
@@ -528,7 +528,6 @@ MAIN_UI_TEXT_BINDINGS = {
     "batchArrangeInputsLabel": "arrange_inputs",
     "validateButton": "check_env",
     "runSelectedButton": "preflight_run",
-    "logCollapsibleButton": "log_title",
     "logHintLabel": "log_hint",
     "clearLogButton": "clear",
 }
@@ -682,6 +681,16 @@ def translated_ui_message(language: str, message: str) -> str:
     """Translate a known UI status message while preserving unknown runtime details."""
 
     source = str(message or "")
+    pending = re.fullmatch(r"(?:Waiting: |待填写：)(?P<fields>.+)", source)
+    if pending:
+        fields = pending.group("fields")
+        names = {"Subject ID": "受试者 ID", "Subject directory": "受试者目录",
+                 "Subject input layout": "输入文件结构", "Output directory": "输出目录",
+                 "Batch root": "批处理根目录", "Target products": "分析任务"}
+        chinese = normalized_language(language) == "zh"
+        for english, translated in names.items():
+            fields = fields.replace(english if chinese else translated, translated if chinese else english)
+        return ("待填写：" if chinese else "Waiting: ") + fields
     for key, english in TRANSLATIONS["en"].items():
         if not isinstance(english, str):
             continue
@@ -1124,6 +1133,9 @@ def apply_onboarding_language(owner: Any, language: str) -> None:
             dashboard,
             capability_dashboard_text(getattr(owner, "_lastEnvironmentResult", None), language=lang),
         )
+    from shared.ui_compact import apply_compact_language
+
+    apply_compact_language(owner, lang)
 
 
 def maybe_show_first_run_wizard(owner: Any) -> None:

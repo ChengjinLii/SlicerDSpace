@@ -13,8 +13,8 @@ from shared.ui_styles import RUN_STATUS_TABLE_STYLE, SLICERDDSURFER_UI_STYLE, ru
 STATUS_COLORS = {
     "ready": "#2E7D32",
     "running": "#1565C0",
-    "waiting": "#EF6C00",
-    "warning": "#EF6C00",
+    "waiting": "#63727D",
+    "warning": "#865F24",
     "error": "#C62828",
 }
 
@@ -75,7 +75,7 @@ def set_status(owner: Any, kind: str, message: str) -> None:
     color = STATUS_COLORS.get(kind, STATUS_COLORS["error"])
     label.setText(message)
     label.setStyleSheet(
-        f"background-color: {color}; color: white; padding: 4px 10px; border-radius: 6px; font-weight: 600;"
+        f"background: transparent; color: {color}; padding: 2px 0; border: none;"
     )
     if not progress:
         return

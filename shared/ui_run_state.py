@@ -80,15 +80,15 @@ def run_button_state(
     batch_root_text: str = "",
     topup_errors: Iterable[str] = (),
 ) -> ButtonState:
-    """Decide whether "Preflight and run" is clickable and explain why not."""
+    """Keep Run clickable for validation; only an active job disables it."""
 
     if pipeline_active:
         return ButtonState(False, "A run is in progress. Use 'Cancel running job' to stop it.")
     if not [target for target in selected_targets if target and target != "validation"]:
-        return ButtonState(False, "Select at least one product under 2. Targets.")
+        return ButtonState(True, "Select at least one product under 2. Products.")
     if batch_mode:
         if not (batch_root_text or subject_root_text).strip():
-            return ButtonState(False, "Set 'Batch root' under Analysis settings (or a Subject root) for batch mode.")
+            return ButtonState(True, "Set 'Batch root' under Analysis settings (or a Subject root) for batch mode.")
     else:
         missing = []
         if not (subject_id or "").strip():
@@ -96,10 +96,10 @@ def run_button_state(
         if not (subject_root_text or "").strip():
             missing.append("Subject root")
         if missing:
-            return ButtonState(False, "Fill in " + " and ".join(missing) + " under 1. Inputs.")
+            return ButtonState(True, "Fill in " + " and ".join(missing) + " under 1. Inputs.")
     errors = [error for error in topup_errors if error]
     if errors:
-        return ButtonState(False, "Fix distortion-correction settings under 3. Route and parameters: " + errors[0])
+        return ButtonState(True, "Fix distortion-correction settings under 3. Route and parameters: " + errors[0])
     return ButtonState(True, RUN_BUTTON_READY_TOOLTIP)
 
 
@@ -116,11 +116,11 @@ def result_actions_state(*, has_subject_run: bool, is_batch: bool, error: str = 
 
 
 LOG_LEVEL_COLORS = {
-    "error": "#FF8A80",
-    "warning": "#FFD180",
-    "stage": "#82B1FF",
-    "success": "#B9F6CA",
-    "info": "#E0E0E0",
+    "error": "#AA3434",
+    "warning": "#865F24",
+    "stage": "#335B70",
+    "success": "#34654E",
+    "info": "#425360",
 }
 
 _ERROR_PATTERN = re.compile(r"\b(error|failed|failure|traceback|exception|fatal)\b", re.IGNORECASE)

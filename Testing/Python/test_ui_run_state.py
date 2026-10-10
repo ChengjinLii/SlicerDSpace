@@ -54,27 +54,31 @@ class RunButtonTest(unittest.TestCase):
         self.assertTrue(state.enabled)
         self.assertEqual(state.tooltip, RUN_BUTTON_READY_TOOLTIP)
 
-    def test_disabled_reasons_are_actionable(self) -> None:
+    def test_pending_inputs_keep_button_clickable_with_actionable_tooltips(self) -> None:
         cases = {
-            "pipeline_active": (True, "Cancel running job"),
-            "selected_targets": (("validation",), "2. Targets"),
+            "selected_targets": (("validation",), "2. Products"),
             "subject_id": ("", "Subject ID"),
             "subject_root_text": ("", "Subject root"),
         }
         for key, (value, expected) in cases.items():
             state = run_button_state(**{**self.BASE, key: value})
-            self.assertFalse(state.enabled, key)
+            self.assertTrue(state.enabled, key)
             self.assertIn(expected, state.tooltip, key)
+
+    def test_active_run_is_disabled_even_with_missing_inputs(self) -> None:
+        state = run_button_state(**{**self.BASE, "pipeline_active": True, "subject_id": ""})
+        self.assertFalse(state.enabled)
+        self.assertIn("Cancel running job", state.tooltip)
 
     def test_batch_mode_needs_a_root_but_not_a_subject_id(self) -> None:
         self.assertTrue(run_button_state(**{**self.BASE, "batch_mode": True, "subject_id": ""}).enabled)
         state = run_button_state(**{**self.BASE, "batch_mode": True, "subject_root_text": "", "batch_root_text": ""})
-        self.assertFalse(state.enabled)
+        self.assertTrue(state.enabled)
         self.assertIn("Batch root", state.tooltip)
 
-    def test_topup_errors_block_with_first_error(self) -> None:
+    def test_topup_errors_keep_button_clickable_with_first_error(self) -> None:
         state = run_button_state(**self.BASE, topup_errors=("Reverse-PE b=0 image not found: /x", "other"))
-        self.assertFalse(state.enabled)
+        self.assertTrue(state.enabled)
         self.assertIn("not found: /x", state.tooltip)
         self.assertIn("3. Route and parameters", state.tooltip)
 

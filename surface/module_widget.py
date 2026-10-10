@@ -216,12 +216,18 @@ class SurfaceWidgetMixin:
 
         return (len(missing) == 0), missing
 
-    def validateInputs(self, manual: bool = False) -> bool:
+    def validateInputs(self, manual: bool = False, *, update_status: bool = True) -> bool:
         ok, missing = self._evaluateInputs()
         status_message = "Ready to run." if ok else self._summarise_missing(missing)
+        if manual:
+            self._inputValidationAttempted = True
+        if ok:
+            self._inputValidationAttempted = False
+        show_errors = not ok and bool(getattr(self, "_inputValidationAttempted", False))
 
         if not self._pipelineActive:
-            self._setStatus("ready" if ok else "waiting", status_message)
+            if update_status:
+                self._setStatus("ready" if ok else ("error" if show_errors else "waiting"), status_message)
             if hasattr(self.ui, "applyButton"):
                 tooltip = "Run the SlicerDDSurfer pipeline" if ok else "Waiting: " + ", ".join(missing)
                 self.ui.applyButton.setToolTip(tooltip)
@@ -231,7 +237,8 @@ class SurfaceWidgetMixin:
         if hasattr(self.ui, "validateButton"):
             self.ui.validateButton.enabled = not self._pipelineActive
 
-        self._setWidgetError(getattr(self.ui, "subjectIdLineEdit", None), "Subject ID" in missing)
+        # Empty, untouched fields are pending input, not a validation failure.
+        self._setWidgetError(getattr(self.ui, "subjectIdLineEdit", None), show_errors and "Subject ID" in missing)
         subject_token = ""
         node = self._parameterNode
         if node:
@@ -246,12 +253,14 @@ class SurfaceWidgetMixin:
             )
         self._setWidgetError(
             getattr(self.ui, "inputDirectoryPath", None),
-            any(token in missing for token in ("Subject directory", "Subject input layout", subject_token))
-            or file_errors,
+            (show_errors or bool(getattr(node, "inputDirectory", ""))) and (
+                any(token in missing for token in ("Subject directory", "Subject input layout", subject_token))
+                or file_errors
+            ),
         )
         self._setWidgetError(getattr(self.ui, "outputDirectoryPath", None), "Output directory" in missing)
 
-        if status_message != self._lastStatusMessage and not self._pipelineActive:
+        if update_status and status_message != self._lastStatusMessage and not self._pipelineActive:
             self._lastStatusMessage = status_message
             self.appendLog(status_message)
 

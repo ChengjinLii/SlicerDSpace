@@ -12,7 +12,7 @@ and force-stopped after a grace period. Already installed packages are not
 rolled back. Model partial files are retained for downloader resume. After
 installation, check dependencies again; restart Slicer if an imported package
 was updated. Preflight-triggered installation does not automatically start
-scientific analysis: review setup and click **Preflight and run** again.
+scientific analysis: review setup and click **Run SlicerDDSurfer** again.
 
 PyTorch installation remains an explicit Slicer PyTorch extension operation;
 the setup UI does not silently replace its runtime with a generic pip build.

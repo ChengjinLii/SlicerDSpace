@@ -189,7 +189,7 @@
    <item>
     <widget class="ctkCollapsibleButton" name="targetsCollapsibleButton">
      <property name="text">
-      <string>2. Targets</string>
+      <string>2. Products</string>
      </property>
      <property name="collapsed">
       <bool>false</bool>
@@ -871,12 +871,9 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="runCollapsibleButton">
-     <property name="text">
-      <string>4. Run</string>
-     </property>
-     <property name="collapsed">
-      <bool>false</bool>
+    <widget class="QFrame" name="runCollapsibleButton">
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
      </property>
      <property name="toolTip">
       <string>Preflight checks, background execution, per-stage progress and cancellation.</string>
@@ -887,7 +884,7 @@
         <item>
          <widget class="QPushButton" name="runSelectedButton">
           <property name="text">
-           <string>Preflight and run</string>
+           <string>Run SlicerDDSurfer</string>
           </property>
           <property name="toolTip">
            <string>Run enabled products from the shared subject root. The module checks dependencies first, installs missing Python packages only when enabled, then starts a monitored background job.</string>
@@ -976,7 +973,7 @@
            <string>Install missing Python packages before running</string>
           </property>
           <property name="toolTip">
-           <string>Missing Python packages are installed in the background. Review setup, then click Preflight and run again. External tools are not installed silently.</string>
+           <string>Missing Python packages are installed in the background. Review setup, then click Run SlicerDDSurfer again. External tools are not installed silently.</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -1791,12 +1788,9 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="logCollapsibleButton">
-     <property name="text">
-      <string>Pipeline Log</string>
-     </property>
-     <property name="collapsed">
-      <bool>false</bool>
+    <widget class="QFrame" name="logCollapsibleButton">
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
      </property>
      <layout class="QVBoxLayout" name="logLayout">
       <item>
@@ -1804,7 +1798,7 @@
         <item>
          <widget class="QLabel" name="logHintLabel">
           <property name="text">
-           <string>Live background log. Long runs keep the latest messages for UI responsiveness.</string>
+           <string>Log</string>
           </property>
           <property name="wordWrap">
            <bool>true</bool>

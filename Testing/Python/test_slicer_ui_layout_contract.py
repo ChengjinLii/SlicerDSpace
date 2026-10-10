@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import unittest
+from types import SimpleNamespace
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -42,14 +44,48 @@ def _property_text(element: ET.Element, property_name: str) -> str:
 
 
 class SlicerUiLayoutContractTest(unittest.TestCase):
+
+    def test_completion_keeps_run_disabled_until_result_loading_finishes(self) -> None:
+        tree = ast.parse(MODULE_WIDGET_PATH.read_text(encoding="utf-8"))
+        method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+                      and node.name == "_onBackgroundProcessFinished")
+        calls = [node for node in ast.walk(method) if isinstance(node, ast.Call) and
+                 isinstance(node.func, ast.Attribute)]
+        release = [node.lineno for node in calls if node.func.attr == "_setPipelineActive"]
+        loads = [node.lineno for node in calls if node.func.attr == "_load_background_manifest_result"]
+        self.assertEqual(len(release), 1)
+        self.assertTrue(loads and release[0] > max(loads))
+
+    def test_completion_preserves_terminal_status_while_reenabling_buttons(self) -> None:
+        tree = ast.parse(MODULE_WIDGET_PATH.read_text(encoding="utf-8"))
+        method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+                      and node.name == "_onBackgroundProcessFinished")
+        call = next(node for node in ast.walk(method) if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute) and node.func.attr == "_setPipelineActive")
+        flag = next(arg.value for arg in call.keywords if arg.arg == "preserve_status")
+        self.assertIs(flag.value, True)
+        source = REPO_ROOT / "surface/module_widget.py"
+        method = next(node for node in ast.walk(ast.parse(source.read_text())) if
+                      isinstance(node, ast.FunctionDef) and node.name == "validateInputs")
+        namespace = {}
+        exec(compile(ast.Module(body=[method], type_ignores=[]), str(source), "exec"), namespace)
+        updates = []
+        owner = SimpleNamespace(_evaluateInputs=lambda: (True, []), _pipelineActive=False,
+                                _parameterNode=None, ui=SimpleNamespace(validateButton=SimpleNamespace(enabled=False)),
+                                _lastStatusMessage="Pipeline cancelled", _summarise_missing=lambda missing: "Waiting",
+                                _setStatus=lambda *args: updates.append(args), _setWidgetError=lambda *args: None)
+        self.assertTrue(namespace["validateInputs"](owner, update_status=False))
+        self.assertTrue(owner.ui.validateButton.enabled)
+        self.assertEqual(updates, [])
+
+
     def test_main_workflow_sections_follow_workflow_order(self) -> None:
         root = _load_ui()
         expected = [
             ("gettingStartedCollapsibleButton", "Getting started"),
             ("configurationCollapsibleButton", "1. Inputs"),
-            ("targetsCollapsibleButton", "2. Targets"),
+            ("targetsCollapsibleButton", "2. Products"),
             ("parametersCollapsibleButton", "3. Route and parameters"),
-            ("runCollapsibleButton", "4. Run"),
             ("resultsCollapsibleButton", "5. Results"),
             ("environmentCollapsibleButton", "Advanced: Dependency profile"),
         ]
@@ -62,8 +98,28 @@ class SlicerUiLayoutContractTest(unittest.TestCase):
         self.assertEqual(ordered, [name for name, _ in expected])
         for name, text in expected:
             self.assertEqual(_property_text(_widget(root, name), "text"), text)
-        self.assertEqual(_property_text(_widget(root, "runSelectedButton"), "text"), "Preflight and run")
+        self.assertEqual(_property_text(_widget(root, "runSelectedButton"), "text"), "Run SlicerDDSurfer")
         self.assertEqual(_property_text(_widget(root, "runSelectedButton"), "styleSheet"), "")
+
+    def test_run_and_log_are_plain_frames_without_extra_section_headers(self) -> None:
+        root = _load_ui()
+        for name in ("runCollapsibleButton", "logCollapsibleButton"):
+            self.assertEqual(_widget(root, name).attrib["class"], "QFrame")
+            self.assertEqual(_property_text(_widget(root, name), "text"), "")
+
+    def test_compact_layout_is_installed_after_all_dynamic_controls(self) -> None:
+        tree = ast.parse(MODULE_WIDGET_PATH.read_text(encoding="utf-8"))
+        method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+                      and node.name == "_initialize_common_ui_state")
+        calls = [node for node in ast.walk(method) if isinstance(node, ast.Call)]
+        compact = next(node for node in calls if isinstance(node.func, ast.Name)
+                       and node.func.id == "install_compact_layout")
+        controls = [node for node in calls if isinstance(node.func, ast.Attribute)
+                    and node.func.attr in {"_initialize_onboarding_panel", "_initialize_run_status_panel",
+                                           "_initialize_background_run_controls"}]
+        self.assertTrue(all(node.lineno < compact.lineno for node in controls))
+        self.assertFalse(any(isinstance(node.func, ast.Name) and
+                             node.func.id == "maybe_show_first_run_wizard" for node in calls))
 
     def test_route_section_holds_backends_and_topup_group(self) -> None:
         root = _load_ui()

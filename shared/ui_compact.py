@@ -1,0 +1,139 @@
+"""Arrange existing, connected controls into a compact Slicer workflow."""
+
+from __future__ import annotations
+
+from typing import Any
+
+
+def install_compact_layout(owner: Any) -> None:
+    """Move secondary controls, not their state or signals, into Advanced."""
+
+    if getattr(owner, "_advancedSettingsPanel", None) is not None:
+        return
+    import ctk
+    import qt
+
+    ui = owner.ui
+    root = owner._uiWidget
+    root.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Maximum)
+    owner.layout.setAlignment(qt.Qt.AlignTop)
+    owner.layout.setSizeConstraint(qt.QLayout.SetMinAndMaxSize)
+    layout = root.layout()
+    layout.setContentsMargins(6, 4, 6, 6)
+    layout.setSpacing(6)
+    layout.setAlignment(qt.Qt.AlignTop)
+    layout.setSizeConstraint(qt.QLayout.SetMinAndMaxSize)
+    ui.headerLayout.setContentsMargins(0, 2, 0, 5)
+    ui.headerTextLayout.setContentsMargins(0, 0, 0, 0)
+    ui.logoLabel.setFixedSize(24, 24)
+    ui.subtitleLabel.hide()
+
+    # Reuse the selector so persistence and all translations still work.
+    language = owner._onboardingWidgets["language_combo"]
+    language.setObjectName("interfaceLanguageComboBox")
+    language.setSizePolicy(qt.QSizePolicy.Fixed, qt.QSizePolicy.Fixed)
+    ui.headerLayout.addWidget(language)
+    language.show()
+    ui.gettingStartedCollapsibleButton.hide()
+
+    advanced = ctk.ctkCollapsibleButton(root)
+    advanced.setObjectName("advancedSettingsPanel")
+    advanced.collapsed = True
+    advanced_layout = qt.QVBoxLayout(advanced)
+    advanced_layout.setContentsMargins(8, 8, 8, 8)
+    advanced_layout.setSpacing(8)
+    prepare_inputs = owner._prepareInputWidgets["panel"]
+    # CTK's old parent keeps a visibility event filter after reparenting.
+    prepare_inputs.removeEventFilter(ui.configurationCollapsibleButton)
+    ui.configurationLayout.removeWidget(prepare_inputs)
+    advanced_layout.addWidget(prepare_inputs)
+    prepare_inputs.show()
+    prepare_inputs.collapsed = True
+    for name in ("parametersCollapsibleButton", "environmentCollapsibleButton", "resultsCollapsibleButton"):
+        section = getattr(ui, name)
+        layout.removeWidget(section)
+        advanced_layout.addWidget(section)
+        section.collapsed = True
+
+    utilities = qt.QHBoxLayout()
+    for name in ("diagnostic_button", "config_button"):
+        button = owner._onboardingWidgets[name]
+        utilities.addWidget(button)
+        button.show()
+    advanced_layout.addLayout(utilities)
+    layout.insertWidget(layout.indexOf(ui.logCollapsibleButton), advanced)
+    owner._advancedSettingsPanel = advanced
+
+    layout.removeWidget(ui.statusFrame)
+    ui.statusLayout.setContentsMargins(0, 0, 0, 0)
+    ui.runLayout.addWidget(ui.statusFrame)
+    ui.runLayout.setContentsMargins(0, 0, 0, 0)
+    ui.runLayout.setSpacing(4)
+    ui.logLayout.setContentsMargins(0, 0, 0, 0)
+    ui.logLayout.setSpacing(4)
+    ui.logPlainTextEdit.setMinimumHeight(80)
+    ui.logPlainTextEdit.setMaximumHeight(100)
+    ui.logCollapsibleButton.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Maximum)
+    owner._prepareInputWidgets["panel"].setStyleSheet("")
+    for section in (ui.configurationCollapsibleButton, ui.targetsCollapsibleButton):
+        section.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Maximum)
+        section.layout().setContentsMargins(8, 6, 8, 6)
+        section.layout().setSpacing(4)
+    for form in (ui.configurationFormLayout, ui.targetProductsFormLayout):
+        form.setVerticalSpacing(2)
+        form.setHorizontalSpacing(10)
+    owner._runStateLabel.hide()
+    owner._runStatusHintLabel.hide()
+    owner._runProgressBar.hide()
+    owner._cancelRunButton.hide()
+    owner._selectedProductsSummaryLabel.hide()
+
+    def fit_height() -> None:
+        # Slicer's scroll area keeps an old expanded height unless resized explicitly.
+        layout.invalidate()
+        layout.activate()
+        root.resize(root.width, root.minimumSizeHint.height())
+
+    def queue_fit(*_args: Any) -> None:
+        qt.QTimer.singleShot(0, fit_height)
+
+    for section in (advanced, ui.configurationCollapsibleButton, ui.targetsCollapsibleButton,
+                    ui.parametersCollapsibleButton, ui.environmentCollapsibleButton,
+                    ui.resultsCollapsibleButton, ui.advancedRunCollapsibleButton,
+                    owner._prepareInputWidgets["panel"]):
+        section.connect("contentsCollapsed(bool)", queue_fit)
+    queue_fit()
+
+
+def apply_compact_language(owner: Any, language: str) -> None:
+    """Keep concise main-screen labels in sync with the language system."""
+
+    if getattr(owner, "_advancedSettingsPanel", None) is None:
+        return
+    from shared.ui_onboarding import onboarding_text
+
+    owner._advancedSettingsPanel.setText(onboarding_text(language, "compact_advanced"))
+    owner.ui.headlineLabel.setText("SlicerDDSurfer")
+    owner._onboardingWidgets["language_combo"].setToolTip(onboarding_text(language, "language"))
+    prepare_inputs = (getattr(owner, "_prepareInputWidgets", {}) or {}).get("panel")
+    if prepare_inputs is not None:
+        prepare_inputs.setText(onboarding_text(language, "compact_import"))
+    for name, key in {
+        "configurationCollapsibleButton": "section_inputs",
+        "targetsCollapsibleButton": "section_targets",
+        "parametersCollapsibleButton": "compact_parameters",
+        "environmentCollapsibleButton": "compact_environment",
+        "resultsCollapsibleButton": "compact_results",
+        "runSelectedButton": "compact_run",
+        "logHintLabel": "compact_log",
+        "targetPreprocessingCheckBox": "compact_preprocessing",
+        "targetSurfaceCheckBox": "compact_surface",
+        "targetSurfacePostprocessCheckBox": "compact_postprocess",
+        "targetParcellationCheckBox": "compact_parcellation",
+        "targetSegmentationCheckBox": "compact_segmentation",
+        "targetMicrostructureCheckBox": "compact_microstructure",
+        "targetTractographyCheckBox": "compact_tractography",
+        "targetBundlesCheckBox": "compact_bundles",
+        "targetConnectomeCheckBox": "compact_connectome",
+    }.items():
+        getattr(owner.ui, name).setText(onboarding_text(language, key))

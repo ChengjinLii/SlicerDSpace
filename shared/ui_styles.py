@@ -5,190 +5,129 @@ from __future__ import annotations
 
 SLICERDDSURFER_UI_STYLE = """
 QFrame#headerFrame {
-  background-color: #F5F7FA;
-  border: 1px solid #D0D3D8;
-  border-radius: 8px;
-  padding: 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #D8DEE3;
+  border-radius: 0;
 }
 QLabel#headlineLabel {
-  color: #263238;
-  font-size: 18px;
-  font-weight: 700;
+  color: #24343D;
+  font-size: 15px;
+  font-weight: 600;
+}
+ctkCollapsibleButton {
+  background: transparent;
+  border: none;
 }
 QWidget#externalBackendsGroup,
 ctkCollapsibleButton#externalBackendsGroup,
 QGroupBox#externalBackendsGroup {
-  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FCFEFC, stop:1 #F4F8F5);
-  border: 1px solid #CADBD0;
-  border-radius: 14px;
-  padding: 8px;
+  background: #F8FAFB;
+  border: 1px solid #D8DEE3;
+  border-radius: 4px;
+  padding: 4px;
 }
-QLabel#environmentResultLabel {
-  color: #546E7A;
-  padding-top: 4px;
+QLabel#subtitleLabel, QLabel#environmentHintLabel,
+QLabel#environmentResultLabel, QLabel#externalSectionDescriptionLabel,
+QLabel#externalSubsectionDescriptionLabel, QLabel#advancedRunSectionLabel,
+QLabel#runDetailsLabel, QLabel#runMessageLabel, QLabel#runStageLabel {
+  color: #63727D;
+  background: transparent;
+  border: none;
 }
-QLabel#subtitleLabel,
-QLabel#environmentHintLabel,
 QLabel#logHintLabel {
-  color: #536B61;
-  font-size: 12px;
-}
-QLabel#externalSectionTitleLabel {
-  background: #EAF3ED;
-  border: 1px solid #CFE1D5;
-  border-radius: 8px;
-  color: #183F2E;
-  font-size: 14px;
-  font-weight: 700;
-  padding: 8px 10px;
-}
-QLabel#externalSectionDescriptionLabel {
-  color: #5C7168;
-  font-size: 11px;
-  padding: 2px 8px 8px 10px;
-}
-QLabel#externalSubsectionTitleLabel {
-  background: #F4F8F5;
-  border: 1px solid #DDEAE2;
-  border-radius: 7px;
-  color: #315843;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 7px 9px;
-}
-QLabel#externalSubsectionDescriptionLabel {
-  color: #6A7D74;
-  font-size: 11px;
-  padding: 1px 8px 5px 9px;
-}
-QLabel#modelAssetsSummaryLabel {
-  background-color: #F6FAF7;
-  border: 1px solid #D6E3DA;
-  border-radius: 8px;
-  color: #294B3B;
-  padding: 8px 10px;
-  font-size: 11px;
-}
-QLabel#advancedRunSectionLabel,
-QLabel#runDetailsLabel,
-QLabel#runMessageLabel,
-QLabel#runStageLabel {
-  color: #546E7A;
-  font-size: 11px;
-}
-QLabel#runStageLabel {
+  color: #334550;
   font-weight: 600;
 }
-QLabel#reviewStateLabel {
-  color: #74562D;
-  background: #FAF4E9;
-  border: 1px solid #E6D8BD;
-  border-radius: 5px;
-  padding: 6px 8px;
-  font-size: 11px;
+QLabel#externalSectionTitleLabel, QLabel#externalSubsectionTitleLabel {
+  background: transparent;
+  border: none;
+  color: #334550;
+  font-weight: 600;
+  padding: 4px 0;
 }
-QWidget#externalBackendsGroup QLineEdit {
-  background: white;
-  border: 1px solid #CBD8D0;
-  border-radius: 8px;
-  padding: 7px 10px;
-  min-height: 20px;
+QLabel#modelAssetsSummaryLabel, QLabel#selectedProductsSummaryLabel,
+QLabel#runSummaryLabel, QLabel#reviewStateLabel {
+  background: #F6F8FA;
+  border: 1px solid #DFE5E9;
+  border-radius: 4px;
+  color: #52616D;
+  padding: 6px;
 }
-QWidget#externalBackendsGroup QLineEdit:focus {
-  border: 1px solid #2D7C92;
-  background: #FCFEFD;
-}
-QWidget#externalBackendsGroup QPushButton {
-  border: 1px solid #CFDCD4;
-  border-radius: 8px;
-  padding: 6px 12px;
+QLineEdit, QComboBox {
   background: #FFFFFF;
-  color: #31503F;
+  border: 1px solid #CCD5DC;
+  border-radius: 3px;
+  padding: 2px 5px;
+  min-height: 18px;
 }
-QWidget#externalBackendsGroup QPushButton:hover:!disabled {
-  background: #F0F6F2;
-  border: 1px solid #BCD3C4;
+QLineEdit:focus, QComboBox:focus {
+  border: 1px solid #476E83;
 }
-QLabel#selectedProductsSummaryLabel {
-  background-color: #F8FBF8;
-  border: 1px solid #D6E3DA;
-  border-radius: 7px;
-  color: #294B3B;
-  padding: 8px 10px;
-  font-family: "Menlo", "Consolas", monospace;
-  font-size: 11px;
+QPushButton {
+  background: #F8FAFB;
+  border: 1px solid #CCD5DC;
+  border-radius: 4px;
+  color: #334550;
+  padding: 4px 8px;
 }
-QLabel#runSummaryLabel {
-  background-color: #F7FAF8;
-  border: 1px solid #D8E4DD;
-  border-radius: 7px;
-  color: #2F4038;
-  padding: 7px 9px;
-  font-size: 11px;
+QPushButton:hover:!disabled {
+  background: #EEF2F5;
+  border: 1px solid #9BAEBB;
+}
+QPushButton:disabled {
+  color: #8A98A3;
+  background: #F2F4F6;
 }
 QPushButton#runSelectedButton {
-  background-color: #1D6C45;
-  border: 1px solid #155336;
-  border-radius: 5px;
-  color: white;
-  font-weight: 700;
-  padding: 7px 16px;
+  background: #335B70;
+  border: 1px solid #335B70;
+  border-radius: 4px;
+  color: #FFFFFF;
+  font-weight: 600;
+  padding: 8px 12px;
 }
 QPushButton#runSelectedButton:hover:!disabled {
-  background-color: #155336;
+  background: #28495C;
 }
 QPushButton#runSelectedButton:disabled {
-  background-color: #B0BEC5;
-  border: 1px solid #A0AEB5;
-  color: #ECEFF1;
+  background: #E3E9ED;
+  border-color: #D4DDE4;
+  color: #81919C;
 }
 QPushButton#cancelRunButton {
-  border: 1px solid #C62828;
-  border-radius: 5px;
-  color: #C62828;
-  padding: 7px 14px;
-  background: transparent;
-}
-QPushButton#cancelRunButton:hover:!disabled {
-  background-color: rgba(198, 40, 40, 0.10);
-}
-QPushButton#cancelRunButton:disabled {
-  border: 1px solid #CFD8DC;
-  color: #90A4AE;
-}
-QPushButton#validateButton {
-  background-color: transparent;
-  border: 1px solid #2D7C92;
-  border-radius: 5px;
-  color: #2D7C92;
-  font-weight: 600;
-  padding: 5px 12px;
-}
-QPushButton#validateButton:hover:!disabled {
-  background-color: rgba(45, 124, 146, 0.10);
-}
-QPushButton#validateButton:disabled {
-  border: 1px solid #CFD8DC;
-  color: #90A4AE;
+  background: #FFFFFF;
+  color: #A7403E;
+  border: 1px solid #D8BAB9;
+  padding: 8px;
 }
 QPushButton#clearLogButton {
-  background-color: transparent;
-  border: 1px solid #B8C6C0;
-  border-radius: 6px;
-  color: #43594F;
-  padding: 4px 9px;
+  background: transparent;
+  border: none;
+  color: #63727D;
+  padding: 3px 6px;
 }
-QPushButton#clearLogButton:hover:!disabled {
-  background-color: rgba(184, 198, 192, 0.28);
+QProgressBar {
+  background: #E8EDF1;
+  border: none;
+  border-radius: 3px;
+  color: #334550;
+  max-height: 16px;
+  text-align: center;
+}
+QProgressBar::chunk {
+  background: #9EB8C8;
+  border-radius: 3px;
 }
 QPlainTextEdit#logPlainTextEdit {
-  background-color: #1E1F22;
-  border: 1px solid #3A3D41;
-  border-radius: 6px;
-  color: #E0E0E0;
-  font-family: "Menlo", "Consolas", "DejaVu Sans Mono", monospace;
+  background: #F7F9FB;
+  border: 1px solid #D8DEE3;
+  border-radius: 4px;
+  color: #425360;
+  font-family: "DejaVu Sans Mono", "Consolas", monospace;
   font-size: 11px;
-  selection-background-color: #2D7C92;
+  selection-background-color: #D4E2EA;
+  selection-color: #223642;
 }
 """
 

@@ -22,6 +22,7 @@ from shared.docs import doc_path
 from shared.input_import import InputImportConfig, detect_import_source_kind, prepare_inputs
 from shared.model_assets import model_asset_path_or_none
 from shared.ui_error_dialogs import show_actionable_error_dialog
+from shared.ui_compact import install_compact_layout
 from shared.ui_environment_dialog import show_environment_results_dialog
 from shared.ui_environment_paths import (
     add_environment_path_row,
@@ -135,7 +136,6 @@ from shared.ui_onboarding import (
     dependency_ui_text,
     diagnostic_report_text,
     install_onboarding_panel,
-    maybe_show_first_run_wizard,
     normalized_language,
     onboarding_text,
     prepare_demo_for_owner,
@@ -358,6 +358,7 @@ class SharedWidgetMixin:
         self._initialize_product_selection_summary()
         self._initialize_run_status_panel()
         self._initialize_background_run_controls()
+        install_compact_layout(self)
         self._apply_slicerddsurfer_ui_style()
         self._configure_log_widget()
         self._refresh_advanced_run_settings()
@@ -396,7 +397,6 @@ class SharedWidgetMixin:
 
         self._setStatus("waiting", "Waiting for input")
         self.initializeParameterNode()
-        maybe_show_first_run_wizard(self)
 
     def _configure_workflow_shell(self) -> None:
         """Keep the top-level UI focused on input, products, and execution."""
@@ -405,7 +405,7 @@ class SharedWidgetMixin:
             "environmentCollapsibleButton": "Advanced: Dependency profile",
             "configurationCollapsibleButton": "1. Inputs",
             "advancedRunCollapsibleButton": "Analysis settings",
-            "runSelectedButton": "Preflight and run",
+            "runSelectedButton": "Run SlicerDDSurfer",
         }
         for widget_name, text in text_updates.items():
             widget = getattr(self.ui, widget_name, None)
@@ -447,6 +447,7 @@ class SharedWidgetMixin:
         cancel_button = qt.QPushButton("Cancel running job")
         cancel_button.setObjectName("cancelRunButton")
         cancel_button.enabled = False
+        cancel_button.visible = False
         cancel_button.setToolTip("Stop the background SlicerDDSurfer pipeline process and write a cancellation manifest.")
         cancel_button.connect("clicked()", self._onCancelRunClicked)
         actions_layout.addWidget(cancel_button)
@@ -2296,7 +2297,6 @@ class SharedWidgetMixin:
             cancelled=cancelled,
             manifest_available=manifest_available,
         )
-        self._setPipelineActive(False)
         if outcome == "cancelled":
             cancel_manifest = self._write_cancelled_manifest()
             self._mark_unfinished_rows("cancelled", "User cancelled the background job.")
@@ -2334,6 +2334,9 @@ class SharedWidgetMixin:
             set_run_state(self, "failed")
         self._backgroundProcess = None
         self._backgroundCancelRequested = False
+        # Loading volumes/fibers can process Qt events. Keep Run disabled until
+        # the old callback has released its handle, so it cannot erase a new job.
+        self._setPipelineActive(False, preserve_status=True)
 
     def _load_background_manifest_result(self, manifest_path: Path) -> None:
         try:
@@ -2605,20 +2608,28 @@ class SharedWidgetMixin:
 
     def _install_missing_python_before_run(self, doctor_result, doctor_kwargs: dict, doctor_signature: tuple):
         self._install_python_packages_from_environment_dialog(tuple(doctor_result.missing_python_packages))
-        self.appendLog("[Setup] After installation, review dependencies and click Preflight and run again.")
+        self.appendLog("[Setup] After installation, review dependencies and click Run SlicerDDSurfer again.")
         return None
 
     def _onRunSelectedClicked(self) -> None:
-        if not self._parameterNode or not self.logic:
+        if not self._parameterNode or not self.logic or self._pipelineActive:
             return
-        self._save_common_user_settings()
+        # Validate before saving settings, checking dependencies or starting a job.
+        batch_mode = bool(getattr(self._parameterNode, "batchMode", False))
+        if batch_mode:
+            batch_root = getattr(self._parameterNode, "batchRoot", "") or self._parameterNode.inputDirectory or ""
+            if not batch_root.strip():
+                self._setStatus("error", self._summarise_missing(["Batch root"]))
+                return
+        elif not self.validateInputs(manual=True):
+            return
         selected = self._selected_workflows()
         if not selected:
-            slicer.util.errorDisplay("Select at least one target product to run.", parent=self.parent)
+            self._setStatus("error", self._summarise_missing(["Target products"]))
             return
+        self._save_common_user_settings()
 
         self._apply_shared_inputs_to_workflow_fields()
-        batch_mode = bool(getattr(self._parameterNode, "batchMode", False))
         topup_validation = self._topup_validation(batch_mode=batch_mode)
         if topup_validation.errors:
             self._show_topup_error(topup_validation)
@@ -3136,7 +3147,7 @@ class SharedWidgetMixin:
                 on_complete(status == "completed", message)
         return start_setup_job(self, "Download and verify model assets", [command], done)
 
-    def _setPipelineActive(self, active: bool) -> None:
+    def _setPipelineActive(self, active: bool, *, preserve_status: bool = False) -> None:
         self._pipelineActive = active
         self._refresh_run_button_state()
         if active:
@@ -3148,10 +3159,12 @@ class SharedWidgetMixin:
                 self.ui.validateButton.enabled = False
             if getattr(self, "_cancelRunButton", None):
                 self._cancelRunButton.enabled = True
+                self._cancelRunButton.visible = True
             self._setStatus("running", "Running pipeline...")
             self._lastStatusMessage = "Running pipeline..."
         else:
             self._refresh_run_button_state()
-            self.validateInputs(manual=False)
+            self.validateInputs(manual=False, update_status=not preserve_status)
             if getattr(self, "_cancelRunButton", None):
                 self._cancelRunButton.enabled = False
+                self._cancelRunButton.visible = False

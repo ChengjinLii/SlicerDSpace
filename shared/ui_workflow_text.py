@@ -1,7 +1,7 @@
 """English/Chinese UI text for the workflow sections, topup fields and Results.
 
 Merged into ``shared.ui_onboarding.TRANSLATIONS`` so the language switch in
-"Getting started" covers the new controls too.
+the header covers the new controls too.
 """
 
 from __future__ import annotations
@@ -11,7 +11,23 @@ WORKFLOW_TEXT = {
     "en": {
         "section_getting_started": "Getting started",
         "section_inputs": "1. Inputs",
-        "section_targets": "2. Targets",
+        "section_targets": "2. Products",
+        "compact_advanced": "Advanced settings",
+        "compact_import": "Input import / conversion",
+        "compact_parameters": "Analysis parameters",
+        "compact_environment": "Environment and models",
+        "compact_results": "Results and QC",
+        "compact_run": "Run SlicerDDSurfer",
+        "compact_log": "Log",
+        "compact_preprocessing": "Denoise / Gibbs / motion correction",
+        "compact_surface": "DDSurfer white / pial surfaces",
+        "compact_postprocess": "FreeSurfer-style refinement",
+        "compact_parcellation": "DDParcel regional labels",
+        "compact_segmentation": "DDSeg WM / GM / CSF",
+        "compact_microstructure": "DTI / Free-water / NODDI",
+        "compact_tractography": "Whole-brain tractography",
+        "compact_bundles": "WMQL / WMA / TractCloud",
+        "compact_connectome": "Structural connectivity matrices",
         "section_parameters": "3. Route and parameters",
         "section_run": "4. Run",
         "section_results": "5. Results",
@@ -48,7 +64,23 @@ WORKFLOW_TEXT = {
     "zh": {
         "section_getting_started": "快速开始",
         "section_inputs": "1. 输入",
-        "section_targets": "2. 目标产物",
+        "section_targets": "2. 分析任务",
+        "compact_advanced": "高级设置",
+        "compact_import": "输入导入 / 格式转换",
+        "compact_parameters": "分析参数",
+        "compact_environment": "环境与模型",
+        "compact_results": "结果与质控",
+        "compact_run": "运行 SlicerDDSurfer",
+        "compact_log": "日志",
+        "compact_preprocessing": "降噪 / Gibbs / 运动校正",
+        "compact_surface": "DDSurfer 白质 / 软脑膜表面",
+        "compact_postprocess": "FreeSurfer 风格精细化",
+        "compact_parcellation": "DDParcel 脑区标签",
+        "compact_segmentation": "DDSeg 白质 / 灰质 / 脑脊液",
+        "compact_microstructure": "DTI / 自由水 / NODDI",
+        "compact_tractography": "全脑纤维追踪",
+        "compact_bundles": "WMQL / WMA / TractCloud",
+        "compact_connectome": "结构连接矩阵",
         "section_parameters": "3. 路线与参数",
         "section_run": "4. 运行",
         "section_results": "5. 结果",
@@ -87,7 +119,6 @@ WORKFLOW_TEXT_BINDINGS = {
     "configurationCollapsibleButton": "section_inputs",
     "targetsCollapsibleButton": "section_targets",
     "parametersCollapsibleButton": "section_parameters",
-    "runCollapsibleButton": "section_run",
     "resultsCollapsibleButton": "section_results",
     "preprocessingPhaseEncodingDirectionLabel": "phase_encoding_direction",
     "preprocessingReadoutTimeLabel": "readout_time",

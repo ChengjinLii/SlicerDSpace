@@ -21,6 +21,8 @@ class UIStylesTest(unittest.TestCase):
         self.assertIn("QPushButton#runSelectedButton", SLICERDDSURFER_UI_STYLE)
         self.assertIn("QPlainTextEdit#logPlainTextEdit", SLICERDDSURFER_UI_STYLE)
         self.assertNotIn("border-left", SLICERDDSURFER_UI_STYLE)
+        self.assertNotIn("qlineargradient", SLICERDDSURFER_UI_STYLE)
+        self.assertNotIn("font-size: 18px", SLICERDDSURFER_UI_STYLE)
 
     def test_run_status_table_style_contains_header_and_selection_rules(self) -> None:
         self.assertIn("QTableWidget", RUN_STATUS_TABLE_STYLE)
