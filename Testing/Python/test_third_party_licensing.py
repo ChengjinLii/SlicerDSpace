@@ -82,9 +82,7 @@ class LicensesDirectoryTest(unittest.TestCase):
         self.assertTrue(path.is_file())
         text = path.read_text(encoding="utf-8")
         for derived_file in (
-            "parcellation/models/losses.py",
             "parcellation/models/networks.py",
-            "parcellation/models/solver.py",
             "parcellation/models/sub_module.py",
             "parcellation/data_loader/augmentation.py",
             "parcellation/data_loader/conform.py",
@@ -103,7 +101,6 @@ class FastSurferModifiedNoticesTest(unittest.TestCase):
     def test_files_actually_changed_from_upstream_carry_a_modified_notice(self) -> None:
         for modified_file in (
             "parcellation/models/networks.py",
-            "parcellation/models/solver.py",
             "parcellation/data_loader/conform.py",
             "parcellation/data_loader/load_neuroimaging_data.py",
         ):
@@ -118,7 +115,6 @@ class FastSurferModifiedNoticesTest(unittest.TestCase):
         # These carry the same Apache header but were not touched, so they
         # must not claim a modification that did not happen.
         for unmodified_file in (
-            "parcellation/models/losses.py",
             "parcellation/models/sub_module.py",
             "parcellation/data_loader/augmentation.py",
         ):

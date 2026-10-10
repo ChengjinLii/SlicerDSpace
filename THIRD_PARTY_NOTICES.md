@@ -8,9 +8,7 @@ repository.
 
 ## FastSurfer-derived code (Apache License 2.0)
 
-- `parcellation/models/losses.py`
 - `parcellation/models/networks.py`
-- `parcellation/models/solver.py`
 - `parcellation/models/sub_module.py`
 - `parcellation/data_loader/augmentation.py`
 - `parcellation/data_loader/conform.py`

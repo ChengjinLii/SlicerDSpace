@@ -45,6 +45,12 @@ dedicated documentation tree instead of crowding the repository root.
 
 ## Source Packages
 
+Files are retained according to runtime, packaging, testing, compatibility and
+licensing needs, not their last-edit date. The 2026-10-11 unused-source cleanup
+removed the historical May copy, superseded surface networks and unused
+parcellation training helpers. See [source hygiene](SOURCE_HYGIENE.md) for the
+evidence and retained-file policy.
+
 - `shared/`: common Slicer UI, dependency, IO, reporting and orchestration code.
 - `preprocessing/`, `segmentation/`, `parcellation/`, `surface/`,
   `microstructure/`, `tractography/`, `connectome/`: domain-specific pipeline

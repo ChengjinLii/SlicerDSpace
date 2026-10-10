@@ -15,6 +15,11 @@ class StageSlicerExtensionTest(unittest.TestCase):
             self.assertTrue((module_dir / "models" / "assets_manifest.json").is_file())
             self.assertTrue((module_dir / "shared" / "workflow_catalog.py").is_file())
             self.assertTrue((module_dir / "surface" / "postprocess_docker.py").is_file())
+            self.assertTrue((module_dir / "surface" / "ddsurfer_backend" / "model" / "ddsurfer.py").is_file())
+            for retired in ("surface/models", "surface/networks", "parcellation/models/solver.py",
+                            "parcellation/models/losses.py", "parcellation/models/organize_weights.sh",
+                            "docs/archive/legacy-copy-20260523"):
+                self.assertFalse((module_dir / retired).exists(), retired)
             self.assertEqual(sorted(path.name for path in module_dir.glob("*.py")), ["SlicerDDSurfer.py"])
             self.assertTrue((module_dir / "tractography" / "saf_backend").is_dir())
             self.assertFalse((module_dir / "tractography" / "slicer_dmri_reference").exists())

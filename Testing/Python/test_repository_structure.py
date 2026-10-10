@@ -6,6 +6,8 @@ from __future__ import annotations
 import unittest
 import subprocess
 import ast
+import tokenize
+from importlib.util import resolve_name
 from pathlib import Path
 
 
@@ -63,9 +65,51 @@ FORBIDDEN_TRACKED_ROOT_PATTERNS = (
     "GOAL_PROGRESS_",
     "LOCAL_RELEASE_VALIDATION_",
 )
+RETIRED_SOURCE_PATHS = (
+    "docs/archive/legacy-copy-20260523",
+    "surface/models",
+    "surface/networks",
+    "parcellation/models/losses.py",
+    "parcellation/models/solver.py",
+    "parcellation/models/organize_weights.sh",
+)
+RETIRED_MODULES = (
+    "surface.models",
+    "surface.networks",
+    "parcellation.models.losses",
+    "parcellation.models.solver",
+)
 
 
 class RepositoryStructureTest(unittest.TestCase):
+    def test_retired_sources_are_not_part_of_the_current_checkout(self) -> None:
+        for relative in RETIRED_SOURCE_PATHS:
+            self.assertFalse((REPO_ROOT / relative).exists(), relative)
+
+    def test_runtime_does_not_import_retired_implementations(self) -> None:
+        offenders = []
+        for relative in (*SCAN_ROOTS, "preprocessing", "scripts"):
+            path = REPO_ROOT / relative
+            files = [path] if path.is_file() else sorted(path.rglob("*.py"))
+            for source in files:
+                package = ".".join(source.relative_to(REPO_ROOT).parent.parts)
+                with tokenize.open(source) as stream:
+                    tree = ast.parse(stream.read(), filename=str(source))
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        imported = [alias.name for alias in node.names]
+                    elif isinstance(node, ast.ImportFrom):
+                        module = node.module or ""
+                        if node.level:
+                            module = resolve_name("." * node.level + module, package)
+                        imported = [module, *(f"{module}.{alias.name}" for alias in node.names)]
+                    else:
+                        continue
+                    for name in imported:
+                        if any(name == retired or name.startswith(retired + ".") for retired in RETIRED_MODULES):
+                            offenders.append(f"{source.relative_to(REPO_ROOT)}:{node.lineno}: {name}")
+        self.assertEqual(offenders, [])
+
     def test_tracked_root_files_stay_small_and_intentional(self) -> None:
         result = subprocess.run(
             ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
