@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "files": [
+    "SlicerDDSurfer.py",
+    "README.md",
+    "README.zh-CN.md",
+    "CITATION.cff",
+    "LICENSE",
+    "LICENSE.txt",
+    "THIRD_PARTY_NOTICES.md",
+    "models/assets_manifest.json",
+    "Resources/Icons/SlicerDDSurfer.png",
+    "Resources/UI/SlicerDDSurfer.ui",
+    "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt",
+    "tractography/wmql_queries/AF_CST.qry",
+    "scripts/wsl/WslCommandBridge.cs",
+    "scripts/wsl/requirements-runtime.txt"
+  ],
+  "trees": [
+    {"root": "shared", "patterns": ["*.py"]},
+    {"root": "preprocessing", "patterns": ["*.py"]},
+    {"root": "anatomy", "patterns": ["*.py", "*.sh", "*.json", "*.md", "*.txt", "*.yml", "*.conf", "*.png"]},
+    {"root": "microstructure", "patterns": ["*.py"]},
+    {"root": "tractography", "patterns": ["*.py", "*.qry", "*.md", "requirements.txt"]},
+    {"root": "connectome", "patterns": ["*.py"]},
+    {"root": "scripts", "patterns": ["*.py", "*.sh", "*.ps1", "*.cs", "*.txt", "*.json", "*.cmake"]},
+    {"root": "docs", "patterns": ["*.md", "*.png", "*.json"]},
+    {"root": "licenses", "patterns": ["*"]}
+  ],
+  "excluded_components": ["tests", "Testing", "third_party", "__pycache__", ".pytest_cache", ".mypy_cache", ".git"],
+  "excluded_prefixes": [
+    "tractography/slicer_dmri_reference",
+    "anatomy/surface/weights",
+    "anatomy/surface/template",
+    "anatomy/segmentation/weights",
+    "anatomy/parcellation/weights"
+  ]
+}

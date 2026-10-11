@@ -1,8 +1,16 @@
+<div align="center">
+
 # Dependency Setup Workflow
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 SlicerDDSurfer treats Python packages, external software and model assets as
 different resource classes. They can all be assisted by scripts, but the path
 fields mean different things.
+
+---
 
 ## Resource Classes
 
@@ -12,13 +20,14 @@ fields mean different things.
 | External software | Existing install path, such as MRtrix `bin`, FSL `bin` or `FREESURFER_HOME` | Show setup notes; optional scripts may be run only after explicit user action | System tools depend on OS, package manager, permissions, license terms and existing lab environments. |
 | Model weights/templates | Model assets root | Download manifest assets, verify checksum and save the selected root | The path is a writable cache outside the extension code repository. |
 
+---
+
 ## Recommended UI Flow
 
 1. Open SlicerDDSurfer from a staged extension or installed module.
-2. Use the `Language` selector if you prefer Chinese labels for the beginner
-   controls.
-3. Click `First-run setup wizard` on first use.
-4. Follow the per-step status: choose a `Model assets root`, download or verify
+2. Use the header language selector for English/Chinese.
+3. Open **Advanced settings > Environment and models**; Beginner controls and the automatic wizard are hidden.
+4. Choose a `Model assets root`, download or verify
    model assets, and scan the local runtime. Folder selection and download are
    separate actions; cancelling folder selection does not start a download.
 5. Click `Check environment dependencies`.
@@ -35,16 +44,16 @@ fields mean different things.
 12. Re-run preflight. Saved paths are stored in Slicer user settings and restored
    after reopening Slicer.
 
-The beginner panel displays examples for the current operating system instead
-of showing Unix paths on Windows. During a URL model download, the progress
+During a URL model download, the progress
 dialog reports the current file, downloaded bytes, total bytes and whether a
 partial file is being resumed. Cancel pauses safely and leaves the `.part`
 file in the selected asset root for the next attempt.
 
-For a safe first look, click `Demo / Try with sample data`. This creates a tiny
-synthetic DWI subject with no human data, selects DTI microstructure and
-`dti_det` tractography, and runs preflight so users can see what this computer
-can run before starting a real analysis.
+For a safe installation test without human data, use the synthetic-subject
+instructions in [Quick Start](../setup/QUICKSTART.md). The legacy Demo handler
+remains available to tests but is not a visible button in the default UI.
+
+---
 
 ## What Is Scanned Automatically
 
@@ -56,6 +65,8 @@ is shown with setup guidance.
 External software is not installed silently. This avoids mutating a user's OS,
 conda installation, lab module environment or licensed FreeSurfer/FSL setup
 without consent.
+
+---
 
 ## Command-Line Equivalents
 
@@ -106,6 +117,8 @@ python3 shared/run_subject_pipeline_cli.py \
   --model-assets-dir /srv/slicerddsurfer/model-assets \
   --doctor
 ```
+
+---
 
 ## Current Validation Evidence
 

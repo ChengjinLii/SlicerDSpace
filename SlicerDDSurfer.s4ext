@@ -7,6 +7,8 @@ depends SlicerDMRI PyTorch
 build_subdirectory .
 homepage https://github.com/ChengjinLii/SlicerDDSurfer
 category Diffusion
-contributors SlicerDDSurfer Team
-description Multi-workflow diffusion MRI extension for surface reconstruction, parcellation, segmentation, microstructure, tractography, bundles, and connectome analysis.
+contributors Chengjin Li
+description Integrated diffusion MRI workflows for anatomical reconstruction, tractography, bundle analysis, and structural connectivity.
+iconurl https://raw.githubusercontent.com/ChengjinLii/SlicerDDSurfer/main/Resources/Icons/SlicerDDSurfer.png
+screenshoturls https://raw.githubusercontent.com/ChengjinLii/SlicerDDSurfer/main/docs/images/slicerdds-compact-en.png
 enabled 1

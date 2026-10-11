@@ -1,59 +1,91 @@
-# SlicerDDSurfer（中文版）
+<div align="center">
 
-SlicerDDSurfer 是一个 3D Slicer scripted module，用于扩散 MRI 的解剖重建和连接组分析。它整合了输入准备、环境检查、分割、分区、表面重建、微结构指标、纤维追踪、束分析、connectome 生成和 Slicer 内结果检查。
+# SlicerDDSurfer
 
-本项目面向研究流程，重点是生成可追踪的输出、QC 文件和 provenance 记录，而不是替代下游统计分析或专家解释。
+**3D Slicer 中的扩散 MRI 分析工作流**
 
-**English README:** [README.md](README.md)
+[![CI](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml/badge.svg)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
+[![Slicer](https://img.shields.io/badge/3D_Slicer-5.10-58728B)](https://www.slicer.org/)
 
-**源码导航：** [仓库目录说明](docs/architecture/REPOSITORY_LAYOUT.md)。算法实现按功能放在各模块包，维护工具放在 `scripts/`，本地报告、缓存和发布产物统一放在忽略提交的 `ignore/`。根目录的旧命令入口保留兼容，但不再承载工具实现。
+[概览](#概览) | [安装](#安装) | [快速开始](#快速开始) | [文档](docs/README.zh-CN.md) | [验证状态](#验证与发布状态) | [引用](#引用) | [English](README.md)
 
-科学源码分为 `preprocessing/`（前处理）、`anatomy/`（DDSeg、DDParcel、DDSurfer 解剖重建）、`microstructure/`（DTI、Free-water、NODDI 微结构分析）、`tractography/`（纤维与束分析）和 `connectome/`（连接组）。目录整理不改变外部权重结构、已有结果路径或任务 ID。
+</div>
 
-**DDSurfer 后端更新（2026-10-04）：** 已同步上游推理、四份 TANet 权重、变换后的初始化表面及 1 mm 图谱。迁移说明、运行环境选择与真实数据验证记录见 [同步与验证说明](docs/release/DDSURFER_SYNC_20261004.md)。
+SlicerDDSurfer 在一个 Slicer 模块中组织扩散 MRI 解剖重建、微结构定量和白质
+连接分析。选择所需产品，执行可追溯工作流，再查看影像、QC 报告和运行记录。
 
-## 功能概览
+**科研软件。** 当前为私有预发布项目，尚未通过官方 Extensions Catalog 分发。
+任务完成不等于科学结果正确，也不构成临床诊断依据。
 
-- Slicer 图形界面：设置 subject-root、依赖检查、run plan、后台运行和结果查看。
-- 命令行入口：支持单被试和批量运行。
-- 模型权重下载器：基于 manifest 下载并校验 checksum。
-- 规范输出树：每次运行写 manifest、QC、logs 和报告。
-- 可选外部工具：MRtrix3、FSL、FreeSurfer、WMA、TractQuerier、TractCloud、SlicerDMRI。
+---
 
-## 快速开始
+## 概览
 
-代码和模型权重是两个独立下载步骤：
+<p align="center">
+  <img src="docs/images/slicerdds-compact-zh.png" width="440" alt="SlicerDDSurfer 简洁界面：输入、分析产品、运行、高级设置和日志">
+</p>
+
+| 工作流 | 主要结果 | 主要前提 |
+| --- | --- | --- |
+| 输入准备 | DICOM/NIfTI/NRRD 导入、梯度检查、可选掩膜生成与预处理 | 对应导入或预处理后端 |
+| 解剖重建 | DDSeg 组织分割、DDParcel 脑区、DDSurfer 白质与软脑膜表面 | 匹配的模型资源；所选路线需要 PyTorch/SlicerDMRI |
+| 微结构分析 | DTI FA/MD、区域统计、Free-water、NODDI | 对应 Python 依赖；模型要求的多壳层采集 |
+| 白质通路 | DTI/CSD、ACT/SIFT2、SAF、WMQL/WMA/TractCloud | 对应外部工具及资源 |
+| 结构连接组 | 区域矩阵、场景检查、QC 与溯源记录 | 空间一致的分区和流线；SIFT2 路线还需权重 |
+
+只安装**当前所选路线**需要的依赖，不要求首次安装全部外部工具。
+MRtrix3、FSL、FreeSurfer 和高级白质束后端均为按需配置，不会静默安装。
+详见[能力与平台矩阵](docs/setup/SUPPORT_MATRIX.zh-CN.md)。
+
+---
+
+## 安装
+
+仓库保持私有，请使用已有访问权限的 checkout。以下是**源码 staging 安装**，
+不是经过官方 SDK/CPack 验收的扩展包：
 
 ```bash
 git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
 cd SlicerDDSurfer
-
-scripts/download_model_assets.sh --profile core
-python3 scripts/download_model_assets.py --profile core --verify-only
+python3 scripts/stage_slicer_extension.py \
+  --install-root ~/SlicerDDSurfer-extension --link-mode copy --clean
 ```
 
-`git clone` 只下载源码、脚本、文档、配置和 `models/assets_manifest.json`，不包含大模型权重或模板。模型资源需要通过 downloader 从独立资源仓库拉取，并用文件大小和 SHA256 校验。
+在 **Edit > Application Settings > Modules** 中，将
+`~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules`
+展开为绝对路径后加入 **Additional module paths**，重启 Slicer。
+若使用其他 Slicer 版本，staging 时设置实际的 `--slicer-version`。
+本地 GUI 验证使用 Slicer 5.10。更新代码后需重新 staging 并重启。
 
-默认情况下，权重不会放在 Slicer 插件/代码目录里，而是下载到用户资产目录：
-
-- Linux: `$XDG_DATA_HOME/SlicerDDSurfer/model-assets` 或 `~/.local/share/SlicerDDSurfer/model-assets`
-- macOS: `~/Library/Application Support/SlicerDDSurfer/model-assets`
-- Windows: `%LOCALAPPDATA%\\SlicerDDSurfer\\model-assets`
-
-用户可以通过 Slicer UI 里的 `Model assets root`、环境变量
-`SLICERDDSURFER_MODEL_ASSETS_DIR`，或命令行 `--asset-root` 自定义路径：
+按路线从 Extension Manager 安装 **SlicerDMRI** 和 **PyTorch**。
+模型与代码分开存放，在 **高级设置 > 环境与模型** 中设置可写的资源目录。
+先阅读[资源使用与再分发状态](docs/assets/MODEL_ASSET_TERMS.md)，再下载所需 profile：
 
 ```bash
-python3 scripts/download_model_assets.py \
-  --profile core \
-  --asset-root /path/to/SlicerDDSurfer-model-assets \
-  --source url \
+python3 scripts/download_model_assets.py --profile surface \
+  --asset-root ~/SlicerDDSurfer-model-assets --source url \
   --source-id slicerdsurfer_models_git
 ```
 
-## 最小命令行用法
+完整解剖资源可用 `scripts/download_model_assets.sh --profile core`。
+文件可下载、SHA256 正确，不代表已获得公开再分发授权。
+详见[模型资源](docs/assets/MODEL_ASSETS.md)与[依赖设置](docs/assets/DEPENDENCY_SETUP_WORKFLOW.md)。
 
-准备 subject-root：
+---
+
+## 快速开始
+
+1. 在模块选择器打开 **SlicerDDSurfer**，在标题栏选择中文或英文。
+2. 填写 **Subject ID**、**Subject root**，可另选 **Output directory**。
+3. 仅勾选本次需要的分析产品。
+4. 展开 **高级设置**，设置分析路线、依赖和模型；运行前检查环境。
+5. 点击 **Run SlicerDDSurfer**。输入不全会显示红色提示，按日志修正后重试。
+6. 在 **高级设置 > 结果与 QC** 选择本次运行，加载声明的结果并检查 QC 报告。
+
+默认界面不显示 Beginner 区，也不自动弹出首次向导。
+DICOM/NRRD 等格式转换位于 **高级设置 > 输入导入 / 转换**；
+已经准备好的输入无需重复转换。
 
 ```text
 sub-01/
@@ -61,190 +93,80 @@ sub-01/
     data.nii.gz
     bvals
     bvecs
-    dwi.json                  # 可选
-    nodif_brain_mask.nii.gz   # 可选
+    nodif_brain_mask.nii.gz   # 可选；生成掩膜需要支持的后端
 ```
 
-先做环境检查：
+DWI 与掩膜须在同一体素网格，梯度数量须与 DWI 测量一致。
+运动校正后的 DWI 必须配套旋转更新后的梯度。
+[最小 DTI 教程](docs/setup/QUICKSTART.zh-CN.md)包含明确标识的合成安装测试；
+合成数据不是人体科研示例。
+
+---
+
+## 文档
+
+| 任务 | 入口 |
+| --- | --- |
+| 首次工作流 | [快速开始](docs/setup/QUICKSTART.zh-CN.md) |
+| 平台与依赖 | [能力矩阵](docs/setup/SUPPORT_MATRIX.zh-CN.md) · [Linux](docs/setup/LINUX_HPC.md) · [Windows](docs/setup/WINDOWS.md) · [macOS](docs/setup/MACOS.md) |
+| 模型资源 | [资源配置](docs/assets/MODEL_ASSETS.md) · [授权状态](docs/assets/MODEL_ASSET_TERMS.md) |
+| 结果、取消和 QC | [结果检查](docs/setup/GUI_RESULT_REVIEW.md) |
+| GUI/CLI 共用配置 | [配置](docs/setup/USER_CONFIG.md) |
+| 源码组织 | [目录结构](docs/architecture/REPOSITORY_LAYOUT.md) |
+| 维护者发布验收 | [扩展准备状态](docs/release/EXTENSION_READINESS.zh-CN.md) · [发布流程](docs/release/RELEASE.md) |
+
+只检查环境，不执行算法：
 
 ```bash
-/path/to/Slicer --launch PythonSlicer run_subject_pipeline.py \
-  --subject-root /path/to/sub-01 \
-  --targets validation,preprocessing,microstructure,tractography,connectome \
-  --doctor
+python3 run_subject_pipeline.py --subject-root /path/to/sub-01 \
+  --targets validation,microstructure --microstructure-stages dti --doctor
 ```
 
-只生成 run plan，不执行算法：
+将 `--doctor` 换成 `--plan` 可保存运行计划。
+需要 Slicer CLI 模块的执行路线必须使用 Slicer 或其 `PythonSlicer`。
 
-```bash
-python3 run_subject_pipeline.py \
-  --subject-root /path/to/sub-01 \
-  --targets validation,preprocessing,microstructure,tractography,bundles,connectome \
-  --microstructure-stages dti \
-  --tractography-backend csd_act \
-  --bundle-backend wmql \
-  --plan
-```
+---
 
-执行一个较小的产品组合：
+## 验证与发布状态
 
-```bash
-python3 run_subject_pipeline.py \
-  --subject-root /path/to/sub-01 \
-  --subject-id sub-01 \
-  --targets microstructure,tractography,connectome \
-  --microstructure-stages dti \
-  --tractography-backend dti_det \
-  --execute
-```
+Linux 真实数据与 GUI 验证见[验收记录](docs/release/SLICER_ACCEPTANCE_20261007.md)，
+简洁界面另有 [UI 验证记录](docs/release/UI_SIMPLIFICATION_20261008.md)。
+这些记录仅覆盖对应代码快照、路线和数据，不代表所有配置均已通过。
 
-默认输出目录是 `<subject-root>/outputs/`。
+- CMake 与 staging 共用一份运行资源清单，安装包检查核对文件和源文件哈希。
+- 快速 CI 和本地安装测试不能替代真实 SDK/CTest/CPack 构建。
+- 尚未认证 Windows/macOS 原生科学工作流或三平台 SDK 构建。
+- Extension Index JSON 是 **Tier 1 申请草稿**，不是官方已收录状态。
+- 仓库公开、第三方源码许可补齐及模型再分发审查仍是独立发布门禁。
 
-## Slicer 图形界面
+开发检查可运行 `make test-fast` 与
+`python3 scripts/audit_slicer_extension_metadata.py --json`。
+SDK 与独立干净安装验收详见[扩展准备状态](docs/release/EXTENSION_READINESS.zh-CN.md)。
 
-Linux Slicer 5.10 可以通过源码安装：
+---
 
-```bash
-python3 scripts/stage_slicer_extension.py \
-  --install-root ~/SlicerDDSurfer-extension --link-mode copy
-```
+## 支持
 
-打开 Slicer 的 **Edit > Application Settings > Modules**，在 **Additional module paths**
-中添加 `~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules`
-对应的绝对目录，然后重启，在模块选择器中选择 **SlicerDDSurfer**。
-通过 Extension Manager 安装相应流程所需的 **SlicerDMRI** 和 **PyTorch**。
-这是源码安装方式，不能替代打包扩展的安装验收；更新源码后需要重新运行 staging。
+在高级设置的环境区收集诊断信息。提交问题时提供 Slicer 版本、操作系统、
+所选路线、失败信息和脱敏日志，删除被试标识及私人路径。
+报告默认保留本地，依赖与模型下载需要网络访问。
 
-在 3D Slicer 中打开 `SlicerDDSurfer` 模块后，可以完成：
+---
 
-- 使用有步骤状态的首次运行向导，分别选择模型目录、下载/续传模型、扫描本机依赖并查看可运行能力；
-- 使用 `Demo / 我只是想试一下` 自动生成无隐私的微型 DWI，运行 validation、DTI 和确定性纤维追踪，并把关键结果加载回 Slicer 场景；
-- subject-root 选择；
-- 依赖 preflight 和外部路径覆盖；
-- 运行前 run-plan 检查；
-- 后台执行和取消；
-- output tree、report、manifest、QC 文件检查。
+## 引用
 
-界面中的路径示例会根据 Windows、macOS 或 Linux 自动切换。模型下载弹窗显示当前文件、字节进度和续传状态；取消时保留 `.part` 文件，再次点击即可继续。
+SlicerDDSurfer 协议稿件仍在准备。使用 [CITATION.cff](CITATION.cff)
+引用实际测试的软件版本，并引用本次使用的方法：
+[DDSurfer](https://doi.org/10.1002/advs.76596)、
+[DDSeg](https://doi.org/10.1016/j.neuroimage.2021.117934)、
+[DDParcel](https://doi.org/10.1109/TMI.2023.3331691)。
 
-详细依赖配置见
-[docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md)。
+---
 
-语言、最近使用的 subject/output 路径、运行目标、后端和外部依赖路径会保存到本地 `user_config.json`，GUI 与命令行共用。路径和优先级见 [docs/setup/USER_CONFIG.md](docs/setup/USER_CONFIG.md)。
+## 许可证
 
-## 模型资源
-
-推荐默认下载：
-
-```bash
-scripts/download_model_assets.sh --profile core
-```
-
-如果用户只 clone 代码仓库，希望从独立模型资源仓库下载，而不是依赖本仓库
-Git LFS：
-
-```bash
-python3 scripts/download_model_assets.py \
-  --profile core \
-  --source url \
-  --source-id slicerdsurfer_models_git
-```
-
-常用 profile：
-
-- `core`：surface + segmentation + parcellation 资源。
-- `surface`：DDSurfer 表面重建资源。
-- `segmentation`：DDSeg 权重。
-- `parcellation`：DDParcel 权重。
-- `all`：全部 LFS 资源和测试 fixture。
-
-详细 manifest、mirror、lockfile 和再分发边界见
-[docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md)。
-
-## 输入准备
-
-用 `scripts/prepare_inputs.py` 把外部数据整理成标准 subject-root：
-
-```bash
-python3 scripts/prepare_inputs.py \
-  --source /path/to/dicom_or_dwi_file \
-  --subject-root /path/to/sub-01 \
-  --subject-id sub-01
-```
-
-支持 DICOM 到 NIfTI、NIfTI+bval/bvec、以及通过 MRtrix3 `mrconvert` 处理 NRRD/NHDR。
-
-也可以用 Makefile 入口：
-
-```bash
-SLICERDDSURFER_SOURCE=/path/to/dicom_or_dwi_file \
-SLICERDDSURFER_SUBJECT_ROOT=/path/to/sub-01 \
-SLICERDDSURFER_SUBJECT_ID=sub-01 \
-make prepare-inputs
-```
-
-## 验证
-
-常用本地检查：
-
-```bash
-make test-fast
-make fresh-clone-smoke
-python3 scripts/release_audit.py
-python3 scripts/download_model_assets.py --profile core --verify-only
-```
-
-更完整的 release-candidate 检查：
-
-```bash
-python3 scripts/release_validation.py \
-  --subject-root /path/to/sub-01 \
-  --asset-mirror-dir /path/to/SlicerDDSurfer-models-core \
-  --all-asset-mirror-dir /path/to/SlicerDDSurfer-models-all \
-  --run-fresh-clone-smoke \
-  --warn-only
-```
-
-## 依赖规划
-
-只生成依赖报告、不修改系统：
-
-```bash
-python3 scripts/install_dependencies.py --profile core --platform Linux
-python3 scripts/install_dependencies.py --profile bundles --platform Darwin
-python3 scripts/install_dependencies.py --profile full --platform Windows
-```
-
-可以用 `--python-environment <conda-env-or-python-path>` 指定 Python 或 conda
-环境。只有显式加 `--execute` 时，脚本才会把缺失的 Python 包安装到该环境中。
-MRtrix3、FSL、FreeSurfer、WMA、TractCloud 等外部工具只生成安装说明，不会静默修改系统。
-
-## 报告和本地清理
-
-运行完成后生成 subject-level HTML/JSON/Markdown 报告：
-
-```bash
-SLICERDDSURFER_SUBJECT_ROOT=/path/to/sub-01 \
-SLICERDDSURFER_RUN_NAME=Test1 \
-make subject-report
-```
-
-清理本地缓存和被忽略的 smoke/report 临时产物：
-
-```bash
-make clean-local
-```
-
-## 文档入口
-
-- [docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md)：模型权重、模板和 mirror。
-- [docs/setup/EXTERNAL_DEPENDENCIES.md](docs/setup/EXTERNAL_DEPENDENCIES.md)：Python 包和外部工具配置。
-- [docs/architecture/PRODUCT_ARCHITECTURE.md](docs/architecture/PRODUCT_ARCHITECTURE.md)：流程和输出结构。
-- [docs/architecture/REPOSITORY_LAYOUT.md](docs/architecture/REPOSITORY_LAYOUT.md)：仓库布局和 GitHub 首屏整理规则。
-- [docs/release/RELEASE.md](docs/release/RELEASE.md)：发布流程。
-- [docs/release/DOI_ARCHIVE_PREP.md](docs/release/DOI_ARCHIVE_PREP.md)：代码归档和模型资产边界。
-
-## License 和引用
-
-见 [LICENSE](LICENSE)、[CITATION.cff](CITATION.cff) 和
-[docs/assets/MODEL_ASSET_TERMS.md](docs/assets/MODEL_ASSET_TERMS.md)。
+项目代码采用 **BSD-3-Clause**：[LICENSE.txt](LICENSE.txt)；
+保留同内容的 [LICENSE](LICENSE) 以兼容旧链接。
+第三方源码单独适用 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 中的条款。
+项目许可证不覆盖权重、模板和被试数据；部分组件授权仍待确认，
+未形成书面许可记录前不要发布包含这些资产的公开归档。

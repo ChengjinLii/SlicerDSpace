@@ -1,14 +1,27 @@
+<div align="center">
+
 # macOS Setup
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 This page is for users who want to run SlicerDDSurfer from 3D Slicer on macOS.
 Use the Slicer UI first; use Terminal only when troubleshooting.
+
+Native macOS scientific execution and real SDK packaging are not certified.
+These are setup instructions, not a completed platform acceptance record.
+
+---
 
 ## 1. Install 3D Slicer
 
 Download and install 3D Slicer from <https://www.slicer.org/>.
 
-Open Slicer, then open the SlicerDDSurfer module. If this is your first time,
-click `First-run setup wizard`.
+Install the module following the project README, open SlicerDDSurfer, then use
+**Advanced settings > Environment and models**. No automatic wizard is shown.
+
+---
 
 ## 2. Choose A Model Asset Folder
 
@@ -27,6 +40,8 @@ python3 scripts/download_model_assets.py \
   --source url \
   --source-id slicerdsurfer_models_git
 ```
+
+---
 
 ## 3. Prepare Subject Data
 
@@ -47,6 +62,8 @@ In SlicerDDSurfer:
 2. Set `Subject root` to `/Users/yourname/data/sub-01`.
 3. Leave `Output directory` empty unless you need a custom output folder.
 
+---
+
 ## 4. External Tools
 
 MRtrix3, FSL, FreeSurfer, WMA and TractCloud are optional depending on selected
@@ -61,6 +78,8 @@ MRtrix bin: /opt/mrtrix3/bin
 FSL bin: /usr/local/fsl/bin
 FreeSurfer home: /Applications/freesurfer
 ```
+
+---
 
 ## 5. If Something Fails
 

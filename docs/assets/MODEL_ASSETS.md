@@ -1,4 +1,10 @@
+<div align="center">
+
 # Model Assets and Weight Downloads
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 SlicerDDSurfer keeps the code repository lightweight by storing large
 model/template files outside the main source tree. The preferred external
@@ -159,6 +165,8 @@ cd SlicerDDSurfer
 scripts/download_model_assets.sh --profile core
 ```
 
+---
+
 ## Profiles
 
 Profiles are configured in `models/assets_manifest.json`. Update that manifest when adding, removing, or moving model assets; `scripts/download_model_assets.sh` is a compatibility wrapper around the Python manifest reader.
@@ -190,6 +198,8 @@ scripts/download_model_assets.sh --profile all
 ```
 
 Use `--no-verify` only for debugging slow or interrupted downloads.
+
+---
 
 ## Asset Layout
 
@@ -223,6 +233,8 @@ segmentation/weights/
 parcellation/weights/
 ```
 
+---
+
 ## Manifest Format
 
 The manifest has one top-level `profiles` object. Each profile may define:
@@ -255,6 +267,8 @@ URL-template sources may use these placeholders:
 | `{filename}` | URL-encoded basename only. Useful for flat DOI records. |
 | `{sha256}` | Manifest SHA256 for content-addressed mirrors. |
 
+---
+
 ## Recommended Asset Hosting Architecture
 
 For a public release, keep this code repository lightweight and publish large
@@ -280,6 +294,8 @@ python3 scripts/download_model_assets.py --profile core --verify-only
 If a DOI platform stores all files flat rather than preserving directories,
 configure per-record `urls` or a URL template using `{filename}`. Do not publish
 asset-inclusive DOI archives until the terms decision record allows it.
+
+---
 
 ## Release Governance
 
@@ -307,6 +323,8 @@ Mirrors and offline packages:
 - A mirror URL is not a license grant; keep the original source and terms
   notice visible in release notes and manuscript availability statements.
 
+---
+
 ## Recommended User Flow
 
 1. Clone the repository.
@@ -322,6 +340,8 @@ python3 run_subject_pipeline.py \
 
 4. If the doctor reports missing model assets, rerun the downloader for the relevant profile or configure the DDSurfer environment variables above.
 
+---
+
 ## Asset Terms Boundary
 
 The downloader proves that selected files are present and materialized from Git
@@ -334,6 +354,8 @@ permission for each asset group.
 The current release-facing asset terms status is tracked in
 `MODEL_ASSET_TERMS.md`. Treat that file as the decision record for whether a
 release may include model assets or must remain code/documentation-only.
+
+---
 
 ## Notes for Maintainers
 

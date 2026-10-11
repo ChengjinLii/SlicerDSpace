@@ -1,9 +1,17 @@
+<div align="center">
+
 # Model Asset Hosting Plan
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 This plan separates SlicerDDSurfer source code from large model weights,
 templates and validation fixtures. The current Git LFS objects remain a
 compatibility source, but the release-facing route should move to an independent
 asset host after redistribution terms are confirmed.
+
+---
 
 ## Target Layout
 
@@ -26,6 +34,8 @@ surface/template/hcp_hemi-left_init_160k.obj
 
 Preserving relative paths lets the existing pipeline keep using repository-local
 defaults while the downloader changes only the source backend.
+
+---
 
 ## Migration Steps
 
@@ -69,6 +79,8 @@ python3 scripts/release_audit.py
 scripts/smoke_fresh_clone.sh
 ```
 
+---
+
 ## Supported Source Types
 
 - `git-lfs`: compatibility source inside the code repository.
@@ -77,6 +89,8 @@ scripts/smoke_fresh_clone.sh
 
 The URL downloader verifies every file after download. A mirror is accepted only
 if the file size and SHA256 match the manifest.
+
+---
 
 ## Recommended Release Policy
 

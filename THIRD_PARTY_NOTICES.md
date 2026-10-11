@@ -1,10 +1,18 @@
+<div align="center">
+
 # Third-Party Notices
+
+[Project](README.md) | [Documentation](docs/README.md) | [Quick Start](docs/setup/QUICKSTART.md) | [Release](docs/release/EXTENSION_READINESS.md) | [中文索引](docs/README.zh-CN.md)
+
+</div>
 
 SlicerDDSurfer's own source code is licensed under the BSD 3-Clause license
 in [LICENSE](LICENSE). This file documents bundled third-party code, data,
 and reference material that carries different terms, and states honestly
 where full license/provenance information is not yet available in this
 repository.
+
+---
 
 ## FastSurfer-derived code (Apache License 2.0)
 
@@ -22,6 +30,8 @@ licensed under the Apache License, Version 2.0. The full license text is in
 reproduced from these files is in
 [`licenses/NOTICE-FastSurfer.txt`](licenses/NOTICE-FastSurfer.txt).
 
+---
+
 ## SAF (short association fibre tractography) backend (MIT License)
 
 - `tractography/saf_backend/` (all files; bundled and packaged as runtime
@@ -36,6 +46,8 @@ K. Koller, C.M.W. Tax, J. Evans, K. Hamandi, W.P. Gray, D.K. Jones,
 M. Chamberland, "Surface-based tracking for short association fibre
 tractography", NeuroImage 2022,
 [doi:10.1016/j.neuroimage.2022.119423](https://doi.org/10.1016/j.neuroimage.2022.119423).
+
+---
 
 ## `anatomy/parcellation/conversion/` (NRRD/NHDR conversion utilities)
 
@@ -54,6 +66,8 @@ this code, and no license header in its source files, is present here.
 [github.com/pnlbwh/conversion](https://github.com/pnlbwh/conversion) before
 redistributing this code or a build that includes it.**
 
+---
+
 ## `anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt`
 
 This is FreeSurfer's own color lookup table (RCS header:
@@ -66,6 +80,8 @@ License](https://surfer.nmr.mgh.harvard.edu/fswiki/FreeSurferSoftwareLicense),
 not SlicerDDSurfer's BSD-3-Clause license.** Confirm the FreeSurfer license's
 redistribution terms for this file before redistributing a build that
 includes it; do not assume it is as permissive as BSD-3-Clause.
+
+---
 
 ## Method papers
 

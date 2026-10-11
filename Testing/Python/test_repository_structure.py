@@ -37,6 +37,7 @@ ALLOWED_ROOT_FILES = {
     "CITATION.cff",
     "CMakeLists.txt",
     "LICENSE",
+    "LICENSE.txt",
     "Makefile",
     "README.md",
     "README.zh-CN.md",
@@ -97,9 +98,11 @@ class RepositoryStructureTest(unittest.TestCase):
             self.assertTrue((REPO_ROOT / "anatomy" / domain / "__init__.py").is_file())
             self.assertFalse((REPO_ROOT / domain).exists(), domain)
         cmake = (REPO_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-        self.assertIn('file(GLOB_RECURSE ANATOMY_PYTHON_SCRIPTS "anatomy/*.py")', cmake)
-        self.assertIn("${ANATOMY_PYTHON_SCRIPTS}", cmake)
-        self.assertIn("anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt", cmake)
+        self.assertIn("slicerdsurfer_runtime_resources", cmake)
+        from scripts.extension_runtime.runtime_resources import runtime_files
+        files = runtime_files(REPO_ROOT)
+        self.assertIn("anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt", files)
+        self.assertIn("anatomy/surface/pipeline.py", files)
 
     def test_microstructure_lut_resolves_after_anatomy_migration(self) -> None:
         from microstructure.pipeline import _default_lut_path
@@ -251,10 +254,10 @@ class RepositoryStructureTest(unittest.TestCase):
 
     def test_reference_sources_are_explicitly_excluded_from_cmake_packaging(self) -> None:
         cmake_text = (REPO_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-        self.assertIn(
-            'list(FILTER TRACTOGRAPHY_PYTHON_SCRIPTS EXCLUDE REGEX "/slicer_dmri_reference/")',
-            cmake_text,
-        )
+        self.assertIn("scripts/extension_runtime/RuntimeResources.cmake", cmake_text)
+        import json
+        manifest = json.loads((REPO_ROOT / "scripts/extension_runtime/runtime_resources.json").read_text())
+        self.assertIn("tractography/slicer_dmri_reference", manifest["excluded_prefixes"])
 
     def test_untracked_files_are_not_large_runtime_artifacts(self) -> None:
         result = subprocess.run(

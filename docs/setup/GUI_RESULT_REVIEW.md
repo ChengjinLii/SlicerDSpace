@@ -1,4 +1,10 @@
+<div align="center">
+
 # Setup and result review in Slicer
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 ## Background setup
 
@@ -18,6 +24,8 @@ PyTorch installation remains an explicit Slicer PyTorch extension operation;
 the setup UI does not silently replace its runtime with a generic pip build.
 External software installation policies are unchanged.
 
+---
+
 ## Run-scoped scene results
 
 Results are selected only from successful or explicitly reused tasks in the
@@ -28,7 +36,7 @@ presenting unrelated historical results as current results.
 
 ### Choosing a run
 
-Open **5. Results**. The **Run** list shows every run found under the output
+Open **Advanced settings > Results and QC**. The **Run** list shows every run found under the output
 directory (or `<subject root>/outputs`), the subject root, the batch root and
 any folder added earlier with **Browse…**, newest first, as
 `time · subject · run name · status`. GUI, command-line and batch runs all
@@ -58,6 +66,8 @@ Categorical segmentation/parcellation outputs load as label maps; probability
 maps remain scalar volumes. MD uses grayscale; FA/NDI/ODI/fraction display
 ranges use 0-1 where identified. These settings do not modify voxel data.
 
+---
+
 ## Status and limitations
 
 Execution completion, QC reporting and pending visual review are shown
@@ -71,10 +81,12 @@ synthetic commands without changing a user's Python installation or downloading
 large models; real network and platform-specific cancellation need separate
 acceptance testing.
 
+---
+
 ## Distortion correction (MRtrix3/FSL route)
 
-With **Preprocessing** checked under **2. Targets** and **Preprocessing route**
-set to `mrtrix_fsl` under **3. Route and parameters**, the
+With **Preprocessing** checked under **2. Products** and **Preprocessing route**
+set to `mrtrix_fsl` under **Advanced settings > Analysis parameters**, the
 **Distortion correction (topup)** group shows three fields. They set the same
 options as the command line:
 

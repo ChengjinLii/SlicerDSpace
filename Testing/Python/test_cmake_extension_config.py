@@ -48,8 +48,13 @@ class CMakeExtensionConfigTest(unittest.TestCase):
                         '    message(FATAL_ERROR "Invalid scripted module declaration")',
                         "  endif()",
                         '  file(WRITE "${CMAKE_BINARY_DIR}/scripted-module.txt" "${SM_NAME}\\n${SM_SCRIPTS}\\n")',
+                        '  foreach(resource IN LISTS SM_SCRIPTS SM_RESOURCES)',
+                        '    get_filename_component(resource_dir "${resource}" DIRECTORY)',
+                        '    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/${resource}" DESTINATION "${Slicer_INSTALL_QTSCRIPTEDMODULES_LIB_DIR}/${resource_dir}")',
+                        '  endforeach()',
                         "endmacro()",
                         "function(slicer_add_python_unittest)",
+                        '  file(APPEND "${CMAKE_BINARY_DIR}/registered-tests.txt" "${ARGN}\\n")',
                         "endfunction()",
                         "",
                     )
@@ -85,6 +90,22 @@ class CMakeExtensionConfigTest(unittest.TestCase):
             self.assertIn("SlicerDDSurfer", package_contract)
             self.assertIn("SlicerDMRI", package_contract)
             self.assertIn("PyTorch", package_contract)
+            registered = (build / "registered-tests.txt").read_text(encoding="utf-8")
+            for script in (REPO_ROOT / "Testing/Python").glob("test_*.py"):
+                self.assertIn(script.name, registered)
+            prefix = root / "installed"
+            installed = subprocess.run([cmake, "--install", str(build), "--prefix", str(prefix)],
+                                       check=False, capture_output=True, text=True, timeout=120)
+            self.assertEqual(installed.returncode, 0, installed.stdout + installed.stderr)
+            from scripts.extension_runtime.runtime_resources import runtime_files
+            from scripts.stage_slicer_extension import stage_extension
+            module = prefix / "lib/Slicer-5.10/qt-scripted-modules"
+            actual = sorted(path.relative_to(module).as_posix() for path in module.rglob("*") if path.is_file())
+            self.assertEqual(actual, runtime_files(REPO_ROOT))
+            staged = stage_extension(root / "staged", slicer_version="Slicer-5.10", clean=True, link_mode="copy")
+            staged_module = Path(staged["module_dir"])
+            for relative in actual:
+                self.assertEqual((module / relative).read_bytes(), (staged_module / relative).read_bytes(), relative)
 
 
 if __name__ == "__main__":

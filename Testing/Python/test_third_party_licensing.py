@@ -124,15 +124,17 @@ class FastSurferModifiedNoticesTest(unittest.TestCase):
 
 class CMakePackagingTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.text = (REPO_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+        from scripts.extension_runtime.runtime_resources import runtime_files
+        self.files = runtime_files(REPO_ROOT)
 
     def test_saf_backend_license_is_packaged(self) -> None:
-        self.assertIn("tractography/saf_backend/LICENSE.md", self.text)
+        self.assertIn("tractography/saf_backend/LICENSE.md", self.files)
 
     def test_third_party_notices_and_licenses_directory_are_packaged(self) -> None:
-        self.assertIn("THIRD_PARTY_NOTICES.md", self.text)
-        self.assertIn('file(GLOB LICENSE_FILES "licenses/*")', self.text)
-        self.assertIn("${LICENSE_FILES}", self.text)
+        self.assertIn("THIRD_PARTY_NOTICES.md", self.files)
+        self.assertIn("licenses/Apache-2.0.txt", self.files)
+        self.assertIn("licenses/NOTICE-FastSurfer.txt", self.files)
+        self.assertEqual((REPO_ROOT / "LICENSE").read_bytes(), (REPO_ROOT / "LICENSE.txt").read_bytes())
 
 
 class CitationCffTest(unittest.TestCase):

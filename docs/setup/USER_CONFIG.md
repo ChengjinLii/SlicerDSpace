@@ -1,9 +1,17 @@
+<div align="center">
+
 # Shared User Configuration
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 SlicerDDSurfer stores common preferences in one local JSON file shared by the
 Slicer GUI and command-line interface. After the first setup, users do not need
 to repeatedly enter language, model paths, external software paths or common
 run defaults.
+
+---
 
 ## Default Location
 
@@ -16,6 +24,8 @@ run defaults.
 Set `SLICERDDSURFER_USER_CONFIG=/custom/path/user_config.json` to use another
 location. This is useful for a lab-wide profile, portable test environment or
 CI job.
+
+---
 
 ## Saved Values
 
@@ -31,6 +41,8 @@ configuration that can be inspected, copied, versioned privately or reused by
 the CLI. Common GUI edits are saved automatically after a short debounce;
 language and dependency-path changes are saved immediately. Do not publish a
 config containing private data paths without review.
+
+---
 
 ## Language
 
@@ -50,6 +62,8 @@ Use `"en"` for English or `"zh"` for Chinese. If the file is edited while the
 module is already open, reload the module or restart Slicer so the edited value
 is read again. Dependency installation merges its paths into this file without
 overwriting an existing language choice.
+
+---
 
 ## CLI Use
 

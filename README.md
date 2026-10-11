@@ -1,31 +1,102 @@
+<div align="center">
+
 # SlicerDDSurfer
 
-SlicerDDSurfer is a 3D Slicer module for diffusion-MRI anatomical
-reconstruction and connectivity analysis. It helps users prepare one subject,
-check dependencies, run selected diffusion products, and review outputs with
-logs, quality-control files and provenance.
+**Diffusion MRI workflows in 3D Slicer**
 
-**中文说明:** [README.zh-CN.md](README.zh-CN.md)
+[![CI](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml/badge.svg)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
+[![Slicer](https://img.shields.io/badge/3D_Slicer-5.10-58728B)](https://www.slicer.org/)
 
-**Source navigation:** [repository layout](docs/architecture/REPOSITORY_LAYOUT.md).
-Processing code is grouped into `preprocessing/` (input processing), `anatomy/`
-(DDSeg, DDParcel, DDSurfer), `microstructure/` (DTI, Free-water, NODDI),
-`tractography/` and `connectome/`. Tools live in `scripts/`; local reports,
-caches and release files live in ignored `ignore/`.
+[Overview](#overview) | [Install](#installation) | [Quick Start](#quick-start) | [Documentation](docs/README.md) | [Validation](#validation-and-release-status) | [Citation](#citation) | [中文](README.zh-CN.md)
 
-**DDSurfer backend update (2026-10-04):** surface reconstruction now follows the
-matching upstream code, four TANet checkpoints, transformed templates and 1-mm
-atlas. See [synchronization and validation](docs/release/DDSURFER_SYNC_20261004.md)
-for migration, interpreter selection and reproducibility evidence.
+</div>
 
-## 5-Minute Start
+SlicerDDSurfer brings diffusion-MRI anatomical reconstruction, microstructural
+mapping and white-matter connectivity analysis into one Slicer module. Select
+the products you need, run a traceable workflow, and review its images, QC
+reports and execution records.
 
-1. Install [3D Slicer](https://www.slicer.org/) and load the module using
-   [Install the code](#install-the-code) below.
-2. Click `First-run setup wizard`.
-3. Choose a `Model assets root`, for example `~/SlicerDDSurfer-model-assets`.
-4. Click `Check environment dependencies`.
-5. Choose a `Subject root`, for example:
+**Research software.** Private pre-release; not currently distributed through
+the official Extensions Catalog. A completed run is not a clinical assessment
+or proof of scientific correctness.
+
+---
+
+## Overview
+
+<p align="center">
+  <img src="docs/images/slicerdds-compact-en.png" width="440" alt="SlicerDDSurfer compact interface: inputs, selected products, Run, Advanced settings and log">
+</p>
+
+One module, five workflow families:
+
+| Workflow | Products | Main prerequisites |
+| --- | --- | --- |
+| Input preparation | DICOM/NIfTI/NRRD import, gradient validation, optional mask generation and preprocessing | Appropriate import/preprocessing backend |
+| Anatomical reconstruction | DDSeg tissue labels, DDParcel regions, DDSurfer white/pial surfaces | Matching model assets, PyTorch and SlicerDMRI for the selected route |
+| Microstructural analysis | DTI FA/MD, regional summaries, Free-water and NODDI | Route-specific Python packages; multi-shell acquisition where required |
+| White-matter pathways | DTI/CSD tractography, ACT/SIFT2, SAF, WMQL/WMA/TractCloud bundles | Backend-specific tools and assets |
+| Structural connectivity | Regional matrices, Slicer scene inspection, QC and provenance | Compatible parcellation and tractogram; SIFT2 weights for weighted routes |
+
+Install dependencies **for the selected route**, not for every possible product.
+MRtrix3, FSL, FreeSurfer and advanced bundle backends are optional and are not
+silently installed. See the [capability and platform matrix](docs/setup/SUPPORT_MATRIX.md).
+
+---
+
+## Installation
+
+Use an authorized checkout while the repository is private. The following is
+a **source/staging installation**, not an official CPack release:
+
+```bash
+git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
+cd SlicerDDSurfer
+python3 scripts/stage_slicer_extension.py \
+  --install-root ~/SlicerDDSurfer-extension --link-mode copy --clean
+```
+
+In **Edit > Application Settings > Modules**, add the expanded absolute path
+`~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules`
+to **Additional module paths**, then restart Slicer. Set `--slicer-version`
+to your actual Slicer version when staging. Local GUI validation uses Slicer 5.10.
+
+Install **SlicerDMRI** and **PyTorch** from Slicer's Extension Manager for routes
+that need them. Updating the source requires restaging and restarting.
+
+Model files live outside the code checkout. Choose a writable model-assets
+directory in **Advanced settings > Environment and models**. Download only the
+required profile after reviewing [asset terms](docs/assets/MODEL_ASSET_TERMS.md):
+
+```bash
+python3 scripts/download_model_assets.py --profile surface \
+  --asset-root ~/SlicerDDSurfer-model-assets --source url \
+  --source-id slicerdsurfer_models_git
+```
+
+The broader anatomical profile is available with
+`scripts/download_model_assets.sh --profile core`.
+Availability and SHA256 verification do **not** establish redistribution rights.
+See [model setup](docs/assets/MODEL_ASSETS.md) and
+[dependency setup](docs/assets/DEPENDENCY_SETUP_WORKFLOW.md).
+
+---
+
+## Quick Start
+
+1. Select **SlicerDDSurfer** from the module selector. Choose English or Chinese in the header.
+2. Enter **Subject ID**, **Subject root** and, optionally, a separate **Output directory**.
+3. Select only the products you intend to run.
+4. Open **Advanced settings** to configure analysis routes, dependencies and models. Check the environment before processing.
+5. Click **Run SlicerDDSurfer**. Missing inputs appear in red; review the log and correct them before retrying.
+6. Open **Advanced settings > Results and QC**, select the run, load its declared results and inspect the QC report.
+
+There is no visible Beginner section or automatic first-run wizard in the
+default interface. Input conversion is under **Advanced settings > Input import /
+conversion**; ordinary prepared inputs do not need conversion again.
+
+Canonical input layout:
 
 ```text
 sub-01/
@@ -33,138 +104,90 @@ sub-01/
     data.nii.gz
     bvals
     bvecs
-    nodif_brain_mask.nii.gz   # optional but recommended
+    nodif_brain_mask.nii.gz   # optional; generation needs a supported backend
 ```
 
-6. Review the capability dashboard. It tells you what can run now and what
-   still needs setup.
-7. Click `Preflight and run`.
-8. Open the output tree/report from the run status panel.
+DWI and mask must share a voxel grid. Gradient files must match the DWI
+measurements. Corrected gradients must accompany motion-corrected DWI.
+For a minimal DTI-only walkthrough and a clearly identified synthetic
+installation test, see the [tutorial](docs/setup/QUICKSTART.md).
 
-If you only want to test the interface, click `Demo / Try with sample data`.
-This creates a tiny synthetic DWI subject with no human data, automatically
-runs validation, DTI scalar mapping and deterministic tractography, and loads
-the key maps and fibre bundle into the Slicer scene.
+---
 
-The wizard shows a status for every setup step and uses path examples for the
-current operating system. Model downloads show the current file and byte
-progress; cancelling keeps a `.part` file so a later attempt can resume.
+## Documentation
 
-## Install The Code
+| Task | Guide |
+| --- | --- |
+| First workflow | [Quick Start](docs/setup/QUICKSTART.md) |
+| Dependency and platform support | [Support matrix](docs/setup/SUPPORT_MATRIX.md) · [Linux](docs/setup/LINUX_HPC.md) · [Windows](docs/setup/WINDOWS.md) · [macOS](docs/setup/MACOS.md) |
+| Model setup | [Assets](docs/assets/MODEL_ASSETS.md) · [Terms](docs/assets/MODEL_ASSET_TERMS.md) |
+| Results, cancellation and QC | [Result review](docs/setup/GUI_RESULT_REVIEW.md) |
+| Configuration and command line | [Settings](docs/setup/USER_CONFIG.md) |
+| Source organization | [Repository layout](docs/architecture/REPOSITORY_LAYOUT.md) |
+| Maintainer release checks | [Extension readiness](docs/release/EXTENSION_READINESS.md) · [Release procedure](docs/release/RELEASE.md) |
+
+For a CLI input/environment check without running algorithms:
 
 ```bash
-git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
-cd SlicerDDSurfer
+python3 run_subject_pipeline.py --subject-root /path/to/sub-01 \
+  --targets validation,microstructure --microstructure-stages dti --doctor
 ```
 
-`git clone` downloads the source code, documentation, scripts and
-`models/assets_manifest.json`. It does not download the large model weights.
+Use `--plan` instead of `--doctor` to write a run plan. Execution that needs
+Slicer CLI modules must use Slicer or its `PythonSlicer` environment.
 
-For the tested Linux Slicer 5.10 source installation:
+---
 
-```bash
-python3 scripts/stage_slicer_extension.py \
-  --install-root ~/SlicerDDSurfer-extension --link-mode copy
-```
+## Validation And Release Status
 
-In Slicer, open **Edit > Application Settings > Modules**, add
-`~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules`
-to **Additional module paths** (select the expanded absolute path), and restart.
-Select **SlicerDDSurfer** in the module selector. Install **SlicerDMRI** and
-**PyTorch** through the Extension Manager for the corresponding workflows.
-This is a source installation; staging alone does not validate a packaged
-Extension Manager release. Re-run staging after updating the source.
+Linux real-data and GUI evidence is documented in the
+[acceptance campaign](docs/release/SLICER_ACCEPTANCE_20261007.md);
+the compact interface has a separate
+[UI validation record](docs/release/UI_SIMPLIFICATION_20261008.md).
+These records describe specific checkouts, routes and datasets, not all
+future configurations.
 
-## Download Model Assets
+Current release boundaries:
 
-Recommended command:
+- CMake and staging now use one runtime resource manifest; package audits check file inclusion and source hashes.
+- Fast CI and local installation checks are not substitutes for a real SDK/CTest/CPack build.
+- Native Windows/macOS scientific workflows and three-platform SDK builds are not certified.
+- The Extension Index JSON is a **Tier 1 proposal**, not acceptance by Slicer.
+- Public source access, third-party licensing clearance and asset redistribution review remain release gates.
 
-```bash
-scripts/download_model_assets.sh --profile core
-```
+Run `make test-fast` and
+`python3 scripts/audit_slicer_extension_metadata.py --json` for development
+checks. SDK builds and independent clean installation are described in
+[Extension readiness](docs/release/EXTENSION_READINESS.md).
 
-Explicit equivalent:
+---
 
-```bash
-python3 scripts/download_model_assets.py \
-  --profile core \
-  --asset-root ~/SlicerDDSurfer-model-assets \
-  --source url \
-  --source-id slicerdsurfer_models_git
-```
+## Support
 
-Quick network/checksum test without large files:
+Use **Advanced settings > Environment and models** to collect diagnostics.
+When reporting an issue, include the Slicer version, OS, selected route,
+failure message and redacted log. Remove patient identifiers and private paths.
+Reports remain local unless you choose to share them; dependency and model
+downloads require network access.
 
-```bash
-python3 scripts/download_model_assets.py \
-  --profile sentinel \
-  --asset-root /tmp/slicerdsurfer-model-sentinel \
-  --source url \
-  --source-id slicerdsurfer_models_git
-```
-
-Details: [docs/assets/MODEL_ASSETS.md](docs/assets/MODEL_ASSETS.md).
-
-## Platform Setup
-
-- Windows: [docs/setup/WINDOWS.md](docs/setup/WINDOWS.md)
-- macOS: [docs/setup/MACOS.md](docs/setup/MACOS.md)
-- Linux/HPC: [docs/setup/LINUX_HPC.md](docs/setup/LINUX_HPC.md)
-- Shared GUI/CLI settings: [docs/setup/USER_CONFIG.md](docs/setup/USER_CONFIG.md)
-- Dependency workflow: [docs/assets/DEPENDENCY_SETUP_WORKFLOW.md](docs/assets/DEPENDENCY_SETUP_WORKFLOW.md)
-
-Python packages, external software and model weights are handled differently:
-
-- Python packages install into the selected Slicer Python or conda/Python
-  environment. SlicerDMRI and PyTorch are expected Slicer extension/runtime
-  dependencies for the corresponding workflows. DTI/anatomical execution that
-  uses Slicer CLI modules must run through Slicer or `bin/PythonSlicer`.
-- External tools such as MRtrix3, FSL, FreeSurfer, WMA and TractCloud are
-  detected from saved paths, environment variables, `PATH` and common install
-  locations. They are not installed silently.
-- Model weights download into the user-selected `Model assets root`.
-
-## Command-Line Preflight
-
-```bash
-python3 run_subject_pipeline.py \
-  --subject-root /path/to/sub-01 \
-  --targets validation,microstructure,tractography,connectome \
-  --tractography-backend dti_det \
-  --doctor
-```
-
-Generate a plan without running algorithms:
-
-```bash
-python3 run_subject_pipeline.py \
-  --subject-root /path/to/sub-01 \
-  --targets validation,microstructure,tractography,connectome \
-  --tractography-backend dti_det \
-  --plan
-```
-
-## Need Help?
-
-In the Slicer module, click `Copy diagnostic report` and paste the report into
-an issue or support message. It includes Slicer/Python paths, model asset root,
-missing dependencies, checked paths and recent logs.
-
-Common language, paths and run defaults are saved in a local `user_config.json`
-and reused by both the GUI and CLI. Explicit CLI options always take priority.
-
-## Developer Checks
-
-```bash
-make test-fast
-make fresh-clone-smoke
-python3 scripts/release_audit.py
-```
-
-Release details are in [docs/release/RELEASE.md](docs/release/RELEASE.md).
-Benchmark CSV/figure generation is documented in
-[docs/release/PROTOCOL_BENCHMARKS.md](docs/release/PROTOCOL_BENCHMARKS.md).
+---
 
 ## Citation
 
-Use [CITATION.cff](CITATION.cff) for citation metadata.
+The SlicerDDSurfer protocol manuscript is in preparation. Cite the tested
+software version using [CITATION.cff](CITATION.cff), together with the methods
+actually used: [DDSurfer](https://doi.org/10.1002/advs.76596),
+[DDSeg](https://doi.org/10.1016/j.neuroimage.2021.117934), and
+[DDParcel](https://doi.org/10.1109/TMI.2023.3331691).
+
+---
+
+## License
+
+Project code is **BSD-3-Clause**: [LICENSE.txt](LICENSE.txt)
+(the identical [LICENSE](LICENSE) is retained for compatibility).
+Bundled third-party code has separate terms:
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Model weights, templates and subject-derived data are not relicensed by the
+project license. Some component permissions remain unresolved; do not publish
+asset-inclusive archives until those permissions are documented.

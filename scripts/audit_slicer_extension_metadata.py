@@ -16,11 +16,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_EXTENSION_DEPENDS = ("SlicerDMRI", "PyTorch")
 REQUIRED_TOP_LEVEL_FILES = (
     "LICENSE",
+    "LICENSE.txt",
     "CITATION.cff",
     "codemeta.json",
     ".zenodo.json",
     "docs/assets/MODEL_ASSETS.md",
     "docs/release/RELEASE.md",
+    "docs/release/extension-index/SlicerDDSurfer.json",
 )
 REQUIRED_HELP_TERMS = (
     "diffusion",
@@ -109,6 +111,8 @@ def audit(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
             findings.append(AuditFinding(relative, "error", f"Missing release metadata file: {relative}"))
 
     s4ext = parse_s4ext(s4ext_path)
+    if (repo_root / "LICENSE.txt").is_file() and _read(repo_root / "LICENSE") != _read(repo_root / "LICENSE.txt"):
+        findings.append(AuditFinding("license_alias", "error", "LICENSE and LICENSE.txt must have identical content"))
     s4ext_depends = tuple(s4ext.get("depends", [""])[0].split())
     cmake_depends = tuple(parse_cmake_extension_depends(cmake_path))
     if s4ext_depends != cmake_depends:
@@ -123,9 +127,48 @@ def audit(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
         if dependency not in s4ext_depends:
             findings.append(AuditFinding("extension_dependencies", "error", f"Missing extension dependency: {dependency}"))
 
-    for key in ("scm", "scmurl", "scmrevision", "homepage", "category", "contributors", "description", "enabled"):
+    for key in ("scm", "scmurl", "scmrevision", "homepage", "category", "contributors", "description", "enabled", "iconurl", "screenshoturls"):
         if not s4ext.get(key, [""])[0]:
             findings.append(AuditFinding(f"s4ext:{key}", "error", f"Missing .s4ext field: {key}"))
+
+    catalog_path = repo_root / "docs/release/extension-index/SlicerDDSurfer.json"
+    if catalog_path.is_file():
+        try:
+            catalog = json.loads(_read(catalog_path))
+            allowed = {"$schema", "category", "scm_url", "scm_revision", "scm_type",
+                       "build_dependencies", "build_subdirectory", "enabled", "tier", "dicom_support_rule"}
+            if not isinstance(catalog, dict) or set(catalog) - allowed:
+                raise ValueError("Unexpected catalog fields")
+            if catalog.get("$schema") != "https://raw.githubusercontent.com/Slicer/Slicer/main/Schemas/slicer-extension-catalog-entry-schema-v1.0.2.json#":
+                raise ValueError("Unexpected catalog schema")
+            for key, legacy in (("scm_url", "scmurl"), ("scm_revision", "scmrevision"),
+                                ("category", "category"), ("scm_type", "scm"),
+                                ("build_subdirectory", "build_subdirectory")):
+                if not isinstance(catalog.get(key), str) or catalog[key] != s4ext.get(legacy, [""])[0]:
+                    raise ValueError(f"Catalog/s4ext mismatch: {key}")
+            if catalog.get("build_dependencies") != list(cmake_depends):
+                raise ValueError("Catalog/CMake dependency mismatch")
+            if catalog.get("tier") != 1 or type(catalog.get("tier")) is not int:
+                raise ValueError("Draft should propose Tier 1 only")
+            if catalog.get("enabled") is not True:
+                raise ValueError("Catalog enabled must be boolean true")
+            if "dicom_support_rule" in catalog and not isinstance(catalog["dicom_support_rule"], str):
+                raise ValueError("DICOM rule must be a string")
+        except (ValueError, TypeError) as exc:
+            findings.append(AuditFinding("catalog", "error", str(exc)))
+
+    cmake_text = _read(cmake_path)
+    for key, legacy in (("HOMEPAGE", "homepage"), ("CATEGORY", "category"),
+                        ("CONTRIBUTORS", "contributors"), ("DESCRIPTION", "description"),
+                        ("ICONURL", "iconurl"), ("SCREENSHOTURLS", "screenshoturls")):
+        match = re.search(rf'set\(EXTENSION_{key}\s+"([^"]*)"\)', cmake_text)
+        if not match or match.group(1) != s4ext.get(legacy, [""])[0]:
+            findings.append(AuditFinding("cmake:" + key, "error", f"CMake/s4ext mismatch: {key}"))
+    for key in ("iconurl", "screenshoturls"):
+        for url in s4ext.get(key, [""])[0].split():
+            prefix = "https://raw.githubusercontent.com/ChengjinLii/SlicerDDSurfer/main/"
+            if not url.startswith(prefix) or not (repo_root / url[len(prefix):]).is_file():
+                findings.append(AuditFinding(key, "error", f"Raw URL has no matching source image: {url}"))
 
     metadata = parse_module_metadata(module_path)
     if metadata.get("title") != "SlicerDDSurfer":
@@ -173,6 +216,7 @@ def audit(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
         "s4ext_depends": list(s4ext_depends),
         "cmake_depends": list(cmake_depends),
         "findings": [finding.__dict__ for finding in findings],
+        "scope": "Local metadata consistency; not public URL reachability or catalog acceptance",
     }
 
 

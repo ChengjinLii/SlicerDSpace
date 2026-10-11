@@ -1,15 +1,27 @@
+<div align="center">
+
 # Linux / HPC Setup
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 This page is for Linux workstations and HPC environments. Use the Slicer UI for
 interactive setup when possible. On clusters, use command-line preflight before
 submitting long jobs.
+
+---
 
 ## 1. Install 3D Slicer
 
 Download 3D Slicer from <https://www.slicer.org/> or use the Slicer build
 provided by your lab/HPC module system.
 
-Open SlicerDDSurfer and click `First-run setup wizard`.
+Install the module using the source/staging instructions in the project README.
+Open **Advanced settings > Environment and models** to configure the selected
+route; the default compact interface has no automatic first-run wizard.
+
+---
 
 ## 2. Choose A Model Asset Folder
 
@@ -35,6 +47,8 @@ python3 scripts/download_model_assets.py \
   --source-id slicerdsurfer_models_git
 ```
 
+---
+
 ## 3. Prepare Subject Data
 
 Recommended layout:
@@ -47,6 +61,8 @@ Recommended layout:
     bvecs
     nodif_brain_mask.nii.gz
 ```
+
+---
 
 ## 4. External Tools
 
@@ -73,6 +89,8 @@ module load fsl
 module load freesurfer
 ```
 
+---
+
 ## 5. Command-Line Preflight
 
 ```bash
@@ -84,6 +102,8 @@ python3 run_subject_pipeline.py \
 ```
 
 Do not submit a long job until preflight says the selected targets are runnable.
+
+---
 
 ## 6. If Something Fails
 

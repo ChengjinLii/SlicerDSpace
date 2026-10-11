@@ -1,4 +1,10 @@
+<div align="center">
+
 # Source Hygiene
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 ## Retired Sources
 
@@ -17,6 +23,8 @@ These 17 files remain recoverable from Git history. A local pre-deletion backup
 is stored in ignored `ignore/archives/unused_sources_20261011/retired_sources.tar.gz`.
 It is not installed or uploaded. Scientific results, weights and active
 upstream source files were not removed or rewritten.
+
+---
 
 ## Retained Files
 
@@ -40,6 +48,8 @@ Older files can still serve an active contract:
   reason to remove them.
 - The root command/import compatibility entries remain supported. Root
   development configuration and `.github/` remain necessary for tests and CI.
+
+---
 
 ## Regression Checks
 

@@ -35,6 +35,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: false
+          fetch-depth: 0
 
       - name: Set up test Python
         uses: actions/setup-python@v5
@@ -47,7 +48,7 @@ jobs:
       - name: Run fresh-clone smoke
         if: github.event.inputs.run_fresh_clone_smoke == 'true'
         env:
-          SMOKE_REPO_URL: https://github.com/${{ github.repository }}.git
+          SMOKE_REPO_URL: ${{ github.workspace }}
           SMOKE_REF: ${{ github.sha }}
           SMOKE_ASSET_PROFILE: core
           SMOKE_ASSET_MODE: download

@@ -6,6 +6,26 @@ on:
   pull_request:
 
 jobs:
+  distribution-contract:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Check resource contract and package contents
+        run: python -m unittest discover -s Testing/Python -p test_extension_distribution.py -v
+      - name: Check metadata and documentation
+        run: |
+          python scripts/audit_slicer_extension_metadata.py --json
+          python scripts/audit_documentation.py
+
   fast-checks:
     runs-on: ubuntu-latest
     steps:

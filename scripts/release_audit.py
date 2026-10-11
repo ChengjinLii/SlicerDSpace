@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
-"""Pre-release repository audit for SlicerDDSurfer."""
+"""Repository hygiene/packaging audit; not a certification of public release readiness."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+
+try:
+    from scripts.extension_runtime.runtime_resources import runtime_files
+except ModuleNotFoundError:
+    from extension_runtime.runtime_resources import runtime_files
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -151,24 +157,47 @@ def _read_text_if_exists(path: Path) -> str:
 
 
 def _extract_cmake_set_items(text: str, variable: str) -> list[str]:
-    marker = f"set({variable}"
-    start = text.find(marker)
-    if start < 0:
+    # This inspects literal set lists, not arbitrary CMake expressions.
+    text = re.sub(r"#[^\n]*", "", text)
+    match = re.search(r"\bset\s*\(\s*" + re.escape(variable) + r"\s+([^)]*)\)", text)
+    if not match:
         return []
-    start = text.find("\n", start)
-    end = text.find(")", start)
-    if start < 0 or end < 0:
-        return []
-    items: list[str] = []
-    for line in text[start:end].splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "#" in line:
-            line = line.split("#", 1)[0].strip()
-        if line:
-            items.append(line)
-    return items
+    return [item.strip('"') for item in re.findall(r'"[^"\n]*"|\S+', match.group(1))]
+
+
+def _runtime_packaging_issues(root: Path, cmake_text: str) -> list[AuditIssue]:
+    issues = []
+    required_cmake_entries = (
+        'include("${CMAKE_CURRENT_SOURCE_DIR}/scripts/extension_runtime/RuntimeResources.cmake")',
+        'slicerdsurfer_runtime_resources("${CMAKE_CURRENT_SOURCE_DIR}" MODULE_PYTHON_RESOURCES)',
+        'list(REMOVE_ITEM MODULE_PYTHON_RESOURCES "${MODULE_NAME}.py")',
+        'RESOURCES ${MODULE_PYTHON_RESOURCES}',
+    )
+    for entry in required_cmake_entries:
+        if entry not in cmake_text:
+            issues.append(AuditIssue("blocker", "cmake_packaging", "CMakeLists.txt",
+                                     f"CMake must consume the shared runtime selection: {entry}"))
+    try:
+        selected = runtime_files(root)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        issues.append(AuditIssue("blocker", "cmake_packaging", "scripts/extension_runtime/runtime_resources.json",
+                                 f"Runtime resource selection failed: {error}"))
+        return issues
+    for relative in ("tractography/wmql_queries/AF_CST.qry", "scripts/wsl/WslCommandBridge.cs",
+                     "scripts/wsl/requirements-runtime.txt", "LICENSE.txt",
+                     "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt"):
+        if relative not in selected:
+            issues.append(AuditIssue("blocker", "cmake_packaging", relative,
+                                     "Required non-Python runtime resource is absent from the shared selection."))
+    for relative in selected:
+        parts = Path(relative).parts
+        if "slicer_dmri_reference" in parts or "third_party" in parts:
+            issues.append(AuditIssue("blocker", "cmake_packaging", relative,
+                                     "Reference-only or third-party source must not be packaged."))
+        if len(parts) == 1 and relative.endswith(".py") and relative != "SlicerDDSurfer.py":
+            issues.append(AuditIssue("blocker", "cmake_packaging", relative,
+                                     "Top-level Python helpers can be scanned as Slicer modules."))
+    return issues
 
 
 def audit_repository(*, large_file_mb: float = 20.0) -> dict[str, object]:
@@ -248,22 +277,7 @@ def audit_repository(*, large_file_mb: float = 20.0) -> dict[str, object]:
                     message="CMakeLists.txt must not package or reference third_party content.",
                 )
             )
-        reference_filter = (
-            'list(FILTER TRACTOGRAPHY_PYTHON_SCRIPTS EXCLUDE REGEX '
-            '"/slicer_dmri_reference/")'
-        )
-        if reference_filter not in cmake_text:
-            issues.append(
-                AuditIssue(
-                    severity="blocker",
-                    category="cmake_packaging",
-                    path="CMakeLists.txt",
-                    message=(
-                        "Reference-only SlicerDMRI sources must be filtered from "
-                        "TRACTOGRAPHY_PYTHON_SCRIPTS."
-                    ),
-                )
-            )
+        issues.extend(_runtime_packaging_issues(REPO_ROOT, cmake_text))
         if "SCRIPTS ${MODULE_PYTHON_SCRIPTS}" not in cmake_text:
             issues.append(
                 AuditIssue(
@@ -383,6 +397,10 @@ def audit_repository(*, large_file_mb: float = 20.0) -> dict[str, object]:
         "blocker_count": len(blockers),
         "warning_count": len(warnings),
         "issues": [issue.to_dict() for issue in issues],
+        "scope": "repository hygiene and packaging declarations only",
+        "repository_checks_passed": not blockers,
+        "public_release_readiness": "NOT_ASSESSED",
+        # Retained for existing CI consumers, with the limited scope above.
         "release_ready": not blockers,
     }
 
@@ -398,7 +416,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
-        print(f"release_ready={report['release_ready']}")
+        print(f"repository_checks_passed={report['repository_checks_passed']}")
+        print("public_release_readiness=NOT_ASSESSED (SDK, clean installation and asset permissions require separate evidence)")
         print(f"blockers={report['blocker_count']} warnings={report['warning_count']}")
         for issue in report["issues"]:
             print(f"- {issue['severity']} {issue['category']} {issue['path']}: {issue['message']}")

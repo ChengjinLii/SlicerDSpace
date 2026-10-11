@@ -1,6 +1,14 @@
+<div align="center">
+
 # SlicerDDSurfer 外部环境与配置说明
 
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
+
 本文档说明运行 SlicerDDSurfer 需要用户本地安装或配置哪些外部环境。原则是：**不要把所有后端都视为必装项**。很多功能是可选后端，只有选择对应 target 或 backend 时才需要安装。
+
+---
 
 ## 0. 推荐策略：先环境体检，再安装，再运行
 
@@ -61,6 +69,8 @@ python3 run_subject_pipeline.py \
 
 示例：缺 MRtrix3 时，`microstructure` 仍可运行；`tractography`、`saf` 或 MRtrix backend connectome 会被标记为 `blocked`。缺 TractQuerier 时，`bundles` 可被 blocked，但已有 tractogram 和 parcellation 仍可继续用于 connectome。
 
+---
+
 ## 0.1 一键安装脚本
 
 仓库提供跨平台包装脚本：
@@ -119,6 +129,8 @@ python3 scripts/install_dependencies.py \
 - MRtrix3、FSL、FreeSurfer、WMA、TractCloud、模型数据和 license 不会被脚本静默安装，因为它们涉及管理员权限、平台差异、license、模型下载或用户本地路径选择。
 - 这些外部项会写入 `install_external_tools.md`，用户按平台说明安装后重新运行 `--doctor` 即可。
 
+---
+
 ## 0.1.1 Dependency profile
 
 `dependency_profile.json` 是“路径配置 + 本机扫描结果”的组合，不是跨机器
@@ -145,6 +157,8 @@ python3 run_subject_pipeline.py \
 
 如果导入 profile 后 doctor 仍显示 `not found`，以新的 doctor 结果为准，修正
 路径或环境变量后再次扫描。
+
+---
 
 ## 0.1.2 Linux/macOS/Windows dependency profile matrix
 
@@ -182,6 +196,8 @@ install_plan/dependency_profile_matrix/
 平台的常见路径、命令后缀和 install hint，但文件系统可用性仍然只能反映当前
 主机。公开发布前仍应在真实 macOS/Windows 设备上运行对应 wrapper 或核心
 planner。
+
+---
 
 ## 0.2 用户设备与 Python 环境
 
@@ -230,6 +246,8 @@ MRtrix3 特别说明：
 - SlicerDDSurfer 的 MRtrix CSD/ACT backend 会在执行 MRtrix 命令前隔离这些 Slicer Python 变量，并把用户配置的 MRtrix `bin` 放到 `PATH` 最前面。
 - 用户仍需要通过 `--mrtrix-bin-dir`、`SLICERDDSURFER_MRTRIX_BIN_DIR` 或 `PATH` 提供本机 MRtrix3。
 
+---
+
 ## 0.3 外部路径发现顺序
 
 SlicerDDSurfer 不要求用户“上传依赖”。外部软件和数据采用以下发现顺序：
@@ -269,6 +287,8 @@ python3 run_subject_pipeline.py \
   --dependency-config ~/.slicerdsurfer-deps.json
 ```
 
+---
+
 ## 1. 最小可用环境
 
 如果只需要启动 Slicer 插件、做输入检查、运行已有 Python pipeline 的轻量部分，至少需要：
@@ -291,6 +311,8 @@ scripts/download_model_assets.sh --profile core
   - `core` 会下载 DDSurfer / DDSeg / DDParcel 所需模型权重和模板。
   - 只跑某个深度学习后端时，可改用 `--profile surface`、`--profile segmentation` 或 `--profile parcellation`。
   - 详细 profile、路径和外部 asset 覆盖方式见 [MODEL_ASSETS.md](../assets/MODEL_ASSETS.md)。
+
+---
 
 ## 2. Python 包依赖
 
@@ -343,6 +365,8 @@ SAF 转写后端已内置在 `tractography/saf_backend/`，但仍需要：
 SAF 只接受已经位于原生 dMRI 空间的表面。DDSurfer postprocess 是默认表面来源；
 插件不提供 T1w/FreeSurfer 到 dMRI 的 ANTs 配准路线。
 
+---
+
 ## 3. Slicer 相关配置
 
 ### 3.1 Slicer executable
@@ -367,6 +391,8 @@ export SLICERDDSURFER_SLICER_EXECUTABLE=/data/chengjin/software/Slicer-5.10.0-li
 - 需要复用 SlicerDMRI 的 tractography / fiber bundle 相关模块。
 
 如果只运行 Python/MRtrix 的 headless pipeline，不一定需要 SlicerDMRI。
+
+---
 
 ## 4. MRtrix3
 
@@ -427,6 +453,8 @@ export MRTRIX_BIN_DIR=/path/to/mrtrix3/bin
 
 也可以直接把 MRtrix3 加入 `PATH`。
 
+---
+
 ## 5. FSL
 
 FSL 不是默认必需项。只有选择 `--preprocessing-backend mrtrix_fsl`，并希望使用完整 `dwifslpreproc` / eddy / topup 路线时才需要。
@@ -463,6 +491,8 @@ FSL 校正完成后，最终脑掩膜由 MRtrix `dwi2mask` 基于校正后的 DW
 DWI 的旧掩膜。
 
 DIPY preprocessing backend 不需要 FSL，但它不提供完整 susceptibility distortion / eddy-current 建模。
+
+---
 
 ## 6. FreeSurfer
 
@@ -519,12 +549,16 @@ python3 run_subject_pipeline.py \
   --postprocess-freesurfer-home /path/to/freesurfer
 ```
 
+---
+
 ## 7. SAF 表面空间约束
 
 SAF 的白质面和软脑膜面必须已经与 FOD、掩膜和待分析 tractogram 位于同一
 原生 dMRI 空间。SlicerDDSurfer 不再提供 ANTs 驱动的 T1w/FreeSurfer 到 dMRI
 配准分支，也不会扫描或安装 ANTs。使用外部表面时，应在导入前验证空间一致性；
 推荐直接使用 DDSurfer postprocess 输出。
+
+---
 
 ## 8. WMA / WhiteMatterAnalysis
 
@@ -573,6 +607,8 @@ tractogram 不会被静默复用：代表性受试者实测表明，增加其长
 ORG 解剖束覆盖 QC。其他算法生成的全脑 tractogram 可通过
 `--wma-input-tractography` 显式选择，运行后仍须通过非空解剖束检查。
 
+---
+
 ## 9. WMQL / Tract Querier
 
 WMQL 是规则化 bundle 提取后端，当前默认查询覆盖 AF/CST。
@@ -598,6 +634,8 @@ WMQL 是规则化 bundle 提取后端，当前默认查询覆盖 AF/CST。
 - 环境变量：`TRACT_QUERIER_ROOT=/path/to/tract_querier`
 
 如果 `tract_querier` 已经在当前 Python 和 `PATH` 中可用，可以不额外配置。
+
+---
 
 ## 10. TractCloud
 
@@ -635,6 +673,8 @@ python3 run_subject_pipeline.py \
   --tractcloud-device cuda
 ```
 
+---
+
 ## 11. Docker
 
 Docker 不是当前主线必需项。
@@ -646,6 +686,8 @@ Docker 不是当前主线必需项。
 - 对应 docker image 或 postprocess-release repo
 
 当前内置 DDSurfer postprocess backend 默认不要求 Docker。
+
+---
 
 ## 12. 模型权重与资源文件
 
@@ -681,6 +723,8 @@ scripts/download_model_assets.sh --profile parcellation
 - DDSeg weights：
   - `segmentation/weights/*.pt`
 
+---
+
 ## 13. 主要环境变量汇总
 
 | 变量 | 用途 |
@@ -703,6 +747,8 @@ scripts/download_model_assets.sh --profile parcellation
 | `SLICERDDSURFER_TRACTCLOUD_PYTHON_EXECUTABLE` / `TRACTCLOUD_PYTHON_EXECUTABLE` | TractCloud Python |
 | `SLICERDDSURFER_TRACTCLOUD_DATA_DIR` / `TRACTCLOUD_DATA_DIR` | TractCloud 模型/数据目录 |
 
+---
+
 ## 14. 按目标功能的依赖速查
 
 | 目标 | 必需依赖 | 可选/说明 |
@@ -724,6 +770,8 @@ scripts/download_model_assets.sh --profile parcellation
 | WMA ORG atlas | external WMA, ORG atlas, Slicer | 可选 xvfb/SlicerDMRI measurements |
 | TractCloud | TractCloud, `torch`, model data | 当前是可选后端 |
 | Connectome | Python 或 MRtrix3 `tck2connectome` | 两个后端默认采用 4 mm 径向端点分配、FreeSurfer/DDParcel 灰质节点和零对角矩阵；Python 支持 `.trk/.tck/.vtk/.vtp` |
+
+---
 
 ## 15. 推荐安装策略
 

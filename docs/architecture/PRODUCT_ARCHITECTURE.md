@@ -1,8 +1,16 @@
+<div align="center">
+
 # SlicerDDSurfer Product Architecture
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 This repository is organized around six top-level workflow areas. Implemented
 code now lives directly under the corresponding product package instead of
 older standalone pipeline directories.
+
+---
 
 ## Product Areas
 
@@ -25,6 +33,8 @@ older standalone pipeline directories.
 - `Connectome`
   - tractography + DDParcel dependency checks
   - optional streamline-count matrix execution
+
+---
 
 ## Implemented Packages
 
@@ -68,6 +78,8 @@ older standalone pipeline directories.
   - streamline-count matrix and node table outputs
   - optional MRtrix3 `tck2connectome` backend
   - Python endpoint-label fallback for `.trk`/`.tck` and legacy `.vtk`
+
+---
 
 ## Rationale
 

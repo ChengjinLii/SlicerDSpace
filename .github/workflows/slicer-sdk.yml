@@ -1,0 +1,58 @@
+name: Slicer SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      slicer_dir:
+        description: "Real SDK directory on each runner (blank uses SLICER_SDK_DIR variable)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sdk-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            generator: TGZ
+          - os: windows
+            generator: ZIP
+          - os: macOS
+            generator: TGZ
+    runs-on: [self-hosted, "${{ matrix.os }}", slicer-sdk]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: SDK build, tests and package audit
+        shell: bash
+        env:
+          SDK_DIR: ${{ inputs.slicer_dir || vars.SLICER_SDK_DIR }}
+        run: |
+          test -n "$SDK_DIR"
+          command=(python scripts/build_slicer_sdk.py --slicer-dir "$SDK_DIR"
+            --build-dir "$RUNNER_TEMP/slicerdds-sdk" --package-generator "${{ matrix.generator }}")
+          if [ "${{ matrix.os }}" = "linux" ]; then
+            xvfb-run -a "${command[@]}"
+          else
+            "${command[@]}"
+          fi
+      - name: Preserve build evidence and packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/slicerdds-sdk/sdk_build_report.json
+            ${{ runner.temp }}/slicerdds-sdk/sdk-*.log
+            ${{ runner.temp }}/slicerdds-sdk/*.tar.gz
+            ${{ runner.temp }}/slicerdds-sdk/*.zip
+          if-no-files-found: warn

@@ -1,8 +1,17 @@
+<div align="center">
+
 # Windows Setup
 
-SlicerDDSurfer runs its native Slicer/Python stages on Windows. Linux-only
-command-line backends (MRtrix3, FSL, FreeSurfer, WMA and TractCloud) run in an Ubuntu
-WSL 2 distribution through generated Windows command bridges.
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
+
+SlicerDDSurfer provides Windows Slicer/Python setup and Ubuntu WSL 2 command
+bridges for Linux backends. Native Windows scientific workflows and complete
+SDK/CPack acceptance remain unverified; installer plans are not that evidence.
+Use the minimal DTI tutorial before considering the optional full WSL runtime.
+
+---
 
 ## 1. Prerequisites
 
@@ -22,6 +31,8 @@ Confirm the distribution name from PowerShell:
 wsl.exe --list --verbose
 ```
 
+---
+
 ## 2. Inspect the Reproducible Plan
 
 Plan mode performs no WSL, package, registry or Slicer changes. It is also safe
@@ -36,6 +47,8 @@ Set-Location D:\SlicerDDSurfer
 ```
 
 The plan records every pinned version, source commit, resource URL and digest.
+
+---
 
 ## 3. Install the Full Runtime
 
@@ -89,6 +102,8 @@ and choose a clean managed location instead, for example
 FreeSurfer is approximately 9 GB and the two ORG archives total approximately
 1.8 GB. Make sure the WSL virtual disk has sufficient free space.
 
+---
+
 ## 4. Defer Large Downloads
 
 To install Miniforge, MRtrix3, the Python runtime, pinned source checkouts,
@@ -110,6 +125,8 @@ Re-run later without `-SkipLargeDownloads` and supply
 the WSL runtime and bridges. `-SkipUserConfigUpdate` writes the standalone
 dependency JSON without changing the persistent GUI/CLI user configuration.
 
+---
+
 ## 5. Verified Mirrors
 
 Every ORG or TractCloud resource URL override requires a matching explicit
@@ -129,6 +146,8 @@ SHA-256. The installer refuses a URL-only override:
 Equivalent override pairs are available for `TractCloudTrainUrl` /
 `TractCloudTrainSha256` and `TractCloudModelUrl` /
 `TractCloudModelSha256`.
+
+---
 
 ## 6. Use the Generated Dependency Config
 
@@ -155,6 +174,8 @@ The installer refuses to overwrite a pre-existing `bash.exe` that it does not
 own. Restart Slicer once after installation so it reloads the persistent JSON;
 the installer never terminates an open Slicer process.
 
+---
+
 ## 7. Install Model Assets
 
 The WSL installer covers executable backends and their atlas/model resources.
@@ -171,6 +192,8 @@ python scripts\download_model_assets.py `
 
 Set `Model assets root` to the same directory in SlicerDDSurfer. Existing
 verified assets are reused.
+
+---
 
 ## 8. Prepare Subject Data
 

@@ -1,8 +1,16 @@
+<div align="center">
+
 # Repository Layout
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 This repository is organized as a 3D Slicer scripted extension with a stable
 top-level module entry point and Python package directories for the processing
 domains.
+
+---
 
 ## Root Directory
 
@@ -33,6 +41,8 @@ The root compatibility files contain no processing implementations. Existing
 `python3 run_subject_pipeline.py ...`, `python3 run_postprocess_docker.py ...`
 and `import workflow_catalog` calls remain supported.
 
+---
+
 ## Documentation
 
 - `docs/assets/`: model-asset manifest, download policy, redistribution notes.
@@ -42,6 +52,8 @@ and `import workflow_catalog` calls remain supported.
 
 This mirrors the SlicerDMRI pattern of keeping project documentation in a
 dedicated documentation tree instead of crowding the repository root.
+
+---
 
 ## Source Packages
 
@@ -96,6 +108,8 @@ Back up any manually added files before cleaning the installation; external
 model assets and subject outputs should never be stored inside that disposable
 installation directory.
 
+---
+
 ## Developer Tools And Local Outputs
 
 - `scripts/`: command-line maintenance, installation, release and audit tools.
@@ -120,6 +134,8 @@ scientific outputs, local reports or a configured smoke-test workspace.
 The 2026-10-10 root cleanup archived the existing caches and moved the release
 directory without altering its contents or regenerating QC records.
 
+---
+
 ## Resources And Assets
 
 - `Resources/Icons/` and `Resources/UI/` are normal Slicer extension resources.
@@ -128,6 +144,8 @@ directory without altering its contents or regenerating QC records.
   another manifest-compatible mirror.
 - Keep only `models/assets_manifest.json`, checksums and download tooling in
   this code repository.
+
+---
 
 ## Testing
 
@@ -138,6 +156,8 @@ directory without altering its contents or regenerating QC records.
 The flat `Testing/Python` layout is retained for simple unittest discovery and
 Slicer extension compatibility. If the helper set grows further, split it into
 `Testing/Python/smoke/` and `Testing/Python/tools/` in a dedicated refactor.
+
+---
 
 ## Third-Party Or Reference Code
 

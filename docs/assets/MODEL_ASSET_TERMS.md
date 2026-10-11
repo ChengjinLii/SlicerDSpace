@@ -1,8 +1,16 @@
+<div align="center">
+
 # Model Asset Terms Status
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 This file records the release-facing status of model weights, templates and
 validation fixtures used by SlicerDDSurfer. It separates local availability
 checks from redistribution and DOI-archive permission.
+
+---
 
 ## Current Decision
 
@@ -17,6 +25,8 @@ the safe release mode is a code-and-documentation release that documents how
 users obtain or verify assets, without treating the assets as unrestricted
 archive contents.
 
+---
+
 ## Status By Asset Group
 
 | Asset group | Manifest profile | Local verification status | Public redistribution / DOI archive status |
@@ -27,6 +37,8 @@ archive contents.
 | DDSeg tissue-segmentation weights | `segmentation`, `core` | Checked by the manifest when `--profile core` is verified. | Requires redistribution-term confirmation and citation of the peer-reviewed DDSeg method paper. |
 | DDParcel parcellation weights | `parcellation`, `core` | Checked by the manifest when `--profile core` is verified. | Requires redistribution-term confirmation and citation of the peer-reviewed DDParcel method paper. |
 | Conversion test NIfTI fixtures | `test-fixtures`, `all` | Checked only when the fixture profile is selected. | Requires confirming that the local license covers modified fixtures and DOI/archive use. |
+
+---
 
 ## Required Checks Before Asset-Inclusive Release
 
@@ -51,6 +63,8 @@ python3 scripts/download_model_assets.py \
 
 The lockfile must have no missing files and no Git LFS pointer-only files before
 it is used as release evidence.
+
+---
 
 ## Tag And DOI Policy
 

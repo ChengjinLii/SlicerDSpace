@@ -1,8 +1,16 @@
+<div align="center">
+
 # SlicerDDSurfer Release and Archive Checklist
+
+[Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
+
+</div>
 
 This checklist defines the release path for code, model assets, validation
 metadata, and DOI-backed archival records. It is intended for maintainers who
 prepare a public release or a manuscript-linked release.
+
+---
 
 ## Release Scope
 
@@ -21,7 +29,14 @@ a file or bundled third-party component states different terms. It does not
 grant redistribution rights for external tools, model weights, templates, or
 subject-derived data whose terms must be reviewed separately.
 
+---
+
 ## Pre-Tag Checks
+
+First complete the SDK packaging and independent clean-install gates in
+[Extension readiness](EXTENSION_READINESS.md). Resource/metadata checks and
+local staging do not replace those gates. The Index JSON is a draft only; keep
+the repository private until an explicit maintainer decision to publish.
 
 Run these checks from a clean worktree:
 
@@ -89,6 +104,8 @@ stale required checks such as `fresh-clone-smoke`, `create-github-release`, or
 `Release` workflow is still available for fresh-clone smoke and draft release
 creation, but it should not be required for every push or pull request.
 
+---
+
 ## Asset Terms Review
 
 Before archiving model or validation assets, review:
@@ -109,6 +126,8 @@ assets from the DOI archive.
 Use `docs/assets/MODEL_ASSET_HOSTING_PLAN.md` to prepare a separate asset repository or
 DOI-backed mirror without moving large weights into the code archive.
 
+---
+
 ## Tagging
 
 Use a semantic or manuscript-linked tag after the code, documentation, and
@@ -123,6 +142,8 @@ For Nature Protocols preparation, use a stable manuscript-linked tag only after
 the manuscript scope, validation subject, timing evidence, source-data package,
 and asset terms are finalized.
 
+---
+
 ## DOI Archive
 
 Archive the release through Zenodo, Figshare, an institutional repository, or
@@ -132,7 +153,7 @@ point. Before publishing the DOI record:
 - Confirm the release tag being archived.
 - Confirm that restricted model weights, templates, and validation data are not
   included unless redistribution is allowed.
-- Include `CITATION.cff`, `codemeta.json`, `LICENSE`, and the release
+- Include `CITATION.cff`, `codemeta.json`, `LICENSE.txt`, and the release
   validation report.
 - Record the DOI in the release notes and manuscript Code Availability section.
 
@@ -164,6 +185,8 @@ tags must resolve to that commit. The helper refuses to replace assets on an
 already public release; use a new version for corrections. Draft creation is
 not a substitute for the SDK build, packaged installation and scientific review
 required before public release.
+
+---
 
 ## Post-Release Updates
 

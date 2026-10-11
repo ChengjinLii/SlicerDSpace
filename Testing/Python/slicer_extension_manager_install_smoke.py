@@ -11,7 +11,7 @@ import qt
 import slicer
 
 
-TEMP_ROOT = Path("/tmp/slicerdsurfer-extension-manager-install-smoke")
+TEMP_ROOT = Path(os.environ.get("SLICERDDSURFER_SMOKE_ROOT", "/tmp/slicerdsurfer-extension-manager-install-smoke")) / "extension-manager"
 
 
 def _run() -> None:
@@ -38,6 +38,9 @@ def _run() -> None:
         manager = slicer.app.extensionsManagerModel()
         manager.extensionsSettingsFilePath = settings_path.as_posix()
         manager.setInteractive(False)
+        # Switching settings does not invalidate the manager's installed-item cache.
+        manager.updateModel()
+        assert not manager.isExtensionInstalled("SlicerDDSurfer"), "Private install root is not empty"
         metadata = {
             "extensionname": "SlicerDDSurfer",
             "depends": "SlicerDMRI PyTorch",
@@ -66,8 +69,24 @@ def _run() -> None:
         loaded = bool(registered and factory.loadModules(["SlicerDDSurfer"]))
         module_available = hasattr(slicer.modules, "slicerddsurfer")
         top_level_python = []
+        runtime_resources_ready = False
+        installed_imports_ready = False
         if installed_module:
             top_level_python = sorted(path.name for path in installed_module.parent.glob("*.py"))
+            root = installed_module.parent.resolve()
+            runtime_resources_ready = all((root / name).is_file() for name in (
+                "tractography/wmql_queries/AF_CST.qry",
+                "scripts/wsl/WslCommandBridge.cs", "scripts/wsl/requirements-runtime.txt",
+                "LICENSE.txt", "THIRD_PARTY_NOTICES.md",
+                "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt"))
+            import tractography.wmql as wmql
+            import anatomy.segmentation.pipeline as ddseg
+            installed_imports_ready = (
+                Path(wmql.__file__).resolve().is_relative_to(root)
+                and Path(ddseg.__file__).resolve().is_relative_to(root)
+                and wmql.bundled_wmql_query_path().resolve().is_relative_to(root)
+                and wmql.bundled_wmql_query_path().is_file()
+            )
 
         print(f"SLICERDDSURFER_EXTMGR_ARCHIVE_ROOTED={archive_rooted}", flush=True)
         print(f"SLICERDDSURFER_EXTMGR_ARCHIVE_CLEAN={archive_clean}", flush=True)
@@ -78,6 +97,8 @@ def _run() -> None:
         print(f"SLICERDDSURFER_EXTMGR_MODULE_LOADED={loaded}", flush=True)
         print(f"SLICERDDSURFER_EXTMGR_MODULE_AVAILABLE={module_available}", flush=True)
         print(f"SLICERDDSURFER_EXTMGR_TOP_LEVEL_PY={top_level_python}", flush=True)
+        print(f"SLICERDDSURFER_EXTMGR_RUNTIME_RESOURCES_READY={runtime_resources_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTMGR_INSTALLED_IMPORTS_READY={installed_imports_ready}", flush=True)
         ready = (
             archive_rooted
             and archive_clean
@@ -88,6 +109,8 @@ def _run() -> None:
             and loaded
             and module_available
             and top_level_python == ["SlicerDDSurfer.py"]
+            and runtime_resources_ready
+            and installed_imports_ready
         )
         slicer.app.exit(0 if ready else 2)
     except Exception as exc:
