@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         ),
         "asset_exclusion_patterns": list(ASSET_EXCLUSION_PATTERNS),
         "required_metadata_files": [
-            "LICENSE",
+            "LICENSE.txt",
             "CITATION.cff",
             "codemeta.json",
             ".zenodo.json",

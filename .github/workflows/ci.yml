@@ -25,6 +25,7 @@ jobs:
         run: |
           python scripts/audit_slicer_extension_metadata.py --json
           python scripts/audit_documentation.py
+          python scripts/audit_third_party.py
 
   fast-checks:
     runs-on: ubuntu-latest
@@ -52,6 +53,9 @@ jobs:
 
       - name: Audit release metadata and LFS pointers
         run: python3 scripts/release_audit.py
+
+      - name: Verify third-party notice integrity and packaging
+        run: python3 scripts/audit_third_party.py
 
       - name: Resolve model asset manifest without downloading assets
         run: python3 scripts/download_model_assets.py --profile core --print-plan

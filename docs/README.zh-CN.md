@@ -24,6 +24,7 @@
 | [Linux](setup/LINUX_HPC.md)、[Windows](setup/WINDOWS.md)、[macOS](setup/MACOS.md) | 平台设置与边界 |
 | [模型资源](assets/MODEL_ASSETS.md) | Profile、下载与校验 |
 | [资源授权](assets/MODEL_ASSET_TERMS.md) | 文件校验与再分发许可分别审查 |
+| [代码与第三方授权](assets/CODE_LICENSES.zh-CN.md) | 原许可证、固定来源与分发条件 |
 | [外部依赖](setup/EXTERNAL_DEPENDENCIES.md) | 外部软件与路线前提 |
 
 ---
@@ -39,8 +40,9 @@
 
 ## 历史验证记录
 
-[分发验证记录](release/DISTRIBUTION_VALIDATION_20261011.md)记录本轮资源打包、
-隔离安装测试，以及尚未完成的真实 SDK 验收。
+[10 月 12 日复核](release/DISTRIBUTION_VALIDATION_20261012.md)记录许可、干净克隆、
+隔离安装和 SDK 阻塞。[10 月 11 日记录](release/DISTRIBUTION_VALIDATION_20261011.md)
+保留前一轮工作树验证；其测试数量与本轮限定范围的 Git 快照不同。
 
 [科学计算与 GUI 验证](release/SLICER_ACCEPTANCE_20261007.md)、
 [简洁界面验证](release/UI_SIMPLIFICATION_20261008.md)、

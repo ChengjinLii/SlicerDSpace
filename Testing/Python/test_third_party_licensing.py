@@ -17,7 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 class LicenseFileTest(unittest.TestCase):
     def test_license_no_longer_links_the_gitignored_broken_path(self) -> None:
-        text = (REPO_ROOT / "LICENSE").read_text(encoding="utf-8")
+        text = (REPO_ROOT / "LICENSE.txt").read_text(encoding="utf-8")
         self.assertNotIn("third_party/REFERENCE_SOURCES.md", text)
         self.assertIn("THIRD_PARTY_NOTICES.md", text)
 
@@ -43,9 +43,10 @@ class ThirdPartyNoticesTest(unittest.TestCase):
     def test_documents_pnlbwh_conversion_honestly(self) -> None:
         self.assertIn("pnlbwh/conversion", self.text)
         self.assertIn("anatomy/parcellation/conversion", self.text)
-        # Must not claim a specific license for this code: it is not
-        # recorded anywhere in this repository.
-        self.assertIn("not recorded", self.text.lower())
+        self.assertIn("BWH Conversion Contribution and Software License", self.text)
+        self.assertIn("anatomy/parcellation/conversion/LICENSE.txt", self.text)
+        self.assertIn("modified integration", self.text)
+        self.assertIn("not the project's BSD-3-Clause license", self.text)
 
     def test_documents_freesurfer_color_lut(self) -> None:
         self.assertIn("FreeSurferColorLUT.txt", self.text)
@@ -134,7 +135,8 @@ class CMakePackagingTest(unittest.TestCase):
         self.assertIn("THIRD_PARTY_NOTICES.md", self.files)
         self.assertIn("licenses/Apache-2.0.txt", self.files)
         self.assertIn("licenses/NOTICE-FastSurfer.txt", self.files)
-        self.assertEqual((REPO_ROOT / "LICENSE").read_bytes(), (REPO_ROOT / "LICENSE.txt").read_bytes())
+        self.assertIn("LICENSE.txt", self.files)
+        self.assertNotIn("LICENSE", self.files)
 
 
 class CitationCffTest(unittest.TestCase):

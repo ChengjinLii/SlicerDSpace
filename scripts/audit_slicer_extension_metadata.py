@@ -15,7 +15,6 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_EXTENSION_DEPENDS = ("SlicerDMRI", "PyTorch")
 REQUIRED_TOP_LEVEL_FILES = (
-    "LICENSE",
     "LICENSE.txt",
     "CITATION.cff",
     "codemeta.json",
@@ -111,8 +110,8 @@ def audit(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
             findings.append(AuditFinding(relative, "error", f"Missing release metadata file: {relative}"))
 
     s4ext = parse_s4ext(s4ext_path)
-    if (repo_root / "LICENSE.txt").is_file() and _read(repo_root / "LICENSE") != _read(repo_root / "LICENSE.txt"):
-        findings.append(AuditFinding("license_alias", "error", "LICENSE and LICENSE.txt must have identical content"))
+    if (repo_root / "LICENSE").exists():
+        findings.append(AuditFinding("license_duplicate", "error", "Use LICENSE.txt as the single root project license"))
     s4ext_depends = tuple(s4ext.get("depends", [""])[0].split())
     cmake_depends = tuple(parse_cmake_extension_depends(cmake_path))
     if s4ext_depends != cmake_depends:

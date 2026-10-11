@@ -4,7 +4,7 @@
 
 **3D Slicer 中的扩散 MRI 分析工作流**
 
-[![CI](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml/badge.svg)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml)
+[![CI (main)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
 [![Slicer](https://img.shields.io/badge/3D_Slicer-5.10-58728B)](https://www.slicer.org/)
 
@@ -129,11 +129,15 @@ Linux 真实数据与 GUI 验证见[验收记录](docs/release/SLICER_ACCEPTANCE
 简洁界面另有 [UI 验证记录](docs/release/UI_SIMPLIFICATION_20261008.md)。
 这些记录仅覆盖对应代码快照、路线和数据，不代表所有配置均已通过。
 
+[10 月 12 日复核](docs/release/DISTRIBUTION_VALIDATION_20261012.md)记录许可补齐、
+干净克隆测试与尚未完成的 SDK 门禁。CI 徽章跟踪 main 的 push 检查；
+私有仓库的徽章不能供外部公开访问，请以登录后的 Actions 结果为准。
+
 - CMake 与 staging 共用一份运行资源清单，安装包检查核对文件和源文件哈希。
 - 快速 CI 和本地安装测试不能替代真实 SDK/CTest/CPack 构建。
 - 尚未认证 Windows/macOS 原生科学工作流或三平台 SDK 构建。
 - Extension Index JSON 是 **Tier 1 申请草稿**，不是官方已收录状态。
-- 仓库公开、第三方源码许可补齐及模型再分发审查仍是独立发布门禁。
+- 已补齐的第三方源码许可证不等于完整授权清理；仓库公开和模型再分发审查仍是独立门禁。
 
 开发检查可运行 `make test-fast` 与
 `python3 scripts/audit_slicer_extension_metadata.py --json`。
@@ -161,8 +165,8 @@ SlicerDDSurfer 协议稿件仍在准备。使用 [CITATION.cff](CITATION.cff)
 
 ## 许可证
 
-项目代码采用 **BSD-3-Clause**：[LICENSE.txt](LICENSE.txt)；
-保留同内容的 [LICENSE](LICENSE) 以兼容旧链接。
+项目代码采用 **BSD-3-Clause**：[LICENSE.txt](LICENSE.txt)，根目录只保留这一份。
+第三方组件各自保留原许可证和声明，不适用项目许可证的统一再授权。
 第三方源码单独适用 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 中的条款。
 项目许可证不覆盖权重、模板和被试数据；部分组件授权仍待确认，
 未形成书面许可记录前不要发布包含这些资产的公开归档。

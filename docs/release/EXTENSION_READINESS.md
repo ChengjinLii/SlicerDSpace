@@ -14,6 +14,7 @@ explicitly chooses otherwise. No Index PR, visibility change or package upload
 is performed by the build tools.
 
 Executed local checks and their limits are recorded in the
+[12 October follow-up](DISTRIBUTION_VALIDATION_20261012.md) and
 [11 October validation record](DISTRIBUTION_VALIDATION_20261011.md).
 
 ---
@@ -97,7 +98,7 @@ source tests and already configured workstations cannot replace this test.
 | Compact-interface documentation, EN/ZH and screenshot sources | Prepared |
 | Public repository, resolvable icon/screenshot URLs, GitHub topic | Deferred by maintainer; required before public Index submission |
 | Real SDK/CPack + clean installation on claimed platforms | Requires independent evidence |
-| Third-party code permissions | Review required, including conversion code whose license is not recorded |
+| Recorded source licenses and LUT notices | Conversion/BWH, FreeSurfer/MGH, DDSurfer/MIT and PyTorch3D/BSD notices restored and checked; not a blanket legal clearance |
 | Model/template and fixture redistribution | Unconfirmed groups remain excluded from public asset archives |
 | Authorized real-data tutorial and Sample Data registration | Not completed |
 | Related patent disclosure | Maintainer review required; no absence claim is made |

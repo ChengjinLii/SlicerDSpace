@@ -41,7 +41,7 @@ def build(args):
         commands = [
             [args.cmake, "-S", str(source), "-B", str(output), f"-DSlicer_DIR={args.slicer_dir.resolve()}", "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_TESTING=ON"],
             [args.cmake, "--build", str(output), "--config", "Release", "--parallel", str(args.jobs)],
-            [args.ctest, "--test-dir", str(output), "-C", "Release", "--output-on-failure"],
+            [args.ctest, "--test-dir", str(output), "-C", "Release", "--output-on-failure", "--no-tests=error"],
             [args.cpack, "--config", str(output / "CPackConfig.cmake"), "-C", "Release", "-G", args.package_generator],
         ]
         for name, command in zip(("configure", "build", "ctest", "cpack"), commands):

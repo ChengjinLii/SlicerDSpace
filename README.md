@@ -4,7 +4,7 @@
 
 **Diffusion MRI workflows in 3D Slicer**
 
-[![CI](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml/badge.svg)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml)
+[![CI (main)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
 [![Slicer](https://img.shields.io/badge/3D_Slicer-5.10-58728B)](https://www.slicer.org/)
 
@@ -143,6 +143,11 @@ the compact interface has a separate
 These records describe specific checkouts, routes and datasets, not all
 future configurations.
 
+The [12 October follow-up](docs/release/DISTRIBUTION_VALIDATION_20261012.md)
+records source notices, fresh-clone tests and the remaining SDK gate.
+For this private repository, consult authenticated Actions results; the live
+badge tracks main push runs and is not externally accessible without authorization.
+
 Current release boundaries:
 
 - CMake and staging now use one runtime resource manifest; package audits check file inclusion and source hashes.
@@ -180,8 +185,8 @@ actually used: [DDSurfer](https://doi.org/10.1002/advs.76596),
 
 ## License
 
-Project code is **BSD-3-Clause**: [LICENSE.txt](LICENSE.txt)
-(the identical [LICENSE](LICENSE) is retained for compatibility).
+Project code is **BSD-3-Clause**: [LICENSE.txt](LICENSE.txt), the single
+project license file. Bundled components retain their own licenses and notices.
 Bundled third-party code has separate terms:
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 Model weights, templates and subject-derived data are not relicensed by the

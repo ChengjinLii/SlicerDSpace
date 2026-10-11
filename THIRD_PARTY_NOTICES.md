@@ -2,15 +2,16 @@
 
 # Third-Party Notices
 
-[Project](README.md) | [Documentation](docs/README.md) | [Quick Start](docs/setup/QUICKSTART.md) | [Release](docs/release/EXTENSION_READINESS.md) | [中文索引](docs/README.zh-CN.md)
+[Project](README.md) | [Documentation](docs/README.md) | [Quick Start](docs/setup/QUICKSTART.md) | [Release](docs/release/EXTENSION_READINESS.md) | [中文](docs/assets/CODE_LICENSES.zh-CN.md)
 
 </div>
 
 SlicerDDSurfer's own source code is licensed under the BSD 3-Clause license
-in [LICENSE](LICENSE). This file documents bundled third-party code, data,
+in [LICENSE.txt](LICENSE.txt). This file documents bundled third-party code, data,
 and reference material that carries different terms, and states honestly
-where full license/provenance information is not yet available in this
-repository.
+where asset permissions still need separate review. License texts and their
+pinned sources are recorded in [licenses/provenance.json](licenses/provenance.json).
+The integrity check is not a legal opinion or a grant of model/template rights.
 
 ---
 
@@ -60,11 +61,24 @@ Billah): `anatomy/parcellation/conversion/nhdr_write.py` writes
 output file header, and `anatomy/parcellation/conversion/_version.py` records
 `__version__ = '2.4'`, consistent with that project's own versioning.
 
-**License status: not recorded in this repository.** No `LICENSE` file for
-this code, and no license header in its source files, is present here.
-**Confirm the exact license terms directly against
-[github.com/pnlbwh/conversion](https://github.com/pnlbwh/conversion) before
-redistributing this code or a build that includes it.**
+**Recorded terms:** the BWH Conversion Contribution and Software License
+Agreement, Version 1.0, verified against the
+[pinned upstream license](https://github.com/pnlbwh/conversion/blob/cdd433adff3eebc486f2b5648714cbfe93b9422e/LICENSE).
+The complete agreement is bundled in
+[conversion/LICENSE.txt](anatomy/parcellation/conversion/LICENSE.txt).
+It is a BSD-style agreement, not the project's BSD-3-Clause license.
+
+All or portions of this licensed product (such portions are the "Software")
+have been obtained under license from The Brigham and Women's Hospital, Inc.
+and are subject to the following terms and conditions:
+[full Conversion agreement](anatomy/parcellation/conversion/LICENSE.txt).
+
+This is a **modified integration**, not an unmodified upstream distribution:
+imports, lazy exports, input/gradient validation and file handling have been
+adapted for SlicerDDSurfer. DDSurfer's derived helpers in
+`anatomy/surface/ddsurfer_backend/preprocessing/conversion/` retain these terms
+as well. Preserve the agreement and notices when distributing source/binaries
+and documentation; fixture/data permissions are assessed separately.
 
 ---
 
@@ -75,23 +89,59 @@ This is FreeSurfer's own color lookup table (RCS header:
 copied verbatim from a FreeSurfer distribution. It is packaged as a Slicer
 extension resource by `CMakeLists.txt`.
 
-**License status: governed by the [FreeSurfer Software
-License](https://surfer.nmr.mgh.harvard.edu/fswiki/FreeSurferSoftwareLicense),
-not SlicerDDSurfer's BSD-3-Clause license.** Confirm the FreeSurfer license's
-redistribution terms for this file before redistributing a build that
-includes it; do not assume it is as permissive as BSD-3-Clause.
+**Recorded terms:** FreeSurfer Software License Agreement, Version 1.0
+(February 2011), from the
+[official pinned source](https://github.com/freesurfer/freesurfer/blob/4f8728e5132e8d39a8f1bf3d24d15fed62f4fc9d/LICENSE.txt).
+The full agreement is included as [licenses/FreeSurfer.txt](licenses/FreeSurfer.txt).
+Part B permits distribution subject to its notice, attribution and other
+conditions; this file is not relicensed under BSD-3-Clause. Its original LUT
+header is retained, with no changes to label IDs or colors.
+
+All or portions of this licensed product (such portions are the "Software")
+have been obtained under license from The General Hospital Corporation "MGH"
+and are subject to the following terms and conditions:
+[full FreeSurfer agreement](licenses/FreeSurfer.txt).
+
+This statement covers the LUT, not anatomical templates, subject data,
+FreeSurfer executable installation or any third-party assets.
+
+---
+
+## DDSurfer source and PyTorch3D-derived helpers
+
+The source snapshot is under `anatomy/surface/ddsurfer_backend/`; code revisions
+and per-file hashes remain in its `UPSTREAM.json`.
+The upstream project added an explicit MIT license in
+[commit 0c399ef](https://github.com/ChengjinLii/DDSurfer/blob/0c399ef8ff8c9931730cab6beaf5796ee61243ca/LICENSE).
+An exact copy is bundled as
+[ddsurfer_backend/LICENSE.txt](anatomy/surface/ddsurfer_backend/LICENSE.txt).
+The previous "upstream license missing" description is superseded for the
+project-authored source, not for weights or templates.
+
+The attributed PyTorch3D-derived normal/Laplacian helpers in `utils/mesh.py`
+retain Meta's BSD-3-Clause terms, copied from the
+[upstream notice](https://github.com/ChengjinLii/DDSurfer/blob/c3b2d40ead82b316f0adec900a23979f629da70b/utils/LICENSE.pytorch3d)
+into [licenses/PyTorch3D.txt](licenses/PyTorch3D.txt).
+Derived conversion helpers retain the BWH terms above. These exceptions must
+accompany the source and binary distribution; MIT does not erase them.
+
+---
+
+## Verification and Limits
+
+~~~bash
+python3 scripts/audit_third_party.py
+~~~
+
+CI checks complete notice hashes, pinned source URLs, attributed paths and
+inclusion in the runtime resource manifest. It does not claim that every
+third-party right, patent or asset redistribution condition has been cleared.
+Weights, initialization meshes, registration atlases and subject-derived test
+fixtures remain subject to [asset review](docs/assets/MODEL_ASSET_TERMS.md).
 
 ---
 
 ## Method papers
-
-The current DDSurfer runtime snapshot is under `anatomy/surface/ddsurfer_backend/`.
-Its original source revision and per-file checksums are recorded in
-`UPSTREAM.json`; its weights and templates are distributed separately through
-the model-asset manifest. The source checkout supplied for this synchronization
-does not contain an upstream LICENSE file. This snapshot does not establish
-additional redistribution rights; confirm source, weight and atlas terms with
-the authors before publishing a release or DOI archive.
 
 `docs/assets/MODEL_ASSET_TERMS.md` states that the DDSeg and DDParcel model
 weights each "require ... citation of the peer-reviewed [DDSeg/DDParcel]

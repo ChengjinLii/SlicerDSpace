@@ -24,6 +24,7 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 | [Linux](setup/LINUX_HPC.md), [Windows](setup/WINDOWS.md), [macOS](setup/MACOS.md) | Platform-specific setup and limitations |
 | [Model assets](assets/MODEL_ASSETS.md) | Profiles, download and checksum verification |
 | [Asset terms](assets/MODEL_ASSET_TERMS.md) | Permission review, independent of file verification |
+| [Third-party notices](../THIRD_PARTY_NOTICES.md) | Bundled source licenses, provenance and distribution conditions |
 | [Dependencies](setup/EXTERNAL_DEPENDENCIES.md) | External software and route prerequisites |
 
 ---
@@ -39,8 +40,10 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 
 ## Validation Records
 
-[Distribution validation](release/DISTRIBUTION_VALIDATION_20261011.md) records
-the current local packaging/install checks and the outstanding SDK gate.
+[12 October follow-up](release/DISTRIBUTION_VALIDATION_20261012.md) records
+license notices, fresh-clone tests, local installation and the outstanding SDK gate.
+[11 October validation](release/DISTRIBUTION_VALIDATION_20261011.md) preserves
+the preceding working-tree campaign; its test count is not the scoped Git snapshot's count.
 
 [Scientific/GUI campaign](release/SLICER_ACCEPTANCE_20261007.md),
 [compact UI](release/UI_SIMPLIFICATION_20261008.md), and

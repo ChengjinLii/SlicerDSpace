@@ -71,6 +71,9 @@ class ExtensionDistributionTest(unittest.TestCase):
         for name in ("tractography/wmql_queries/AF_CST.qry",
                      "scripts/wsl/WslCommandBridge.cs", "scripts/wsl/requirements-runtime.txt",
                      "tractography/saf_backend/LICENSE.md", "LICENSE.txt",
+                     "anatomy/parcellation/conversion/LICENSE.txt",
+                     "anatomy/surface/ddsurfer_backend/LICENSE.txt",
+                     "licenses/FreeSurfer.txt", "licenses/PyTorch3D.txt", "licenses/provenance.json",
                      "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt"):
             self.assertIn(name, selected)
         self.assertFalse(any("/tests/" in name or "/slicer_dmri_reference/" in name for name in selected))

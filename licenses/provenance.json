@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "reviewed_date": "2026-10-12",
+  "scope": "Recorded licenses for four previously missing source/data notices; not a blanket legal clearance or model-asset license",
+  "records": [
+    {
+      "id": "conversion",
+      "license": "LicenseRef-BWH-Conversion-1.0",
+      "path": "anatomy/parcellation/conversion/LICENSE.txt",
+      "sha256": "16a15d928c5adec6a55c07e0e64cdb83934f55c747dcede9a30cca80d2c2ad52",
+      "source": "https://github.com/pnlbwh/conversion/blob/cdd433adff3eebc486f2b5648714cbfe93b9422e/LICENSE",
+      "covers": ["anatomy/parcellation/conversion", "anatomy/surface/ddsurfer_backend/preprocessing/conversion"],
+      "conditions": "Preserve the BWH agreement, required attribution and notices; identify local modifications. Third-party data remain subject to their own terms."
+    },
+    {
+      "id": "freesurfer_lut",
+      "license": "LicenseRef-FreeSurfer-1.0",
+      "path": "licenses/FreeSurfer.txt",
+      "sha256": "00e8828048f25d76cc2165ff7420361b83a8aa29525671089e9f40729d7353ff",
+      "source": "https://github.com/freesurfer/freesurfer/blob/4f8728e5132e8d39a8f1bf3d24d15fed62f4fc9d/LICENSE.txt",
+      "covers": ["anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt"],
+      "conditions": "Retain the MGH agreement, required attribution and original LUT header. This does not license FreeSurfer-derived templates or subject data."
+    },
+    {
+      "id": "ddsurfer",
+      "license": "MIT",
+      "path": "anatomy/surface/ddsurfer_backend/LICENSE.txt",
+      "sha256": "b1df42f0d6aed2fec8d5235202c9ca13d62717448a20d12b51869c5d9f19cf79",
+      "source": "https://github.com/ChengjinLii/DDSurfer/blob/0c399ef8ff8c9931730cab6beaf5796ee61243ca/LICENSE",
+      "covers": ["anatomy/surface/ddsurfer_backend"],
+      "conditions": "Preserve the MIT copyright/permission notice. Derived conversion and PyTorch3D code retain their separate terms; no weight/template rights are inferred."
+    },
+    {
+      "id": "pytorch3d",
+      "license": "BSD-3-Clause",
+      "path": "licenses/PyTorch3D.txt",
+      "sha256": "6da05663049417a91409fa349bfad5778ed56c9ef68226dde28dffd541481579",
+      "source": "https://github.com/ChengjinLii/DDSurfer/blob/c3b2d40ead82b316f0adec900a23979f629da70b/utils/LICENSE.pytorch3d",
+      "covers": ["anatomy/surface/ddsurfer_backend/utils/mesh.py"],
+      "conditions": "Preserve Meta copyright, conditions and disclaimer for the attributed PyTorch3D-derived mesh helpers."
+    }
+  ]
+}

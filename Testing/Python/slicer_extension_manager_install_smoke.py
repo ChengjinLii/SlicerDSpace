@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import os
+import runpy
 import shutil
-import tarfile
 from pathlib import Path
 
 import qt
@@ -19,14 +19,13 @@ def _run() -> None:
         archive_path = Path(os.environ["SLICERDDSURFER_EXTENSION_ARCHIVE"]).expanduser().resolve()
         shutil.rmtree(TEMP_ROOT, ignore_errors=True)
         TEMP_ROOT.mkdir(parents=True)
-        with tarfile.open(archive_path, "r:gz") as archive:
-            archive_names = archive.getnames()
-        archive_rooted = bool(archive_names) and all(
-            name == "SlicerDDSurfer" or name.startswith("SlicerDDSurfer/") for name in archive_names
-        )
-        archive_clean = not any(
-            "__pycache__" in name or name.endswith((".pyc", ".pyo")) for name in archive_names
-        )
+        # Load only this stdlib inspector, not scientific modules from the checkout.
+        inspector_path = os.environ.get("SLICERDDSURFER_ARCHIVE_INSPECTOR") or str(
+            Path(__file__).resolve().parents[2] / "scripts/extension_runtime/archive_layout.py")
+        inspector = runpy.run_path(inspector_path)
+        layout = inspector["inspect_archive_layout"](archive_path)
+        archive_rooted = len(layout["module_roots"]) == 1 and not layout["unsafe"]
+        archive_clean = not layout["development_artifacts"]
 
         settings_path = TEMP_ROOT / "settings.ini"
         install_root = TEMP_ROOT / "extensions"
@@ -78,14 +77,20 @@ def _run() -> None:
                 "tractography/wmql_queries/AF_CST.qry",
                 "scripts/wsl/WslCommandBridge.cs", "scripts/wsl/requirements-runtime.txt",
                 "LICENSE.txt", "THIRD_PARTY_NOTICES.md",
+                "anatomy/parcellation/conversion/LICENSE.txt",
+                "anatomy/surface/ddsurfer_backend/LICENSE.txt",
+                "licenses/FreeSurfer.txt", "licenses/PyTorch3D.txt", "licenses/provenance.json",
                 "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt"))
             import tractography.wmql as wmql
             import anatomy.segmentation.pipeline as ddseg
+            import scripts.audit_third_party as license_audit
             installed_imports_ready = (
                 Path(wmql.__file__).resolve().is_relative_to(root)
                 and Path(ddseg.__file__).resolve().is_relative_to(root)
                 and wmql.bundled_wmql_query_path().resolve().is_relative_to(root)
                 and wmql.bundled_wmql_query_path().is_file()
+                and Path(license_audit.__file__).resolve().is_relative_to(root)
+                and license_audit.audit(root)["status"] == "pass"
             )
 
         print(f"SLICERDDSURFER_EXTMGR_ARCHIVE_ROOTED={archive_rooted}", flush=True)
