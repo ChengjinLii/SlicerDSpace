@@ -91,6 +91,11 @@ run_step() {
     json_append_step "${name}" "passed" "${rc}" "${start_iso}" "${end_iso}" "${duration}" "${cwd}" "${stdout_path}" "${stderr_path}" "${command_display% }"
   else
     json_append_step "${name}" "failed" "${rc}" "${start_iso}" "${end_iso}" "${duration}" "${cwd}" "${stdout_path}" "${stderr_path}" "${command_display% }"
+    printf 'Fresh-clone step failed: %s (exit %s)\n' "${name}" "${rc}" >&2
+    printf '%s\n' "--- stdout: ${stdout_path} (last 80 lines) ---" >&2
+    tail -n 80 "${stdout_path}" >&2
+    printf '%s\n' "--- stderr: ${stderr_path} (last 80 lines) ---" >&2
+    tail -n 80 "${stderr_path}" >&2
   fi
   return "${rc}"
 }

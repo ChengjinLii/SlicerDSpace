@@ -11,6 +11,7 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 
 from scripts.audit_extension_package import audit_package
@@ -75,9 +76,22 @@ class ExtensionDistributionTest(unittest.TestCase):
         self.assertFalse(any("/tests/" in name or "/slicer_dmri_reference/" in name for name in selected))
         self.assertEqual([name for name in selected if "/" not in name and name.endswith(".py")], ["SlicerDDSurfer.py"])
 
+    def test_staging_rejects_source_overwrite(self):
+        # The checkout's actual directory name must not determine test behavior.
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "SlicerDDSurfer"
+            source.mkdir()
+            sentinel = source / "sentinel.txt"
+            sentinel.write_text("source must remain intact", encoding="utf-8")
+            with patch("scripts.stage_slicer_extension.REPO_ROOT", source), \
+                    patch("scripts.stage_slicer_extension.runtime_files", return_value=[]):
+                for clean in (True, False):
+                    with self.subTest(clean=clean):
+                        with self.assertRaisesRegex(ValueError, "source checkout"):
+                            stage_extension(source.parent, slicer_version="Slicer-5.10", clean=clean, link_mode="copy")
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "source must remain intact")
+
     def test_staged_archive_contains_exact_runtime_source(self):
-        with self.assertRaisesRegex(ValueError, "source checkout"):
-            stage_extension(ROOT.parent, slicer_version="Slicer-5.10", clean=True, link_mode="copy")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             install = stage_extension(root / "install", slicer_version="Slicer-5.10", clean=True, link_mode="copy")

@@ -91,3 +91,15 @@ jobs:
           SMOKE_ASSET_MODE=plan \
           SMOKE_ROOT="$RUNNER_TEMP/slicerdsurfer-fresh-clone-smoke" \
           make fresh-clone-smoke
+
+      - name: Preserve fresh-clone diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-clone-diagnostics
+          path: |
+            ${{ runner.temp }}/slicerdsurfer-fresh-clone-smoke/fresh_clone_smoke_report.json
+            ${{ runner.temp }}/slicerdsurfer-fresh-clone-smoke/steps.jsonl
+            ${{ runner.temp }}/slicerdsurfer-fresh-clone-smoke/logs/
+          if-no-files-found: warn
+          retention-days: 14

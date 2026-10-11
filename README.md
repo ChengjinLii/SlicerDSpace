@@ -25,10 +25,6 @@ or proof of scientific correctness.
 
 ## Overview
 
-<p align="center">
-  <img src="docs/images/slicerdds-compact-en.png" width="440" alt="SlicerDDSurfer compact interface: inputs, selected products, Run, Advanced settings and log">
-</p>
-
 One module, five workflow families:
 
 | Workflow | Products | Main prerequisites |

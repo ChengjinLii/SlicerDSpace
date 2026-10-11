@@ -22,10 +22,6 @@ SlicerDDSurfer 在一个 Slicer 模块中组织扩散 MRI 解剖重建、微结�
 
 ## 概览
 
-<p align="center">
-  <img src="docs/images/slicerdds-compact-zh.png" width="440" alt="SlicerDDSurfer 简洁界面：输入、分析产品、运行、高级设置和日志">
-</p>
-
 | 工作流 | 主要结果 | 主要前提 |
 | --- | --- | --- |
 | 输入准备 | DICOM/NIfTI/NRRD 导入、梯度检查、可选掩膜生成与预处理 | 对应导入或预处理后端 |
