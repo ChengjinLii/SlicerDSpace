@@ -20,7 +20,9 @@ jobs:
         with:
           python-version: "3.11"
       - name: Check resource contract and package contents
-        run: python -m unittest discover -s Testing/Python -p test_extension_distribution.py -v
+        run: |
+          python -m unittest discover -s Testing/Python -p test_extension_distribution.py -v
+          python -m unittest discover -s Testing/Python -p test_third_party_notices.py -v
       - name: Check metadata and documentation
         run: |
           python scripts/audit_slicer_extension_metadata.py --json

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 import unittest
 
-from scripts.audit_third_party import audit
+from scripts.audit_third_party import REQUIRED_RECORDS, audit
 from scripts.stage_slicer_extension import stage_extension
 
 
@@ -15,6 +17,26 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ThirdPartyNoticesTest(unittest.TestCase):
+    def test_notice_bytes_survive_autocrlf_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            source.mkdir()
+            paths = [".gitattributes", *REQUIRED_RECORDS.values()]
+            for relative in paths:
+                target = source / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / relative, target)
+            subprocess.run(["git", "init", "--quiet"], cwd=source, check=True, capture_output=True)
+            subprocess.run(["git", "add", "--", *paths], cwd=source, check=True, capture_output=True)
+            output = root / "autocrlf-checkout"
+            subprocess.run(["git", "-c", "core.autocrlf=true", "checkout-index", "-a",
+                            f"--prefix={output.as_posix()}/"], cwd=source, check=True, capture_output=True)
+            for relative in REQUIRED_RECORDS.values():
+                expected = (ROOT / relative).read_bytes()
+                self.assertNotIn(b"\r\n", expected)
+                self.assertEqual((output / relative).read_bytes(), expected, relative)
+
     def staged(self, directory):
         install = stage_extension(Path(directory), slicer_version="Slicer-5.10", clean=True, link_mode="copy")
         return Path(install["module_dir"])

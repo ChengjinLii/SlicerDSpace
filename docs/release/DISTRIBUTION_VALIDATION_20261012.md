@@ -66,6 +66,13 @@ An intermediate local clone could not access the unreferenced validation commit;
 cloning its detached validation worktree resolved that harness issue. Neither
 failed attempt is counted as a pass.
 
+The first remote run of the follow-up exposed a Windows-only checkout issue:
+automatic CRLF conversion changed the notice hashes. The four pinned notice
+paths now explicitly use LF in .gitattributes. A regression test checks their
+bytes after a core.autocrlf=true checkout; the test also runs in each platform's
+resource-contract job. The original-text hashes and strict audit are retained,
+rather than weakening the check or replacing the badge with a static success.
+
 ---
 
 ## Reproduce And Finish
