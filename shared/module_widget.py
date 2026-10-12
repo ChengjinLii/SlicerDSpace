@@ -69,6 +69,7 @@ from shared.ui_run_history import (
 from shared.ui_run_state import run_button_state, run_state_from_manifest_status
 from shared.ui_output_loading import qbytearray_to_text
 from shared.ui_parameter_sync import sync_parameter_node_to_ui
+from shared.ui_workflow_text import BRAIN_MASK_BACKEND_TEXT_KEYS
 from shared.ui_run_controller import (
     BackendSelection,
     ProductTargetFlags,
@@ -84,6 +85,7 @@ from shared.ui_run_controller import (
     extract_background_manifest_path,
     is_auto_generated_run_name,
     microstructure_stage_flags,
+    microstructure_optional_stage_flags,
     parse_manifest_line,
     blocked_plan_items,
     blocked_plan_log_text,
@@ -121,7 +123,7 @@ from shared.ui_background_process import (
     build_background_run_context,
     qprocess_is_running,
 )
-from shared.process_group import capture_process_group_id, grouped_launch_command, kill_process_tree
+from shared.process_group import capture_process_group_id, finish_process_group, grouped_launch_command, kill_process_tree
 from shared.ui_run_status_panel import (
     install_run_status_panel,
     mark_unfinished_rows,
@@ -143,6 +145,7 @@ from shared.ui_onboarding import (
     translated_ui_message,
 )
 from shared.user_config import (
+    canonical_microstructure_stages,
     default_user_config_path,
     load_user_config,
     update_user_config,
@@ -156,6 +159,7 @@ class SharedWidgetMixin:
     """Shared UI helpers used across the unified SlicerDDSurfer widget."""
 
     def _connect_common_ui(self) -> None:
+        slicer.app.connect("aboutToQuit()", self.cleanup)
         if hasattr(self.ui, "runSelectedButton"):
             self.ui.runSelectedButton.connect("clicked()", self._onRunSelectedClicked)
         if hasattr(self.ui, "validateButton"):
@@ -186,7 +190,60 @@ class SharedWidgetMixin:
                 self.ui.wmaInputTractographyPath.connect(
                     "currentPathChanged(QString)", self._onWmaInputTractographyPathChanged
                 )
+        self._connect_brain_mask_ui()
+        self._connect_microstructure_stage_ui()
         self._connect_topup_ui()
+
+    def _connect_microstructure_stage_ui(self) -> None:
+        for name in ("orchestrationFreeWaterCheckBox", "orchestrationNoddiCheckBox", "orchestrationDkiCheckBox"):
+            checkbox = getattr(self.ui, name, None)
+            if checkbox is not None:
+                checkbox.toggled.connect(self._onOptionalMicrostructureStageChanged)
+
+    def _onOptionalMicrostructureStageChanged(self, _checked: bool) -> None:
+        node = self._parameterNode
+        if not node:
+            return
+        stages = ["dti"]
+        for name, stage in (
+            ("orchestrationFreeWaterCheckBox", "freewater"),
+            ("orchestrationNoddiCheckBox", "noddi"),
+            ("orchestrationDkiCheckBox", "dki"),
+        ):
+            checkbox = getattr(self.ui, name, None)
+            if checkbox is not None and checkbox.isChecked():
+                stages.append(stage)
+        with slicer.util.NodeModify(node):
+            node.orchestrationMicrostructureStages = ",".join(stages)
+            node.orchestrationRunFreeWater = "freewater" in stages
+            node.orchestrationRunNoddi = "noddi" in stages
+            node.orchestrationRunDki = "dki" in stages
+
+    def _connect_brain_mask_ui(self) -> None:
+        """Keep readable masking labels separate from canonical backend values."""
+
+        combo = getattr(self.ui, "brainMaskBackendComboBox", None)
+        if combo is None:
+            return
+        blocker = QSignalBlocker(combo)
+        combo.clear()
+        for backend, key in BRAIN_MASK_BACKEND_TEXT_KEYS.items():
+            combo.addItem(onboarding_text(getattr(self, "_onboardingLanguage", "en"), key), backend)
+        combo.setSizeAdjustPolicy(qt.QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        combo.setMinimumContentsLength(8)
+        del blocker
+        combo.currentIndexChanged.connect(self._onBrainMaskBackendChanged)
+
+    def _onBrainMaskBackendChanged(self, index: int) -> None:
+        combo = getattr(self.ui, "brainMaskBackendComboBox", None)
+        if combo is None or index < 0:
+            return
+        backend = str(combo.itemData(index) or "")
+        if backend not in BRAIN_MASK_BACKEND_TEXT_KEYS:
+            return
+        self._lastEnvironmentResult = None
+        self._lastEnvironmentSignature = None
+        self._update_parameter_node("brainMaskBackend", backend)
 
     def _connect_topup_ui(self) -> None:
         """Bind the distortion-correction widgets to the parameter node by hand.
@@ -336,7 +393,8 @@ class SharedWidgetMixin:
         self._populateDeviceCombo()
         self._lastProcessEventsAt = 0.0
         self._logLineLimit = 4000
-        self._autoLoadResultLimit = 12
+        self._autoResultManifestSignatures = {}
+        self._autoResultLoading = False
         self._logAppendCount = 0
         self._environmentCacheTtlSeconds = 300.0
         self._lastEnvironmentSignature = None
@@ -482,7 +540,7 @@ class SharedWidgetMixin:
         return f"SlicerDDSurfer/UserSettings/{name}"
 
     def _common_user_setting_specs(self) -> tuple[tuple[str, type], ...]:
-        return common_user_setting_specs()
+        return common_user_setting_specs() + (("brainMaskBackend", str), ("orchestrationDkiFitMethod", str))
 
     def _coerce_user_setting_value(self, value: Any, value_type: type) -> Any:
         return coerce_user_setting_value(value, value_type)
@@ -531,6 +589,7 @@ class SharedWidgetMixin:
                 node.outputDirectory = str(recent.get("output_root") or node.outputDirectory or "")
                 node.orchestrationRunName = str(defaults.get("run_name") or node.orchestrationRunName or "Test1")
                 node.preprocessingBackend = str(defaults.get("preprocessing_backend") or node.preprocessingBackend or "dipy")
+                node.brainMaskBackend = str(defaults.get("brain_mask_backend") or "pnl_cnn")
                 node.orchestrationTractographyBackend = str(
                     defaults.get("tractography_backend") or node.orchestrationTractographyBackend or "csd_act"
                 )
@@ -538,7 +597,8 @@ class SharedWidgetMixin:
                     defaults.get("bundle_backend") or node.orchestrationBundleBackend or "wmql"
                 )
                 stages = defaults.get("microstructure_stages") or ["dti"]
-                node.orchestrationMicrostructureStages = ",".join(str(value) for value in stages)
+                node.orchestrationMicrostructureStages = ",".join(canonical_microstructure_stages(stages))
+                node.orchestrationDkiFitMethod = str(defaults.get("dki_fit_method") or "WLS").upper()
                 node.connectomeBackend = str(defaults.get("connectome_backend") or node.connectomeBackend or "python")
                 node.orchestrationSelectStreamlines = int(
                     defaults.get("select_streamlines") or node.orchestrationSelectStreamlines or 1_000_000
@@ -553,7 +613,7 @@ class SharedWidgetMixin:
                     node.targetParcellation = "parcellation" in targets
                     node.targetSegmentation = "segmentation" in targets
                     node.targetMicrostructure = bool(
-                        targets & {"microstructure", "microstructure_freewater", "microstructure_noddi"}
+                        targets & {"microstructure", "microstructure_freewater", "microstructure_noddi", "microstructure_dki"}
                     )
                     node.targetTractography = bool(targets & {"tractography", "saf"})
                     node.targetBundles = bool(targets & {"bundles", "wma", "tractcloud"})
@@ -573,7 +633,7 @@ class SharedWidgetMixin:
                 continue
             settings.setValue(self._user_settings_key(attribute), value)
         targets = list(self._selected_product_targets())
-        stages = [value.strip() for value in (node.orchestrationMicrostructureStages or "dti").split(",") if value.strip()]
+        stages = list(canonical_microstructure_stages(node.orchestrationMicrostructureStages or "dti"))
         external_dependencies = {
             item["id"]: self._read_environment_path_setting(item["id"]) or None
             for item in ENVIRONMENT_DEPENDENCY_PATHS
@@ -590,9 +650,11 @@ class SharedWidgetMixin:
                         "run_name": node.orchestrationRunName or "Test1",
                         "targets": targets,
                         "preprocessing_backend": node.preprocessingBackend or "dipy",
+                        "brain_mask_backend": getattr(node, "brainMaskBackend", "pnl_cnn") or "pnl_cnn",
                         "tractography_backend": node.orchestrationTractographyBackend or "csd_act",
                         "bundle_backend": node.orchestrationBundleBackend or "wmql",
                         "microstructure_stages": stages or ["dti"],
+                        "dki_fit_method": getattr(node, "orchestrationDkiFitMethod", "WLS") or "WLS",
                         "connectome_backend": node.connectomeBackend or "python",
                         "select_streamlines": int(node.orchestrationSelectStreamlines),
                         "auto_install_python_dependencies": bool(node.autoInstallPythonDependencies),
@@ -702,6 +764,13 @@ class SharedWidgetMixin:
         if not environment_layout:
             return
         install_environment_dependency_path_controls(self, environment_layout)
+        for key, name in (
+            ("dki_matlab_executable", "dkiMatlabExecutablePathLineEdit"),
+            ("dki_mkcurve_root", "dkiMkcurveRootPathLineEdit"),
+        ):
+            line_edit = self._environmentPathLineEdits.get(key)
+            if line_edit is not None:
+                line_edit.setObjectName(name)
 
     def _initialize_prepare_inputs_panel(self) -> None:
         if getattr(self, "_prepareInputWidgets", None) is not None:
@@ -961,8 +1030,14 @@ class SharedWidgetMixin:
         self._set_model_assets_status_text(text)
 
     def _on_verify_core_model_assets_clicked(self) -> None:
+        self._start_model_asset_verification()
+
+    def _start_model_asset_verification(self, *, lockfile: Optional[Path] = None) -> bool:
+        from shared.ui_setup_jobs import start_setup_job
         try:
-            _, _, verification = self._model_asset_verification("core")
+            # Resolve paths without hashing large files on the GUI thread.
+            _, plan, verification = self._model_asset_verification("core", check_hashes=False)
+            asset_root = Path(str(verification["asset_root"]))
         except Exception as exc:
             self._show_actionable_error(
                 title="Core Model Asset Verification Failed",
@@ -972,21 +1047,32 @@ class SharedWidgetMixin:
                 auto_fix="This button verifies existing files only; it does not download large Git LFS objects.",
                 details=exc,
             )
-            return
-        line = self._format_model_asset_status_line("core", verification)
-        missing = list(verification.get("missing") or [])
-        pointers = list(verification.get("lfs_pointers") or [])
-        details = ""
-        if missing or pointers:
-            details = f" Missing: {missing[:5]}; LFS pointers: {pointers[:5]}"
-        self._set_model_assets_status_text(f"Core model assets: {line}.{details}")
-        if verification.get("ok"):
-            slicer.util.infoDisplay("Core model assets are verified.", parent=self.parent)
-        else:
-            slicer.util.infoDisplay(
-                "Core model assets are not complete. Run scripts/download_model_assets.sh --profile core --asset-root <asset-root>.",
-                parent=self.parent,
-            )
+            return False
+        script = Path(__file__).resolve().parents[1] / "scripts/download_model_assets.py"
+        args = ["--launch", "PythonSlicer", "-u", str(script), "--profile", "core",
+                "--asset-root", str(asset_root), "--verify-only"]
+        if lockfile is not None:
+            args.extend(["--write-lockfile", str(lockfile)])
+
+        def done(status, details, log_path):
+            self._lastEnvironmentResult = self._lastEnvironmentSignature = None
+            if status == "completed":
+                text = f"Core model assets verified ({len(plan.required_paths)} files)."
+                if lockfile is not None:
+                    text += f" Lockfile: {lockfile}"
+            else:
+                text = "Model asset verification cancelled." if status == "cancelled" else "Model asset verification failed."
+            self._set_model_assets_status_text(text)
+            self._setStatus("ready" if status == "completed" else "warning", text)
+            if status == "failed":
+                self._show_actionable_error(
+                    title="Core Model Asset Verification Failed", what=text,
+                    why="A required file is missing, is an LFS pointer, has a checksum mismatch, or the lockfile destination is not writable.",
+                    next_step="Inspect the setup log, select the correct model asset root, and retry.",
+                    auto_fix="Verification does not download or modify model files.",
+                    details=details + "\nLog: " + str(log_path))
+
+        return start_setup_job(self, "Verify core model assets", [(self._slicer_launcher_program(), args, {})], done)
 
     def _on_write_model_asset_lockfile_clicked(self) -> None:
         selected = qt.QFileDialog.getSaveFileName(
@@ -999,32 +1085,7 @@ class SharedWidgetMixin:
         path_text = str(path_text or "").strip()
         if not path_text:
             return
-        try:
-            module, plan, verification = self._model_asset_verification("core")
-            if not verification.get("ok"):
-                raise RuntimeError(
-                    "Core assets are not fully verified: "
-                    f"missing={verification.get('missing')}, lfs_pointers={verification.get('lfs_pointers')}"
-                )
-            repo_root = Path(__file__).resolve().parent.parent
-            asset_root = Path(str(verification.get("asset_root"))).expanduser().resolve()
-            lockfile = module.build_asset_lockfile(asset_root, plan)
-            lockfile["asset_root"] = asset_root.as_posix()
-            path = Path(path_text).expanduser().resolve()
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(lockfile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        except Exception as exc:
-            self._show_actionable_error(
-                title="Model Asset Lockfile Failed",
-                what="SlicerDDSurfer could not write the core model asset lockfile.",
-                why="Core assets are missing, still Git LFS pointers, or the destination path is not writable.",
-                next_step="Verify the core assets first, then choose a writable JSON destination.",
-                auto_fix="Not available. Lockfiles must be generated from verified local files.",
-                details=exc,
-            )
-            return
-        self._set_model_assets_status_text(f"Core model asset lockfile written: {path}")
-        slicer.util.infoDisplay(f"Model asset lockfile written:\n{path}", parent=self.parent)
+        self._start_model_asset_verification(lockfile=Path(path_text).expanduser().resolve())
 
     def _on_open_environment_report_dir_clicked(self) -> None:
         report_dir = getattr(self, "_latestEnvironmentReportDir", None)
@@ -1477,6 +1538,8 @@ class SharedWidgetMixin:
         if manifest_data:
             self._set_run_summary_from_manifest(manifest_data, fallback=f"Run finished. Manifest: {result.run_manifest_path}")
         self._set_run_progress_message(f"Run finished. Manifest: {result.run_manifest_path}")
+        if manifest_data.get("execute"):
+            self._auto_load_key_results(Path(result.run_manifest_path))
 
     def _on_run_status_table_double_clicked(self, row: int, column: int) -> None:
         table = getattr(self, "_runStatusTable", None)
@@ -1557,11 +1620,32 @@ class SharedWidgetMixin:
         external_paths = external_paths if external_paths is not None else self._environment_dependency_path_kwargs()
         subject_root_text = (subject_root_text or (node.inputDirectory or "")).strip()
         output_root_text = (output_root_text or (node.outputDirectory or "")).strip()
+        targets = self._selected_environment_targets()
+        mask_backend = (getattr(node, "brainMaskBackend", "pnl_cnn") or "pnl_cnn").strip()
+        input_dir = Path(subject_root_text).expanduser() / "input" if subject_root_text else None
+        raw_inputs_known = input_dir is not None and all(
+            (input_dir / name).is_file() for name in ("data.nii.gz", "bvals", "bvecs")
+        )
+        mask_targets = {
+            "preprocessing", "segmentation", "parcellation", "surface", "microstructure",
+            "microstructure_freewater", "microstructure_noddi", "microstructure_dki", "tractography", "saf",
+        }
+        missing_input_mask = (
+            raw_inputs_known and bool(mask_targets.intersection(targets))
+            and not (input_dir / "nodif_brain_mask.nii.gz").is_file()
+        )
+        # GUI preprocessing uses motion correction by default and may need a new
+        # mask in corrected space even when a supplied input mask already exists.
+        brain_mask_required = missing_input_mask or (
+            bool(node.targetPreprocessing) and mask_backend != "provided"
+        )
         return {
-            "targets": self._selected_environment_targets(),
+            "targets": targets,
             "subject_root": Path(subject_root_text).expanduser() if subject_root_text else None,
             "output_root": Path(output_root_text).expanduser() if output_root_text else None,
             "preprocessing_backend": (node.preprocessingBackend or "dipy").strip(),
+            "brain_mask_backend": mask_backend,
+            "brain_mask_required": bool(brain_mask_required),
             "tractography_backend": self._tractography_backend_text(),
             "connectome_backend": (node.connectomeBackend or "python").strip(),
             "ddseg_device": (node.ddsegDevice or "auto").strip() or "auto",
@@ -1573,6 +1657,8 @@ class SharedWidgetMixin:
             ),
             "microstructure_run_free_water": self._microstructure_stage_flags()[0],
             "microstructure_run_noddi": self._microstructure_stage_flags()[1],
+            "microstructure_run_dki": self._microstructure_dki_enabled(),
+            "dki_fit_method": getattr(node, "orchestrationDkiFitMethod", "WLS") or "WLS",
             **external_paths,
         }
 
@@ -1646,11 +1732,47 @@ class SharedWidgetMixin:
             self._set_environment_path_status_label(label, text, state)
 
     def cleanup(self) -> None:
+        if getattr(self, "_cleanedUp", False):
+            return
+        self._cleanedUp = True
+        try:
+            slicer.app.disconnect("aboutToQuit()", self.cleanup)
+        except Exception:
+            pass
         job = getattr(self, "_setupJob", None)
         if job:
-            job.cancel()
+            job.shutdown()
+        process = getattr(self, "_backgroundProcess", None)
+        if process is not None and qprocess_is_running(process):
+            # Teardown cannot rely on timers or callbacks into deleted widgets.
+            for signal_name, callback in (
+                ("readyReadStandardOutput()", self._onBackgroundProcessReadyRead),
+                ("finished(int,QProcess::ExitStatus)", self._onBackgroundProcessFinished),
+                ("errorOccurred(QProcess::ProcessError)", self._onBackgroundProcessError),
+            ):
+                try:
+                    process.disconnect(signal_name, callback)
+                except Exception:
+                    pass
+            self._backgroundCancelRequested = True
+            self._signal_background_process(process, force=False)
+            if not process.waitForFinished(15000):
+                self._signal_background_process(process, force=True)
+                process.waitForFinished(3000)
+            pgid = getattr(self, "_backgroundProcessGroupId", None)
+            if getattr(self, "_backgroundProcessGrouped", False) and pgid:
+                finish_process_group(pgid, grace_seconds=15)
+            self._write_cancelled_manifest()
+        # Cancelled launchers can exit before their children. The event loop
+        # may stop before the delayed force-kill callback gets its turn.
+        for pgid in list(getattr(self, "_pendingCancelledProcessGroups", set())):
+            finish_process_group(pgid, grace_seconds=15)
+        self._pendingCancelledProcessGroups = set()
         stop_progress_polling(self)
         timer = getattr(self, "_runHistoryRefreshTimer", None)
+        if timer is not None:
+            timer.stop()
+        timer = getattr(self, "_commonUserSettingsSaveTimer", None)
         if timer is not None:
             timer.stop()
         self.removeObservers()
@@ -1875,7 +1997,9 @@ class SharedWidgetMixin:
         node = self._parameterNode
         if node:
             groups = (
-                (bool(node.targetMicrostructure), ("orchestrationMicrostructureStagesLabel", "orchestrationMicrostructureStagesComboBox")),
+                (bool(node.targetMicrostructure), ("orchestrationMicrostructureStagesLabel", "orchestrationMicrostructureStageOptions")),
+                (bool(node.targetMicrostructure) and self._microstructure_dki_enabled(),
+                 ("orchestrationDkiFitMethodLabel", "orchestrationDkiFitMethodComboBox")),
                 (bool(node.targetBundles), ("orchestrationBundleBackendLabel", "orchestrationBundleBackendComboBox")),
                 (bool(node.targetTractography or node.targetConnectome), ("orchestrationTractographyBackendLabel", "orchestrationTractographyBackendComboBox")),
                 (bool(node.batchMode), ("batchRootLabel", "batchRootPath", "batchSizeLabel", "batchSizeSpinBox", "batchArrangeInputsLabel", "batchArrangeInputsComboBox")),
@@ -1885,6 +2009,9 @@ class SharedWidgetMixin:
                     control = getattr(self.ui, name, None)
                     if control:
                         control.visible = visible
+            legacy_combo = getattr(self.ui, "orchestrationMicrostructureStagesComboBox", None)
+            if legacy_combo is not None:
+                legacy_combo.visible = False
         backend = (backend or self._tractography_backend_text() or "csd_act").strip() or "csd_act"
         run_name_edit = getattr(self.ui, "orchestrationRunNameLineEdit", None)
         current_run_name = self._line_edit_text(run_name_edit) if run_name_edit else ""
@@ -1990,6 +2117,7 @@ class SharedWidgetMixin:
             bundle_backend=self._bundle_backend_text(),
             microstructure_freewater=freewater,
             microstructure_noddi=noddi,
+            microstructure_dki=self._microstructure_dki_enabled(),
         )
 
     def _product_target_flags(self) -> ProductTargetFlags:
@@ -1999,6 +2127,7 @@ class SharedWidgetMixin:
         return ProductTargetFlags(
             preprocessing=bool(node.targetPreprocessing),
             surface=bool(node.targetSurface),
+            surface_postprocess=bool(node.targetSurfacePostprocess),
             parcellation=bool(node.targetParcellation),
             segmentation=bool(node.targetSegmentation),
             microstructure=bool(node.targetMicrostructure),
@@ -2021,12 +2150,14 @@ class SharedWidgetMixin:
             return "dti"
         text = (getattr(node, "orchestrationMicrostructureStages", "") or "").strip().lower()
         if text:
-            return text
+            return ",".join(canonical_microstructure_stages(text))
         stages = ["dti"]
         if bool(getattr(node, "orchestrationRunFreeWater", False)):
             stages.append("freewater")
         if bool(getattr(node, "orchestrationRunNoddi", False)):
             stages.append("noddi")
+        if bool(getattr(node, "orchestrationRunDki", False)):
+            stages.append("dki")
         return ",".join(stages)
 
     def _microstructure_stage_flags(self) -> tuple[bool, bool]:
@@ -2042,6 +2173,9 @@ class SharedWidgetMixin:
         if not node:
             return ()
         return selected_environment_targets(self._selected_product_targets())
+
+    def _microstructure_dki_enabled(self) -> bool:
+        return microstructure_optional_stage_flags(self._microstructure_stages_text())[2]
 
     def _apply_shared_inputs_to_workflow_fields(self) -> None:
         """Populate empty product-specific fields from the shared subject setup."""
@@ -2347,6 +2481,7 @@ class SharedWidgetMixin:
             return
         if manifest.get("kind") == "slicerdsurfer_batch_run":
             self._load_background_batch_manifest_result(manifest_path, manifest)
+            self._auto_load_key_results(manifest_path)
             self._tableShowsLiveRun = False
             set_run_state(self, "failed" if rows_from_batch_manifest(manifest_path, manifest)[1]["failed"] else "completed")
             self._refresh_run_history(select_path=manifest_path)
@@ -2387,23 +2522,12 @@ class SharedWidgetMixin:
             output_tree_path = str(output_tree_report_paths.get("report_html_latest") or output_tree_report_paths.get("report_html") or "")
         self._set_latest_output_tree_path(output_tree_path)
         self._set_run_summary_from_manifest(manifest, fallback=f"Run finished. Manifest: {manifest_path}")
-        auto_load_limit = int(getattr(self, "_autoLoadResultLimit", 12))
-        self._set_run_progress_message(f"Run finished. Loading up to {auto_load_limit} key result node(s)...")
-        loaded_count = 0
-        if self.logic:
-            try:
-                loaded = self.logic.loadKeyResultsFromManifest(
-                    manifest_path,
-                    max_items=auto_load_limit,
-                )
-                loaded_count = len(loaded.get("loaded", []))
-            except Exception as exc:
-                self.appendLog(f"[Slicer] Auto-load skipped: {exc}")
+        self._set_run_progress_message("Run finished. Loading key products for visual review...")
+        loaded_count = self._auto_load_key_results(manifest_path)
         message = f"Run finished. Manifest: {manifest_path}"
         if loaded_count:
             message += (
-                f" Auto-loaded {loaded_count} key result node(s)"
-                f" (limit {auto_load_limit})."
+                f" Auto-loaded {loaded_count} key result node(s). Visual review remains pending."
             )
         if report_path:
             message += f" Report: {report_path}"
@@ -2412,6 +2536,37 @@ class SharedWidgetMixin:
         self._set_run_progress_message(message)
         self._tableShowsLiveRun = False
         self._refresh_run_history(select_path=manifest_path)
+
+    def _auto_load_key_results(self, manifest_path: Path) -> int:
+        """Load newly completed run products on the GUI thread, without replacing the scene."""
+        if not self.logic or getattr(self, "_autoResultLoading", False):
+            return 0
+        from shared.auto_results import automatic_manifest_paths
+        paths = automatic_manifest_paths(Path(manifest_path),
+                                         not_before=getattr(self, "_runProgressStartedAt", None))
+        signatures = getattr(self, "_autoResultManifestSignatures", {})
+        count = 0
+        self._autoResultLoading = True
+        try:
+            for path in paths:
+                try:
+                    payload = json.loads(path.read_text(encoding="utf-8"))
+                    signature = json.dumps(payload.get("tasks") or [], sort_keys=True)
+                    identity = str(path.resolve())
+                    if signatures.get(identity) == signature:
+                        continue
+                    result = self.logic.loadKeyResultsFromManifest(path, automatic=True, mode="reuse")
+                    count += len(result.get("loaded", []))
+                    signatures[identity] = signature
+                    for item in result.get("skipped", []):
+                        if "path" in item:
+                            self.appendLog("[Auto-load] " + str(item))
+                except Exception as exc:
+                    self.appendLog(f"[Auto-load] Could not load {path}: {exc}")
+            self._autoResultManifestSignatures = signatures
+        finally:
+            self._autoResultLoading = False
+        return count
 
     def _manage_result_scene(self, mode: str) -> None:
         if not self.logic:
@@ -2493,18 +2648,25 @@ class SharedWidgetMixin:
         except Exception:
             return
         self._backgroundCancelRequested = True
+        grouped = bool(getattr(self, "_backgroundProcessGrouped", False))
+        pgid = getattr(self, "_backgroundProcessGroupId", None)
+        if grouped and pgid:
+            groups = getattr(self, "_pendingCancelledProcessGroups", set())
+            groups.add(pgid)
+            self._pendingCancelledProcessGroups = groups
         self.appendLog("[Background] Cancellation requested by user.")
         self._set_run_progress_message("Cancelling background job...")
         self._signal_background_process(process, force=False)
         # Capture grouped/pgid now, not inside the lambda: if a new
-        # background run were started during the 3s grace period (replacing
+        # background run were started during the grace period (replacing
         # self._backgroundProcessGrouped/self._backgroundProcessGroupId),
         # reading them fresh when the timer fires would kill the *new*
         # run's process group instead of the one actually being cancelled.
         grouped = bool(getattr(self, "_backgroundProcessGrouped", False))
         pgid = getattr(self, "_backgroundProcessGroupId", None)
+        # Allow DDSurfer's 10-second stage-tree cleanup to finish before SIGKILL.
         qt.QTimer.singleShot(
-            3000, lambda: self._kill_background_process_if_running(process, grouped=grouped, pgid=pgid)
+            15000, lambda: self._kill_background_process_if_running(process, grouped=grouped, pgid=pgid)
         )
 
     def _capture_background_process_group_id(self, process, grouped: bool) -> Optional[int]:
@@ -2560,6 +2722,7 @@ class SharedWidgetMixin:
                 kill_process_tree(0, grouped=True, force=True, pgid=pgid)
             except Exception:
                 pass
+            getattr(self, "_pendingCancelledProcessGroups", set()).discard(pgid)
             return
         try:
             if process and process.state() != qt.QProcess.NotRunning:
@@ -2656,12 +2819,15 @@ class SharedWidgetMixin:
             bundle_backend=self._bundle_backend_text(),
             microstructure_freewater=run_free_water,
             microstructure_noddi=run_noddi,
+            microstructure_dki=self._microstructure_dki_enabled(),
+            dki_fit_method=getattr(self._parameterNode, "orchestrationDkiFitMethod", "WLS") or "WLS",
             select_streamlines=max(1, int(self._parameterNode.orchestrationSelectStreamlines)),
             ddseg_device=ddseg_device,
             surface_device=surface_device,
             connectome_backend=(self._parameterNode.connectomeBackend or "python").strip(),
             connectome_compress_mrtrix_dense=bool(self._parameterNode.connectomeCompressMrtrixDense),
             preprocessing_backend=(self._parameterNode.preprocessingBackend or "dipy").strip() or "dipy",
+            brain_mask_backend=(getattr(self._parameterNode, "brainMaskBackend", "pnl_cnn") or "pnl_cnn").strip(),
             wma_input_tractography_text=(
                 getattr(self._parameterNode, "wmaInputTractography", "") or ""
             ).strip(),

@@ -8,6 +8,7 @@ own scientific details and manifest/QC files.
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 import time
@@ -39,6 +40,7 @@ SUPPORTED_TARGETS = {
     "microstructure",
     "microstructure_freewater",
     "microstructure_noddi",
+    "microstructure_dki",
     "tractography",
     "bundles",
     "connectome",
@@ -62,6 +64,7 @@ TARGET_ORDER = (
     "microstructure",
     "microstructure_freewater",
     "microstructure_noddi",
+    "microstructure_dki",
     "tractography",
     "bundles",
     "saf",
@@ -83,6 +86,11 @@ class ProductOrchestratorConfig:
     execute: bool = False
     resume: bool = True
     preprocessing_backend: str = "dipy"
+    brain_mask_backend: str = "pnl_cnn"
+    pnl_mask_python: Optional[Path] = None
+    pnl_mask_script: Optional[Path] = None
+    pnl_mask_model_dir: Optional[Path] = None
+    pnl_mask_ants_bin_dir: Optional[Path] = None
     preprocessing_force: bool = False
     preprocessing_dipy_denoise_method: str = "mppca"
     preprocessing_dipy_run_gibbs: bool = True
@@ -97,6 +105,10 @@ class ProductOrchestratorConfig:
     microstructure_fit_method: str = "wls"
     microstructure_run_free_water: bool = False
     microstructure_run_noddi: bool = False
+    microstructure_run_dki: bool = False
+    microstructure_dki_fit_method: str = "WLS"
+    microstructure_dki_matlab_executable: Optional[Path] = None
+    microstructure_dki_mkcurve_root: Optional[Path] = None
     microstructure_free_water_chunk_size: int = 2
     microstructure_free_water_engine: str = "serial"
     microstructure_free_water_n_jobs: Optional[int] = None
@@ -113,7 +125,9 @@ class ProductOrchestratorConfig:
     atlas_t2: Optional[Path] = None
     surface_atlas_t2: Optional[Path] = None
     surface_python_bin: Optional[Path] = None
-    surface_precision: str = 'auto'
+    surface_precision: str = 'fp32'
+    surface_cpu_threads: int = 4
+    surface_max_gpu_gib: float = 24.
     model_assets_dir: Optional[Path] = None
     ddseg_device: str = "auto"
     surface_device: str = "auto"
@@ -464,6 +478,7 @@ def normalize_orchestrator_targets(
     bundle_backend: str = "wmql",
     microstructure_run_free_water: bool = False,
     microstructure_run_noddi: bool = False,
+    microstructure_run_dki: bool = False,
 ) -> tuple[str, ...]:
     """Expand product-level targets according to selected backend parameters."""
 
@@ -477,6 +492,8 @@ def normalize_orchestrator_targets(
                 expanded.append("microstructure_freewater")
             if microstructure_run_noddi:
                 expanded.append("microstructure_noddi")
+            if microstructure_run_dki:
+                expanded.append("microstructure_dki")
             continue
         if target == "bundles":
             for backend in bundle_backends:
@@ -772,6 +789,7 @@ def _normalize_targets(config: ProductOrchestratorConfig) -> tuple[str, ...]:
         bundle_backend=config.bundle_backend,
         microstructure_run_free_water=config.microstructure_run_free_water,
         microstructure_run_noddi=config.microstructure_run_noddi,
+        microstructure_run_dki=config.microstructure_run_dki,
     )
 
 
@@ -792,6 +810,8 @@ def _task_name_for_target(target: str, config: ProductOrchestratorConfig) -> str
         return "microstructure.freewater"
     if target == "microstructure_noddi":
         return "microstructure.noddi"
+    if target == "microstructure_dki":
+        return "microstructure.dki"
     if target == "tractography":
         return "tractography.csd_act" if _primary_tractography_backend(config) == "csd_act" else "tractography.dti_det"
     if target == "bundles":
@@ -868,9 +888,66 @@ def _preprocessing_outputs(subject_root: Path, subject_id: str, output_root: Opt
     }
 
 
-def _preprocessing_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+def _preprocessing_config(config: ProductOrchestratorConfig, subject_root: Path, output_dir: Path):
+    from preprocessing import DwiPreprocessingConfig
+
+    return DwiPreprocessingConfig(
+        subject_id=config.subject_id, input_root=subject_root, output_dir=output_dir,
+        backend=config.preprocessing_backend, execute=True, skip=False,
+        brain_mask_backend=config.brain_mask_backend,
+        pnl_mask_python=config.pnl_mask_python,
+        pnl_mask_script=config.pnl_mask_script,
+        pnl_mask_model_dir=config.pnl_mask_model_dir,
+        pnl_mask_ants_bin_dir=config.pnl_mask_ants_bin_dir,
+        postprocess_freesurfer_home=config.postprocess_freesurfer_home,
+        force=config.preprocessing_force or (not config.resume),
+        dipy_denoise_method=config.preprocessing_dipy_denoise_method,
+        dipy_run_gibbs=config.preprocessing_dipy_run_gibbs,
+        dipy_run_motion_correction=config.preprocessing_dipy_run_motion_correction,
+        mrtrix_bin_dir=config.preprocessing_mrtrix_bin_dir,
+        fsl_bin_dir=config.preprocessing_fsl_bin_dir,
+        reverse_phase_b0=config.preprocessing_reverse_phase_b0,
+        phase_encoding_direction=config.preprocessing_phase_encoding_direction,
+        readout_time=config.preprocessing_readout_time,
+        eddy_threads=config.preprocessing_eddy_threads,
+        eddy_second_level_model=config.preprocessing_eddy_second_level_model,
+    )
+
+
+def _preprocessing_complete(
+    subject_root: Path, subject_id: str, output_root: Optional[Path] = None,
+    *, config: Optional[ProductOrchestratorConfig] = None,
+) -> bool:
     outputs = _preprocessing_outputs(subject_root, subject_id, output_root)
-    return all(path.is_file() for key, path in outputs.items() if key != "qc") and _qc_completed(outputs["qc"])
+    if not all(path.is_file() for key, path in outputs.items() if key != "qc") or not _qc_completed(outputs["qc"]):
+        return False
+    try:
+        manifest = _read_json(outputs["manifest"])
+        if manifest.get("status") not in {"completed", "cached"}:
+            return False
+        cache_key = manifest.get("cache_key")
+        raw = _resolve_raw_inputs(subject_root)
+        if isinstance(cache_key, dict) and not all(
+            _file_record_matches((cache_key.get("inputs") or {}).get(key), path)
+            for key, path in raw.items()
+        ):
+            return False
+        if config is not None:
+            from preprocessing.pipeline import _preprocessing_cache_key, inspect_preprocessing_backend
+            from shared.pipeline import RawInputBundle
+
+            expected = _preprocessing_config(config, subject_root, outputs["dwi"].parent)
+            if expected.force:
+                return False
+            bundle = RawInputBundle(
+                subject_root=subject_root, subject_id=subject_id, input_dir=subject_root / "input",
+                dwi_path=raw["dwi"], bval_path=raw["bval"], bvec_path=raw["bvec"], mask_path=raw["mask"],
+            )
+            if cache_key != _preprocessing_cache_key(bundle, expected, inspect_preprocessing_backend(expected)):
+                return False
+    except (OSError, ValueError, TypeError, AttributeError):
+        return False
+    return True
 
 
 def _resolve_segmentation(subject_root: Path, output_root: Optional[Path] = None) -> Optional[Path]:
@@ -888,6 +965,7 @@ def _anatomy_input_bundle(
     subject_id: str,
     output_root: Optional[Path],
     mrtrix_bin_dir: Optional[Path],
+    brain_mask_config=None,
 ):
     """DWI bundle for DDSeg/DDParcel/DDSurfer: the preprocessed DWI when preprocessing completed.
 
@@ -898,7 +976,8 @@ def _anatomy_input_bundle(
 
     from shared.pipeline import find_subject_root, resolve_preprocessed_input_bundle
 
-    raw_bundle = find_subject_root(subject_root, subject_id, mrtrix_bin_dir=mrtrix_bin_dir)
+    raw_bundle = find_subject_root(subject_root, subject_id, mrtrix_bin_dir=mrtrix_bin_dir,
+                                  brain_mask_config=brain_mask_config)
     return resolve_preprocessed_input_bundle(raw_bundle, output_root=output_root)
 
 
@@ -1065,8 +1144,9 @@ def _surface_outputs(subject_root: Path, subject_id: str, output_root: Optional[
     }
 
 
-def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
-    from anatomy.surface.backend_bridge import upstream_record
+def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None,
+                      *, config: Optional[ProductOrchestratorConfig] = None) -> bool:
+    from anatomy.surface.backend_bridge import sha256, upstream_record
     surface_root = subject_layout(subject_root, output_root=output_root).ddsurfer
     try:
         manifest = json.loads((surface_root / 'surface_manifest.json').read_text())
@@ -1074,7 +1154,34 @@ def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional
         if (manifest.get('upstream_commit') != upstream_record()['commit']
                 or manifest.get('status') != 'completed' or not qc.get('automatic_qc_passed')):
             return False
-    except (OSError, ValueError):
+        # Raw resume must reach upstream preflight, which verifies the complete
+        # input/runtime signature and final-result receipt before skipping work.
+        if manifest.get('input_mode') != 'registered' or manifest.get('version', 0) < 3:
+            return False
+        if (manifest.get('subject_id') != subject_id
+                or manifest.get('subject_root') != str(subject_root.resolve())):
+            return False
+        expected = config or ProductOrchestratorConfig(subject_id=subject_id, subject_root=subject_root, targets=('surface',))
+        if (manifest.get('precision') != expected.surface_precision
+                or manifest.get('cpu_threads') != expected.surface_cpu_threads
+                or manifest.get('max_gpu_gib') != expected.surface_max_gpu_gib):
+            return False
+        if expected.surface_python_bin and manifest.get('runtime', {}).get('executable') != str(expected.surface_python_bin.resolve()):
+            return False
+        if expected.surface_atlas_t2 and manifest.get('resources', {}).get('registration_atlas') != str(expected.surface_atlas_t2.resolve()):
+            return False
+        inputs, outputs = manifest.get('input_sha256', {}), manifest.get('output_sha256', {})
+        if len(inputs) < 15 or len(outputs) != 8:
+            return False
+        for path, digest in {**inputs, **outputs}.items():
+            if Path(path).is_symlink() or sha256(path) != digest:
+                return False
+        required = set(map(str, _surface_outputs(subject_root, subject_id, output_root).values()))
+        native = surface_root / 'pred_results_SlicerDDSurfer/native' / subject_id
+        required.update(str(native / f'{hemi}.{kind}.obj') for hemi in ('lh', 'rh') for kind in ('white', 'pial'))
+        if not required.issubset(outputs):
+            return False
+    except (OSError, ValueError, TypeError, AttributeError):
         return False
     return outputs_readable(_surface_outputs(subject_root, subject_id, output_root).values())
 
@@ -1382,6 +1489,25 @@ def _csd_act_complete(
         return False
 
 
+def _dki_config(config: ProductOrchestratorConfig, inputs: dict[str, Path]):
+    from microstructure.dki import DkiConfig
+    from shared.pipeline import RawInputBundle
+
+    root = config.subject_root.expanduser().resolve()
+    return DkiConfig(
+        subject_id=config.subject_id,
+        raw_input_bundle=RawInputBundle(
+            subject_root=root, subject_id=config.subject_id, input_dir=inputs["dwi"].parent,
+            **{f"{key}_path": inputs[key] for key in ("dwi", "bval", "bvec", "mask")},
+        ),
+        output_dir=subject_layout(root, output_root=config.output_root).microstructure_dki,
+        fit_method=config.microstructure_dki_fit_method,
+        matlab_executable=config.microstructure_dki_matlab_executable,
+        mkcurve_root=config.microstructure_dki_mkcurve_root,
+        force_recompute=not config.resume,
+    )
+
+
 def _microstructure_requested_outputs_complete(
     subject_root: Path,
     subject_id: str,
@@ -1446,6 +1572,15 @@ def _write_run_plan(plan: RunPlanResult) -> Path:
     return plan.run_plan_path
 
 
+def _validate_surface_settings(config: ProductOrchestratorConfig) -> None:
+    if config.surface_precision not in ('fp32', 'bf16', 'auto'):
+        raise ValueError('surface_precision must be fp32, bf16 or auto.')
+    if config.surface_cpu_threads < 1:
+        raise ValueError('surface_cpu_threads must be positive.')
+    if not math.isfinite(config.surface_max_gpu_gib) or config.surface_max_gpu_gib <= 0:
+        raise ValueError('surface_max_gpu_gib must be finite and positive.')
+
+
 def _validate_tractography_settings(config: ProductOrchestratorConfig) -> None:
     from tractography.csd import SEEDING_MODES
 
@@ -1469,6 +1604,9 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     if config.mrtrix_nthreads is not None and config.mrtrix_nthreads < 0:
         raise ValueError("mrtrix_nthreads must be >= 0 when set.")
     _validate_tractography_settings(config)
+    _validate_surface_settings(config)
+    from shared.brain_mask import brain_mask_config_from_options, inspect_brain_mask_backend
+    mask_backend = inspect_brain_mask_backend(brain_mask_config_from_options(config))
     if config.microstructure_free_water_chunk_size <= 0:
         raise ValueError("microstructure_free_water_chunk_size must be > 0.")
     if config.microstructure_free_water_engine not in {"serial", "joblib", "dask", "ray"}:
@@ -1498,6 +1636,9 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     raw = _resolve_raw_inputs(subject_root)
     analysis_inputs = _resolve_analysis_inputs(subject_root, config.subject_id, output_root)
     raw_missing = _missing_file_labels(raw)
+    mask_can_be_generated = raw_missing == ["mask"] and mask_backend["available"] and config.brain_mask_backend != "provided"
+    if mask_can_be_generated:
+        raw_missing = []
     model_assets_dir = config.model_assets_dir.expanduser().resolve() if config.model_assets_dir is not None else None
     atlas_t2 = config.atlas_t2.expanduser().resolve() if config.atlas_t2 is not None else _default_atlas_t2(model_assets_dir)
 
@@ -1566,13 +1707,13 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
 
     def target_completed(target: str) -> bool:
         if target == "preprocessing":
-            return _preprocessing_complete(subject_root, config.subject_id, output_root)
+            return _preprocessing_complete(subject_root, config.subject_id, output_root, config=config)
         if target == "segmentation":
             return _segmentation_complete(subject_root, output_root)
         if target == "parcellation":
             return _parcellation_complete(subject_root, config.subject_id, output_root)
         if target == "surface":
-            return _surface_complete(subject_root, config.subject_id, output_root)
+            return _surface_complete(subject_root, config.subject_id, output_root, config=config)
         if target == "surface_postprocess":
             if config.postprocess_force:
                 return False
@@ -1590,6 +1731,9 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             return _microstructure_freewater_complete(subject_root, config.subject_id, output_root)
         if target == "microstructure_noddi":
             return _microstructure_noddi_complete(subject_root, config.subject_id, output_root)
+        if target == "microstructure_dki":
+            from microstructure.dki import dki_outputs_current
+            return dki_outputs_current(_dki_config(config, analysis_inputs))
         if target == "tractography":
             if primary_tractography_backend == "csd_act":
                 return _csd_act_complete(
@@ -1669,6 +1813,11 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
 
     def raw_input_block(target: str, outputs: dict[str, Path | None] | None = None) -> bool:
         if raw_missing:
+            if raw_missing == ["mask"] and not mask_backend["available"]:
+                add(target, "blocked", f"brain mask backend {config.brain_mask_backend} unavailable: " +
+                    ", ".join(mask_backend["missing_required"]), "environment", inputs=raw,
+                    outputs=outputs, provides=False)
+                return True
             add(
                 target,
                 "blocked",
@@ -1705,7 +1854,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             continue
 
         if target == "preprocessing":
-            if config.resume and _preprocessing_complete(subject_root, config.subject_id, output_root):
+            if config.resume and _preprocessing_complete(subject_root, config.subject_id, output_root, config=config):
                 add(target, "skipped", "completed outputs found", "reuse", inputs=raw, outputs=preprocessing_outputs)
             elif not raw_input_block(target, preprocessing_outputs):
                 add(target, "will_run", "ready to run DWI preprocessing", "runnable", inputs=raw, outputs=preprocessing_outputs)
@@ -1736,7 +1885,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             continue
 
         if target == "surface":
-            if config.resume and _surface_complete(subject_root, config.subject_id, output_root):
+            if config.resume and _surface_complete(subject_root, config.subject_id, output_root, config=config):
                 add(target, "skipped", "completed outputs found", "reuse", inputs=raw, outputs=surface_outputs)
             elif not raw_input_block(target, surface_outputs):
                 add(target, "will_run", "ready to run DDSurfer surface", "runnable", inputs=raw, outputs=surface_outputs)
@@ -1834,6 +1983,26 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 add(target, "blocked", "missing Microstructure DTI outputs; select microstructure or provide existing output", "upstream", inputs=raw, outputs=noddi_outputs, dependencies={"microstructure": "missing"}, provides=False)
             elif not raw_input_block(target, noddi_outputs):
                 add(target, "will_run", "ready to run Microstructure NODDI", "runnable", inputs=analysis_inputs, outputs=noddi_outputs, dependencies={"microstructure": "available" if _microstructure_dti_complete(subject_root, config.subject_id, output_root) else "will_run"})
+            continue
+
+        if target == "microstructure_dki":
+            from microstructure.dki import dki_output_paths, dki_outputs_current, inspect_dki_inputs
+
+            dki_config = _dki_config(config, analysis_inputs)
+            outputs = dki_output_paths(config.subject_id, dki_config.output_dir)
+            if raw_input_block(target, outputs):
+                continue
+            # Planning checks protocol metadata, never fits or generates a mask.
+            inspection = inspect_dki_inputs(dki_config, require_mask=False)
+            if not inspection["eligible"]:
+                add(target, "blocked", "; ".join(inspection["reasons"]), "acquisition_or_backend",
+                    inputs=analysis_inputs, outputs=outputs, provides=False)
+            elif config.resume and dki_outputs_current(dki_config):
+                add(target, "skipped", "matching completed DKI outputs found", "reuse",
+                    inputs=analysis_inputs, outputs=outputs)
+            else:
+                add(target, "will_run", "eligible multi-shell DKI; final mask checked before fitting", "runnable",
+                    inputs=analysis_inputs, outputs=outputs)
             continue
 
         if target == "tractography":
@@ -2281,7 +2450,7 @@ def _expected_output_top_dirs(targets: tuple[str, ...]) -> set[str]:
     selected = set(targets)
     if "preprocessing" in selected:
         expected.add("01_preproc")
-    if selected & {"microstructure", "microstructure_freewater", "microstructure_noddi"}:
+    if selected & {"microstructure", "microstructure_freewater", "microstructure_noddi", "microstructure_dki"}:
         expected.update({"02_microstructure", "05_statistics"})
     if selected & {"segmentation", "parcellation", "surface", "surface_postprocess"}:
         expected.add("03_structural")
@@ -2358,10 +2527,10 @@ def _write_output_tree_semantics(
     directory_targets: list[tuple[str, tuple[str, ...], str]] = [
         ("00_run_metadata", ("validation",), "Run metadata, validation, environment and task records."),
         ("01_preproc", ("preprocessing",), "DWI preprocessing outputs."),
-        ("02_microstructure", ("microstructure", "microstructure_freewater", "microstructure_noddi"), "Microstructure model outputs."),
+        ("02_microstructure", ("microstructure", "microstructure_freewater", "microstructure_noddi", "microstructure_dki"), "Microstructure model outputs."),
         ("03_structural", ("segmentation", "parcellation", "surface", "surface_postprocess"), "Segmentation, parcellation and surface products."),
         ("04_tractography", ("tractography", "bundles", "saf", "wma", "tractcloud", "connectome"), "Tractography, bundle extraction, SAF and connectome products."),
-        ("05_statistics", ("microstructure", "microstructure_freewater", "microstructure_noddi", "surface_postprocess"), "Regional summaries and post-process statistics."),
+        ("05_statistics", ("microstructure", "microstructure_freewater", "microstructure_noddi", "microstructure_dki", "surface_postprocess"), "Regional summaries and post-process statistics."),
         ("06_slicer_scene_report", tuple(TARGET_ORDER), "HTML/Markdown reports and output tree views."),
     ]
     for relative, targets, description in directory_targets:
@@ -2567,6 +2736,7 @@ def _run_subject_products_impl(
     if config.mrtrix_nthreads is not None and config.mrtrix_nthreads < 0:
         raise ValueError("mrtrix_nthreads must be >= 0 when set.")
     _validate_tractography_settings(config)
+    _validate_surface_settings(config)
     if config.microstructure_free_water_chunk_size <= 0:
         raise ValueError("microstructure_free_water_chunk_size must be > 0.")
     if config.microstructure_free_water_engine not in {"serial", "joblib", "dask", "ray"}:
@@ -2620,6 +2790,8 @@ def _run_subject_products_impl(
 
     materialize_canonical_output_tree(subject_root, output_root=output_root, mode="symlink", archive_legacy=False)
     mask_mrtrix_bin_dir = config.mrtrix_bin_dir or config.preprocessing_mrtrix_bin_dir
+    from shared.brain_mask import brain_mask_config_from_options
+    selected_mask_config = brain_mask_config_from_options(config)
     initial_raw = _resolve_raw_inputs(subject_root)
     if (
         config.execute
@@ -2633,6 +2805,7 @@ def _run_subject_products_impl(
                 subject_root,
                 config.subject_id,
                 mrtrix_bin_dir=mask_mrtrix_bin_dir,
+                brain_mask_config=selected_mask_config,
             )
         except (FileNotFoundError, RuntimeError) as exc:
             _emit(f"[Brain mask] Automatic generation unavailable: {exc}", log)
@@ -2656,6 +2829,12 @@ def _run_subject_products_impl(
                 output_dir=layout.run_metadata / "validation",
                 dependency_groups=("core",),
                 mrtrix_bin_dir=mask_mrtrix_bin_dir,
+                brain_mask_backend=config.brain_mask_backend,
+                pnl_mask_python=config.pnl_mask_python,
+                pnl_mask_script=config.pnl_mask_script,
+                pnl_mask_model_dir=config.pnl_mask_model_dir,
+                pnl_mask_ants_bin_dir=config.pnl_mask_ants_bin_dir,
+                postprocess_freesurfer_home=config.postprocess_freesurfer_home,
             )
         )
         tasks.append(
@@ -2670,7 +2849,7 @@ def _run_subject_products_impl(
 
     if "preprocessing" in run_targets:
         preprocessing_outputs = _preprocessing_outputs(subject_root, config.subject_id, output_root)
-        if config.resume and _preprocessing_complete(subject_root, config.subject_id, output_root):
+        if config.resume and _preprocessing_complete(subject_root, config.subject_id, output_root, config=config):
             tasks.append(
                 ProductTaskRecord(
                     name="preprocessing.dwi",
@@ -2687,29 +2866,11 @@ def _run_subject_products_impl(
             missing = [label for label, path in raw.items() if not path.is_file()]
             tasks.append(ProductTaskRecord(name="preprocessing.dwi", status="blocked", reason="missing raw input: " + ", ".join(missing)))
         else:
-            from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
+            from preprocessing import run_dwi_preprocessing
 
             _emit("[Orchestrator] Running DWI preprocessing", log)
             result = run_dwi_preprocessing(
-                DwiPreprocessingConfig(
-                    subject_id=config.subject_id,
-                    input_root=subject_root,
-                    output_dir=layout.preproc,
-                    backend=config.preprocessing_backend,
-                    execute=True,
-                    skip=False,
-                    force=config.preprocessing_force or (not config.resume),
-                    dipy_denoise_method=config.preprocessing_dipy_denoise_method,
-                    dipy_run_gibbs=config.preprocessing_dipy_run_gibbs,
-                    dipy_run_motion_correction=config.preprocessing_dipy_run_motion_correction,
-                    mrtrix_bin_dir=config.preprocessing_mrtrix_bin_dir,
-                    fsl_bin_dir=config.preprocessing_fsl_bin_dir,
-                    reverse_phase_b0=config.preprocessing_reverse_phase_b0,
-                    phase_encoding_direction=config.preprocessing_phase_encoding_direction,
-                    readout_time=config.preprocessing_readout_time,
-                    eddy_threads=config.preprocessing_eddy_threads,
-                    eddy_second_level_model=config.preprocessing_eddy_second_level_model,
-                ),
+                _preprocessing_config(config, subject_root, layout.preproc),
                 log=log,
             )
             tasks.append(
@@ -2823,7 +2984,7 @@ def _run_subject_products_impl(
 
             _emit("[Orchestrator] Running DDSeg", log)
             task_started = _start_task_timer("DDSeg", log)
-            raw_bundle = _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir)
+            raw_bundle = _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir, selected_mask_config)
             _emit(f"[Orchestrator] DDSeg input DWI: {raw_bundle.dwi_path}", log)
             native_bundle = ensure_native_dti_bundle(raw_bundle, fit_method="ls", reuse=bool(config.resume), log=log)
             run_ddseg(
@@ -2870,7 +3031,7 @@ def _run_subject_products_impl(
 
             _emit("[Orchestrator] Running DDParcel", log)
             task_started = _start_task_timer("DDParcel", log)
-            raw_bundle = _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir)
+            raw_bundle = _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir, selected_mask_config)
             _emit(f"[Orchestrator] DDParcel input DWI: {raw_bundle.dwi_path}", log)
             registered = ensure_registered_dti_bundle(
                 raw_bundle,
@@ -2927,7 +3088,7 @@ def _run_subject_products_impl(
         ddseg_world_qc_gate()
 
     if "surface" in run_targets:
-        if config.resume and _surface_complete(subject_root, config.subject_id, output_root):
+        if config.resume and _surface_complete(subject_root, config.subject_id, output_root, config=config):
             tasks.append(
                 ProductTaskRecord(
                     name="surface.ddsurfer",
@@ -2951,9 +3112,12 @@ def _run_subject_products_impl(
                 registration_atlas=_resolve_optional_path(config.surface_atlas_t2),
                 python_bin=_resolve_optional_path(config.surface_python_bin),
                 precision=config.surface_precision,
+                cpu_threads=config.surface_cpu_threads,
+                max_gpu_gib=config.surface_max_gpu_gib,
+                resume=config.resume,
                 execute=True,
                 input_bundle=(
-                    _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir)
+                    _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir, selected_mask_config)
                     if not any(not path.is_file() for path in raw.values())
                     else None
                 ),
@@ -3123,6 +3287,7 @@ def _run_subject_products_impl(
                 subject_root,
                 config.subject_id,
                 mrtrix_bin_dir=mask_mrtrix_bin_dir,
+                brain_mask_config=selected_mask_config,
             )
             analysis_input_bundle = resolve_preprocessed_input_bundle(raw_bundle, output_root=output_root)
             native_bundle = ensure_native_dti_bundle(
@@ -3199,6 +3364,7 @@ def _run_subject_products_impl(
                 subject_root,
                 config.subject_id,
                 mrtrix_bin_dir=mask_mrtrix_bin_dir,
+                brain_mask_config=selected_mask_config,
             )
             analysis_input_bundle = resolve_preprocessed_input_bundle(raw_bundle, output_root=output_root)
             native_bundle = ensure_native_dti_bundle(
@@ -3268,6 +3434,7 @@ def _run_subject_products_impl(
                 subject_root,
                 config.subject_id,
                 mrtrix_bin_dir=mask_mrtrix_bin_dir,
+                brain_mask_config=selected_mask_config,
             )
             analysis_input_bundle = resolve_preprocessed_input_bundle(raw_bundle, output_root=output_root)
             native_bundle = ensure_native_dti_bundle(
@@ -3310,6 +3477,31 @@ def _run_subject_products_impl(
                     },
                 )
             )
+
+    if "microstructure_dki" in run_targets:
+        from microstructure.dki import run_dki
+
+        dki_plan = plan_by_target.get("microstructure_dki")
+        if not config.execute:
+            tasks.append(ProductTaskRecord(name="microstructure.dki", status="planned", reason="execute=False"))
+        elif dki_plan and dki_plan.status == "blocked":
+            tasks.append(ProductTaskRecord(name="microstructure.dki", status="blocked", reason=dki_plan.reason))
+        else:
+            _emit("[Orchestrator] Running guarded Microstructure DKI", log)
+            # Resolve again after preprocessing: raw-gradient eligibility is not
+            # permission to fit stale gradients or a mask from a different grid.
+            try:
+                result = run_dki(_dki_config(config, _resolve_analysis_inputs(subject_root, config.subject_id, output_root)), log=log)
+                outputs = {key: str(path) for key, path in result.outputs.items() if key not in {"manifest", "progress"}}
+                outputs.update({f"mkcurve_{key}": str(path) for key, path in result.mkcurve_outputs.items()})
+                tasks.append(ProductTaskRecord(
+                    name="microstructure.dki", status="skipped" if result.status == "cached" else "completed",
+                    reason="matching DKI outputs reused" if result.status == "cached" else "",
+                    manifest_path=result.manifest_path, qc_path=result.qc_path, outputs=outputs,
+                ))
+            except Exception as exc:
+                tasks.append(ProductTaskRecord(name="microstructure.dki", status="failed", reason=str(exc)))
+                _emit(f"[Orchestrator] DKI failed; other selected products can continue: {exc}", log)
 
     if "tractography" in run_targets:
         tractography_qc = csd_qc if primary_tractography_backend == "csd_act" else dti_qc
@@ -3783,7 +3975,11 @@ def _run_subject_products_impl(
             tractography=tractogram,
             parcellation=parcellation,
         ):
-            tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="skipped", reason="completed outputs found", qc_path=conn_qc, manifest_path=connectome_dir / f"{config.subject_id}-connectome-streamline_count_manifest.json"))
+            tasks.append(ProductTaskRecord(
+                name="connectome.streamline_count", status="skipped", reason="completed outputs found",
+                qc_path=conn_qc, manifest_path=conn_manifest,
+                outputs={"matrix_path": conn_matrix.as_posix(), "nodes_path": conn_nodes.as_posix()},
+            ))
         elif not config.execute:
             tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="planned", reason="execute=False"))
         elif parcellation is None:
@@ -3854,6 +4050,7 @@ def _run_subject_products_impl(
                         reason="completed outputs found",
                         qc_path=sift2_qc,
                         manifest_path=sift2_connectome_dir / f"{config.subject_id}-connectome-sift2_weighted_streamline_count_manifest.json",
+                        outputs={"matrix_path": sift2_matrix.as_posix(), "nodes_path": sift2_nodes.as_posix()},
                     )
                 )
             elif not config.execute:
@@ -3895,10 +4092,9 @@ def _run_subject_products_impl(
         output_root=output_root,
         current_run_name=run_name,
         current_tractography_backend=primary_tractography_backend,
-        # A partial run must not redefine which pre-existing tractography run
-        # is canonical.  Only archive alternate tractograms when this run
-        # is executing and actually selected the tractography product.
-        archive_alternate_tractograms=config.execute and "tractography" in run_targets,
+        # Run folders are stable references for QC, bundles and scene loading.
+        # Changing the backend must not move another completed run's files.
+        archive_alternate_tractograms=False,
     )
     output_tree_audit = _audit_output_tree(layout, subject_id=config.subject_id, selected_targets=targets)
     output_tree_semantics = _write_output_tree_semantics(
@@ -3976,6 +4172,11 @@ def _run_subject_products_impl(
         "execute": config.execute,
         "resume": config.resume,
         "preprocessing_backend": config.preprocessing_backend,
+        "brain_mask_backend": config.brain_mask_backend,
+        "brain_mask_configuration": {
+            name: str(getattr(config, name)) if getattr(config, name) else None
+            for name in ("pnl_mask_python", "pnl_mask_script", "pnl_mask_model_dir", "pnl_mask_ants_bin_dir")
+        },
         "preprocessing_force": config.preprocessing_force,
         "preprocessing_dipy_denoise_method": config.preprocessing_dipy_denoise_method,
         "preprocessing_dipy_run_gibbs": config.preprocessing_dipy_run_gibbs,
@@ -3990,6 +4191,10 @@ def _run_subject_products_impl(
         "microstructure_fit_method": config.microstructure_fit_method,
         "microstructure_run_free_water": config.microstructure_run_free_water,
         "microstructure_run_noddi": config.microstructure_run_noddi,
+        "microstructure_run_dki": config.microstructure_run_dki,
+        "microstructure_dki_fit_method": config.microstructure_dki_fit_method,
+        "microstructure_dki_matlab_executable": str(config.microstructure_dki_matlab_executable) if config.microstructure_dki_matlab_executable else None,
+        "microstructure_dki_mkcurve_root": str(config.microstructure_dki_mkcurve_root) if config.microstructure_dki_mkcurve_root else None,
         "microstructure_free_water_chunk_size": config.microstructure_free_water_chunk_size,
         "microstructure_free_water_engine": config.microstructure_free_water_engine,
         "microstructure_free_water_n_jobs": config.microstructure_free_water_n_jobs,
@@ -4001,6 +4206,7 @@ def _run_subject_products_impl(
                 ("dti", True),
                 ("freewater", config.microstructure_run_free_water),
                 ("noddi", config.microstructure_run_noddi),
+                ("dki", config.microstructure_run_dki),
             )
             if enabled
         ],
@@ -4018,6 +4224,8 @@ def _run_subject_products_impl(
         "surface_atlas_t2": config.surface_atlas_t2.expanduser().resolve().as_posix() if config.surface_atlas_t2 else None,
         "surface_python_bin": config.surface_python_bin.expanduser().resolve().as_posix() if config.surface_python_bin else None,
         "surface_precision": config.surface_precision,
+        "surface_cpu_threads": config.surface_cpu_threads,
+        "surface_max_gpu_gib": config.surface_max_gpu_gib,
         "resolved_ddseg_device": ddseg_device,
         "resolved_surface_device": surface_device,
         "select_streamlines": config.select_streamlines,

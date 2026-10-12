@@ -29,6 +29,7 @@ from shared import (
     write_environment_report,
 )
 from shared.run_cancellation import orchestration_manifest_path, write_cancelled_manifest
+from shared.brain_mask import BRAIN_MASK_BACKENDS
 from shared.dependency_config import (
     DEPENDENCY_CONFIG_KEYS,
     add_dependency_config_arguments,
@@ -60,6 +61,7 @@ DEFAULT_PRODUCT_TARGETS = (
 OPTIONAL_ALGORITHM_TARGETS = (
     "microstructure_freewater",
     "microstructure_noddi",
+    "microstructure_dki",
     "surface_postprocess",
     "saf",
     "wma",
@@ -105,22 +107,25 @@ def _resolve_microstructure_stages(args: argparse.Namespace) -> tuple[str, ...]:
         "freewater": "freewater",
         "fw": "freewater",
         "noddi": "noddi",
+        "dki": "dki",
     }
     for value in raw_values:
         if value in {"all", "full"}:
-            expanded.extend(("dti", "freewater", "noddi"))
+            expanded.extend(("dti", "freewater", "noddi", "dki"))
             continue
         try:
             expanded.append(aliases[value])
         except KeyError as exc:
-            raise ValueError("microstructure stages must contain only: dti, freewater, noddi, all.") from exc
+            raise ValueError("microstructure stages must contain only: dti, freewater, noddi, dki, all.") from exc
     if args.run_free_water:
         expanded.append("freewater")
     if args.run_noddi:
         expanded.append("noddi")
-    if "freewater" in expanded or "noddi" in expanded:
+    if getattr(args, "run_dki", False) or "microstructure_dki" in _split_csv_or_repeat(args.targets):
+        expanded.append("dki")
+    if any(stage in expanded for stage in ("freewater", "noddi", "dki")):
         expanded.append("dti")
-    return tuple(stage for stage in ("dti", "freewater", "noddi") if stage in set(expanded))
+    return tuple(stage for stage in ("dti", "freewater", "noddi", "dki") if stage in set(expanded))
 
 
 def _infer_subject_id(subject_root: Path) -> str:
@@ -167,6 +172,7 @@ def _resolve_targets(args: argparse.Namespace) -> tuple[str, ...]:
             bundle_backend=args.bundle_backend,
             microstructure_run_free_water=bool(args.run_free_water),
             microstructure_run_noddi=bool(args.run_noddi),
+            microstructure_run_dki=bool(getattr(args, "run_dki", False)),
         )
         if target not in exclude
     )
@@ -180,6 +186,37 @@ def _environment_config_from_args(
 ) -> EnvironmentDoctorConfig:
     subject_root = args.subject_root.expanduser().resolve()
     layout = subject_layout(subject_root, output_root=output_root)
+    input_dir = subject_root / "input"
+    raw_inputs_known = all((input_dir / name).is_file() for name in ("data.nii.gz", "bvals", "bvecs"))
+    mask_targets = {
+        "preprocessing", "segmentation", "parcellation", "surface", "microstructure",
+        "microstructure_freewater", "microstructure_noddi", "microstructure_dki", "tractography",
+    }
+    brain_mask_required = (
+        raw_inputs_known
+        and bool(mask_targets.intersection(targets))
+        and not (input_dir / "nodif_brain_mask.nii.gz").is_file()
+    )
+    preprocessing_generates_mask = args.preprocessing_backend != "dipy" or (
+        args.preprocessing_dipy_denoise_method != "none"
+        or not args.preprocessing_skip_gibbs
+        or not args.preprocessing_skip_motion
+    )
+    if (
+        raw_inputs_known and "preprocessing" in targets
+        and args.brain_mask_backend != "provided" and preprocessing_generates_mask
+    ):
+        subject_id = args.subject_id or subject_root.name
+        final_dwi = layout.preproc / f"{subject_id}_dwi_final.nii.gz"
+        final_mask = layout.preproc / f"{subject_id}_brain_mask_final.nii.gz"
+        final_inputs = (
+            final_dwi, final_mask, layout.preproc / f"{subject_id}_dwi_final.bval",
+            layout.preproc / f"{subject_id}_dwi_final.bvec",
+        )
+        needs_new_mask = args.preprocessing_force or args.no_resume or not all(path.is_file() for path in final_inputs)
+        if not needs_new_mask:
+            needs_new_mask = final_mask.stat().st_mtime_ns < final_dwi.stat().st_mtime_ns
+        brain_mask_required = brain_mask_required or needs_new_mask
     return EnvironmentDoctorConfig(
         targets=targets,
         repo_root=REPO_ROOT,
@@ -195,6 +232,12 @@ def _environment_config_from_args(
         python_environment=args.python_environment,
         conda_executable=args.conda_executable,
         preprocessing_backend=args.preprocessing_backend,
+        brain_mask_backend=args.brain_mask_backend,
+        brain_mask_required=bool(brain_mask_required),
+        pnl_mask_python=args.pnl_mask_python,
+        pnl_mask_script=args.pnl_mask_script,
+        pnl_mask_model_dir=args.pnl_mask_model_dir,
+        pnl_mask_ants_bin_dir=args.pnl_mask_ants_bin_dir,
         tractography_backend=args.tractography_backend,
         connectome_backend=args.connectome_backend,
         ddseg_device=args.ddseg_device,
@@ -202,6 +245,10 @@ def _environment_config_from_args(
         tractcloud_device=args.tractcloud_device,
         run_free_water=bool(args.run_free_water),
         run_noddi=bool(args.run_noddi),
+        run_dki=bool(getattr(args, "run_dki", False)),
+        dki_fit_method=getattr(args, "dki_fit_method", "WLS"),
+        dki_matlab_executable=getattr(args, "dki_matlab_executable", None),
+        dki_mkcurve_root=getattr(args, "dki_mkcurve_root", None),
         mrtrix_bin_dir=args.mrtrix_bin_dir,
         preprocessing_mrtrix_bin_dir=args.preprocessing_mrtrix_bin_dir,
         preprocessing_fsl_bin_dir=args.preprocessing_fsl_bin_dir,
@@ -390,6 +437,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--execute", action="store_true", help="Actually execute workflows. Default is dry-run planning only.")
     parser.add_argument("--no-resume", action="store_true", help="Disable resume/skip of completed outputs.")
     parser.add_argument(
+        "--brain-mask-backend",
+        default="pnl_cnn",
+        choices=BRAIN_MASK_BACKENDS,
+        help=(
+            "Brain mask backend (default: pnl_cnn). Missing dependencies are reported without falling back. "
+            "synthstrip uses --postprocess-freesurfer-home; provided requires an existing input mask."
+        ),
+    )
+    parser.add_argument(
         "--preprocessing-backend",
         default="dipy",
         choices=("dipy", "mrtrix_fsl"),
@@ -508,11 +564,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         help=(
             "Microstructure stages to run. May be repeated or comma-separated. "
-            "Choices: dti, freewater, noddi, all. Defaults to dti."
+            "Choices: dti, freewater, noddi, dki, all. Defaults to dti only; optional stages are independent."
         ),
     )
     parser.add_argument("--run-free-water", action="store_true", help="Enable Free Water stage under microstructure.")
     parser.add_argument("--run-noddi", action="store_true", help="Enable NODDI stage under microstructure.")
+    parser.add_argument("--run-dki", action="store_true", help="Enable the optional DKI stage under microstructure.")
+    parser.add_argument(
+        "--dki-fit-method", choices=("WLS", "OLS", "MKCURVE", "MKCURVE_MATLAB"), default="WLS",
+        help="DKI: WLS/OLS, bundled Python MKCURVE, or optional author reference MKCURVE_MATLAB. No fallback.",
+    )
     parser.add_argument(
         "--microstructure-free-water-chunk-size",
         type=int,
@@ -552,7 +613,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--postprocess-backend-root", type=Path, help="Optional override for bundled DDSurfer postprocess backend.")
     parser.add_argument("--postprocess-mode", default="whole", choices=("whole", "left", "right"), help="DDSurfer postprocess hemisphere mode.")
     parser.add_argument("--postprocess-python-bin", type=Path, help="Optional Python interpreter for DDSurfer postprocess backend.")
-    parser.add_argument("--postprocess-freesurfer-home", type=Path, help="Optional FreeSurfer home for DDSurfer postprocess backend.")
+    parser.add_argument(
+        "--postprocess-freesurfer-home",
+        type=Path,
+        help="Optional FreeSurfer home for SynthStrip brain masking and DDSurfer postprocessing.",
+    )
     parser.add_argument("--postprocess-atlases", action="append", help="Optional comma-separated atlas list for DDSurfer postprocess.")
     parser.add_argument("--postprocess-force", action="store_true", help="Force restaging DDSurfer postprocess inputs.")
     parser.add_argument("--mrtrix-bin-dir", type=Path, help="Optional MRtrix3 bin directory.")
@@ -560,7 +625,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--atlas-t2", type=Path, help="Optional DDParcel atlas T2 path override.")
     parser.add_argument("--surface-atlas-t2", type=Path, help="Matching DDSurfer 1-mm atlas override (separate from DDParcel).")
     parser.add_argument("--surface-python-bin", type=Path, help="Optional isolated DDSurfer Python runtime; also supports DDSURFER_PYTHON_BIN.")
-    parser.add_argument("--surface-precision", choices=('auto', 'bf16', 'fp32'), default='auto')
+    parser.add_argument("--surface-precision", choices=('auto', 'bf16', 'fp32'), default='fp32')
+    parser.add_argument("--surface-cpu-threads", type=int, default=4, help="DDSurfer inference CPU thread budget.")
+    parser.add_argument("--surface-max-gpu-gib", type=float, default=24., help="DDSurfer inference GPU allocation budget in GiB.")
     parser.add_argument("--ddseg-device", default="auto", help="DDSeg torch device. auto uses cuda:0 when available, otherwise cpu.")
     parser.add_argument("--surface-device", default="auto", help="DDSurfer torch device. auto uses cuda:0 when available, otherwise cpu.")
     parser.add_argument(
@@ -657,6 +724,8 @@ def main(argv: list[str] | None = None) -> int:
             )
     except Exception as exc:
         parser.error(str(exc))
+    if args.brain_mask_backend not in BRAIN_MASK_BACKENDS:
+        parser.error("--brain-mask-backend must be one of: " + ", ".join(BRAIN_MASK_BACKENDS))
     if args.subject_root is None:
         parser.error(
             "--subject-root is required unless a recent subject_root is available in the shared user config. "
@@ -672,6 +741,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(str(exc))
     args.run_free_water = "freewater" in microstructure_stages
     args.run_noddi = "noddi" in microstructure_stages
+    args.run_dki = "dki" in microstructure_stages
 
     try:
         targets = _resolve_targets(args)
@@ -763,6 +833,11 @@ def main(argv: list[str] | None = None) -> int:
         execute=bool(args.execute),
         resume=not args.no_resume,
         preprocessing_backend=args.preprocessing_backend,
+        brain_mask_backend=args.brain_mask_backend,
+        pnl_mask_python=args.pnl_mask_python,
+        pnl_mask_script=args.pnl_mask_script,
+        pnl_mask_model_dir=args.pnl_mask_model_dir,
+        pnl_mask_ants_bin_dir=args.pnl_mask_ants_bin_dir,
         preprocessing_force=bool(args.preprocessing_force),
         preprocessing_dipy_denoise_method=args.preprocessing_dipy_denoise_method,
         preprocessing_dipy_run_gibbs=not args.preprocessing_skip_gibbs,
@@ -777,6 +852,10 @@ def main(argv: list[str] | None = None) -> int:
         microstructure_fit_method=args.micro_fit_method,
         microstructure_run_free_water=bool(args.run_free_water),
         microstructure_run_noddi=bool(args.run_noddi),
+        microstructure_run_dki=bool(args.run_dki),
+        microstructure_dki_fit_method=args.dki_fit_method,
+        microstructure_dki_matlab_executable=args.dki_matlab_executable,
+        microstructure_dki_mkcurve_root=args.dki_mkcurve_root,
         microstructure_free_water_chunk_size=args.microstructure_free_water_chunk_size,
         microstructure_free_water_engine=args.microstructure_free_water_engine,
         microstructure_free_water_n_jobs=args.microstructure_free_water_n_jobs,
@@ -794,6 +873,8 @@ def main(argv: list[str] | None = None) -> int:
         surface_atlas_t2=args.surface_atlas_t2,
         surface_python_bin=args.surface_python_bin,
         surface_precision=args.surface_precision,
+        surface_cpu_threads=args.surface_cpu_threads,
+        surface_max_gpu_gib=args.surface_max_gpu_gib,
         model_assets_dir=args.model_assets_dir,
         ddseg_device=args.ddseg_device,
         surface_device=args.surface_device,

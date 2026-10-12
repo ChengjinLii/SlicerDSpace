@@ -19,7 +19,7 @@
     {"root": "shared", "patterns": ["*.py"]},
     {"root": "preprocessing", "patterns": ["*.py"]},
     {"root": "anatomy", "patterns": ["*.py", "*.sh", "*.json", "*.md", "*.txt", "*.yml", "*.conf", "*.png"]},
-    {"root": "microstructure", "patterns": ["*.py"]},
+    {"root": "microstructure", "patterns": ["*.py", "*.json"]},
     {"root": "tractography", "patterns": ["*.py", "*.qry", "*.md", "requirements.txt"]},
     {"root": "connectome", "patterns": ["*.py"]},
     {"root": "scripts", "patterns": ["*.py", "*.sh", "*.ps1", "*.cs", "*.txt", "*.json", "*.cmake"]},

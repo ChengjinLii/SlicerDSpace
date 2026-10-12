@@ -34,6 +34,9 @@ def synchronize(upstream, assets):
     files.extend(upstream / name for name in
                  ('DDSurfer_predict.py', 'run_ddsurfer_pipeline.py', 'run_ddsurfer_pipeline.sh',
                   'environment.yml', 'requirements.txt', 'README.md'))
+    overview = upstream / 'assets/ddsurfer-overview.png'
+    if overview.is_file():
+        files.append(overview)
     hashes = {}
     for source in sorted(files):
         relative = source.relative_to(upstream)

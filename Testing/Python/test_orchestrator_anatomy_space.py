@@ -52,6 +52,29 @@ def _ddseg_qc(schema_version: int, convention: str) -> dict[str, object]:
 
 
 class AnatomyInputBundleTest(unittest.TestCase):
+    def test_anatomy_rejects_preprocessing_from_changed_raw_input(self) -> None:
+        from shared.orchestrator import _anatomy_input_bundle
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = _subject(tmp)
+            preproc = _complete_preprocessing(subject)
+            manifest = preproc / "100307_preproc_manifest.json"
+            inputs = {key: _record(subject / "input" / name) for key, name in
+                      {"dwi": "data.nii.gz", "bval": "bvals", "bvec": "bvecs", "mask": "nodif_brain_mask.nii.gz"}.items()}
+            manifest.write_text(json.dumps({"status": "completed", "cache_key": {"inputs": inputs}}))
+            self.assertEqual(_anatomy_input_bundle(subject, "100307", None, None).input_dir, preproc)
+            (subject / "input/bvals").write_text("changed gradients")
+            self.assertEqual(_anatomy_input_bundle(subject, "100307", None, None).input_dir, subject / "input")
+
+    def test_anatomy_rejects_malformed_preprocessing_cache_fingerprint(self) -> None:
+        from shared.orchestrator import _anatomy_input_bundle
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = _subject(tmp)
+            preproc = _complete_preprocessing(subject)
+            (preproc / "100307_preproc_manifest.json").write_text(json.dumps({"status": "completed", "cache_key": None}))
+            self.assertEqual(_anatomy_input_bundle(subject, "100307", None, None).input_dir, subject / "input")
+
     def test_anatomy_uses_preprocessed_dwi_when_preprocessing_completed(self) -> None:
         from shared.orchestrator import _anatomy_input_bundle
 

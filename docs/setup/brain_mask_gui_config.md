@@ -1,0 +1,82 @@
+<div align="center">
+
+# Brain Mask GUI and Configuration
+
+[Project](../../README.md) | [Documentation](../README.md) | [Shared Configuration](USER_CONFIG.md) | [CLI Options](brain_mask_cli.md)
+
+</div>
+
+---
+
+The selector is only in **Advanced settings > Analysis parameters > Brain
+masking**, not in the main Inputs or Products sections.
+
+| Display | Saved/CLI value |
+| --- | --- |
+| PNL CNN (dMRI), default | `pnl_cnn` |
+| SynthStrip | `synthstrip` |
+| MRtrix dwi2mask | `mrtrix` |
+| Provided mask only | `provided` |
+
+The selector controls generation of a missing mask. Supplied masks are
+respected. A missing dependency or required mask is an error, not permission
+to fall back to another backend. Selecting PNL CNN does not install or imply
+the availability of its models or environment.
+
+Configure the external PNL paths in **Advanced settings > Environment and
+models > External Runtime Paths**:
+
+| Setting | Browse Mode |
+| --- | --- |
+| `pnl_mask_python` | Python executable file in the user's PNL environment |
+| `pnl_mask_script` | Official `dwi_masking.py` file |
+| `pnl_mask_model_dir` | Model directory |
+| `pnl_mask_ants_bin_dir` | ANTs binary directory |
+
+SynthStrip reuses `postprocess_freesurfer_home`; MRtrix reuses `mrtrix_bin_dir`.
+The MRML `brainMaskBackend` is saved as `run_defaults.brain_mask_backend` in
+the shared user JSON and in Slicer user settings. The four external paths are
+saved under `external_dependencies`, and dependency JSON import/export uses
+the same keys. Single-subject and batch background commands explicitly pass
+`--brain-mask-backend`; external path flags use hyphens instead of underscores.
+Explicit CLI options override saved values.
+
+The GUI environment check requires the selected generator when a known
+canonical input is missing its mask or automatic masking is selected with
+preprocessing. The GUI's default motion correction may require a fresh mask in
+corrected space, even if a supplied input mask exists. With preprocessing off,
+a supplied canonical mask does not require generator dependencies. `provided`
+does not require an inference runtime for preprocessing; a known missing
+canonical mask is still an error. These options select **brain masking only**,
+not the backend for the entire pipeline.
+
+---
+
+## Verification
+
+```bash
+python -m unittest Testing.Python.test_brain_mask_gui_config
+python Testing/Python/run_brain_mask_gui_smoke.py \
+  --slicer /path/to/Slicer --xvfb /path/to/xvfb-run \
+  --report /tmp/new-brain-mask-gui-smoke
+```
+
+The runtime smoke uses a new, isolated settings directory and private Slicer
+revision settings, runs no inference, and starts Slicer twice. It checks the
+default, Advanced placement, all four choices, node/UI synchronization,
+debounced saves, EN/ZH labels, external-path persistence, and restoration in a
+new process. Its report and screenshots are written under `--report`.
+
+---
+
+## 中文
+
+脑掩膜选择器仅位于“高级设置 > 分析参数 > 脑掩膜方法”，默认显示
+`PNL CNN (dMRI)`。可选 SynthStrip、MRtrix dwi2mask 或“仅使用提供的掩膜”。
+已有的用户掩膜会被尊重；依赖或掩膜缺失时明确报错，不会自动换用其他后端。
+选择默认方法不代表 PNL 模型或运行环境已安装。
+
+在“高级设置 > 环境与模型 > 外部运行路径”配置用户自己的 PNL Python
+可执行文件、官方 `dwi_masking.py`、模型目录及 ANTs bin 目录。SynthStrip
+共用 FreeSurfer 主目录。选择和路径会写入共享用户 JSON，供 GUI 与 CLI
+复用；上述运行时测试隔离用户设置，并通过两次启动检查持久化。

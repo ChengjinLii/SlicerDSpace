@@ -51,7 +51,7 @@ WORKFLOW_AREAS: tuple[WorkflowArea, ...] = (
     WorkflowArea(
         key="microstructure",
         title="Microstructure",
-        summary="FA/MD, ROI-wise microstructure, Free Water, and AMICO NODDI.",
+        summary="Default DTI, optional Free Water, AMICO NODDI, guarded DKI and native Python MK-Curve.",
         package="microstructure",
         status="implemented",
         navigation_label="Microstructure",

@@ -239,6 +239,13 @@ def _audit_preprocessing(manifest: dict[str, Any], checks: list[dict[str, Any]])
     )
     finite_gradients = bool(np.isfinite(bvals).all() and np.isfinite(bvecs).all())
     _record_check(checks, "preprocessing.gradients_finite", finite_gradients, None, "all gradients finite")
+    _record_check(
+        checks,
+        "preprocessing.bvals_nonnegative",
+        finite_gradients and bool(np.all(bvals >= 0)),
+        float(bvals.min()) if bvals.size and np.isfinite(bvals).all() else None,
+        "b-values are finite and non-negative",
+    )
     if finite_gradients and bvecs.shape == (volume_count, 3):
         nonzero = bvals > 50.0
         norms = np.linalg.norm(bvecs[nonzero], axis=1)
@@ -263,6 +270,31 @@ def _audit_preprocessing(manifest: dict[str, Any], checks: list[dict[str, Any]])
         mask_valid,
         {"mask_shape": list(mask.shape), "dwi_shape": list(dwi_shape[:3]), "voxels": int(np.count_nonzero(mask))},
         "binary non-empty mask on the DWI grid",
+    )
+    affine_valid = bool(
+        np.isfinite(dwi_image.affine).all()
+        and abs(np.linalg.det(dwi_image.affine[:3, :3])) > 1e-12
+    )
+    _record_check(checks, "preprocessing.affine", affine_valid,
+                  dwi_image.affine.tolist(), "finite, invertible spatial affine")
+    # Read one volume at a time; large diffusion series need not fit in RAM.
+    nonfinite_count = 0
+    brain_nonzero_count = 0
+    for volume in range(volume_count):
+        values = np.asarray(dwi_image.dataobj[..., volume])
+        finite = np.isfinite(values)
+        nonfinite_count += int(np.count_nonzero(~finite))
+        if mask_valid:
+            brain_nonzero_count += int(np.count_nonzero((mask != 0) & finite & (values != 0)))
+    _record_check(
+        checks, "preprocessing.dwi_finite", volume_count > 0 and nonfinite_count == 0,
+        {"nonfinite_voxels": nonfinite_count, "volumes_scanned": volume_count},
+        "all output DWI voxels are finite",
+    )
+    _record_check(
+        checks, "preprocessing.brain_signal", brain_nonzero_count > 0,
+        {"nonzero_finite_brain_values": brain_nonzero_count},
+        "the output series contains nonzero finite signal within the verified mask",
     )
     if qc:
         details = dict(qc.get("backend_details") or {})
@@ -519,6 +551,134 @@ def _audit_tractography(manifest: dict[str, Any], checks: list[dict[str, Any]]) 
             "all points within DWI world bounds plus a two-voxel margin",
         )
     return True
+
+
+def _audit_dki(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> bool:
+    """Audit raw DKI estimates separately from bounded display copies."""
+    import nibabel as nib
+    import numpy as np
+    from microstructure.dki import DKI_METRICS
+
+    task = _task_entry(manifest, "microstructure.dki")
+    if task is None:
+        return False
+    _record_check(checks, "dki.task_status", task.get("status") in {"completed", "skipped", "reused"},
+                  task.get("status"), "completed or explicitly reused")
+    outputs = task.get("outputs") or {}
+    qc_path = Path(str(task.get("qc_path") or outputs.get("qc") or ""))
+    qc = _json_record(qc_path)[1] if qc_path.is_file() else {}
+    _record_check(checks, "dki.qc_completed", (qc or {}).get("status") == "completed",
+                  str(qc_path), "matching stage QC exists and execution completed")
+    _record_check(checks, "dki.design_rank", (qc or {}).get("eligibility", {}).get("design_rank") == 22,
+                  (qc or {}).get("eligibility", {}).get("design_rank"), "22 identifiable parameters")
+    arrays = {}
+    reference = None
+    for key in (*DKI_METRICS, *(name + "_raw" for name in DKI_METRICS), "valid_mask", "fit_mask", "rmse", "nrmse"):
+        path = Path(str(outputs.get(key) or ""))
+        _record_check(checks, f"dki.{key}.exists", path.is_file(), str(path), "declared file exists")
+        if not path.is_file():
+            continue
+        try:
+            image = nib.load(path)
+            if reference is None:
+                reference = image
+                dwi_path = _analysis_input_path(manifest, "dwi")
+                if dwi_path.is_file():
+                    source = nib.load(dwi_path)
+                    _record_check(checks, "dki.source_geometry", source.shape[:3] == image.shape and np.allclose(source.affine, image.affine, atol=1e-4, rtol=0),
+                                  list(image.shape), "native DKI grid matches actual analysis DWI")
+            array = np.asarray(image.dataobj)
+            aligned = array.shape == reference.shape and np.allclose(image.affine, reference.affine, atol=1e-4, rtol=0)
+            _record_check(checks, f"dki.{key}.geometry", aligned, list(array.shape), "same shape and affine as MK")
+            if aligned:
+                arrays[key] = array
+        except Exception as exc:
+            _record_check(checks, f"dki.{key}.readable", False, str(exc), "readable NIfTI")
+    valid, fit = arrays.get("valid_mask"), arrays.get("fit_mask")
+    if valid is None or fit is None:
+        return True
+    binary = np.isfinite(valid).all() and np.isfinite(fit).all() and np.isin(valid, (0, 1)).all() and np.isin(fit, (0, 1)).all()
+    _record_check(checks, "dki.masks_binary", binary, None, "finite binary fit and validity masks")
+    valid, fit = valid > 0, fit > 0
+    _record_check(checks, "dki.valid_subset_fit", not np.any(valid & ~fit), int(valid.sum()), "valid voxels were actually fitted")
+    _record_check(checks, "dki.nonempty_valid_fit", bool(valid.any()), int(valid.sum()), "at least one numerically valid voxel; not a quality-rate guarantee")
+    for key in DKI_METRICS:
+        raw, display = arrays.get(key + "_raw"), arrays.get(key)
+        if raw is None or display is None:
+            continue
+        lower, upper = (qc or {}).get("display_bounds", {}).get(key, (0, 1) if key == "kfa" else (0, 3))
+        _record_check(checks, f"dki.{key}.valid_values", bool(np.isfinite(raw[valid]).all() and np.all((raw[valid] >= lower) & (raw[valid] <= upper))),
+                      int(valid.sum()), "raw values finite and within documented validity bounds on valid mask")
+        _record_check(checks, f"dki.{key}.display_derivation", bool(np.allclose(display[fit], np.clip(raw[fit], lower, upper), equal_nan=True)),
+                      None, "display is a separate bounded copy, not altered quantitative values")
+    for name in ("valid", "fitted"):
+        count = int(valid.sum()) if name == "valid" else int(fit.sum())
+        _record_check(checks, f"dki.{name}_count", count == (qc or {}).get(f"{name}_voxels"), count, "independent voxel count matches QC")
+    for key in ("rmse", "nrmse"):
+        if key in arrays:
+            values = arrays[key][valid]
+            _record_check(checks, f"dki.{key}.valid_values", bool(np.isfinite(values).all() and np.all(values >= 0)), None,
+                          "finite nonnegative residuals on valid voxels")
+    mkcurve_path = (qc or {}).get("mkcurve", {}).get("record_path")
+    if mkcurve_path:
+        _audit_mkcurve(mkcurve_path, reference, checks)
+    return True
+
+
+def _audit_mkcurve(record_path, reference, checks):
+    """Independent geometry, validity, correction and reproducibility checks."""
+    import nibabel as nib
+    import numpy as np
+    from microstructure.dki import _signature
+
+    record = _json_record(record_path)[1] or {}
+    if record.get("kind") != "mkcurve_python_port":
+        return
+    _record_check(checks, "mkcurve.record_completed", record.get("status") == "completed",
+                  record.get("status"), "completed Python correction with provenance")
+    maps = record.get("maps") or {}
+    arrays = {}
+    for key, value in maps.items():
+        try:
+            image = nib.load(value)
+            aligned = reference is not None and image.shape == reference.shape and np.allclose(image.affine, reference.affine, atol=1e-4, rtol=0)
+            _record_check(checks, f"mkcurve.{key}.geometry", aligned, list(image.shape), "native shape and affine")
+            if aligned:
+                arrays[key] = image.get_fdata()
+        except Exception as exc:
+            _record_check(checks, f"mkcurve.{key}.readable", False, str(exc), "readable declared image")
+    for key in ("corrected_valid_mask", "abnormal_mask", "curve_valid_mask"):
+        values = arrays.get(key)
+        _record_check(checks, f"mkcurve.{key}.binary", values is not None and np.isin(values, (0, 1)).all(),
+                      None, "explicit finite binary mask")
+    valid = arrays.get("corrected_valid_mask")
+    if valid is not None:
+        valid = valid > 0
+        _record_check(checks, "mkcurve.corrected_valid_count", int(valid.sum()) == record.get("corrected_valid_voxels"),
+                      int(valid.sum()), "independent valid count agrees with record, not a clinical guarantee")
+        for key in ("fa", "md", "ad", "rd", "mk", "ak", "rk", "nrmse"):
+            values = arrays.get("corrected_" + key)
+            lower, upper = (0, 1) if key == "fa" else ((0, 3) if key in {"mk", "ak", "rk"} else (0, None if key == "nrmse" else .005))
+            passed = values is not None and np.isfinite(values[valid]).all() and np.all(values[valid] >= lower)
+            if values is not None and upper is not None:
+                passed &= np.all(values[valid] <= upper)
+            _record_check(checks, f"mkcurve.corrected_{key}.valid_values", passed, None,
+                          "raw untruncated values satisfy declared valid-domain conditions")
+    required = ("abnormal_mask", "zero_mk_b0", "max_mk_b0", "corrected_b0")
+    if all(key in arrays for key in required):
+        abnormal = arrays["abnormal_mask"] > 0
+        threshold = record.get("settings", {}).get("threshold", .5)
+        expected = arrays["zero_mk_b0"] * (1 - threshold) + arrays["max_mk_b0"] * threshold
+        _record_check(checks, "mkcurve.b0_correction", np.allclose(arrays["corrected_b0"][abnormal], expected[abnormal], atol=2e-4, rtol=1e-6),
+                      int(abnormal.sum()), "corrected b0 equals declared threshold blend at detected voxels")
+        _record_check(checks, "mkcurve.corrected_count", int(abnormal.sum()) == record.get("corrected_voxels"),
+                      int(abnormal.sum()), "independent abnormal count agrees with record")
+    for key, value in (record.get("auxiliary_files") or {}).items():
+        try:
+            passed = _signature(Path(value)) == record.get("auxiliary_artifacts", {}).get(key)
+        except OSError:
+            passed = False
+        _record_check(checks, f"mkcurve.{key}.hash", passed, value, "curve/grid/coefficients match recorded artifact hash")
 
 
 def _audit_optional_microstructure(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> set[str]:
@@ -983,6 +1143,32 @@ def _audit_connectomes(manifest: dict[str, Any], checks: list[dict[str, Any]]) -
         with nodes_path.open("r", encoding="utf-8", newline="") as stream:
             node_rows = list(csv.DictReader(stream, delimiter="\t"))
         metric = str(qc.get("metric") or native_manifest.get("metric") or "streamline_count")
+        if rows and "source_node" not in rows[0]:
+            # Raw MRtrix CSVs are label-indexed dense matrices; the nodes TSV
+            # defines which rows represent anatomical nodes.
+            import numpy as np
+            try:
+                dense = np.loadtxt(matrix_path, delimiter=",")
+                square = dense.ndim == 2 and dense.shape[0] == dense.shape[1]
+                _record_check(checks, f"{prefix}.dense_square", square, list(dense.shape), "square matrix")
+                _record_check(checks, f"{prefix}.dense_values", bool(np.isfinite(dense).all() and (dense >= 0).all()), None, "finite and non-negative")
+                symmetric = bool(native_manifest.get("symmetric", True))
+                _record_check(checks, f"{prefix}.dense_symmetry", not symmetric or (square and np.allclose(dense, dense.T)), None, "symmetric when requested")
+                labels = [int(row["label"]) for row in node_rows]
+                indices = list(range(len(labels))) if dense.shape == (len(labels), len(labels)) else [label - 1 for label in labels]
+                mapped = square and all(0 <= index < dense.shape[0] for index in indices)
+                _record_check(checks, f"{prefix}.dense_node_mapping", mapped, len(indices), "all node labels map to matrix rows")
+                _record_check(checks, f"{prefix}.dense_dimension", qc.get("dense_node_count") == dense.shape[0], qc.get("dense_node_count"), "QC records the raw matrix dimension")
+                rows = []
+                if mapped:
+                    for i, source in enumerate(labels):
+                        for j in range(i if symmetric else 0, len(labels)):
+                            value = float(dense[indices[i], indices[j]])
+                            if value != 0:
+                                rows.append({"source_node": source, "target_node": labels[j], metric: value})
+            except (OSError, ValueError, IndexError, KeyError, TypeError) as exc:
+                _record_check(checks, f"{prefix}.dense_decode", False, str(exc), "readable numerical matrix")
+                rows = []
         required_columns = {"source_node", "target_node", metric}
         columns = set(rows[0]) if rows else set()
         _record_check(checks, f"{prefix}.columns", required_columns.issubset(columns), sorted(columns), sorted(required_columns))
@@ -1352,6 +1538,8 @@ def audit_output_root(
         has_tractography = _audit_tractography(manifest, checks)
         structural_routes = _audit_structural(manifest, checks)
         optional_microstructure_routes = _audit_optional_microstructure(manifest, checks)
+        if _audit_dki(manifest, checks):
+            optional_microstructure_routes.add("dki")
         qc_routes = _audit_qc_routes(manifest, checks)
         _audit_cross_route_inputs(manifest, checks)
         has_connectome = _audit_connectomes(manifest, checks)

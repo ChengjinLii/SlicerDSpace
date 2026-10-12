@@ -7,18 +7,74 @@ import json
 import logging
 import os
 import shlex
+import signal
 import subprocess
 import shutil
 import sys
 from collections import deque
+from contextlib import contextmanager
+from threading import current_thread, main_thread
 from time import perf_counter
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
 from preprocessing.inputs import INPUT_NAMES, resolve_inputs
-from utils.files import atomic_json
+from utils.files import atomic_json, sha256_file
+from utils.preflight import inspect_run, check_runtime
+from utils.results import result_receipt, reusable_result
+from utils.stages import subject_lock
 
 PROJECT_ROOT = Path(__file__).resolve().parent
+
+
+@contextmanager
+def interruptible_run():
+    def stop(signum, frame):
+        raise KeyboardInterrupt('Pipeline terminated')
+
+    previous = signal.signal(signal.SIGTERM, stop) if current_thread() is main_thread() else None
+    try:
+        yield
+    finally:
+        if previous is not None:
+            signal.signal(signal.SIGTERM, previous)
+
+
+def wait_command(command, **kwargs):
+    process = subprocess.Popen(command, start_new_session=True, **kwargs)
+    try:
+        status = process.wait()
+    except BaseException:
+        # Stop the whole stage before releasing the subject lock, including shell children.
+        with interruptible_cleanup():
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                pass
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+        raise
+    return status
+
+
+@contextmanager
+def interruptible_cleanup():
+    handlers = {}
+    if current_thread() is main_thread():
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            handlers[signum] = signal.signal(signum, signal.SIG_IGN)
+    try:
+        yield
+    finally:
+        for signum, handler in handlers.items():
+            signal.signal(signum, handler)
 
 
 def run_command(command: Sequence[str], *, cwd: Path | None = None, env: dict | None = None,
@@ -33,20 +89,22 @@ def run_command(command: Sequence[str], *, cwd: Path | None = None, env: dict | 
     logging.debug('Executing: %s', ' '.join(shlex.quote(str(part)) for part in command))
     started = perf_counter()
     if log_path is None:
-        subprocess.run(command, cwd=cwd, env=env, check=True)
+        status = wait_command(command, cwd=cwd, env=env)
+        if status:
+            raise subprocess.CalledProcessError(status, command)
     else:
         log_path = Path(log_path)
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open('w') as stream:
             stream.write('$ ' + ' '.join(shlex.quote(str(part)) for part in command) + '\n')
             stream.flush()
-            result = subprocess.run(command, cwd=cwd, env=env, stdout=stream,
-                                    stderr=subprocess.STDOUT)
-        if result.returncode:
+            status = wait_command(command, cwd=cwd, env=env, stdout=stream,
+                                  stderr=subprocess.STDOUT)
+        if status:
             with log_path.open(errors='replace') as stream:
                 tail = ''.join(deque(stream, maxlen=15)).rstrip()
             logging.error('%s failed; detailed log: %s\n%s', name, log_path, tail)
-            raise subprocess.CalledProcessError(result.returncode, command)
+            raise subprocess.CalledProcessError(status, command)
     logging.info('Completed %s (%.1fs)', name, perf_counter() - started)
 
 
@@ -71,7 +129,11 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     )
     for name in INPUT_NAMES:
         parser.add_argument(f'--{name}', type=Path,
-                            help=f'Raw {name} file; supply --dwi, --bval, --bvec and --mask together.')
+                            help=f'Raw {name} file; supply all four together, or omit --mask with --auto-mask.')
+    parser.add_argument('--auto-mask', action='store_true',
+                        help='Generate a missing mask from mean b0 using FreeSurfer SynthStrip (default: off).')
+    parser.add_argument('--mask-threads', type=int, default=4,
+                        help='CPU thread budget for optional mask generation (default: 4).')
     parser.add_argument(
         "--output-root",
         type=Path,
@@ -84,8 +146,13 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
         default="all",
         help="Predict white surfaces only (wm), or white and pial surfaces (all).",
     )
-    parser.add_argument('--precision', choices=('auto', 'bf16', 'fp32'), default='auto',
-                        help='Inference precision: auto, bf16, or fp32.')
+    parser.add_argument('--precision', choices=('auto', 'bf16', 'fp32'), default='fp32',
+                        help='Default: fp32 on CPU/CUDA; select bf16 on supported CUDA devices '
+                             'to reduce memory use, or auto to follow the model manifest.')
+    parser.add_argument('--cpu-threads', type=int, default=4,
+                        help='CPU thread budget for inference (default: 4).')
+    parser.add_argument('--max-gpu-gib', type=float, default=24,
+                        help='GPU allocation budget for inference in GiB (default: 24).')
     parser.add_argument('--checkpoint-root', type=Path, default=PROJECT_ROOT / 'weights')
     parser.add_argument('--template-dir', type=Path, default=PROJECT_ROOT / 'template')
     parser.add_argument('--save-debug', action='store_true', help='Save crop-coordinate predictions in cache; use --keep-cache to retain.')
@@ -93,6 +160,8 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
                         help='Enable FreeSurfer surface postprocessing (disabled by default).')
     parser.add_argument('--keep-cache', action='store_true',
                         help='Keep DTI, preprocessed volumes and MNI meshes; otherwise remove after success.')
+    parser.add_argument('--resume', action='store_true',
+                        help='Reuse completed results only when inputs, models, settings and output checksums match.')
     parser.add_argument('--freesurfer-home', type=Path, default=os.environ.get('FREESURFER_HOME'))
     parser.add_argument('--postprocess-hemi', choices=('left', 'right', 'both'), default='both')
     parser.add_argument('--postprocess-atlases', default='aparc,aparc.a2009s')
@@ -121,6 +190,19 @@ def subject_directory(args):
 
 def cache_directory(args):
     return subject_directory(args) / '.cache'
+
+
+def build_mask_command(args, files):
+    command = [sys.executable, str(PROJECT_ROOT / 'preprocessing/brain_mask.py'),
+               '--output', str(subject_directory(args) / 'dti' / f'{args.subject}-brainmask.nii.gz'),
+               '--work-dir', str(cache_directory(args) / 'mask'),
+               '--record', str(subject_directory(args) / 'logs/mask.json'),
+               '--threads', str(args.mask_threads)]
+    for name in ('dwi', 'bval', 'bvec'):
+        command += [f'--{name}', str(files[name])]
+    if args.freesurfer_home is not None:
+        command += ['--freesurfer-home', str(args.freesurfer_home)]
+    return command
 
 
 def build_preprocessing_command(args: argparse.Namespace) -> List[str]:
@@ -170,7 +252,8 @@ def build_prediction_command(
         args.subject,
     ]
     command += ['--checkpoint_root', str(args.checkpoint_root),
-                '--template_dir', str(args.template_dir), '--precision', args.precision]
+                '--template_dir', str(args.template_dir), '--precision', args.precision,
+                '--cpu-threads', str(args.cpu_threads), '--max-gpu-gib', str(args.max_gpu_gib)]
     if args.save_debug:
         command += ['--save-debug']
     return command
@@ -223,7 +306,7 @@ def build_freesurfer_command(args: argparse.Namespace) -> List[str]:
     return command
 
 
-def finalize_outputs(args):
+def finalize_outputs(args, signature=None):
     directory = subject_directory(args)
     logs = directory / 'logs'
     logs.mkdir(parents=True, exist_ok=True)
@@ -241,12 +324,17 @@ def finalize_outputs(args):
             source = cache_directory(args) / 'predictions/mni' / args.subject / f'{args.subject}_predicted_{kind}_surface_{hemi}.json'
             prediction = json.loads(source.read_text())
             native = json.loads((cache_directory(args) / 'logs/native' / f'{name}.json').read_text())
+            if sha256_file(output) != native['output_sha256']:
+                raise ValueError(f'Native surface does not match its export record: {output}')
             surfaces[name] = dict(file=f'ddsurfer/{name}.obj', sha256=native['output_sha256'],
                                   checkpoint=prediction['checkpoint_file'],
                                   checkpoint_sha256=prediction['checkpoint_sha256'],
                                   precision=prediction['precision'])
-    atomic_json(logs / 'pipeline.json', dict(subject=args.subject, coordinate_space='native_scanner_RAS_mm',
-                                           postprocess=args.freesurfer, completed=True, surfaces=surfaces))
+    summary = dict(subject=args.subject, coordinate_space='native_scanner_RAS_mm',
+                   postprocess=args.freesurfer, completed=True, surfaces=surfaces)
+    if signature is not None:
+        summary['result'] = dict(signature=signature, **result_receipt(args))
+    atomic_json(logs / 'pipeline.json', summary)
 
 
 def clean_cache(args):
@@ -262,12 +350,20 @@ def main(argv: Iterable[str] | None = None) -> None:
     args = parse_args(argv)
     if Path(args.subject).name != args.subject or args.subject in ('', '.', '..', 'fsaverage'):
         raise ValueError('Invalid subject identifier')
-    if args.preprocess_jobs < 1:
-        raise ValueError('--preprocess-jobs must be positive')
+    for name in ('preprocess_jobs', 'mask_threads', 'cpu_threads', 'postprocess_threads'):
+        if getattr(args, name) < 1:
+            raise ValueError(f'--{name.replace("_", "-")} must be positive')
+    if not (0 < args.max_gpu_gib < float('inf')):
+        raise ValueError('--max-gpu-gib must be finite and positive')
+    if args.resume and args.skip_preprocessing:
+        raise ValueError('--resume verifies final results from raw inputs; do not combine it with --skip-preprocessing')
     if subject_directory(args).is_symlink():
         raise ValueError('Refusing to write through a symlinked subject directory')
     if cache_directory(args).is_symlink():
         raise ValueError('Refusing to write through a symlinked cache directory')
+    for path in (subject_directory(args) / '.pipeline.lock', subject_directory(args) / 'logs'):
+        if path.is_symlink():
+            raise ValueError('Refusing to use a symlinked lock or log directory')
 
     if args.freesurfer:
         if args.predict_mode != 'all':
@@ -275,10 +371,9 @@ def main(argv: Iterable[str] | None = None) -> None:
         if args.freesurfer_home is None:
             raise ValueError('Set FREESURFER_HOME or pass --freesurfer-home')
 
-    preprocessing = None
+    files = None
     if not args.skip_preprocessing:
-        preprocessing = build_preprocessing_command(args)
-        files = resolve_inputs(args.subject, args.raw_input_root,
+        files = resolve_inputs(args.subject, args.raw_input_root, allow_missing_mask=args.auto_mask,
                                **{name: getattr(args, name) for name in INPUT_NAMES})
         for path in files.values():
             try:
@@ -286,6 +381,11 @@ def main(argv: Iterable[str] | None = None) -> None:
             except ValueError:
                 continue
             raise ValueError('Source inputs must not be stored inside the disposable cache')
+    with subject_lock(subject_directory(args) / '.pipeline.lock'), interruptible_run():
+        run_subject(args, files)
+
+
+def run_subject(args, files):
     logs = subject_directory(args) / 'logs'
     logs.mkdir(parents=True, exist_ok=True)
     file_log = logging.FileHandler(logs / 'pipeline.log')
@@ -293,8 +393,28 @@ def main(argv: Iterable[str] | None = None) -> None:
     logging.basicConfig(level=getattr(logging, args.log_level), format="[%(levelname)s] %(message)s")
     logging.getLogger().addHandler(file_log)
     try:
-        if preprocessing is not None:
-            run_command(preprocessing, env=dict(os.environ, PYTHON_BIN=sys.executable),
+        source_files = dict(files) if files is not None else None
+        logging.info('Checking inputs, models and run settings.')
+        inspection = inspect_run(args, source_files)
+        if args.resume and reusable_result(args, inspection['signature']):
+            logging.info('Reusing verified completed outputs: %s', subject_directory(args))
+            return
+        if args.resume:
+            logging.info('No matching completed result; running the pipeline.')
+        check_runtime(args, source_files, inspection)
+        logging.info('Preflight passed; starting subject %s.', args.subject)
+        atomic_json(logs / 'pipeline.json', dict(subject=args.subject, completed=False))
+        if files is not None:
+            if 'mask' not in files:
+                logging.info('Generating a missing brain mask with FreeSurfer SynthStrip.')
+                run_command(build_mask_command(args, files),
+                            log_path=cache_directory(args) / 'logs/mask.log')
+                files['mask'] = subject_directory(args) / 'dti' / f'{args.subject}-brainmask.nii.gz'
+            elif args.auto_mask:
+                logging.info('Using the supplied brain mask; automatic masking is not needed.')
+            for name, path in files.items():
+                setattr(args, name, path)
+            run_command(build_preprocessing_command(args), env=dict(os.environ, PYTHON_BIN=sys.executable),
                         log_path=cache_directory(args) / 'logs/preprocessing.log')
         else:
             logging.info("Skipping preprocessing as requested.")
@@ -304,11 +424,13 @@ def main(argv: Iterable[str] | None = None) -> None:
         run_command(build_native_conversion_command(args), log_path=cache_directory(args) / 'logs/native.log')
         if args.freesurfer:
             run_command(build_freesurfer_command(args), log_path=cache_directory(args) / 'logs/postprocessing.log')
-        finalize_outputs(args)
+        if inspection['signature'] is not None and inspect_run(args, source_files)['signature'] != inspection['signature']:
+            raise RuntimeError('Inputs, model assets or settings changed during the run; results are not reusable')
+        finalize_outputs(args, inspection['signature'])
         if not args.keep_cache:
             clean_cache(args)
         logging.info('Completed native outputs: %s', subject_directory(args))
-    except Exception:
+    except BaseException:
         logging.exception('Pipeline failed; intermediate cache retained for diagnosis.')
         raise
     finally:

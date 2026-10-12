@@ -349,6 +349,7 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
         "anatomical_tracts_dir": anatomical_dir.as_posix(),
         "anatomical_tracts_dir_exists": anatomical_dir.is_dir(),
         "anatomical_tract_count": len(tracts),
+        "anatomical_tract_files": [tract.as_posix() for tract in tracts],
         "anatomical_tract_readable_count": len(readable_anatomical_line_counts),
         "anatomical_tract_nonempty_count": sum(
             count > 0 for count in readable_anatomical_line_counts.values()

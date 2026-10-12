@@ -5,6 +5,7 @@ from collections import deque
 import hashlib
 import json
 import os
+import signal
 from pathlib import Path
 import subprocess
 import sys
@@ -71,10 +72,16 @@ def run_backend(arguments, *, python_bin=None, env=None, log=None, log_path=None
     if log_path:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         stream = log_path.open('w', encoding='utf-8')
-    # Inherit the workflow process group so Cancel also stops backend children.
-    process = subprocess.Popen(command, cwd=str(BACKEND_ROOT), env=environment,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                               **text_subprocess_kwargs(bufsize=1))
+    # Own the backend group; upstream owns separate groups for its stage processes.
+    try:
+        process = subprocess.Popen(command, cwd=str(BACKEND_ROOT), env=environment,
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                   start_new_session=os.name == 'posix',
+                                   **text_subprocess_kwargs(bufsize=1))
+    except BaseException:
+        if stream:
+            stream.close()
+        raise
     try:
         for line in process.stdout:
             tail.append(line.rstrip())
@@ -84,6 +91,27 @@ def run_backend(arguments, *, python_bin=None, env=None, log=None, log_path=None
             if log:
                 log(line.rstrip())
         code = process.wait()
+    except BaseException:
+        if os.name == 'posix':
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        elif process.poll() is None:
+            process.terminate()
+        try:
+            # Upstream needs up to 10 seconds to reap an interrupted stage tree.
+            process.wait(timeout=12)
+        except subprocess.TimeoutExpired:
+            if os.name == 'posix':
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            else:
+                process.kill()
+            process.wait()
+        raise
     finally:
         process.stdout.close()
         if stream:

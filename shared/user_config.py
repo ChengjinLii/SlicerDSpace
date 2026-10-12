@@ -21,13 +21,39 @@ RUN_DEFAULTS = {
     "run_name": "Test1",
     "targets": ["microstructure", "tractography", "bundles", "connectome"],
     "preprocessing_backend": "dipy",
+    "brain_mask_backend": "pnl_cnn",
     "tractography_backend": "csd_act",
     "bundle_backend": "wmql",
     "microstructure_stages": ["dti"],
+    "dki_fit_method": "WLS",
     "connectome_backend": "python",
     "select_streamlines": 1_000_000,
     "auto_install_python_dependencies": True,
 }
+
+
+MICROSTRUCTURE_STAGE_ORDER = ("dti", "freewater", "noddi", "dki")
+
+
+def canonical_microstructure_stages(values: Iterable[str] | str | None) -> tuple[str, ...]:
+    """Keep DTI enabled while ordering independently selected optional stages."""
+
+    if isinstance(values, str):
+        values = [values]
+    stages = {
+        token.strip().lower()
+        for value in values or ()
+        for token in str(value).replace("+", ",").split(",")
+        if token.strip()
+    }
+    if stages & {"all", "full"}:
+        stages.update(MICROSTRUCTURE_STAGE_ORDER)
+        stages.difference_update(("all", "full"))
+    unknown = stages - set(MICROSTRUCTURE_STAGE_ORDER)
+    if unknown:
+        raise ValueError("Unknown microstructure stages: " + ", ".join(sorted(unknown)))
+    stages.add("dti")
+    return tuple(stage for stage in MICROSTRUCTURE_STAGE_ORDER if stage in stages)
 
 
 def default_user_config_path(
@@ -111,8 +137,8 @@ def normalize_user_config(payload: Mapping[str, Any] | None) -> dict[str, Any]:
     if isinstance(targets, str):
         defaults["targets"] = [token.strip() for token in targets.split(",") if token.strip()]
     stages = defaults.get("microstructure_stages")
-    if isinstance(stages, str):
-        defaults["microstructure_stages"] = [token.strip() for token in stages.split(",") if token.strip()]
+    defaults["microstructure_stages"] = list(canonical_microstructure_stages(stages))
+    defaults["dki_fit_method"] = str(defaults.get("dki_fit_method") or "WLS").strip().upper()
     return config
 
 
@@ -170,9 +196,11 @@ def user_config_cli_values(config: Mapping[str, Any]) -> dict[str, Any]:
         "run_name": defaults.get("run_name") or RUN_DEFAULTS["run_name"],
         "targets": [",".join(defaults.get("targets") or RUN_DEFAULTS["targets"])],
         "preprocessing_backend": defaults.get("preprocessing_backend") or RUN_DEFAULTS["preprocessing_backend"],
+        "brain_mask_backend": defaults.get("brain_mask_backend") or RUN_DEFAULTS["brain_mask_backend"],
         "tractography_backend": defaults.get("tractography_backend") or RUN_DEFAULTS["tractography_backend"],
         "bundle_backend": defaults.get("bundle_backend") or RUN_DEFAULTS["bundle_backend"],
         "microstructure_stages": [",".join(defaults.get("microstructure_stages") or RUN_DEFAULTS["microstructure_stages"])],
+        "dki_fit_method": defaults.get("dki_fit_method") or "WLS",
         "connectome_backend": defaults.get("connectome_backend") or RUN_DEFAULTS["connectome_backend"],
         "select_streamlines": int(defaults.get("select_streamlines") or RUN_DEFAULTS["select_streamlines"]),
     }
@@ -237,12 +265,14 @@ def user_config_from_cli_args(
     target_set = set(targets)
     stage_set = set(stages)
     if "all" in stage_set:
-        stage_set.update(("dti", "freewater", "noddi"))
+        stage_set.update(MICROSTRUCTURE_STAGE_ORDER)
     if "microstructure_freewater" in target_set:
         stage_set.update(("dti", "freewater"))
     if "microstructure_noddi" in target_set:
         stage_set.update(("dti", "noddi"))
-    stages = [stage for stage in ("dti", "freewater", "noddi") if stage in stage_set]
+    if "microstructure_dki" in target_set or bool(getattr(args, "run_dki", False)):
+        stage_set.update(("dti", "dki"))
+    stages = list(canonical_microstructure_stages(stage_set))
     tractography_backend = getattr(args, "tractography_backend", None) or "csd_act"
     if "saf" in target_set:
         tractography_backend = "saf"
@@ -275,9 +305,11 @@ def user_config_from_cli_args(
             "run_name": str(getattr(args, "run_name", "") or "Test1"),
             "targets": targets or list(RUN_DEFAULTS["targets"]),
             "preprocessing_backend": getattr(args, "preprocessing_backend", None) or "dipy",
+            "brain_mask_backend": getattr(args, "brain_mask_backend", None) or "pnl_cnn",
             "tractography_backend": tractography_backend,
             "bundle_backend": bundle_backend,
             "microstructure_stages": stages or ["dti"],
+            "dki_fit_method": str(getattr(args, "dki_fit_method", None) or "WLS").upper(),
             "connectome_backend": getattr(args, "connectome_backend", None) or "python",
             "select_streamlines": int(
                 getattr(args, "select_streamlines", None) or RUN_DEFAULTS["select_streamlines"]

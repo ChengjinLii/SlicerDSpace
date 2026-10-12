@@ -20,6 +20,9 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 | [Quick Start](setup/QUICKSTART.md) | Minimal DTI workflow and synthetic installation check |
 | [Capabilities and platforms](setup/SUPPORT_MATRIX.md) | Configure only the selected backend |
 | [Result review](setup/GUI_RESULT_REVIEW.md) | Run-scoped loading, cancellation and QC |
+| [Brain masking](setup/brain_mask_gui_config.md) | PNL CNN default, explicit alternatives and external runtime |
+| [Microstructure](setup/MICROSTRUCTURE.md) | DTI default, independent FW/NODDI/DKI and original MK-Curve boundary |
+| [Automatic results](setup/AUTOMATIC_RESULTS.md) | Current-run loading and RAS VTK display previews |
 | [Settings](setup/USER_CONFIG.md) | Persistent GUI/CLI configuration |
 | [Linux](setup/LINUX_HPC.md), [Windows](setup/WINDOWS.md), [macOS](setup/MACOS.md) | Platform-specific setup and limitations |
 | [Model assets](assets/MODEL_ASSETS.md) | Profiles, download and checksum verification |
@@ -39,6 +42,10 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 ---
 
 ## Validation Records
+
+[Masking/microstructure/scene follow-up](release/PIPELINE_MASK_MICROSTRUCTURE_20261012.md)
+records the PNL default, DKI eligibility, independent Advanced switches and
+current-run automatic result loading, including the unverified MATLAB boundary.
 
 [12 October follow-up](release/DISTRIBUTION_VALIDATION_20261012.md) records
 license notices, fresh-clone tests, local installation and the outstanding SDK gate.

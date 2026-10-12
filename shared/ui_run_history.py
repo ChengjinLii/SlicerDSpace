@@ -158,6 +158,7 @@ def set_run_state(owner: Any, state: str) -> None:
     if progress is None:
         return
     has_data = bool(getattr(owner, "_runProgressHasData", False))
+    progress.visible = owner._runState != "idle"
     if presentation.busy:
         if not has_data:
             progress.setRange(0, 0)  # busy indicator until the first manifest checkpoint
@@ -194,6 +195,7 @@ def start_progress_polling(owner: Any, manifest_path: Optional[Path], *, started
     owner._runProgressManifestPath = Path(manifest_path) if manifest_path else None
     owner._runProgressStartedAt = started_at if started_at is not None else time.time()
     owner._tableShowsLiveRun = True
+    owner._autoResultManifestSignatures = {}
     reset_run_progress(owner)
     timer = getattr(owner, "_runProgressTimer", None)
     if timer is not None and owner._runProgressManifestPath is not None:
@@ -213,6 +215,9 @@ def poll_run_progress(owner: Any) -> None:
     snapshot = progress_from_manifest(path, not_before=getattr(owner, "_runProgressStartedAt", None))
     if snapshot is not None:
         apply_progress_snapshot(owner, snapshot)
+        loader = getattr(owner, "_auto_load_key_results", None)
+        if callable(loader):
+            loader(Path(path))
 
 
 def apply_progress_snapshot(owner: Any, snapshot) -> None:

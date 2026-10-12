@@ -28,6 +28,21 @@ External software installation policies are unchanged.
 
 ## Run-scoped scene results
 
+During a GUI run, completed stages trigger automatic loading of their key
+declared products. Selection is per product, not the first files found in an
+output directory. Already loaded, unchanged nodes are reused. A current run may
+explicitly reuse cached successful products; arbitrary older runs are never
+scanned for automatic display. Actual batch children are taken from execution
+records; a planned subject list is not evidence that those subjects ran.
+
+Anatomical labels, bilateral white/pial surfaces, representative parameter
+maps, a whole-brain tractogram/SAF preview, representative bundles and numerical
+connectome tables are selected where declared. TCK/TRK streamlines are converted
+to a reproducible **RAS-mm VTK display preview** with at most 30,000 streamlines.
+The full tractogram is untouched and remains the input to quantitative analysis.
+Without SlicerDMRI, a fiber preview can load as a line Model; it does not expose
+all SlicerDMRI tractography controls. Display coordinate handling is explicit.
+
 Results are selected only from successful or explicitly reused tasks in the
 chosen run manifest. Missing files, failed tasks and unselected tasks are not
 loaded. There is no fallback scan of shared output folders. Products that are
@@ -57,14 +72,16 @@ run attributes persist when the scene is saved and reopened.
 - **Append copy** explicitly adds another copy.
 - **Clear run** removes only this run's owned nodes, never source files.
 
-Changed source file size or modification time triggers a reload warning rather
+In automatic mode, a changed owned source is replaced. In manual reuse mode,
+changed source file size or modification time triggers a reload warning rather
 than silently reusing an old scene node. This is a scene freshness check, not a
 cryptographic integrity check. Scalar and anatomical products are prioritised
 ahead of potentially large tractograms. Deferred/skipped results are reported.
 
 Categorical segmentation/parcellation outputs load as label maps; probability
 maps remain scalar volumes. MD uses grayscale; FA/NDI/ODI/fraction display
-ranges use 0-1 where identified. These settings do not modify voxel data.
+ranges use 0-1 where identified. DKI display settings are recorded separately
+from unbounded estimates and validity masks. These settings do not modify voxel data.
 
 ---
 

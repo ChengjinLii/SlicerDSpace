@@ -19,6 +19,18 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class RunSubjectPipelineCliTest(unittest.TestCase):
+    def test_surface_precision_and_resource_defaults_follow_upstream(self) -> None:
+        from shared.run_subject_pipeline_cli import build_parser
+        defaults = build_parser().parse_args([])
+        self.assertEqual(defaults.surface_precision, 'fp32')
+        self.assertEqual(defaults.surface_cpu_threads, 4)
+        self.assertEqual(defaults.surface_max_gpu_gib, 24.)
+        selected = build_parser().parse_args(['--surface-precision', 'bf16',
+            '--surface-cpu-threads', '2', '--surface-max-gpu-gib', '18'])
+        self.assertEqual(selected.surface_precision, 'bf16')
+        self.assertEqual(selected.surface_cpu_threads, 2)
+        self.assertEqual(selected.surface_max_gpu_gib, 18.)
+
     def setUp(self) -> None:
         self._user_config_temp = tempfile.TemporaryDirectory()
         self._previous_user_config = os.environ.get("SLICERDDSURFER_USER_CONFIG")
@@ -300,7 +312,7 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
 
             manifest_path = Path(completed.stdout.strip())
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            self.assertEqual(manifest["microstructure_stages"], ["dti", "freewater", "noddi"])
+            self.assertEqual(manifest["microstructure_stages"], ["dti", "freewater", "noddi", "dki"])
             self.assertTrue(manifest["microstructure_run_free_water"])
             self.assertTrue(manifest["microstructure_run_noddi"])
 

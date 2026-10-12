@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 import time
@@ -30,9 +31,15 @@ class SurfaceConfig:
     cleanup_intermediates: bool = False
     execute: bool = False
     input_bundle: Optional[object] = None
-    precision: str = 'auto'
+    precision: str = 'fp32'
     python_bin: Optional[Path] = None
     slicer_home: Optional[Path] = None
+    cpu_threads: int = 4
+    max_gpu_gib: float = 24.
+    resume: bool = False
+    auto_mask: bool = False
+    mask_threads: int = 4
+    freesurfer_home: Optional[Path] = None
 
 
 @dataclass(frozen=True)
@@ -134,12 +141,21 @@ def _raw_command(config, resources, output_dir):
     command = [BACKEND_ROOT / 'run_ddsurfer_pipeline.py', '--subject', config.subject_id,
                '--output-root', output_dir / 'upstream', '--predict-mode', config.predict_mode,
                '--device', config.device, '--precision', config.precision,
+               '--cpu-threads', str(config.cpu_threads), '--max-gpu-gib', str(config.max_gpu_gib),
                '--checkpoint-root', resources['checkpoint_root'], '--template-dir', resources['template_dir']]
     for flag, attribute in (('dwi', 'dwi_path'), ('bval', 'bval_path'), ('bvec', 'bvec_path'), ('mask', 'mask_path')):
         path = getattr(bundle, attribute)
+        if flag == 'mask' and path is None and config.auto_mask:
+            continue
         if path is None or not Path(path).is_file():
             raise FileNotFoundError(f'DDSurfer requires a prepared {flag}; run input preparation first')
         command.extend([f'--{flag}', path])
+    if config.auto_mask:
+        command.extend(['--auto-mask', '--mask-threads', str(config.mask_threads)])
+        if config.freesurfer_home is not None:
+            command.extend(['--freesurfer-home', config.freesurfer_home])
+    if config.resume:
+        command.append('--resume')
     if not config.cleanup_intermediates:
         command.append('--keep-cache')
     home = config.slicer_home or os.environ.get('DTI_SLICER_PATH') or os.environ.get('SLICER_HOME')
@@ -162,7 +178,8 @@ def _run_registered(config, resources, output_dir, subject_dir):
         predict_subject(PredictionStageConfig(config.subject_id, hemi, config.predict_mode,
             config.device, 0.02, 2, 3, Path(resources['template_dir']), Path(resources['checkpoint_root']),
             prepared.preprocessed_dir.parent, output_dir / 'pred_results_SlicerDDSurfer',
-            precision=config.precision, python_bin=config.python_bin))
+            precision=config.precision, python_bin=config.python_bin,
+            cpu_threads=config.cpu_threads, max_gpu_gib=config.max_gpu_gib))
     run_backend([BACKEND_ROOT / 'inference/native.py', '--subject', config.subject_id,
         '--data-root', prepared.preprocessed_dir.parent, '--pred-root', output_dir / 'pred_results_SlicerDDSurfer',
         '--predict-mode', config.predict_mode, '--output-dir',
@@ -178,14 +195,20 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
         raise ValueError('subject_id must be a nonempty directory name')
     if config.predict_mode not in ('all', 'wm') or config.precision not in ('auto', 'bf16', 'fp32'):
         raise ValueError('Invalid prediction mode or precision')
+    if config.cpu_threads < 1 or config.mask_threads < 1:
+        raise ValueError('DDSurfer thread budgets must be positive')
+    if not math.isfinite(config.max_gpu_gib) or config.max_gpu_gib <= 0:
+        raise ValueError('DDSurfer GPU budget must be finite and positive')
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path, qc_path = output_dir / 'surface_manifest.json', output_dir / 'surface_qc.json'
     resources = inspect_surface_resources(config)
-    manifest = dict(kind='ddsurfer_surface', version=2, subject_id=config.subject_id,
+    manifest = dict(kind='ddsurfer_surface', version=3, subject_id=config.subject_id,
         subject_root=str(config.subject_root.expanduser().resolve()), output_dir=str(output_dir),
         input_dwi=str(config.input_bundle.dwi_path) if config.input_bundle is not None else None,
         predict_mode=config.predict_mode, device=config.device, precision=config.precision,
+        cpu_threads=config.cpu_threads, max_gpu_gib=config.max_gpu_gib,
+        resume=config.resume, auto_mask=config.auto_mask, mask_threads=config.mask_threads,
         upstream_commit=resources['upstream_commit'], resources=resources,
         executed=config.execute, status='planned', outputs={})
     qc = dict(subject_id=config.subject_id, status='planned', executed=False, model_count=0,
@@ -210,6 +233,7 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
                         break
             native_dir = output_dir / 'pred_results_SlicerDDSurfer/native' / config.subject_id
             if config.input_bundle is not None or inspected['mode'] == 'subject_root':
+                manifest['input_mode'] = 'raw'
                 command, env = _raw_command(config, resources, output_dir)
                 run_backend(command, python_bin=config.python_bin, env=env, log=log,
                             log_path=output_dir / 'backend.log')
@@ -221,6 +245,19 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
                 manifest['upstream_pipeline'] = json.loads((upstream / 'logs/pipeline.json').read_text())
                 manifest['outputs']['native_dti'] = str(upstream / 'dti')
             elif inspected['mode'] != 'missing':
+                manifest['input_mode'] = 'registered'
+                directory = Path(inspected['subject_dir'])
+                paths = [directory / f'{config.subject_id}-dti-{name}-Reg.nii.gz' for name in
+                         ('FractionalAnisotropy', 'MinEigenvalue', 'MidEigenvalue', 'MaxEigenvalue', 'MeanDiffusivity')]
+                paths += [directory / f'{config.subject_id}-mask-Reg.nii.gz',
+                          directory / f'{config.subject_id}-b0ToAtlasT2.tfm',
+                          Path(resources['registration_atlas']), Path(resources['checkpoint_root']) / 'manifest.json']
+                paths += [Path(resources['checkpoint_root']) / filename for hemi in ('left', 'right')
+                          for kind, filename in resources['model_config']['checkpoint_files'][hemi].items()
+                          if kind == 'white' or config.predict_mode == 'all']
+                paths += [Path(resources['template_dir']) / resources['model_config']['templates'][hemi]['file']
+                          for hemi in ('left', 'right')]
+                manifest['input_sha256'] = {str(p.resolve()): sha256(p) for p in paths}
                 _run_registered(config, resources, output_dir, Path(inspected['subject_dir']))
             else:
                 raise FileNotFoundError(f'No DDSurfer subject input: {config.subject_root}')
@@ -229,7 +266,13 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
                       automatic_qc_passed=all(c['finite'] and c['watertight'] and c['euler_number'] == 2 for c in checks.values()))
             manifest['outputs']['models'] = list(map(str, products))
             manifest['outputs']['indexed_RAS_models'] = [c['indexed_master'] for c in checks.values()]
+            manifest['output_sha256'] = {str(p.resolve()): sha256(p) for p in
+                                        [*products, *(Path(c['indexed_master']) for c in checks.values())]}
             manifest['status'] = 'completed'
+    except (KeyboardInterrupt, SystemExit) as exc:
+        manifest['status'] = 'cancelled'
+        qc.update(status='cancelled', executed=config.execute, error=str(exc), automatic_qc_passed=False)
+        raise
     except Exception as exc:
         failure = exc
         manifest['status'] = 'failed'

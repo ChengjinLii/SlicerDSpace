@@ -32,7 +32,7 @@ Missing dependencies are reported, not silently replaced by a different method.
 2. Select **Microstructure** and uncheck all other products, including preprocessing.
 3. In **Advanced settings > Analysis parameters**, select only the DTI microstructure stage.
 4. Check the environment, click **Run SlicerDDSurfer**, and inspect the log.
-5. In **Advanced settings > Results and QC**, select the completed run and use **Load / reuse** to view FA/MD over subject anatomy.
+5. FA/MD automatically load as successful stages finish. In **Advanced settings > Results and QC**, select the completed run to inspect QC or use **Load / reuse** again without duplicating nodes.
 6. Inspect the mask, finite-value checks, spatial alignment and QC summary before accepting results.
 
 Generate a plan without execution:
@@ -44,6 +44,10 @@ python3 run_subject_pipeline.py --subject-root /path/to/sub-01 \
 
 MD loads in grayscale. Display settings do not change voxel values.
 Execution completion, automated QC and human review are separate states.
+DTI is the default; enable FW, NODDI and DKI separately in Advanced only when
+their acquisition requirements are met. A missing input mask uses the selected
+backend (PNL CNN by default); an existing mask avoids that dependency. Configure
+mask alternatives and external runtimes before running.
 
 ---
 

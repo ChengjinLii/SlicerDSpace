@@ -14,7 +14,25 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from shared.process_group import capture_process_group_id, grouped_launch_command, kill_process_tree
+from shared.process_group import capture_process_group_id, finish_process_group, grouped_launch_command, kill_process_tree, process_group_is_running
+
+
+class TeardownProcessGroupTest(unittest.TestCase):
+    def test_does_not_signal_an_exited_group(self):
+        with mock.patch("shared.process_group.process_group_is_running", return_value=False), mock.patch(
+                "shared.process_group.kill_process_tree") as kill:
+            finish_process_group(12345, grace_seconds=0)
+        kill.assert_not_called()
+
+    def test_kills_survivors_using_captured_group_not_exited_parent(self):
+        with mock.patch("shared.process_group.process_group_is_running", return_value=True), mock.patch(
+                "shared.process_group.kill_process_tree") as kill:
+            finish_process_group(12345, grace_seconds=0)
+        kill.assert_called_once_with(0, grouped=True, force=True, pgid=12345)
+
+    def test_rejects_invalid_group_id(self):
+        self.assertFalse(process_group_is_running(0))
+        self.assertFalse(process_group_is_running(-1))
 
 
 class GroupedLaunchCommandTest(unittest.TestCase):

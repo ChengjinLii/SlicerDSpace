@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import qt
@@ -10,7 +11,7 @@ import slicer
 
 
 SUBJECT_ROOT = Path("/data/chengjin/SlicerDDSurfer-test/100307")
-OUTPUT_ROOT = Path("/tmp/slicerdsurfer-cancel-smoke-output")
+OUTPUT_ROOT = Path(os.environ.get("SLICERDDSURFER_SMOKE_ROOT", "/tmp")) / "slicerdsurfer-cancel-smoke-output"
 RUN_NAME = "cancel_smoke"
 
 

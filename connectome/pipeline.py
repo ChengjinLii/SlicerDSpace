@@ -1119,7 +1119,13 @@ def run_connectome(config: ConnectomeConfig, *, log: Optional[Callable[[str], No
                         )
                     )
                 else:
-                    qc.update(_summarize_dense_connectome_matrix(matrix_path, symmetric=config.symmetric))
+                    summary = _summarize_dense_connectome_matrix(matrix_path, symmetric=config.symmetric)
+                    qc.update(summary)
+                    # MRtrix allocates rows up to the maximum label value;
+                    # unused rows are not anatomical network nodes.
+                    qc["dense_node_count"] = summary["node_count"]
+                    qc["dense_matrix_path"] = matrix_path.as_posix()
+                    qc["node_count"] = len(node_labels)
                 total_streamlines = _tck_header_streamline_count(config.tractography_path)
                 qc["streamline_count_total"] = total_streamlines
                 if config.sift2_weights_path is not None:

@@ -27,10 +27,17 @@ def _write(path: Path, content: str = "placeholder") -> None:
 
 
 def _make_subject_root(root: Path, *, metadata: bool = True) -> Path:
+    import nibabel as nib
+    import numpy as np
+
     subject_root = root / SUBJECT_ID
     input_dir = subject_root / "input"
-    _write(input_dir / "data.nii.gz")
-    _write(input_dir / "nodif_brain_mask.nii.gz")
+    input_dir.mkdir(parents=True)
+    data = np.ones((5, 5, 5, 4), dtype=np.float32)
+    mask = np.zeros((5, 5, 5), dtype=np.uint8)
+    mask[1:4, 1:4, 1:4] = 1
+    nib.save(nib.Nifti1Image(data, np.eye(4)), input_dir / "data.nii.gz")
+    nib.save(nib.Nifti1Image(mask, np.eye(4)), input_dir / "nodif_brain_mask.nii.gz")
     _write(input_dir / "bvals", "0 1000 1000 2000\n")
     _write(input_dir / "bvecs", "0 1 0 0\n0 0 1 0\n0 0 0 1\n")
     if metadata:
@@ -53,6 +60,7 @@ class InputValidationTest(unittest.TestCase):
                     input_root=subject_root,
                     output_dir=output_dir,
                     dependency_groups=(),
+                    brain_mask_backend="provided",
                 )
             )
 
@@ -63,6 +71,9 @@ class InputValidationTest(unittest.TestCase):
             self.assertEqual(result.metrics["gradients"]["count"], 4)
             self.assertEqual(result.metrics["gradients"]["shells_rounded"], [1000, 2000])
             self.assertEqual(result.metrics["bids_metadata"]["phase_encoding_direction"], "j-")
+            self.assertEqual(result.metrics["brain_mask_selection"]["backend"], "provided")
+            self.assertTrue(result.metrics["brain_mask_qc"]["geometry_pass"])
+            self.assertEqual(result.metrics["brain_mask_qc"]["brain_voxels"], 27)
 
     def test_missing_metadata_warns_but_does_not_block_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -73,6 +84,7 @@ class InputValidationTest(unittest.TestCase):
                     subject_id=SUBJECT_ID,
                     input_root=subject_root,
                     dependency_groups=(),
+                    brain_mask_backend="provided",
                 )
             )
 
@@ -91,6 +103,7 @@ class InputValidationTest(unittest.TestCase):
                     subject_id=SUBJECT_ID,
                     input_root=subject_root,
                     dependency_groups=(),
+                    brain_mask_backend="provided",
                     write_report=False,
                 )
             )
@@ -108,6 +121,7 @@ class InputValidationTest(unittest.TestCase):
                     subject_id=SUBJECT_ID,
                     input_root=subject_root,
                     dependency_groups=(),
+                    brain_mask_backend="provided",
                     write_report=False,
                 )
             )

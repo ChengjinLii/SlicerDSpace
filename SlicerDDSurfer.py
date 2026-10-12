@@ -23,7 +23,6 @@ from anatomy.segmentation.module_logic import SegmentationLogicMixin
 from anatomy.segmentation.module_widget import SegmentationWidgetMixin
 from shared.module_logic import SharedLogicMixin
 from shared.module_widget import SharedWidgetMixin
-from shared.ui_run_controller import ProductTargetFlags
 from anatomy.surface.module_logic import PipelineResult, SurfaceLogicMixin
 from anatomy.surface.module_widget import SurfaceWidgetMixin
 from tractography.module_logic import TractographyLogicMixin
@@ -97,6 +96,7 @@ class SlicerDDSurferParameterNode:
     microstructureForceRecompute: bool = False
     targetPreprocessing: bool = True
     preprocessingBackend: Annotated[str, Choice(["dipy", "mrtrix_fsl"])] = "dipy"
+    brainMaskBackend: Annotated[str, Choice(["pnl_cnn", "synthstrip", "mrtrix", "provided"])] = "pnl_cnn"
     # Topup / distortion correction for the MRtrix3/FSL route. Empty/0 means
     # "not set", so nothing is forwarded and dwifslpreproc defaults apply.
     preprocessingPhaseEncodingDirection: str = ""
@@ -107,9 +107,14 @@ class SlicerDDSurferParameterNode:
     orchestrationBundleBackend: Annotated[str, Choice(["wmql", "wma", "tractcloud", "all"])] = "wmql"
     wmaInputTractography: str = ""
     orchestrationSelectStreamlines: int = 1000000
-    orchestrationMicrostructureStages: Annotated[str, Choice(["dti", "dti,freewater", "dti,freewater,noddi"])] = "dti"
+    orchestrationMicrostructureStages: Annotated[str, Choice([
+        "dti", "dti,freewater", "dti,noddi", "dti,dki",
+        "dti,freewater,noddi", "dti,freewater,dki", "dti,noddi,dki", "dti,freewater,noddi,dki",
+    ])] = "dti"
+    orchestrationDkiFitMethod: Annotated[str, Choice(["WLS", "OLS", "MKCURVE", "MKCURVE_MATLAB"])] = "WLS"
     orchestrationRunFreeWater: bool = False
     orchestrationRunNoddi: bool = False
+    orchestrationRunDki: bool = False
     batchMode: bool = False
     batchRoot: str = ""
     batchSize: int = 1
@@ -164,24 +169,6 @@ class SlicerDDSurferWidget(
         self._connect_segmentation_ui()
         self._connect_common_ui()
         self._initialize_common_ui_state()
-
-    def _product_target_flags(self) -> ProductTargetFlags:
-        """Include the explicit FreeSurfer-style postprocess product target."""
-
-        flags = super()._product_target_flags()
-        node = self._parameterNode
-        return ProductTargetFlags(
-            preprocessing=flags.preprocessing,
-            surface=flags.surface,
-            surface_postprocess=bool(getattr(node, "targetSurfacePostprocess", False)) if node else False,
-            parcellation=flags.parcellation,
-            segmentation=flags.segmentation,
-            microstructure=flags.microstructure,
-            tractography=flags.tractography,
-            bundles=flags.bundles,
-            connectome=flags.connectome,
-        )
-
 
 class SlicerDDSurferLogic(
     SharedLogicMixin,

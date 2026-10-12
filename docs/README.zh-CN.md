@@ -20,6 +20,9 @@
 | [快速开始](setup/QUICKSTART.zh-CN.md) | 最小 DTI 工作流与合成安装测试 |
 | [能力与平台](setup/SUPPORT_MATRIX.zh-CN.md) | 按路线配置依赖 |
 | [结果检查](setup/GUI_RESULT_REVIEW.md) | 按运行加载结果、取消任务与 QC |
+| [脑掩膜](setup/brain_mask_gui_config.md) | 默认 PNL CNN、替代后端及外部运行环境 |
+| [微结构分析](setup/MICROSTRUCTURE.zh-CN.md) | DTI 默认、独立 FW/NODDI/DKI 与原作者 MK-Curve 边界 |
+| [自动加载](setup/AUTOMATIC_RESULTS.md) | 当前运行记录与 RAS VTK 显示预览 |
 | [配置](setup/USER_CONFIG.md) | GUI/CLI 共用设置 |
 | [Linux](setup/LINUX_HPC.md)、[Windows](setup/WINDOWS.md)、[macOS](setup/MACOS.md) | 平台设置与边界 |
 | [模型资源](assets/MODEL_ASSETS.md) | Profile、下载与校验 |
@@ -39,6 +42,10 @@
 ---
 
 ## 历史验证记录
+
+[脑掩膜、微结构与场景验证](release/PIPELINE_MASK_MICROSTRUCTURE_20261012.md)
+记录默认 PNL、DKI 适用性、Advanced 独立开关与自动加载；真实 MATLAB MK-Curve
+尚未验证，不以标准 MK 或接口测试冒充。
 
 [10 月 12 日复核](release/DISTRIBUTION_VALIDATION_20261012.md)记录许可、干净克隆、
 隔离安装和 SDK 阻塞。[10 月 11 日记录](release/DISTRIBUTION_VALIDATION_20261011.md)

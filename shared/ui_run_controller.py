@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 from shared.orchestrator import normalize_orchestrator_targets
 from shared.topup_parameters import TopupParameters, topup_cli_args, topup_orchestrator_kwargs
+from shared.user_config import canonical_microstructure_stages
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,9 @@ class RunSelection:
     preprocessing_backend: str = "dipy"
     wma_input_tractography_text: str = ""
     topup: TopupParameters = TopupParameters()
+    brain_mask_backend: str = "pnl_cnn"
+    microstructure_dki: bool = False
+    dki_fit_method: str = "WLS"
 
 
 @dataclass(frozen=True)
@@ -124,7 +128,18 @@ def is_auto_generated_run_name(run_name: str) -> bool:
 
 
 def microstructure_stage_flags(stages_text: str, *, legacy_freewater: bool = False, legacy_noddi: bool = False) -> tuple[bool, bool]:
-    """Parse microstructure stage text into Free Water and NODDI booleans."""
+    """Preserve the two-flag compatibility API for older widgets and callers."""
+
+    freewater, noddi, _ = microstructure_optional_stage_flags(
+        stages_text, legacy_freewater=legacy_freewater, legacy_noddi=legacy_noddi,
+    )
+    return freewater, noddi
+
+
+def microstructure_optional_stage_flags(
+    stages_text: str, *, legacy_freewater: bool = False, legacy_noddi: bool = False, legacy_dki: bool = False,
+) -> tuple[bool, bool, bool]:
+    """Return independently selected Free Water, NODDI and DKI flags."""
 
     text = (stages_text or "").strip().lower()
     if not text:
@@ -133,11 +148,12 @@ def microstructure_stage_flags(stages_text: str, *, legacy_freewater: bool = Fal
             stages.add("freewater")
         if legacy_noddi:
             stages.add("noddi")
+        if legacy_dki:
+            stages.add("dki")
     else:
         stages = {stage.strip().lower() for stage in text.replace("+", ",").split(",") if stage.strip()}
-    if "all" in stages:
-        stages.update({"dti", "freewater", "noddi"})
-    return "freewater" in stages, "noddi" in stages
+    stages = set(canonical_microstructure_stages(stages))
+    return "freewater" in stages, "noddi" in stages, "dki" in stages
 
 
 def selected_workflows(flags: ProductTargetFlags) -> list[str]:
@@ -193,6 +209,7 @@ def selected_product_targets(
     bundle_backend: str,
     microstructure_freewater: bool,
     microstructure_noddi: bool,
+    microstructure_dki: bool = False,
 ) -> tuple[str, ...]:
     """Return normalized product targets after backend expansion."""
 
@@ -221,6 +238,7 @@ def selected_product_targets(
         bundle_backend=(bundle_backend or "wmql").strip() or "wmql",
         microstructure_run_free_water=microstructure_freewater,
         microstructure_run_noddi=microstructure_noddi,
+        microstructure_run_dki=microstructure_dki,
     )
 
 
@@ -235,12 +253,7 @@ def selected_products_summary(targets: tuple[str, ...], backends: BackendSelecti
 
     visible_targets = [target for target in targets if target != "validation"]
     target_text = ", ".join(visible_targets) if visible_targets else "none"
-    freewater, noddi = microstructure_stage_flags(backends.microstructure_stages)
-    micro_stages = ["dti"]
-    if freewater:
-        micro_stages.append("freewater")
-    if noddi:
-        micro_stages.append("noddi")
+    micro_stages = canonical_microstructure_stages(backends.microstructure_stages)
     summary = (
         f"Selected targets: {target_text}\n"
         f"Backends: preprocessing={(backends.preprocessing or 'dipy').strip() or 'dipy'}, "
@@ -382,9 +395,14 @@ def build_single_subject_run_kwargs(
         "tractography_backend": selection.tractography_backend,
         "bundle_backend": selection.bundle_backend,
         "preprocessing_backend": selection.preprocessing_backend,
+        "brain_mask_backend": selection.brain_mask_backend,
         "resume": True,
         "microstructure_run_free_water": selection.microstructure_freewater,
         "microstructure_run_noddi": selection.microstructure_noddi,
+        "microstructure_run_dki": selection.microstructure_dki,
+        "microstructure_dki_fit_method": selection.dki_fit_method,
+        "microstructure_dki_matlab_executable": external_paths.get("dki_matlab_executable"),
+        "microstructure_dki_mkcurve_root": external_paths.get("dki_mkcurve_root"),
         "select_streamlines": max(1, int(selection.select_streamlines)),
         "ddseg_device": selection.ddseg_device,
         "surface_device": selection.surface_device,
@@ -393,6 +411,10 @@ def build_single_subject_run_kwargs(
         "preprocessing_mrtrix_bin_dir": external_paths.get("mrtrix_bin_dir"),
         "preprocessing_fsl_bin_dir": external_paths.get("preprocessing_fsl_bin_dir"),
         "postprocess_freesurfer_home": external_paths.get("postprocess_freesurfer_home"),
+        "pnl_mask_python": external_paths.get("pnl_mask_python"),
+        "pnl_mask_script": external_paths.get("pnl_mask_script"),
+        "pnl_mask_model_dir": external_paths.get("pnl_mask_model_dir"),
+        "pnl_mask_ants_bin_dir": external_paths.get("pnl_mask_ants_bin_dir"),
         "tract_querier_root": external_paths.get("tract_querier_root"),
         "wma_root": external_paths.get("wma_root"),
         "wma_atlas_dir": external_paths.get("wma_atlas_dir"),
@@ -425,9 +447,12 @@ def build_batch_run_kwargs(selection: RunSelection, *, batch_root: Path) -> dict
         "tractography_backend": selection.tractography_backend,
         "bundle_backend": selection.bundle_backend,
         "preprocessing_backend": selection.preprocessing_backend,
+        "brain_mask_backend": selection.brain_mask_backend,
         "resume": True,
         "microstructure_run_free_water": selection.microstructure_freewater,
         "microstructure_run_noddi": selection.microstructure_noddi,
+        "microstructure_run_dki": selection.microstructure_dki,
+        "microstructure_dki_fit_method": selection.dki_fit_method,
         "select_streamlines": max(1, int(selection.select_streamlines)),
         "ddseg_device": selection.ddseg_device,
         "surface_device": selection.surface_device,
@@ -619,6 +644,12 @@ EXTERNAL_PATH_CLI_FLAGS: tuple[tuple[str, str], ...] = (
     ("mrtrix_bin_dir", "--preprocessing-mrtrix-bin-dir"),
     ("preprocessing_fsl_bin_dir", "--preprocessing-fsl-bin-dir"),
     ("postprocess_freesurfer_home", "--postprocess-freesurfer-home"),
+    ("pnl_mask_python", "--pnl-mask-python"),
+    ("pnl_mask_script", "--pnl-mask-script"),
+    ("pnl_mask_model_dir", "--pnl-mask-model-dir"),
+    ("pnl_mask_ants_bin_dir", "--pnl-mask-ants-bin-dir"),
+    ("dki_matlab_executable", "--dki-matlab-executable"),
+    ("dki_mkcurve_root", "--dki-mkcurve-root"),
     ("tract_querier_root", "--tract-querier-root"),
     ("wma_root", "--wma-root"),
     ("wma_atlas_dir", "--wma-atlas-dir"),
@@ -660,6 +691,8 @@ def microstructure_stages_arg(common_run_kwargs: dict[str, Any]) -> str:
         stages.append("freewater")
     if common_run_kwargs.get("microstructure_run_noddi"):
         stages.append("noddi")
+    if common_run_kwargs.get("microstructure_run_dki"):
+        stages.append("dki")
     return ",".join(stages)
 
 
@@ -692,6 +725,8 @@ def build_background_cli_args(
         "--print-manifest-only",
         "--preprocessing-backend",
         (preprocessing_backend or "dipy").strip() or "dipy",
+        "--brain-mask-backend",
+        str(common_run_kwargs.get("brain_mask_backend", "pnl_cnn")),
         "--tractography-backend",
         str(common_run_kwargs["tractography_backend"]),
         "--bundle-backend",
@@ -708,6 +743,7 @@ def build_background_cli_args(
     if output_root is not None:
         args.extend(["--output-root", _path_text(output_root)])
     args.extend(["--microstructure-stages", microstructure_stages_arg(common_run_kwargs)])
+    args.extend(["--dki-fit-method", str(common_run_kwargs.get("microstructure_dki_fit_method", "WLS"))])
     if common_run_kwargs.get("connectome_compress_mrtrix_dense"):
         args.append("--compress-mrtrix-dense")
     wma_input = common_run_kwargs.get("wma_input_tractography")
@@ -749,6 +785,8 @@ def build_batch_background_cli_args(
         ",".join(common_run_kwargs["targets"]),
         "--preprocessing-backend",
         (preprocessing_backend or "dipy").strip() or "dipy",
+        "--brain-mask-backend",
+        str(common_run_kwargs.get("brain_mask_backend", "pnl_cnn")),
         "--tractography-backend",
         str(common_run_kwargs["tractography_backend"]),
         "--bundle-backend",
@@ -765,6 +803,7 @@ def build_batch_background_cli_args(
     if output_root is not None:
         args.extend(["--output-root", _path_text(output_root)])
     args.extend(["--microstructure-stages", microstructure_stages_arg(common_run_kwargs)])
+    args.extend(["--dki-fit-method", str(common_run_kwargs.get("microstructure_dki_fit_method", "WLS"))])
     if common_run_kwargs.get("connectome_compress_mrtrix_dense"):
         args.append("--compress-mrtrix-dense")
     # Forwarded unchanged to every subject's run_subject_pipeline.py call.

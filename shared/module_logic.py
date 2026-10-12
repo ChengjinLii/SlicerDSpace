@@ -259,6 +259,12 @@ class SharedLogicMixin:
         dependency_groups: tuple[str, ...] = ("core",),
         require_phase_encoding: bool = False,
         mrtrix_bin_dir: Optional[Path] = None,
+        brain_mask_backend: str = "pnl_cnn",
+        pnl_mask_python: Optional[Path] = None,
+        pnl_mask_script: Optional[Path] = None,
+        pnl_mask_model_dir: Optional[Path] = None,
+        pnl_mask_ants_bin_dir: Optional[Path] = None,
+        postprocess_freesurfer_home: Optional[Path] = None,
     ) -> InputValidationResult:
         config = InputValidationConfig(
             subject_id=subject_id,
@@ -269,6 +275,12 @@ class SharedLogicMixin:
             dependency_groups=dependency_groups,
             require_phase_encoding=require_phase_encoding,
             mrtrix_bin_dir=mrtrix_bin_dir,
+            brain_mask_backend=brain_mask_backend,
+            pnl_mask_python=pnl_mask_python,
+            pnl_mask_script=pnl_mask_script,
+            pnl_mask_model_dir=pnl_mask_model_dir,
+            pnl_mask_ants_bin_dir=pnl_mask_ants_bin_dir,
+            postprocess_freesurfer_home=postprocess_freesurfer_home,
         )
         result = validate_subject_inputs(config)
         report = result.report_path.as_posix() if result.report_path else "not written"
@@ -285,6 +297,12 @@ class SharedLogicMixin:
         subject_root: Path,
         output_root: Optional[Path] = None,
         preprocessing_backend: str = "dipy",
+        brain_mask_backend: str = "pnl_cnn",
+        brain_mask_required: bool = False,
+        pnl_mask_python: Optional[Path] = None,
+        pnl_mask_script: Optional[Path] = None,
+        pnl_mask_model_dir: Optional[Path] = None,
+        pnl_mask_ants_bin_dir: Optional[Path] = None,
         tractography_backend: str = "csd_act",
         connectome_backend: str = "python",
         ddseg_device: str = "cpu",
@@ -292,6 +310,10 @@ class SharedLogicMixin:
         tractcloud_device: str = "auto",
         microstructure_run_free_water: bool = False,
         microstructure_run_noddi: bool = False,
+        microstructure_run_dki: bool = False,
+        dki_fit_method: str = "WLS",
+        dki_matlab_executable: Optional[Path] = None,
+        dki_mkcurve_root: Optional[Path] = None,
         python_executable: Optional[Path] = None,
         python_path_entries: tuple[Path, ...] = (),
         python_environment: Optional[str] = None,
@@ -322,6 +344,12 @@ class SharedLogicMixin:
                 conda_executable=conda_executable,
                 model_assets_dir=model_assets_dir,
                 preprocessing_backend=preprocessing_backend,
+                brain_mask_backend=brain_mask_backend,
+                brain_mask_required=brain_mask_required,
+                pnl_mask_python=pnl_mask_python,
+                pnl_mask_script=pnl_mask_script,
+                pnl_mask_model_dir=pnl_mask_model_dir,
+                pnl_mask_ants_bin_dir=pnl_mask_ants_bin_dir,
                 tractography_backend=tractography_backend,
                 connectome_backend=connectome_backend,
                 ddseg_device=ddseg_device,
@@ -329,6 +357,10 @@ class SharedLogicMixin:
                 tractcloud_device=tractcloud_device,
                 run_free_water=bool(microstructure_run_free_water),
                 run_noddi=bool(microstructure_run_noddi),
+                run_dki=bool(microstructure_run_dki),
+                dki_fit_method=dki_fit_method,
+                dki_matlab_executable=dki_matlab_executable,
+                dki_mkcurve_root=dki_mkcurve_root,
                 mrtrix_bin_dir=mrtrix_bin_dir,
                 preprocessing_mrtrix_bin_dir=preprocessing_mrtrix_bin_dir,
                 preprocessing_fsl_bin_dir=preprocessing_fsl_bin_dir,
@@ -357,6 +389,12 @@ class SharedLogicMixin:
         subject_root: Optional[Path] = None,
         output_root: Optional[Path] = None,
         preprocessing_backend: str = "dipy",
+        brain_mask_backend: str = "pnl_cnn",
+        brain_mask_required: bool = False,
+        pnl_mask_python: Optional[Path] = None,
+        pnl_mask_script: Optional[Path] = None,
+        pnl_mask_model_dir: Optional[Path] = None,
+        pnl_mask_ants_bin_dir: Optional[Path] = None,
         tractography_backend: str = "csd_act",
         connectome_backend: str = "python",
         ddseg_device: str = "auto",
@@ -364,6 +402,10 @@ class SharedLogicMixin:
         tractcloud_device: str = "auto",
         microstructure_run_free_water: bool = False,
         microstructure_run_noddi: bool = False,
+        microstructure_run_dki: bool = False,
+        dki_fit_method: str = "WLS",
+        dki_matlab_executable: Optional[Path] = None,
+        dki_mkcurve_root: Optional[Path] = None,
         python_executable: Optional[Path] = None,
         python_path_entries: tuple[Path, ...] = (),
         python_environment: Optional[str] = None,
@@ -402,6 +444,12 @@ class SharedLogicMixin:
                 conda_executable=conda_executable,
                 model_assets_dir=model_assets_dir,
                 preprocessing_backend=preprocessing_backend,
+                brain_mask_backend=brain_mask_backend,
+                brain_mask_required=brain_mask_required,
+                pnl_mask_python=pnl_mask_python,
+                pnl_mask_script=pnl_mask_script,
+                pnl_mask_model_dir=pnl_mask_model_dir,
+                pnl_mask_ants_bin_dir=pnl_mask_ants_bin_dir,
                 tractography_backend=tractography_backend,
                 connectome_backend=connectome_backend,
                 ddseg_device=ddseg_device,
@@ -409,6 +457,10 @@ class SharedLogicMixin:
                 tractcloud_device=tractcloud_device,
                 run_free_water=bool(microstructure_run_free_water),
                 run_noddi=bool(microstructure_run_noddi),
+                run_dki=bool(microstructure_run_dki),
+                dki_fit_method=dki_fit_method,
+                dki_matlab_executable=dki_matlab_executable,
+                dki_mkcurve_root=dki_mkcurve_root,
                 mrtrix_bin_dir=mrtrix_bin_dir,
                 preprocessing_mrtrix_bin_dir=preprocessing_mrtrix_bin_dir,
                 preprocessing_fsl_bin_dir=preprocessing_fsl_bin_dir,
@@ -470,10 +522,19 @@ class SharedLogicMixin:
         tractography_backend: str = "csd_act",
         bundle_backend: str = "wmql",
         preprocessing_backend: str = "dipy",
+        brain_mask_backend: str = "pnl_cnn",
+        pnl_mask_python: Optional[Path] = None,
+        pnl_mask_script: Optional[Path] = None,
+        pnl_mask_model_dir: Optional[Path] = None,
+        pnl_mask_ants_bin_dir: Optional[Path] = None,
         execute: bool = False,
         resume: bool = True,
         microstructure_run_free_water: bool = False,
         microstructure_run_noddi: bool = False,
+        microstructure_run_dki: bool = False,
+        microstructure_dki_fit_method: str = "WLS",
+        microstructure_dki_matlab_executable: Optional[Path] = None,
+        microstructure_dki_mkcurve_root: Optional[Path] = None,
         select_streamlines: int = 1_000_000,
         dti_min_length_mm: float = 10.0,
         dti_max_length_mm: float = 250.0,
@@ -511,10 +572,19 @@ class SharedLogicMixin:
                 tractography_backend=tractography_backend,
                 bundle_backend=bundle_backend,
                 preprocessing_backend=preprocessing_backend,
+                brain_mask_backend=brain_mask_backend,
+                pnl_mask_python=pnl_mask_python,
+                pnl_mask_script=pnl_mask_script,
+                pnl_mask_model_dir=pnl_mask_model_dir,
+                pnl_mask_ants_bin_dir=pnl_mask_ants_bin_dir,
                 execute=execute,
                 resume=resume,
                 microstructure_run_free_water=microstructure_run_free_water,
                 microstructure_run_noddi=microstructure_run_noddi,
+                microstructure_run_dki=microstructure_run_dki,
+                microstructure_dki_fit_method=microstructure_dki_fit_method,
+                microstructure_dki_matlab_executable=microstructure_dki_matlab_executable,
+                microstructure_dki_mkcurve_root=microstructure_dki_mkcurve_root,
                 preprocessing_mrtrix_bin_dir=preprocessing_mrtrix_bin_dir,
                 preprocessing_fsl_bin_dir=preprocessing_fsl_bin_dir,
                 preprocessing_reverse_phase_b0=preprocessing_reverse_phase_b0,
@@ -561,9 +631,18 @@ class SharedLogicMixin:
         tractography_backend: str = "csd_act",
         bundle_backend: str = "wmql",
         preprocessing_backend: str = "dipy",
+        brain_mask_backend: str = "pnl_cnn",
+        pnl_mask_python: Optional[Path] = None,
+        pnl_mask_script: Optional[Path] = None,
+        pnl_mask_model_dir: Optional[Path] = None,
+        pnl_mask_ants_bin_dir: Optional[Path] = None,
         resume: bool = True,
         microstructure_run_free_water: bool = False,
         microstructure_run_noddi: bool = False,
+        microstructure_run_dki: bool = False,
+        microstructure_dki_fit_method: str = "WLS",
+        microstructure_dki_matlab_executable: Optional[Path] = None,
+        microstructure_dki_mkcurve_root: Optional[Path] = None,
         select_streamlines: int = 1_000_000,
         dti_min_length_mm: float = 10.0,
         dti_max_length_mm: float = 250.0,
@@ -601,10 +680,19 @@ class SharedLogicMixin:
                 tractography_backend=tractography_backend,
                 bundle_backend=bundle_backend,
                 preprocessing_backend=preprocessing_backend,
+                brain_mask_backend=brain_mask_backend,
+                pnl_mask_python=pnl_mask_python,
+                pnl_mask_script=pnl_mask_script,
+                pnl_mask_model_dir=pnl_mask_model_dir,
+                pnl_mask_ants_bin_dir=pnl_mask_ants_bin_dir,
                 execute=True,
                 resume=resume,
                 microstructure_run_free_water=microstructure_run_free_water,
                 microstructure_run_noddi=microstructure_run_noddi,
+                microstructure_run_dki=microstructure_run_dki,
+                microstructure_dki_fit_method=microstructure_dki_fit_method,
+                microstructure_dki_matlab_executable=microstructure_dki_matlab_executable,
+                microstructure_dki_mkcurve_root=microstructure_dki_mkcurve_root,
                 preprocessing_mrtrix_bin_dir=preprocessing_mrtrix_bin_dir,
                 preprocessing_fsl_bin_dir=preprocessing_fsl_bin_dir,
                 preprocessing_reverse_phase_b0=preprocessing_reverse_phase_b0,
@@ -690,13 +778,22 @@ class SharedLogicMixin:
             return True
         return False
 
-    def _load_fiber_bundle_node(self, fiber_path: Path, node_name: str) -> bool:
+    def _load_fiber_bundle_node(
+        self, fiber_path: Path, node_name: str, *, preview_dir: Optional[Path] = None,
+    ) -> bool:
         if not fiber_path.is_file():
             return False
         loader = getattr(slicer.util, "loadFiberBundle", None)
         if fiber_path.suffix.lower() in {".trk", ".tck"}:
-            return self._load_streamline_file_as_fiber_bundle(fiber_path, node_name)
-        if loader is not None:
+            return self._load_streamline_file_as_fiber_bundle(fiber_path, node_name, preview_dir=preview_dir)
+        app = getattr(slicer, "app", None)
+        manager = app.moduleManager().factoryManager() if hasattr(app, "moduleManager") else None
+        scene = getattr(slicer, "mrmlScene", None)
+        native_available = (
+            scene.IsNodeClassRegistered("vtkMRMLFiberBundleNode")
+            or manager is not None and "TractographyDisplay" in set(manager.registeredModuleNames())
+        ) if hasattr(scene, "IsNodeClassRegistered") else True
+        if loader is not None and native_available:
             try:
                 fiber_node = loader(fiber_path.as_posix())
             except Exception as exc:  # pragma: no cover - depends on SlicerDMRI extension availability
@@ -708,7 +805,16 @@ class SharedLogicMixin:
                 return True
         if fiber_path.suffix.lower() in {".vtk", ".vtp"}:
             try:
-                success, model_node = slicer.util.loadModel(fiber_path.as_posix(), returnNode=True)
+                from shared.result_scene import tract_file_coordinate_system
+                coordinates = tract_file_coordinate_system(fiber_path)
+                storage = getattr(slicer, "vtkMRMLStorageNode", None)
+                coordinate_system = getattr(storage, "CoordinateSystem" + coordinates, 0 if coordinates == "RAS" else 1)
+                loader = getattr(slicer.util, "loadNodeFromFile", None)
+                properties = {"coordinateSystem": coordinate_system}
+                if loader is not None:
+                    success, model_node = loader(fiber_path.as_posix(), "ModelFile", properties=properties, returnNode=True)
+                else:
+                    success, model_node = slicer.util.loadModel(fiber_path.as_posix(), properties=properties, returnNode=True)
             except Exception as exc:  # pragma: no cover - depends on Slicer model IO availability
                 self.log(f"[Slicer] Generic model loader could not read {fiber_path}: {exc}")
                 success, model_node = False, None
@@ -716,60 +822,141 @@ class SharedLogicMixin:
                 model_node.SetName(node_name)
                 model_node.SetAttribute("SlicerDDSurfer.SourcePath", fiber_path.as_posix())
                 model_node.SetAttribute("SlicerDDSurfer.DisplayFallback", "vtkMRMLModelNode")
+                model_node.SetAttribute("SlicerDDSurfer.SourceCoordinateSystem", coordinates)
                 self.log(f"[Slicer] Loaded {fiber_path} as a model because SlicerDMRI fiber IO is unavailable")
                 return True
         self.log(f"[Slicer] No compatible fiber or model loader could read {fiber_path}")
         return False
 
-    def _load_streamline_file_as_fiber_bundle(self, fiber_path: Path, node_name: str) -> bool:
-        """Convert TRK/TCK RAS-mm streamlines to a SlicerDMRI fiber node in memory."""
+    def _load_streamline_file_as_fiber_bundle(
+        self, fiber_path: Path, node_name: str, *, max_streamlines: int = 30_000,
+        preview_dir: Optional[Path] = None,
+    ) -> bool:
+        """Load a lazy, uniformly bounded TRK/TCK display, never modify the source."""
 
         try:
             import nibabel as nib
             import numpy as np
             import vtk
+            from vtk.util.numpy_support import numpy_to_vtk, numpy_to_vtkIdTypeArray
+            from shared.auto_results import uniform_streamline_indices
+            from shared.result_scene import result_nodes, source_stamp
 
-            tractogram = nib.streamlines.load(fiber_path.as_posix()).tractogram
-            points = vtk.vtkPoints()
-            lines = vtk.vtkCellArray()
-            streamline_count = 0
-            for streamline in tractogram.streamlines:
-                coordinates = np.asarray(streamline, dtype=float)
-                if coordinates.ndim != 2 or coordinates.shape[0] < 2 or coordinates.shape[1] != 3:
+            if max_streamlines < 1:
+                raise ValueError("Display streamline limit must be positive")
+            original_stamp = source_stamp(fiber_path)
+            source = nib.streamlines.load(fiber_path.as_posix(), lazy_load=True)
+            tractogram = source.tractogram
+            if tractogram.affine_to_rasmm is None:
+                raise ValueError("Tractogram does not declare its world coordinate transform")
+            if not np.allclose(tractogram.affine_to_rasmm, np.eye(4)):
+                tractogram = tractogram.to_world(lazy=True)
+            total = int(source.header.get("nb_streamlines", 0))
+            # An unknown header count needs a streaming count pass, not an eager load.
+            if total <= 0:
+                total = sum(1 for _ in tractogram.streamlines)
+            indices = iter(uniform_streamline_indices(total, max_streamlines))
+            next_index = next(indices, None)
+            chunks = []
+            for index, streamline in enumerate(tractogram.streamlines):
+                if next_index is None:
+                    break
+                if index != next_index:
                     continue
-                if not np.all(np.isfinite(coordinates)):
-                    continue
-                lines.InsertNextCell(int(coordinates.shape[0]))
-                for point in coordinates:
-                    point_id = points.InsertNextPoint(float(point[0]), float(point[1]), float(point[2]))
-                    lines.InsertCellPoint(point_id)
-                streamline_count += 1
-            if streamline_count == 0:
-                self.log(f"[Slicer] No valid streamlines were found in {fiber_path}")
+                next_index = next(indices, None)
+                coordinates = np.array(streamline, dtype=np.float32, copy=True)
+                if coordinates.ndim == 2 and coordinates.shape[0] >= 2 and coordinates.shape[1] == 3:
+                    if np.all(np.isfinite(coordinates)):
+                        chunks.append(coordinates)
+            streamline_count = len(chunks)
+            if not streamline_count:
+                self.log(f"[Slicer] No valid display streamlines were found in {fiber_path}")
                 return False
+            coordinates = np.concatenate(chunks)
+            points = vtk.vtkPoints()
+            points.SetData(numpy_to_vtk(coordinates, deep=True))
+            lines = vtk.vtkCellArray()
+            id_dtype = np.int64 if vtk.vtkIdTypeArray().GetDataTypeSize() == 8 else np.int32
+            offsets = np.cumsum([0, *(len(chunk) for chunk in chunks)], dtype=id_dtype)
+            lines.SetData(numpy_to_vtkIdTypeArray(offsets, deep=True),
+                          numpy_to_vtkIdTypeArray(np.arange(len(coordinates), dtype=id_dtype), deep=True))
             poly_data = vtk.vtkPolyData()
             poly_data.SetPoints(points)
             poly_data.SetLines(lines)
+            space = vtk.vtkStringArray()
+            space.SetName("SPACE")
+            space.InsertNextValue("RAS")
+            poly_data.GetFieldData().AddArray(space)
             scene = slicer.mrmlScene
             fiber_class = "vtkMRMLFiberBundleNode"
-            fiber_class_available = bool(
-                hasattr(scene, "IsNodeClassRegistered") and scene.IsNodeClassRegistered(fiber_class)
-            )
-            if not fiber_class_available:
-                factory_manager = slicer.app.moduleManager().factoryManager()
-                registered_modules = set(factory_manager.registeredModuleNames())
-                if "TractographyDisplay" in registered_modules:
-                    factory_manager.loadModules(["TractographyDisplay"])
-                    fiber_class_available = bool(scene.IsNodeClassRegistered(fiber_class))
-
-            node_class = fiber_class if fiber_class_available else "vtkMRMLModelNode"
-            fiber_node = scene.AddNewNodeByClass(node_class, node_name)
-            if fiber_node is None:
-                self.log(f"[Slicer] Neither {fiber_class} nor vtkMRMLModelNode is available for {fiber_path}")
-                return False
-            fiber_node.SetAndObservePolyData(poly_data)
+            if preview_dir is not None:
+                import hashlib
+                import tempfile
+                preview_dir = preview_dir.expanduser().resolve()
+                preview_dir.mkdir(parents=True, exist_ok=True)
+                token = hashlib.sha256(f"{fiber_path.resolve()}:{original_stamp}:{max_streamlines}:ras-preview-v2".encode()).hexdigest()[:16]
+                preview_path = preview_dir / f"{fiber_path.stem}_{token}_display.vtk"
+                provenance_path = preview_path.with_suffix(".json")
+                if source_stamp(fiber_path) != original_stamp:
+                    raise RuntimeError("Source tractogram changed while generating its display preview")
+                provenance = {
+                    "kind": "slicerddsurfer_display_preview", "version": 1,
+                    "source_path": str(fiber_path.resolve()), "source_stamp": original_stamp,
+                    "preview_path": str(preview_path), "coordinate_system": "RAS",
+                    "source_streamline_count": total, "display_streamline_count": streamline_count,
+                    "display_streamline_limit": max_streamlines, "sampling": "uniform",
+                    "display_only": True, "quantitative_source": str(fiber_path.resolve()),
+                }
+                with tempfile.TemporaryDirectory(dir=preview_dir, prefix=".display-preview-") as temporary:
+                    staged = Path(temporary) / preview_path.name
+                    writer = vtk.vtkPolyDataWriter()
+                    writer.SetFileName(str(staged))
+                    writer.SetHeader("SlicerDDSurfer display preview. SPACE=RAS")
+                    writer.SetInputData(poly_data)
+                    writer.SetFileTypeToBinary()
+                    if writer.Write() != 1:
+                        raise RuntimeError("Failed to persist the display VTK preview")
+                    staged_json = Path(temporary) / provenance_path.name
+                    staged_json.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
+                    os.replace(staged, preview_path)
+                    os.replace(staged_json, provenance_path)
+                before = {node.GetID() for node in result_nodes(slicer)}
+                if not self._load_fiber_bundle_node(preview_path, node_name):
+                    return False
+                new_nodes = [node for node in result_nodes(slicer) if node.GetID() not in before]
+                if not new_nodes:
+                    return False
+                fiber_node = new_nodes[0]
+                node_class = fiber_node.GetClassName()
+                fiber_node.SetAttribute("SlicerDDSurfer.DisplayPreviewPath", str(preview_path))
+                fiber_node.SetAttribute("SlicerDDSurfer.DisplayPreviewProvenancePath", str(provenance_path))
+                fiber_node.SetAttribute("SlicerDDSurfer.PreviewSourceStamp", original_stamp)
+            else:
+                fiber_class_available = bool(
+                    hasattr(scene, "IsNodeClassRegistered") and scene.IsNodeClassRegistered(fiber_class)
+                )
+                if not fiber_class_available:
+                    factory_manager = slicer.app.moduleManager().factoryManager()
+                    registered_modules = set(factory_manager.registeredModuleNames())
+                    if "TractographyDisplay" in registered_modules:
+                        factory_manager.loadModules(["TractographyDisplay"])
+                        fiber_class_available = bool(scene.IsNodeClassRegistered(fiber_class))
+                node_class = fiber_class if fiber_class_available else "vtkMRMLModelNode"
+                fiber_node = scene.AddNewNodeByClass(node_class, node_name)
+                if fiber_node is None:
+                    self.log(f"[Slicer] Neither {fiber_class} nor vtkMRMLModelNode is available for {fiber_path}")
+                    return False
+                fiber_node.SetAndObservePolyData(poly_data)
             fiber_node.SetAttribute("SlicerDDSurfer.SourcePath", fiber_path.as_posix())
+            fiber_node.SetAttribute("SlicerDDSurfer.SourceCoordinateSystem", "RAS")
             fiber_node.SetAttribute("SlicerDDSurfer.StreamlineCount", str(streamline_count))
+            fiber_node.SetAttribute("SlicerDDSurfer.SourceStreamlineCount", str(total))
+            fiber_node.SetAttribute("SlicerDDSurfer.DisplayStreamlineLimit", str(max_streamlines))
+            fiber_node.SetAttribute("SlicerDDSurfer.DisplaySubsampled", "true" if total > max_streamlines else "false")
+            fiber_node.SetAttribute("SlicerDDSurfer.DisplaySampling", "uniform; display only; original file unchanged")
+            fiber_node.SetAttribute("SlicerDDSurfer.DisplayPreview", "true")
+            fiber_node.SetAttribute("SlicerDDSurfer.QuantitativeSourcePath", fiber_path.as_posix())
+            fiber_node.SetAttribute("SlicerDDSurfer.MeasurementWarning", "Display preview only; quantitative measurements must use the original tractogram")
             if node_class != fiber_class:
                 fiber_node.SetAttribute("SlicerDDSurfer.DisplayFallback", node_class)
             fiber_node.CreateDefaultDisplayNodes()
@@ -785,9 +972,16 @@ class SharedLogicMixin:
         from shared.result_scene import clear_run
         return clear_run(slicer, str(manifest_path.expanduser().resolve()))
 
-    def loadKeyResultsFromManifest(self, manifest_path: Path, *, max_items: int = 40, mode: str = "reuse") -> dict[str, Any]:
+    def loadKeyResultsFromManifest(
+        self, manifest_path: Path, *, max_items: int = 40, mode: str = "reuse", automatic: bool = False,
+    ) -> dict[str, Any]:
         """Load only explicitly successful manifest outputs, grouped by subject/run."""
-        from shared.result_scene import result_candidates, owned_nodes, clear_run, register_node, scalar_preset, source_stamp
+        from shared.result_scene import result_candidates, result_nodes, owned_nodes, clear_run, register_node, scalar_preset, source_stamp
+        from shared.result_scene import automatic_display_preset, annotate_automatic_result, result_file_suffix, show_automatic_results
+        if automatic and hasattr(getattr(slicer, "app", None), "thread"):
+            import qt
+            if qt.QThread.currentThread() != slicer.app.thread():
+                raise RuntimeError("Automatic result loading must run on the Slicer GUI thread")
         if mode not in {"reuse", "replace", "append"}:
             raise ValueError("Result mode must be reuse, replace or append")
         manifest_path = manifest_path.expanduser().resolve()
@@ -797,24 +991,46 @@ class SharedLogicMixin:
         run_name = str(manifest.get("run_name") or "Test1")
         if mode == "replace":
             clear_run(slicer, run_id)
-        existing = {node.GetAttribute("SlicerDDSurfer.SourcePath"): node for node in owned_nodes(slicer, run_id)}
-        candidates, skipped = result_candidates(manifest)
+        existing = {}
+        for node in owned_nodes(slicer, run_id):
+            existing.setdefault(node.GetAttribute("SlicerDDSurfer.SourcePath"), []).append(node)
+        if automatic:
+            from shared.auto_results import automatic_result_candidates
+            candidates, skipped, deferred = automatic_result_candidates(manifest)
+            for entry in skipped:
+                if entry.get("reason_category") == "qc_failed":
+                    for node in existing.get(entry["path"], []):
+                        if node.GetAttribute("SlicerDDSurfer.AutomaticLoaded") == "true":
+                            slicer.mrmlScene.RemoveNode(node)
+                    existing[entry["path"]] = [node for node in existing.get(entry["path"], [])
+                                               if node.GetAttribute("SlicerDDSurfer.AutomaticLoaded") != "true"]
+        else:
+            candidates, skipped = result_candidates(manifest)
+            deferred = candidates[max(0, max_items):]
+            candidates = candidates[:max(0, max_items)]
         loaded, reused = [], []
-        for candidate in candidates[:max(0, max_items)]:
+        for candidate in candidates:
             path, label = Path(candidate["path"]), candidate["label"]
-            if mode == "reuse" and candidate["path"] in existing:
-                node = existing[candidate["path"]]
-                if node.GetAttribute("SlicerDDSurfer.SourceStamp") == source_stamp(path):
-                    reused.append(candidate)
+            if mode == "reuse" and existing.get(candidate["path"]):
+                previous_nodes = existing[candidate["path"]]
+                if all(node.GetAttribute("SlicerDDSurfer.SourceStamp") == source_stamp(path) for node in previous_nodes):
+                    if automatic:
+                        for node in previous_nodes:
+                            annotate_automatic_result(node, candidate)
+                    reused.append({**candidate, "node_ids": [node.GetID() for node in previous_nodes]})
+                    continue
+                elif automatic:
+                    for node in previous_nodes:
+                        slicer.mrmlScene.RemoveNode(node)
                 else:
                     skipped.append({"path": str(path), "reason": "Source changed since loading; use Replace to reload this run"})
-                continue
-            before = {node.GetID() for node in slicer.util.getNodesByClass("vtkMRMLDisplayableNode")}
+                    continue
+            before = {node.GetID() for node in result_nodes(slicer)}
             try:
-                suffix = "".join(path.suffixes).lower()
+                suffix = result_file_suffix(path)
                 name = f"{subject}_{label}"
                 if suffix in {".nii", ".nii.gz", ".mgz"}:
-                    categorical = candidate["product"].startswith(("segmentation.", "parcellation.")) and any(
+                    categorical = candidate.get("display_role", "").startswith("categorical") or candidate["product"].startswith(("segmentation.", "parcellation.")) and any(
                         word in candidate["key"].lower() for word in ("label", "segmentation", "wmparc", "aparc"))
                     if categorical:
                         success = bool(slicer.util.loadLabelVolume(str(path), properties={"name": name, "show": False}))
@@ -825,20 +1041,34 @@ class SharedLogicMixin:
                 elif suffix == ".stl":
                     success = self._load_model_node(path, candidate["product"], subject)
                 else:
-                    success = self._load_fiber_bundle_node(path, name)
-                nodes = [node for node in slicer.util.getNodesByClass("vtkMRMLDisplayableNode") if node.GetID() not in before]
+                    if automatic:
+                        output_root = Path(manifest.get("output_root") or manifest_path.parent.parent)
+                        success = self._load_fiber_bundle_node(
+                            path, name, preview_dir=output_root / "06_slicer_scene_report" / "display_previews",
+                        )
+                    else:
+                        success = self._load_fiber_bundle_node(path, name)
+                nodes = [node for node in result_nodes(slicer) if node.GetID() not in before]
                 if not success or not nodes:
                     raise RuntimeError("Slicer loader returned no result node")
                 for node in nodes:
                     register_node(slicer, node, run_id, subject, run_name, candidate["product"], str(path))
-                    if node.IsA("vtkMRMLScalarVolumeNode") and not node.IsA("vtkMRMLLabelMapVolumeNode"):
+                    if automatic:
+                        automatic_display_preset(slicer, node, candidate)
+                    elif node.IsA("vtkMRMLScalarVolumeNode") and not node.IsA("vtkMRMLLabelMapVolumeNode"):
                         scalar_preset(node, label)
-                loaded.append(candidate)
+                loaded.append({**candidate, "node_ids": [node.GetID() for node in nodes]})
+                existing[candidate["path"]] = nodes
             except Exception as exc:
+                if automatic:
+                    for node in result_nodes(slicer):
+                        if node.GetID() not in before:
+                            slicer.mrmlScene.RemoveNode(node)
                 skipped.append({"path": str(path), "label": label, "reason": str(exc)})
-        deferred = candidates[max(0, max_items):]
+        view = show_automatic_results(slicer, loaded + reused, newly_loaded=loaded) if automatic and loaded else {}
         self.log(f"[Slicer] Loaded {len(loaded)}, reused {len(reused)}, deferred {len(deferred)} result(s).")
-        return {"loaded": loaded, "reused": reused, "skipped": skipped, "deferred": deferred, "manifest_path": run_id}
+        return {"loaded": loaded, "reused": reused, "skipped": skipped, "deferred": deferred,
+                "manifest_path": run_id, "view_node_ids": view}
 
     def _resolve_template_dir(self, *, required: bool = True) -> Path:
         from anatomy.surface.pipeline import resolve_surface_template_dir

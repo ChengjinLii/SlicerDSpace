@@ -26,7 +26,7 @@ SlicerDDSurfer 在一个 Slicer 模块中组织扩散 MRI 解剖重建、微结�
 | --- | --- | --- |
 | 输入准备 | DICOM/NIfTI/NRRD 导入、梯度检查、可选掩膜生成与预处理 | 对应导入或预处理后端 |
 | 解剖重建 | DDSeg 组织分割、DDParcel 脑区、DDSurfer 白质与软脑膜表面 | 匹配的模型资源；所选路线需要 PyTorch/SlicerDMRI |
-| 微结构分析 | DTI FA/MD、区域统计、Free-water、NODDI | 对应 Python 依赖；模型要求的多壳层采集 |
+| 微结构分析 | DTI FA/MD/AD/RD、可选 Free-water/NODDI/DKI、区域统计 | 对应依赖和采集适用性检查 |
 | 白质通路 | DTI/CSD、ACT/SIFT2、SAF、WMQL/WMA/TractCloud | 对应外部工具及资源 |
 | 结构连接组 | 区域矩阵、场景检查、QC 与溯源记录 | 空间一致的分区和流线；SIFT2 路线还需权重 |
 
@@ -77,7 +77,7 @@ python3 scripts/download_model_assets.py --profile surface \
 3. 仅勾选本次需要的分析产品。
 4. 展开 **高级设置**，设置分析路线、依赖和模型；运行前检查环境。
 5. 点击 **Run SlicerDDSurfer**。输入不全会显示红色提示，按日志修正后重试。
-6. 在 **高级设置 > 结果与 QC** 选择本次运行，加载声明的结果并检查 QC 报告。
+6. 成功阶段的关键结果会自动进入当前场景；在 **高级设置 > 结果与 QC** 检查 QC，并按需复用、替换或清除本次加载。
 
 默认界面不显示 Beginner 区，也不自动弹出首次向导。
 DICOM/NRRD 等格式转换位于 **高级设置 > 输入导入 / 转换**；
@@ -94,6 +94,16 @@ sub-01/
 
 DWI 与掩膜须在同一体素网格，梯度数量须与 DWI 测量一致。
 运动校正后的 DWI 必须配套旋转更新后的梯度。
+已有输入掩膜会保留；需要生成掩膜时，默认采用 **PNL diffusion CNN**，
+不是执行整套 PNL 预处理。在高级设置配置独立 Python、模型与 ANTs 环境，
+也可在 **分析参数** 中改选 SynthStrip、MRtrix 或仅使用已有掩膜。
+依赖不足会明确提示，不会静默换算法。详见[掩膜设置](docs/setup/brain_mask_gui_config.md)。
+
+微结构**默认仅运行 DTI**，FW、NODDI、DKI 在高级设置分别启用。
+DKI 在拟合前检查 b0、非零壳层、梯度方向和设计矩阵秩。
+**MK-Curve** 使用内置的作者算法 Python 移植版，不需要 MATLAB；与 DIPY WLS/OLS 是不同路线。
+MATLAB 仅保留为可选对照后端，不能把普通 MK 图称为 MK-Curve。详见[微结构说明](docs/setup/MICROSTRUCTURE.zh-CN.md)。
+自动显示流线时生成限量 VTK 预览，原始 TCK/TRK 不变；预览不用于定量分析。
 [最小 DTI 教程](docs/setup/QUICKSTART.zh-CN.md)包含明确标识的合成安装测试；
 合成数据不是人体科研示例。
 

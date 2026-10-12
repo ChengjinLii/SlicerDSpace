@@ -17,6 +17,8 @@ import platform
 import shutil
 import signal
 import subprocess
+import time
+from pathlib import Path
 from typing import Optional
 
 _PERL_SETPGRP_PATH = "/usr/bin/perl"
@@ -109,6 +111,42 @@ def capture_process_group_id(pid: int) -> Optional[int]:
     if os.name != "posix" or pid is None or pid <= 0:
         return None
     return pid
+
+
+def process_group_is_running(pgid: int) -> bool:
+    """Check live members of an owned group, excluding Linux zombie processes."""
+    if not pgid or pgid <= 0:
+        return False
+    if platform.system() == "Linux" and Path("/proc").is_dir():
+        for entry in Path("/proc").iterdir():
+            if not entry.name.isdigit():
+                continue
+            try:
+                fields = (entry / "stat").read_text().rsplit(") ", 1)[1].split()
+                if int(fields[2]) == pgid and fields[0] not in {"Z", "X"}:
+                    return True
+            except (OSError, ValueError, IndexError):
+                continue
+        return False
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def finish_process_group(pgid: int, *, grace_seconds: float) -> None:
+    """Wait for cleanup, then kill survivors even if the launcher has exited.
+
+    Only use the group id recorded by capture_process_group_id at launch.
+    This synchronous helper is for application teardown, not normal GUI slots.
+    """
+    deadline = time.monotonic() + grace_seconds
+    while process_group_is_running(pgid):
+        if time.monotonic() >= deadline:
+            kill_process_tree(0, grouped=True, force=True, pgid=pgid)
+            return
+        time.sleep(0.1)
 
 
 def kill_process_tree(

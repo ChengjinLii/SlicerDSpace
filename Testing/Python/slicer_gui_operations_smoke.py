@@ -1,6 +1,7 @@
 """Exercise real scene ownership and asynchronous cancellation without downloads."""
 
 import json
+import os
 import tempfile
 import traceback
 from pathlib import Path
@@ -36,32 +37,45 @@ def run():
         assert not any(button.enabled for button in widget._resultSceneButtons)
         print("GUI_RESULT_ACTION_RESET=True", flush=True)
         STATE["widget"] = widget
+        with slicer.util.NodeModify(widget._parameterNode):
+            widget._parameterNode.targetSurface = False
+            widget._parameterNode.targetSurfacePostprocess = True
+        assert widget._product_target_flags().surface_postprocess
+        assert "surface_postprocess" in widget._selected_product_targets()
+        widget._save_common_user_settings()
+        from shared.user_config import load_user_config
+        assert "surface_postprocess" in load_user_config()["run_defaults"]["targets"]
+        widget._parameterNode.targetSurfacePostprocess = False
+        print("GUI_POSTPROCESS_SELECTION_AND_PERSISTENCE=True", flush=True)
         node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", "synthetic")
         slicer.util.updateVolumeFromArray(node, np.ones((4, 5, 6), dtype=np.float32))
         image = ROOT / "fa.nii.gz"
         assert slicer.util.saveNode(node, str(image))
         slicer.mrmlScene.RemoveNode(node)
+        table = ROOT / "metrics.csv"
+        table.write_text("region,mean_fa\nleft,0.5\nright,0.6\n")
         manifest = ROOT / "run.json"
         manifest.write_text(json.dumps({"subject_id": "gui-test", "run_name": "Test1", "tasks": [
-            {"name": "microstructure.dti", "status": "completed", "outputs": {"fa": str(image)}},
+            {"name": "microstructure.dti", "status": "completed", "outputs": {"fa": str(image), "regional_statistics": str(table)}},
             {"name": "microstructure.noddi", "status": "failed", "outputs": {"ndi": str(image)}}]}))
         logic = SharedLogicMixin()
         logic.log = print
         first = logic.loadKeyResultsFromManifest(manifest)
-        assert len(first["loaded"]) == 1 and len(first["skipped"]) == 1
-        assert len(logic.loadKeyResultsFromManifest(manifest)["reused"]) == 1
-        assert len(owned_nodes(slicer, str(manifest))) == 1
-        logic.loadKeyResultsFromManifest(manifest, mode="append")
+        assert len(first["loaded"]) == 2 and len(first["skipped"]) == 1
+        assert len(logic.loadKeyResultsFromManifest(manifest)["reused"]) == 2
         assert len(owned_nodes(slicer, str(manifest))) == 2
+        assert sum(node.IsA("vtkMRMLTableNode") for node in owned_nodes(slicer, str(manifest))) == 1
+        logic.loadKeyResultsFromManifest(manifest, mode="append")
+        assert len(owned_nodes(slicer, str(manifest))) == 4
         logic.loadKeyResultsFromManifest(manifest, mode="replace")
-        assert len(owned_nodes(slicer, str(manifest))) == 1
+        assert len(owned_nodes(slicer, str(manifest))) == 2
         # Ownership persists through scene serialization.
         scene_file = ROOT / "scene.mrb"
         assert slicer.util.saveScene(str(scene_file))
         slicer.mrmlScene.Clear(0)
         assert slicer.util.loadScene(str(scene_file))
-        assert len(logic.loadKeyResultsFromManifest(manifest)["reused"]) == 1
-        assert logic.clearResultsFromManifest(manifest) == 1
+        assert len(logic.loadKeyResultsFromManifest(manifest)["reused"]) == 2
+        assert logic.clearResultsFromManifest(manifest) == 2
         print("GUI_SCENE_OWNERSHIP=True", flush=True)
         STATE["beats"] = 0
         timer = qt.QTimer()
@@ -83,13 +97,24 @@ def run():
                 assert owner._setupJob is None and not owner._pipelineActive
                 STATE["timer"].stop()
                 print("GUI_SETUP_CANCEL_AND_RESPONSIVENESS=True", flush=True)
+                assert start_setup_job(owner, "Synthetic teardown", [command],
+                                       lambda *args: (_ for _ in ()).throw(AssertionError("Teardown called UI callback")))
+                loop = qt.QEventLoop()
+                qt.QTimer.singleShot(500, loop.quit)
+                loop.exec_()
+                job = owner._setupJob
+                job.shutdown()
+                assert job.process.state() == qt.QProcess.NotRunning
+                assert owner._setupJob is None and not owner._pipelineActive
+                print("GUI_SETUP_TEARDOWN=True", flush=True)
                 slicer.util.mainWindow().resize(1500, 1050)
                 widget.ui.environmentCollapsibleButton.collapsed = True
                 widget.ui.configurationCollapsibleButton.collapsed = False
                 widget.ui.advancedRunCollapsibleButton.collapsed = True
                 slicer.app.processEvents()
-                slicer.util.mainWindow().grab().save("/tmp/slicerdsurfer-gui-20260920.png")
-                widget._runStatusPanel.grab().save("/tmp/slicerdsurfer-result-panel-20260920.png")
+                capture_root = Path(os.environ.get("SLICERDDSURFER_SMOKE_ROOT", "/tmp"))
+                slicer.util.mainWindow().grab().save(str(capture_root / "gui.png"))
+                widget._runStatusPanel.grab().save(str(capture_root / "result-panel.png"))
                 slicer.app.exit(0)
             except Exception:
                 fail()

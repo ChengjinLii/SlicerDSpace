@@ -18,8 +18,10 @@ class PredictionStageConfig:
     checkpoint_root: Path
     input_root: Path
     output_root: Path
-    precision: str = 'auto'
+    precision: str = 'fp32'
     python_bin: Optional[Path] = None
+    cpu_threads: int = 4
+    max_gpu_gib: float = 24.
 
 
 @dataclass(frozen=True)
@@ -40,6 +42,7 @@ def predict_subject(config):
     command = [BACKEND_ROOT / 'DDSurfer_predict.py', '--subjects', config.subject_id,
         '--surf_hemi', config.hemisphere, '--predict_mode', config.predict_mode,
         '--device', config.device, '--precision', config.precision,
+        '--cpu-threads', str(config.cpu_threads), '--max-gpu-gib', str(config.max_gpu_gib),
         '--input_root', config.input_root, '--output_dir', config.output_root,
         '--checkpoint_root', config.checkpoint_root, '--template_dir', config.template_dir,
         '--step_size', config.step_size, '--n_svf', config.n_svf, '--n_res', config.n_res]

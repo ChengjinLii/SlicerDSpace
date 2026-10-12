@@ -29,8 +29,12 @@ class MicrostructureLogicMixin:
         output_dir: Optional[Path],
         roi_label_map: Optional[Path] = None,
         fit_method: str = "wls",
-        run_free_water: bool = True,
-        run_noddi: bool = True,
+        run_free_water: bool = False,
+        run_noddi: bool = False,
+        run_dki: bool = False,
+        dki_fit_method: str = "WLS",
+        dki_matlab_executable: Optional[Path] = None,
+        dki_mkcurve_root: Optional[Path] = None,
         force_recompute: bool = False,
     ) -> None:
         from microstructure import MicrostructureConfig, run_microstructure
@@ -60,6 +64,10 @@ class MicrostructureLogicMixin:
             roi_label_map=roi_label_map.expanduser().resolve() if roi_label_map is not None else None,
             run_free_water=bool(run_free_water),
             run_noddi=bool(run_noddi),
+            run_dki=bool(run_dki),
+            dki_fit_method=dki_fit_method,
+            dki_matlab_executable=dki_matlab_executable,
+            dki_mkcurve_root=dki_mkcurve_root,
             force_recompute=bool(force_recompute),
         )
         result = run_microstructure(config, log=self.log)
@@ -79,24 +87,28 @@ class MicrostructureLogicMixin:
         self._load_scalar_volume_node(result.l2_path, f"{subject_id}_L2")
         self._load_scalar_volume_node(result.l3_path, f"{subject_id}_L3")
         self._load_scalar_volume_node(result.trace_path, f"{subject_id}_Trace")
-        if result.fwf_path.is_file():
+        if run_free_water and result.fwf_path.is_file():
             self.log(f"[Microstructure] Free Water Fraction: {result.fwf_path}")
             self._load_scalar_volume_node(result.fwf_path, f"{subject_id}_FWF")
-        if result.fw_tissue_fa_path.is_file():
+        if run_free_water and result.fw_tissue_fa_path.is_file():
             self.log(f"[Microstructure] Free Water Tissue FA: {result.fw_tissue_fa_path}")
             self._load_scalar_volume_node(result.fw_tissue_fa_path, f"{subject_id}_FW_TissueFA")
-        if result.fw_tissue_md_path.is_file():
+        if run_free_water and result.fw_tissue_md_path.is_file():
             self.log(f"[Microstructure] Free Water Tissue MD: {result.fw_tissue_md_path}")
             self._load_scalar_volume_node(result.fw_tissue_md_path, f"{subject_id}_FW_TissueMD")
-        if result.noddi_ndi_path.is_file():
+        if run_noddi and result.noddi_ndi_path.is_file():
             self.log(f"[Microstructure] NODDI NDI: {result.noddi_ndi_path}")
             self._load_scalar_volume_node(result.noddi_ndi_path, f"{subject_id}_NODDI_NDI")
-        if result.noddi_odi_path.is_file():
+        if run_noddi and result.noddi_odi_path.is_file():
             self.log(f"[Microstructure] NODDI ODI: {result.noddi_odi_path}")
             self._load_scalar_volume_node(result.noddi_odi_path, f"{subject_id}_NODDI_ODI")
-        if result.noddi_fwf_path.is_file():
+        if run_noddi and result.noddi_fwf_path.is_file():
             self.log(f"[Microstructure] NODDI FWF: {result.noddi_fwf_path}")
             self._load_scalar_volume_node(result.noddi_fwf_path, f"{subject_id}_NODDI_FWF")
+        if result.dki_result is not None:
+            from microstructure.dki import DKI_METRICS
+            for key in DKI_METRICS:
+                self._load_scalar_volume_node(result.dki_result.outputs[key], f"{subject_id}_DKI_{key.upper()}")
         if result.roi_stats_csv_path is not None:
             self.log(f"[Microstructure] ROI-wise stats CSV: {result.roi_stats_csv_path}")
             self._load_table_node(result.roi_stats_csv_path, f"{subject_id}_ROIWise_Microstructure")

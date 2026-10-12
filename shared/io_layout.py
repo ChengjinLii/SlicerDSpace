@@ -51,6 +51,10 @@ class SubjectIOLayout:
         return self.microstructure / "noddi"
 
     @property
+    def microstructure_dki(self) -> Path:
+        return self.microstructure / "dki"
+
+    @property
     def structural(self) -> Path:
         return self.outputs / "03_structural"
 

@@ -1,12 +1,10 @@
 """Non-blocking, cancellable setup jobs. Qt callbacks always run on the UI thread."""
 
-import os
-import signal
-import shutil
 from pathlib import Path
 from datetime import datetime
 
 from shared.ui_output_loading import qbytearray_to_text
+from shared.process_group import capture_process_group_id, grouped_launch_command, kill_process_tree
 
 
 class SetupJob:
@@ -18,6 +16,8 @@ class SetupJob:
         self.index = 0
         self.cancelled = self.finished = False
         self.tail = ""
+        self.grouped = False
+        self.pgid = None
         report_dir = getattr(owner, "_latestEnvironmentReportDir", None)
         if not report_dir:
             from shared.user_config import default_user_config_path
@@ -38,7 +38,7 @@ class SetupJob:
         self.process.connect("readyReadStandardOutput()", self.read)
         self.process.connect("finished(int,QProcess::ExitStatus)", self.step_finished)
         self.process.connect("errorOccurred(QProcess::ProcessError)", self.error)
-        self.process.connect("started()", lambda: self.signal_process(False) if self.cancelled else None)
+        self.process.connect("started()", self.started)
         self.dialog.show()
 
     def start_next(self):
@@ -55,10 +55,8 @@ class SetupJob:
             env.insert(key, str(value))
         env.insert("PYTHONUNBUFFERED", "1")
         self.process.setProcessEnvironment(env)
-        self.grouped = os.name == "posix" and bool(shutil.which("setsid"))
-        if self.grouped:
-            args = [program, *args]
-            program = shutil.which("setsid")
+        program, args, self.grouped = grouped_launch_command(program, args)
+        self.pgid = None
         command_text = repr([program, *args])
         self.log.write(command_text + "\n")
         self.log.flush()
@@ -66,9 +64,35 @@ class SetupJob:
         self.dialog.setLabelText(f"Step {self.index + 1}/{len(self.commands)}\nStarting...\nLog: {self.log_path}")
         self.process.start(program, args)
 
+    def started(self):
+        self.pgid = capture_process_group_id(int(self.process.processId())) if self.grouped else None
+        if self.cancelled:
+            self.signal_process(False)
+            self.schedule_force_stop()
+
+    def schedule_force_stop(self):
+        import qt
+        pid, grouped, pgid = int(self.process.processId()), self.grouped, self.pgid
+        if pid <= 0:
+            return
+        # Do not re-read QProcess or the job state after its leader exits.
+        def stop():
+            self.stop_tree(pid, grouped, pgid, True)
+            if self.cancelled and not self.finished:
+                self.finish("cancelled")
+        qt.QTimer.singleShot(2000, stop)
+
+    def stop_tree(self, pid, grouped, pgid, force):
+        try:
+            kill_process_tree(pid, grouped=grouped, pgid=pgid, force=force)
+        except OSError:
+            pass
+
     def read(self):
+        if self.finished:
+            return
         text = qbytearray_to_text(self.process.readAllStandardOutput())
-        if not text or self.finished:
+        if not text:
             return
         self.log.write(text)
         self.log.flush()
@@ -78,33 +102,45 @@ class SetupJob:
             self.dialog.setLabelText(f"Step {self.index + 1}/{len(self.commands)}\n{lines[-1][-220:]}\nLog: {self.log_path}")
 
     def cancel(self):
-        import qt
         if self.finished or self.cancelled:
             return
         self.cancelled = True
         self.dialog.setLabelText("Cancelling... waiting for the process to stop.")
         self.signal_process(False)
-        qt.QTimer.singleShot(2000, lambda: self.signal_process(True) if not self.finished else None)
+        self.schedule_force_stop()
+
+    def shutdown(self):
+        """Stop owned processes during widget teardown without UI callbacks."""
+        if self.finished:
+            return
+        self.read()
+        self.cancelled = self.finished = True
+        pid, grouped, pgid = int(self.process.processId()), self.grouped, self.pgid
+        self.signal_process(False)
+        if not self.process.waitForFinished(2000):
+            self.signal_process(True)
+            self.process.waitForFinished(3000)
+        self.stop_tree(pid, grouped, pgid, True)
+        self.log.write("\nSTATUS: cancelled (widget teardown)\n")
+        self.log.close()
+        self.owner._setupJob = None
+        self.owner._pipelineActive = False
+        self.dialog.close()
+        self.process.deleteLater()
+        self.dialog.deleteLater()
 
     def signal_process(self, force):
         pid = int(self.process.processId())
-        if pid <= 0:
-            return
-        if self.grouped:
-            try:
-                if os.getpgid(pid) == pid:
-                    os.killpg(pid, signal.SIGKILL if force else signal.SIGTERM)
-                    return
-            except ProcessLookupError:
-                return
-        self.process.kill() if force else self.process.terminate()
+        self.stop_tree(pid, self.grouped, self.pgid, force)
 
     def step_finished(self, code, exit_status):
         if self.finished:
             return
         self.read()
         if self.cancelled:
-            self.finish("cancelled")
+            # The launcher's exit does not prove its descendants have stopped.
+            # The recorded force-stop timer completes cancellation after cleanup.
+            return
         elif code != 0 or int(exit_status) != 0:
             self.finish("failed")
         else:

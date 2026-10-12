@@ -254,6 +254,45 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertEqual(result.tasks[0].name, "preprocessing.dwi")
             self.assertEqual(result.tasks[0].status, "planned")
 
+    def test_preprocessing_resume_checks_inputs_settings_force_and_failed_state(self) -> None:
+        from dataclasses import replace
+        from preprocessing import run_dwi_preprocessing
+        from shared import ProductOrchestratorConfig, plan_subject_products
+        from shared.orchestrator import _preprocessing_complete, _preprocessing_config
+        from test_preprocessing_pipeline import _write_fake_backend, _write_subject
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subject = _write_subject(root)
+            bin_dir = root / "bin"
+            _write_fake_backend(bin_dir)
+            config = ProductOrchestratorConfig(
+                subject_id="100307", subject_root=subject, targets=("preprocessing",),
+                execute=False, preprocessing_backend="mrtrix_fsl",
+                brain_mask_backend="provided",
+                preprocessing_mrtrix_bin_dir=bin_dir, preprocessing_fsl_bin_dir=bin_dir,
+            )
+            result = run_dwi_preprocessing(_preprocessing_config(config, subject, subject / "outputs/01_preproc"))
+            self.assertTrue(_preprocessing_complete(subject, "100307", config=config))
+            self.assertEqual(plan_subject_products(config, write=False).items[0].status, "skipped")
+            changed = (
+                replace(config, preprocessing_backend="dipy"),
+                replace(config, preprocessing_eddy_second_level_model="linear"),
+                replace(config, preprocessing_force=True),
+            )
+            for settings in changed:
+                self.assertFalse(_preprocessing_complete(subject, "100307", config=settings))
+                self.assertEqual(plan_subject_products(settings, write=False).items[0].status, "will_run")
+            manifest = json.loads(result.manifest_path.read_text())
+            manifest["status"] = "failed"
+            result.manifest_path.write_text(json.dumps(manifest))
+            self.assertFalse(_preprocessing_complete(subject, "100307"))
+            manifest["status"] = "completed"
+            result.manifest_path.write_text(json.dumps(manifest))
+            (subject / "input/bvals").write_text("0 2000 2000\n")
+            self.assertFalse(_preprocessing_complete(subject, "100307", config=config))
+            self.assertFalse(_preprocessing_complete(subject, "100307"))
+
     def test_dry_run_plans_selected_tractography_bundle_connectome_targets(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 
@@ -1298,23 +1337,33 @@ class ProductOrchestratorTest(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = run_subject_products(
-                ProductOrchestratorConfig(
-                    subject_id="100307",
-                    subject_root=subject_root,
-                    targets=("segmentation", "parcellation", "surface", "microstructure", "tractography", "bundles", "connectome"),
-                    run_name=run_name,
-                    select_streamlines=1,
-                    execute=True,
-                    resume=True,
-                )
+            from types import SimpleNamespace
+            verified_surface = SimpleNamespace(
+                manifest_path=layout.ddsurfer / 'surface_manifest.json',
+                qc_path=layout.ddsurfer / 'surface_qc.json',
+                generated_models=tuple(surface_dir.glob('*.stl')),
             )
+            with mock.patch('anatomy.surface.inspect_surface_resources', return_value=dict(available=True)), \
+                    mock.patch('anatomy.surface.run_surface', return_value=verified_surface) as surface_run:
+                result = run_subject_products(
+                    ProductOrchestratorConfig(
+                        subject_id="100307",
+                        subject_root=subject_root,
+                        targets=("segmentation", "parcellation", "surface", "microstructure", "tractography", "bundles", "connectome"),
+                        run_name=run_name,
+                        select_streamlines=1,
+                        execute=True,
+                        resume=True,
+                    )
+                )
+            self.assertTrue(surface_run.call_args.args[0].resume)
+            self.assertEqual(surface_run.call_args.args[0].precision, 'fp32')
 
             self.assertEqual(
                 [task.status for task in result.tasks],
-                ["skipped", "skipped", "skipped", "skipped", "skipped", "skipped", "skipped", "skipped"],
+                ["skipped", "skipped", "completed", "skipped", "skipped", "skipped", "skipped", "skipped"],
             )
-            self.assertTrue(all("completed" in task.reason for task in result.tasks))
+            self.assertTrue(all("completed" in task.reason for task in result.tasks if task.status == 'skipped'))
 
     def test_resume_rejects_deleted_wmql_and_connectome_products(self) -> None:
         from shared import ProductOrchestratorConfig, plan_subject_products, subject_layout
@@ -1396,6 +1445,13 @@ class ProductOrchestratorTest(unittest.TestCase):
             )
             complete_plan = plan_subject_products(config)
             self.assertEqual({item.target: item.status for item in complete_plan.items}, {"bundles": "skipped", "connectome": "skipped"})
+            from shared import run_subject_products
+            from shared.result_scene import result_candidates
+            result = run_subject_products(config)
+            payload = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
+            candidates, _ = result_candidates(payload)
+            self.assertTrue({conn_matrix.resolve().as_posix(), conn_nodes.resolve().as_posix()} <=
+                            {candidate["path"] for candidate in candidates})
 
             conn_matrix.write_text("source_node,target_node,streamline_count\n", encoding="utf-8")
             conn_nodes.write_text("node_id\tlabel\tname\n", encoding="utf-8")
@@ -1499,7 +1555,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             dependencies = {item.target: item.dependencies for item in plan.items}
             self.assertEqual(statuses["segmentation"], "skipped")
             self.assertEqual(statuses["parcellation"], "skipped")
-            self.assertEqual(statuses["surface"], "skipped")
+            self.assertEqual(statuses["surface"], "will_run")
             self.assertEqual(statuses["tractography"], "will_run")
             self.assertEqual(statuses["connectome"], "will_run")
             self.assertEqual(dependencies["tractography"]["segmentation"], "available")

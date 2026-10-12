@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from shared.external_process import merged_startup_environment, text_subprocess_kwargs
-from shared.brain_mask import generate_brain_mask_with_dwi2mask
+from shared.brain_mask import BrainMaskConfig, generate_brain_mask
 
 LOGGER = logging.getLogger(__name__)
 
@@ -211,6 +211,8 @@ def find_subject_root(
     subject_id: str,
     *,
     mrtrix_bin_dir: Optional[Path] = None,
+    brain_mask_config: Optional[BrainMaskConfig] = None,
+    generate_missing_mask: bool = True,
 ) -> RawInputBundle:
     inspected = inspect_subject_directory(base_path, subject_id)
     if inspected["mode"] != "subject_root":
@@ -221,13 +223,20 @@ def find_subject_root(
     subject_root = Path(inspected["subject_root"])
     input_dir = subject_root / "input"
     mask_path = input_dir / RAW_INPUT_FILES["mask"]
-    if not mask_path.exists():
-        generate_brain_mask_with_dwi2mask(
+    generated_record = mask_path.with_name("nodif_brain_mask.manifest.json")
+    verify_generated = False
+    if generated_record.is_file():
+        try:
+            verify_generated = json.loads(generated_record.read_text(encoding="utf-8")).get("version") == 2
+        except (OSError, ValueError, AttributeError):
+            verify_generated = True
+    if generate_missing_mask and (not mask_path.exists() or verify_generated):
+        generate_brain_mask(
             input_dir / RAW_INPUT_FILES["dwi"],
             input_dir / RAW_INPUT_FILES["bval"],
             input_dir / RAW_INPUT_FILES["bvec"],
             mask_path,
-            mrtrix_bin_dir=mrtrix_bin_dir,
+            config=brain_mask_config or BrainMaskConfig(mrtrix_bin_dir=mrtrix_bin_dir),
         )
     return RawInputBundle(
         subject_root=subject_root,
@@ -272,6 +281,20 @@ def resolve_preprocessed_input_bundle(
         return raw
     if manifest.get("status") not in {"completed", "cached"}:
         return raw
+    if "cache_key" in manifest:
+        cache_key = manifest.get("cache_key")
+        inputs = cache_key.get("inputs") if isinstance(cache_key, dict) else None
+        if not isinstance(inputs, dict):
+            return raw
+        for key, path in {"dwi": raw.dwi_path, "bval": raw.bval_path,
+                          "bvec": raw.bvec_path, "mask": raw.mask_path}.items():
+            record = inputs.get(key)
+            try:
+                current = _file_signature(path)
+                if not isinstance(record, dict) or any(record.get(field) != value for field, value in current.items()):
+                    return raw
+            except OSError:
+                return raw
     return RawInputBundle(
         subject_root=raw.subject_root,
         subject_id=raw.subject_id,

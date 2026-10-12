@@ -17,6 +17,43 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class ScientificOutputAuditTest(unittest.TestCase):
+    def test_preprocessing_independently_rejects_invalid_numerical_outputs(self):
+        import nibabel as nib
+        import numpy as np
+        from scripts.audit_scientific_outputs import _audit_preprocessing
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            paths = {key: root / name for key, name in {
+                "dwi": "dwi.nii.gz", "mask": "mask.nii.gz",
+                "bval": "bvals", "bvec": "bvecs",
+            }.items()}
+            nib.save(nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4)), paths["mask"])
+            paths["bvec"].write_text("0 1 1\n0 0 0\n0 0 0\n")
+            native = root / "preprocessing.json"
+            native.write_text(json.dumps({"cache_key": "fixture"}))
+            qc = root / "qc.json"
+            qc.write_text(json.dumps({"status": "completed"}))
+            manifest = {"tasks": [{"name": "preprocessing.dwi", "status": "completed",
+                                   "manifest_path": str(native), "qc_path": str(qc),
+                                   "outputs": {key: str(path) for key, path in paths.items()}}]}
+            for condition, bad_check in (("valid", None), ("nan", "preprocessing.dwi_finite"),
+                                         ("inf", "preprocessing.dwi_finite"),
+                                         ("zero", "preprocessing.brain_signal"),
+                                         ("negative_bval", "preprocessing.bvals_nonnegative")):
+                with self.subTest(condition=condition):
+                    data = np.ones((2, 2, 2, 3), dtype=np.float32)
+                    if condition in {"nan", "inf"}:
+                        data[0, 0, 0, 1] = np.nan if condition == "nan" else np.inf
+                    elif condition == "zero":
+                        data.fill(0)
+                    nib.save(nib.Nifti1Image(data, np.eye(4)), paths["dwi"])
+                    paths["bval"].write_text("0 -1000 1000\n" if condition == "negative_bval" else "0 1000 1000\n")
+                    checks = []
+                    self.assertTrue(_audit_preprocessing(manifest, checks))
+                    failures = {check["name"] for check in checks if not check["passed"]}
+                    self.assertEqual(failures, {bad_check} if bad_check else set())
+
     def _fixture(
         self,
         root: Path,
@@ -639,6 +676,30 @@ class ScientificOutputAuditTest(unittest.TestCase):
         checks = {check["name"]: check for check in report["subjects"][0]["checks"]}
         self.assertEqual(checks["wma.anatomical_tracts_readable"]["value"], 73)
         self.assertEqual(checks["wma.anatomical_tracts_nonempty"]["value"]["nonempty"], 73)
+
+    def test_raw_mrtrix_matrix_uses_anatomical_nodes_not_label_extent(self) -> None:
+        import numpy as np
+        from scripts.audit_scientific_outputs import audit_output_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_root = self._fixture(Path(tmp), full_routes=True)
+            matrix = np.zeros((4, 4))
+            matrix[1, 3] = matrix[3, 1] = 3
+            np.savetxt(next(output_root.rglob("connectome.csv")), matrix, delimiter=",")
+            qc_path = next(output_root.rglob("connectome_qc.json"))
+            qc = json.loads(qc_path.read_text())
+            qc["dense_node_count"] = 4
+            qc_path.write_text(json.dumps(qc))
+            report = audit_output_root(output_root, require_full_routes=True)
+            self.assertEqual(report["status"], "passed")
+            checks = {check["name"]: check for check in report["subjects"][0]["checks"]}
+            self.assertTrue(checks["connectome_streamline_count.node_count"]["passed"])
+            matrix[1, 3] = np.nan
+            np.savetxt(next(output_root.rglob("connectome.csv")), matrix, delimiter=",")
+            report = audit_output_root(output_root, require_full_routes=True)
+            self.assertEqual(report["status"], "failed")
+            checks = {check["name"]: check for check in report["subjects"][0]["checks"]}
+            self.assertFalse(checks["connectome_streamline_count.dense_values"]["passed"])
 
     def test_old_completed_qc_does_not_hide_corrupted_bundle_geometry(self) -> None:
         from scripts.audit_scientific_outputs import audit_output_root

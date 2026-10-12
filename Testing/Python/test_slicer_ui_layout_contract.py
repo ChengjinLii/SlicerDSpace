@@ -44,6 +44,14 @@ def _property_text(element: ET.Element, property_name: str) -> str:
 
 
 class SlicerUiLayoutContractTest(unittest.TestCase):
+    def test_running_another_backend_does_not_archive_previous_tractograms(self) -> None:
+        source = REPO_ROOT / "shared/orchestrator.py"
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call) and
+                    isinstance(node.func, ast.Name) and node.func.id == "archive_development_outputs")
+        flag = next(arg.value for arg in call.keywords if arg.arg == "archive_alternate_tractograms")
+        self.assertIsInstance(flag, ast.Constant)
+        self.assertIs(flag.value, False)
 
     def test_completion_keeps_run_disabled_until_result_loading_finishes(self) -> None:
         tree = ast.parse(MODULE_WIDGET_PATH.read_text(encoding="utf-8"))
@@ -78,6 +86,23 @@ class SlicerUiLayoutContractTest(unittest.TestCase):
         self.assertTrue(owner.ui.validateButton.enabled)
         self.assertEqual(updates, [])
 
+    def test_widget_routes_the_postprocess_checkbox_to_selected_targets(self) -> None:
+        from shared.ui_run_controller import ProductTargetFlags, selected_orchestrator_targets
+        tree = ast.parse(MODULE_WIDGET_PATH.read_text(encoding="utf-8"))
+        method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+                      and node.name == "_product_target_flags")
+        namespace = {"ProductTargetFlags": ProductTargetFlags}
+        exec(compile(ast.Module(body=[method], type_ignores=[]), str(MODULE_WIDGET_PATH), "exec"), namespace)
+        node = SimpleNamespace(**{name: False for name in (
+            "targetPreprocessing", "targetSurface", "targetSurfacePostprocess", "targetParcellation",
+            "targetSegmentation", "targetMicrostructure", "targetTractography", "targetBundles", "targetConnectome")})
+        owner = SimpleNamespace(_parameterNode=node)
+        node.targetSurfacePostprocess = True
+        flags = namespace["_product_target_flags"](owner)
+        self.assertTrue(flags.surface_postprocess)
+        self.assertIn("surface_postprocess", selected_orchestrator_targets(flags))
+        node.targetSurfacePostprocess = False
+        self.assertFalse(namespace["_product_target_flags"](owner).surface_postprocess)
 
     def test_main_workflow_sections_follow_workflow_order(self) -> None:
         root = _load_ui()

@@ -146,7 +146,7 @@
       ]
     },
     "surface/weights/manifest.json": {
-      "sha256": "134b3a3e70a412a9c4722619b8428cf8aeb3a0e324ad40850b2e679d9180bfc6",
+      "sha256": "f5cc5bb23375937feab1075dea2f06e8965f627285eb6a9fac295247ae21a01c",
       "size_bytes": 1641,
       "source_ids": [
         "slicerdsurfer_models_git"
@@ -338,5 +338,5 @@
       "all_lfs": true
     }
   },
-  "ddsurfer_upstream_commit": "c3fa631b340c3e06eb75ab4f0f9ac9a288a25488"
+  "ddsurfer_upstream_commit": "a4ec44cf56651b411ab30b9c91cfac63cc3b2300"
 }

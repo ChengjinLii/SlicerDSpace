@@ -3,28 +3,32 @@
 
 from __future__ import annotations
 
+import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import nibabel as nib
+import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from shared.brain_mask import BrainMaskConfig
+from Testing.Python.test_brain_mask_backends import (
+    ISOLATED_ENV, command_record, make_subject, mask_data, write_fake_mrtrix,
+)
+
 
 class BrainMaskTest(unittest.TestCase):
-    def _write_fake_dwi2mask(self, bin_dir: Path) -> None:
-        tool = bin_dir / "dwi2mask"
-        tool.write_text(
-            f"#!{sys.executable}\n"
-            "import pathlib, sys\n"
-            "pathlib.Path(sys.argv[2]).write_text('mask\\n', encoding='utf-8')\n",
-            encoding="utf-8",
-        )
-        tool.chmod(0o755)
+    def setUp(self) -> None:
+        environment = patch.dict(os.environ, ISOLATED_ENV)
+        environment.start()
+        self.addCleanup(environment.stop)
 
     def test_missing_subject_mask_is_generated_with_mrtrix_dwi2mask(self) -> None:
         from shared.pipeline import find_subject_root
@@ -32,21 +36,16 @@ class BrainMaskTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             bin_dir = root / "bin"
-            bin_dir.mkdir()
-            self._write_fake_dwi2mask(bin_dir)
-            subject_root = root / "sub-01"
+            write_fake_mrtrix(bin_dir)
+            subject_root = make_subject(root)
             input_dir = subject_root / "input"
-            input_dir.mkdir(parents=True)
-            (input_dir / "data.nii.gz").write_text("dwi\n", encoding="utf-8")
-            (input_dir / "bvals").write_text("0 1000 1000\n", encoding="utf-8")
-            (input_dir / "bvecs").write_text("0 1 0\n0 0 1\n0 0 0\n", encoding="utf-8")
 
             with patch.dict("os.environ", {"SLICERDDSURFER_MRTRIX_BIN_DIR": bin_dir.as_posix()}):
-                raw = find_subject_root(subject_root, "sub-01")
+                raw = find_subject_root(subject_root, "sub-01", brain_mask_config=BrainMaskConfig(backend="mrtrix"))
 
             self.assertTrue(raw.mask_path.is_file())
             self.assertTrue((input_dir / "nodif_brain_mask.manifest.json").is_file())
-            self.assertEqual(raw.mask_path.read_text(encoding="utf-8"), "mask\n")
+            np.testing.assert_array_equal(nib.load(str(raw.mask_path)).dataobj, mask_data())
 
     def test_explicit_mrtrix_bin_dir_is_used_for_mask_generation(self) -> None:
         from shared.pipeline import find_subject_root
@@ -54,14 +53,8 @@ class BrainMaskTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             bin_dir = root / "bin"
-            bin_dir.mkdir()
-            self._write_fake_dwi2mask(bin_dir)
-            subject_root = root / "sub-01"
-            input_dir = subject_root / "input"
-            input_dir.mkdir(parents=True)
-            (input_dir / "data.nii.gz").write_text("dwi\n", encoding="utf-8")
-            (input_dir / "bvals").write_text("0 1000\n", encoding="utf-8")
-            (input_dir / "bvecs").write_text("0 1\n0 0\n0 0\n", encoding="utf-8")
+            write_fake_mrtrix(bin_dir)
+            subject_root = make_subject(root)
 
             with patch.dict(
                 "os.environ",
@@ -72,6 +65,7 @@ class BrainMaskTest(unittest.TestCase):
                     subject_root,
                     "sub-01",
                     mrtrix_bin_dir=bin_dir,
+                    brain_mask_config=BrainMaskConfig(backend="mrtrix", mrtrix_bin_dir=bin_dir),
                 )
 
             self.assertTrue(raw.mask_path.is_file())
@@ -80,16 +74,11 @@ class BrainMaskTest(unittest.TestCase):
         from shared.pipeline import find_subject_root
 
         with tempfile.TemporaryDirectory() as tmp:
-            subject_root = Path(tmp) / "sub-01"
-            input_dir = subject_root / "input"
-            input_dir.mkdir(parents=True)
-            (input_dir / "data.nii.gz").write_text("dwi\n", encoding="utf-8")
-            (input_dir / "bvals").write_text("0 1000\n", encoding="utf-8")
-            (input_dir / "bvecs").write_text("0 1\n0 0\n0 0\n", encoding="utf-8")
+            subject_root = make_subject(Path(tmp))
 
             with patch.dict("os.environ", {"SLICERDDSURFER_MRTRIX_BIN_DIR": "/missing"}, clear=False):
                 with self.assertRaisesRegex(FileNotFoundError, "MRtrix3 dwi2mask"):
-                    find_subject_root(subject_root, "sub-01")
+                    find_subject_root(subject_root, "sub-01", brain_mask_config=BrainMaskConfig(backend="mrtrix"))
 
     def test_validation_accepts_subject_without_supplied_mask_when_dwi2mask_is_available(self) -> None:
         from shared import InputValidationConfig, validate_subject_inputs
@@ -97,22 +86,126 @@ class BrainMaskTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             bin_dir = root / "bin"
-            bin_dir.mkdir()
-            self._write_fake_dwi2mask(bin_dir)
-            subject_root = root / "sub-01"
+            write_fake_mrtrix(bin_dir)
+            subject_root = make_subject(root)
             input_dir = subject_root / "input"
-            input_dir.mkdir(parents=True)
-            (input_dir / "data.nii.gz").write_text("dwi\n", encoding="utf-8")
-            (input_dir / "bvals").write_text("0 1000\n", encoding="utf-8")
-            (input_dir / "bvecs").write_text("0 1\n0 0\n0 0\n", encoding="utf-8")
 
             with patch.dict("os.environ", {"SLICERDDSURFER_MRTRIX_BIN_DIR": bin_dir.as_posix()}):
                 result = validate_subject_inputs(
-                    InputValidationConfig(subject_id="sub-01", input_root=subject_root, dependency_groups=())
+                    InputValidationConfig(
+                        subject_id="sub-01", input_root=subject_root, dependency_groups=(),
+                        brain_mask_backend="mrtrix",
+                    )
                 )
 
-            self.assertTrue(result.passed)
+            self.assertTrue(result.passed, result.messages)
             self.assertTrue((input_dir / "nodif_brain_mask.nii.gz").is_file())
+            self.assertTrue(result.metrics["brain_mask_qc"]["geometry_pass"])
+
+    def test_default_pnl_missing_dependencies_fails_despite_available_mrtrix(self) -> None:
+        from shared import InputValidationConfig, validate_subject_inputs
+        from shared.pipeline import find_subject_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tool = write_fake_mrtrix(root / "bin")
+            subject = make_subject(root)
+            with patch.dict(os.environ, {"SLICERDDSURFER_MRTRIX_BIN_DIR": str(tool.parent)}):
+                with self.assertRaisesRegex(FileNotFoundError, "pnl_cnn unavailable"):
+                    find_subject_root(subject, "sub-01")
+                result = validate_subject_inputs(InputValidationConfig(
+                    subject_id="sub-01", input_root=subject, dependency_groups=(), write_report=False,
+                ))
+            self.assertFalse(result.passed)
+            self.assertEqual(result.metrics["brain_mask_selection"]["backend"], "pnl_cnn")
+            self.assertTrue(any("pnl_cnn" in issue.message for issue in result.messages))
+            self.assertFalse((subject / "input/nodif_brain_mask.nii.gz").exists())
+            self.assertFalse(tool.with_name(tool.name + ".calls.jsonl").exists())
+
+    def test_valid_supplied_mask_is_preserved_and_passes_qc_without_pnl_dependencies(self) -> None:
+        from shared import InputValidationConfig, validate_subject_inputs
+        from shared.pipeline import find_subject_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = make_subject(Path(tmp), supplied_mask=True)
+            mask = subject / "input/nodif_brain_mask.nii.gz"
+            original = mask.read_bytes()
+            with patch("shared.brain_mask._run") as run:
+                raw = find_subject_root(subject, "sub-01")
+                result = validate_subject_inputs(InputValidationConfig(
+                    subject_id="sub-01", input_root=subject, dependency_groups=(), write_report=False,
+                ))
+            run.assert_not_called()
+            self.assertEqual(raw.mask_path, mask)
+            self.assertEqual(mask.read_bytes(), original)
+            self.assertTrue(result.passed, result.messages)
+            self.assertFalse(result.metrics["brain_mask_backend"]["available"])
+            self.assertEqual(result.metrics["brain_mask_qc"]["brain_voxels"], 12)
+            self.assertFalse(mask.with_name("nodif_brain_mask.manifest.json").exists())
+
+    def test_find_subject_root_invalidates_generated_mask_after_dwi_changes(self) -> None:
+        from shared.pipeline import find_subject_root
+        from Testing.Python.test_brain_mask_backends import save_nifti
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tool = write_fake_mrtrix(root / "bin")
+            subject = make_subject(root)
+            config = BrainMaskConfig(backend="mrtrix", mrtrix_bin_dir=tool.parent)
+            raw = find_subject_root(subject, "sub-01", brain_mask_config=config)
+            record = raw.mask_path.with_name("nodif_brain_mask.manifest.json")
+            first = json.loads(record.read_text(encoding="utf-8"))
+            data = nib.load(str(raw.dwi_path)).get_fdata().astype(np.float32)
+            save_nifti(raw.dwi_path, data + 1)
+            find_subject_root(subject, "sub-01", brain_mask_config=config)
+            second = json.loads(record.read_text(encoding="utf-8"))
+            self.assertNotEqual(first["signature"]["inputs"], second["signature"]["inputs"])
+            self.assertEqual(len(command_record(tool).read_text(encoding="utf-8").splitlines()), 2)
+            with patch("shared.brain_mask._run") as run:
+                find_subject_root(subject, "sub-01", brain_mask_config=config)
+            run.assert_not_called()
+
+    def test_find_subject_root_does_not_ignore_invalid_generated_record_json(self) -> None:
+        from shared.pipeline import find_subject_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = make_subject(Path(tmp), supplied_mask=True)
+            record = subject / "input/nodif_brain_mask.manifest.json"
+            record.write_text('{"version": 2, broken json\n', encoding="ascii")
+            mask = subject / "input/nodif_brain_mask.nii.gz"
+            original = mask.read_bytes()
+            with patch("shared.brain_mask._run") as run:
+                with self.assertRaises(json.JSONDecodeError):
+                    find_subject_root(subject, "sub-01", brain_mask_config=BrainMaskConfig(backend="mrtrix"))
+            run.assert_not_called()
+            self.assertEqual(mask.read_bytes(), original)
+
+    def test_invalid_supplied_mask_fails_validation_without_inference_or_replacement(self) -> None:
+        from shared import InputValidationConfig, validate_subject_inputs
+        from Testing.Python.test_brain_mask_backends import AFFINE, SHAPE, save_nifti
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = make_subject(Path(tmp))
+            mask = subject / "input/nodif_brain_mask.nii.gz"
+            shifted = AFFINE.copy()
+            shifted[0, 3] += 1
+            for data, affine in (
+                (np.zeros(SHAPE, dtype=np.uint8), AFFINE),
+                (np.full(SHAPE, 0.5, dtype=np.float32), AFFINE),
+                (mask_data(), shifted),
+            ):
+                with self.subTest(affine=affine.tolist(), value=float(data.max())):
+                    save_nifti(mask, data, affine)
+                    original = mask.read_bytes()
+                    with patch("shared.brain_mask._run") as run:
+                        result = validate_subject_inputs(InputValidationConfig(
+                            subject_id="sub-01", input_root=subject, dependency_groups=(),
+                            brain_mask_backend="provided", write_report=False,
+                        ))
+                    run.assert_not_called()
+                    self.assertFalse(result.passed)
+                    self.assertTrue(any(issue.category == "brain_mask" for issue in result.messages))
+                    self.assertEqual(mask.read_bytes(), original)
 
 
 if __name__ == "__main__":

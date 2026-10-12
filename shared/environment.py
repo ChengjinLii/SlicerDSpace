@@ -90,6 +90,12 @@ class EnvironmentDoctorConfig:
     conda_executable: Optional[Path] = None
     platform_name: Optional[str] = None
     preprocessing_backend: str = "dipy"
+    brain_mask_backend: str = "pnl_cnn"
+    brain_mask_required: bool = False
+    pnl_mask_python: Optional[Path] = None
+    pnl_mask_script: Optional[Path] = None
+    pnl_mask_model_dir: Optional[Path] = None
+    pnl_mask_ants_bin_dir: Optional[Path] = None
     tractography_backend: str = "csd_act"
     connectome_backend: str = "python"
     ddseg_device: str = "cpu"
@@ -97,6 +103,10 @@ class EnvironmentDoctorConfig:
     tractcloud_device: str = "auto"
     run_free_water: bool = False
     run_noddi: bool = False
+    run_dki: bool = False
+    dki_fit_method: str = "WLS"
+    dki_matlab_executable: Optional[Path] = None
+    dki_mkcurve_root: Optional[Path] = None
     mrtrix_bin_dir: Optional[Path] = None
     preprocessing_mrtrix_bin_dir: Optional[Path] = None
     preprocessing_fsl_bin_dir: Optional[Path] = None
@@ -1029,11 +1039,12 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             else:
                 _add_dipy_stack(specs, target)
 
-        if target in {"microstructure", "microstructure_freewater", "tractography"} and (
-            target in {"microstructure", "microstructure_freewater"} or config.tractography_backend == "dti_det"
+        if target in {"microstructure", "microstructure_freewater", "microstructure_dki", "tractography"} and (
+            target in {"microstructure", "microstructure_freewater", "microstructure_dki"} or config.tractography_backend == "dti_det"
         ):
             _add_dipy_stack(specs, target)
-            _add_slicer_python_runtime(specs, target)
+            if target != "microstructure_dki":
+                _add_slicer_python_runtime(specs, target)
 
         if target == "microstructure_noddi":
             _add_core_python(specs, target)
@@ -1924,6 +1935,33 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
     checked_python = checked_python_path.as_posix()
     specs = build_dependency_specs(config)
     statuses = tuple(_check_spec(spec, platform_name) for spec in specs)
+    if "microstructure_dki" in targets and config.dki_fit_method.upper().startswith("MKCURVE"):
+        matlab_reference = config.dki_fit_method.upper() == "MKCURVE_MATLAB"
+        if matlab_reference:
+            from microstructure.mkcurve_matlab import inspect_mkcurve_backend
+        else:
+            from microstructure.mkcurve import inspect_mkcurve_backend
+        backend = inspect_mkcurve_backend(config.dki_matlab_executable, config.dki_mkcurve_root)
+        statuses += (DependencyStatus(
+            key="dki_mkcurve_backend", kind="setting", label="MK-Curve MATLAB reference" if matlab_reference else "MK-Curve Python port",
+            status="available" if backend["available"] else "missing", required=True,
+            targets=("microstructure_dki",), details=backend, install_group="mkcurve",
+            install_hint=("Configure Advanced MATLAB and author MK-Curve source paths; no fallback is used."
+                          if matlab_reference else "Bundled Python port uses NumPy/SciPy/nibabel; verify runtime resource installation."),
+        ),)
+    if config.brain_mask_required:
+        from shared.brain_mask import brain_mask_config_from_options, inspect_brain_mask_backend
+        masking = inspect_brain_mask_backend(brain_mask_config_from_options(config))
+        mask_targets = tuple(target for target in targets if target in {
+            "validation", "preprocessing", "segmentation", "parcellation", "surface",
+            "microstructure", "microstructure_freewater", "microstructure_noddi", "microstructure_dki", "tractography"})
+        if mask_targets:
+            statuses += (DependencyStatus(
+                key="brain_mask_backend", kind="setting", label="Selected brain-mask backend",
+                status="available" if masking["available"] and config.brain_mask_backend != "provided" else "missing",
+                required=True, targets=mask_targets, details=masking,
+                install_hint="Configure Advanced > Environment and models, provide a native mask, or select another backend explicitly.",
+                install_group="brain_mask"),)
     status_by_key = {item.key: item for item in statuses}
 
     target_statuses: list[TargetEnvironmentStatus] = []
@@ -1952,10 +1990,10 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
     missing_external_groups = tuple(
         sorted(
             {
-                specs_by_key.install_group
-                for specs_by_key in specs
-                if status_by_key[specs_by_key.key].status == "missing"
-                and (specs_by_key.kind != "python" or not specs_by_key.python_package)
+                item.install_group
+                for item in statuses
+                if item.status == "missing" and item.install_group
+                and (item.kind != "python" or not item.details.get("package"))
             }
         )
     )

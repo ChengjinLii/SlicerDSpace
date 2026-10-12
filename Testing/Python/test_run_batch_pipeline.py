@@ -28,6 +28,11 @@ def _write_raw_subject(subject_root: Path, *, nested_input: bool = True) -> None
 
 
 class RunBatchPipelineCliTest(unittest.TestCase):
+    def test_default_pipeline_entry_is_shipped_in_extension(self) -> None:
+        args = batch_cli.build_parser().parse_args(["--batch-root", "/tmp/batch"])
+        self.assertEqual(args.pipeline_script, REPO_ROOT / "shared/run_subject_pipeline_cli.py")
+        self.assertTrue(args.pipeline_script.is_file())
+
     def test_discover_subject_roots_under_batch_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             batch_root = Path(tmp)

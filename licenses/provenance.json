@@ -1,7 +1,7 @@
 {
   "version": 1,
   "reviewed_date": "2026-10-12",
-  "scope": "Recorded licenses for four previously missing source/data notices; not a blanket legal clearance or model-asset license",
+  "scope": "Recorded source/data licenses including the native MK-Curve translation; not a blanket legal clearance or model-asset license",
   "records": [
     {
       "id": "conversion",
@@ -38,6 +38,24 @@
       "source": "https://github.com/ChengjinLii/DDSurfer/blob/c3b2d40ead82b316f0adec900a23979f629da70b/utils/LICENSE.pytorch3d",
       "covers": ["anatomy/surface/ddsurfer_backend/utils/mesh.py"],
       "conditions": "Preserve Meta copyright, conditions and disclaimer for the attributed PyTorch3D-derived mesh helpers."
+    },
+    {
+      "id": "mkcurve",
+      "license": "LicenseRef-MK-Curve-BWH-1.0",
+      "path": "licenses/MK-Curve-LICENSE.txt",
+      "sha256": "1d7e4a343454fd43def6a0f78e9d5fb074e4a1a06ae525f1ac7046e16721a548",
+      "source": "https://github.com/zhangfanmark/MK-Curve/blob/9a213e1a5850fe50c998793f31ed852df00242f8/LICENSE",
+      "covers": ["microstructure/mkcurve.py"],
+      "conditions": "Preserve the complete BWH MK-Curve agreement and attribution; identify the modified Python translation as unofficial. No endorsement or clinical clearance is implied."
+    },
+    {
+      "id": "mkcurve_dki",
+      "license": "MPL-2.0",
+      "path": "licenses/MK-Curve-DKI-MPL-2.0.txt",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "source": "https://github.com/zhangfanmark/MK-Curve/blob/9a213e1a5850fe50c998793f31ed852df00242f8/lib/DKI/LICENSE",
+      "covers": ["microstructure/mkcurve_tensor.py", "microstructure/mkcurve_directions.json"],
+      "conditions": "Keep NYU/University of Antwerp copyright and MPL-2.0 notices; distribute the modified covered source files under MPL-2.0 with the extension. Other files are not automatically relicensed."
     }
   ]
 }

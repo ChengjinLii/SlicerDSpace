@@ -24,6 +24,10 @@ BSD-3-Clause 许可证。此前的 `LICENSE` 是同内容副本，并不是第�
 | PyTorch3D 派生 mesh 工具 | [Meta BSD-3-Clause 原文](../../licenses/PyTorch3D.txt)；[上游声明](https://github.com/ChengjinLii/DDSurfer/blob/c3b2d40ead82b316f0adec900a23979f629da70b/utils/LICENSE.pytorch3d) | 保留 Meta 声明、条件与免责声明 |
 
 FastSurfer 的 Apache-2.0 和 SAF 的 MIT 声明继续保留。
+MK-Curve 的 Python 移植算法保留 [BWH MK-Curve 协议](../../licenses/MK-Curve-LICENSE.txt)；
+派生 DKI 张量计算与积分方向表保留 [MPL-2.0](../../licenses/MK-Curve-DKI-MPL-2.0.txt)。
+这些文件作为修改后的 MPL 源码随插件分发，不将第三方代码改为项目 BSD 授权，
+也不宣称为作者正式发布或背书的 Python 实现。
 英文 [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) 含归属声明与完整条款入口，
 应随代码、安装包及其文档分发。本页是说明，不能替代原文。
 

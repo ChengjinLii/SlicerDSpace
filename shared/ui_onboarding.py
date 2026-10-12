@@ -13,7 +13,12 @@ from typing import Any
 
 from shared.demo_data import DEMO_SUBJECT_ID, create_synthetic_demo_subject
 from shared.user_config import default_user_config_path, load_user_config, update_user_config
-from shared.ui_workflow_text import WORKFLOW_TEXT, WORKFLOW_TEXT_BINDINGS, WORKFLOW_TOOLTIP_BINDINGS
+from shared.ui_workflow_text import (
+    BRAIN_MASK_BACKEND_TEXT_KEYS,
+    WORKFLOW_TEXT,
+    WORKFLOW_TEXT_BINDINGS,
+    WORKFLOW_TOOLTIP_BINDINGS,
+)
 
 
 LANGUAGE_SETTING = "SlicerDDSurfer/UserSettings/language"
@@ -74,7 +79,7 @@ TRANSLATIONS = {
         "segmentation": "Segmentation",
         "segmentation_option": "DDSeg WM / GM / CSF",
         "microstructure": "Microstructure",
-        "microstructure_option": "FA / MD, Free Water, NODDI",
+        "microstructure_option": "DTI maps; optional FW / NODDI / DKI in Advanced",
         "tractography": "Tractography",
         "tractography_option": "DTI or CSD / ACT tractogram",
         "bundles": "Bundles",
@@ -250,7 +255,7 @@ TRANSLATIONS = {
         "segmentation": "组织分割",
         "segmentation_option": "DDSeg 白质 / 灰质 / 脑脊液",
         "microstructure": "微结构",
-        "microstructure_option": "FA / MD、自由水、NODDI",
+        "microstructure_option": "DTI 参数图；高级设置可选 FW / NODDI / DKI",
         "tractography": "纤维追踪",
         "tractography_option": "DTI 或 CSD / ACT 纤维追踪",
         "bundles": "纤维束",
@@ -438,7 +443,31 @@ ENVIRONMENT_DEPENDENCY_TEXT = {
         ),
         "postprocess_freesurfer_home": (
             "FreeSurfer home",
-            "Optional. FreeSurfer installation root. FREESURFER_HOME is also detected.",
+            "FreeSurfer installation root for surface post-processing and SynthStrip brain masking. FREESURFER_HOME is also detected.",
+        ),
+        "pnl_mask_python": (
+            "PNL mask Python",
+            "Python executable in the external PNL CNN dMRI masking environment; not the general dependency-install Python.",
+        ),
+        "pnl_mask_script": (
+            "PNL dwi_masking.py",
+            "Path to the official external PNL CNN dwi_masking.py script. No alternative masking backend is selected automatically.",
+        ),
+        "pnl_mask_model_dir": (
+            "PNL mask model dir",
+            "External PNL CNN model directory. Configure it when generating a missing mask with PNL CNN; supplied masks are reused.",
+        ),
+        "pnl_mask_ants_bin_dir": (
+            "PNL mask ANTs bin dir",
+            "Directory containing ANTs executables required by the external PNL CNN masking script.",
+        ),
+        "dki_matlab_executable": (
+            "MK-Curve MATLAB executable",
+            "External MATLAB executable for MKCURVE_MATLAB only. Required when MKCURVE_MATLAB is selected; missing MATLAB blocks execution without fallback.",
+        ),
+        "dki_mkcurve_root": (
+            "Original MK-Curve checkout",
+            "Directory containing the author's original external MATLAB MK-Curve code. Standard DKI WLS/OLS does not use this path.",
         ),
         "tract_querier_root": (
             "TractQuerier root",
@@ -471,7 +500,13 @@ ENVIRONMENT_DEPENDENCY_TEXT = {
         "model_assets_dir": ("模型资源根目录", "可选。下载的 SlicerDDSurfer 模型资源根目录；默认使用 SLICERDDSURFER_MODEL_ASSETS_DIR 或用户数据目录。"),
         "mrtrix_bin_dir": ("MRtrix3 bin 目录", "可选。包含 mrconvert、dwi2response、dwi2fod、tckgen、tcksift2 的目录。"),
         "preprocessing_fsl_bin_dir": ("FSL bin 目录", "可选。包含 MRtrix/FSL 预处理所需 eddy 和 topup 的目录。"),
-        "postprocess_freesurfer_home": ("FreeSurfer 主目录", "可选。FreeSurfer 安装根目录；也会检测 FREESURFER_HOME。"),
+        "postprocess_freesurfer_home": ("FreeSurfer 主目录", "表面后处理与 SynthStrip 脑掩膜共用的 FreeSurfer 安装根目录；也会检测 FREESURFER_HOME。"),
+        "pnl_mask_python": ("PNL 掩膜 Python", "外部 PNL CNN dMRI 脑掩膜环境的 Python 可执行文件，不是用于通用依赖安装的 Python。"),
+        "pnl_mask_script": ("PNL dwi_masking.py", "外部官方 PNL CNN dwi_masking.py 脚本路径；不会自动切换其他脑掩膜后端。"),
+        "pnl_mask_model_dir": ("PNL 掩膜模型目录", "外部 PNL CNN 模型目录。使用 PNL CNN 生成缺失掩膜时需配置；已有的用户掩膜会被复用。"),
+        "pnl_mask_ants_bin_dir": ("PNL 掩膜 ANTs bin 目录", "包含外部 PNL CNN 脑掩膜脚本所需 ANTs 可执行文件的目录。"),
+        "dki_matlab_executable": ("MK-Curve MATLAB 可执行文件", "仅用于 MKCURVE_MATLAB 的外部 MATLAB 可执行文件。选择 MKCURVE_MATLAB 时必须配置；缺少 MATLAB 时明确阻止执行，不会回退。"),
+        "dki_mkcurve_root": ("作者原始 MK-Curve 代码目录", "包含作者原始外部 MATLAB MK-Curve 代码的目录；标准 DKI WLS/OLS 不使用此路径。"),
         "tract_querier_root": ("TractQuerier 根目录", "可选。当 Slicer Python 未安装 tract_querier 时，WMQL 使用的代码根目录。"),
         "wma_root": ("WMA 根目录", "可选。外部 WhiteMatterAnalysis 代码根目录。"),
         "wma_atlas_dir": ("WMA ORG atlas 目录", "可选。包含 ORG-RegAtlas-100HCP 和 ORG-800FC-100HCP 的目录。"),
@@ -851,6 +886,10 @@ def diagnostic_report_text(owner: Any) -> str:
         "mrtrix_bin_dir",
         "preprocessing_fsl_bin_dir",
         "postprocess_freesurfer_home",
+        "pnl_mask_python",
+        "pnl_mask_script",
+        "pnl_mask_model_dir",
+        "pnl_mask_ants_bin_dir",
         "tract_querier_root",
         "wma_root",
         "tractcloud_root",
@@ -1021,6 +1060,17 @@ def apply_onboarding_language(owner: Any, language: str) -> None:
 
     for widget_name, key in MAIN_UI_TOOLTIP_BINDINGS.items():
         _set_widget_tooltip(getattr(ui, widget_name, None), onboarding_text(lang, key))
+
+    mask_combo = getattr(ui, "brainMaskBackendComboBox", None)
+    if mask_combo is not None:
+        previous = mask_combo.blockSignals(True)
+        try:
+            for backend, key in BRAIN_MASK_BACKEND_TEXT_KEYS.items():
+                index = mask_combo.findData(backend)
+                if index >= 0:
+                    mask_combo.setItemText(index, onboarding_text(lang, key))
+        finally:
+            mask_combo.blockSignals(previous)
 
     for widget_name, key in MAIN_UI_TITLE_BINDINGS.items():
         widget = getattr(ui, widget_name, None)

@@ -17,14 +17,7 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def _write_subject(root: Path, subject_id: str = "100307") -> Path:
-    subject = root / subject_id
-    input_dir = subject / "input"
-    input_dir.mkdir(parents=True)
-    (input_dir / "data.nii.gz").write_text("dwi", encoding="utf-8")
-    (input_dir / "bvals").write_text("0 1000 1000\n", encoding="utf-8")
-    (input_dir / "bvecs").write_text("0 1 0\n0 0 1\n0 0 0\n", encoding="utf-8")
-    (input_dir / "nodif_brain_mask.nii.gz").write_text("mask", encoding="utf-8")
-    return subject
+    return _write_nifti_subject(root, subject_id)
 
 
 def _write_nifti_subject(root: Path, subject_id: str = "100307") -> Path:
@@ -38,7 +31,8 @@ def _write_nifti_subject(root: Path, subject_id: str = "100307") -> Path:
     data[..., 0] = 1.0
     data[2, 2, 2, 1] = 2.0
     data[2, 2, 3, 2] = 3.0
-    mask = np.ones((5, 5, 5), dtype=np.uint8)
+    mask = np.zeros((5, 5, 5), dtype=np.uint8)
+    mask[1:4, 1:4, 1:4] = 1
     nib.save(nib.Nifti1Image(data, np.eye(4)), str(input_dir / "data.nii.gz"))
     nib.save(nib.Nifti1Image(mask, np.eye(4)), str(input_dir / "nodif_brain_mask.nii.gz"))
     (input_dir / "bvals").write_text("0 1000 1000\n", encoding="utf-8")
@@ -47,7 +41,7 @@ def _write_nifti_subject(root: Path, subject_id: str = "100307") -> Path:
 
 
 def _write_fake_command(path: Path, body: str) -> None:
-    path.write_text("#!/usr/bin/env python3\n" + body, encoding="utf-8")
+    path.write_text(f"#!{sys.executable}\n" + body, encoding="utf-8")
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
 
@@ -56,8 +50,10 @@ def _write_fake_backend(bin_dir: Path) -> None:
     _write_fake_command(
         bin_dir / "dwidenoise",
         """
-import pathlib, sys
-pathlib.Path(sys.argv[2]).write_text('denoised')
+import pathlib, shutil, sys
+if pathlib.Path(sys.argv[2]).exists() and '-force' not in sys.argv:
+    raise SystemExit('existing denoised output needs -force')
+shutil.copy2(sys.argv[1], sys.argv[2])
 if '-noise' in sys.argv:
     pathlib.Path(sys.argv[sys.argv.index('-noise') + 1]).write_text('noise')
 """,
@@ -65,15 +61,15 @@ if '-noise' in sys.argv:
     _write_fake_command(
         bin_dir / "mrdegibbs",
         """
-import pathlib, sys
-pathlib.Path(sys.argv[2]).write_text('degibbs')
+import shutil, sys
+shutil.copy2(sys.argv[1], sys.argv[2])
 """,
     )
     _write_fake_command(
         bin_dir / "dwifslpreproc",
         """
-import os, pathlib, sys
-pathlib.Path(sys.argv[2]).write_text('preprocessed')
+import os, pathlib, shutil, sys
+shutil.copy2(sys.argv[1], sys.argv[2])
 pathlib.Path(sys.argv[2]).with_name('fsl_environment.txt').write_text(
     os.environ.get('FSLDIR', '') + '\\n' + os.environ.get('FSLOUTPUTTYPE', '') + '\\n'
 )
@@ -105,7 +101,14 @@ if '-scratch' in sys.argv:
         bin_dir / "dwi2mask",
         """
 import pathlib, sys
-pathlib.Path(sys.argv[2]).write_text('corrected-dwi-mask')
+import nibabel as nib
+import numpy as np
+image = nib.load(sys.argv[1])
+mask = np.zeros(image.shape[:3], dtype=np.uint8)
+mask[1:4, 1:4, 1:4] = 1
+nib.save(nib.Nifti1Image(mask, image.affine), sys.argv[2])
+with pathlib.Path(sys.argv[1]).with_name('mask_calls.txt').open('a') as stream:
+    stream.write(sys.argv[1] + '\\n')
 """,
     )
     _write_fake_command(
@@ -232,6 +235,7 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
                 subject_id="100307",
                 input_root=subject,
                 backend="mrtrix_fsl",
+                brain_mask_backend="mrtrix",
                 execute=True,
                 mrtrix_bin_dir=bin_dir,
                 fsl_bin_dir=bin_dir,
@@ -251,6 +255,12 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
             ).splitlines()
             self.assertEqual(fsl_environment, [bin_dir.parent.resolve().as_posix(), "NIFTI_GZ"])
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
+            self.assertEqual(backend["capabilities"]["denoise"], "mppca")
+            self.assertFalse(backend["capabilities"]["susceptibility_distortion_correction"])
+            self.assertFalse(any("Denoising" in warning for warning in qc["warnings"]))
+            self.assertIn("Susceptibility-distortion correction was not applied.", qc["warnings"])
+            self.assertIn("Bias-field correction was not applied by the selected backend.", qc["warnings"])
+            self.assertEqual(qc["backend_details"]["denoise"]["status"], "completed")
             expected_suffixes = {
                 "eddy_parameters": "_eddy_parameters.txt",
                 "eddy_movement_rms": "_eddy_movement_rms.txt",
@@ -272,10 +282,13 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
             self.assertTrue(all("-force" not in command for command in executable_commands))
             self.assertTrue(qc["backend_details"]["diagnostics"]["topup_field_map"]["exists"])
             self.assertEqual(qc["mask_generation"]["method"], "dwi2mask_corrected_dwi")
-            self.assertEqual(
-                result.final_mask_path.read_text(encoding="utf-8"),
-                "corrected-dwi-mask",
-            )
+            import nibabel as nib
+            import numpy as np
+
+            mask = nib.load(result.final_mask_path).get_fdata()
+            self.assertEqual(int(np.count_nonzero(mask)), 27)
+            calls = result.final_mask_path.with_name("mask_calls.txt")
+            self.assertEqual(calls.read_text().splitlines(), [result.final_dwi_path.as_posix()])
 
             cached = run_dwi_preprocessing(config)
             cached_qc = json.loads(cached.qc_path.read_text(encoding="utf-8"))
@@ -283,6 +296,9 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
             self.assertEqual(cached_qc["status"], "completed")
             self.assertEqual(cached_qc["reuse_status"], "cached")
             self.assertEqual(cached_qc["mask_refresh_status"], "not_needed")
+            self.assertEqual(cached_qc["warnings"], qc["warnings"])
+            self.assertEqual(cached_qc["backend_details"], qc["backend_details"])
+            self.assertEqual(cached_qc["mask_generation"], qc["mask_generation"])
 
             result.final_mask_path.unlink()
             refreshed = run_dwi_preprocessing(config)
@@ -292,15 +308,14 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
                 refreshed_qc["mask_refresh_status"],
                 "regenerated_from_corrected_dwi",
             )
-            self.assertEqual(
-                refreshed.final_mask_path.read_text(encoding="utf-8"),
-                "corrected-dwi-mask",
-            )
+            np.testing.assert_array_equal(nib.load(refreshed.final_mask_path).get_fdata(), mask)
+            self.assertEqual(calls.read_text().splitlines(), [result.final_dwi_path.as_posix()] * 2)
 
             changed_config = DwiPreprocessingConfig(
                 subject_id="100307",
                 input_root=subject,
                 backend="mrtrix_fsl",
+                brain_mask_backend="mrtrix",
                 execute=True,
                 mrtrix_bin_dir=bin_dir,
                 fsl_bin_dir=bin_dir,
@@ -309,10 +324,52 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
             changed = run_dwi_preprocessing(changed_config)
             changed_manifest = json.loads(changed.manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(changed.status, "completed")
+            self.assertTrue(changed_manifest["overwrite_existing"])
+            self.assertIn("-force", changed_manifest["commands"][0]["argv"])
             self.assertEqual(
                 changed_manifest["cache_key"]["parameters"]["eddy_second_level_model"],
                 "linear",
             )
+
+    def test_unknown_capabilities_do_not_claim_denoising_was_skipped(self) -> None:
+        from preprocessing.pipeline import _preprocessing_warnings
+
+        self.assertEqual(_preprocessing_warnings({}, {}), [])
+
+    def test_failed_or_running_attempt_cannot_reuse_leftover_final_files(self) -> None:
+        from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subject = _write_subject(root)
+            bin_dir = root / "bin"
+            _write_fake_backend(bin_dir)
+            config = DwiPreprocessingConfig(
+                subject_id="100307", input_root=subject, backend="mrtrix_fsl",
+                brain_mask_backend="mrtrix",
+                execute=True, mrtrix_bin_dir=bin_dir, fsl_bin_dir=bin_dir,
+            )
+            result = run_dwi_preprocessing(config)
+            for status in ("failed", "running"):
+                manifest = json.loads(result.manifest_path.read_text())
+                manifest["status"] = status
+                result.manifest_path.write_text(json.dumps(manifest))
+                self.assertEqual(run_dwi_preprocessing(config).status, "completed")
+
+    def test_mrtrix_reverse_pair_capabilities_report_applied_topup(self) -> None:
+        from preprocessing import DwiPreprocessingConfig, inspect_preprocessing_backend
+        from preprocessing.pipeline import _preprocessing_warnings
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = DwiPreprocessingConfig(
+                subject_id="100307", input_root=root, backend="mrtrix_fsl",
+                reverse_phase_b0=root / "reverse.nii.gz",
+            )
+            backend = inspect_preprocessing_backend(config)
+            self.assertTrue(backend["capabilities"]["susceptibility_distortion_correction"])
+            self.assertFalse(any("Denoising" in warning or "Susceptibility" in warning
+                                 for warning in _preprocessing_warnings(backend, {})))
 
     def test_mrtrix_rpe_none_forwards_phase_encoding_and_readout(self) -> None:
         from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
@@ -328,6 +385,7 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
                     subject_id="100307",
                     input_root=subject,
                     backend="mrtrix_fsl",
+                    brain_mask_backend="mrtrix",
                     execute=False,
                     mrtrix_bin_dir=bin_dir,
                     fsl_bin_dir=bin_dir,
@@ -356,6 +414,7 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
                     subject_id="100307",
                     input_root=subject,
                     backend="mrtrix_fsl",
+                    brain_mask_backend="mrtrix",
                     execute=True,
                     force=True,
                     mrtrix_bin_dir=bin_dir,
@@ -391,6 +450,7 @@ sys.exit(9)
                         input_root=subject,
                         output_dir=output_dir,
                         backend="mrtrix_fsl",
+                        brain_mask_backend="mrtrix",
                         execute=True,
                         mrtrix_bin_dir=bin_dir,
                         fsl_bin_dir=bin_dir,
@@ -426,6 +486,7 @@ sys.exit(9)
                     subject_id="100307",
                     input_root=subject,
                     backend="mrtrix_fsl",
+                    brain_mask_backend="mrtrix",
                     execute=True,
                     force=True,
                     mrtrix_bin_dir=bin_dir,
@@ -462,6 +523,7 @@ sys.exit(9)
                     subject_id="100307",
                     input_root=subject,
                     backend="dipy",
+                    brain_mask_backend="provided",
                     execute=True,
                     dipy_denoise_method="none",
                     dipy_run_gibbs=False,
@@ -488,6 +550,7 @@ sys.exit(9)
                     subject_id="100307",
                     input_root=subject,
                     backend="dipy",
+                    brain_mask_backend="provided",
                     execute=True,
                     dipy_denoise_method="none",
                     dipy_run_gibbs=False,

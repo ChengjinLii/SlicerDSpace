@@ -154,3 +154,20 @@ against its DOI's own Crossref record
 - DDSeg: *NeuroImage* 233:117934 (2021), doi:10.1016/j.neuroimage.2021.117934
 - DDParcel: *IEEE Transactions on Medical Imaging* 43(3):1191-1202 (2024),
   doi:10.1109/TMI.2023.3331691
+
+## MK-Curve Python Port
+
+`microstructure/mkcurve.py` translates the MK-Curve algorithm by Fan Zhang
+and collaborators at Brigham and Women's Hospital. Source:
+https://github.com/zhangfanmark/MK-Curve, commit
+`9a213e1a5850fe50c998793f31ed852df00242f8`.
+The complete upstream license is preserved in `licenses/MK-Curve-LICENSE.txt`.
+
+`microstructure/mkcurve_tensor.py` and `mkcurve_directions.json` derive from
+the upstream DKI routines, Copyright (c) 2017 New York University and
+University of Antwerp, under MPL-2.0. The full license is preserved in
+`licenses/MK-Curve-DKI-MPL-2.0.txt`. These modified files remain MPL-2.0
+source, shipped with the extension; the rest of the extension is not
+relicensed. The translation is maintained by SlicerDDSurfer and is not
+an official author-endorsed Python implementation. MATLAB I/O utilities
+and the proprietary MathWorks helper are not redistributed.

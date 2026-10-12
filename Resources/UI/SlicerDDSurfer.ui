@@ -660,6 +660,40 @@
           </property>
          </widget>
         </item>
+        <item row="6" column="0">
+         <widget class="QLabel" name="brainMaskBackendLabel">
+          <property name="text">
+           <string>Brain masking</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="1">
+         <widget class="QComboBox" name="brainMaskBackendComboBox">
+          <property name="toolTip">
+           <string>Existing supplied masks are respected. Select how to generate a missing mask; there is no automatic fallback. Configure PNL CNN paths under Advanced &gt; Environment and models &gt; External Runtime Paths. SynthStrip reuses FreeSurfer home.</string>
+          </property>
+          <item>
+           <property name="text">
+            <string>PNL CNN (dMRI)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>SynthStrip</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>MRtrix dwi2mask</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Provided mask only</string>
+           </property>
+          </item>
+         </widget>
+        </item>
         <item row="5" column="0">
          <widget class="QLabel" name="orchestrationMicrostructureStagesLabel">
           <property name="text">
@@ -668,28 +702,71 @@
          </widget>
         </item>
         <item row="5" column="1">
-         <widget class="QComboBox" name="orchestrationMicrostructureStagesComboBox">
+         <widget class="QWidget" name="orchestrationMicrostructureStageOptions">
+          <layout class="QVBoxLayout" name="microstructureStageOptionsLayout">
+           <property name="leftMargin"><number>0</number></property>
+           <property name="topMargin"><number>0</number></property>
+           <property name="rightMargin"><number>0</number></property>
+           <property name="bottomMargin"><number>0</number></property>
+           <item>
+            <widget class="QLabel" name="orchestrationDtiStageLabel">
+             <property name="text"><string>DTI (always enabled)</string></property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="optionalMicrostructureStagesLayout">
+             <item>
+              <widget class="QCheckBox" name="orchestrationFreeWaterCheckBox">
+               <property name="text"><string>FW</string></property>
+               <property name="toolTip"><string>Optional Free Water model; off by default.</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="orchestrationNoddiCheckBox">
+               <property name="text"><string>NODDI</string></property>
+               <property name="toolTip"><string>Optional NODDI model; off by default.</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="orchestrationDkiCheckBox">
+               <property name="text"><string>DKI</string></property>
+               <property name="toolTip"><string>Optional diffusion kurtosis analysis; off by default. Standard DKI is not MK-Curve.</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QComboBox" name="orchestrationMicrostructureStagesComboBox">
+             <property name="visible"><bool>false</bool></property>
+             <property name="SlicerParameterName" stdset="0"><string>orchestrationMicrostructureStages</string></property>
+             <item><property name="text"><string>dti</string></property></item>
+             <item><property name="text"><string>dti,freewater</string></property></item>
+             <item><property name="text"><string>dti,noddi</string></property></item>
+             <item><property name="text"><string>dti,dki</string></property></item>
+             <item><property name="text"><string>dti,freewater,noddi</string></property></item>
+             <item><property name="text"><string>dti,freewater,dki</string></property></item>
+             <item><property name="text"><string>dti,noddi,dki</string></property></item>
+             <item><property name="text"><string>dti,freewater,noddi,dki</string></property></item>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="7" column="0">
+         <widget class="QLabel" name="orchestrationDkiFitMethodLabel">
+          <property name="text"><string>DKI fit method</string></property>
+         </widget>
+        </item>
+        <item row="7" column="1">
+         <widget class="QComboBox" name="orchestrationDkiFitMethodComboBox">
+          <property name="SlicerParameterName" stdset="0"><string>orchestrationDkiFitMethod</string></property>
           <property name="toolTip">
-           <string>dti generates FA/MD/AD/RD/L1/L2/L3 and ROI-wise stats. Add freewater and noddi only when those optional stages are desired and dependencies are available.</string>
+           <string>WLS/OLS are standard DKI fits. MKCURVE is the bundled Python port; no MATLAB required. MKCURVE_MATLAB is an optional author-code reference backend requiring external paths. Multi-shell eligibility checks apply to all methods.</string>
           </property>
-          <property name="SlicerParameterName" stdset="0">
-           <string>orchestrationMicrostructureStages</string>
-          </property>
-          <item>
-           <property name="text">
-            <string>dti</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>dti,freewater</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>dti,freewater,noddi</string>
-           </property>
-          </item>
+          <item><property name="text"><string>WLS</string></property></item>
+          <item><property name="text"><string>OLS</string></property></item>
+          <item><property name="text"><string>MKCURVE</string></property></item>
+          <item><property name="text"><string>MKCURVE_MATLAB</string></property></item>
          </widget>
         </item>
        </layout>
@@ -1877,7 +1954,11 @@
   <tabstop>orchestrationTractographyBackendComboBox</tabstop>
   <tabstop>orchestrationBundleBackendComboBox</tabstop>
   <tabstop>wmaInputTractographyPath</tabstop>
-  <tabstop>orchestrationMicrostructureStagesComboBox</tabstop>
+  <tabstop>orchestrationFreeWaterCheckBox</tabstop>
+  <tabstop>orchestrationNoddiCheckBox</tabstop>
+  <tabstop>orchestrationDkiCheckBox</tabstop>
+  <tabstop>orchestrationDkiFitMethodComboBox</tabstop>
+  <tabstop>brainMaskBackendComboBox</tabstop>
   <tabstop>orchestrationRunNameLineEdit</tabstop>
   <tabstop>orchestrationSelectStreamlinesSpinBox</tabstop>
   <tabstop>batchModeCheckBox</tabstop>

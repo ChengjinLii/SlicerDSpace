@@ -31,7 +31,7 @@ One module, five workflow families:
 | --- | --- | --- |
 | Input preparation | DICOM/NIfTI/NRRD import, gradient validation, optional mask generation and preprocessing | Appropriate import/preprocessing backend |
 | Anatomical reconstruction | DDSeg tissue labels, DDParcel regions, DDSurfer white/pial surfaces | Matching model assets, PyTorch and SlicerDMRI for the selected route |
-| Microstructural analysis | DTI FA/MD, regional summaries, Free-water and NODDI | Route-specific Python packages; multi-shell acquisition where required |
+| Microstructural analysis | DTI FA/MD/AD/RD, optional Free-water, NODDI and DKI, regional summaries | Route-specific packages and acquisition suitability checks |
 | White-matter pathways | DTI/CSD tractography, ACT/SIFT2, SAF, WMQL/WMA/TractCloud bundles | Backend-specific tools and assets |
 | Structural connectivity | Regional matrices, Slicer scene inspection, QC and provenance | Compatible parcellation and tractogram; SIFT2 weights for weighted routes |
 
@@ -86,7 +86,7 @@ See [model setup](docs/assets/MODEL_ASSETS.md) and
 3. Select only the products you intend to run.
 4. Open **Advanced settings** to configure analysis routes, dependencies and models. Check the environment before processing.
 5. Click **Run SlicerDDSurfer**. Missing inputs appear in red; review the log and correct them before retrying.
-6. Open **Advanced settings > Results and QC**, select the run, load its declared results and inspect the QC report.
+6. Key results from successful stages automatically appear in the current scene. Use **Advanced settings > Results and QC** to inspect QC, reload, replace or clear this run's nodes.
 
 There is no visible Beginner section or automatic first-run wizard in the
 default interface. Input conversion is under **Advanced settings > Input import /
@@ -105,6 +105,20 @@ sub-01/
 
 DWI and mask must share a voxel grid. Gradient files must match the DWI
 measurements. Corrected gradients must accompany motion-corrected DWI.
+An existing input mask is retained. When a mask must be generated, the default
+is the **PNL diffusion CNN masking** backend, not the entire PNL preprocessing
+pipeline. Configure its separate Python/model/ANTs runtime under Advanced;
+SynthStrip, MRtrix and supplied-mask alternatives are selectable in
+**Advanced settings > Analysis parameters**. A missing backend is reported,
+never silently replaced. See [brain-mask setup](docs/setup/brain_mask_gui_config.md).
+
+Microstructure runs **DTI only by default**. Enable Free-water, NODDI or DKI
+independently under Advanced. DKI checks baseline measurements, nonzero shells,
+gradient directions and design rank before fitting. **MK-Curve** uses a bundled
+Python port of the author's algorithm, distinct from standard DIPY WLS/OLS.
+MATLAB is only an optional reference backend. See [microstructure routes](docs/setup/MICROSTRUCTURE.md).
+Automatic tractography display uses a capped VTK preview, preserving the full
+TCK/TRK source; a preview is not the analysis tractogram.
 For a minimal DTI-only walkthrough and a clearly identified synthetic
 installation test, see the [tutorial](docs/setup/QUICKSTART.md).
 

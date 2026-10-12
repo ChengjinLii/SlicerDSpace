@@ -7,7 +7,9 @@ dialogs and settings persistence paths are exercised with deterministic inputs.
 
 from __future__ import annotations
 
+import os
 import shutil
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -15,7 +17,7 @@ import qt
 import slicer
 
 
-TEMP_ROOT = Path("/tmp/slicerdsurfer-dependency-workflow-smoke")
+TEMP_ROOT = Path(os.environ.get("SLICERDDSURFER_SMOKE_ROOT", "/tmp/slicerdsurfer-dependency-workflow-smoke")) / "dependencies"
 MODEL_ROOT = TEMP_ROOT / "model-assets"
 MRTRIX_ROOT = TEMP_ROOT / "mrtrix" / "bin"
 
@@ -119,6 +121,7 @@ def _run() -> None:
     original_model_path = ""
     original_mrtrix_path = ""
     widget = None
+    original_start_job = None
     try:
         TEMP_ROOT.mkdir(parents=True, exist_ok=True)
         MRTRIX_ROOT.mkdir(parents=True, exist_ok=True)
@@ -133,6 +136,28 @@ def _run() -> None:
 
         original_existing = _patch_file_dialogs()
         original_loader = _patch_model_downloader(widget)
+        import shared.ui_setup_jobs as setup_jobs
+        original_start_job = setup_jobs.start_setup_job
+
+        def controlled_start_job(owner, title, commands, on_done):
+            # Exercise the real async job and widget callbacks without network
+            # downloads. This tiny fake asset is only a test fixture.
+            fixture = MODEL_ROOT / "segmentation/weights/dti_axial.pt"
+            code = ("from pathlib import Path; import time; time.sleep(0.3); "
+                    f"p=Path({str(fixture)!r}); p.parent.mkdir(parents=True,exist_ok=True); "
+                    "p.write_text('fake smoke asset'); print('fixture ready')")
+            command = (widget._slicer_launcher_program(), ["--launch", "PythonSlicer", "-u", "-c", code], {})
+            return original_start_job(owner, title, [command], on_done)
+
+        setup_jobs.start_setup_job = controlled_start_job
+
+        def wait_for_job():
+            deadline = time.monotonic() + 60
+            while getattr(widget, "_setupJob", None) is not None and time.monotonic() < deadline:
+                loop = qt.QEventLoop()
+                qt.QTimer.singleShot(50, loop.quit)
+                loop.exec_()
+            assert getattr(widget, "_setupJob", None) is None, "Async setup timed out"
         original_info_display = slicer.util.infoDisplay
         info_messages = []
 
@@ -160,12 +185,12 @@ def _run() -> None:
 
         widget._lastEnvironmentResult = FakeEnvironmentResult(statuses=(model_item, external_item))
         widget._onInstallAllEnvironmentItemsClicked()
-        slicer.app.processEvents()
+        wait_for_job()
         bulk_asset_file = MODEL_ROOT / "segmentation" / "weights" / "dti_axial.pt"
         bulk_external_notice = any("not installed silently" in message for message in info_messages)
 
         widget._onInstallEnvironmentItemClicked(model_item)
-        slicer.app.processEvents()
+        wait_for_job()
         model_saved = str(
             slicer.app.userSettings().value(widget._environment_settings_key("model_assets_dir"), "")
         )
@@ -226,6 +251,8 @@ def _run() -> None:
         print(f"SLICERDDSURFER_DEP_WORKFLOW_ERROR={exc}", flush=True)
         slicer.app.exit(2)
     finally:
+        if original_start_job is not None:
+            setup_jobs.start_setup_job = original_start_job
         if original_existing is not None:
             qt.QFileDialog.getExistingDirectory = original_existing
         if original_loader is not None:

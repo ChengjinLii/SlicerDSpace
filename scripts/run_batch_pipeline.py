@@ -203,7 +203,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Run SlicerDDSurfer over a directory of subject roots. Unknown options are forwarded "
-            "to run_subject_pipeline.py, for example --all, --targets, --bundle-backend, or external paths."
+            "unchanged to every subject CLI, for example --all, --targets, --brain-mask-backend, "
+            "--pnl-mask-python, --pnl-mask-script, --pnl-mask-model-dir, --pnl-mask-ants-bin-dir, "
+            "--postprocess-freesurfer-home, or other external paths."
+            " Microstructure defaults to DTI only; --microstructure-stages, --run-free-water, "
+            "--run-noddi, --run-dki, --dki-fit-method, --dki-matlab-executable and --dki-mkcurve-root "
+            "are forwarded unchanged."
         )
     )
     parser.add_argument("--batch-root", required=True, type=Path, help="Directory containing one subdirectory per subject.")
@@ -226,7 +231,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--pipeline-script",
         type=Path,
-        default=REPO_ROOT / "run_subject_pipeline.py",
+        default=REPO_ROOT / "shared" / "run_subject_pipeline_cli.py",
         help="Subject-level CLI script to execute.",
     )
     parser.add_argument("--python-executable", type=Path, default=Path(sys.executable), help="Python executable for subject CLI.")

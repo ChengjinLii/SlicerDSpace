@@ -1,11 +1,70 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
-from shared.result_scene import result_candidates, recorded_qc_summary
+from shared.result_scene import result_candidates, recorded_qc_summary, result_nodes, owned_nodes, clear_run
 
 
 class ResultSelectionTest(unittest.TestCase):
+    def test_tables_are_owned_reused_and_cleared_as_result_nodes(self):
+        class Node:
+            def __init__(self, identity, run):
+                self.identity, self.run = identity, run
+
+            def GetID(self):
+                return self.identity
+
+            def GetAttribute(self, key):
+                return self.run if key == "SlicerDDSurfer.Run" else None
+
+        volume, table, other = Node("volume", "run"), Node("table", "run"), Node("other", "other-run")
+        removed = []
+        slicer = SimpleNamespace(
+            util=SimpleNamespace(getNodesByClass=lambda name: [volume, other] if name == "vtkMRMLDisplayableNode" else [table]),
+            mrmlScene=SimpleNamespace(RemoveNode=removed.append))
+        self.assertEqual(result_nodes(slicer), [volume, other, table])
+        self.assertEqual(owned_nodes(slicer, "run"), [volume, table])
+        self.assertEqual(clear_run(slicer, "run"), 2)
+        self.assertEqual(removed, [volume, table])
+
+    def test_bundle_qc_files_are_loaded_without_scanning_stale_siblings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            good, stale = root / "af.trk", root / "stale.trk"
+            good.touch()
+            stale.touch()
+            qc = root / "qc.json"
+            qc.write_text(json.dumps({"status": "completed", "output_summary": {"bundle_files": [str(good)]}}))
+            for name in ("bundles.wmql", "bundles.tractcloud"):
+                task = {"name": name, "status": "completed", "qc_path": str(qc), "outputs": {"output_dir": str(root)}}
+                candidates, _ = result_candidates({"tasks": [task]})
+                self.assertEqual([c["path"] for c in candidates], [str(good)])
+                task["status"] = "failed"
+                self.assertEqual(result_candidates({"tasks": [task]})[0], [])
+
+    def test_legacy_wma_only_uses_qc_declared_directory_and_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            folder = root / "anatomical"
+            folder.mkdir()
+            good = folder / "af.vtp"
+            good.touch()
+            qc = root / "qc.json"
+            qc.write_text(json.dumps({"status": "completed", "output_summary": {
+                "anatomical_tracts_dir": str(folder), "anatomical_tract_count": 1}}))
+            task = {"name": "bundles.wma", "status": "skipped", "reason": "completed outputs found", "qc_path": str(qc)}
+            self.assertEqual([c["path"] for c in result_candidates({"tasks": [task]})[0]], [str(good)])
+            (folder / "unexpected.vtp").touch()
+            self.assertEqual(result_candidates({"tasks": [task]})[0], [])
+
+    def test_failed_bundle_qc_cannot_enable_loading(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            qc = Path(tmp) / "qc.json"
+            qc.write_text(json.dumps({"status": "failed", "output_summary": {"bundle_files": ["/unrelated/a.trk"]}}))
+            self.assertEqual(result_candidates({"tasks": [{"name": "bundles.wmql", "status": "completed", "qc_path": str(qc)}]})[0], [])
+
     def test_completed_execution_does_not_imply_passed_qc(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "qc.json"

@@ -1,4 +1,4 @@
-"""Phase-3 microstructure workflow: DTI maps, Free Water, and AMICO NODDI."""
+"""Microstructure workflow: default DTI and optional FW, NODDI, and guarded DKI."""
 
 from __future__ import annotations
 
@@ -77,8 +77,12 @@ class MicrostructureConfig:
     free_water_n_jobs: int | None = None
     free_water_vox_per_chunk: int | None = None
     free_water_max_fraction_for_tissue: float = FREE_WATER_MAX_FRACTION_FOR_TISSUE
-    run_free_water: bool = True
-    run_noddi: bool = True
+    run_free_water: bool = False
+    run_noddi: bool = False
+    run_dki: bool = False
+    dki_fit_method: str = "WLS"
+    dki_matlab_executable: Path | None = None
+    dki_mkcurve_root: Path | None = None
     force_recompute: bool = False
     noddi_directional_average: bool = False
     noddi_b0_threshold: int = 50
@@ -117,6 +121,7 @@ class MicrostructureResult:
     roi_label_map: Path | None
     roi_stats_csv_path: Path | None
     roi_stats_json_path: Path | None
+    dki_result: object | None = None
 
 
 def _emit(message: str, log: Optional[Callable[[str], None]] = None) -> None:
@@ -1374,6 +1379,16 @@ def run_microstructure(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     paths = _output_paths(subject_id, output_dir)
+    dki_result = None
+    if config.run_dki:
+        from microstructure.dki import DkiConfig, run_dki
+
+        dki_result = run_dki(DkiConfig(
+            subject_id=subject_id, raw_input_bundle=config.raw_input_bundle,
+            output_dir=output_dir / "dki", fit_method=config.dki_fit_method,
+            matlab_executable=config.dki_matlab_executable, mkcurve_root=config.dki_mkcurve_root,
+            force_recompute=config.force_recompute,
+        ), log=log)
     expected_free_water_manifest = _expected_free_water_manifest(config)
     if (
         bool(config.run_free_water)
@@ -1393,6 +1408,10 @@ def run_microstructure(
         noddi_available=noddi_available,
     )
     actual_manifest = _read_json(paths["manifest"])
+    expected_manifest["dki_model"] = {
+        "run_enabled": bool(config.run_dki),
+        "manifest": _read_json(dki_result.manifest_path) if dki_result is not None else None,
+    }
     roi_enabled = roi_label_map is not None
     force_recompute = bool(config.force_recompute)
 
@@ -1433,6 +1452,7 @@ def run_microstructure(
             roi_label_map=roi_label_map,
             roi_stats_csv_path=paths["roi_stats_csv"] if roi_enabled else None,
             roi_stats_json_path=paths["roi_stats_json"] if roi_enabled else None,
+            dki_result=dki_result,
         )
 
     _emit(
@@ -1535,12 +1555,27 @@ def run_microstructure(
                 }
             )
         validity_masks: dict[str, np.ndarray] = {}
+        if dki_result is not None:
+            from microstructure.dki import DKI_METRICS
+
+            valid = nib.load(str(dki_result.valid_mask_path)).get_fdata(dtype=np.float32) > 0
+            for key in DKI_METRICS:
+                metric_paths[f"dki_{key}"] = dki_result.outputs[f"{key}_raw"]
+                validity_masks[f"dki_{key}"] = valid
+            corrected_mask = dki_result.mkcurve_outputs.get("corrected_valid_mask")
+            if corrected_mask is not None:
+                corrected_valid = nib.load(str(corrected_mask)).get_fdata(dtype=np.float32) > 0
+                for key in ("fa", "md", "ad", "rd", "mk", "ak", "rk"):
+                    corrected = dki_result.mkcurve_outputs.get(f"corrected_{key}")
+                    if corrected is not None:
+                        metric_paths[f"mkcurve_corrected_{key}"] = corrected
+                        validity_masks[f"mkcurve_corrected_{key}"] = corrected_valid
         if _noddi_outputs_current(config, paths):
             noddi_valid_mask = nib.load(str(paths["noddi_tissue_valid_mask"])).get_fdata(dtype=np.float32) > 0.0
-            validity_masks = {
+            validity_masks.update({
                 "noddi_ndi": noddi_valid_mask,
                 "noddi_odi": noddi_valid_mask,
-            }
+            })
         _emit(f"[Microstructure] Computing ROI-wise statistics from {roi_label_map}", log)
         roi_count = _compute_roi_stats(
             metric_paths=metric_paths,
@@ -1589,4 +1624,5 @@ def run_microstructure(
         roi_label_map=roi_label_map,
         roi_stats_csv_path=paths["roi_stats_csv"] if roi_label_map is not None else None,
         roi_stats_json_path=paths["roi_stats_json"] if roi_label_map is not None else None,
+        dki_result=dki_result,
     )

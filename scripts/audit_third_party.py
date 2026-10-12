@@ -21,6 +21,8 @@ REQUIRED_RECORDS = {
     "freesurfer_lut": "licenses/FreeSurfer.txt",
     "ddsurfer": "anatomy/surface/ddsurfer_backend/LICENSE.txt",
     "pytorch3d": "licenses/PyTorch3D.txt",
+    "mkcurve": "licenses/MK-Curve-LICENSE.txt",
+    "mkcurve_dki": "licenses/MK-Curve-DKI-MPL-2.0.txt",
 }
 
 

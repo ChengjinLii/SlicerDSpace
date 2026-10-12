@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from shared.user_config import canonical_microstructure_stages
+
 
 def sync_parameter_node_to_ui(widget) -> None:
     """Synchronize common SlicerDDSurfer parameter-node values into Qt widgets."""
@@ -55,6 +57,10 @@ def sync_parameter_node_to_ui(widget) -> None:
     sync_combo_data = getattr(widget, "_sync_combo_data", None)
     if sync_combo_data is not None:
         sync_combo_data(
+            getattr(ui, "brainMaskBackendComboBox", None),
+            getattr(node, "brainMaskBackend", "pnl_cnn") or "pnl_cnn",
+        )
+        sync_combo_data(
             getattr(ui, "preprocessingPhaseEncodingDirectionComboBox", None),
             getattr(node, "preprocessingPhaseEncodingDirection", "") or "",
         )
@@ -86,6 +92,18 @@ def sync_parameter_node_to_ui(widget) -> None:
     widget._sync_combo_text(
         getattr(ui, "orchestrationMicrostructureStagesComboBox", None),
         widget._microstructure_stages_text(),
+        via_index=False,
+    )
+    stages = set(canonical_microstructure_stages(widget._microstructure_stages_text()))
+    for name, stage in (
+        ("orchestrationFreeWaterCheckBox", "freewater"),
+        ("orchestrationNoddiCheckBox", "noddi"),
+        ("orchestrationDkiCheckBox", "dki"),
+    ):
+        widget._sync_checkbox(getattr(ui, name, None), stage in stages)
+    widget._sync_combo_text(
+        getattr(ui, "orchestrationDkiFitMethodComboBox", None),
+        getattr(node, "orchestrationDkiFitMethod", "WLS") or "WLS",
         via_index=False,
     )
     widget._sync_checkbox(getattr(ui, "batchModeCheckBox", None), bool(getattr(node, "batchMode", False)))

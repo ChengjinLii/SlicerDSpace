@@ -108,6 +108,9 @@ def _start() -> None:
         slicer.util.selectModule("SlicerDDSurfer")
         module = slicer.util.getModule("SlicerDDSurfer")
         widget = module.widgetRepresentation().self()
+        isolated_root = os.environ.get("SLICERDDSURFER_SMOKE_ROOT")
+        if isolated_root:
+            slicer.app.temporaryPath = str(Path(isolated_root) / "temp")
         demo_root = Path(str(slicer.app.temporaryPath)) / "SlicerDDSurfer" / "demo" / "slicerdsurfer-demo"
         if demo_root.exists():
             shutil.rmtree(demo_root)

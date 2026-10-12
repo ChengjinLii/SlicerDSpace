@@ -44,7 +44,7 @@ class ThirdPartyNoticesTest(unittest.TestCase):
     def test_current_records_are_packaged(self):
         result = audit(ROOT)
         self.assertEqual(result["status"], "pass", result["findings"])
-        self.assertEqual(len(result["checked"]), 4)
+        self.assertEqual(len(result["checked"]), len(REQUIRED_RECORDS))
         self.assertIn("model weights", result["remaining_review"])
         self.assertFalse((ROOT / "LICENSE").exists())
 
@@ -67,7 +67,7 @@ class ThirdPartyNoticesTest(unittest.TestCase):
             path = root / "licenses/provenance.json"
             spec = json.loads(path.read_text(encoding="utf-8"))
             spec["records"][0]["source"] = "https://github.com/pnlbwh/conversion/blob/master/LICENSE"
-            spec["records"].pop()
+            spec["records"] = [record for record in spec["records"] if record["id"] != "pytorch3d"]
             path.write_text(json.dumps(spec), encoding="utf-8")
             findings = audit(root)["findings"]
             self.assertIn("Unpinned license source: conversion", findings)

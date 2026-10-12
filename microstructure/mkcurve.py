@@ -1,0 +1,235 @@
+# Python translation of MK-Curve/run_MKCurve.m and abnormal_voxel_detection.m.
+# MK-Curve Contribution and Software License Agreement, BWH, June 2019.
+# See licenses/MK-Curve-LICENSE.txt. Modified for SlicerDDSurfer, 2026.
+"""Native Python MK-Curve port, distinct from standard DIPY DKI maps."""
+
+from datetime import datetime, timezone
+from contextlib import ExitStack
+import hashlib
+import importlib.metadata
+from pathlib import Path
+import tempfile
+import time
+
+UPSTREAM_URL = "https://github.com/zhangfanmark/MK-Curve"
+UPSTREAM_COMMIT = "9a213e1a5850fe50c998793f31ed852df00242f8"
+PORT_VERSION = 1
+
+
+def inspect_mkcurve_backend(*_legacy_paths):
+    """Discover bundled Python code/resources, never require MATLAB."""
+    files = [Path(__file__), Path(__file__).with_name("mkcurve_tensor.py"),
+             Path(__file__).with_name("mkcurve_directions.json"), Path(__file__).with_name("mkcurve_inputs.py")]
+    missing = [str(path) for path in files if not path.is_file()]
+    libraries = {}
+    for key in ("numpy", "scipy", "nibabel"):
+        try:
+            libraries[key] = importlib.metadata.version(key)
+        except importlib.metadata.PackageNotFoundError:
+            missing.append("Python package " + key)
+    return {"available": not missing, "missing_required": missing, "implementation": "python_port",
+            "port_version": PORT_VERSION, "upstream_url": UPSTREAM_URL, "upstream_commit": UPSTREAM_COMMIT,
+            "source_sha256": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in files if path.is_file()},
+            "libraries": libraries}
+
+
+def synthetic_b0_grid(b0):
+    import numpy as np
+
+    mean = float(np.mean(b0))
+    lower, upper = int(np.floor(mean * .1 + .5)), int(np.floor(mean * 2 + .5))
+    step = int(np.floor((upper - lower) / 200 + .5))
+    if lower <= 0 or step <= 0:
+        raise ValueError("Signal scale cannot support the author's integer synthetic-b0 grid; rescale acquisition explicitly")
+    return np.arange(lower, upper + 1, step, dtype=float)
+
+
+def detect_abnormal(curves, b0, grid, threshold=.5):
+    """Literal upstream index convention (MATLAB 1-based translated explicitly)."""
+    import numpy as np
+
+    if not 0 <= threshold <= 1:
+        raise ValueError("MK-Curve threshold must be in [0, 1]")
+    curves = np.array(curves, dtype=float, copy=True)
+    grid, b0 = np.asarray(grid, dtype=float), np.asarray(b0, dtype=float)
+    if curves.shape != (len(grid), len(b0)) or len(grid) < 3 or not np.all(np.diff(grid) > 0):
+        raise ValueError("Invalid MK-Curve matrix or increasing b0 grid")
+    finite = np.isfinite(curves).all(axis=0) & np.isfinite(b0)
+    curves[:, ~finite] = 0
+    curves[curves > 5] = -1
+    reverse_index = np.argmax(curves[::-1] < 0, axis=0) + 1
+    reverse_index[reverse_index == 1] = len(grid)
+    zero_index = len(grid) - reverse_index + 1  # zero-based, upstream pos_zero_MK - 1
+    curves[np.arange(len(grid))[:, None] < zero_index[None, :]] = 0
+    max_index = np.argmax(curves, axis=0)
+    zero_b0, max_b0 = grid[zero_index], grid[max_index]
+    max_mk = curves[max_index, np.arange(len(b0))]
+    corrected_b0 = zero_b0 * (1 - threshold) + max_b0 * threshold
+    first_greater = np.searchsorted(grid, b0, side="right")
+    unusual = ((max_index - zero_index <= 2) & (first_greater < len(grid))
+               & (first_greater <= max_index + 1 + 5) & finite)
+    abnormal = ((b0 <= corrected_b0) | unusual) & finite
+    return {"zero_mk_b0": zero_b0, "max_mk_b0": max_b0, "max_mk": max_mk,
+            "abnormal_mask": abnormal, "unusual_mask": unusual, "curve_valid_mask": finite,
+            "corrected_b0": np.where(abnormal, corrected_b0, b0)}
+
+
+def repair_nonpositive(data, mask):
+    """Upstream sequential positive-neighbour mean, MATLAB voxel ordering."""
+    import numpy as np
+
+    repaired, unresolved = 0, 0
+    for volume in range(data.shape[-1]):
+        image = data[..., volume]
+        bad = mask & (~np.isfinite(image) | (image <= 0))
+        for flat in np.flatnonzero(bad.ravel(order="F")):
+            xyz = np.unravel_index(flat, mask.shape, order="F")
+            ranges = tuple(slice(max(0, x - 1), min(size, x + 2)) for x, size in zip(xyz, mask.shape))
+            neighbors = image[ranges]
+            values = neighbors[np.isfinite(neighbors) & (neighbors > 0)]
+            if len(values):
+                image[xyz] = values.mean()
+                repaired += 1
+            else:
+                image[xyz] = np.nan
+                unresolved += 1
+    return {"repaired_measurements": repaired, "unresolved_measurements": unresolved,
+            "policy": "sequential 26-neighbour positive-signal mean; working copy only; no parameter-map smoothing"}
+
+
+def run_mkcurve(dwi_path, bval_path, bvec_path, mask_path, output_dir, *,
+                b0_threshold=50., max_bvalue=3000., voxels_per_chunk=64,
+                threshold=.5, grid=None, log=None, **legacy):
+    """Scan synthetic b0, identify abnormal curves, refit b0-corrected signals.
+
+    Original inputs remain immutable. Raw untruncated maps, validity masks,
+    curve samples, coefficients and provenance are retained for review.
+    """
+    import nibabel as nib
+    import numpy as np
+    from microstructure.mkcurve_tensor import design_matrix, fit_wlls, mean_kurtosis, parameter_maps
+    from microstructure.dki import _signature, _write_json
+    from microstructure.mkcurve_inputs import _prepare_inputs
+
+    if voxels_per_chunk < 1 or not np.isfinite(threshold) or not 0 <= threshold <= 1:
+        raise ValueError("MK-Curve requires a positive chunk size and finite threshold in [0,1]")
+    if any(value is not None for value in legacy.values()):
+        raise ValueError("MATLAB/source paths belong to MKCURVE_MATLAB, not the Python port")
+    root = Path(output_dir).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    started = time.monotonic()
+    backend = inspect_mkcurve_backend()
+    inputs = {key: _signature(Path(path)) for key, path in
+              zip(("dwi", "bval", "bvec", "mask"), (dwi_path, bval_path, bvec_path, mask_path))}
+    progress = root / "mkcurve_progress.json"
+    _write_json(progress, {"status": "running", "implementation": "python_port"})
+    _write_json(root / "mkcurve_record.json", {"kind": "mkcurve_python_port", "status": "running", "inputs": inputs})
+    try:
+        with tempfile.TemporaryDirectory(prefix=".mkcurve-", dir=root) as temporary, ExitStack() as handles:
+            prepared, reference, preparation = _prepare_inputs(
+                Path(dwi_path), Path(bval_path), Path(bvec_path), Path(mask_path), Path(temporary), b0_threshold, max_bvalue,
+                allow_nonfinite=True)
+            working_image = nib.load(str(prepared[0]), mmap="c")
+            data = working_image.dataobj.get_unscaled()
+            if isinstance(data, np.memmap):
+                handles.callback(data._mmap.close)
+            mask = nib.load(str(prepared[3])).get_fdata() > 0
+            repair = repair_nonpositive(data, mask)
+            coords = np.unravel_index(np.flatnonzero(mask.ravel(order="F")), mask.shape, order="F")
+            b0 = data[..., 0][coords]
+            grid = synthetic_b0_grid(b0) if grid is None else np.asarray(grid, dtype=float)
+            if len(grid) < 3 or not np.isfinite(grid).all() or np.any(grid <= 0) or not np.all(np.diff(grid) > 0):
+                raise ValueError("Synthetic b0 grid must contain at least three finite positive increasing values")
+            np.savetxt(root / "synthetic_b0_grid.csv", grid, delimiter=",")
+            design = design_matrix(np.loadtxt(prepared[1]), np.loadtxt(prepared[2]).T)
+            count = len(b0)
+            curves = np.lib.format.open_memmap(root / "mk_vs_synthetic_b0.npy", mode="w+", dtype="float64", shape=(len(grid), count))
+            original_coefficients = np.lib.format.open_memmap(root / "original_coefficients.npy", mode="w+", dtype="float64", shape=(count, 22))
+            corrected_coefficients = np.lib.format.open_memmap(root / "corrected_coefficients.npy", mode="w+", dtype="float64", shape=(count, 22))
+            results = {}
+            try:
+                for start in range(0, count, voxels_per_chunk):
+                    stop = min(start + voxels_per_chunk, count)
+                    chunk_coords = tuple(c[start:stop] for c in coords)
+                    signals = data[chunk_coords].copy()
+                    original = fit_wlls(signals, design)
+                    original_coefficients[start:stop] = original
+                    for step, value in enumerate(grid):
+                        signals[:, 0] = value
+                        curves[step, start:stop] = mean_kurtosis(fit_wlls(signals, design))
+                        if step % 20 == 0:
+                            _write_json(progress, {"status": "running", "completed_voxels": start,
+                                                   "total_voxels": count, "grid_step": step, "grid_steps": len(grid)})
+                    detection = detect_abnormal(curves[:, start:stop], b0[start:stop], grid, threshold)
+                    signals[:, 0] = detection["corrected_b0"]
+                    corrected = fit_wlls(signals, design)
+                    corrected_coefficients[start:stop] = corrected
+                    for kind, coefficients in (("original", original), ("corrected", corrected)):
+                        maps = parameter_maps(coefficients)
+                        valid = np.isfinite(coefficients).all(axis=1)
+                        for key, values in maps.items():
+                            lower, upper = (0, 1) if key == "fa" else ((0, 3) if key in {"mk", "ak", "rk"} else (0, .005))
+                            valid &= np.isfinite(values) & (values >= lower) & (values <= upper)
+                            detection[f"{kind}_{key}"] = values
+                        observed = signals.copy()
+                        if kind == "original":
+                            observed[:, 0] = b0[start:stop]
+                        with np.errstate(over="ignore", invalid="ignore"):
+                            predicted = np.exp(coefficients @ design.T)
+                            detection[f"{kind}_nrmse"] = np.sqrt(np.mean((predicted - observed) ** 2, axis=1)) / np.exp(coefficients[:, 0])
+                        valid &= detection["curve_valid_mask"] & np.isfinite(detection[f"{kind}_nrmse"])
+                        detection[f"{kind}_valid_mask"] = valid
+                    for key, values in detection.items():
+                        if key not in results:
+                            results[key] = np.lib.format.open_memmap(Path(temporary) / f"{key}.npy", mode="w+", dtype=values.dtype, shape=mask.shape)
+                            results[key][:] = 0
+                        results[key][chunk_coords] = values
+                    if log:
+                        log(f"[MK-Curve Python] {stop}/{count} voxels; {len(grid)} synthetic b0 samples")
+                paths, summaries = {}, {}
+                for key, values in results.items():
+                    path = root / f"mkcurve_{key}.nii.gz"
+                    header = reference.header.copy()
+                    dtype = np.uint8 if values.dtype == bool else np.float32
+                    header.set_data_dtype(dtype)
+                    nib.save(nib.Nifti1Image(values.astype(dtype), reference.affine, header), str(path))
+                    paths[key] = str(path)
+                    selected = values[coords]
+                    summaries[key] = {"finite": int(np.isfinite(selected).sum()), "nonzero": int(np.count_nonzero(selected))}
+                record = {"kind": "mkcurve_python_port", "status": "completed", "backend": backend,
+                          "method": "author-style unconstrained WLLS, numerical 256-direction MK, synthetic-b0 correction",
+                          "settings": {"threshold": threshold, "grid_policy": "adaptive author integer grid, independent of directory name",
+                                       "grid_samples": len(grid), "b0_threshold": b0_threshold, "max_bvalue": max_bvalue},
+                          "maps": paths, "inputs": inputs, "preparation": preparation, "signal_repair": repair,
+                          "mask_voxels": count, "corrected_voxels": summaries["abnormal_mask"]["nonzero"],
+                          "corrected_valid_voxels": summaries["corrected_valid_mask"]["nonzero"], "summaries": summaries,
+                          "automatic_qc_passed": summaries["corrected_valid_mask"]["nonzero"] == count,
+                          "human_review": "pending", "raw_metric_clipping": False, "smoothing": False,
+                          "runtime_seconds": time.monotonic() - started,
+                          "created_at": datetime.now(timezone.utc).isoformat(),
+                          "differences_from_upstream": ["explicit adaptive grid; no filename-based HCP/Ndyx branch",
+                                                       "stable radial plane at principal-axis poles", "nonfinite curves are invalid, never silently corrected"],
+                          "curve_storage": "mk_vs_synthetic_b0.npy: grid x masked voxels in MATLAB/Fortran order",
+                          "record_path": str(root / "mkcurve_record.json")}
+                for array in (curves, original_coefficients, corrected_coefficients):
+                    array.flush()
+                record["auxiliary_files"] = {key: str(root / filename) for key, filename in
+                                             (("curve", "mk_vs_synthetic_b0.npy"), ("grid", "synthetic_b0_grid.csv"),
+                                              ("original_coefficients", "original_coefficients.npy"),
+                                              ("corrected_coefficients", "corrected_coefficients.npy"))}
+                record["auxiliary_artifacts"] = {key: _signature(Path(path)) for key, path in record["auxiliary_files"].items()}
+                if any(inputs[key] != _signature(Path(path)) for key, path in
+                       zip(("dwi", "bval", "bvec", "mask"), (dwi_path, bval_path, bvec_path, mask_path))):
+                    raise RuntimeError("MK-Curve source inputs changed during fitting")
+                if backend != inspect_mkcurve_backend():
+                    raise RuntimeError("MK-Curve backend changed during fitting")
+                _write_json(Path(record["record_path"]), record)
+                _write_json(progress, {"status": "completed", "completed_voxels": count, "total_voxels": count})
+                return record
+            finally:
+                for array in (curves, original_coefficients, corrected_coefficients, *results.values()):
+                    array._mmap.close()
+    except Exception as exc:
+        _write_json(progress, {"status": "failed", "error": f"{type(exc).__name__}: {exc}"})
+        _write_json(root / "mkcurve_record.json", {"kind": "mkcurve_python_port", "status": "failed", "error": f"{type(exc).__name__}: {exc}"})
+        raise

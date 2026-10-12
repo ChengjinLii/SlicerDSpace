@@ -40,6 +40,7 @@ def _check() -> None:
     advanced_paths = getattr(widget, "_environmentAdvancedPathsWidget", None)
     advanced_collapsed = bool(getattr(advanced_paths, "collapsed", False)) if advanced_paths else False
     settings_roundtrip_ok = False
+    environment_result = getattr(widget, "_lastEnvironmentResult", None)
     if "mrtrix_bin_dir" in path_widgets:
         test_path = "/tmp/slicerdsurfer-smoke-mrtrix"
         widget._save_environment_path_setting("mrtrix_bin_dir", test_path)
@@ -49,7 +50,6 @@ def _check() -> None:
         )
         widget._save_environment_path_setting("mrtrix_bin_dir", "")
     dialog = getattr(widget, "_environmentDialog", None)
-    environment_result = getattr(widget, "_lastEnvironmentResult", None)
     missing_items = widget._missing_environment_items(environment_result) if environment_result else []
     per_item_action_required = bool(missing_items)
     dialog_visible = bool(dialog and dialog.isVisible())

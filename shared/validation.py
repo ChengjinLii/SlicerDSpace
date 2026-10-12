@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from shared.io_layout import default_task_output_dir
+from shared.brain_mask import brain_mask_config_from_options, inspect_brain_mask_backend, validate_brain_mask
 from shared.pipeline import RAW_INPUT_FILES, RawInputBundle, find_subject_root, inspect_subject_directory
 
 
@@ -58,6 +59,12 @@ class InputValidationConfig:
     require_phase_encoding: bool = False
     mrtrix_bin_dir: Optional[Path] = None
     write_report: bool = True
+    brain_mask_backend: str = "pnl_cnn"
+    pnl_mask_python: Optional[Path] = None
+    pnl_mask_script: Optional[Path] = None
+    pnl_mask_model_dir: Optional[Path] = None
+    pnl_mask_ants_bin_dir: Optional[Path] = None
+    postprocess_freesurfer_home: Optional[Path] = None
 
 
 @dataclass(frozen=True)
@@ -71,6 +78,23 @@ class InputValidationResult:
     warning_count: int
     messages: tuple[ValidationIssue, ...]
     metrics: dict[str, Any]
+
+
+def _check_brain_mask(
+    raw: RawInputBundle,
+    config: InputValidationConfig,
+    messages: list[ValidationIssue],
+    metrics: dict[str, Any],
+) -> None:
+    try:
+        metrics["brain_mask_qc"] = validate_brain_mask(raw.dwi_path, raw.mask_path)
+    except Exception as exc:
+        metrics["brain_mask_qc"] = {"valid": False, "error": str(exc)}
+        _add_issue(
+            messages, "error", "brain_mask",
+            f"Brain mask failed geometry/content QC for selected backend '{config.brain_mask_backend}'.",
+            backend=config.brain_mask_backend, error=str(exc),
+        )
 
 
 def _add_issue(
@@ -385,6 +409,9 @@ def validate_subject_inputs(config: InputValidationConfig) -> InputValidationRes
     metrics: dict[str, Any] = {}
     subject_root: Optional[Path] = None
     report_path: Optional[Path] = None
+    mask_config = brain_mask_config_from_options(config)
+    metrics["brain_mask_backend"] = inspect_brain_mask_backend(mask_config)
+    metrics["brain_mask_selection"] = {"backend": mask_config.backend}
 
     if not config.subject_id.strip():
         _add_issue(messages, "error", "file", "subject_id is required.")
@@ -403,14 +430,17 @@ def validate_subject_inputs(config: InputValidationConfig) -> InputValidationRes
                 config.input_root.expanduser().resolve(),
                 config.subject_id,
                 mrtrix_bin_dir=config.mrtrix_bin_dir,
+                brain_mask_config=mask_config,
             )
         except Exception as exc:
+            metrics["brain_mask_qc"] = {"status": "not_run", "error": str(exc)}
             _check_incomplete_file_layout(subject_root, messages, metrics)
             _add_issue(
                 messages,
                 "error",
                 "file",
-                "Brain mask is missing and could not be generated with MRtrix3 dwi2mask.",
+                f"Brain mask could not be resolved using selected backend '{mask_config.backend}'.",
+                backend=mask_config.backend,
                 error=str(exc),
             )
         else:
@@ -418,6 +448,7 @@ def validate_subject_inputs(config: InputValidationConfig) -> InputValidationRes
             _check_file_layout(raw, messages, metrics)
             _check_gradients(raw, messages, metrics)
             _check_metadata(raw, config, messages, metrics)
+            _check_brain_mask(raw, config, messages, metrics)
     else:
         expanded_input = config.input_root.expanduser().resolve()
         candidate_subject_root = expanded_input

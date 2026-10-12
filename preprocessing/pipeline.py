@@ -12,12 +12,20 @@ import os
 import shutil
 import subprocess
 import importlib.util
-from dataclasses import dataclass
+import tempfile
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 from shared.io_layout import default_task_output_dir
 from shared.external_process import external_python_environment, text_subprocess_kwargs
+from shared.brain_mask import (
+    BrainMaskConfig,
+    brain_mask_config_from_options,
+    generate_brain_mask,
+    inspect_brain_mask_backend,
+    validate_brain_mask,
+)
 from shared.pipeline import RawInputBundle, find_subject_root
 
 
@@ -57,6 +65,12 @@ class DwiPreprocessingConfig:
     readout_time: Optional[float] = None
     eddy_threads: Optional[int] = None
     eddy_second_level_model: Optional[str] = None
+    brain_mask_backend: str = "pnl_cnn"
+    pnl_mask_python: Optional[Path] = None
+    pnl_mask_script: Optional[Path] = None
+    pnl_mask_model_dir: Optional[Path] = None
+    pnl_mask_ants_bin_dir: Optional[Path] = None
+    postprocess_freesurfer_home: Optional[Path] = None
 
 
 @dataclass(frozen=True)
@@ -70,6 +84,22 @@ class DwiPreprocessingResult:
     final_bval_path: Path
     final_bvec_path: Path
     final_mask_path: Path
+
+
+def _brain_mask_config(config: DwiPreprocessingConfig) -> BrainMaskConfig:
+    selected = brain_mask_config_from_options(config)
+    if config.eddy_threads is not None:
+        selected = replace(selected, threads=_resolved_eddy_threads(config))
+    return selected
+
+
+def _resolve_raw_inputs(config: DwiPreprocessingConfig) -> RawInputBundle:
+    # find_subject_root may generate a raw mask. Preprocessing needs only the
+    # corrected-space mask, and planning must never launch mask inference.
+    return find_subject_root(
+        config.input_root, config.subject_id,
+        brain_mask_config=_brain_mask_config(config), generate_missing_mask=False,
+    )
 
 
 def _resolve_output_dir(raw: RawInputBundle, output_dir: Optional[Path]) -> Path:
@@ -187,6 +217,13 @@ def inspect_preprocessing_backend(config: DwiPreprocessingConfig) -> dict[str, A
         "missing_required": missing_required,
         "missing_diagnostic": missing_diagnostic,
         "available": not missing_required,
+        "capabilities": {
+            "denoise": "mppca",
+            "gibbs_removal": True,
+            "between_volume_motion_correction": True,
+            "susceptibility_distortion_correction": config.reverse_phase_b0 is not None,
+            "eddy_current_modeling": True,
+        },
     }
 
 
@@ -229,6 +266,7 @@ def _preprocessing_cache_key(
     raw: RawInputBundle,
     config: DwiPreprocessingConfig,
     backend: dict[str, Any],
+    mask_backend: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Describe every input and setting that can change preprocessing output."""
 
@@ -240,7 +278,7 @@ def _preprocessing_cache_key(
     }
     return {
         "kind": "dwi_preprocessing_cache_key",
-        "version": 2,
+        "version": 3,
         "backend": str(backend.get("backend") or config.backend).lower(),
         "inputs": {
             "dwi": _file_record(raw.dwi_path),
@@ -264,7 +302,44 @@ def _preprocessing_cache_key(
             ),
         },
         "executables": executables,
+        "brain_mask": _brain_mask_cache_key(
+            config, mask_backend if mask_backend is not None else inspect_brain_mask_backend(_brain_mask_config(config)),
+        ),
     }
+
+
+def _brain_mask_cache_key(
+    config: DwiPreprocessingConfig, inspection: dict[str, Any],
+) -> dict[str, Any]:
+    selected = _brain_mask_config(config)
+    options = {
+        name: (value.expanduser().resolve().as_posix() if isinstance(value, Path) else value)
+        for name, value in vars(selected).items()
+    }
+    assets: dict[str, Any] = {}
+    for name, value in vars(selected).items():
+        if isinstance(value, Path):
+            assets[name] = _file_record(value.expanduser().resolve())
+    if config.pnl_mask_model_dir is not None:
+        model_dir = config.pnl_mask_model_dir.expanduser().resolve()
+        assets["model_files"] = [
+            _file_record(path) for path in sorted(model_dir.rglob("*")) if path.is_file()
+        ]
+
+    def collect_tools(value: Any) -> None:
+        if isinstance(value, dict):
+            for item in value.values():
+                collect_tools(item)
+        elif isinstance(value, (list, tuple)):
+            for item in value:
+                collect_tools(item)
+        elif isinstance(value, (str, Path)) and Path(value).is_absolute():
+            path = Path(value)
+            if path.is_file():
+                assets[path.as_posix()] = _file_record(path)
+
+    collect_tools(inspection)
+    return {"backend": selected.backend, "options": options, "inspection": inspection, "assets": assets}
 
 
 def _run_command(cmd: list[str], *, env: dict[str, str], log: Optional[Callable[[str], None]]) -> None:
@@ -376,7 +451,6 @@ def _build_commands(raw: RawInputBundle, config: DwiPreprocessingConfig, paths: 
             ["dipy", "motion_correction", (paths["motion_dir"] / f"{raw.subject_id}_dwi_preproc.nii.gz").as_posix()]
             if config.dipy_run_motion_correction
             else ["dipy", "skip_motion_correction"],
-            ["copy", raw.mask_path.as_posix(), paths["final_mask"].as_posix()],
         ]
 
     subject = raw.subject_id
@@ -506,23 +580,11 @@ def _build_commands(raw: RawInputBundle, config: DwiPreprocessingConfig, paths: 
         dwidenoise_cmd.append("-force")
         mrdegibbs_cmd.append("-force")
 
-    final_mask_cmd = [
-        backend["commands"]["dwi2mask"] or "dwi2mask",
-        paths["final_dwi"].as_posix(),
-        paths["final_mask"].as_posix(),
-        "-fslgrad",
-        paths["final_bvec"].as_posix(),
-        paths["final_bval"].as_posix(),
-    ]
-    if config.force or paths["final_mask"].exists():
-        final_mask_cmd.append("-force")
-
     return [
         dwidenoise_cmd,
         mrdegibbs_cmd,
         *reverse_phase_commands,
         dwifslpreproc_cmd,
-        final_mask_cmd,
         [
             "optional-output",
             paths["eddy_parameters"].as_posix(),
@@ -584,7 +646,8 @@ def _copy_input_sidecars(raw: RawInputBundle, paths: dict[str, Path]) -> None:
     _link_or_copy(raw.dwi_path, paths["import_dir"] / raw.dwi_path.name)
     _link_or_copy(raw.bval_path, paths["import_dir"] / raw.bval_path.name)
     _link_or_copy(raw.bvec_path, paths["import_dir"] / raw.bvec_path.name)
-    _link_or_copy(raw.mask_path, paths["import_dir"] / raw.mask_path.name)
+    if raw.mask_path.is_file():
+        _link_or_copy(raw.mask_path, paths["import_dir"] / raw.mask_path.name)
     _link_or_copy(raw.bval_path, paths["gradients_dir"] / f"{raw.subject_id}_gradients_checked.bval")
     _link_or_copy(raw.bvec_path, paths["gradients_dir"] / f"{raw.subject_id}_gradients_checked.bvec")
 
@@ -708,7 +771,6 @@ def _run_dipy_backend(
         _link_or_copy(corrected_path, paths["final_dwi"])
         _link_or_copy(raw.bval_path, paths["final_bval"])
         _link_or_copy(raw.bvec_path, paths["final_bvec"])
-        _link_or_copy(raw.mask_path, paths["final_mask"])
         return {
             "denoise": {"method": denoise_method, "status": "skipped"},
             "gibbs": {"status": "skipped"},
@@ -810,7 +872,6 @@ def _run_dipy_backend(
 
     shutil.copy2(corrected_path, paths["final_dwi"])
     shutil.copy2(raw.bval_path, paths["final_bval"])
-    shutil.copy2(raw.mask_path, paths["final_mask"])
 
     return {
         "denoise": denoise_status,
@@ -829,6 +890,34 @@ def _run_dipy_backend(
             "degibbs": degibbs_path.as_posix(),
             "motion_corrected": corrected_path.as_posix(),
         },
+    }
+
+
+def _mrtrix_backend_details(
+    paths: dict[str, Path],
+    subject_id: str,
+    config: DwiPreprocessingConfig,
+) -> dict[str, Any]:
+    env = _external_command_environment(config)
+    return {
+        "fsl_environment": {
+            "FSLDIR": env.get("FSLDIR"),
+            "FSLOUTPUTTYPE": env.get("FSLOUTPUTTYPE"),
+        },
+        "denoise": {"status": "completed", "method": "dwidenoise_mppca"},
+        "gibbs": {"status": "completed", "method": "mrdegibbs"},
+        "motion": {"status": "completed", "method": "fsl_eddy"},
+        "bias_correction": {
+            "status": "not_run",
+            "reason": "Bias-field correction is not included in the MRtrix/FSL command sequence.",
+        },
+        "susceptibility_distortion_correction": {
+            "status": "completed" if config.reverse_phase_b0 is not None else "not_run",
+            "method": "fsl_topup" if config.reverse_phase_b0 is not None else "rpe_none",
+        },
+        "diagnostics": _collect_dwifslpreproc_diagnostics(paths, subject_id),
+        "eddy_qc_collection": _collect_eddy_qc_artifacts(paths),
+        "scratch_dir": (paths["motion_dir"] / "dwifslpreproc_tmp").as_posix(),
     }
 
 
@@ -852,17 +941,7 @@ def _execute_preprocessing_backend(
         if command[0] == "optional-output":
             continue
         _run_command(command, env=env, log=log)
-    diagnostics = _collect_dwifslpreproc_diagnostics(paths, raw.subject_id)
-    eddy_qc_collection = _collect_eddy_qc_artifacts(paths)
-    return {
-        "fsl_environment": {
-            "FSLDIR": env.get("FSLDIR"),
-            "FSLOUTPUTTYPE": env.get("FSLOUTPUTTYPE"),
-        },
-        "diagnostics": diagnostics,
-        "eddy_qc_collection": eddy_qc_collection,
-        "scratch_dir": (paths["motion_dir"] / "dwifslpreproc_tmp").as_posix(),
-    }
+    return _mrtrix_backend_details(paths, raw.subject_id, config)
 
 
 def _preprocessing_warnings(
@@ -874,7 +953,7 @@ def _preprocessing_warnings(
         for command in backend.get("missing_diagnostic", [])
     ]
     capabilities = backend.get("capabilities") or {}
-    if capabilities.get("denoise") in {False, None, "none", "skip", ""}:
+    if "denoise" in capabilities and capabilities["denoise"] in {False, None, "none", "skip", ""}:
         warnings.append("Denoising was not applied by the selected preprocessing configuration.")
     for capability, message in (
         ("gibbs_removal", "Gibbs-ringing removal was not applied."),
@@ -889,26 +968,102 @@ def _preprocessing_warnings(
     return list(dict.fromkeys(warnings))
 
 
+def _finalize_brain_mask(
+    raw: RawInputBundle,
+    config: DwiPreprocessingConfig,
+    paths: dict[str, Path],
+    backend_details: dict[str, Any],
+    *,
+    log: Optional[Callable[[str], None]],
+) -> dict[str, Any]:
+    selected = _brain_mask_config(config)
+    motion_applied = (backend_details.get("motion") or {}).get("status") == "completed"
+    preserve_input = selected.backend == "provided" or (
+        backend_details.get("fast_path") is True and not motion_applied and raw.mask_path.is_file()
+    )
+    warnings: list[str] = []
+    if preserve_input:
+        if not raw.mask_path.is_file():
+            raise FileNotFoundError(
+                f"Selected brain-mask backend '{selected.backend}' requires a supplied mask: {raw.mask_path}"
+            )
+        validate_brain_mask(paths["final_dwi"], raw.mask_path)
+        # Replace the output itself, never follow a previous output link back
+        # to the canonical supplied mask.
+        with tempfile.TemporaryDirectory(dir=paths["final_mask"].parent, prefix=".provided-mask-") as temporary:
+            temporary_mask = Path(temporary) / paths["final_mask"].name
+            shutil.copy2(raw.mask_path, temporary_mask)
+            os.replace(temporary_mask, paths["final_mask"])
+        qc = validate_brain_mask(paths["final_dwi"], paths["final_mask"])
+        if motion_applied:
+            warnings.append(
+                "Supplied brain mask was copied after motion correction. Geometry QC cannot verify "
+                "anatomical alignment; human review of the mask on the corrected DWI is required."
+            )
+        generation = {
+            "backend": "provided",
+            "requested_backend": selected.backend,
+            "status": "copied",
+            "method": "input_mask",
+            "source": raw.mask_path.as_posix(),
+        }
+    else:
+        if paths["final_mask"].is_symlink() or (
+            paths["final_mask"].is_file() and paths["final_mask"].stat().st_nlink > 1
+        ):
+            paths["final_mask"].unlink()
+        generation = dict(generate_brain_mask(
+            paths["final_dwi"], paths["final_bval"], paths["final_bvec"], paths["final_mask"],
+            config=selected, force=True, log=log,
+        ))
+        generation.update({
+            "backend": selected.backend,
+            "method": "dwi2mask_corrected_dwi" if selected.backend == "mrtrix" else f"{selected.backend}_corrected_dwi",
+            "source": paths["final_dwi"].as_posix(),
+        })
+        qc = validate_brain_mask(paths["final_dwi"], paths["final_mask"])
+    generation.update({
+        "selected_backend": selected.backend,
+        "qc": qc,
+        "motion_applied": motion_applied,
+        "human_review_required": qc["human_review"] == "pending",
+        "alignment_review_required": preserve_input and motion_applied,
+        "warnings": warnings,
+    })
+    # Copying preserves the input timestamp, but freshness is relative to the
+    # corrected DWI. A provided mask must not be refreshed on every cache hit.
+    if paths["final_mask"].stat().st_mtime_ns < paths["final_dwi"].stat().st_mtime_ns:
+        stat = paths["final_mask"].stat()
+        os.utime(paths["final_mask"], ns=(stat.st_atime_ns, paths["final_dwi"].stat().st_mtime_ns))
+    return generation
+
+
+def _detach_linked_backend_outputs(paths: dict[str, Path]) -> None:
+    candidates = [paths[key] for key in ("final_dwi", "final_bval", "final_bvec")]
+    for key in ("denoise_dir", "motion_dir"):
+        candidates.extend(path for path in paths[key].rglob("*") if path.is_file() or path.is_symlink())
+    for path in candidates:
+        if path.is_symlink() or (path.is_file() and path.stat().st_nlink > 1):
+            path.unlink()
+
+
 def run_dwi_preprocessing(
     config: DwiPreprocessingConfig,
     *,
     log: Optional[Callable[[str], None]] = None,
 ) -> DwiPreprocessingResult:
-    raw = find_subject_root(
-        config.input_root,
-        config.subject_id,
-        mrtrix_bin_dir=config.mrtrix_bin_dir,
-    )
+    raw = _resolve_raw_inputs(config)
     output_dir = _resolve_output_dir(raw, config.output_dir)
     paths = _planned_paths(output_dir, raw.subject_id)
     backend = inspect_preprocessing_backend(config)
+    mask_backend = inspect_brain_mask_backend(_brain_mask_config(config))
     commands = _build_commands(raw, config, paths, backend)
     command_records = [{"argv": command} for command in commands]
     try:
         previous_manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
     except (OSError, ValueError):
         previous_manifest = {}
-    cache_key = _preprocessing_cache_key(raw, config, backend)
+    cache_key = _preprocessing_cache_key(raw, config, backend, mask_backend)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     status = "skipped" if config.skip else ("planned" if not config.execute else "completed")
@@ -922,6 +1077,7 @@ def run_dwi_preprocessing(
         "execute": config.execute,
         "skip": config.skip,
         "backend": backend,
+        "brain_mask_backend": mask_backend,
         "inputs": {
             "subject_root": raw.subject_root.as_posix(),
             "dwi": raw.dwi_path.as_posix(),
@@ -940,10 +1096,10 @@ def run_dwi_preprocessing(
                 and config.eddy_second_level_model is not None
                 else None
             ),
+            "brain_mask_backend": _brain_mask_config(config).backend,
             "final_mask_method": (
-                "dwi2mask_corrected_dwi"
-                if backend.get("backend") == "mrtrix_fsl"
-                else "input_mask"
+                "input_mask" if config.brain_mask_backend == "provided"
+                else f"{config.brain_mask_backend}_corrected_dwi"
             ),
         },
         "outputs": {key: value.as_posix() for key, value in paths.items() if key not in {"import_dir", "gradients_dir", "denoise_dir", "motion_dir", "mask_dir", "qc_dir"}},
@@ -957,7 +1113,10 @@ def run_dwi_preprocessing(
         return DwiPreprocessingResult(raw.subject_id, "skipped", output_dir, paths["manifest"], paths["qc"], paths["final_dwi"], paths["final_bval"], paths["final_bvec"], paths["final_mask"])
 
     if not config.execute:
-        _write_json(paths["qc"], {"kind": "dwi_preprocessing_qc", "status": "planned", "subject_id": raw.subject_id, "backend_available": backend["available"]})
+        _write_json(paths["qc"], {
+            "kind": "dwi_preprocessing_qc", "status": "planned", "subject_id": raw.subject_id,
+            "backend_available": backend["available"], "brain_mask_backend": mask_backend,
+        })
         return DwiPreprocessingResult(raw.subject_id, "planned", output_dir, paths["manifest"], paths["qc"], paths["final_dwi"], paths["final_bval"], paths["final_bvec"], paths["final_mask"])
 
     if not backend["available"]:
@@ -966,40 +1125,14 @@ def run_dwi_preprocessing(
 
     cached_core_ready = (
         not config.force
+        and previous_manifest.get("status") in {"completed", "cached"}
         and previous_manifest.get("cache_key") == cache_key
         and paths["final_dwi"].is_file()
         and paths["final_bval"].is_file()
         and paths["final_bvec"].is_file()
     )
     mask_refresh_status = "not_needed"
-    if cached_core_ready and backend.get("backend") == "mrtrix_fsl":
-        mask_is_stale = (
-            not paths["final_mask"].is_file()
-            or paths["final_mask"].stat().st_mtime_ns
-            < paths["final_dwi"].stat().st_mtime_ns
-        )
-        if mask_is_stale:
-            _materialize_dirs(paths)
-            mask_command = [
-                backend["commands"]["dwi2mask"] or "dwi2mask",
-                paths["final_dwi"].as_posix(),
-                paths["final_mask"].as_posix(),
-                "-fslgrad",
-                paths["final_bvec"].as_posix(),
-                paths["final_bval"].as_posix(),
-            ]
-            if paths["final_mask"].exists():
-                mask_command.append("-force")
-            _run_command(
-                mask_command,
-                env=_external_command_environment(config),
-                log=log,
-            )
-            mask_refresh_status = "regenerated_from_corrected_dwi"
-
-    if cached_core_ready and paths["final_mask"].is_file():
-        manifest["status"] = "cached"
-        _write_json(paths["manifest"], manifest)
+    if cached_core_ready:
         try:
             previous_qc = json.loads(paths["qc"].read_text(encoding="utf-8")) if paths["qc"].is_file() else {}
         except (OSError, ValueError):
@@ -1009,11 +1142,34 @@ def run_dwi_preprocessing(
             dict(previous_details) if isinstance(previous_details, dict) else {}
         )
         if backend.get("backend") == "mrtrix_fsl":
-            backend_details = {
-                "diagnostics": _collect_dwifslpreproc_diagnostics(paths, raw.subject_id),
-                "eddy_qc_collection": _collect_eddy_qc_artifacts(paths),
-                "scratch_dir": (paths["motion_dir"] / "dwifslpreproc_tmp").as_posix(),
-            }
+            backend_details = _mrtrix_backend_details(paths, raw.subject_id, config)
+        try:
+            mask_is_stale = (
+                not paths["final_mask"].is_file()
+                or paths["final_mask"].stat().st_mtime_ns < paths["final_dwi"].stat().st_mtime_ns
+            )
+            mask_generation = previous_qc.get("mask_generation") or previous_manifest.get("mask_generation") or {}
+            if mask_is_stale:
+                _materialize_dirs(paths)
+                mask_generation = _finalize_brain_mask(raw, config, paths, backend_details, log=log)
+                mask_refresh_status = (
+                    "copied_from_input" if mask_generation["status"] == "copied"
+                    else "regenerated_from_corrected_dwi"
+                )
+            else:
+                mask_generation = dict(mask_generation)
+                mask_generation["qc"] = validate_brain_mask(paths["final_dwi"], paths["final_mask"])
+        except Exception as exc:
+            manifest.update({"status": "failed", "error": f"{type(exc).__name__}: {exc}"})
+            _write_json(paths["manifest"], manifest)
+            _write_json(paths["qc"], {
+                "kind": "dwi_preprocessing_qc", "status": "failed", "subject_id": raw.subject_id,
+                "brain_mask_backend": mask_backend, "error": manifest["error"],
+            })
+            raise
+        manifest.update({"status": "cached", "mask_generation": mask_generation})
+        manifest["parameters"]["final_mask_method"] = mask_generation.get("method")
+        _write_json(paths["manifest"], manifest)
         _write_json(
             paths["qc"],
             {
@@ -1036,14 +1192,25 @@ def run_dwi_preprocessing(
                     "eddy_residuals": _file_record(paths["eddy_residuals"]),
                 },
                 "backend_details": backend_details,
-                "warnings": _preprocessing_warnings(backend, backend_details),
+                "warnings": _preprocessing_warnings(backend, backend_details) + mask_generation.get("warnings", []),
+                "brain_mask_backend": mask_backend,
+                "brain_mask_qc": mask_generation["qc"],
+                "mask_generation": mask_generation,
             },
         )
         return DwiPreprocessingResult(raw.subject_id, "cached", output_dir, paths["manifest"], paths["qc"], paths["final_dwi"], paths["final_bval"], paths["final_bvec"], paths["final_mask"])
 
     _materialize_dirs(paths)
-    if config.force:
+    overwrite_existing = config.force or bool(previous_manifest)
+    if overwrite_existing and backend.get("backend") == "mrtrix_fsl":
+        # A cache miss may leave old intermediates/final files. Overwrite them
+        # instead of failing at dwidenoise, and never resume an old eddy scratch.
+        commands = _build_commands(raw, replace(config, force=True), paths, backend)
+        manifest["commands"] = [{"argv": command} for command in commands]
+        manifest["overwrite_existing"] = True
+    if overwrite_existing:
         shutil.rmtree(paths["motion_dir"] / "dwifslpreproc_tmp", ignore_errors=True)
+    _detach_linked_backend_outputs(paths)
     _copy_input_sidecars(raw, paths)
     manifest["status"] = "running"
     _write_json(paths["manifest"], manifest)
@@ -1071,8 +1238,7 @@ def run_dwi_preprocessing(
             shutil.copy2(raw.bval_path, paths["final_bval"])
         if not paths["final_bvec"].exists():
             shutil.copy2(raw.bvec_path, paths["final_bvec"])
-        if not paths["final_mask"].exists():
-            shutil.copy2(raw.mask_path, paths["final_mask"])
+        mask_generation = _finalize_brain_mask(raw, config, paths, backend_details, log=log)
 
         required_outputs = (
             paths["final_dwi"],
@@ -1097,6 +1263,7 @@ def run_dwi_preprocessing(
                 "subject_id": raw.subject_id,
                 "status": "failed",
                 "backend_available": backend["available"],
+                "brain_mask_backend": mask_backend,
                 "error": manifest["error"],
             },
         )
@@ -1119,22 +1286,15 @@ def run_dwi_preprocessing(
             "eddy_cnr_maps": _file_record(paths["eddy_cnr_maps"]),
             "eddy_residuals": _file_record(paths["eddy_residuals"]),
         },
-        "warnings": _preprocessing_warnings(backend, backend_details),
-        "mask_generation": {
-            "method": (
-                "dwi2mask_corrected_dwi"
-                if backend.get("backend") == "mrtrix_fsl"
-                else "input_mask"
-            ),
-            "source": (
-                paths["final_dwi"].as_posix()
-                if backend.get("backend") == "mrtrix_fsl"
-                else raw.mask_path.as_posix()
-            ),
-        },
+        "warnings": _preprocessing_warnings(backend, backend_details) + mask_generation.get("warnings", []),
+        "brain_mask_backend": mask_backend,
+        "brain_mask_qc": mask_generation["qc"],
+        "mask_generation": mask_generation,
         "backend_details": backend_details,
     }
     manifest["status"] = "completed"
+    manifest["mask_generation"] = mask_generation
+    manifest["parameters"]["final_mask_method"] = mask_generation["method"]
     _write_json(paths["manifest"], manifest)
     _write_json(paths["qc"], qc_payload)
 
