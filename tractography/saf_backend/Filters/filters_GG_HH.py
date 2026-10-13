@@ -25,6 +25,12 @@ def filters_GG_HH(PS, SD):
     lvec = np.array([sl.shape[0] > 2 for sl in SD.DWI.sl_tracks], dtype=bool)
     nsl = int(np.sum(lvec))
 
+    if nsl == 0:
+        SD.DWI.saf.t_gghh = np.zeros((2, len(lvec)), dtype=int)
+        SD.DWI.saf.m = np.zeros((2, len(lvec)), dtype=int)
+        SD.DWI.saf.h = np.zeros((2, len(lvec)), dtype=bool)
+        return PS, SD
+
     if not hasattr(SD.DWI, 'cvk') or SD.DWI.cvk is None or len(np.atleast_1d(SD.DWI.cvk)) == 0 or PS.force:
         SD.DWI.cvk, elapsed = coordinate_clustering(SD.DWI.cv, nsl)
         PS.logt.append(elapsed)
@@ -107,9 +113,12 @@ def filters_GG_HH(PS, SD):
     # MATLAB stores the first n entries as streamline starts and the next n as
     # streamline ends. NumPy's default row-major reshape would interleave them,
     # corrupting start/end pairing for GG/HH bookkeeping.
-    SD.DWI.saf.t_gghh = _pair_streamline_endpoint_values(gg_idx, nsl)
-    SD.DWI.saf.m = _pair_streamline_endpoint_values(mm_idx, nsl)
-    SD.DWI.saf.h = _pair_streamline_endpoint_values(hh_idx, nsl)
+    # Keep original track indices, including rejected one-/two-point tracks.
+    # Later hemisphere, length and weight masks address the original list.
+    for name, values in [('t_gghh', gg_idx), ('m', mm_idx), ('h', hh_idx)]:
+        paired = np.zeros((2, len(lvec)), dtype=values.dtype)
+        paired[:, lvec] = _pair_streamline_endpoint_values(values, nsl)
+        setattr(SD.DWI.saf, name, paired)
 
     t = time.time() - filtert
     PS.logt.append(['Time spent on GG & HH filtering:', _format_elapsed(t)])

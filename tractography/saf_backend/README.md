@@ -1,42 +1,59 @@
-![](gitbg.png)
+<div align="center">
 
-## Surface-based tracking for short association fibres
+# SAF Python Backend
 
-A processing framework designed to add flexibility for short association fibre tractogram filtering around the cortical surface. Targets streamlines that course through the white matter and terminate in the neocortex of the same hemisphere at either end.
+**Native-diffusion-space short association fibre filtering**
 
-### Main features
+[Project](../../README.md) | [Implementation](../../docs/architecture/IMPLEMENTATION_PROVENANCE.md) | [Validation](../../docs/release/SAF_PYTHON_20261013.md) | [中文](README.zh-CN.md)
 
-- Options for filtering at the grey-white interface
-- Indexing of the closest cortical mesh vertex for each streamline termination enabling to relate streamline- and surface-based data
-- Modularity - most processing steps can be individually replaced or turned off
-- Intuitive data structure to facilitate creation of custom scripts which be easily appended
-- Summary statistics
+</div>
 
-### Documentation
+This directory contains SlicerDDSurfer's **unofficial Python port** of
+[Dmitri Shastin's MATLAB SAF framework](https://github.com/dmitrishastin/SAF/tree/7e2a9d152caf1cf3e6bface64e7e176faac0c14f).
+The original MIT [license](LICENSE.md) is retained. Python execution does not
+require MATLAB. NumPy, SciPy, scikit-learn, NiBabel and route-specific MRtrix
+commands are required; use the validated facade in [`../saf.py`](../saf.py).
 
-Please see [`doc/README.txt`](https://github.com/dmitrishastin/SAF/blob/main/doc/README.md)
+---
 
-## Original paper
+## Scope
 
-**Surface-based tracking for short association fibre tractography**.
-NeuroImage 2022, [doi: 10.1016/j.neuroimage.2022.119423](https://doi.org/10.1016/j.neuroimage.2022.119423)
-<a href="https://orcid.org/0000-0003-3937-3675">D. Shastin <img alt="ORCID logo" src="https://info.orcid.org/wp-content/uploads/2019/11/orcid_16x16.png" width="16" height="16" /></a>, S. Genc, G.D. Parker, K. Koller, C.M.W. Tax, J. Evans, K. Hamandi, W.P. Gray, D.K. Jones, M. Chamberland.
+GG/HH cortical endpoint and hemisphere conditions, optional PG filtering,
+initial-track maximum length, GWG crossing/truncation, and surface projections
+follow the upstream method. Surfaces and tractograms **must already share
+native diffusion physical coordinates**. This facade does not perform the
+original optional ANTs registration or run recon-all on a supplied T1 image.
 
-Please cite if using the framework.
+The outputs are SAF tractography **candidates**, not independently verified
+adjacent-gyri U-fibres. Upstream's soft GWG rule preserves outer crossings and
+does not require all interior points to stay in white matter. The original
+90 mm default is not a universal short-fibre anatomical definition; record the
+actual length limit and filtering options used in each study.
 
-## Software
+---
 
-- **MATLAB**[^1] (2015a and above):
-    - framework execution
-- **FreeSurfer**[^2]:
-    - MATLAB scripts: read/write surface data
-- **MRtrix3**[^3]:
-    - MATLAB scripts: read/write streamline data
-    - tractography [optional]: pre-generated unfiltered tractograms can be provided instead
-    - tcksample [optional]: project per-streamline scalar image data on the surface
-- **Surface-space requirement**:
-    - cortical surfaces must already be expressed in native diffusion space
+## Port Differences
 
-[^1]: MATLAB: [website](https://uk.mathworks.com/products/matlab.html)
-[^2]: FreeSurfer: [website](https://surfer.nmr.mgh.harvard.edu/) [citation](https://doi.org/10.1016/j.neuroimage.2012.01.021)
-[^3]: MRtrix3: [website](https://www.mrtrix.org/) [citation](https://doi.org/10.1016/j.neuroimage.2019.116137)
+Revision `python-native-20261013` pairs endpoint coordinates with the correct
+crossed faces, preserves original indices for rejected short tracks and maps
+hard-split weights through the original tractogram. The complete-intersection
+branch retains edge/vertex crossings and handles shared-point duplicates;
+the published MATLAB source clears its edge/vertex flags before its return.
+scikit-learn k-means is deterministic here but need not reproduce MATLAB's
+clusters, so whole-pipeline bitwise equivalence is not claimed.
+
+Old surface density/length/scalar projections require recomputation. Do not
+interpret copied hard-split weights as newly estimated SIFT2 weights. The
+[verification report](../../docs/release/SAF_PYTHON_20261013.md) separates author
+kernel parity, analytic geometry tests, real-product checks and manual review.
+The inherited [`doc/`](doc/README.md) documents **the original MATLAB version**,
+not the complete supported Python interface or current dependency requirements.
+
+---
+
+## Citation
+
+Shastin D., Genc S., Parker G.D., Koller K., Tax C.M.W., Evans J., Hamandi K.,
+Gray W.P., Jones D.K., Chamberland M. *Surface-based tracking for short
+association fibre tractography*. NeuroImage (2022).
+[doi:10.1016/j.neuroimage.2022.119423](https://doi.org/10.1016/j.neuroimage.2022.119423).

@@ -582,7 +582,7 @@ def _common_freesurfer_homes(platform_name: Optional[str] = None) -> tuple[Path,
 def _is_freesurfer_home(path: Path) -> bool:
     return (
         path.is_dir()
-        and (path / "bin" / "recon-all").is_file()
+        and any((path / "bin" / name).is_file() for name in ("recon-all", "mri_surf2surf"))
         and (path / "subjects" / "fsaverage").is_dir()
     )
 
@@ -598,12 +598,13 @@ def _resolve_freesurfer_home_with_source(platform_name: Optional[str] = None) ->
         if _is_freesurfer_home(candidate):
             return candidate, f"env:{env_name}", checked
 
-    found = shutil.which("recon-all")
-    if found:
-        candidate = Path(found).expanduser().resolve().parent.parent
-        checked.append(candidate.as_posix())
-        if _is_freesurfer_home(candidate):
-            return candidate, "PATH", checked
+    for executable in ("recon-all", "mri_surf2surf"):
+        found = shutil.which(executable)
+        if found:
+            candidate = Path(found).expanduser().resolve().parent.parent
+            checked.append(candidate.as_posix())
+            if _is_freesurfer_home(candidate):
+                return candidate, "PATH", checked
 
     for candidate in _common_freesurfer_homes(platform_name):
         checked.append(candidate.as_posix())
@@ -1186,15 +1187,12 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 discovery_source="user setting" if freesurfer_home is not None else "",
             )
             for command in (
-                "recon-all",
                 "mris_sphere",
                 "mris_curvature",
                 "mris_inflate",
                 "mris_register",
                 "mri_label2label",
                 "mri_surf2surf",
-                "mri_annotation2label",
-                "mri_segstats",
             ):
                 _command(
                     specs,
@@ -1203,6 +1201,13 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     group="freesurfer",
                     bin_dir=freesurfer_home / "bin" if freesurfer_home else None,
                 )
+            metric_home = freesurfer_home or _resolve_freesurfer_home_with_source(platform_name)[0]
+            modern = ((metric_home / "bin" / "mris_place_surface") if metric_home
+                      else Path(shutil.which("mris_place_surface") or "/nonexistent/mris_place_surface"))
+            _command(specs, target=target,
+                     command="mris_place_surface" if modern.is_file() and os.access(modern, os.X_OK) else "mris_thickness",
+                     group="freesurfer", bin_dir=freesurfer_home / "bin" if freesurfer_home else None,
+                     notes="Current surface-only backend: modern metrics or the explicit older-FreeSurfer thickness fallback.")
 
         if target == "tractography" and config.tractography_backend in {"csd_act", "saf"}:
             _add_core_python(specs, target)

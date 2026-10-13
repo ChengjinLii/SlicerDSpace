@@ -36,8 +36,8 @@
       "path": "licenses/PyTorch3D.txt",
       "sha256": "6da05663049417a91409fa349bfad5778ed56c9ef68226dde28dffd541481579",
       "source": "https://github.com/ChengjinLii/DDSurfer/blob/c3b2d40ead82b316f0adec900a23979f629da70b/utils/LICENSE.pytorch3d",
-      "covers": ["anatomy/surface/ddsurfer_backend/utils/mesh.py"],
-      "conditions": "Preserve Meta copyright, conditions and disclaimer for the attributed PyTorch3D-derived mesh helpers."
+      "covers": ["anatomy/surface/ddsurfer_backend/utils/mesh.py", "anatomy/surface/ddsurfer_backend/utils/loss.py", "anatomy/surface/ddsurfer_backend/utils/LICENSE.pytorch3d"],
+      "conditions": "Preserve Meta copyright, conditions and disclaimer for PyTorch3D-derived mesh and optional training-loss helpers. The covered training helper does not add a production inference dependency."
     },
     {
       "id": "mkcurve",

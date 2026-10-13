@@ -43,7 +43,7 @@ for arg in "$@"; do
 done
 mkdir -p "$(dirname "$out")"
 for name in AF.left AF.right CST.left CST.right; do
-  printf '# vtk DataFile Version 3.0\\nASCII\\nDATASET POLYDATA\\nPOINTS 2 float\\n0 0 0 1 0 0\\nLINES 1 3\\n2 0 1\\n' > "${out}_${name}.vtk"
+  printf '# vtk DataFile Version 3.0\\nWMQL unit fixture\\nASCII\\nDATASET POLYDATA\\nPOINTS 2 float\\n0 0 0 1 0 0\\nLINES 1 3\\n2 0 1\\n' > "${out}_${name}.vtk"
 done
 exit 0
 """,

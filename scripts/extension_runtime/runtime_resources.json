@@ -11,6 +11,8 @@
     "Resources/Icons/SlicerDDSurfer.png",
     "Resources/UI/SlicerDDSurfer.ui",
     "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt",
+    "anatomy/surface/ddsurfer_backend/CITATION.cff",
+    "anatomy/surface/ddsurfer_backend/utils/LICENSE.pytorch3d",
     "tractography/wmql_queries/AF_CST.qry",
     "scripts/wsl/WslCommandBridge.cs",
     "scripts/wsl/requirements-runtime.txt"

@@ -9,6 +9,7 @@ dependency installation and execution explicit. It prepares a reproducible
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import shutil
@@ -19,12 +20,22 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from shared.external_process import merged_startup_environment, text_subprocess_kwargs
+from shared.external_process import python_tool_environment, text_subprocess_kwargs
 from shared.output_contracts import vtp_streamline_count
+from shared.product_staging import archive_run_records, new_product_staging, publish_products, retain_failed_products
 
 
 TRACTCLOUD_REPOSITORY = "https://github.com/SlicerDMRI/TractCloud"
+ADAPTER_REVISION = 'seeded-fresh-products-20261013'
 VALID_TRACTCLOUD_DEVICES = {"auto", "cpu", "cuda"}
+TRACTCLOUD_COMPAT_BOOTSTRAP = (
+    "import logging, os, random, runpy; import numpy as np; import torch; "
+    "seed = int(os.environ.get('SLICERDDSURFER_TRACTCLOUD_SEED', '0')); "
+    "random.seed(seed); np.random.seed(seed); torch.manual_seed(seed); "
+    "torch.cuda.manual_seed_all(seed); import tractcloud.pipeline as pipeline; "
+    "pipeline.__dict__.setdefault('logging', logging); "
+    "runpy.run_module('tractcloud', run_name='__main__')"
+)
 
 
 def _file_info(path: Path) -> dict[str, object]:
@@ -56,6 +67,23 @@ class TractCloudConfig:
     data_dir: Optional[Path] = None
     create_mrb: bool = False
     execute: bool = False
+    random_seed: int = 0
+
+
+def model_input_signature(data_dir: Optional[Path]) -> dict[str, object]:
+    directory = (data_dir or Path(os.environ.get('TRACTCLOUD_DATA_DIR', str(Path.home() / '.cache/tractcloud')))).expanduser()
+    result = {}
+    for name in ('TrainedModel/best_tract_f1_model.pth', 'TrainedModel/cli_args.txt', 'TrainData_800clu800ol/HCP_mass_center.npy'):
+        path = directory / name
+        info = _file_info(path)
+        if path.is_file():
+            digest = hashlib.sha256()
+            with path.open('rb') as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    digest.update(block)
+            info['sha256'] = digest.hexdigest()
+        result[name] = info
+    return result
 
 
 @dataclass(frozen=True)
@@ -70,13 +98,14 @@ class TractCloudResult:
     executed: bool
     backend_status: dict[str, Any]
     return_code: Optional[int] = None
+    status: str = 'planned'
 
 
 def resolve_tractcloud_python(python_executable: Optional[Path] = None) -> Path:
     """Resolve the Python executable used to invoke ``python -m tractcloud``."""
 
     if python_executable is not None:
-        candidate = python_executable.expanduser().resolve()
+        candidate = python_executable.expanduser().absolute()
         if not candidate.is_file():
             raise FileNotFoundError(f"TractCloud Python executable not found: {candidate}")
         return candidate
@@ -88,7 +117,7 @@ def resolve_tractcloud_python(python_executable: Optional[Path] = None) -> Path:
         or os.environ.get("TRACTCLOUD_PYTHON")
     )
     if env_value:
-        candidate = Path(env_value).expanduser().resolve()
+        candidate = Path(env_value).expanduser().absolute()
         if not candidate.is_file():
             raise FileNotFoundError(f"TractCloud Python executable not found: {candidate}")
         return candidate
@@ -96,9 +125,9 @@ def resolve_tractcloud_python(python_executable: Optional[Path] = None) -> Path:
     for executable_name in ("PythonSlicer", "python3", "python"):
         found = shutil.which(executable_name)
         if found:
-            return Path(found).resolve()
+            return Path(found).absolute()
 
-    return Path(sys.executable).resolve()
+    return Path(sys.executable).absolute()
 
 
 def resolve_tractcloud_root(tractcloud_root: Optional[Path] = None) -> Optional[Path]:
@@ -159,6 +188,7 @@ def _tractcloud_env(config: "TractCloudConfig", backend_status: Optional[dict[st
         env["PYTHONPATH"] = root_value
     if config.data_dir is not None:
         env["TRACTCLOUD_DATA_DIR"] = config.data_dir.expanduser().resolve().as_posix()
+    env['SLICERDDSURFER_TRACTCLOUD_SEED'] = str(config.random_seed)
     return env
 
 
@@ -189,7 +219,7 @@ def inspect_tractcloud_backend(
         "}))"
     )
     try:
-        env = merged_startup_environment()
+        env = python_tool_environment(python_path)
         source_pythonpath = _tractcloud_pythonpath(root)
         if source_pythonpath:
             env["PYTHONPATH"] = source_pythonpath + os.pathsep + env.get("PYTHONPATH", "")
@@ -219,6 +249,8 @@ def validate_tractcloud_inputs(config: TractCloudConfig) -> None:
         raise ValueError("device must be one of: auto, cpu, cuda.")
     if config.batch_size < 64:
         raise ValueError("batch_size must be >= 64.")
+    if isinstance(config.random_seed, bool) or not isinstance(config.random_seed, int) or not 0 <= config.random_seed < 2**32:
+        raise ValueError('random_seed must be an integer in [0, 2**32).')
     if config.data_dir is not None and not config.data_dir.expanduser().is_dir():
         raise FileNotFoundError(f"TractCloud data directory not found: {config.data_dir}")
     backend_status = inspect_tractcloud_backend(config.python_executable, config.tractcloud_root)
@@ -254,9 +286,10 @@ def build_tractcloud_command(config: TractCloudConfig) -> tuple[str, ...]:
 
 def summarize_tractcloud_outputs(output_dir: Path) -> dict[str, Any]:
     root = output_dir.expanduser().resolve()
-    bundle_files = sorted(root.rglob("*.vtp")) if root.is_dir() else []
+    bundle_files = sorted(path for path in root.rglob("*.vtp")
+                          if not any(part.startswith('.') for part in path.relative_to(root).parts)) if root.is_dir() else []
     category_dirs = sorted(
-        item.name for item in root.iterdir() if item.is_dir()
+        item.name for item in root.iterdir() if item.is_dir() and not item.name.startswith('.')
     ) if root.is_dir() else []
     mrb_files = sorted(root.glob("*.mrb")) if root.is_dir() else []
 
@@ -314,12 +347,14 @@ def run_tractcloud_parcellation(
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = output_dir / "tractcloud_manifest.json"
     qc_path = output_dir / "tractcloud_qc.json"
+    previous_records = archive_run_records(output_dir, ('tractcloud_manifest.json', 'tractcloud_qc.json')) if config.execute else None
     output_summary = summarize_tractcloud_outputs(output_dir)
     resolved_root = resolve_tractcloud_root(config.tractcloud_root)
 
     manifest = {
         "kind": "tractcloud_parcellation",
-        "version": 2,
+        "version": 3,
+        "adapter_revision": ADAPTER_REVISION,
         "name": "TractCloud registration-free tractography parcellation",
         "subject_id": config.subject_id,
         "input_tractography": config.input_tractography.expanduser().resolve().as_posix(),
@@ -328,15 +363,18 @@ def run_tractcloud_parcellation(
         "include_other": config.include_other,
         "device": config.device,
         "batch_size": config.batch_size,
+        "random_seed": config.random_seed,
         "data_dir": config.data_dir.expanduser().resolve().as_posix() if config.data_dir else None,
         "create_mrb": config.create_mrb,
         "executed": bool(config.execute),
         "status": "planned" if not config.execute else "running",
         "command": list(command),
         "backend": backend_status,
+        "previous_records": previous_records,
         "dependencies": {
             "input_tractography": _file_info(config.input_tractography),
             "data_dir": _file_info(config.data_dir) if config.data_dir else None,
+            "model_inputs": model_input_signature(config.data_dir),
         },
         "outputs": {
             "qc": qc_path.as_posix(),
@@ -354,10 +392,21 @@ def run_tractcloud_parcellation(
     return_code: Optional[int] = None
     execution_error: Optional[str] = None
     execution_exception: Optional[Exception] = None
+    staging = None
+    published_archive = None
     if config.execute:
-        env = merged_startup_environment(_tractcloud_env(config, backend_status))
+        env = python_tool_environment(backend_status['python_executable'], _tractcloud_env(config, backend_status))
         try:
-            completed = subprocess.run(command, check=True, env=env)
+            staging = new_product_staging(output_dir, 'tractcloud')
+            runtime_command = list(command)
+            runtime_command[runtime_command.index('--output-dir') + 1] = str(staging)
+            # The author snapshot references logging in its CUDA-error/CPU
+            # fallback without importing it. Supply only that missing global;
+            # keep the official CLI, network, labels and weights unchanged.
+            runtime_command[1:3] = ['-c', TRACTCLOUD_COMPAT_BOOTSTRAP]
+            manifest['executed_command'] = runtime_command
+            manifest['compatibility_adjustments'] = ['Supply a missing logging global for the upstream CUDA-error CPU fallback; no inference or parameter changes']
+            completed = subprocess.run(runtime_command, check=True, env=env)
             return_code = completed.returncode
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode
@@ -367,7 +416,21 @@ def run_tractcloud_parcellation(
             execution_error = f"{type(exc).__name__}: {exc}"
             execution_exception = exc
         finally:
-            output_summary = summarize_tractcloud_outputs(output_dir)
+            output_summary = summarize_tractcloud_outputs(staging) if staging else {}
+            if execution_error is None:
+                execution_error = _tractcloud_output_contract_error(output_summary)
+            if staging:
+                try:
+                    if execution_error is None:
+                        previous_names = ['Association', 'Projection', 'Commissural', 'Cerebellar', 'Superficial', 'Other']
+                        previous_names.extend(p.name for p in output_dir.glob('*.mrb'))
+                        published_archive = publish_products(staging, output_dir, previous_names)
+                        output_summary = summarize_tractcloud_outputs(output_dir)
+                    else:
+                        staging = retain_failed_products(staging, output_dir)
+                        output_summary = summarize_tractcloud_outputs(staging)
+                except OSError as exc:
+                    execution_error = f'Failed to publish TractCloud products: {exc}'
 
     if config.execute and execution_error is None:
         execution_error = _tractcloud_output_contract_error(output_summary)
@@ -375,12 +438,18 @@ def run_tractcloud_parcellation(
     elapsed_seconds = time.monotonic() - start_time
     qc = {
         "kind": "tractcloud_parcellation_qc",
-        "version": 2,
+        "version": 3,
+        "adapter_revision": ADAPTER_REVISION,
         "subject_id": config.subject_id,
         "status": "failed" if execution_error else ("completed" if config.execute else "planned"),
         "executed": bool(config.execute),
         "return_code": return_code,
         "elapsed_seconds": elapsed_seconds,
+        "human_review": "pending",
+        "scientific_scope": "Fresh decoded bundle products, not clinical or expert anatomical certification; seed-controlled upstream neighborhood sampling, not cross-platform bitwise equivalence.",
+        "random_seed": config.random_seed,
+        "repeatability_scope": "Python/NumPy/PyTorch seeds are fixed; identical hardware/configuration repetition is tested separately, not guaranteed across devices or library versions",
+        "previous_products": published_archive,
         "backend_available": bool(backend_status["available"]),
         "output_summary": output_summary,
         "error": execution_error,
@@ -390,7 +459,12 @@ def run_tractcloud_parcellation(
     manifest["status"] = qc["status"]
     manifest["executed"] = bool(config.execute)
     manifest["return_code"] = return_code
+    manifest["runtime_seconds"] = elapsed_seconds
+    manifest["error"] = execution_error
+    manifest["previous_products"] = published_archive
     manifest["outputs"]["summary"] = output_summary
+    if config.execute:
+        manifest['dependencies']['model_inputs'] = model_input_signature(config.data_dir)
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     if execution_exception is not None:
@@ -405,4 +479,5 @@ def run_tractcloud_parcellation(
         executed=bool(config.execute),
         backend_status=backend_status,
         return_code=return_code,
+        status=qc['status'],
     )

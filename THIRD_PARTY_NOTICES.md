@@ -48,6 +48,13 @@ M. Chamberland, "Surface-based tracking for short association fibre
 tractography", NeuroImage 2022,
 [doi:10.1016/j.neuroimage.2022.119423](https://doi.org/10.1016/j.neuroimage.2022.119423).
 
+The reference is pinned to `7e2a9d152caf1cf3e6bface64e7e176faac0c14f`.
+This is an **unofficial MATLAB-to-Python port**, limited to native-diffusion
+surfaces. Local endpoint indexing, complete-intersection and bookkeeping
+corrections are documented in [implementation provenance](docs/architecture/IMPLEMENTATION_PROVENANCE.md)
+and the [SAF verification record](docs/release/SAF_PYTHON_20261013.md);
+author endorsement and whole-pipeline bitwise equivalence are not implied.
+
 ---
 
 ## `anatomy/parcellation/conversion/` (NRRD/NHDR conversion utilities)
@@ -119,6 +126,7 @@ The previous "upstream license missing" description is superseded for the
 project-authored source, not for weights or templates.
 
 The attributed PyTorch3D-derived normal/Laplacian helpers in `utils/mesh.py`
+and optional training-only boundary-loss helper in `utils/loss.py`
 retain Meta's BSD-3-Clause terms, copied from the
 [upstream notice](https://github.com/ChengjinLii/DDSurfer/blob/c3b2d40ead82b316f0adec900a23979f629da70b/utils/LICENSE.pytorch3d)
 into [licenses/PyTorch3D.txt](licenses/PyTorch3D.txt).

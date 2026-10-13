@@ -10,6 +10,25 @@ import shared.pipeline as pipeline
 
 
 class SharedPipelineWindowsCompatibilityTest(unittest.TestCase):
+    def test_cli_in_an_additional_factory_search_path_is_found(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / 'home'
+            extra = Path(tmp) / 'external-cli'
+            home.mkdir()
+            extra.mkdir()
+            executable = extra / 'DWIToDTIEstimation'
+            executable.touch()
+            factory = SimpleNamespace(searchPaths=[str(extra)])
+            app = SimpleNamespace(moduleManager=lambda: SimpleNamespace(factoryManager=lambda: factory))
+            pipeline._cli_search_dirs.cache_clear()
+            try:
+                with patch.object(pipeline, 'SLICER_IMPORT_ERROR', None), \
+                     patch.object(pipeline, 'slicer', SimpleNamespace(modules=SimpleNamespace(), app=app)), \
+                     patch.object(pipeline, '_resolve_slicer_home', return_value=home):
+                    self.assertEqual(Path(pipeline.resolve_cli_executable('dwitodtiestimation')), executable)
+            finally:
+                pipeline._cli_search_dirs.cache_clear()
+
     def test_cli_fallback_selects_exe_and_not_xml_descriptor(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             cli_dir = Path(tmp)

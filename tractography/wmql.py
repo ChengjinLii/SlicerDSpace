@@ -12,7 +12,9 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from shared.external_process import merged_startup_environment, text_subprocess_kwargs
+from shared.external_process import python_tool_environment, text_subprocess_kwargs
+from shared.output_contracts import polydata_streamline_count
+from shared.product_staging import archive_run_records, new_product_staging, publish_products, retain_failed_products
 
 
 TRACT_QUERIER_REPOSITORY = "https://github.com/demianw/tract_querier"
@@ -60,6 +62,7 @@ class WMQLResult:
     executed: bool
     backend_status: dict[str, Any]
     return_code: Optional[int] = None
+    status: str = 'planned'
 
 
 def bundled_wmql_query_path() -> Path:
@@ -73,22 +76,22 @@ def _default_query_data_dir() -> Optional[Path]:
 
 def _resolve_python(python_executable: Optional[Path]) -> Path:
     if python_executable is not None:
-        candidate = python_executable.expanduser().resolve()
+        candidate = python_executable.expanduser().absolute()
         if not candidate.is_file():
             raise FileNotFoundError(f"Python executable not found: {candidate}")
         return candidate
     for env_name in ("SLICERDDSURFER_WMQL_PYTHON", "TRACT_QUERIER_PYTHON"):
         env_value = os.environ.get(env_name)
         if env_value:
-            candidate = Path(env_value).expanduser().resolve()
+            candidate = Path(env_value).expanduser().absolute()
             if not candidate.is_file():
                 raise FileNotFoundError(f"Python executable not found from {env_name}: {candidate}")
             return candidate
-    return Path(sys.executable).resolve()
+    return Path(sys.executable).absolute()
 
 
 def _probe_python_package(python_path: Path, tract_querier_root: Optional[Path]) -> dict[str, Any]:
-    env = merged_startup_environment()
+    env = python_tool_environment(python_path)
     if tract_querier_root is not None:
         env["PYTHONPATH"] = tract_querier_root.expanduser().resolve().as_posix() + os.pathsep + env.get("PYTHONPATH", "")
     probe = (
@@ -248,39 +251,35 @@ def build_wmql_command(config: WMQLConfig, backend_status: Optional[dict[str, An
     return tuple(cmd)
 
 
-def summarize_wmql_outputs(output_dir: Path) -> dict[str, Any]:
+def summarize_wmql_outputs(output_dir: Path, subject_id: Optional[str] = None) -> dict[str, Any]:
     root = output_dir.expanduser().resolve()
     bundle_files = sorted(
-        path for path in root.glob("*") if path.suffix.lower() in VALID_TRACT_EXTENSIONS and "_desc-wmql_" in path.name
+        path for path in root.glob("*") if path.suffix.lower() in VALID_TRACT_EXTENSIONS
+        and "_desc-wmql_" in path.name
+        and (subject_id is None or path.name.startswith(f'{subject_id}_desc-wmql_'))
     ) if root.is_dir() else []
     bundle_details: list[dict[str, Any]] = []
     for path in bundle_files:
-        detail: dict[str, Any] = {"path": path.as_posix(), "size": path.stat().st_size}
+        detail: dict[str, Any] = {"path": path.as_posix(), "size": path.stat().st_size,
+                                  "query_name": path.stem.split('_desc-wmql_', 1)[1].lower()}
         if path.suffix.lower() in {".trk", ".tck"}:
             try:
                 import nibabel as nib
-
-                detail["streamline_count"] = len(nib.streamlines.load(path.as_posix()).streamlines)
+                import numpy as np
+                count = 0
+                for track in nib.streamlines.load(path.as_posix(), lazy_load=True).streamlines:
+                    if len(track) < 2 or not np.isfinite(track).all() or not np.any(track != track[0]):
+                        raise ValueError('Non-finite, degenerate or incomplete TRK streamline geometry')
+                    count += 1
+                detail["streamline_count"] = count
             except Exception as exc:  # pragma: no cover - best-effort QC
                 detail["streamline_count_error"] = str(exc)
         elif path.suffix.lower() in {".vtk", ".vtp"}:
-            try:
-                import re
-
-                header = path.read_bytes()[: 64 * 1024]
-                if path.suffix.lower() == ".vtp":
-                    match = re.search(
-                        rb'<Piece\b[^>]*\bNumberOfLines=["\'](\d+)["\']',
-                        header,
-                        flags=re.DOTALL,
-                    )
-                else:
-                    match = re.search(rb"(?im)^\s*LINES\s+(\d+)\s+", header)
-                if match is None:
-                    raise ValueError("streamline count was not found in the VTK header")
-                detail["streamline_count"] = int(match.group(1))
-            except Exception as exc:  # pragma: no cover - best-effort QC
-                detail["streamline_count_error"] = str(exc)
+            count = polydata_streamline_count(path)
+            if count is None:
+                detail['streamline_count_error'] = 'Unable to decode complete finite VTK/VTP streamline geometry'
+            else:
+                detail['streamline_count'] = count
         bundle_details.append(detail)
     readable = [item for item in bundle_details if "streamline_count" in item]
     nonempty = [item for item in readable if int(item["streamline_count"]) > 0]
@@ -307,7 +306,14 @@ def summarize_wmql_outputs(output_dir: Path) -> dict[str, Any]:
 def _wmql_output_contract_error(
     output_summary: dict[str, Any],
     expected_bundle_count: int,
+    requested_queries: tuple[str, ...] = (),
 ) -> Optional[str]:
+    expected_names = {name.strip().lower() for name in requested_queries if name.strip()}
+    present = {item.get('query_name') for item in output_summary.get('bundles', [])
+               if int(item.get('streamline_count', 0)) > 0}
+    missing = expected_names - present
+    if missing:
+        return 'WMQL is missing requested non-empty query outputs: ' + ', '.join(sorted(missing))
     bundle_count = int(output_summary.get("bundle_count", 0) or 0)
     readable_count = int(output_summary.get("bundle_readable_count", 0) or 0)
     nonempty_count = int(output_summary.get("bundle_nonempty_count", 0) or 0)
@@ -333,9 +339,10 @@ def _validate_wmql_config(config: WMQLConfig, backend_status: dict[str, Any]) ->
     query_path = config.query_path or bundled_wmql_query_path()
     if not query_path.expanduser().is_file():
         raise FileNotFoundError(f"WMQL query file not found: {query_path}")
-    if config.threshold < 0:
-        raise ValueError("threshold must be non-negative.")
-    if config.length_threshold < 0:
+    import math
+    if not math.isfinite(config.threshold) or not 0 <= config.threshold <= 100:
+        raise ValueError("threshold must be finite and between 0 and 100.")
+    if not math.isfinite(config.length_threshold) or config.length_threshold < 0:
         raise ValueError("length_threshold must be non-negative.")
     if config.execute and not backend_status["available"]:
         raise RuntimeError("WMQL backend is incomplete. Missing: " + ", ".join(backend_status["missing_required"]))
@@ -369,7 +376,8 @@ def run_wmql_bundle_segmentation(
 
     manifest_path = output_dir / "wmql_manifest.json"
     qc_path = output_dir / "wmql_qc.json"
-    output_summary = summarize_wmql_outputs(output_dir)
+    previous_records = archive_run_records(output_dir, ('wmql_manifest.json', 'wmql_qc.json')) if config.execute else None
+    output_summary = summarize_wmql_outputs(output_dir, config.subject_id)
     manifest: dict[str, Any] = {
         "kind": "wmql_bundle_segmentation",
         "version": 2,
@@ -386,6 +394,7 @@ def run_wmql_bundle_segmentation(
         "command": list(command),
         "execution_cwd": queries_dir.as_posix() if _requires_windows_query_staging() else None,
         "backend": backend_status,
+        "previous_records": previous_records,
         "dependencies": {
             "input_tractography": _file_info(config.input_tractography),
             "atlas": _file_info(config.atlas_path),
@@ -404,18 +413,20 @@ def run_wmql_bundle_segmentation(
     return_code: Optional[int] = None
     execution_error: Optional[str] = None
     execution_exception: Optional[Exception] = None
+    staging = None
+    published_archive = None
     if config.execute:
-        env = merged_startup_environment()
+        env = python_tool_environment(backend_status['commands']['python'])
         if config.tract_querier_root is not None:
             root = config.tract_querier_root.expanduser().resolve()
             env["PYTHONPATH"] = root.as_posix() + os.pathsep + env.get("PYTHONPATH", "")
         try:
-            output_prefix = f"{config.subject_id}_desc-wmql_"
-            for stale_output in output_dir.glob(f"{output_prefix}*"):
-                if stale_output.is_file() and stale_output.suffix.lower() in VALID_TRACT_EXTENSIONS:
-                    stale_output.unlink()
+            staging = new_product_staging(output_dir, 'wmql')
+            runtime_command = list(command)
+            runtime_command[runtime_command.index('-o') + 1] = str(staging / f'{config.subject_id}_desc-wmql')
+            manifest['executed_command'] = runtime_command
             completed = subprocess.run(
-                command,
+                runtime_command,
                 check=True,
                 env=env,
                 cwd=queries_dir if _requires_windows_query_staging() else None,
@@ -431,12 +442,27 @@ def run_wmql_bundle_segmentation(
             execution_error = f"{type(exc).__name__}: {exc}"
             execution_exception = exc
         finally:
-            output_summary = summarize_wmql_outputs(output_dir)
+            output_summary = summarize_wmql_outputs(staging, config.subject_id) if staging else {}
+            if execution_error is None:
+                execution_error = _wmql_output_contract_error(output_summary, len(config.query_selection), config.query_selection)
+            if staging:
+                try:
+                    if execution_error is None:
+                        previous_names = [p.name for p in output_dir.glob(f'{config.subject_id}_desc-wmql_*')
+                                          if p.suffix.lower() in VALID_TRACT_EXTENSIONS]
+                        published_archive = publish_products(staging, output_dir, previous_names)
+                        output_summary = summarize_wmql_outputs(output_dir, config.subject_id)
+                    else:
+                        staging = retain_failed_products(staging, output_dir)
+                        output_summary = summarize_wmql_outputs(staging, config.subject_id)
+                except OSError as exc:
+                    execution_error = f'Failed to publish WMQL products: {exc}'
 
     if config.execute and execution_error is None:
         execution_error = _wmql_output_contract_error(
             output_summary,
             len(config.query_selection),
+            config.query_selection,
         )
 
     elapsed_seconds = time.monotonic() - start_time
@@ -448,6 +474,11 @@ def run_wmql_bundle_segmentation(
         "executed": bool(config.execute),
         "return_code": return_code,
         "elapsed_seconds": elapsed_seconds,
+        "human_review": "pending",
+        "scientific_warnings": [f"{b['query_name']} has only {b['streamline_count']} streamline; insufficient evidence for reliable bundle-level interpretation"
+                                for b in output_summary.get('bundles', []) if b.get('streamline_count') == 1],
+        "previous_products": published_archive,
+        "scientific_scope": "Requested-query identity and decoded geometry; not expert anatomical validation. Bundled AF/CST definitions are DDParcel-adapted endpoint rules.",
         "backend_available": bool(backend_status["available"]),
         "output_summary": output_summary,
         "error": execution_error,
@@ -457,6 +488,9 @@ def run_wmql_bundle_segmentation(
     manifest["status"] = qc["status"]
     manifest["executed"] = bool(config.execute)
     manifest["return_code"] = return_code
+    manifest["runtime_seconds"] = elapsed_seconds
+    manifest["error"] = execution_error
+    manifest["previous_products"] = published_archive
     manifest["outputs"]["summary"] = output_summary
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -472,4 +506,5 @@ def run_wmql_bundle_segmentation(
         executed=bool(config.execute),
         backend_status=backend_status,
         return_code=return_code,
+        status=qc['status'],
     )

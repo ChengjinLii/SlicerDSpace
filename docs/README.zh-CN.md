@@ -28,6 +28,7 @@
 | [模型资源](assets/MODEL_ASSETS.md) | Profile、下载与校验 |
 | [资源授权](assets/MODEL_ASSET_TERMS.md) | 文件校验与再分发许可分别审查 |
 | [代码与第三方授权](assets/CODE_LICENSES.zh-CN.md) | 原许可证、固定来源与分发条件 |
+| [实现来源](architecture/IMPLEMENTATION_PROVENANCE.zh-CN.md) | DDSeg/SAF/MK-Curve 移植与官方 PNL Python 外部适配的区别 |
 | [外部依赖](setup/EXTERNAL_DEPENDENCIES.md) | 外部软件与路线前提 |
 
 ---
@@ -42,6 +43,18 @@
 ---
 
 ## 历史验证记录
+
+[白质束后端核查](release/BUNDLE_BACKENDS_20261013.zh-CN.md) 区分 WMA 失败结果、
+稀疏 WMQL 候选束和固定种子验证的 TractCloud 输出。
+[模块运行时间](release/MODULE_RUNTIMES_20261013.zh-CN.md) 汇总历史与补测计时，
+不把缓存复用或小 ROI 测量冒充全脑计算耗时。
+
+[SAF Python 核验](release/SAF_PYTHON_20261013.md)记录原版核心函数对照、
+有意保留的修正，以及真实纤维的几何检查与可靠性边界。
+
+[最新 DDSurfer 同步](release/DDSURFER_SYNC_20261013.md)记录 RAS 标记、Python 标签导出、
+批量 fsaverage 映射及真实结果对照。
+[Python MK-Curve 验证](release/MKCURVE_PYTHON_20261012.md)记录 Python 校正路线与独立作者代码对照。
 
 [脑掩膜、微结构与场景验证](release/PIPELINE_MASK_MICROSTRUCTURE_20261012.md)
 记录默认 PNL、DKI 适用性、Advanced 独立开关与自动加载；真实 MATLAB MK-Curve

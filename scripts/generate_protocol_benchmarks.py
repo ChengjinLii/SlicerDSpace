@@ -23,6 +23,12 @@ COMPUTE_STATUSES = {"completed", "passed", "success"}
 REUSE_STATUSES = {"skipped", "reused"}
 
 
+def _seconds(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value) if math.isfinite(value) and value >= 0 else None
+
+
 def _read_json(path: Path) -> dict[str, Any] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -121,14 +127,14 @@ def rows_from_manifest(path: Path, payload: dict[str, Any]) -> tuple[dict[str, A
     tasks = list(payload.get("tasks") or [])
     status_counts = Counter(str(task.get("status") or "unknown").lower() for task in tasks)
     completed_runtimes = [
-        float(task.get("runtime_seconds") or 0.0)
+        float(task["runtime_seconds"])
         for task in tasks
-        if str(task.get("status") or "").lower() in COMPUTE_STATUSES
+        if str(task.get("status") or "").lower() in COMPUTE_STATUSES and _seconds(task.get("runtime_seconds")) is not None
     ]
     reused_runtimes = [
-        float(task.get("runtime_seconds") or 0.0)
+        float(task["runtime_seconds"])
         for task in tasks
-        if str(task.get("status") or "").lower() in REUSE_STATUSES
+        if str(task.get("status") or "").lower() in REUSE_STATUSES and _seconds(task.get("runtime_seconds")) is not None
     ]
     top_dirs = list(profile.get("top_dirs") or [])
     output_bytes = sum(int(row.get("size_bytes") or 0) for row in top_dirs) if top_dirs else None
@@ -144,7 +150,7 @@ def rows_from_manifest(path: Path, payload: dict[str, Any]) -> tuple[dict[str, A
         "ddseg_device": payload.get("resolved_ddseg_device") or payload.get("ddseg_device") or "",
         "surface_device": payload.get("resolved_surface_device") or payload.get("surface_device") or "",
         "targets": ",".join(str(value) for value in payload.get("targets", []) or []),
-        "elapsed_seconds": float(payload.get("elapsed_seconds") or profile.get("orchestration_elapsed_seconds") or 0.0),
+        "elapsed_seconds": _seconds(payload.get("elapsed_seconds", profile.get("orchestration_elapsed_seconds"))),
         "completed_task_runtime_seconds": sum(completed_runtimes),
         "resume_check_runtime_seconds": sum(reused_runtimes),
         "task_count": len(tasks),
@@ -169,8 +175,8 @@ def rows_from_manifest(path: Path, payload: dict[str, Any]) -> tuple[dict[str, A
                 "run_name": run_name,
                 "task": name,
                 "status": status,
-                "runtime_seconds": float(task.get("runtime_seconds") or 0.0),
-                "is_compute_runtime": status in COMPUTE_STATUSES,
+                "runtime_seconds": _seconds(task.get("runtime_seconds")),
+                "is_compute_runtime": status in COMPUTE_STATUSES and _seconds(task.get("runtime_seconds")) is not None and bool(payload.get('execute')),
                 "reason": str(task.get("reason") or ""),
                 "started_at": str(task.get("started_at") or ""),
                 "ended_at": str(task.get("ended_at") or ""),
@@ -206,6 +212,7 @@ def _percentile(values: list[float], fraction: float) -> float | None:
 
 
 def _statistics(values: list[float]) -> dict[str, Any]:
+    values = [value for value in values if _seconds(value) is not None]
     return {
         "n": len(values),
         "mean": statistics.fmean(values) if values else None,
@@ -276,7 +283,8 @@ def summarize_stage_metrics(stage_rows: list[dict[str, Any]]) -> list[dict[str, 
         grouped[_pretty_stage_name(str(row["stage"]))].append(row)
     summary_rows: list[dict[str, Any]] = []
     for stage, rows in grouped.items():
-        values = [float(row["elapsed_seconds"]) for row in rows]
+        values = [float(row["elapsed_seconds"]) for row in rows
+                  if row['status'] in COMPUTE_STATUSES and _seconds(row.get('elapsed_seconds')) is not None]
         stats = _statistics(values)
         status_counts = Counter(str(row["status"]) for row in rows)
         summary_rows.append(
@@ -292,10 +300,10 @@ def summarize_stage_metrics(stage_rows: list[dict[str, Any]]) -> list[dict[str, 
                 "minimum_seconds": stats["minimum"],
                 "maximum_seconds": stats["maximum"],
                 "p95_seconds": stats["p95"],
-                "median_minutes": float(stats["median"]) / 60.0,
+                "median_minutes": float(stats["median"]) / 60.0 if stats['median'] is not None else None,
             }
         )
-    return sorted(summary_rows, key=lambda row: float(row["median_seconds"]), reverse=True)
+    return sorted(summary_rows, key=lambda row: float(row["median_seconds"] or 0), reverse=True)
 
 
 def _report_generation_system() -> dict[str, Any]:
@@ -370,8 +378,8 @@ def _report_generation_system() -> dict[str, Any]:
 
 
 def build_summary(run_rows: list[dict[str, Any]], task_rows: list[dict[str, Any]]) -> dict[str, Any]:
-    completed = [row for row in task_rows if row["status"] in COMPUTE_STATUSES]
-    reused = [row for row in task_rows if row["status"] in REUSE_STATUSES]
+    completed = [row for row in task_rows if row['is_compute_runtime']]
+    reused = [row for row in task_rows if row["status"] in REUSE_STATUSES and _seconds(row['runtime_seconds']) is not None]
     status_counts = Counter(row["status"] for row in task_rows)
     by_task: dict[str, list[float]] = defaultdict(list)
     for row in completed:
@@ -386,7 +394,7 @@ def build_summary(run_rows: list[dict[str, Any]], task_rows: list[dict[str, Any]
         "subject_count": len({row["subject_id"] for row in run_rows}),
         "manifest_count": len({row["manifest_path"] for row in run_rows}),
         "report_generation_system": _report_generation_system(),
-        "run_elapsed_seconds": _statistics([float(row["elapsed_seconds"]) for row in run_rows]),
+        "run_elapsed_seconds": _statistics([row["elapsed_seconds"] for row in run_rows]),
         "completed_task_runtime_seconds": _statistics([float(row["runtime_seconds"]) for row in completed]),
         "resume_check_runtime_seconds": _statistics([float(row["runtime_seconds"]) for row in reused]),
         "task_status_counts": dict(sorted(status_counts.items())),
@@ -449,7 +457,7 @@ def _plot_figures(
 
     completed_by_task: dict[str, list[float]] = defaultdict(list)
     for row in task_rows:
-        if row["status"] in COMPUTE_STATUSES:
+        if row['is_compute_runtime']:
             completed_by_task[row["task"]].append(float(row["runtime_seconds"]))
     if completed_by_task:
         ordered = sorted(completed_by_task, key=lambda key: statistics.median(completed_by_task[key]), reverse=True)
@@ -538,7 +546,7 @@ def _plot_figures(
             fig.savefig(path, dpi=300 if suffix == "png" else None, bbox_inches="tight")
             written.append(path.as_posix())
         plt.close(fig)
-    stage_summary_rows = summarize_stage_metrics(stage_rows)
+    stage_summary_rows = [row for row in summarize_stage_metrics(stage_rows) if row['median_seconds'] is not None]
     if stage_summary_rows:
         labels = [str(row["stage"]) for row in stage_summary_rows]
         values = [float(row["median_seconds"]) / 60.0 for row in stage_summary_rows]

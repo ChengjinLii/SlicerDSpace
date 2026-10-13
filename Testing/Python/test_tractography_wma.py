@@ -83,6 +83,21 @@ exit 0
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    def test_rerun_zero_exit_cannot_reuse_old_anatomical_products(self):
+        from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
+        config = WMAOrgAtlasConfig(subject_id='100307', input_tractography=self.tractography,
+            atlas_dir=self.atlas_dir, output_dir=self.output_dir, slicer_executable=self.slicer_executable,
+            wma_root=self.wma_root, use_virtual_x=False, execute=True)
+        first = run_wma_org_atlas(config)
+        self.assertEqual(first.status, 'completed')
+        self.wma_script.write_text('#!/bin/sh\nexit 0\n')
+        second = run_wma_org_atlas(config)
+        self.assertNotEqual(second.status, 'completed')
+        qc = json.loads(second.qc_path.read_text())
+        self.assertNotEqual(qc['status'], 'completed')
+        self.assertTrue((self.output_dir / 'subject' / 'AnatomicalTracts').is_dir())
+        self.assertTrue(list((self.output_dir / '.previous_records').rglob('wma_org_atlas_qc.json')))
+
     def test_builds_org_atlas_command_without_running_wma(self) -> None:
         from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
 

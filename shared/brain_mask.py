@@ -12,6 +12,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import time
 from typing import Any, Callable, Optional
 
 from shared.external_process import external_python_environment, text_subprocess_kwargs
@@ -231,6 +232,7 @@ def generate_brain_mask(dwi_path: Path, bval_path: Path, bvec_path: Path, output
                         *, config: BrainMaskConfig | None = None, force: bool = False,
                         log: Callable[[str], None] | None = None) -> dict[str, Any]:
     """Run the selected backend. Supplied masks take priority; never silently fall back."""
+    started = time.monotonic()
     config = config or BrainMaskConfig()
     paths = [Path(p).expanduser().resolve() for p in (dwi_path, bval_path, bvec_path)]
     output = Path(output_mask_path).expanduser()
@@ -315,6 +317,8 @@ def generate_brain_mask(dwi_path: Path, bval_path: Path, bvec_path: Path, output
                         "requested_backend": config.backend, "mask_path": str(output), "manifest_path": str(record_path),
                         "signature": signature, "output": dict(_fingerprint(staged), path=str(output)), "b0_volumes": count,
                         "command": command, "stdout_tail": tail, "qc": qc,
+                        "runtime_seconds": time.monotonic() - started,
+                        "timing_scope": "Fresh mask generation, input/resource hashing, b0 preparation and automatic QC; excludes GUI startup/downloads",
                         "note": "Automatic geometry/integrity checks passed; anatomical quality awaits human review"}
             with tempfile.NamedTemporaryFile(mode="w", prefix=".mask-record-", suffix=".json", dir=record_path.parent,
                                              encoding="utf-8", delete=False) as tmp:

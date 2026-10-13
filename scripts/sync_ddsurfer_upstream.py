@@ -20,6 +20,15 @@ def digest(path):
     return result.hexdigest()
 
 
+def copy_if_changed(source, destination):
+    """Keep identical large assets and their timestamps intact during source sync."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.is_file() and destination.stat().st_size == source.stat().st_size and digest(destination) == digest(source):
+        return False
+    shutil.copy2(source, destination)
+    return True
+
+
 def synchronize(upstream, assets):
     upstream, assets = upstream.resolve(), assets.resolve()
     revision = subprocess.check_output(['git', '-C', str(upstream), 'rev-parse', 'HEAD'], text=True).strip()
@@ -34,15 +43,18 @@ def synchronize(upstream, assets):
     files.extend(upstream / name for name in
                  ('DDSurfer_predict.py', 'run_ddsurfer_pipeline.py', 'run_ddsurfer_pipeline.sh',
                   'environment.yml', 'requirements.txt', 'README.md'))
+    files.extend(upstream / name for name in ('README.zh-CN.md', 'CITATION.cff', 'LICENSE', 'utils/LICENSE.pytorch3d')
+                 if (upstream / name).is_file())
     overview = upstream / 'assets/ddsurfer-overview.png'
     if overview.is_file():
         files.append(overview)
     hashes = {}
     for source in sorted(files):
         relative = source.relative_to(upstream)
+        if relative == Path('LICENSE'):
+            relative = Path('LICENSE.txt')
         destination = backend / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
+        copy_if_changed(source, destination)
         hashes[str(relative)] = digest(source)
     # Remove only files recorded by our previous snapshot, never unrelated files.
     record = backend / 'UPSTREAM.json'
@@ -67,8 +79,7 @@ def synchronize(upstream, assets):
             source = upstream / folder / name
             relative = f'surface/{folder}/{name}'
             destination = assets / relative
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, destination)
+            copy_if_changed(source, destination)
             required.append(relative)
             manifest['asset_records'][relative] = {
                 'sha256': digest(source), 'size_bytes': source.stat().st_size,

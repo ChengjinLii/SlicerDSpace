@@ -6,6 +6,7 @@ Only synthetic test geometry is created; no scientific output is modified.
 
 import tempfile
 import traceback
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -20,12 +21,24 @@ from vtk.util.numpy_support import vtk_to_numpy
 def run():
     try:
         from shared.module_logic import SharedLogicMixin
+        from anatomy.surface.backend_bridge import BACKEND_ROOT
         from anatomy.surface.postprocessing import PostprocessingConfig, convert_meshes_to_native_space
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             vertices = np.array([[-35., 11., 8.], [-31., 11., 8.], [-35., 17., 8.], [-35., 11., 19.]])
             faces = [[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]]
+            # Exercise Slicer's own OBJ reader, not only the compatibility STL path.
+            sys.path.insert(0, str(BACKEND_ROOT))
+            from utils.surface_io import write_obj
+            obj = root / 'explicit_ras.obj'
+            write_obj(obj, vertices, np.asarray(faces))
+            assert 'SPACE=RAS' in obj.read_text().splitlines()[0]
+            obj_node = slicer.util.loadModel(str(obj))
+            obj_points = vtk_to_numpy(obj_node.GetPolyData().GetPoints().GetData())
+            assert np.allclose(obj_points, vertices, atol=1e-5), 'Explicit RAS OBJ mirrored by Slicer'
+            assert obj_node.GetPolyData().GetNumberOfPolys() == len(faces)
+            slicer.mrmlScene.RemoveNode(obj_node)
             atlas = root / "atlas.obj"
             trimesh.Trimesh(vertices=vertices, faces=faces, process=False).export(str(atlas))
             transform = sitk.TranslationTransform(3, [3., -5., 7.])

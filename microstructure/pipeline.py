@@ -1249,6 +1249,7 @@ def _compute_roi_stats(
     json_path: Path,
     validity_masks: dict[str, np.ndarray] | None = None,
 ) -> int:
+    started = time.monotonic()
     roi_img = nib.load(str(roi_label_map))
     roi_data = roi_img.get_fdata(dtype=np.float32)
     metric_arrays: dict[str, np.ndarray] = {}
@@ -1344,6 +1345,8 @@ def _compute_roi_stats(
         "lut_path": str(lut_path.resolve()) if lut_path is not None else None,
         "feature_maps": {metric_key: str(metric_path.resolve()) for metric_key, metric_path in metric_paths.items()},
         "roi_count": len(rows),
+        "runtime_seconds": time.monotonic() - started,
+        "timing_scope": "Read scalar maps/atlas and compute/write ROI statistics; excludes scalar model fitting",
         "rows": rows,
     }
     _write_json(json_path, payload)

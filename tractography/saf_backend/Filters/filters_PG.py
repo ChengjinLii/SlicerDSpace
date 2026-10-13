@@ -43,10 +43,18 @@ def filters_PG(PS, DWI):
             hemi_tracks = np.all(DWI.saf.t_gghh, axis=0) & np.all(DWI.saf.h, axis=0)
 
         tracks = [t for t, keep in zip(DWI.sl_tracks, hemi_tracks) if keep]
-        if precision == 'fast':
-            _, osi, _, xp = crop_streamlines_outside_mesh_fast(V, F, tracks, True, True)
-        else:
-            _, osi, _, xp = crop_streamlines_outside_mesh_complete(V, F, tracks, True, True)
+        if not tracks:
+            continue
+        try:
+            if precision == 'fast':
+                _, osi, _, xp = crop_streamlines_outside_mesh_fast(V, F, tracks, True, True)
+            else:
+                _, osi, _, xp = crop_streamlines_outside_mesh_complete(V, F, tracks, True, True)
+        except AssertionError as exc:
+            if str(exc) != 'No streamlines have survived GWG filtering':
+                raise
+            pial_sl_wb[hemi_tracks] = True
+            continue
 
         # ``osi`` indexes the hemisphere-filtered ``tracks`` collection and
         # can be shorter than it when some streamlines do not survive.  Use it

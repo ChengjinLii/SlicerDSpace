@@ -1,6 +1,7 @@
 ﻿import numpy as np
 
 from .trintersect_complete import trintersect_complete
+from .endpoint_vertices import closest_endpoint_vertices
 
 
 def crop_streamlines_outside_mesh_complete(V, F, tract, inside=None, outer_intersection=False):
@@ -102,24 +103,7 @@ def crop_streamlines_outside_mesh_complete(V, F, tract, inside=None, outer_inter
 
     xverts = None
     if end_faces.size > 0:
-        ef = end_faces.T
-        xf = ~np.isnan(ef)
-        pts = []
-        for sl in tract_out:
-            pts.append(sl[[0, -1], :])
-        pts = np.stack(pts, axis=0)
-        pts = np.concatenate([pts[:, 0, :], pts[:, 1, :]], axis=0)
-        pts = pts[xf.T.ravel()]
-        ef_valid = ef[xf].astype(int)
-        v1 = np.sum((pts - V[F[ef_valid, 0]]) ** 2, axis=1)
-        v2 = np.sum((pts - V[F[ef_valid, 1]]) ** 2, axis=1)
-        v3 = np.sum((pts - V[F[ef_valid, 2]]) ** 2, axis=1)
-        cfv = np.argmin(np.column_stack([v1, v2, v3]), axis=1)
-        fi = F[ef_valid]
-        fi = fi[np.arange(fi.shape[0]), cfv]
-        xverts = np.zeros_like(ef, dtype=float)
-        xverts[xf] = fi + 1
-        xverts = xverts.T
+        xverts = closest_endpoint_vertices(V, F, tract_out, end_faces)
 
     return tract_out, orig_sl_ind, xverts, xpoints
 

@@ -23,6 +23,16 @@ def _load_module():
 
 
 class ProtocolBenchmarkTest(unittest.TestCase):
+    def test_missing_timing_and_failed_stage_are_not_zero_or_success(self):
+        module = _load_module()
+        self.assertIsNone(module._seconds(None))
+        self.assertIsNone(module._seconds(float('nan')))
+        self.assertIsNone(module._seconds(-1))
+        rows = [dict(stage='NODDI', status='failed', elapsed_seconds=120., elapsed_minutes=2.),
+                dict(stage='NODDI', status='completed', elapsed_seconds=60., elapsed_minutes=1.)]
+        result = module.summarize_stage_metrics(rows)[0]
+        self.assertEqual(result['median_seconds'], 60.)
+
     def test_completed_and_reused_runtime_are_separated(self) -> None:
         module = _load_module()
         with tempfile.TemporaryDirectory() as tmp:

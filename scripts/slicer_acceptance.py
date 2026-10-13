@@ -21,7 +21,7 @@ SMOKES = (
     "cancel_background", "output_tree_button", "surface_coordinate",
     "extension_manager_install",
 )
-AVAILABLE = (*SMOKES, "real_tasks", "input_preparation", "shutdown", "batch", "setup_tree", "model_assets", "results", "preprocessing_cache", "compact_ui")
+AVAILABLE = (*SMOKES, "real_tasks", "input_preparation", "shutdown", "batch", "setup_tree", "model_assets", "results", "preprocessing_cache", "compact_ui", "saf_product", "bundle_products")
 
 
 def private_slicer_home(slicer, destination):

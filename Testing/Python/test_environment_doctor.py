@@ -137,6 +137,7 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             "mris_register",
             "mri_label2label",
             "mri_surf2surf",
+            "mris_thickness",
             "mri_annotation2label",
             "mri_segstats",
         ):
@@ -471,14 +472,14 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
                     os.environ["SLICERDDSURFER_FREESURFER_HOME"] = old_slicer_fs_home
 
             freesurfer_env = next(item for item in result.statuses if item.key == "env:freesurfer_home")
-            recon_all = next(item for item in result.statuses if item.key == "command:recon-all")
+            surface_mapping = next(item for item in result.statuses if item.key == "command:mri_surf2surf")
             rtree = next(item for item in result.statuses if item.key == "python:rtree")
             self.assertEqual(freesurfer_env.status, "available")
             self.assertEqual(freesurfer_env.details["detected_source"], "common path")
             self.assertEqual(freesurfer_env.details["resolved"], freesurfer_home.as_posix())
-            self.assertEqual(recon_all.status, "available")
-            self.assertEqual(recon_all.details["detected_source"], "common path")
-            self.assertTrue(recon_all.details["resolved"].startswith((freesurfer_home / "bin").as_posix()))
+            self.assertEqual(surface_mapping.status, "available")
+            self.assertEqual(surface_mapping.details["detected_source"], "common path")
+            self.assertTrue(surface_mapping.details["resolved"].startswith((freesurfer_home / "bin").as_posix()))
             self.assertTrue(rtree.required)
             self.assertEqual(rtree.details["package"], "rtree")
 

@@ -28,6 +28,7 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 | [Model assets](assets/MODEL_ASSETS.md) | Profiles, download and checksum verification |
 | [Asset terms](assets/MODEL_ASSET_TERMS.md) | Permission review, independent of file verification |
 | [Third-party notices](../THIRD_PARTY_NOTICES.md) | Bundled source licenses, provenance and distribution conditions |
+| [Implementation origins](architecture/IMPLEMENTATION_PROVENANCE.md) | DDSeg/SAF/MK-Curve ports versus the external official PNL Python adapter |
 | [Dependencies](setup/EXTERNAL_DEPENDENCIES.md) | External software and route prerequisites |
 
 ---
@@ -42,6 +43,19 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 ---
 
 ## Validation Records
+
+[Bundle backend verification](release/BUNDLE_BACKENDS_20261013.md) separates
+real WMA failures, sparse WMQL candidates and seed-verified TractCloud products.
+[Module runtimes](release/MODULE_RUNTIMES_20261013.md) inventories historical and
+new measurements without treating cache reuse or ROI timings as full computations.
+
+[SAF Python verification](release/SAF_PYTHON_20261013.md) records independent
+author-kernel comparisons, intentional corrections and actual tractogram geometry checks.
+
+[Current DDSurfer synchronization](release/DDSURFER_SYNC_20261013.md) records
+RAS-marked OBJ export, Python labels and batched fsaverage mapping with real-output comparisons.
+[Python MK-Curve verification](release/MKCURVE_PYTHON_20261012.md) records the
+native Python correction route and independent author-code comparisons.
 
 [Masking/microstructure/scene follow-up](release/PIPELINE_MASK_MICROSTRUCTURE_20261012.md)
 records the PNL default, DKI eligibility, independent Advanced switches and

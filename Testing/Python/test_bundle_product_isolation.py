@@ -1,0 +1,117 @@
+"""Regression checks for decoded geometry and fresh-run product isolation."""
+
+import json
+from pathlib import Path
+import tempfile
+import unittest
+from unittest import mock
+
+from shared.output_contracts import polydata_streamline_count
+from shared.product_staging import new_product_staging, publish_products, retain_failed_products
+from vtp_fixture import vtp_lines
+
+
+VTK = '# vtk DataFile Version 3.0\nfixture\nASCII\nDATASET POLYDATA\nPOINTS 2 float\n0 0 0 1 0 0\nLINES 1 3\n2 0 1\n'
+
+
+class BundleIsolationTest(unittest.TestCase):
+    def test_legacy_vtk_geometry_not_header(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'bundle.vtk'
+            path.write_text(VTK)
+            self.assertEqual(polydata_streamline_count(path), 1)
+            for data in (VTK[:80], VTK.replace('0 0 0 1', 'nan 0 0 1'), VTK.replace('2 0 1', '2 0 99'), VTK.replace('0 0 0 1 0 0', '0 0 0 0 0 0')):
+                path.write_text(data)
+                self.assertIsNone(polydata_streamline_count(path))
+
+    def test_requested_wmql_identity_and_subject(self):
+        from tractography.wmql import summarize_wmql_outputs, _wmql_output_contract_error
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'other_desc-wmql_AF.left.vtk').write_text(VTK)
+            (root / 'subject_desc-wmql_Unexpected.vtk').write_text(VTK)
+            summary = summarize_wmql_outputs(root, 'subject')
+            self.assertEqual(summary['bundle_count'], 1)
+            self.assertIsNotNone(_wmql_output_contract_error(summary, 1, ('AF.left',)))
+
+    def test_published_old_classes_are_archived_not_recounted(self):
+        from tractography.tractcloud import summarize_tractcloud_outputs
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / 'products'
+            (root / 'Association').mkdir(parents=True)
+            (root / 'Association' / 'old.vtp').write_text(vtp_lines(2))
+            stage = new_product_staging(root, 'test')
+            (stage / 'Association').mkdir()
+            (stage / 'Association' / 'new.vtp').write_text(vtp_lines(3))
+            archive = Path(publish_products(stage, root, ('Association',)))
+            self.assertTrue((archive / 'Association' / 'old.vtp').is_file())
+            self.assertFalse((root / 'Association' / 'old.vtp').exists())
+            self.assertEqual(summarize_tractcloud_outputs(root)['assigned_streamline_count'], 3)
+
+    def test_failed_products_are_not_current_results(self):
+        from tractography.tractcloud import summarize_tractcloud_outputs
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / 'products'
+            root.mkdir()
+            stage = new_product_staging(root, 'test')
+            (stage / 'partial.vtp').write_text(vtp_lines(2))
+            retained = retain_failed_products(stage, root)
+            self.assertTrue((retained / 'partial.vtp').exists())
+            self.assertEqual(summarize_tractcloud_outputs(root)['bundle_count'], 0)
+
+    def test_virtualenv_symlink_is_preserved(self):
+        from tractography.wmql import _resolve_python
+        from tractography.tractcloud import resolve_tractcloud_python
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            actual = root / 'actual'
+            actual.touch()
+            alias = root / 'venv' / 'python'
+            alias.parent.mkdir()
+            alias.symlink_to(actual)
+            self.assertEqual(_resolve_python(alias), alias)
+            self.assertEqual(resolve_tractcloud_python(alias), alias)
+
+    def test_external_python_environment_strips_slicer_home(self):
+        from shared.external_process import python_tool_environment
+        with mock.patch('shared.external_process.startup_environment', return_value={
+            'PYTHONHOME': '/opt/Slicer/python', 'PATH': '/opt/Slicer-5.10/bin:/usr/bin',
+        }):
+            env = python_tool_environment('/opt/venv/bin/python')
+            self.assertNotIn('PYTHONHOME', env)
+            self.assertNotIn('Slicer-', env['PATH'])
+            self.assertTrue(env['PATH'].startswith('/opt/venv/bin'))
+
+    def test_tractcloud_model_signature_tracks_changed_weights(self):
+        from tractography.tractcloud import model_input_signature
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            weight = root / 'TrainedModel' / 'best_tract_f1_model.pth'
+            weight.parent.mkdir()
+            weight.write_bytes(b'first')
+            before = model_input_signature(root)
+            weight.write_bytes(b'other')
+            after = model_input_signature(root)
+            self.assertNotEqual(before['TrainedModel/best_tract_f1_model.pth']['sha256'],
+                                after['TrainedModel/best_tract_f1_model.pth']['sha256'])
+
+    def test_unseeded_tractcloud_cache_is_not_reused(self):
+        from shared.orchestrator import _tractcloud_complete
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'tractcloud_qc.json').write_text(json.dumps({'status': 'completed'}))
+            (root / 'tractcloud_manifest.json').write_text(json.dumps({'status': 'completed'}))
+            (root / 'tract.vtp').write_text(vtp_lines(3))
+            self.assertFalse(_tractcloud_complete(root))
+
+    def test_runtime_selection_does_not_promote_failed_or_missing_time(self):
+        from scripts.collect_module_runtimes import select
+        rows = select([dict(module='bundles.wma', status='scientific_contract_failed', runtime_seconds=10, priority=99),
+                       dict(module='bundles.wma', status='completed', runtime_seconds=None, priority=99)])
+        row = next(r for r in rows if r['module'] == 'bundles.wma')
+        self.assertEqual(row['measurement_status'], 'MISSING')
+        self.assertIsNone(row['seconds'])
+
+
+if __name__ == '__main__':
+    unittest.main()

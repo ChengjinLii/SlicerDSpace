@@ -171,6 +171,7 @@ class ProductOrchestratorConfig:
     tractcloud_data_dir: Optional[Path] = None
     tractcloud_device: str = "auto"
     tractcloud_batch_size: int = 2048
+    tractcloud_random_seed: int = 0
     preflight_blocked_targets: dict[str, str] = field(default_factory=dict)
 
 
@@ -314,7 +315,7 @@ def _wmql_complete(
     if not _qc_completed(qc_path):
         return False
     try:
-        from tractography.wmql import summarize_wmql_outputs
+        from tractography.wmql import summarize_wmql_outputs, _wmql_output_contract_error
 
         native_manifest_path = manifest_path or qc_path.with_name("wmql_manifest.json")
         manifest = _read_json(native_manifest_path)
@@ -332,14 +333,15 @@ def _wmql_complete(
             "dependencies",
         ):
             return False
-        summary = summarize_wmql_outputs(qc_path.parent)
+        summary = summarize_wmql_outputs(qc_path.parent, manifest.get('subject_id'))
         expected_count = max(1, len(manifest.get("query_selection") or []))
         bundle_count = int(summary.get("bundle_count", 0) or 0)
         readable_count = int(summary.get("bundle_readable_count", 0) or 0)
         nonempty_count = int(summary.get("bundle_nonempty_count", 0) or 0)
         if bundle_count < expected_count:
             return False
-        return readable_count == bundle_count and nonempty_count >= expected_count
+        return readable_count == bundle_count and nonempty_count >= expected_count and _wmql_output_contract_error(
+            summary, expected_count, tuple(manifest.get('query_selection') or ())) is None
     except (OSError, TypeError, ValueError):
         return False
 
@@ -705,13 +707,30 @@ def _tractcloud_complete(
     output_dir: Path,
     *,
     input_tractography: Optional[Path] = None,
+    random_seed: int = 0,
+    config: Optional[ProductOrchestratorConfig] = None,
 ) -> bool:
     qc_path = output_dir / "tractcloud_qc.json"
     manifest_path = output_dir / "tractcloud_manifest.json"
     if not _qc_completed(qc_path):
         return False
     try:
-        from tractography.tractcloud import summarize_tractcloud_outputs
+        from tractography.tractcloud import summarize_tractcloud_outputs, ADAPTER_REVISION, model_input_signature
+
+        manifest = json.loads(manifest_path.read_text())
+        if manifest.get('random_seed') != random_seed:
+            return False
+        if manifest.get('adapter_revision') != ADAPTER_REVISION:
+            return False
+        if config is not None:
+            if manifest.get('batch_size') != config.tractcloud_batch_size:
+                return False
+            if config.tractcloud_device not in {'auto', ''} and manifest.get('device') != config.tractcloud_device:
+                return False
+            if config.tractcloud_root is not None and manifest.get('tractcloud_root') != str(config.tractcloud_root.expanduser().resolve()):
+                return False
+            if manifest.get('dependencies', {}).get('model_inputs') != model_input_signature(config.tractcloud_data_dir):
+                return False
 
         if input_tractography is not None and not _manifest_inputs_match(
             manifest_path,
@@ -746,6 +765,12 @@ def _saf_complete(
     try:
         qc = _read_json(qc_path)
         manifest = _read_json(manifest_path)
+        from tractography.saf_backend.provenance import IMPLEMENTATION_REVISION
+
+        for record in (qc, manifest):
+            implementation = record.get("implementation")
+            if not isinstance(implementation, dict) or implementation.get("revision") != IMPLEMENTATION_REVISION:
+                return False
         expected_dependencies = {
             key: path
             for key, path in {"fod": fod_path, "fs_dir": fs_dir}.items()
@@ -1586,6 +1611,8 @@ def _validate_tractography_settings(config: ProductOrchestratorConfig) -> None:
 
     if config.mrtrix_random_seed is not None and config.mrtrix_random_seed < 0:
         raise ValueError("mrtrix_random_seed must be >= 0 when set.")
+    if isinstance(config.tractcloud_random_seed, bool) or not isinstance(config.tractcloud_random_seed, int) or not 0 <= config.tractcloud_random_seed < 2**32:
+        raise ValueError('tractcloud_random_seed must be an integer in [0, 2**32).')
     if config.tractography_seeding not in SEEDING_MODES:
         raise ValueError(f"tractography_seeding must be one of: {', '.join(SEEDING_MODES)}.")
     if not 0.0 <= float(config.ddseg_min_wm_dice) <= 1.0:
@@ -1771,6 +1798,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             return _tractcloud_complete(
                 tractcloud_dir,
                 input_tractography=tractcloud_input_tractography,
+                random_seed=config.tractcloud_random_seed,
+                config=config,
             )
         if target == "connectome":
             connectome_stem = f"{config.subject_id}-connectome-streamline_count"
@@ -2146,6 +2175,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             if config.resume and _tractcloud_complete(
                 tractcloud_dir,
                 input_tractography=tractcloud_input_tractography,
+                random_seed=config.tractcloud_random_seed,
+                config=config,
             ):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=tractcloud_outputs)
             elif not tractcloud_input_available and not tractcloud_input_will_run:
@@ -3919,6 +3950,8 @@ def _run_subject_products_impl(
         if config.resume and _tractcloud_complete(
             tractcloud_dir,
             input_tractography=tractcloud_input_tractography,
+            random_seed=config.tractcloud_random_seed,
+            config=config,
         ):
             from tractography.tractcloud import summarize_tractcloud_outputs
 
@@ -3955,6 +3988,7 @@ def _run_subject_products_impl(
                         data_dir=config.tractcloud_data_dir,
                         device=tractcloud_device,
                         batch_size=config.tractcloud_batch_size,
+                        random_seed=config.tractcloud_random_seed,
                         execute=True,
                     ),
                     log=log,
@@ -4257,6 +4291,7 @@ def _run_subject_products_impl(
         "tractcloud_device": config.tractcloud_device,
         "resolved_tractcloud_device": tractcloud_device,
         "tractcloud_batch_size": config.tractcloud_batch_size,
+        "tractcloud_random_seed": config.tractcloud_random_seed,
         "elapsed_seconds": elapsed_seconds,
         "performance_profile_path": performance_profile.get("path"),
         "performance_profile": performance_profile,

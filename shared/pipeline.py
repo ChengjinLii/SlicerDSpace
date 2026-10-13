@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from functools import lru_cache
@@ -437,6 +438,18 @@ def _cli_search_dirs() -> tuple[Path, ...]:
         for path in sorted(slicer_home.glob(pattern)):
             if path.is_dir():
                 candidates.append(path.resolve())
+    # Extension Manager/development paths need not live under SLICER_HOME.
+    # PythonQt exposes searchPaths as a property on some Slicer versions.
+    try:
+        factory = slicer.app.moduleManager().factoryManager()
+        paths = getattr(factory, 'searchPaths', ())
+        paths = paths() if callable(paths) else paths
+        for value in paths:
+            path = Path(str(value))
+            if path.is_dir() and path.resolve() not in candidates:
+                candidates.append(path.resolve())
+    except (AttributeError, TypeError, RuntimeError):
+        pass
     return tuple(candidates)
 
 
@@ -452,6 +465,10 @@ def resolve_cli_executable(module_name: str) -> str:
                 cli_exe = getter()
                 if cli_exe:
                     return cli_exe
+        path = getattr(module, 'path', None)
+        path = path() if callable(path) else path
+        if path and Path(str(path)).is_file() and Path(str(path)).suffix.lower() not in {'.xml', '.so', '.dll', '.dylib'}:
+            return str(path)
 
     target = module_name.lower()
     windows_executable_suffixes = {".exe", ".bat", ".cmd"}
@@ -601,6 +618,7 @@ def ensure_native_dti_bundle(
 
     _require_slicer()
     _emit(f"[Shared] Building native DTI bundle ({fit_key}) in {bundle.bundle_dir}", log)
+    started = time.monotonic()
     bundle.bundle_dir.mkdir(parents=True, exist_ok=True)
 
     from anatomy.parcellation.conversion.nhdr_write import nhdr_write
@@ -660,6 +678,12 @@ def ensure_native_dti_bundle(
     _convert_nrrd_to_nifti(bundle.max_eig_nrrd_path, bundle.max_eig_nii_path)
 
     _write_manifest(bundle.manifest_path, expected_manifest)
+    _write_manifest(bundle.bundle_dir / 'native_dti_timing.json', {
+        'kind': 'native_dti_timing', 'status': 'completed', 'subject_id': raw.subject_id,
+        'runtime_seconds': time.monotonic() - started, 'fit_method': fit_key,
+        'source_dwi': str(raw.dwi_path), 'cache_reused': False,
+        'timing_scope': 'Fresh native tensor fitting, six scalar measurements, compatibility copies and NIfTI conversion; excludes registration and later ROI statistics',
+    })
     return bundle
 
 

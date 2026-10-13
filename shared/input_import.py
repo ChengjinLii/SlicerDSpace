@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -310,6 +311,7 @@ def _select_backend(
 def prepare_inputs(config: InputImportConfig) -> dict[str, Any]:
     """Prepare external inputs and write input/input_import_manifest.json."""
 
+    started = time.monotonic()
     plan = build_import_plan(config)
     targets = _canonical_targets(config.subject_root.expanduser().resolve())
     targets["input_dir"].mkdir(parents=True, exist_ok=True)
@@ -338,6 +340,8 @@ def prepare_inputs(config: InputImportConfig) -> dict[str, Any]:
         "kind": "slicerdsurfer_input_import_manifest",
         "version": 1,
         "status": "planned" if config.dry_run else "completed",
+        "runtime_seconds": None if config.dry_run else time.monotonic() - started,
+        "timing_scope": "Input preparation/conversion and file copies, excluding GUI and Slicer startup",
         "plan": plan,
         "command_result": command_result,
         "outputs": {

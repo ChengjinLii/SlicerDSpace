@@ -8,6 +8,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+import types
 from vtp_fixture import vtp_lines
 
 
@@ -17,13 +19,26 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class TractCloudIntegrationTest(unittest.TestCase):
+    def test_bootstrap_supplies_upstream_fallback_logger_without_changing_cli(self):
+        from tractography.tractcloud import TRACTCLOUD_COMPAT_BOOTSTRAP
+        package = types.ModuleType('tractcloud')
+        pipeline = types.ModuleType('tractcloud.pipeline')
+        package.pipeline = pipeline
+        with mock.patch.dict(sys.modules, {'tractcloud': package, 'tractcloud.pipeline': pipeline}), \
+             mock.patch('runpy.run_module') as invoke, \
+             mock.patch.dict(sys.modules, {'torch': mock.Mock()}):
+            exec(TRACTCLOUD_COMPAT_BOOTSTRAP, {})
+        import logging
+        self.assertIs(pipeline.logging, logging)
+        invoke.assert_called_once_with('tractcloud', run_name='__main__')
+
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.tmp_path = Path(self.tmp.name)
         self.python = self.tmp_path / "PythonSlicer"
         self.python.write_text(
             """#!/bin/sh
-if [ "$1" = "-c" ]; then
+if [ "$1" = "-c" ] && [ "$#" -eq 2 ]; then
   echo '{"tractcloud": true, "torch": true}'
   exit 0
 fi
@@ -150,6 +165,25 @@ exit 0
         self.assertEqual(summary["assigned_streamline_count"], 3)
         self.assertEqual(summary["empty_bundle_files"], ["Association/UF.vtp"])
         self.assertEqual(summary["unreadable_bundle_files"], [])
+
+    def test_zero_exit_without_new_products_cannot_reuse_old_success(self) -> None:
+        from tractography import TractCloudConfig, run_tractcloud_parcellation
+        old = self.output_dir / 'Association' / 'old.vtp'
+        old.parent.mkdir(parents=True)
+        old.write_text(vtp_lines(3))
+        backend = {'available': True, 'python_executable': str(self.python), 'source': None}
+        with mock.patch('tractography.tractcloud.inspect_tractcloud_backend', return_value=backend), \
+             mock.patch('tractography.tractcloud.subprocess.run', return_value=mock.Mock(returncode=0)):
+            result = run_tractcloud_parcellation(TractCloudConfig(
+                subject_id='100307', input_tractography=self.tractography,
+                output_dir=self.output_dir, python_executable=self.python, execute=True))
+        qc = json.loads(result.qc_path.read_text())
+        self.assertEqual(qc['status'], 'failed')
+        self.assertEqual(qc['output_summary']['bundle_count'], 0)
+        self.assertEqual(result.status, 'failed')
+        from shared.orchestrator import _task_from_result
+        self.assertEqual(_task_from_result('bundles.tractcloud', result).status, 'failed')
+        self.assertTrue(old.exists())
 
     def test_bundle_parcellation_dispatches_tractcloud_backend(self) -> None:
         from tractography import BundleParcellationConfig, TractCloudConfig, run_bundle_parcellation

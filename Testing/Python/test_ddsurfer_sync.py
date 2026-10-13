@@ -19,6 +19,47 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class DDSurferSyncTests(unittest.TestCase):
+    def test_identical_assets_are_not_overwritten_on_source_sync(self):
+        from scripts.sync_ddsurfer_upstream import copy_if_changed
+        with tempfile.TemporaryDirectory() as directory:
+            source, target = Path(directory) / 'source', Path(directory) / 'target'
+            source.write_bytes(b'unchanged checkpoint fixture')
+            self.assertTrue(copy_if_changed(source, target))
+            previous = target.stat().st_mtime_ns
+            self.assertFalse(copy_if_changed(source, target))
+            self.assertEqual(target.stat().st_mtime_ns, previous)
+            source.write_bytes(b'changed checkpoint fixture')
+            self.assertTrue(copy_if_changed(source, target))
+            self.assertEqual(target.read_bytes(), source.read_bytes())
+
+    def test_optional_training_loss_has_packaged_upstream_notice(self):
+        from scripts.extension_runtime.runtime_resources import runtime_files
+        self.assertEqual(sha256(BACKEND_ROOT / 'utils/LICENSE.pytorch3d'), sha256(ROOT / 'licenses/PyTorch3D.txt'))
+        selected = set(runtime_files(ROOT))
+        self.assertIn('anatomy/surface/ddsurfer_backend/utils/LICENSE.pytorch3d', selected)
+        self.assertIn('anatomy/surface/ddsurfer_backend/CITATION.cff', selected)
+
+    def test_surface_postprocess_dependencies_match_modern_and_fallback_backend(self):
+        from shared.environment import EnvironmentDoctorConfig, build_dependency_specs, _is_freesurfer_home
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / 'bin').mkdir()
+            (home / 'subjects/fsaverage').mkdir(parents=True)
+            (home / 'bin/mri_surf2surf').touch()
+            self.assertTrue(_is_freesurfer_home(home))  # Surface-only installations need no recon-all.
+            for modern in (False, True):
+                if modern:
+                    path = home / 'bin/mris_place_surface'
+                    path.write_text('#!/bin/sh\n')
+                    path.chmod(0o755)
+                specs = build_dependency_specs(EnvironmentDoctorConfig(
+                    targets=('surface_postprocess',), repo_root=ROOT, postprocess_freesurfer_home=home))
+                commands = {spec.command for spec in specs if spec.kind == 'command'}
+                self.assertFalse(commands & {'recon-all', 'mri_annotation2label', 'mri_segstats'})
+                self.assertEqual(commands, {'mris_sphere', 'mris_curvature', 'mris_inflate', 'mris_register',
+                                            'mri_label2label', 'mri_surf2surf',
+                                            'mris_place_surface' if modern else 'mris_thickness'})
+
     def test_external_runtime_does_not_inherit_slicer_python_home(self):
         completed = SimpleNamespace(returncode=0, stdout='{"python": "external"}\n')
         with patch.dict(os.environ, {'PYTHONHOME': '/Slicer/lib/Python', 'PYTHONPATH': '/Slicer/lib',

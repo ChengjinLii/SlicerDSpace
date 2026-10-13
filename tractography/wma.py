@@ -25,6 +25,7 @@ from shared.external_process import (
     text_subprocess_kwargs,
 )
 from shared.output_contracts import vtp_streamline_count
+from shared.product_staging import archive_run_records, new_product_staging, publish_products, retain_failed_products
 
 
 WMA_APPLY_ORG_SCRIPT = Path("bin") / "wm_apply_ORG_atlas_to_subject.sh"
@@ -620,6 +621,7 @@ def run_wma_org_atlas(
     command = build_wma_org_atlas_command(runtime_config)
     manifest_path = output_dir / "wma_org_atlas_manifest.json"
     qc_path = output_dir / "wma_org_atlas_qc.json"
+    previous_records = archive_run_records(output_dir, ('wma_org_atlas_manifest.json', 'wma_org_atlas_qc.json')) if config.execute else None
     log_dir = output_dir / "logs"
     stdout_log = log_dir / "wma_stdout.log"
     stderr_log = log_dir / "wma_stderr.log"
@@ -651,12 +653,14 @@ def run_wma_org_atlas(
         "status": "planned" if not config.execute else "running",
         "command": list(command),
         "backend": backend_status,
+        "previous_records": previous_records,
         "atlas": atlas_status,
         "dependencies": {
             "input_tractography": _file_info(source_tractography),
             "atlas_dir": _file_info(config.atlas_dir),
             "slicer_executable": _file_info(config.slicer_executable),
             "wma_root": _file_info(wma_root),
+            "transform": _file_info(config.transform_path) if config.transform_path else None,
         },
         "outputs": {
             "qc": qc_path.as_posix(),
@@ -675,6 +679,8 @@ def run_wma_org_atlas(
     start_time = time.monotonic()
     return_code: Optional[int] = None
     execution_error: Optional[str] = None
+    staging = None
+    published_archive = None
     if config.execute:
         log_dir.mkdir(parents=True, exist_ok=True)
         env = merged_startup_environment()
@@ -757,8 +763,12 @@ def run_wma_org_atlas(
                 )
             if runtime_display:
                 env["DISPLAY"] = runtime_display
+            staging = new_product_staging(output_dir, 'wma')
+            runtime_command = list(command_to_run)
+            runtime_command[runtime_command.index('-o') + 1] = str(staging)
+            manifest['executed_command'] = runtime_command
             completed = subprocess.run(
-                command_to_run,
+                runtime_command,
                 check=True,
                 cwd=wma_root.as_posix(),
                 env=env,
@@ -786,7 +796,7 @@ def run_wma_org_atlas(
         finally:
             if temp_python_dir is not None:
                 temp_python_dir.cleanup()
-            output_summary = summarize_wma_outputs(output_dir, prepared_tractography)
+            output_summary = summarize_wma_outputs(staging, prepared_tractography) if staging else {}
             contract_error = _wma_output_contract_error(output_summary) if config.execute else None
             if execution_error is None and contract_error is not None:
                 log_hint = _last_nonempty_line(stderr_log.read_text(encoding="utf-8") if stderr_log.is_file() else "")
@@ -795,6 +805,16 @@ def run_wma_org_atlas(
                 execution_error = contract_error
                 if log_hint:
                     execution_error += f" Last log line: {log_hint}"
+            if staging:
+                try:
+                    if execution_error is None:
+                        published_archive = publish_products(staging, output_dir, (prepared_tractography.stem,))
+                        output_summary = summarize_wma_outputs(output_dir, prepared_tractography)
+                    else:
+                        staging = retain_failed_products(staging, output_dir)
+                        output_summary = summarize_wma_outputs(staging, prepared_tractography)
+                except OSError as exc:
+                    execution_error = f'Failed to publish WMA products: {exc}'
 
     elapsed_seconds = time.monotonic() - start_time
     status = _derive_wma_status(output_summary, execution_error, bool(config.execute))
@@ -806,6 +826,9 @@ def run_wma_org_atlas(
         "executed": bool(config.execute),
         "return_code": return_code,
         "elapsed_seconds": elapsed_seconds,
+        "human_review": "pending",
+        "scientific_scope": "Fresh decoded ORG products and explicit coverage policy; not expert anatomy or suitability of every tractogram for the atlas.",
+        "previous_products": published_archive,
         "backend_available": bool(backend_status["available"]),
         "atlas_available": bool(atlas_status["available"]),
         "output_summary": output_summary,
@@ -830,6 +853,7 @@ def run_wma_org_atlas(
     manifest["executed"] = bool(config.execute)
     manifest["return_code"] = return_code
     manifest["runtime_seconds"] = elapsed_seconds
+    manifest["previous_products"] = published_archive
     manifest["error"] = execution_error
     manifest["environment"] = {
         "use_virtual_x": config.use_virtual_x,

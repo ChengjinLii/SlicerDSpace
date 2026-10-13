@@ -519,17 +519,19 @@ FreeSurfer-style subject 目录。
 - FreeSurfer license
 - `FreeSurferColorLUT.txt`
 
-postprocess 脚本会检查或调用的命令包括：
+当前 surface-only postprocess 检查或调用的命令包括：
 
-- `recon-all`
 - `mris_sphere`
 - `mris_curvature`
 - `mris_inflate`
 - `mris_register`
 - `mri_label2label`
 - `mri_surf2surf`
-- `mri_annotation2label`
-- `mri_segstats`
+- `mris_place_surface`；旧版安装不支持时需要 `mris_thickness`
+
+区域标签和 surface-only 区域统计在 Python 内完成，fsaverage 的四个指标一次映射。
+不再将 `recon-all`、`mri_annotation2label`、`mri_segstats` 作为本路线的必要条件。
+这不是完整 `recon-all` 或 `mris_anatomical_stats` 的替代实现；不会新增灰质体积或 eTIV。
 
 ### 6.3 配置方式
 

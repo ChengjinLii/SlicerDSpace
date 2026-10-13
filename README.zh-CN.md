@@ -34,6 +34,10 @@ SlicerDDSurfer 在一个 Slicer 模块中组织扩散 MRI 解剖重建、微结�
 MRtrix3、FSL、FreeSurfer 和高级白质束后端均为按需配置，不会静默安装。
 详见[能力与平台矩阵](docs/setup/SUPPORT_MATRIX.zh-CN.md)。
 
+**实现来源。** DDSeg 为 MATLAB 到 Python/PyTorch 的改写；SAF、MK-Curve
+为原作者 MATLAB 算法的非官方 Python 移植。PNL CNN 掩膜调用已有的官方
+Python 后端，不是重写整套 PNLpipeline。见[实现来源与验证边界](docs/architecture/IMPLEMENTATION_PROVENANCE.zh-CN.md)。
+
 ---
 
 ## 安装

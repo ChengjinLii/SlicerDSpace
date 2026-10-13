@@ -23,6 +23,7 @@ from typing import Any, Callable, Iterator, Optional
 
 from shared import default_task_output_dir, find_subject_root
 from shared.external_process import startup_environment, text_subprocess_kwargs
+from .saf_backend.provenance import implementation_record
 
 
 REQUIRED_SAF_PYTHON_PACKAGES = ("numpy", "scipy", "sklearn", "nibabel")
@@ -513,6 +514,7 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
     args = _build_saf_args(config, output_dir)
     manifest = {
         "kind": "saf_short_association_fibres",
+        "implementation": implementation_record(),
         "version": 2,
         "subject_id": raw.subject_id,
         "backend": backend_status,
@@ -629,6 +631,9 @@ def run_saf(config: SAFConfig, *, log: Optional[Callable[[str], None]] = None) -
         output_summary = _summarize_saf_outputs(output_dir)
     qc = {
         "kind": "saf_qc",
+        "implementation": implementation_record(),
+        "human_review": "pending",
+        "scientific_scope": "Decoded tractogram count, finite coordinates, physical length limit and VTK export; not anatomical validation or MATLAB end-to-end equivalence.",
         "version": 2,
         "subject_id": raw.subject_id,
         "status": "failed" if execution_error else ("completed" if config.execute else "planned"),

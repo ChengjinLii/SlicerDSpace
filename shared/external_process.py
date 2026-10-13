@@ -137,3 +137,16 @@ def external_python_environment(
     if extra_env:
         env.update({str(key): str(value) for key, value in extra_env.items() if value is not None})
     return env
+
+
+def python_tool_environment(python_executable: Path | str,
+                            extra_env: Optional[Mapping[str, str]] = None) -> dict[str, str]:
+    """Keep Slicer's launcher environment only for its own interpreter.
+
+    Preserve a selected virtualenv executable's symlink path, but do not let
+    Slicer's PYTHONHOME or library overrides leak into that environment.
+    """
+    path = Path(python_executable).expanduser().absolute()
+    if path.name in {"PythonSlicer", "python-real"} or _looks_like_slicer_runtime_path(str(path)):
+        return startup_environment(extra_env)
+    return external_python_environment(extra_env, path_prepend=[path.parent])

@@ -21,12 +21,14 @@ def filters_saf(PS, DWI):
 
     if getattr(DWI, 'sl_weights', None):
         part_weights = read_tsf(DWI.sl_weights)
+        valid_sl = np.all(DWI.saf.t_gghh, axis=0) & ~DWI.saf.pg
+        full_weights = np.zeros(valid_sl.size, dtype=float)
+        if part_weights.size != int(valid_sl.sum()):
+            raise ValueError('SAF input weights do not match pre-GWG streamline indices')
+        full_weights[valid_sl] = part_weights
         if hasattr(DWI.saf, 'pre_c') and DWI.saf.pre_c is not None and len(DWI.saf.pre_c) > 0:
-            saf_weights = part_weights[DWI.saf.pre_c]
+            saf_weights = full_weights[DWI.saf.pre_c][exist_saf]
         else:
-            valid_sl = np.all(DWI.saf.t_gghh, axis=0) & ~DWI.saf.pg
-            full_weights = np.zeros_like(DWI.saf.t[0, :], dtype=float)
-            full_weights[valid_sl] = part_weights
             saf_weights = full_weights[exist_saf]
         saf_wtfile = os.path.join(PS.work_dir, 'SAF.wts')
         write_tsf(saf_weights, saf_wtfile)

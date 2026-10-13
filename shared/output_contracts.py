@@ -80,21 +80,53 @@ def vtp_streamline_count(path: str | Path) -> int | None:
     Empty but valid polydata returns zero. A Piece header alone is not evidence
     that the appended/compressed geometry is readable.
     """
+    return polydata_streamline_count(path)
+
+
+def polydata_streamline_count(path: str | Path) -> int | None:
+    """Decode legacy VTK or XML VTP geometry, not only its header."""
     try:
         import numpy as np
         from vtkmodules.vtkIOXML import vtkXMLPolyDataReader
+        from vtkmodules.vtkIOLegacy import vtkPolyDataReader
         from vtkmodules.util.numpy_support import vtk_to_numpy
 
-        reader = vtkXMLPolyDataReader()
+        path = Path(path)
+        if not path.is_file() or path.stat().st_size == 0:
+            return None
+        if path.suffix.lower() == '.vtp':
+            reader = vtkXMLPolyDataReader()
+        elif path.suffix.lower() == '.vtk':
+            reader = vtkPolyDataReader()
+        else:
+            return None
         errors = []
         reader.AddObserver("ErrorEvent", lambda *_: errors.append(True))
+        # Legacy readers otherwise accept partially parsed ASCII geometry.
+        reader.AddObserver("WarningEvent", lambda *_: errors.append(True))
         reader.SetFileName(str(path))
-        if not reader.CanReadFile(str(path)):
+        if path.suffix.lower() == '.vtp' and not reader.CanReadFile(str(path)):
             return None
         reader.Update()
         if errors or reader.GetErrorCode():
             return None
         data = reader.GetOutput()
+        if path.suffix.lower() == '.vtk':
+            import re
+            raw_bytes = path.read_bytes()
+            header = raw_bytes.split(b'\n', 4)
+            if len(header) < 4 or header[2].strip().upper() not in {b'ASCII', b'BINARY'}:
+                return None
+            declared = re.search(rb'\bPOINTS\s+(\d+)\s+\w+\s', raw_bytes)
+            if declared is None or int(declared.group(1)) != data.GetNumberOfPoints():
+                return None
+            if header[2].strip().upper() == b'ASCII':
+                # vtkDataReader may replace malformed ASCII coordinates with
+                # zeros without setting an error code. Validate the original.
+                raw = raw_bytes[declared.end():].split(maxsplit=3 * data.GetNumberOfPoints())
+                values = np.asarray(raw[:3 * data.GetNumberOfPoints()], dtype=float)
+                if values.size != 3 * data.GetNumberOfPoints() or not np.isfinite(values).all():
+                    return None
         points = data.GetPoints()
         if points is not None and not np.isfinite(vtk_to_numpy(points.GetData())).all():
             return None
@@ -109,6 +141,12 @@ def vtp_streamline_count(path: str | Path) -> int | None:
         if count and (np.any(np.diff(offsets) < 2) or np.any(connectivity < 0)
                       or np.any(connectivity >= data.GetNumberOfPoints())):
             return None
+        if count:
+            ordered = vtk_to_numpy(points.GetData())[connectivity]
+            changes = np.any(np.diff(ordered, axis=0) != 0, axis=1)
+            changes[offsets[1:-1] - 1] = False
+            if np.any(np.add.reduceat(changes.astype(np.int64), offsets[:-1]) == 0):
+                return None
         return count
     except (ImportError, OSError, ValueError, RuntimeError, AttributeError, IndexError):
         return None

@@ -39,6 +39,11 @@ Install dependencies **for the selected route**, not for every possible product.
 MRtrix3, FSL, FreeSurfer and advanced bundle backends are optional and are not
 silently installed. See the [capability and platform matrix](docs/setup/SUPPORT_MATRIX.md).
 
+**Implementation origins.** DDSeg is a MATLAB-to-Python/PyTorch reimplementation;
+SAF and MK-Curve are unofficial Python ports of author MATLAB methods. PNL CNN
+masking invokes the author's existing Python backend, not a rewritten entire
+PNL pipeline. See [implementation provenance and verification limits](docs/architecture/IMPLEMENTATION_PROVENANCE.md).
+
 ---
 
 ## Installation

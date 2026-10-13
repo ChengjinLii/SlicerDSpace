@@ -132,7 +132,7 @@ class init_class:
     def _start_log(self):
         fa = self.fa if self.fa else 'not provided'
         self.logt = [
-            ['Log for SAF_pipeline.m run on:', _now_str()],
+            ['Log for Python SAF_pipeline.py run on:', _now_str()],
             ['Version:', self.version],
             ['', ''],
             ['FreeSurfer directory:', self.fs_dir],
