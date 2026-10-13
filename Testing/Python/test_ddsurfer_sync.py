@@ -121,7 +121,7 @@ class DDSurferSyncTests(unittest.TestCase):
             with patch('anatomy.surface.pipeline.inspect_surface_resources', return_value=resources), \
                     patch('anatomy.surface.pipeline.runtime_info', side_effect=KeyboardInterrupt):
                 with self.assertRaises(KeyboardInterrupt):
-                    run_surface(SurfaceConfig('x', root, root, execute=True))
+                    run_surface(SurfaceConfig('x', root, root, execute=True, device='cpu'))
             self.assertEqual(json.loads((root / 'surface_manifest.json').read_text())['status'], 'cancelled')
             self.assertEqual(json.loads((root / 'surface_qc.json').read_text())['status'], 'cancelled')
 

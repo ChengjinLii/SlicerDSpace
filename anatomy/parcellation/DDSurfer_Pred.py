@@ -208,6 +208,8 @@ def fastsurfercnn(img_filename, save_as, logger, args):
 
     # Put it onto the GPU or CPU
     use_cuda = not args.no_cuda and torch.cuda.is_available()
+    if getattr(args, "require_cuda", False) and not use_cuda:
+        raise RuntimeError("DDParcel CUDA requested but no CUDA GPU is visible; fix the runtime or explicitly select CPU")
     print("On GPU!") if use_cuda else print("On CPU ...")
     if use_cuda:
         cuda_index = logical_cuda_index(args.gpu)

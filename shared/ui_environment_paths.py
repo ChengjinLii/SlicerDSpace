@@ -30,6 +30,15 @@ def install_environment_dependency_path_controls(owner: Any, environment_layout:
     owner._environmentPathLanguageWidgets = {}
     owner._environmentPathStatusSources = {}
 
+    from shared.ui_managed_runtimes import install_selected_runtimes
+    setup_button = qt.QPushButton("Set up selected external tools")
+    setup_button.setObjectName("managedRuntimeSetupButton")
+    setup_button.connect("clicked()", lambda: install_selected_runtimes(owner))
+    register_ui_language_binding(owner, setup_button, "text", "managed_runtime_setup")
+    register_ui_language_binding(owner, setup_button, "tooltip", "managed_runtime_setup_tooltip")
+    owner._managedRuntimeSetupButton = setup_button
+    environment_layout.addWidget(setup_button)
+
     python_target_label = qt.QLabel(owner._python_install_target_text())
     python_target_label.setObjectName("environmentPythonTargetLabel")
     python_target_label.wordWrap = True

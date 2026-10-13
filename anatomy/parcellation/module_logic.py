@@ -34,6 +34,7 @@ class ParcellationLogicMixin:
         output_root: Optional[Path],
         atlas_t2: Path,
         flip: int = 1,
+        device: str = "auto",
     ) -> None:
         from anatomy.parcellation import (
             DDParcelConfig,
@@ -67,6 +68,7 @@ class ParcellationLogicMixin:
                 output_dir=resolved_output_dir,
                 native_mask=raw_bundle.mask_path,
                 flip=flip,
+                device=device,
             )
             run_ddparcel_from_registered_bundle(config, log=self.log)
             return
@@ -80,5 +82,6 @@ class ParcellationLogicMixin:
             output_root=output_root,
             atlas_t2=atlas_t2,
             flip=flip,
+            device=device,
         )
         run_ddparcel(config, log=self.log)

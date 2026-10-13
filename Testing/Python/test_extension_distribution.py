@@ -74,10 +74,28 @@ class ExtensionDistributionTest(unittest.TestCase):
                      "anatomy/parcellation/conversion/LICENSE.txt",
                      "anatomy/surface/ddsurfer_backend/LICENSE.txt",
                      "licenses/FreeSurfer.txt", "licenses/PyTorch3D.txt", "licenses/provenance.json",
-                     "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt"):
+                     "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt",
+                     "shared/pnl_mask_runner.py", "shared/synthstrip_mask_runner.py",
+                     "shared/mrtrix_preproc_runner.py", "shared/managed_runtimes.py",
+                     "shared/ui_managed_runtimes.py", "scripts/setup_managed_runtime.py",
+                     "docs/release/benchmarks/module_runtimes_20261013.csv"):
             self.assertIn(name, selected)
         self.assertFalse(any("/tests/" in name or "/slicer_dmri_reference/" in name for name in selected))
         self.assertEqual([name for name in selected if "/" not in name and name.endswith(".py")], ["SlicerDDSurfer.py"])
+
+    def test_gpu_and_setup_launchers_are_required_even_with_globs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            install = stage_extension(Path(directory) / "install", slicer_version="Slicer-5.10", clean=True, link_mode="copy")
+            module = Path(install["module_dir"])
+            for relative in ("shared/pnl_mask_runner.py", "shared/synthstrip_mask_runner.py",
+                             "shared/mrtrix_preproc_runner.py", "scripts/setup_managed_runtime.py"):
+                with self.subTest(resource=relative):
+                    target = module / relative
+                    original = target.read_bytes()
+                    target.unlink()
+                    with self.assertRaisesRegex(FileNotFoundError, "Required runtime resource"):
+                        runtime_files(module)
+                    target.write_bytes(original)
 
     def test_staging_rejects_source_overwrite(self):
         # The checkout's actual directory name must not determine test behavior.

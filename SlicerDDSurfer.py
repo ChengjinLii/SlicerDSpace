@@ -97,6 +97,7 @@ class SlicerDDSurferParameterNode:
     targetPreprocessing: bool = True
     preprocessingBackend: Annotated[str, Choice(["dipy", "mrtrix_fsl"])] = "dipy"
     brainMaskBackend: Annotated[str, Choice(["pnl_cnn", "synthstrip", "mrtrix", "provided"])] = "pnl_cnn"
+    brainMaskDevice: Annotated[str, Choice(["auto", "cpu", "cuda"])] = "auto"
     # Topup / distortion correction for the MRtrix3/FSL route. Empty/0 means
     # "not set", so nothing is forwarded and dwifslpreproc defaults apply.
     preprocessingPhaseEncodingDirection: str = ""

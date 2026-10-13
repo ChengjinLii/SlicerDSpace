@@ -29,10 +29,12 @@ class PreprocessingLogicMixin:
         eddy_threads: Optional[int] = None,
         eddy_second_level_model: Optional[str] = None,
         brain_mask_backend: str = "pnl_cnn",
+        brain_mask_device: str = "auto",
         pnl_mask_python: Optional[Path] = None,
         pnl_mask_script: Optional[Path] = None,
         pnl_mask_model_dir: Optional[Path] = None,
         pnl_mask_ants_bin_dir: Optional[Path] = None,
+        synthstrip_python: Optional[Path] = None,
         postprocess_freesurfer_home: Optional[Path] = None,
     ) -> DwiPreprocessingResult:
         config = DwiPreprocessingConfig(
@@ -51,10 +53,12 @@ class PreprocessingLogicMixin:
             eddy_threads=eddy_threads,
             eddy_second_level_model=eddy_second_level_model,
             brain_mask_backend=brain_mask_backend,
+            brain_mask_device=brain_mask_device,
             pnl_mask_python=pnl_mask_python,
             pnl_mask_script=pnl_mask_script,
             pnl_mask_model_dir=pnl_mask_model_dir,
             pnl_mask_ants_bin_dir=pnl_mask_ants_bin_dir,
+            synthstrip_python=synthstrip_python,
             postprocess_freesurfer_home=postprocess_freesurfer_home,
         )
         result = run_dwi_preprocessing(config, log=self.log)

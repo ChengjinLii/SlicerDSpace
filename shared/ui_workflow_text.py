@@ -44,6 +44,8 @@ WORKFLOW_TEXT = {
         "readout_time": "Total readout time (s)",
         "reverse_phase_b0": "Reverse-PE b=0 image",
         "brain_mask_backend": "Brain masking",
+        "brain_mask_device": "Mask device",
+        "brain_mask_device_tooltip": "PNL CNN and SynthStrip: auto prefers the first visible CUDA GPU in the selected external runtime. CUDA requires a GPU; CPU explicitly disables it. Runtime GPU failures are not silently retried. MRtrix dwi2mask is CPU-only.",
         "brain_mask_pnl_cnn": "PNL CNN (dMRI)",
         "brain_mask_synthstrip": "SynthStrip",
         "brain_mask_mrtrix": "MRtrix dwi2mask",
@@ -123,6 +125,8 @@ WORKFLOW_TEXT = {
         "readout_time": "总读出时间（秒）",
         "reverse_phase_b0": "反向相位编码 b=0 图像",
         "brain_mask_backend": "脑掩膜方法",
+        "brain_mask_device": "掩膜计算设备",
+        "brain_mask_device_tooltip": "PNL CNN 和 SynthStrip：Auto 优先使用对应外部运行环境中可见的第一个 CUDA GPU；CUDA 要求 GPU 可用，CPU 显式禁用 GPU。GPU 运行错误不会静默重试。MRtrix dwi2mask 仅支持 CPU。",
         "brain_mask_pnl_cnn": "PNL CNN (dMRI)",
         "brain_mask_synthstrip": "SynthStrip",
         "brain_mask_mrtrix": "MRtrix dwi2mask",
@@ -182,6 +186,7 @@ WORKFLOW_TEXT_BINDINGS = {
     "preprocessingReadoutTimeLabel": "readout_time",
     "preprocessingReversePhaseB0Label": "reverse_phase_b0",
     "brainMaskBackendLabel": "brain_mask_backend",
+    "brainMaskDeviceLabel": "brain_mask_device",
     "orchestrationDtiStageLabel": "microstructure_dti_always",
     "orchestrationFreeWaterCheckBox": "microstructure_fw_option",
     "orchestrationNoddiCheckBox": "microstructure_noddi_option",
@@ -191,6 +196,7 @@ WORKFLOW_TEXT_BINDINGS = {
 
 WORKFLOW_TOOLTIP_BINDINGS = {
     "brainMaskBackendComboBox": "brain_mask_backend_tooltip",
+    "brainMaskDeviceComboBox": "brain_mask_device_tooltip",
     "orchestrationFreeWaterCheckBox": "microstructure_fw_tooltip",
     "orchestrationNoddiCheckBox": "microstructure_noddi_tooltip",
     "orchestrationDkiCheckBox": "microstructure_dki_tooltip",

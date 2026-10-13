@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import csv
 import hashlib
 import json
+import re
 import shutil
 from pathlib import Path
 import sys
@@ -67,7 +68,126 @@ def record(module, subject, seconds, source, field, scope, *, status='completed'
                 scope=scope, priority=priority, evidence=evidence, **extra)
 
 
-def collect(campaign, verification):
+def collect_device_measurements(directory):
+    """Keep paired/repeated/failed acceptances, not just the fastest GPU time."""
+    records = []
+    runs = [
+        ('brainmask.pnl_cnn', '100307', 'cpu/pnl_cnn_acceptance.json', 'seconds', False,
+         'CPU reference', '288-volume real HCP DWI'),
+        ('brainmask.pnl_cnn', '100307', 'gpu/pnl_cnn_acceptance.json', 'seconds', True,
+         'Default Auto GPU run', '288-volume real HCP DWI'),
+        ('brainmask.pnl_cnn', '100307', 'gpu_warm/pnl_cnn_acceptance.json', 'seconds', False,
+         'Explicit CUDA repeat', '288-volume real HCP DWI'),
+        ('brainmask.synthstrip', 'sub-dicom', 'synthstrip_modern_cpu/synthstrip_acceptance.json', 'seconds', False,
+         'Compatible-runtime CPU reference', '31-volume real DWI'),
+        ('brainmask.synthstrip', 'sub-dicom', 'synthstrip_modern_gpu/synthstrip_acceptance.json', 'seconds', True,
+         'Compatible-runtime Auto GPU run', '31-volume real DWI'),
+        ('brainmask.synthstrip', 'sub-dicom', 'synthstrip_gpu/synthstrip_acceptance.json', 'seconds', False,
+         'Stopped incompatible-runtime attempt; no mask', '31-volume real DWI'),
+        ('brainmask.synthstrip', 'sub-dicom', 'synthstrip_old_guard/synthstrip_acceptance.json', 'seconds', False,
+         'Incompatible-runtime rejection; no inference', '31-volume real DWI'),
+        ('preprocessing.mrtrix_fsl', 'sub-dicom', 'eddy_cuda_real/acceptance.json', 'runtime_seconds', False,
+         'Failed CUDA eddy thread-option attempt', '31-volume real DWI / reverse-PE b0'),
+        ('preprocessing.mrtrix_fsl', 'sub-dicom', 'eddy_cuda_fixed/acceptance.json', 'runtime_seconds', True,
+         'Corrected CUDA eddy full preprocessing', '31-volume real DWI / reverse-PE b0'),
+        ('bundles.tractcloud', '100307', 'tractcloud/tractcloud_qc.json', 'elapsed_seconds', True,
+         'Seeded CUDA inference and decoded QC', '50k CSD/ACT tracks / batch 2048 / seed 0'),
+        ('brainmask.pnl_cnn', '100307', 'pnl_phase_gpu/pnl_cnn_acceptance.json', 'seconds', False,
+         'Phase-instrumented Auto GPU repeat', '288-volume real HCP DWI'),
+        ('brainmask.synthstrip', 'sub-dicom', 'synthstrip_phase_gpu/synthstrip_acceptance.json', 'seconds', False,
+         'Phase-instrumented Auto GPU repeat', '31-volume real DWI'),
+    ]
+    for module, subject, relative, field, representative, label, inputs in runs:
+        path = directory / relative
+        if not path.is_file():
+            continue
+        payload = read(path)
+        result = payload.get('result', {})
+        device = result.get('device_execution') or payload.get('device_execution') or {}
+        device_path = path.parent / 'tractcloud_device.json'
+        if module == 'bundles.tractcloud' and device_path.is_file():
+            device = read(device_path)
+        status = payload.get('status', 'unknown')
+        qc = result.get('qc', {})
+        integrity = None
+        if module.startswith('brainmask.') and status.lower() in SUCCESS:
+            integrity = (result.get('status') == 'completed'
+                         and all(qc.get(key) is True for key in ('geometry_pass', 'binary', 'finite'))
+                         and payload.get('supplied_mask_unchanged') is True)
+        elif module == 'preprocessing.mrtrix_fsl' and status.lower() in SUCCESS:
+            checks = payload.get('checks', {})
+            integrity = bool(checks) and all(value is True for value in checks.values())
+        elif module == 'bundles.tractcloud' and status.lower() in SUCCESS:
+            products = payload.get('output_summary', {})
+            count = products.get('bundle_count', 0)
+            integrity = (payload.get('executed') is True and payload.get('return_code') == 0
+                         and count > 0 and products.get('bundle_readable_count') == count
+                         and products.get('bundle_nonempty_count') == count)
+        if integrity is False:
+            status = 'integrity_contract_failed'
+        rounded_phases = {}
+        if module == 'brainmask.pnl_cnn':
+            for label_name, key in (('Pre-Processing', 'registration_and_preprocessing'),
+                                    ('Masking', 'cnn_models'), ('Total', 'upstream_total')):
+                match = re.search(re.escape(label_name) + r' Time Taken\s*:\s*([\d.]+)\s*min', result.get('stdout_tail', ''))
+                if match:
+                    rounded_phases[key] = float(match.group(1)) * 60
+        scopes = {
+            'brainmask.pnl_cnn': 'Fresh acceptance: hashing, b0 preparation, Python startup, ANTs registration, CNN, mask QC; excludes Docker startup/downloads',
+            'brainmask.synthstrip': 'Fresh acceptance: hashing, b0 preparation, Python startup, SynthStrip and mask QC; excludes installation/GUI startup',
+            'preprocessing.mrtrix_fsl': 'Whole preprocessing acceptance including CPU denoise/Gibbs/topup, CUDA eddy, final mask and integrity checks; not eddy-only time',
+            'bundles.tractcloud': 'Fresh seeded CUDA wrapper/upstream inference and decoded QC; excludes tractography/model download; anatomical review pending',
+        }
+        records.append(record(
+            module, subject, payload.get(field), path, field, scopes[module], status=status,
+            priority=6 if representative else 5, evidence='real_device_acceptance',
+            input_scope=inputs, run_label=label, representative=representative,
+            device=device.get('resolved'), requested_device=device.get('requested'),
+            device_execution=device, input_records=result.get('signature', {}).get('inputs') or payload.get('source_sha256'),
+            runtime_environment={key: device[key] for key in ('tensorflow_version', 'tensorflow_package_version', 'keras_package_version',
+                                                          'torch_version', 'cuda_version') if key in device},
+            device_source_record=str(device_path.resolve()) if device_path.is_file() else None,
+            device_source_sha256=hashlib.sha256(device_path.read_bytes()).hexdigest() if device_path.is_file() else None,
+            integrity_pass=integrity, original_status=payload.get('status'),
+            phase_seconds=result.get('phase_seconds'), thread_environment=result.get('thread_environment'),
+            rounded_upstream_phase_seconds=rounded_phases or None,
+            anatomical_review=payload.get('anatomical_review') or payload.get('manual_scientific_review') or payload.get('human_review'),
+            failure_reason=payload.get('error')))
+    return records
+
+
+def device_table(records, chinese=False):
+    names = {module: zh if chinese else en for module, en, zh in CATALOG}
+    labels_zh = {
+        'CPU reference': 'CPU 对照', 'Default Auto GPU run': '默认 Auto GPU 运行',
+        'Explicit CUDA repeat': '显式 CUDA 重复',
+        'Compatible-runtime CPU reference': '兼容环境 CPU 对照',
+        'Compatible-runtime Auto GPU run': '兼容环境 Auto GPU 运行',
+        'Stopped incompatible-runtime attempt; no mask': '不兼容环境中止；无掩膜',
+        'Incompatible-runtime rejection; no inference': '不兼容环境提前拒绝；未推理',
+        'Failed CUDA eddy thread-option attempt': 'CUDA eddy 线程参数失败',
+        'Corrected CUDA eddy full preprocessing': '修正 CUDA eddy 后的完整预处理',
+        'Seeded CUDA inference and decoded QC': '固定种子 CUDA 推理及解码 QC',
+        'Phase-instrumented Auto GPU repeat': '含分阶段计时的 Auto GPU 重复',
+    }
+    unrecorded = '未记录' if chinese else 'not recorded'
+    lines = ['| 模块 | 运行 / 范围 | 请求 → 实际设备 | 秒 | 执行 / 完整性状态 |' if chinese else
+             '| Module | Run / Scope | Requested / Actual Device | Seconds | Execution / Integrity Status |',
+             '| --- | --- | --- | ---: | --- |']
+    for r in records:
+        if r.get('evidence') != 'real_device_acceptance':
+            continue
+        seconds = f"{r['runtime_seconds']:.3f}" if r['runtime_seconds'] is not None else 'MISSING'
+        state = r['status']
+        if r.get('representative') and state.lower() in SUCCESS:
+            state += ' / ' + ('主表采用' if chinese else 'representative')
+        label = labels_zh.get(r['run_label'], r['run_label']) if chinese else r['run_label']
+        lines.append(f"| {names[r['module']]} | {label} | {r.get('requested_device') or unrecorded} / "
+                     f"{r.get('device') or unrecorded} | {seconds} | {state} |")
+    return '\n'.join(lines)
+
+
+def collect(campaign, verification, device_verification=None):
     records, seen = [], set()
     for path in sorted(campaign.rglob('*_orchestration_manifest.json')):
         m = read(path)
@@ -102,7 +222,7 @@ def collect(campaign, verification):
                                   input_scope=str(r.get('shape') or (str(r.get('roi_count')) + ' regions')), execution_record=r['source_record']))
     additional = [
         ('brainmask.pnl_cnn', '100307', ROOT / 'ignore/validation/brain_mask_backends_20261012/real-pnl/pnl_cnn_acceptance.json',
-         'seconds', 'External PNL CNN acceptance including container/launcher overhead; full native HCP input', '288-volume real HCP DWI', False),
+         'seconds', 'Historical CPU-only PNL mask generation and acceptance; includes hashing/b0/preprocessing/QC, excludes Docker startup and installation; full native HCP input', '288-volume real HCP DWI', False),
         ('brainmask.synthstrip', 'sub-dicom', verification / 'missing_times_slicer/mask_synthstrip.manifest.json',
          'runtime_seconds', 'Fresh SynthStrip mask, input hashing, b0 preparation and integrity checks', '31-volume real DWI', False),
         ('microstructure.dki', '100307', ROOT / 'ignore/validation/brain_mask_backends_20261012/dki/hcp100307_roi/outputs/02_microstructure/dki/dki_manifest.json',
@@ -146,6 +266,8 @@ def collect(campaign, verification):
             records.append(record('bundles.wma', '100307', m.get('elapsed_seconds'), path, 'elapsed_seconds',
                                   'Under-populated historical WMA output: excluded from successful timings, including a legacy completed status',
                                   status='scientific_contract_failed', original_status=m.get('status'), evidence='historical_failed_result'))
+    if device_verification is not None:
+        records.extend(collect_device_measurements(device_verification))
     return records
 
 
@@ -161,6 +283,8 @@ def select(records):
                          measurement_status='PARTIAL' if selected.get('partial') else 'READY' if selected else 'MISSING',
                          seconds=value, minutes=value / 60. if value is not None else None,
                          subject_id=selected.get('subject_id'), input_scope=selected.get('input_scope'),
+                         device=selected.get('device'), requested_device=selected.get('requested_device'),
+                         anatomical_review=selected.get('anatomical_review'),
                          scope=selected.get('scope', 'No successful measured record in this scoped inventory'),
                          evidence=selected.get('evidence'), source_record=selected.get('source_record'),
                          source_field=selected.get('source_field'), source_record_sha256=selected.get('source_record_sha256')))
@@ -171,14 +295,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--campaign', type=Path, default=ROOT / 'ignore/validation/slicer_acceptance_20261006/science/subjects')
     parser.add_argument('--verification', type=Path, default=ROOT / 'ignore/validation/bundles_runtime_20261013')
+    parser.add_argument('--device-verification', type=Path, default=ROOT / 'ignore/validation/pnl_gpu_20261013')
     parser.add_argument('--output-dir', required=True, type=Path)
     parser.add_argument('--documentation-dir', type=Path)
     args = parser.parse_args()
-    records = collect(args.campaign, args.verification)
+    records = collect(args.campaign, args.verification, args.device_verification)
     rows = select(records)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with (args.output_dir / 'module_runtimes.csv').open('w', newline='', encoding='utf-8') as file:
-        writer = csv.DictWriter(file, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(file, fieldnames=list(rows[0]), lineterminator='\n')
         writer.writeheader()
         writer.writerows(rows)
     result = dict(generated_at=datetime.now(timezone.utc).isoformat(), modules=rows, records=records,
@@ -186,17 +311,21 @@ def main():
                   notes=['READY means a scoped timing exists, not scientific accuracy certification.',
                          'Do not sum these rows: inputs, subjects, cached prerequisites and versions differ.',
                          'Historical hardware/thread/GPU configuration is not inferred from the current host.',
+                         'Representative device acceptances are chosen by protocol, not minimum runtime; CPU references, repeats and failures remain in records.',
+                         'PNL CPU/GPU times include registration/startup; do not claim speedup over a historical unpaired CPU record.',
+                         'CUDA eddy acceptance measures the whole preprocessing route, not eddy alone.',
                          'Full-brain DKI and MK-Curve times are not extrapolated from their ROI measurements.',
                          'Resource downloads, optional UKF/WMA diffusion-measurement export, batch scheduling and final scene save are outside this catalog.'])
     (args.output_dir / 'module_runtimes.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     for chinese in (False, True):
-        lines = ['| 模块 | 被试 | 秒 | 分钟 | 状态 | 输入 / 范围 |' if chinese else '| Module | Subject | Seconds | Minutes | Status | Input / Scope |',
-                 '| --- | --- | ---: | ---: | --- | --- |']
+        lines = ['| 模块 | 被试 | 设备 | 秒 | 分钟 | 状态 | 输入 / 范围 |' if chinese else '| Module | Subject | Device | Seconds | Minutes | Status | Input / Scope |',
+                 '| --- | --- | --- | ---: | ---: | --- | --- |']
         for r in rows:
             seconds = f"{r['seconds']:.3f}" if r['seconds'] is not None else 'MISSING'
             minutes = f"{r['minutes']:.3f}" if r['minutes'] is not None else 'MISSING'
             name = r['name_zh'] if chinese else r['name']
-            lines.append(f"| {name} | {r['subject_id'] or '-'} | {seconds} | {minutes} | {r['measurement_status']} | {r['input_scope'] or r['scope']} |")
+            device = r['device'] or ('未记录' if chinese else 'not recorded')
+            lines.append(f"| {name} | {r['subject_id'] or '-'} | {device} | {seconds} | {minutes} | {r['measurement_status']} | {r['input_scope'] or r['scope']} |")
         (args.output_dir / ('module_runtimes.zh-CN.md' if chinese else 'module_runtimes.md')).write_text('\n'.join(lines) + '\n', encoding='utf-8')
         if args.documentation_dir:
             docs = args.documentation_dir
@@ -205,15 +334,17 @@ def main():
             heading = '模块运行时间' if chinese else 'Module Runtime Inventory'
             alternate = 'MODULE_RUNTIMES_20261013.md' if chinese else 'MODULE_RUNTIMES_20261013.zh-CN.md'
             introduction = (
-                '汇总真实历史记录与本轮补测，共 32 项操作。READY 仅表示有明确范围的实测计时，不表示解剖准确性获认证。'
+                f'汇总真实历史记录与本轮补测，共 {len(rows)} 项操作。READY 仅表示有明确范围的实测计时，不表示解剖准确性获认证。'
                 '缺失不填 0，失败/跳过/缓存复用不充作成功计算。完整账本和来源哈希见下方 CSV/JSON。\n\n'
                 '新增计时包括三种输入导入、MRtrix/SynthStrip 掩膜、全新全脑 DTI、六指标 ROI 统计和三类束的 Slicer 加载。'
-                'WMQL/TractCloud 用当前修正封装真实重跑；WMA 使用已有通过范围契约的 149741 记录。\n'
+                'WMQL/TractCloud 用当前修正封装真实重跑；WMA 使用已有通过范围契约的 149741 记录。'
+                'PNL/SynthStrip 和 MRtrix/FSL 已纳入本轮真实 GPU 验收，CPU 对照、重复运行和失败记录在下方单独展示。\n'
                 if chinese else
-                'Real historical records and new measurements cover 32 operations. READY means a scoped time exists, not anatomical certification. '
+                f'Real historical records and new measurements cover {len(rows)} operations. READY means a scoped time exists, not anatomical certification. '
                 'Missing values are not zero; failed/skipped/cache checks are not successful computation. CSV/JSON preserve the ledger and source hashes.\n\n'
                 'New measurements include three imports, MRtrix/SynthStrip masks, fresh full-volume DTI, six-map ROI statistics and native bundle loading. '
-                'WMQL/TractCloud use corrected reruns; WMA uses the existing scoped-pass 149741 run.\n'
+                'WMQL/TractCloud use corrected reruns; WMA uses the existing scoped-pass 149741 run. '
+                'PNL/SynthStrip and MRtrix/FSL now include real GPU acceptances; CPU references, repeats and failures are shown separately below.\n'
             )
             boundary = (
                 '- **DKI 和 MK-Curve 是真实小 ROI 的 PARTIAL 记录**：分别 64 / 8 体素，不能当作全脑耗时，不能外推。\n'
@@ -222,6 +353,10 @@ def main():
                 '- CSD/ACT/SIFT2 是组合阶段；没有伪造其中 FOD、ACT、SIFT2 的独立计时。\n'
                 '- Slicer 加载时间包含独立坐标对照，排除启动和束提取。新全脑 DTI 测试进程总时间 165.7 秒，不冒充 136 秒拟合计时。\n'
                 '- 不同被试、输入规模、缓存、线程、版本与当时负载不可直接横比或相加；历史硬件/线程缺记录时不从当前机器反推。\n'
+                '- PNL 主表采用默认 Auto GPU 实测，而非最快一次；CPU 对照、显式 CUDA 重复和旧 CPU 346.7 秒记录均保留在 JSON。本轮 CPU 已约 79 秒，不能声称相对历史记录的四倍 GPU 加速。\n'
+                '- MRtrix/FSL 的 GPU 行约 719 秒是完整路线，包含 CPU denoise/Gibbs/topup/最终掩膜，不是 eddy 单步耗时。\n'
+                '- SynthStrip 旧环境 949 秒中止和 CUDA eddy 365 秒线程参数失败均不是成功计算；修正后的实测分别约 9 秒和 719 秒，解剖人工检查仍待完成。\n'
+                '- PNL 历史慢记录主要在 CNN 阶段（日志约 284 秒），当前 CPU 日志约 15 秒；历史负载/完整线程环境缺失，根因未能唯一确定。新生成掩膜保留分阶段计时和线程环境，实际 GPU 重跑也独立记录。\n'
                 '- 当前实测主机为 Xeon Platinum 8360Y、144 逻辑 CPU、约 503.5 GiB 内存、两张 H100；并非各记录都使用 GPU。\n'
                 '- 模型下载、可选 UKF 追踪/WMA diffusion-measurement 导出、批调度和最终场景保存不在本表范围。\n'
                 if chinese else
@@ -231,15 +366,24 @@ def main():
                 '- CSD/ACT/SIFT2 is a combined stage; no individual FOD/ACT/SIFT2 timings are invented.\n'
                 '- Slicer loading includes independent coordinate comparison but excludes startup/extraction. The 165.7 s DTI acceptance process is not confused with the 136 s fitting measurement.\n'
                 '- Different subjects, sizes, caches, threads, versions and concurrent load cannot be compared or summed directly. Missing historical hardware/thread metadata is not inferred.\n'
+                '- The PNL representative is the default Auto GPU run, not the fastest repeat. CPU reference, explicit CUDA repeat and historical 346.7 s CPU time remain in JSON. The new CPU time is already about 79 s: no fourfold GPU speedup is claimed.\n'
+                '- The approximately 719 s MRtrix/FSL GPU acceptance is the whole route, including CPU denoise/Gibbs/topup/final mask, not isolated eddy time.\n'
+                '- The stopped 949 s old-runtime SynthStrip attempt and failed 365 s CUDA eddy thread-option attempt are not successful computation; corrected acceptances are about 9 s and 719 s, with anatomical review still pending.\n'
+                '- The historical slow PNL record is dominated by its CNN phase (about 284 s in rounded logs versus about 15 s in the current CPU log). Historical load/full threading metadata is missing, so its cause is not uniquely established. Fresh masks now retain phase timings and thread environment; instrumented GPU repeats are recorded separately.\n'
                 '- New-measurement host: Xeon Platinum 8360Y, 144 logical CPUs, about 503.5 GiB RAM and two H100 GPUs; not every operation used GPUs.\n'
                 '- Downloads, optional UKF tracking/WMA diffusion-measurement export, batch scheduling and final scene saving are outside this catalog.\n'
             )
             text = (f'<div align="center">\n\n# {heading}\n\n**2026-10-13 · Measured, scoped, traceable**\n\n'
                     f'[Project](../../README.md) | [QC](BUNDLE_BACKENDS_20261013{suffix}.md) | '
+                    f'[GPU verification](GPU_POLICY_20261013.md) | '
                     f'[CSV](benchmarks/module_runtimes_20261013.csv) | [JSON](benchmarks/module_runtimes_20261013.json) | '
                     f'[Other language]({alternate})\n\n</div>\n\n' + introduction + '\n---\n\n' + '\n'.join(lines) +
                     '\n\n---\n\n' + ('## 计时边界\n\n' if chinese else '## Measurement Boundaries\n\n') + boundary +
-                    '\n```bash\npython scripts/collect_module_runtimes.py --output-dir /path/to/report\n```\n')
+                    '\n---\n\n' + ('## CPU / GPU 对照与失败记录\n\n' if chinese else '## CPU / GPU References And Failed Attempts\n\n') +
+                    device_table(records, chinese) + '\n\n' +
+                    ('设备缺少记录时不从日志推断；软件版本、输入哈希、来源文件和完整计时范围保留在 JSON。失败耗时仅供排障，不参与主表选取。\n'
+                     if chinese else 'Unrecorded device choices are not inferred from logs. Software versions, input hashes, source files and full timing scopes remain in JSON. Failed durations are for troubleshooting, never representative compute timings.\n') +
+                    '\n```bash\npython scripts/collect_module_runtimes.py --output-dir /path/to/report --documentation-dir docs/release\n```\n')
             (docs / f'MODULE_RUNTIMES_20261013{suffix}.md').write_text(text, encoding='utf-8')
     if args.documentation_dir:
         numerical = args.documentation_dir / 'benchmarks'

@@ -191,6 +191,7 @@ def fake_pnl_config(root: Path) -> BrainMaskConfig:
         tool.chmod(0o755)
     script = write_fake_command(root / "PNL scripts with spaces" / "dwi_masking.py", "pnl_cnn")
     return BrainMaskConfig(
+        brain_mask_device="cpu",
         pnl_mask_python=Path(sys.executable), pnl_mask_script=script,
         pnl_mask_model_dir=models, pnl_mask_ants_bin_dir=ants,
     )
@@ -276,7 +277,7 @@ class BrainMaskBackendsTest(unittest.TestCase):
         run.assert_not_called()
         self.assertTrue(inspected["available"], inspected)
         self.assertEqual(inspected["missing_required"], [])
-        self.assertEqual(len(inspected["resources"]), 6)
+        self.assertEqual(len(inspected["resources"]), 7)
         self.assertEqual(set(ANTS_COMMANDS) - inspected["tool_paths"].keys(), set())
         self.assertEqual(self.calls(config.pnl_mask_script), [])
 
@@ -367,6 +368,7 @@ class BrainMaskBackendsTest(unittest.TestCase):
             BrainMaskConfig(backend="auto"), BrainMaskConfig(b0_threshold=-1),
             BrainMaskConfig(b0_threshold=float("nan")), BrainMaskConfig(b0_threshold=float("inf")),
             BrainMaskConfig(threads=0),
+            BrainMaskConfig(brain_mask_device="invalid"),
         ):
             with self.subTest(config=config), self.assertRaises(ValueError):
                 inspect_brain_mask_backend(config)
@@ -381,10 +383,13 @@ class BrainMaskBackendsTest(unittest.TestCase):
             result = self.generate(config, log=logs.append)
         call, = self.calls(config.pnl_mask_script)
         command = result["command"]
-        self.assertEqual(command[:2], [str(config.pnl_mask_python), str(config.pnl_mask_script)])
-        self.assertEqual(command[2::2], ["-i", "-f", "-nproc", "-p", "-qc"])
-        self.assertEqual(command[6:], ["-nproc", "1", "-p", "99", "-qc", "0"])
-        self.assertEqual(call["argv"], command[2:])
+        self.assertEqual(command[:2], [str(config.pnl_mask_python), str(Path(brain_mask.__file__).with_name("pnl_mask_runner.py"))])
+        self.assertEqual(command[command.index("--script") + 1], str(config.pnl_mask_script))
+        upstream = command[command.index("--") + 1:]
+        self.assertEqual(upstream[0::2], ["-i", "-f", "-nproc", "-p", "-qc"])
+        self.assertEqual(upstream[4:], ["-nproc", "1", "-p", "99", "-qc", "0"])
+        self.assertEqual(call["argv"], upstream)
+        self.assertEqual(result["device_execution"]["resolved"], "cpu")
         self.assertEqual(Path(call["candidate"]).name, "mean_b0_bse-multi_BrainMask.nii.gz")
         self.assertEqual(call["model_dir"], str(config.pnl_mask_model_dir))
         self.assertEqual(len(call["model_files"]), 5)
@@ -402,6 +407,12 @@ class BrainMaskBackendsTest(unittest.TestCase):
         self.assertEqual(result["b0_volumes"], 2)
         self.assertEqual(result["version"], 2)
         self.assertEqual(result["qc"]["human_review"], "pending")
+        self.assertEqual(set(result["phase_seconds"]), {"preflight_and_hashing", "b0_preparation", "external_process", "native_mask_qc"})
+        self.assertTrue(all(np.isfinite(value) and value >= 0 for value in result["phase_seconds"].values()))
+        self.assertLessEqual(sum(result["phase_seconds"].values()), result["runtime_seconds"])
+        self.assertIn("not a complete sum", result["phase_timing_scope"])
+        for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+            self.assertEqual(result["thread_environment"][key], "3")
         self.assertTrue(any("no anatomical accuracy claim" in line for line in logs))
         np.testing.assert_array_equal(nib.load(str(self.output)).dataobj, mask_data())
         np.testing.assert_allclose(nib.load(str(self.output)).affine, AFFINE)
@@ -814,7 +825,7 @@ class BrainMaskBackendsTest(unittest.TestCase):
         model = home / "models/synthstrip.1.pt"
         model.parent.mkdir()
         model.write_bytes(b"adapter-only fake SynthStrip model")
-        config = BrainMaskConfig(backend="synthstrip", freesurfer_home=home)
+        config = BrainMaskConfig(backend="synthstrip", freesurfer_home=home, brain_mask_device="cpu")
         self.assertTrue(inspect_brain_mask_backend(config)["available"])
         result = self.generate(config)
         call, = self.calls(tool)
@@ -827,7 +838,7 @@ class BrainMaskBackendsTest(unittest.TestCase):
 
     def test_synthstrip_missing_model_or_command_never_falls_back_to_mrtrix(self) -> None:
         home = self.root / "freesurfer"
-        config = BrainMaskConfig(backend="synthstrip", freesurfer_home=home)
+        config = BrainMaskConfig(backend="synthstrip", freesurfer_home=home, brain_mask_device="cpu")
         for missing in ("FreeSurfer mri_synthstrip", "FreeSurfer models/synthstrip.1.pt"):
             with self.subTest(missing=missing), patch.object(brain_mask, "_run") as run:
                 inspected = inspect_brain_mask_backend(config)

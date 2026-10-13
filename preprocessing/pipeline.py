@@ -66,10 +66,12 @@ class DwiPreprocessingConfig:
     eddy_threads: Optional[int] = None
     eddy_second_level_model: Optional[str] = None
     brain_mask_backend: str = "pnl_cnn"
+    brain_mask_device: str = "auto"
     pnl_mask_python: Optional[Path] = None
     pnl_mask_script: Optional[Path] = None
     pnl_mask_model_dir: Optional[Path] = None
     pnl_mask_ants_bin_dir: Optional[Path] = None
+    synthstrip_python: Optional[Path] = None
     postprocess_freesurfer_home: Optional[Path] = None
 
 
@@ -276,9 +278,15 @@ def _preprocessing_cache_key(
         for name, value in dict(backend.get("commands") or {}).items()
         if value
     }
+    eddy_path = dict(backend.get("commands") or {}).get("eddy")
+    eddy_binaries = {
+        path.name: _file_record(path)
+        for path in (Path(eddy_path).parent.glob("eddy*") if eddy_path else ())
+        if path.is_file()
+    }
     return {
         "kind": "dwi_preprocessing_cache_key",
-        "version": 3,
+        "version": 4,
         "backend": str(backend.get("backend") or config.backend).lower(),
         "inputs": {
             "dwi": _file_record(raw.dwi_path),
@@ -302,6 +310,11 @@ def _preprocessing_cache_key(
             ),
         },
         "executables": executables,
+        "eddy_binaries": eddy_binaries,
+        "eddy_cuda_visibility": os.environ.get("CUDA_VISIBLE_DEVICES")
+        if backend.get("backend") == "mrtrix_fsl" else None,
+        "eddy_device_policy": _file_record(Path(__file__).resolve().parents[1] / "shared/mrtrix_preproc_runner.py")
+        if backend.get("backend") == "mrtrix_fsl" else None,
         "brain_mask": _brain_mask_cache_key(
             config, mask_backend if mask_backend is not None else inspect_brain_mask_backend(_brain_mask_config(config)),
         ),
@@ -906,7 +919,9 @@ def _mrtrix_backend_details(
         },
         "denoise": {"status": "completed", "method": "dwidenoise_mppca"},
         "gibbs": {"status": "completed", "method": "mrdegibbs"},
-        "motion": {"status": "completed", "method": "fsl_eddy"},
+        "motion": {"status": "completed", "method": "fsl_eddy",
+                   "device_execution": json.loads((paths["qc_dir"] / "eddy_device.json").read_text())
+                   if (paths["qc_dir"] / "eddy_device.json").is_file() else None},
         "bias_correction": {
             "status": "not_run",
             "reason": "Bias-field correction is not included in the MRtrix/FSL command sequence.",
@@ -940,7 +955,17 @@ def _execute_preprocessing_backend(
             continue
         if command[0] == "optional-output":
             continue
-        _run_command(command, env=env, log=log)
+        runtime_command = command
+        if Path(command[0]).name == "dwifslpreproc":
+            script = Path(command[0])
+            if script.is_file() and "mrtrix3" in script.read_text(encoding="utf-8", errors="replace"):
+                python = shutil.which("python", path=env.get("PATH", ""))
+                if not python:
+                    raise FileNotFoundError("The selected MRtrix external environment has no Python interpreter")
+                runtime_command = [python, str(Path(__file__).resolve().parents[1] / "shared/mrtrix_preproc_runner.py"),
+                                   "--script", str(script), "--record", str(paths["qc_dir"] / "eddy_device.json"),
+                                   "--", *command[1:]]
+        _run_command(runtime_command, env=env, log=log)
     return _mrtrix_backend_details(paths, raw.subject_id, config)
 
 

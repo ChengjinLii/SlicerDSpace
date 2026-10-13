@@ -540,7 +540,8 @@ class SharedWidgetMixin:
         return f"SlicerDDSurfer/UserSettings/{name}"
 
     def _common_user_setting_specs(self) -> tuple[tuple[str, type], ...]:
-        return common_user_setting_specs() + (("brainMaskBackend", str), ("orchestrationDkiFitMethod", str))
+        return common_user_setting_specs() + (("brainMaskBackend", str), ("brainMaskDevice", str), ("device", str),
+                                             ("ddsegDevice", str), ("orchestrationDkiFitMethod", str))
 
     def _coerce_user_setting_value(self, value: Any, value_type: type) -> Any:
         return coerce_user_setting_value(value, value_type)
@@ -590,6 +591,9 @@ class SharedWidgetMixin:
                 node.orchestrationRunName = str(defaults.get("run_name") or node.orchestrationRunName or "Test1")
                 node.preprocessingBackend = str(defaults.get("preprocessing_backend") or node.preprocessingBackend or "dipy")
                 node.brainMaskBackend = str(defaults.get("brain_mask_backend") or "pnl_cnn")
+                node.brainMaskDevice = str(defaults.get("brain_mask_device") or "auto")
+                node.device = str(defaults.get("surface_device") or "auto")
+                node.ddsegDevice = str(defaults.get("ddseg_device") or "auto")
                 node.orchestrationTractographyBackend = str(
                     defaults.get("tractography_backend") or node.orchestrationTractographyBackend or "csd_act"
                 )
@@ -651,6 +655,10 @@ class SharedWidgetMixin:
                         "targets": targets,
                         "preprocessing_backend": node.preprocessingBackend or "dipy",
                         "brain_mask_backend": getattr(node, "brainMaskBackend", "pnl_cnn") or "pnl_cnn",
+                        "brain_mask_device": getattr(node, "brainMaskDevice", "auto") or "auto",
+                        "ddseg_device": node.ddsegDevice or "auto",
+                        "surface_device": node.device or "auto",
+                        "tractcloud_device": "cuda" if (node.ddsegDevice or "auto").startswith("cuda") else node.ddsegDevice or "auto",
                         "tractography_backend": node.orchestrationTractographyBackend or "csd_act",
                         "bundle_backend": node.orchestrationBundleBackend or "wmql",
                         "microstructure_stages": stages or ["dti"],
@@ -1645,6 +1653,8 @@ class SharedWidgetMixin:
             "output_root": Path(output_root_text).expanduser() if output_root_text else None,
             "preprocessing_backend": (node.preprocessingBackend or "dipy").strip(),
             "brain_mask_backend": mask_backend,
+            "brain_mask_device": getattr(node, "brainMaskDevice", "auto") or "auto",
+            "tractcloud_device": "cuda" if (node.ddsegDevice or "auto").startswith("cuda") else node.ddsegDevice or "auto",
             "brain_mask_required": bool(brain_mask_required),
             "tractography_backend": self._tractography_backend_text(),
             "connectome_backend": (node.connectomeBackend or "python").strip(),
@@ -1973,6 +1983,8 @@ class SharedWidgetMixin:
         with slicer.util.NodeModify(self._parameterNode):
             self._parameterNode.device = device
             self._parameterNode.ddsegDevice = device
+        self._lastEnvironmentResult = None
+        self._lastEnvironmentSignature = None
         self._checkCanApply()
 
     def _onTractographyBackendChanged(self, value: str) -> None:
@@ -2828,6 +2840,7 @@ class SharedWidgetMixin:
             connectome_compress_mrtrix_dense=bool(self._parameterNode.connectomeCompressMrtrixDense),
             preprocessing_backend=(self._parameterNode.preprocessingBackend or "dipy").strip() or "dipy",
             brain_mask_backend=(getattr(self._parameterNode, "brainMaskBackend", "pnl_cnn") or "pnl_cnn").strip(),
+            brain_mask_device=(getattr(self._parameterNode, "brainMaskDevice", "auto") or "auto").strip(),
             wma_input_tractography_text=(
                 getattr(self._parameterNode, "wmaInputTractography", "") or ""
             ).strip(),
@@ -3079,34 +3092,64 @@ class SharedWidgetMixin:
             slicer.util.infoDisplay("Run the environment check first.", parent=self.parent)
             return
         model_missing = self._missing_model_resource_items(result)
+        from shared.managed_runtimes import cuda_candidate, supported_platform
+        managed_groups = {getattr(item, "install_group", "") for item in self._missing_environment_items(result)}
+        managed = tuple((["mrtrix"] if "mrtrix" in managed_groups else []) +
+                        (["fsl_cuda" if cuda_candidate() else "fsl_cpu"] if "fsl" in managed_groups else []))
+
+        def external_setup():
+            if managed and supported_platform():
+                from shared.ui_managed_runtimes import install_selected_runtimes
+                install_selected_runtimes(self, managed)
+
+        def model_setup(ok=True):
+            if not ok:
+                return
+            if model_missing:
+                from shared.ui_managed_runtimes import asset_profiles_for_items
+                self._install_model_assets_from_environment_dialog(
+                    profile=asset_profiles_for_items(model_missing), on_complete=lambda success, message: external_setup() if success else None)
+            else:
+                external_setup()
+
         if result.missing_python_packages:
             self._install_python_packages_from_environment_dialog(
                 tuple(result.missing_python_packages),
-                on_complete=(lambda ok: self._install_model_assets_from_environment_dialog(profile="core") if ok and model_missing else None),
+                on_complete=model_setup,
             )
-        elif model_missing:
-            self._install_model_assets_from_environment_dialog(profile="core")
+        else:
+            model_setup()
         external_missing = [
             item
             for item in self._missing_environment_items(result)
             if (item.kind != "python" or not (item.details or {}).get("package"))
             and (item.install_group if hasattr(item, "install_group") else "") != "model-resources"
+            and not (supported_platform() and getattr(item, "install_group", "") in {"mrtrix", "fsl"})
         ]
         if external_missing:
             slicer.util.infoDisplay(
-                "System-level tools and application runtimes are not installed silently. Use each dependency row "
-                "to choose an existing path, or open Manual setup notes for platform-specific instructions.",
+                "Some selected backends do not yet support managed installation. Use their dependency rows "
+                "to configure an existing installation or review setup instructions. MRtrix/FSL can be configured automatically on Linux x86_64.",
                 windowTitle="External tool setup",
                 parent=self.parent,
             )
 
     def _onInstallEnvironmentItemClicked(self, item) -> None:
+        group = str(getattr(item, "install_group", "") or "")
+        if group in {"mrtrix", "fsl"}:
+            from shared.managed_runtimes import cuda_candidate, supported_platform
+            if supported_platform():
+                from shared.ui_managed_runtimes import install_selected_runtimes
+                install_selected_runtimes(self, ("mrtrix",) if group == "mrtrix" else
+                                          ("fsl_cuda" if cuda_candidate() else "fsl_cpu",))
+                return
         package = (item.details or {}).get("package")
         if item.kind == "python" and package:
             self._install_python_packages_from_environment_dialog((package,))
             return
         if self._is_model_resource_item(item):
-            self._install_model_assets_from_environment_dialog(profile="core")
+            from shared.ui_managed_runtimes import asset_profiles_for_items
+            self._install_model_assets_from_environment_dialog(profile=asset_profiles_for_items((item,)))
             return
         if self._configure_path_for_environment_item(item):
             return
@@ -3274,7 +3317,7 @@ class SharedWidgetMixin:
         return asset_root
 
     def _install_model_assets_from_environment_dialog(
-        self, *, profile: str = "core", prompt_for_root: bool = True, on_complete=None,
+        self, *, profile: str | tuple[str, ...] = "core", prompt_for_root: bool = False, on_complete=None,
     ) -> bool:
         from shared.ui_setup_jobs import start_setup_job
         if getattr(self, "_setupJob", None) or getattr(self, "_pipelineActive", False):
@@ -3290,11 +3333,17 @@ class SharedWidgetMixin:
             asset_root = Path(configured or module.configured_model_assets_root()).expanduser().resolve()
         script = Path(__file__).resolve().parents[1] / "scripts" / "download_model_assets.py"
         program, prefix = self._slicer_launcher_program(), ["--launch", "PythonSlicer"]
-        command = (program, [*prefix, "-u", str(script), "--profile", profile,
-                             "--asset-root", str(asset_root), "--source", "url",
-                             "--source-id", "slicerdsurfer_models_git"], {})
+        profiles = (profile,) if isinstance(profile, str) else tuple(dict.fromkeys(profile))
+        commands = [(program, [*prefix, "-u", str(script), "--profile", selected,
+                              "--asset-root", str(asset_root), "--source", "url",
+                              "--source-id", "slicerdsurfer_models_git"], {}) for selected in profiles]
 
         def done(status, details, log_path):
+            if status == "completed":
+                self._save_environment_path_setting("model_assets_dir", str(asset_root))
+                edit = (getattr(self, "_environmentPathLineEdits", {}) or {}).get("model_assets_dir")
+                if edit is not None:
+                    edit.setText(str(asset_root))
             message = ("Model assets downloaded and checksum-verified." if status == "completed" else
                        "Download stopped; partial files are retained for retry." if status == "cancelled" else
                        "Download or checksum verification failed.")
@@ -3311,7 +3360,7 @@ class SharedWidgetMixin:
                     details=details + "\\nLog: " + str(log_path))
             if on_complete:
                 on_complete(status == "completed", message)
-        return start_setup_job(self, "Download and verify model assets", [command], done)
+        return start_setup_job(self, "Download and verify model assets", commands, done)
 
     def _setPipelineActive(self, active: bool, *, preserve_status: bool = False) -> None:
         self._pipelineActive = active

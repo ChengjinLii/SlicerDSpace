@@ -248,7 +248,8 @@ class UIEnvironmentPanelTest(unittest.TestCase):
         self.assertTrue(state.has_manual_setup_notes)
         self.assertIn("Python target.", state.python_install_tooltip)
         self.assertEqual(environment_item_button_text(python_item), "Install")
-        self.assertEqual(environment_item_button_text(command_item), "Choose path / setup")
+        from shared.managed_runtimes import supported_platform
+        self.assertEqual(environment_item_button_text(command_item), "Install and configure" if supported_platform() else "Choose path / setup")
         self.assertEqual(environment_item_button_text(model_item), "Download / choose path")
         self.assertEqual(environment_item_button_tooltip(command_item), "Install MRtrix3.")
 

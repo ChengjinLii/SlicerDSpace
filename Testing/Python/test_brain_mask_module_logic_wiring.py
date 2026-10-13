@@ -38,6 +38,7 @@ class BrainMaskModuleLogicWiringTest(unittest.TestCase):
                 parameters = inspect.signature(getattr(DummyLogic, name)).parameters
                 self.assertEqual(parameters["brain_mask_backend"].default, "pnl_cnn")
                 self.assertEqual(parameters["brain_mask_backend"].annotation, "str")
+                self.assertEqual(parameters["brain_mask_device"].default, "auto")
                 for key in PATH_KEYS:
                     self.assertIsNone(parameters[key].default)
                     self.assertEqual(parameters[key].annotation, "Optional[Path]")
@@ -66,7 +67,7 @@ class BrainMaskModuleLogicWiringTest(unittest.TestCase):
                             key: root / key for key in ("json", "python_sh", "external_notes")
                         }),
                     ):
-                        options = {"brain_mask_backend": backend, **paths}
+                        options = {"brain_mask_backend": backend, "brain_mask_device": "cuda", **paths}
                         if name == "runInputValidation":
                             logic.runInputValidation(subject_id="sub-01", input_root=root, **options)
                             called = validate
@@ -87,6 +88,7 @@ class BrainMaskModuleLogicWiringTest(unittest.TestCase):
                         called.assert_called_once()
                         config = called.call_args.args[0]
                         self.assertEqual(config.brain_mask_backend, backend)
+                        self.assertEqual(config.brain_mask_device, "cuda")
                         for key, path in paths.items():
                             self.assertEqual(getattr(config, key), path)
 

@@ -1,7 +1,6 @@
 """GUI and CLI share the same manifest-configured surface pipeline."""
 from dataclasses import dataclass
 from pathlib import Path
-from shared.environment import resolve_auto_torch_device
 
 
 @dataclass
@@ -31,7 +30,7 @@ class SurfaceLogicMixin:
             subject_root=Path(inspected['subject_root']) if inspected['subject_root'] is not None else None,
             task_name='ddsurfer')
         result = run_surface(SurfaceConfig(subject, input_root, output,
-            predict_mode=parameters.predictMode, device=resolve_auto_torch_device(parameters.device or 'auto'),
+            predict_mode=parameters.predictMode, device=parameters.device or 'auto',
             template_dir=self.template_dir, checkpoint_root=self.checkpoint_root,
             registration_atlas=self.registration_atlas, execute=True,
             cleanup_intermediates=bool(parameters.cleanupIntermediates)), log=self.log)

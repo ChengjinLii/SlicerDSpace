@@ -87,10 +87,12 @@ class ProductOrchestratorConfig:
     resume: bool = True
     preprocessing_backend: str = "dipy"
     brain_mask_backend: str = "pnl_cnn"
+    brain_mask_device: str = "auto"
     pnl_mask_python: Optional[Path] = None
     pnl_mask_script: Optional[Path] = None
     pnl_mask_model_dir: Optional[Path] = None
     pnl_mask_ants_bin_dir: Optional[Path] = None
+    synthstrip_python: Optional[Path] = None
     preprocessing_force: bool = False
     preprocessing_dipy_denoise_method: str = "mppca"
     preprocessing_dipy_run_gibbs: bool = True
@@ -440,12 +442,12 @@ def _resolved_tractcloud_device_for_execution(requested: str, *, execute: bool, 
     normalized = (requested or "auto").strip().lower() or "auto"
     if normalized not in {"", "auto"}:
         return normalized
-    resolved = _resolved_device_for_execution(normalized, execute=execute, target_will_run=target_will_run)
-    if resolved.startswith("cuda"):
-        return "cuda"
-    if resolved == "cpu":
-        return "cpu"
-    return resolved
+    if not target_will_run:
+        return "not_resolved_target_not_run"
+    if not execute:
+        return "not_resolved_execute_false"
+    # Resolve inside TractCloud's selected Python, not the caller's runtime.
+    return "auto"
 
 
 def _normalize_bundle_backends(bundle_backend: str) -> tuple[str, ...]:
@@ -920,10 +922,12 @@ def _preprocessing_config(config: ProductOrchestratorConfig, subject_root: Path,
         subject_id=config.subject_id, input_root=subject_root, output_dir=output_dir,
         backend=config.preprocessing_backend, execute=True, skip=False,
         brain_mask_backend=config.brain_mask_backend,
+        brain_mask_device=config.brain_mask_device,
         pnl_mask_python=config.pnl_mask_python,
         pnl_mask_script=config.pnl_mask_script,
         pnl_mask_model_dir=config.pnl_mask_model_dir,
         pnl_mask_ants_bin_dir=config.pnl_mask_ants_bin_dir,
+        synthstrip_python=config.synthstrip_python,
         postprocess_freesurfer_home=config.postprocess_freesurfer_home,
         force=config.preprocessing_force or (not config.resume),
         dipy_denoise_method=config.preprocessing_dipy_denoise_method,
@@ -2861,10 +2865,12 @@ def _run_subject_products_impl(
                 dependency_groups=("core",),
                 mrtrix_bin_dir=mask_mrtrix_bin_dir,
                 brain_mask_backend=config.brain_mask_backend,
+                brain_mask_device=config.brain_mask_device,
                 pnl_mask_python=config.pnl_mask_python,
                 pnl_mask_script=config.pnl_mask_script,
                 pnl_mask_model_dir=config.pnl_mask_model_dir,
                 pnl_mask_ants_bin_dir=config.pnl_mask_ants_bin_dir,
+                synthstrip_python=config.synthstrip_python,
                 postprocess_freesurfer_home=config.postprocess_freesurfer_home,
             )
         )
@@ -2977,16 +2983,12 @@ def _run_subject_products_impl(
         require_current_run=primary_tractography_backend == "csd_act" and "tractography" in targets,
     )
     slicer_executable = _resolve_slicer_executable(config)
-    ddseg_device = _resolved_device_for_execution(
-        config.ddseg_device,
-        execute=config.execute,
-        target_will_run="segmentation" in run_targets,
-    )
-    surface_device = _resolved_device_for_execution(
-        config.surface_device,
-        execute=config.execute,
-        target_will_run="surface" in run_targets,
-    )
+    ddseg_device = config.ddseg_device
+    if ddseg_device == "auto" and (not config.execute or not {"segmentation", "parcellation"} & set(run_targets)):
+        ddseg_device = "not_resolved_execute_false" if {"segmentation", "parcellation"} & set(run_targets) else "not_resolved_target_not_run"
+    surface_device = config.surface_device
+    if surface_device == "auto" and (not config.execute or "surface" not in run_targets):
+        surface_device = "not_resolved_execute_false" if "surface" in run_targets else "not_resolved_target_not_run"
     tractcloud_device = _resolved_tractcloud_device_for_execution(
         config.tractcloud_device,
         execute=config.execute,
@@ -4207,6 +4209,7 @@ def _run_subject_products_impl(
         "resume": config.resume,
         "preprocessing_backend": config.preprocessing_backend,
         "brain_mask_backend": config.brain_mask_backend,
+        "brain_mask_device": config.brain_mask_device,
         "brain_mask_configuration": {
             name: str(getattr(config, name)) if getattr(config, name) else None
             for name in ("pnl_mask_python", "pnl_mask_script", "pnl_mask_model_dir", "pnl_mask_ants_bin_dir")

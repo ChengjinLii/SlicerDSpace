@@ -20,7 +20,10 @@ def active_docs(root):
         "docs/README.md", "docs/README.zh-CN.md", "docs/release/RELEASE.md",
         "docs/release/EXTENSION_READINESS.md", "docs/release/EXTENSION_READINESS.zh-CN.md",
         "docs/release/DISTRIBUTION_VALIDATION_20261011.md",
-        "docs/release/DISTRIBUTION_VALIDATION_20261012.md"))
+        "docs/release/DISTRIBUTION_VALIDATION_20261012.md",
+        "docs/release/MODULE_RUNTIMES_20261013.md",
+        "docs/release/MODULE_RUNTIMES_20261013.zh-CN.md",
+        "docs/release/GPU_POLICY_20261013.md"))
     return paths
 
 

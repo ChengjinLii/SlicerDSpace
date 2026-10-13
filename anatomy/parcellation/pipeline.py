@@ -112,6 +112,7 @@ def _run_ddsurfer_pred(
         sys.argv = argv_backup
 
     normalized_device = (device or "auto").strip().lower() or "auto"
+    options.require_cuda = normalized_device == "cuda" or normalized_device.startswith("cuda:")
     if normalized_device == "cpu":
         options.no_cuda = True
         options.gpu = "-1"

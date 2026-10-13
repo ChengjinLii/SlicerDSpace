@@ -42,6 +42,8 @@ def verify_saved(owner, backend):
     saved = load_user_config()
     require(saved["run_defaults"]["brain_mask_backend"] == backend, f"JSON saved {backend}")
     require(user_config_cli_values(saved)["brain_mask_backend"] == backend, f"CLI mapping saved {backend}")
+    require(saved["run_defaults"]["brain_mask_device"] == owner._parameterNode.brainMaskDevice, "Device selection saved in JSON")
+    require(user_config_cli_values(saved)["brain_mask_device"] == owner._parameterNode.brainMaskDevice, "Device reaches CLI config")
     settings = slicer.app.userSettings()
     settings.sync()
     require(str(settings.value(owner._user_settings_key("brainMaskBackend"))) == backend,
@@ -59,6 +61,9 @@ def verify_gui(owner):
     for section in (ui.configurationCollapsibleButton, ui.targetsCollapsibleButton):
         require(not section.isAncestorOf(combo), "Selector absent from " + section.objectName)
     require(not combo.isVisible(), "Selector hidden on main UI")
+    setup = owner._managedRuntimeSetupButton
+    require(advanced.isAncestorOf(setup), "Managed setup under Advanced")
+    require(not setup.isVisible(), "Managed setup absent from compact main UI")
     require(tuple(str(combo.itemData(index)) for index in range(combo.count)) == BACKENDS,
             "Four canonical item-data values")
     require(combo.itemText(combo.findData("pnl_cnn")) == "PNL CNN (dMRI)", "PNL CNN default display")
@@ -100,9 +105,66 @@ def finish_select():
         require(saved["dki_fit_method"] == "MKCURVE", "Python MK-Curve method saved")
         require(not owner._pipelineActive, "No pipeline started")
         verify_languages(owner)
-        finish()
+        if os.environ.get("SLICERDDSURFER_RUNTIME_ROOT"):
+            verify_managed_runtime_setup(owner)
+        else:
+            finish()
     except Exception:
         fail()
+
+
+def verify_managed_runtime_setup(owner):
+    from shared.ui_managed_runtimes import install_selected_runtimes
+
+    def fsl_decline():
+        try:
+            dialog = slicer.util.findChild(slicer.util.mainWindow(), "managedRuntimeConfirmationDialog")
+            accepted = slicer.util.findChild(dialog, "managedRuntimeFslAcceptance")
+            buttons = slicer.util.findChild(dialog, "managedRuntimeDialogButtons")
+            require(not buttons.button(qt.QDialogButtonBox.Ok).enabled, "FSL install disabled without acceptance")
+            accepted.checked = True
+            require(buttons.button(qt.QDialogButtonBox.Ok).enabled, "Explicit FSL license acceptance enables install")
+            dialog.reject()
+        except Exception:
+            fail()
+
+    qt.QTimer.singleShot(300, fsl_decline)
+    require(install_selected_runtimes(owner, ("fsl_cuda",)) is False, "Declined FSL setup launches no worker")
+    require(not owner._pipelineActive, "License decline changes no pipeline state")
+
+    def mrtrix_accept():
+        try:
+            dialogs = [widget for widget in qt.QApplication.topLevelWidgets()
+                       if widget.objectName == "managedRuntimeConfirmationDialog" and widget.isVisible()]
+            require(len(dialogs) == 1, "One active managed setup confirmation")
+            dialogs[0].accept()
+        except Exception:
+            fail()
+
+    qt.QTimer.singleShot(300, mrtrix_accept)
+    require(install_selected_runtimes(owner, ("mrtrix",)) is True, "Real background runtime setup starts")
+    require(owner._pipelineActive and owner._setupJob is not None, "Setup worker owned and cancellable")
+    state = {"ticks": 0}
+
+    def wait():
+        try:
+            state["ticks"] += 1
+            if owner._setupJob is not None:
+                require(state["ticks"] < 100, "Setup completes within smoke timeout")
+                qt.QTimer.singleShot(200, wait)
+                return
+            from shared.user_config import load_user_config
+            saved = load_user_config()["external_dependencies"]
+            expected = str(Path(os.environ["SLICERDDSURFER_RUNTIME_ROOT"]) / "mrtrix-3.0.8/bin")
+            require(saved.get("mrtrix_bin_dir") == expected, "Verified MRtrix path saved automatically")
+            require(saved.get("preprocessing_mrtrix_bin_dir") == expected, "Preprocessing path saved automatically")
+            require(owner._environmentPathLineEdits["mrtrix_bin_dir"].text == expected, "GUI path populated automatically")
+            require(not owner._pipelineActive, "Background setup finished without scientific inference")
+            finish()
+        except Exception:
+            fail()
+
+    qt.QTimer.singleShot(200, wait)
 
 
 def check():
@@ -116,6 +178,9 @@ def check():
         combo = verify_gui(owner)
         if PHASE == "restore":
             require(node.brainMaskBackend == "provided", "New process restores node from saved config")
+            require(node.brainMaskDevice == "cpu", "New process restores explicit CPU device")
+            require(owner.ui.brainMaskDeviceComboBox.currentText == "cpu", "Device selector restored")
+            require(node.device == "cpu" and node.ddsegDevice == "cpu", "Explicit unified PyTorch CPU choice restored")
             require(str(combo.itemData(combo.currentIndex)) == "provided", "New process restores selector")
             verify_saved(owner, "provided")
             require(node.orchestrationMicrostructureStages == "dti,dki", "New process restores DKI only")
@@ -131,6 +196,15 @@ def check():
             return
         require(PHASE == "select", "Known smoke phase")
         require(node.brainMaskBackend == "pnl_cnn", "Fresh node defaults to pnl_cnn")
+        require(node.brainMaskDevice == "auto", "Fresh node prefers GPU automatically")
+        require(node.device == "auto" and node.ddsegDevice == "auto", "Fresh PyTorch defaults prefer GPU")
+        owner.ui.unifiedTorchDeviceComboBox.setCurrentIndex(owner.ui.unifiedTorchDeviceComboBox.findText("cpu"))
+        require(node.device == "cpu" and node.ddsegDevice == "cpu", "Unified CPU choice reaches both nodes")
+        device_combo = owner.ui.brainMaskDeviceComboBox
+        require(owner._advancedSettingsPanel.isAncestorOf(device_combo), "Mask device under Advanced")
+        for device in ("auto", "cuda", "cpu"):
+            device_combo.setCurrentIndex(device_combo.findText(device))
+            require(node.brainMaskDevice == device, device + " device reaches MRML")
         require(combo.currentText == "PNL CNN (dMRI)", "Fresh selector defaults to PNL CNN (dMRI)")
         require(load_user_config()["run_defaults"]["brain_mask_backend"] == "pnl_cnn", "Fresh JSON defaults to pnl_cnn")
         require(node.orchestrationMicrostructureStages == "dti", "Fresh node defaults to DTI only")

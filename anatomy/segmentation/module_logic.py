@@ -37,7 +37,7 @@ class SegmentationLogicMixin:
         weights_dir: Path,
         slicer_base: Optional[Path] = None,
         slicer_ext: Optional[Path] = None,
-        device: str = "cpu",
+        device: str = "auto",
         apply_softmax: bool = False,
         subject_root: Optional[Path] = None,
         subject_id: Optional[str] = None,

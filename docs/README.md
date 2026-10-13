@@ -21,6 +21,8 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 | [Capabilities and platforms](setup/SUPPORT_MATRIX.md) | Configure only the selected backend |
 | [Result review](setup/GUI_RESULT_REVIEW.md) | Run-scoped loading, cancellation and QC |
 | [Brain masking](setup/brain_mask_gui_config.md) | PNL CNN default, explicit alternatives and external runtime |
+| [GPU execution](setup/GPU_EXECUTION.md) | GPU-preferred neural inference, explicit CPU choices and CPU-only route boundaries |
+| [Managed setup](setup/MANAGED_SETUP.md) | Selected MRtrix/FSL installation, automatic paths and default model directories |
 | [Microstructure](setup/MICROSTRUCTURE.md) | DTI default, independent FW/NODDI/DKI and original MK-Curve boundary |
 | [Automatic results](setup/AUTOMATIC_RESULTS.md) | Current-run loading and RAS VTK display previews |
 | [Settings](setup/USER_CONFIG.md) | Persistent GUI/CLI configuration |
@@ -38,7 +40,7 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 - [Extension readiness](release/EXTENSION_READINESS.md): packaging, SDK commands and release gates.
 - [Release procedure](release/RELEASE.md): code-only archives, assets, tags and evidence.
 - [Repository layout](architecture/REPOSITORY_LAYOUT.md): anatomical, microstructural and connectivity packages.
-- [Product architecture](architecture/PRODUCT_ARCHITECTURE.md): routes and module responsibilities.
+- [Product architecture](architecture/PRODUCT_ARCHITECTURE.md): native client, optional dependencies, isolated backends and release boundaries.
 
 ---
 

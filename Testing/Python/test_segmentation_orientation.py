@@ -185,6 +185,7 @@ class DDSegPipelineOrientationTest(unittest.TestCase):
             weights_dir=root / "weights",
             dti_feature_dir=feature_dir,
             source_dwi=root / "dwi.nii.gz",
+            device="cpu",  # This numerical oracle fixture does not load PyTorch.
         )
         with mock.patch.dict(sys.modules, {"nrrd": _fake_nrrd_module(store)}), mock.patch.object(
             pipeline, "predict_model_space", side_effect=oracle

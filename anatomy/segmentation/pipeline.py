@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -28,7 +29,9 @@ def predict_model_space(stacked: np.ndarray, cfg: DDSegConfig) -> tuple[np.ndarr
     """Run the three view models on a padded model-orientation stack."""
 
     from .model_loader import load_models  # lazy: torch is only needed for inference
+    from shared.environment import resolve_auto_torch_device
 
+    cfg = replace(cfg, device=resolve_auto_torch_device(cfg.device))
     views = split_views(stacked)
     models = load_models(cfg.weights_dir, "dti", cfg.device)
     pred_axial = predict_view(models.axial, views["axial"], cfg.apply_softmax)
@@ -73,6 +76,10 @@ def _save_like_mask(data: np.ndarray, mask: OrientedMask, path: Path) -> None:
 
 
 def run_ddseg(cfg: DDSegConfig) -> None:
+    from shared.environment import resolve_auto_torch_device
+    requested_device = cfg.device
+    cfg = replace(cfg, device=resolve_auto_torch_device(cfg.device))
+    print(f"[DDSeg] Requested {requested_device}; resolved {cfg.device} in the inference runtime", flush=True)
     cfg.output_folder.mkdir(parents=True, exist_ok=True)
     (cfg.output_folder / "ddseg_qc.json").unlink(missing_ok=True)
     feature_folder = _feature_folder(cfg)

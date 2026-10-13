@@ -14,7 +14,7 @@ class DDSegConfig:
     output_folder: Path
     weights_dir: Path
     dti_feature_dir: Optional[Path] = None
-    device: str = "cpu"
+    device: str = "auto"
     apply_softmax: bool = False
     dwi_nii: Optional[Path] = None
     bval: Optional[Path] = None

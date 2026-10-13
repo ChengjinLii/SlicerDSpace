@@ -11,6 +11,10 @@
 The subject CLI and batch CLI use `pnl_cnn` by default. Select a backend
 explicitly with `--brain-mask-backend pnl_cnn|synthstrip|mrtrix|provided`.
 Missing dependencies are reported, not replaced with another backend.
+`--brain-mask-device auto|cuda|cpu` controls PNL/SynthStrip inference and defaults
+to GPU-preferred `auto`. It is saved in `run_defaults.brain_mask_device`.
+An explicit CUDA request fails if the external runtime cannot use CUDA;
+inference errors never trigger a hidden CPU retry. MRtrix masking is CPU-only.
 `provided` requires an existing `input/nodif_brain_mask.nii.gz`.
 
 Configure the PNL runtime through external dependency paths:
@@ -19,6 +23,7 @@ Configure the PNL runtime through external dependency paths:
 python shared/run_subject_pipeline_cli.py \
   --subject-root /data/sub-01 --targets preprocessing,microstructure \
   --brain-mask-backend pnl_cnn \
+  --brain-mask-device auto \
   --pnl-mask-python /opt/pnl/bin/python \
   --pnl-mask-script /opt/pnl/dwi_masking.py \
   --pnl-mask-model-dir /opt/pnl/models \

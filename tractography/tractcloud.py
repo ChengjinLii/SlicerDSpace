@@ -26,14 +26,36 @@ from shared.product_staging import archive_run_records, new_product_staging, pub
 
 
 TRACTCLOUD_REPOSITORY = "https://github.com/SlicerDMRI/TractCloud"
-ADAPTER_REVISION = 'seeded-fresh-products-20261013'
+ADAPTER_REVISION = 'seeded-gpu-preferred-strict-runtime-20261013'
 VALID_TRACTCLOUD_DEVICES = {"auto", "cpu", "cuda"}
 TRACTCLOUD_COMPAT_BOOTSTRAP = (
-    "import logging, os, random, runpy; import numpy as np; import torch; "
+    "import json, logging, os, random, runpy, sys; import numpy as np; import torch; "
     "seed = int(os.environ.get('SLICERDDSURFER_TRACTCLOUD_SEED', '0')); "
     "random.seed(seed); np.random.seed(seed); torch.manual_seed(seed); "
     "torch.cuda.manual_seed_all(seed); import tractcloud.pipeline as pipeline; "
     "pipeline.__dict__.setdefault('logging', logging); "
+    "\nrequested = sys.argv[sys.argv.index('--device') + 1] if '--device' in sys.argv else 'auto'\n"
+    "available = torch.cuda.is_available() if requested != 'cpu' else False\n"
+    "if requested == 'cuda' and not available:\n"
+    "    raise RuntimeError('TractCloud CUDA requested but unavailable in its selected Python')\n"
+    "resolved = 'cuda' if available else 'cpu'\n"
+    "if resolved == 'cuda':\n"
+    "    torch.empty(1, device='cuda:0')\n"
+    "if '--device' in sys.argv:\n"
+    "    sys.argv[sys.argv.index('--device') + 1] = resolved\n"
+    "record = {'requested': requested, 'resolved': resolved, 'torch_version': str(torch.__version__)}\n"
+    "print('TractCloud device: ' + json.dumps(record), flush=True)\n"
+    "record_path = os.environ.get('SLICERDDSURFER_TRACTCLOUD_DEVICE_RECORD')\n"
+    "if record_path:\n"
+    "    with open(record_path, 'w') as stream:\n"
+    "        json.dump(record, stream)\n"
+    "if resolved == 'cuda' and hasattr(pipeline, 'run_inference'):\n"
+    "    original_inference = pipeline.run_inference\n"
+    "    def strict_gpu_inference(model, loader, global_feat, num_classes, device, **kwargs):\n"
+    "        if str(device).startswith('cpu'):\n"
+    "            raise RuntimeError('TractCloud GPU failed; automatic CPU retry disabled; fix CUDA or explicitly select CPU')\n"
+    "        return original_inference(model, loader, global_feat, num_classes, device, **kwargs)\n"
+    "    pipeline.run_inference = strict_gpu_inference\n"
     "runpy.run_module('tractcloud', run_name='__main__')"
 )
 
@@ -189,6 +211,7 @@ def _tractcloud_env(config: "TractCloudConfig", backend_status: Optional[dict[st
     if config.data_dir is not None:
         env["TRACTCLOUD_DATA_DIR"] = config.data_dir.expanduser().resolve().as_posix()
     env['SLICERDDSURFER_TRACTCLOUD_SEED'] = str(config.random_seed)
+    env['SLICERDDSURFER_TRACTCLOUD_DEVICE_RECORD'] = str(config.output_dir.expanduser().resolve() / 'tractcloud_device.json')
     return env
 
 
@@ -397,17 +420,20 @@ def run_tractcloud_parcellation(
     if config.execute:
         env = python_tool_environment(backend_status['python_executable'], _tractcloud_env(config, backend_status))
         try:
+            (output_dir / 'tractcloud_device.json').unlink(missing_ok=True)
             staging = new_product_staging(output_dir, 'tractcloud')
             runtime_command = list(command)
             runtime_command[runtime_command.index('--output-dir') + 1] = str(staging)
-            # The author snapshot references logging in its CUDA-error/CPU
-            # fallback without importing it. Supply only that missing global;
-            # keep the official CLI, network, labels and weights unchanged.
+            # Preserve the official network/weights while managing devices in
+            # its own Python and refusing the upstream CUDA-error CPU retry.
             runtime_command[1:3] = ['-c', TRACTCLOUD_COMPAT_BOOTSTRAP]
             manifest['executed_command'] = runtime_command
-            manifest['compatibility_adjustments'] = ['Supply a missing logging global for the upstream CUDA-error CPU fallback; no inference or parameter changes']
+            manifest['compatibility_adjustments'] = ['Supply missing upstream logging; resolve device in the selected Python and refuse automatic CPU retries after CUDA failure; network and weights unchanged']
             completed = subprocess.run(runtime_command, check=True, env=env)
             return_code = completed.returncode
+            device_record = output_dir / 'tractcloud_device.json'
+            if device_record.is_file():
+                manifest['device_execution'] = json.loads(device_record.read_text(encoding='utf-8'))
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode
             execution_error = str(exc)

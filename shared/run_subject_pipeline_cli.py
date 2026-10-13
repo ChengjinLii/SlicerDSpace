@@ -233,11 +233,13 @@ def _environment_config_from_args(
         conda_executable=args.conda_executable,
         preprocessing_backend=args.preprocessing_backend,
         brain_mask_backend=args.brain_mask_backend,
+        brain_mask_device=args.brain_mask_device,
         brain_mask_required=bool(brain_mask_required),
         pnl_mask_python=args.pnl_mask_python,
         pnl_mask_script=args.pnl_mask_script,
         pnl_mask_model_dir=args.pnl_mask_model_dir,
         pnl_mask_ants_bin_dir=args.pnl_mask_ants_bin_dir,
+        synthstrip_python=args.synthstrip_python,
         tractography_backend=args.tractography_backend,
         connectome_backend=args.connectome_backend,
         ddseg_device=args.ddseg_device,
@@ -445,6 +447,8 @@ def build_parser() -> argparse.ArgumentParser:
             "synthstrip uses --postprocess-freesurfer-home; provided requires an existing input mask."
         ),
     )
+    parser.add_argument("--brain-mask-device", choices=("auto", "cpu", "cuda"), default="auto",
+                        help="PNL/SynthStrip device: auto prefers the first visible GPU in that runtime; cuda requires GPU; cpu disables CUDA.")
     parser.add_argument(
         "--preprocessing-backend",
         default="dipy",
@@ -834,10 +838,12 @@ def main(argv: list[str] | None = None) -> int:
         resume=not args.no_resume,
         preprocessing_backend=args.preprocessing_backend,
         brain_mask_backend=args.brain_mask_backend,
+        brain_mask_device=args.brain_mask_device,
         pnl_mask_python=args.pnl_mask_python,
         pnl_mask_script=args.pnl_mask_script,
         pnl_mask_model_dir=args.pnl_mask_model_dir,
         pnl_mask_ants_bin_dir=args.pnl_mask_ants_bin_dir,
+        synthstrip_python=args.synthstrip_python,
         preprocessing_force=bool(args.preprocessing_force),
         preprocessing_dipy_denoise_method=args.preprocessing_dipy_denoise_method,
         preprocessing_dipy_run_gibbs=not args.preprocessing_skip_gibbs,

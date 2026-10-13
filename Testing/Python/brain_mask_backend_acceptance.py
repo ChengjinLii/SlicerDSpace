@@ -29,10 +29,12 @@ def main():
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--backend", choices=("pnl_cnn", "synthstrip", "mrtrix"), required=True)
     parser.add_argument("--python", type=Path)
+    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--script", type=Path)
     parser.add_argument("--models", type=Path)
     parser.add_argument("--ants", type=Path)
     parser.add_argument("--freesurfer-home", type=Path)
+    parser.add_argument("--synthstrip-python", type=Path)
     parser.add_argument("--mrtrix-bin-dir", type=Path)
     args = parser.parse_args()
     source, output = args.input_dir.resolve(), args.output_dir.resolve()
@@ -42,15 +44,18 @@ def main():
     supplied = source / "nodif_brain_mask.nii.gz"
     supplied_hash = digest(supplied) if supplied.exists() else None
     config = BrainMaskConfig(backend=args.backend, pnl_mask_python=args.python,
+                             brain_mask_device=args.device,
                              pnl_mask_script=args.script, pnl_mask_model_dir=args.models,
                              pnl_mask_ants_bin_dir=args.ants, freesurfer_home=args.freesurfer_home,
+                             synthstrip_python=args.synthstrip_python,
                              mrtrix_bin_dir=args.mrtrix_bin_dir)
     started = time.monotonic()
     report = {"backend": args.backend, "kind": "real_brain_mask_acceptance",
               "anatomical_review": "pending", "scope": "Real external inference and integrity, not accuracy certification"}
     try:
         result = generate_brain_mask(source / "data.nii.gz", source / "bvals", source / "bvecs",
-                                     output / f"{args.backend}_mask.nii.gz", config=config, log=print)
+                                     output / f"{args.backend}_mask.nii.gz", config=config,
+                                     log=lambda message: print(message, flush=True))
         report.update(status="pass", result=result,
                       supplied_mask_unchanged=(digest(supplied) == supplied_hash) if supplied_hash else None)
         if report["supplied_mask_unchanged"] is False:

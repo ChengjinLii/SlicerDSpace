@@ -60,6 +60,8 @@ def sync_parameter_node_to_ui(widget) -> None:
             getattr(ui, "brainMaskBackendComboBox", None),
             getattr(node, "brainMaskBackend", "pnl_cnn") or "pnl_cnn",
         )
+        widget._sync_combo_text(getattr(ui, "brainMaskDeviceComboBox", None),
+                                getattr(node, "brainMaskDevice", "auto") or "auto", via_index=False)
         sync_combo_data(
             getattr(ui, "preprocessingPhaseEncodingDirectionComboBox", None),
             getattr(node, "preprocessingPhaseEncodingDirection", "") or "",

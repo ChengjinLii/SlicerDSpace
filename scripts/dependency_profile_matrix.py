@@ -126,9 +126,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--preprocessing-backend", default="mrtrix_fsl", choices=("dipy", "mrtrix_fsl"))
     parser.add_argument("--tractography-backend", default="csd_act", choices=("csd_act", "dti_det"))
     parser.add_argument("--connectome-backend", default="mrtrix", choices=("python", "mrtrix"))
-    parser.add_argument("--ddseg-device", default="cpu")
-    parser.add_argument("--surface-device", default="cpu")
-    parser.add_argument("--tractcloud-device", default="cpu", choices=("auto", "cpu", "cuda"))
+    parser.add_argument("--ddseg-device", default="auto")
+    parser.add_argument("--surface-device", default="auto")
+    parser.add_argument("--tractcloud-device", default="auto", choices=("auto", "cpu", "cuda"))
     parser.add_argument(
         "--strict-exit-code",
         action="store_true",

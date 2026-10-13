@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+"""Plan or install selected optional runtimes in a plugin-owned user directory."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from shared.managed_runtimes import PROFILES, install_plan, provision, write_json
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--profiles", nargs="+", choices=tuple(PROFILES), required=True)
+    parser.add_argument("--root", type=Path)
+    parser.add_argument("--conda", type=Path)
+    parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--accept-fsl-license", action="store_true")
+    parser.add_argument("--result", type=Path)
+    args = parser.parse_args(argv)
+    try:
+        result = provision(args.profiles, root=args.root, conda=args.conda,
+                           accept_fsl_license=args.accept_fsl_license) if args.execute else install_plan(args.profiles, args.root)
+    except Exception as exc:
+        result = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}
+    if args.result:
+        args.result.parent.mkdir(parents=True, exist_ok=True)
+        write_json(args.result, result)
+    print(json.dumps(result, indent=2), flush=True)
+    return 1 if result.get("status") == "failed" else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -527,6 +527,10 @@ def environment_item_button_text(item: Any) -> str:
         return "Install" if (item.details or {}).get("package") else "Setup"
     if getattr(item, "install_group", "") == "model-resources":
         return "Download / choose path"
+    if getattr(item, "install_group", "") in {"mrtrix", "fsl"}:
+        from shared.managed_runtimes import supported_platform
+        if supported_platform():
+            return "Install and configure"
     if item.kind in {"command", "path", "env"}:
         return "Choose path / setup"
     return "Setup"
@@ -555,7 +559,8 @@ def environment_dialog_state(result: Any, *, python_install_target: str) -> Envi
         summary_text=environment_summary_text(result),
         detail_text="\n".join(environment_detail_lines(result)),
         missing_items=missing_items,
-        can_install_python=bool(result.missing_python_packages) or has_model_resources,
+        can_install_python=bool(result.missing_python_packages) or has_model_resources or any(
+            getattr(item, "install_group", "") in {"mrtrix", "fsl"} for item in missing_items),
         has_manual_setup_notes=any(
             item.status == "missing"
             and (item.kind != "python" or not (item.details or {}).get("package"))

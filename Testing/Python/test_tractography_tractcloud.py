@@ -26,7 +26,7 @@ class TractCloudIntegrationTest(unittest.TestCase):
         package.pipeline = pipeline
         with mock.patch.dict(sys.modules, {'tractcloud': package, 'tractcloud.pipeline': pipeline}), \
              mock.patch('runpy.run_module') as invoke, \
-             mock.patch.dict(sys.modules, {'torch': mock.Mock()}):
+             mock.patch.dict(sys.modules, {'torch': mock.Mock(__version__='test-double')}):
             exec(TRACTCLOUD_COMPAT_BOOTSTRAP, {})
         import logging
         self.assertIs(pipeline.logging, logging)

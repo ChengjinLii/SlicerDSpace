@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from shared.external_process import text_subprocess_kwargs
+from shared.external_process import text_subprocess_kwargs, python_tool_environment
 from shared.model_assets import model_asset_candidates, model_asset_path_or_none
 
 
@@ -91,15 +91,17 @@ class EnvironmentDoctorConfig:
     platform_name: Optional[str] = None
     preprocessing_backend: str = "dipy"
     brain_mask_backend: str = "pnl_cnn"
+    brain_mask_device: str = "auto"
     brain_mask_required: bool = False
     pnl_mask_python: Optional[Path] = None
     pnl_mask_script: Optional[Path] = None
     pnl_mask_model_dir: Optional[Path] = None
     pnl_mask_ants_bin_dir: Optional[Path] = None
+    synthstrip_python: Optional[Path] = None
     tractography_backend: str = "csd_act"
     connectome_backend: str = "python"
-    ddseg_device: str = "cpu"
-    surface_device: str = "cpu"
+    ddseg_device: str = "auto"
+    surface_device: str = "auto"
     tractcloud_device: str = "auto"
     run_free_water: bool = False
     run_noddi: bool = False
@@ -1658,6 +1660,7 @@ def _check_cuda_device(
             check=True,
             capture_output=True,
             timeout=DEPENDENCY_PROBE_TIMEOUT_SECONDS,
+            env=python_tool_environment(python_path),
             **text_subprocess_kwargs(),
         )
         details = _parse_json_probe_output(completed.stdout)
@@ -1704,6 +1707,9 @@ def resolve_auto_torch_device(
     normalized = (device or "auto").strip().lower()
     if normalized in {"", "auto"}:
         available, details = _check_cuda_device("cuda:0", python_executable, python_path_entries)
+        if details.get("error"):
+            raise RuntimeError("Cannot determine PyTorch GPU availability in the selected runtime: " + str(details["error"]) +
+                               ". Fix that runtime or explicitly choose CPU; no silent CPU fallback.")
         return "cuda:0" if available and int(details.get("device_count") or 0) > 0 else "cpu"
     if normalized == "cuda":
         return "cuda:0"
@@ -1861,18 +1867,17 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
                 "detected_source": "configured device",
             }
         elif requested_device == "auto":
-            resolved = resolve_auto_torch_device(
-                requested_device,
-                spec.python_executable,
-                spec.python_path_entries,
-            )
-            available = True
-            details = {
-                "requested_device": requested_device,
-                "resolved_device": resolved,
-                "python_executable": (spec.python_executable or Path(sys.executable)).as_posix(),
-                "detected_source": "auto",
-            }
+            try:
+                resolved = resolve_auto_torch_device(requested_device, spec.python_executable, spec.python_path_entries)
+                available = True
+                details = {"requested_device": requested_device, "resolved_device": resolved,
+                           "python_executable": (spec.python_executable or Path(sys.executable)).as_posix(),
+                           "detected_source": "auto"}
+            except RuntimeError as exc:
+                available = False
+                details = {"requested_device": requested_device, "resolved_device": "unavailable",
+                           "python_executable": (spec.python_executable or Path(sys.executable)).as_posix(),
+                           "detected_source": "probe failed", "error": str(exc)}
         elif requested_device.startswith("cuda"):
             available, details = _check_cuda_device(
                 requested_device,

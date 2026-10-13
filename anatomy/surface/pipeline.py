@@ -6,13 +6,13 @@ import math
 import os
 import shutil
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable, Optional
 
 from shared import find_subject_root, inspect_subject_directory
 from shared.model_assets import model_asset_candidates
-from .backend_bridge import BACKEND_ROOT, native_products, run_backend, runtime_info, sha256, upstream_record
+from .backend_bridge import BACKEND_ROOT, native_products, run_backend, runtime_info, sha256, upstream_record, python_executable
 
 ATLAS_NAME = '100HCP-population-mean-T2-1mm.nii.gz'
 
@@ -23,7 +23,7 @@ class SurfaceConfig:
     subject_root: Path
     output_dir: Path
     predict_mode: str = 'all'
-    device: str = 'cpu'
+    device: str = 'auto'
     template_dir: Optional[Path] = None
     checkpoint_root: Optional[Path] = None
     registration_atlas: Optional[Path] = None
@@ -219,6 +219,11 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
         if config.execute:
             if not resources['available']:
                 raise FileNotFoundError('DDSurfer resources invalid: ' + ', '.join(resources['missing']))
+            from shared.environment import resolve_auto_torch_device
+            config = replace(config, device=resolve_auto_torch_device(config.device, Path(python_executable(config.python_bin))))
+            manifest['resolved_device'] = config.device
+            if log:
+                log(f'[DDSurfer] Requested {manifest["device"]}; resolved {config.device} in the surface runtime')
             manifest['status'] = 'running'
             manifest['runtime'] = runtime_info(config.python_bin)
             manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
@@ -234,6 +239,18 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
             native_dir = output_dir / 'pred_results_SlicerDDSurfer/native' / config.subject_id
             if config.input_bundle is not None or inspected['mode'] == 'subject_root':
                 manifest['input_mode'] = 'raw'
+                if config.auto_mask:
+                    raw = config.input_bundle or find_subject_root(config.subject_root, config.subject_id, generate_missing_mask=False)
+                    if raw.mask_path is None or not Path(raw.mask_path).is_file():
+                        from shared.brain_mask import BrainMaskConfig, generate_brain_mask
+                        mask_path = output_dir / 'native_brain_mask.nii.gz'
+                        mask_record = generate_brain_mask(raw.dwi_path, raw.bval_path, raw.bvec_path, mask_path,
+                            config=BrainMaskConfig(backend='synthstrip', freesurfer_home=config.freesurfer_home,
+                                brain_mask_device='cuda' if config.device.startswith('cuda') else 'cpu', threads=config.mask_threads), log=log)
+                        manifest['mask_generation'] = mask_record
+                        config = replace(config, input_bundle=replace(raw, mask_path=mask_path))
+                    # Supply the native mask explicitly, bypassing the pinned
+                    # upstream helper's independent CPU-only SynthStrip default.
                 command, env = _raw_command(config, resources, output_dir)
                 run_backend(command, python_bin=config.python_bin, env=env, log=log,
                             log_path=output_dir / 'backend.log')

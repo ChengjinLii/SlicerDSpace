@@ -668,6 +668,13 @@
          </widget>
         </item>
         <item row="6" column="1">
+         <widget class="QWidget" name="brainMaskOptions">
+          <layout class="QHBoxLayout" name="brainMaskOptionsLayout">
+           <property name="leftMargin"><number>0</number></property>
+           <property name="topMargin"><number>0</number></property>
+           <property name="rightMargin"><number>0</number></property>
+           <property name="bottomMargin"><number>0</number></property>
+           <item>
          <widget class="QComboBox" name="brainMaskBackendComboBox">
           <property name="toolTip">
            <string>Existing supplied masks are respected. Select how to generate a missing mask; there is no automatic fallback. Configure PNL CNN paths under Advanced &gt; Environment and models &gt; External Runtime Paths. SynthStrip reuses FreeSurfer home.</string>
@@ -692,6 +699,23 @@
             <string>Provided mask only</string>
            </property>
           </item>
+         </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="brainMaskDeviceLabel">
+             <property name="text"><string>Mask device</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="brainMaskDeviceComboBox">
+             <property name="SlicerParameterName" stdset="0"><string>brainMaskDevice</string></property>
+             <property name="toolTip"><string>PNL CNN and SynthStrip: auto prefers the first CUDA GPU visible to their external runtime. CUDA requires a GPU; CPU explicitly disables it. GPU errors are reported, not silently retried.</string></property>
+             <item><property name="text"><string>auto</string></property></item>
+             <item><property name="text"><string>cuda</string></property></item>
+             <item><property name="text"><string>cpu</string></property></item>
+            </widget>
+           </item>
+          </layout>
          </widget>
         </item>
         <item row="5" column="0">

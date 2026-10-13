@@ -85,6 +85,7 @@ class ParcellationWidgetMixin:
                 output_root=output_root_path,
                 atlas_t2=atlas_path_obj,
                 flip=flip,
+                device=getattr(self._parameterNode, "ddsegDevice", "auto") or "auto",
             )
 
         self.appendLog("DDParcel pipeline completed.")

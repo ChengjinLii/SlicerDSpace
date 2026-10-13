@@ -60,10 +60,12 @@ class InputValidationConfig:
     mrtrix_bin_dir: Optional[Path] = None
     write_report: bool = True
     brain_mask_backend: str = "pnl_cnn"
+    brain_mask_device: str = "auto"
     pnl_mask_python: Optional[Path] = None
     pnl_mask_script: Optional[Path] = None
     pnl_mask_model_dir: Optional[Path] = None
     pnl_mask_ants_bin_dir: Optional[Path] = None
+    synthstrip_python: Optional[Path] = None
     postprocess_freesurfer_home: Optional[Path] = None
 
 

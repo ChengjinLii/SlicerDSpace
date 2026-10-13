@@ -63,6 +63,7 @@ class RunSelection:
     wma_input_tractography_text: str = ""
     topup: TopupParameters = TopupParameters()
     brain_mask_backend: str = "pnl_cnn"
+    brain_mask_device: str = "auto"
     microstructure_dki: bool = False
     dki_fit_method: str = "WLS"
 
@@ -396,6 +397,7 @@ def build_single_subject_run_kwargs(
         "bundle_backend": selection.bundle_backend,
         "preprocessing_backend": selection.preprocessing_backend,
         "brain_mask_backend": selection.brain_mask_backend,
+        "brain_mask_device": selection.brain_mask_device,
         "resume": True,
         "microstructure_run_free_water": selection.microstructure_freewater,
         "microstructure_run_noddi": selection.microstructure_noddi,
@@ -406,6 +408,7 @@ def build_single_subject_run_kwargs(
         "select_streamlines": max(1, int(selection.select_streamlines)),
         "ddseg_device": selection.ddseg_device,
         "surface_device": selection.surface_device,
+        "tractcloud_device": "cuda" if selection.ddseg_device.startswith("cuda") else selection.ddseg_device,
         "model_assets_dir": external_paths.get("model_assets_dir"),
         "mrtrix_bin_dir": external_paths.get("mrtrix_bin_dir"),
         "preprocessing_mrtrix_bin_dir": external_paths.get("mrtrix_bin_dir"),
@@ -415,6 +418,7 @@ def build_single_subject_run_kwargs(
         "pnl_mask_script": external_paths.get("pnl_mask_script"),
         "pnl_mask_model_dir": external_paths.get("pnl_mask_model_dir"),
         "pnl_mask_ants_bin_dir": external_paths.get("pnl_mask_ants_bin_dir"),
+        "synthstrip_python": external_paths.get("synthstrip_python"),
         "tract_querier_root": external_paths.get("tract_querier_root"),
         "wma_root": external_paths.get("wma_root"),
         "wma_atlas_dir": external_paths.get("wma_atlas_dir"),
@@ -448,6 +452,7 @@ def build_batch_run_kwargs(selection: RunSelection, *, batch_root: Path) -> dict
         "bundle_backend": selection.bundle_backend,
         "preprocessing_backend": selection.preprocessing_backend,
         "brain_mask_backend": selection.brain_mask_backend,
+        "brain_mask_device": selection.brain_mask_device,
         "resume": True,
         "microstructure_run_free_water": selection.microstructure_freewater,
         "microstructure_run_noddi": selection.microstructure_noddi,
@@ -456,6 +461,7 @@ def build_batch_run_kwargs(selection: RunSelection, *, batch_root: Path) -> dict
         "select_streamlines": max(1, int(selection.select_streamlines)),
         "ddseg_device": selection.ddseg_device,
         "surface_device": selection.surface_device,
+        "tractcloud_device": "cuda" if selection.ddseg_device.startswith("cuda") else selection.ddseg_device,
         "model_assets_dir": None,
         "connectome_backend": selection.connectome_backend,
         "connectome_compress_mrtrix_dense": selection.connectome_compress_mrtrix_dense,
@@ -648,6 +654,7 @@ EXTERNAL_PATH_CLI_FLAGS: tuple[tuple[str, str], ...] = (
     ("pnl_mask_script", "--pnl-mask-script"),
     ("pnl_mask_model_dir", "--pnl-mask-model-dir"),
     ("pnl_mask_ants_bin_dir", "--pnl-mask-ants-bin-dir"),
+    ("synthstrip_python", "--synthstrip-python"),
     ("dki_matlab_executable", "--dki-matlab-executable"),
     ("dki_mkcurve_root", "--dki-mkcurve-root"),
     ("tract_querier_root", "--tract-querier-root"),
@@ -727,6 +734,8 @@ def build_background_cli_args(
         (preprocessing_backend or "dipy").strip() or "dipy",
         "--brain-mask-backend",
         str(common_run_kwargs.get("brain_mask_backend", "pnl_cnn")),
+        "--brain-mask-device",
+        str(common_run_kwargs.get("brain_mask_device", "auto")),
         "--tractography-backend",
         str(common_run_kwargs["tractography_backend"]),
         "--bundle-backend",
@@ -739,6 +748,8 @@ def build_background_cli_args(
         str(common_run_kwargs["ddseg_device"]),
         "--surface-device",
         str(common_run_kwargs["surface_device"]),
+        "--tractcloud-device",
+        str(common_run_kwargs.get("tractcloud_device", "auto")),
     ]
     if output_root is not None:
         args.extend(["--output-root", _path_text(output_root)])
@@ -787,6 +798,8 @@ def build_batch_background_cli_args(
         (preprocessing_backend or "dipy").strip() or "dipy",
         "--brain-mask-backend",
         str(common_run_kwargs.get("brain_mask_backend", "pnl_cnn")),
+        "--brain-mask-device",
+        str(common_run_kwargs.get("brain_mask_device", "auto")),
         "--tractography-backend",
         str(common_run_kwargs["tractography_backend"]),
         "--bundle-backend",
@@ -799,6 +812,8 @@ def build_batch_background_cli_args(
         str(common_run_kwargs["ddseg_device"]),
         "--surface-device",
         str(common_run_kwargs["surface_device"]),
+        "--tractcloud-device",
+        str(common_run_kwargs.get("tractcloud_device", "auto")),
     ]
     if output_root is not None:
         args.extend(["--output-root", _path_text(output_root)])

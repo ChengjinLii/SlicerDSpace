@@ -2,7 +2,7 @@
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Optional
-from .backend_bridge import BACKEND_ROOT, run_backend
+from .backend_bridge import BACKEND_ROOT, run_backend, python_executable
 
 
 @dataclass(frozen=True)
@@ -39,6 +39,8 @@ def discover_subject_directories(input_root, subjects=None):
 
 
 def predict_subject(config):
+    from shared.environment import resolve_auto_torch_device
+    config = replace(config, device=resolve_auto_torch_device(config.device, Path(python_executable(config.python_bin))))
     command = [BACKEND_ROOT / 'DDSurfer_predict.py', '--subjects', config.subject_id,
         '--surf_hemi', config.hemisphere, '--predict_mode', config.predict_mode,
         '--device', config.device, '--precision', config.precision,
