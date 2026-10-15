@@ -5,11 +5,35 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from scripts.collect_module_runtimes import collect_device_measurements, device_table, select
+from scripts.collect_module_runtimes import collect_device_measurements, collect_completion_measurements, collect_cst_definition_followup, collect_scientific_closure, device_table, select, bundle_timing_status
 
 
 class ModuleRuntimeInventoryTests(unittest.TestCase):
+    def test_cst_followup_counts_come_from_decoded_products(self):
+        from tractography.wmql import WMQL_QC_VERSION
+
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            stage = directory / 'default_v4_paired'
+            stage.mkdir()
+            counts = {'af.left': 21, 'af.right': 22, 'cst.left': 23, 'cst.right': 24}
+            qc = dict(subject_id='fixture', version=WMQL_QC_VERSION, status='completed', automatic_qc_passed=True,
+                      elapsed_seconds=12.3, output_summary=dict(bundle_count=4, bundle_readable_count=4, bundle_nonempty_count=4,
+                          bundles=[dict(query_name=key, streamline_count=value) for key, value in counts.items()]))
+            (stage / 'wmql_qc.json').write_text(json.dumps(qc))
+            (stage / 'wmql_manifest.json').write_text('{}')
+            audit = directory / 'default_v4_paired_audit.json'
+            audit.write_text(json.dumps(dict(input_streamlines=100, checks={'source_membership': True})))
+            with patch('tractography.wmql.wmql_query_cache_current', return_value=True):
+                records = collect_cst_definition_followup(directory)
+                self.assertIn('CST 23/24', records[0]['input_scope'])
+                self.assertIn('100 CSD', records[0]['input_scope'])
+                self.assertEqual(records[0]['runtime_seconds'], 12.3)
+                audit.write_text(json.dumps(dict(checks={'source_membership': False})))
+                self.assertEqual(collect_cst_definition_followup(directory)[0]['status'], 'current_acceptance_failed')
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
@@ -38,6 +62,45 @@ class ModuleRuntimeInventoryTests(unittest.TestCase):
         row = self.row([])
         self.assertIsNone(row["seconds"])
         self.assertEqual(row["measurement_status"], "MISSING")
+
+    def test_full_brain_dki_uses_fit_not_audit_duration(self):
+        payload = {"status": "passed", "automatic_qc_passed": True, "subject_id": "fixture",
+                   "checks": {"inputs_unchanged": True}, "independent_checks": [{"passed": True}],
+                   "runtime_seconds": 4, "full_fit_runtime_seconds": 400,
+                   "mask_voxels": 200, "valid_voxels": 190, "human_review": "pending"}
+        self.save("dki_independent/acceptance.json", payload)
+        records = collect_completion_measurements(self.root)
+        row = self.row(records, "microstructure.dki")
+        self.assertEqual(row["seconds"], 400)
+        self.assertEqual(row["measurement_status"], "READY")
+        self.assertIn("200 voxels", row["input_scope"])
+        for key, value in (("independent_checks", [{"passed": False}]),
+                           ("checks", {"inputs_unchanged": False}), ("status", "running")):
+            invalid = dict(payload, **{key: value})
+            self.save("dki_independent/acceptance.json", invalid)
+            self.assertEqual(self.row(collect_completion_measurements(self.root), "microstructure.dki")["measurement_status"], "MISSING")
+
+    def test_full_brain_mkcurve_timing_requires_reference_parity_not_all_voxels_valid(self):
+        payload = dict(status='passed', automatic_integrity_qc_passed=True, inputs_unchanged=True,
+                       reference_parity={'maps': {'passed': True}}, checks=[{'passed': True}],
+                       mask_voxels=200, corrected_valid_voxels=190, runtime_seconds=15,
+                       quantitative_domain_all_voxels_valid=False)
+        path = 'mkcurve_fullbrain/acceptance.json'
+        self.save(path, payload)
+        row = self.row(collect_scientific_closure(self.root), 'microstructure.mkcurve')
+        self.assertEqual(row['seconds'], 15)
+        self.assertEqual(row['measurement_status'], 'READY')
+        self.assertIn('not all voxels valid', row['input_scope'])
+        payload['reference_parity']['maps']['passed'] = False
+        self.save(path, payload)
+        self.assertEqual(self.row(collect_scientific_closure(self.root), 'microstructure.mkcurve')['measurement_status'], 'MISSING')
+
+    def test_legacy_bundle_green_status_cannot_supply_successful_compute_time(self):
+        self.assertEqual(bundle_timing_status("bundles.wmql", {"status": "completed"}), "scientific_contract_failed")
+        self.assertEqual(bundle_timing_status("bundles.wma", {"status": "completed", "output_summary": {
+            "anatomical_tract_count": 74, "anatomical_tract_readable_count": 74,
+            "anatomical_tract_nonempty_count": 64, "anatomical_tract_streamline_counts": {"T_CST_left.vtp": 1},
+        }}), "scientific_contract_failed")
 
     def test_default_run_selected_not_fastest_cpu_or_cuda_repeat(self):
         self.save("cpu/pnl_cnn_acceptance.json", self.mask(10, "cpu", "cpu"))
@@ -104,6 +167,15 @@ class ModuleRuntimeInventoryTests(unittest.TestCase):
             payload["checks"] = checks
             self.save("eddy_cuda_fixed/acceptance.json", payload)
             self.assertEqual(self.row(collect_device_measurements(self.root), "preprocessing.mrtrix_fsl")["measurement_status"], "MISSING")
+
+    def test_latest_policy_rerun_is_selected_even_if_slower(self):
+        payload = {"status": "PASS", "runtime_seconds": 719,
+                   "checks": {"pipeline_completed": True, "cuda_selected": True},
+                   "device_execution": {"resolved": "cuda"}}
+        self.save("eddy_cuda_fixed/acceptance.json", payload)
+        payload["runtime_seconds"] = 900
+        self.save("eddy_cuda_fresh/acceptance.json", payload)
+        self.assertEqual(self.row(collect_device_measurements(self.root), "preprocessing.mrtrix_fsl")["seconds"], 900)
 
     def test_phase_diagnostics_preserve_measured_and_rounded_timings_separately(self):
         payload = self.mask(84)

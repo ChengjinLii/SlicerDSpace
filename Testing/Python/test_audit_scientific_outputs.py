@@ -242,8 +242,17 @@ class ScientificOutputAuditTest(unittest.TestCase):
             )
             csd_manifest = csd_dir / "csd_act_manifest.json"
             csd_qc = csd_dir / "csd_act_qc.json"
+            from tractography.act_prep import ACT_PREP_VERSION
+            act_dependencies = {}
+            for key in ("five_tt", "gmwmi"):
+                path = csd_dir / (key + ".nii.gz")
+                nib.save(nib.Nifti1Image(np.ones((3, 3, 3), dtype=np.float32), np.eye(4)), path)
+                stat = path.stat()
+                act_dependencies[key] = dict(path=str(path), size=stat.st_size, mtime_ns=stat.st_mtime_ns)
+            (csd_dir / "act_prep_qc.json").write_text(json.dumps(dict(status="completed", version=ACT_PREP_VERSION)))
+            (csd_dir / "act_prep_manifest.json").write_text(json.dumps(dict(inputs={})))
             csd_manifest.write_text(
-                json.dumps({"parameters": {"min_length_mm": 1.0, "max_length_mm": 250.0}}),
+                json.dumps({"parameters": {"min_length_mm": 1.0, "max_length_mm": 250.0}, "dependencies": act_dependencies}),
                 encoding="utf-8",
             )
             csd_qc.write_text(
@@ -309,8 +318,9 @@ class ScientificOutputAuditTest(unittest.TestCase):
 
             wmql_dir = subject_output / "04_tractography" / "bundles" / "wmql" / "Test1"
             wmql_dir.mkdir(parents=True)
-            wmql_bundle = wmql_dir / "af.left.trk"
-            nib.streamlines.save(tractogram, wmql_bundle.as_posix())
+            wmql_bundle = wmql_dir / "sub-01_desc-wmql_af.left.trk"
+            sampled = nib.streamlines.Tractogram(list(tractogram.streamlines) * 20, affine_to_rasmm=np.eye(4))
+            nib.streamlines.save(sampled, wmql_bundle.as_posix())
             wmql_qc = wmql_dir / "wmql_qc.json"
             wmql_qc.write_text(
                 json.dumps(
@@ -337,9 +347,12 @@ class ScientificOutputAuditTest(unittest.TestCase):
                 else wma_dir / "AnatomicalTracts"
             )
             anatomy_dir.mkdir(parents=True)
-            for index in range(73):
-                (anatomy_dir / f"tract-{index:02d}.vtp").write_text(
-                    vtp_lines(1),
+            from tractography.wma import REQUIRED_MAJOR_TRACTS
+
+            names = list(REQUIRED_MAJOR_TRACTS) + [f"tract-{index:02d}.vtp" for index in range(68)]
+            for name in names:
+                (anatomy_dir / name).write_text(
+                    vtp_lines(20),
                     encoding="utf-8",
                 )
             wma_qc = wma_dir / "wma_qc.json"

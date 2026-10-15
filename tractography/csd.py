@@ -8,14 +8,13 @@ the same commands when ``execute=True`` and MRtrix3 is available on PATH.
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
-from shared.external_process import external_python_environment
+from shared.external_process import external_python_environment, resolve_external_command
 
 
 SEEDING_MODES = ("dynamic", "gmwmi")
@@ -111,11 +110,7 @@ def _file_info(path: Path) -> dict[str, object]:
 
 
 def _resolve_command(name: str, bin_dir: Optional[Path] = None) -> Optional[str]:
-    if bin_dir is not None:
-        candidate = bin_dir.expanduser() / name
-        if candidate.is_file():
-            return candidate.resolve().as_posix()
-    return shutil.which(name)
+    return resolve_external_command(name, bin_dir)
 
 
 def inspect_mrtrix_csd_backend(

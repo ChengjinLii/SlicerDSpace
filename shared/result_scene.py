@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import json
+from shared.bundle_qc import bundle_record_error
 
 PREFIX = "SlicerDDSurfer."
 SUFFIXES = (".nii.gz", ".nii", ".mgz", ".csv", ".tsv", ".stl", ".vtk", ".vtp", ".trk", ".tck")
@@ -41,7 +42,7 @@ def bundle_outputs(task, *, allow_directory_scan=True):
         if not path or not Path(path).is_absolute():
             return {}
         qc = json.loads(Path(path).read_text(encoding="utf-8"))
-        if qc.get("status") not in {"completed", "passed"}:
+        if qc.get("status") not in {"completed", "passed"} or bundle_record_error(task['name'], qc):
             return {}
         summary = qc.get("output_summary") or {}
         files = summary.get("bundle_files") or summary.get("anatomical_tract_files") or []
@@ -66,19 +67,40 @@ def source_stamp(path):
     return f"{stat.st_size}:{stat.st_mtime_ns}"
 
 
+def record_qc_state(record):
+    """Explicit failure wins over a stale or contradictory pass flag."""
+    status = str(record.get('status') or '').strip().lower()
+    checks = record.get('checks')
+    failed_check = (any(value is False for value in checks.values()) if isinstance(checks, dict) else
+                    any(isinstance(value, dict) and value.get('passed') is False for value in checks)
+                    if isinstance(checks, list) else False)
+    if (status in {'fail', 'failed', 'partial_failed', 'error'}
+            or record.get('automatic_qc_passed') is False or failed_check or record.get('error')):
+        return 'failed'
+    if status == 'warning':
+        return 'warning'
+    if record.get('automatic_qc_passed') is True:
+        return 'passed'
+    return status or 'unavailable'
+
+
 def recorded_qc_summary(manifest):
     """Report recorded QC states without treating execution status as QC."""
     counts = {"passed": 0, "issues": 0, "unavailable": 0}
     for task in manifest.get("tasks", []) or []:
         if not isinstance(task, dict) or task.get("status") in {"planned", "blocked", "cancelled"}:
             continue
+        if task.get('status') in {'failed', 'partial_failed', 'error'}:
+            counts['issues'] += 1
+            continue
         value = task.get("qc_path") or (task.get("outputs") or {}).get("qc")
         try:
             if not value or not Path(value).is_absolute():
                 raise ValueError("Missing absolute QC path")
             record = json.loads(Path(value).read_text())
-            status = record.get("status")
-            key = "passed" if status in {"passed", "completed"} else "issues" if status in {"failed", "partial_failed", "warning"} else "unavailable"
+            status = record_qc_state(record)
+            issue = status in {'failed', 'warning'} or bundle_record_error(task.get('name'), record)
+            key = "issues" if issue else "passed" if status in {"passed", "completed", "pass", "success"} else "unavailable"
             counts[key] += 1
         except (OSError, ValueError, TypeError, AttributeError):
             counts["unavailable"] += 1
@@ -96,10 +118,23 @@ def result_candidates(manifest, *, allow_bundle_directory_scan=True, include_pre
             "completed Free Water outputs found", "completed NODDI outputs found",
         }
         if task.get("status") not in {"completed", "reused"} and not reused:
-            skipped.append({"label": name, "reason": "Task is not completed or explicitly reused"})
+            entry = {"label": name, "product": name, "reason": "Task is not completed or explicitly reused"}
+            if task.get('status') in {'failed', 'partial_failed', 'error', 'cancelled'}:
+                entry['reason_category'] = 'task_failed'
+            skipped.append(entry)
             continue
         if name.startswith("preprocessing.") and not include_preprocessing:
             continue
+        if name in {'bundles.wmql', 'bundles.wma'}:
+            value = task.get('qc_path') or (task.get('outputs') or {}).get('qc_path')
+            try:
+                record = json.loads(Path(str(value)).read_text()) if value else {}
+                error = bundle_record_error(name, record)
+            except (OSError, ValueError, TypeError):
+                error = 'Unreadable bundle QC'
+            if error:
+                skipped.append({'label': name, 'product': name, 'reason': error, 'reason_category': 'qc_failed'})
+                continue
         outputs = dict(task.get("outputs") or {})
         outputs.update(bundle_outputs(task, allow_directory_scan=allow_bundle_directory_scan))
         for key, value in outputs.items():

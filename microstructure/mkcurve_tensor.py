@@ -43,13 +43,15 @@ def design_matrix(bvals, bvecs):
                             bvals[:, None] ** 2 / 6 * tensor_basis(directions, 4)))
 
 
-def fit_wlls(signals, design):
+def fit_wlls(signals, design, *, solver="reference"):
     """Return log(S0), six D and fifteen unnormalised fourth-order coefficients.
 
     As upstream: OLS initialization, predicted-signal weights, one WLLS solve.
     Column equilibration changes the solver conditioning, not its objective.
     No eigenvalue/kurtosis clipping, constraints, or iterative reweighting.
     """
+    if solver not in {"reference", "batched"}:
+        raise ValueError("MK-Curve solver must be reference or batched")
     signals = np.asarray(signals, dtype=np.float64)
     if signals.ndim != 2 or signals.shape[1] != len(design):
         raise ValueError("MK-Curve signals must be voxels x measurements")
@@ -67,7 +69,30 @@ def fit_wlls(signals, design):
     initial = lstsq(scaled, logs.T, lapack_driver="gelsy")[0]
     with np.errstate(over="ignore", invalid="ignore"):
         weights = np.exp(scaled @ initial).T
-    for index, observed, weight in zip(np.flatnonzero(valid), logs, weights):
+    pending = np.ones(len(logs), dtype=bool)
+    if solver == "batched":
+        candidates = np.flatnonzero(np.isfinite(weights).all(axis=1) & (weights.max(axis=1) > 0))
+        # Equilibrated normal systems are used only when well conditioned.
+        # Ill-conditioned or rank-deficient rows retain the pivoted QR solve.
+        for start in range(0, len(candidates), 256):
+            ids = candidates[start:start + 256]
+            w = weights[ids] / weights[ids].max(axis=1, keepdims=True)
+            weighted = scaled * w[:, :, None]
+            gram = weighted.transpose(0, 2, 1) @ weighted
+            eigenvalues = np.linalg.eigvalsh(gram)
+            safe = (eigenvalues[:, 0] > 0) & (eigenvalues[:, -1] < 1e6 * eigenvalues[:, 0])
+            if not safe.any():
+                continue
+            rhs = weighted[safe].transpose(0, 2, 1) @ (logs[ids[safe]] * w[safe])[:, :, None]
+            try:
+                beta = np.linalg.solve(gram[safe], rhs)[:, :, 0] / scale
+            except np.linalg.LinAlgError:
+                continue
+            good = np.isfinite(beta).all(axis=1)
+            accepted = ids[safe][good]
+            output[np.flatnonzero(valid)[accepted]] = beta[good]
+            pending[accepted] = False
+    for index, observed, weight in zip(np.flatnonzero(valid)[pending], logs[pending], weights[pending]):
         if not np.isfinite(weight).all() or not np.any(weight > 0):
             continue
         # Dividing all weights by a common factor leaves WLLS unchanged.

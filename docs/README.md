@@ -46,9 +46,21 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 
 ## Validation Records
 
+[CSD/ACT investigation](release/CSD_ACT_DIAGNOSIS_20261015.md) supersedes the
+earlier CSD acceptance: VentralDC tissue mapping was wrong, the controlled saved-FOD
+experiment isolates its effect, and old ACT-dependent outputs require regeneration.
+
+[Current platform audit](release/PLATFORM_AUDIT_20261015.md) records Windows/WSL
+device and bridge fixes, macOS path support, timing boundaries and unverified routes.
+
+[Current bundle QC follow-up](release/BUNDLE_QC_20261015.md) explains legacy green states,
+sampling gates, real input diagnostics and platform limitations.
+[WMQL CST diagnosis](release/WMQL_CST_20261015.md) distinguishes the legacy
+crossing query from the published endpoint rule, with paired inputs and frozen imports.
+
 [Bundle backend verification](release/BUNDLE_BACKENDS_20261013.md) separates
 real WMA failures, sparse WMQL candidates and seed-verified TractCloud products.
-[Module runtimes](release/MODULE_RUNTIMES_20261013.md) inventories historical and
+[Module runtimes](release/MODULE_RUNTIMES_20261015.md) inventories historical and
 new measurements without treating cache reuse or ROI timings as full computations.
 
 [SAF Python verification](release/SAF_PYTHON_20261013.md) records independent
@@ -56,6 +68,12 @@ author-kernel comparisons, intentional corrections and actual tractogram geometr
 
 [Current DDSurfer synchronization](release/DDSURFER_SYNC_20261013.md) records
 RAS-marked OBJ export, Python labels and batched fsaverage mapping with real-output comparisons.
+[Pipeline QC and performance](release/PIPELINE_QC_20261015.md) records current
+failure gates, full-brain NODDI repeatability, completed DKI/postprocessing checks
+and the remaining anatomical and platform acceptance boundaries.
+[Scientific follow-up](release/SCIENTIFIC_CLOSURE_20261015.md) adds full-brain
+MK-Curve/reference checks, unchanged author WMQL on new UKF tracks, and the
+status of the new WMA/joint GUI runs. Human review remains explicit and pending.
 [Python MK-Curve verification](release/MKCURVE_PYTHON_20261012.md) records the
 native Python correction route and independent author-code comparisons.
 

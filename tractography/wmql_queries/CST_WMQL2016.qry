@@ -1,0 +1,13 @@
+# CST endpoint definition published in Wassermann et al., Brain Struct Funct
+# (2016), Table 4, and the author's official WMQL tutorial.
+# https://tract-querier.readthedocs.io/en/latest/example_script.html
+# This is distinct from freesurfer_queries.qry's crossing/exclusion CST.
+# The original alias includes cortical and available regional WM labels.
+# No threshold, endpoint or atlas dilation is applied.
+
+import FreeSurfer.qry
+
+CST.side = (
+    endpoints_in(Brain_Stem)
+    and (endpoints_in(precentral.side) or endpoints_in(postcentral.side))
+)

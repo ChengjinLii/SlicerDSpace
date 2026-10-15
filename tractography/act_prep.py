@@ -6,9 +6,11 @@
 * Inside the DDSeg foreground, cGM/WM/CSF are the DDSeg tissue probabilities
   renormalised to sum to one (partial volume instead of hard 0/1 labels).
 * DDParcel deep grey matter (thalamus, caudate, putamen, pallidum,
-  hippocampus, amygdala, accumbens, ventral DC) goes to the sGM channel as
+  hippocampus, amygdala, accumbens) goes to the sGM channel as
   ``1 - P(CSF)``; ventricles (lateral, inferior lateral, 3rd, 4th) become
-  pure CSF. DDParcel is resampled into the DDSeg grid through both affines;
+  pure CSF. Brainstem, ventral DC and cerebellar WM go to WM as
+  ``1 - P(CSF)``, following MRtrix FreeSurfer2ACT tissue identities.
+  DDParcel is resampled into the DDSeg grid through both affines;
   it is never indexed by raw array position (the two are stored in different
   voxel orders).
 * ``5ttcheck`` validates the image and ``5tt2gmwmi`` derives the seeding
@@ -18,16 +20,17 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Mapping, Optional
+from shared.external_process import resolve_external_command
 
-ACT_PREP_VERSION = 2
-ACT_PREP_METHOD = "ddseg_partial_volume_ddparcel_sgm_5tt2gmwmi_v2"
-# Thalamus, caudate, putamen, pallidum, hippocampus, amygdala, accumbens, ventral DC (left, right).
-DEFAULT_SGM_LABELS: tuple[int, ...] = (10, 11, 12, 13, 17, 18, 26, 28, 49, 50, 51, 52, 53, 54, 58, 60)
+ACT_PREP_VERSION = 3
+ACT_PREP_METHOD = "ddseg_partial_volume_ddparcel_tissue_priors_5tt2gmwmi_v3"
+# MRtrix FreeSurfer2ACT_sgm_amyg_hipp: ventral DC is WM, not deep GM.
+DEFAULT_SGM_LABELS: tuple[int, ...] = (10, 11, 12, 13, 17, 18, 26, 49, 50, 51, 52, 53, 54, 58)
+DEFAULT_WM_LABELS: tuple[int, ...] = (7, 16, 28, 46, 60)
 # Lateral ventricles, inferior lateral ventricles, 3rd and 4th ventricle.
 DEFAULT_CSF_LABELS: tuple[int, ...] = (4, 43, 5, 44, 14, 15)
 PROBABILITY_FILENAMES = {
@@ -52,6 +55,7 @@ class ACTPrepConfig:
     csf_labels: tuple[int, ...] = DEFAULT_CSF_LABELS
     mrtrix_bin_dir: Optional[Path] = None
     anatomy_source: Mapping[str, object] = field(default_factory=dict)
+    wm_prior_labels: tuple[int, ...] = DEFAULT_WM_LABELS
 
 
 @dataclass(frozen=True)
@@ -80,11 +84,7 @@ def _file_info(path: Optional[Path]) -> dict[str, object]:
 
 
 def _resolve_command(name: str, bin_dir: Optional[Path]) -> Optional[str]:
-    if bin_dir is not None:
-        candidate = Path(bin_dir).expanduser() / name
-        if candidate.is_file():
-            return candidate.resolve().as_posix()
-    return shutil.which(name)
+    return resolve_external_command(name, bin_dir)
 
 
 def default_probability_paths(segmentation_path: Path) -> dict[str, Path]:
@@ -101,6 +101,7 @@ def build_partial_volume_5tt(
     csf_label: int = 3,
     sgm_labels: tuple[int, ...] = DEFAULT_SGM_LABELS,
     csf_labels: tuple[int, ...] = DEFAULT_CSF_LABELS,
+    wm_prior_labels: tuple[int, ...] = DEFAULT_WM_LABELS,
 ):
     """Return (5TT float32 array, stats) on the DDSeg grid.
 
@@ -110,6 +111,9 @@ def build_partial_volume_5tt(
 
     import numpy as np
 
+    groups = (set(sgm_labels), set(csf_labels), set(wm_prior_labels))
+    if any(groups[i] & groups[j] for i in range(3) for j in range(i + 1, 3)):
+        raise ValueError("ACT sGM, CSF and WM prior labels must be disjoint.")
     labels = np.rint(np.asarray(labels)).astype(np.int32)
     foreground = labels > 0
     five_tt = np.zeros((*labels.shape, 5), dtype=np.float32)
@@ -132,16 +136,21 @@ def build_partial_volume_5tt(
 
     sgm = np.zeros(labels.shape, dtype=bool)
     ventricles = np.zeros(labels.shape, dtype=bool)
+    wm_prior = np.zeros(labels.shape, dtype=bool)
     if parcellation_on_grid is not None:
         parcellation = np.rint(np.asarray(parcellation_on_grid)).astype(np.int32)
         if parcellation.shape != labels.shape:
             raise ValueError(f"Parcellation grid {parcellation.shape} does not match segmentation grid {labels.shape}.")
         sgm = foreground & np.isin(parcellation, sgm_labels)
         ventricles = foreground & np.isin(parcellation, csf_labels)
+        wm_prior = foreground & np.isin(parcellation, wm_prior_labels)
         non_csf = 1.0 - five_tt[..., 3]
         five_tt[..., 1][sgm] = non_csf[sgm]
         five_tt[..., 0][sgm] = 0.0
         five_tt[..., 2][sgm] = 0.0
+        five_tt[..., 2][wm_prior] = non_csf[wm_prior]
+        five_tt[..., 0][wm_prior] = 0.0
+        five_tt[..., 1][wm_prior] = 0.0
         five_tt[ventricles] = 0.0
         five_tt[..., 3][ventricles] = 1.0
 
@@ -157,6 +166,11 @@ def build_partial_volume_5tt(
         },
         "sgm_override_voxels": int(sgm.sum()),
         "ventricle_override_voxels": int(ventricles.sum()),
+        "wm_prior_override_voxels": int(wm_prior.sum()),
+        "wm_prior_label_voxels": {
+            str(label): int((foreground & (parcellation == label)).sum())
+            for label in wm_prior_labels
+        } if parcellation_on_grid is not None else {},
         "partial_volume_voxels": int(((five_tt.max(axis=-1) < 0.999) & foreground).sum()),
         "foreground_sum_min": float(tissue_sum[foreground].min()) if foreground.any() else None,
         "foreground_sum_max": float(tissue_sum[foreground].max()) if foreground.any() else None,
@@ -248,6 +262,7 @@ def _base_manifest(config: ACTPrepConfig, segmentation_path: Path, five_tt_path:
         "labels": {"wm": config.wm_label, "gm": config.gm_label, "csf": config.csf_label},
         "sgm_labels": list(config.sgm_labels),
         "csf_override_labels": list(config.csf_labels),
+        "wm_prior_labels": list(config.wm_prior_labels),
         "anatomy_source": dict(config.anatomy_source),
         "inputs": {
             "segmentation": _file_info(segmentation_path),
@@ -259,8 +274,9 @@ def _base_manifest(config: ACTPrepConfig, segmentation_path: Path, five_tt_path:
         "notes": [
             "cGM/WM/CSF are DDSeg softmax probabilities renormalised to sum to 1 inside the DDSeg foreground.",
             "sGM = 1 - P(CSF) on DDParcel deep GM labels (sgm_labels); ventricles (csf_override_labels) are pure CSF.",
-            "sgm_labels include hippocampus, amygdala and ventral DC; the 2026-09-26 diagnosis ablation used only "
-            "thalamus/caudate/putamen/pallidum/accumbens.",
+            "Hippocampus/amygdala use the MRtrix sgm_amyg_hipp convention. Ventral DC must not be sGM.",
+            "Brainstem, ventral DC and cerebellar WM: WM = 1 - P(CSF), preserving CSF partial volume and DDSeg foreground.",
+            "Tissue identities: MRtrix3 share/mrtrix3/_5ttgen/FreeSurfer2ACT_sgm_amyg_hipp.txt.",
             "GMWMI is generated with MRtrix3 5tt2gmwmi; the 5TT is validated with 5ttcheck.",
         ],
         "warnings": [],
@@ -300,7 +316,7 @@ def run_act_prep(config: ACTPrepConfig, *, log: Optional[Callable[[str], None]] 
         if probabilities is None:
             manifest["warnings"].append("DDSeg probability maps missing: hard labels used for the 5TT.")
         if parcellation_on_grid is None:
-            manifest["warnings"].append("DDParcel unavailable: no sub-cortical GM channel and no ventricle prior.")
+            manifest["warnings"].append("DDParcel unavailable: no sub-cortical GM channel, ventricle prior or brainstem/ventral-DC WM prior.")
         for warning in manifest["warnings"]:
             if log:
                 log(f"[ACT Prep] WARNING: {warning}")
@@ -313,6 +329,7 @@ def run_act_prep(config: ACTPrepConfig, *, log: Optional[Callable[[str], None]] 
             csf_label=config.csf_label,
             sgm_labels=tuple(config.sgm_labels),
             csf_labels=tuple(config.csf_labels),
+            wm_prior_labels=tuple(config.wm_prior_labels),
         )
         _save_like(img, five_tt, five_tt_path)
         check = _run_mrtrix([str(commands["5ttcheck"]), five_tt_path.as_posix()], log)

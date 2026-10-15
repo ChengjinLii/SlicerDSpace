@@ -294,17 +294,9 @@ class DDSurferSyncTests(unittest.TestCase):
                     trimesh.creation.icosphere(subdivisions=1).export(str(native / f'{hemi}.{kind}.obj'))
 
             def fake_backend(command, **kwargs):
+                from Testing.Python.test_surface_postprocess_qc import write_postprocess_fixture
                 output = Path(command[command.index('--output-root') + 1]) / 'x'
-                for folder in ('logs', 'surf', 'label', 'mri', 'stats', 'fsaverage'):
-                    (output / folder).mkdir(parents=True, exist_ok=True)
-                (output / 'logs/qc.json').write_text('{}')
-                (output / 'mri/brain.mgz').write_text('reference')
-                for hemi in ('lh', 'rh'):
-                    for kind in ('white', 'pial', 'inflated', 'sphere', 'curv'):
-                        (output / 'surf' / f'{hemi}.{kind}').write_text('surface')
-                    for atlas in ('aparc', 'aparc.a2009s'):
-                        (output / 'label' / f'{hemi}.{atlas}.annot').write_text('annotation')
-                        (output / 'stats' / f'{hemi}.{atlas}.stats').write_text('statistics')
+                write_postprocess_fixture(output)
 
             config = DDSurferPostprocessConfig('x', layout.outputs, subject_root=root, native_dir=native)
             with patch('anatomy.surface.backend_bridge.run_backend', side_effect=fake_backend):
@@ -312,6 +304,7 @@ class DDSurferSyncTests(unittest.TestCase):
                 original = json.loads(result.manifest_path.read_text())
                 self.assertFalse(original['requires_ddparcel'])
                 self.assertTrue(_surface_postprocess_complete(root, 'x'))
+                self.assertFalse(_surface_postprocess_complete(root, 'x', mode='left'))
                 self.assertFalse(_surface_postprocess_complete(root, 'x', atlases=('another_atlas',)))
                 self.assertFalse(_surface_postprocess_complete(root, 'x', native_dir=root / 'another_run'))
                 legacy = dict(original, upstream_commit='old-version')
@@ -329,6 +322,18 @@ class DDSurferSyncTests(unittest.TestCase):
                     subject_root=root, native_dir=native, force=True))
                 self.assertNotEqual(json.loads(forced.manifest_path.read_text())['cache_key'],
                                     rerun_key)
+                (forced.structural_root / 'surf/lh.thickness').write_bytes(b'corrupt morphometry')
+                self.assertFalse(_surface_postprocess_complete(root, 'x'))
+
+                mri = root / 'reference'
+                mri.mkdir()
+                import nibabel as nib
+                nib.save(nib.MGHImage(np.zeros((3, 3, 3), dtype=np.float32), np.eye(4)), mri / 'brain.mgz')
+                run_ddsurfer_postprocess(DDSurferPostprocessConfig('x', layout.outputs,
+                    subject_root=root, native_dir=native, mri_dir=mri))
+                self.assertTrue(_surface_postprocess_complete(root, 'x'))
+                nib.save(nib.MGHImage(np.ones((3, 3, 3), dtype=np.float32), np.eye(4)), mri / 'brain.mgz')
+                self.assertFalse(_surface_postprocess_complete(root, 'x'))
 
 
 if __name__ == '__main__':

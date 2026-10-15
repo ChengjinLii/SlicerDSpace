@@ -6,6 +6,13 @@
 
 </div>
 
+The current bridge also supervises the owned Linux process group with a
+Windows heartbeat. If the bridge is killed, only that WSL task is terminated;
+the distribution and unrelated jobs are not shut down. Existing bridges need
+the runtime installer rerun to obtain this change. Linux cleanup tests and C#
+compilation are not a completed native WSL cancellation acceptance test.
+See [current bundle/platform follow-up](../release/BUNDLE_QC_20261015.md).
+
 SlicerDDSurfer provides Windows Slicer/Python setup and Ubuntu WSL 2 command
 bridges for Linux backends. Native Windows scientific workflows and complete
 SDK/CPack acceptance remain unverified; installer plans are not that evidence.
@@ -57,6 +64,7 @@ Pass the local Slicer executable and your own FreeSurfer license:
 ```powershell
 .\scripts\install_deps_windows.ps1 `
   -Distro Ubuntu `
+  -AcceptFslLicense `
   -SlicerExecutable "C:\path\to\Slicer.exe" `
   -FreeSurferLicensePath "C:\path\to\license.txt"
 ```
@@ -66,13 +74,16 @@ This command really executes the following idempotent operations:
 1. Installs fixed Ubuntu packages as WSL root.
 2. Verifies and installs Miniforge `26.3.2-3`.
 3. Creates a Python 3.10 runtime with MRtrix3 `3.0.8` and the pinned runtime
-   requirements in `scripts/wsl/requirements-runtime.txt`. TractCloud uses the
-   official PyTorch `2.11.0+cpu` wheel, so a CPU workstation does not download
-   an unused CUDA runtime.
+   requirements in `scripts/wsl/requirements-runtime.txt`. Default `-Device auto`
+   detects the GPU inside WSL: PyTorch `2.11.0+cu126` for CUDA,
+   `2.11.0+cpu` without a GPU or with explicit `-Device cpu`. A fresh interpreter
+   verifies the installed wheel and GPU allocation; explicit CUDA failure has no CPU retry.
 4. Creates a separate FSL environment from the official FSL conda channel,
    pinned to Eddy `2602.0` (`hb35a746_0`) and topup `2203.5`
    (`ha905fa9_6`). The generated command bridge sets `FSLDIR` and
-   `FSLOUTPUTTYPE=NIFTI_GZ` for every MRtrix/FSL invocation.
+   `FSLOUTPUTTYPE=NIFTI_GZ` for every MRtrix/FSL invocation. GPU selection also
+   installs `fsl-eddy-cuda=2602.0=h1a432fe_1`. CPU/CUDA use separate FSL prefixes.
+   `-AcceptFslLicense` is required before actual installation, not plan mode.
 5. Checks out exact TractQuerier, WhiteMatterAnalysis and TractCloud commits.
 6. Downloads TractCloud v1.0.0 data and both ORG atlas archives with SHA-256
    verification.
@@ -112,6 +123,7 @@ TractCloud and the Windows bridge while deferring FreeSurfer and ORG data:
 ```powershell
 .\scripts\install_deps_windows.ps1 `
   -Distro Ubuntu `
+  -AcceptFslLicense `
   -SlicerExecutable "C:\path\to\Slicer.exe" `
   -SkipLargeDownloads
 ```
@@ -135,6 +147,7 @@ SHA-256. The installer refuses a URL-only override:
 ```powershell
 .\scripts\install_deps_windows.ps1 `
   -Distro Ubuntu `
+  -AcceptFslLicense `
   -OrgRegUrl "https://mirror.example/ORG-RegAtlas-100HCP.zip" `
   -OrgRegSha256 "<64 hexadecimal characters>" `
   -Org800Url "https://mirror.example/ORG-800FC-100HCP.zip" `
@@ -160,7 +173,7 @@ The installer writes:
 For command-line runs, pass it explicitly:
 
 ```powershell
-python run_subject_pipeline.py `
+python -m shared.run_subject_pipeline_cli `
   --subject-root D:\data\sub-01 `
   --targets tractography,wma,tractcloud,connectome `
   --dependency-config "$env:LOCALAPPDATA\SlicerDDSurfer\wsl-runtime\dependency-config.json" `

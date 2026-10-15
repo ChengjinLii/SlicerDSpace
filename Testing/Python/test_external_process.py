@@ -4,18 +4,42 @@
 from __future__ import annotations
 
 import subprocess
+import os
 import sys
 import unittest
+import tempfile
+from unittest.mock import patch
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from shared.external_process import text_subprocess_kwargs
+from shared.external_process import text_subprocess_kwargs, external_python_environment
 
 
 class TextSubprocessKwargsTest(unittest.TestCase):
+    def test_windows_configured_executables_are_used_by_all_mrtrix_clients(self):
+        from tractography.csd import _resolve_command as csd_command
+        from tractography.act_prep import _resolve_command as act_command
+        from connectome.pipeline import _resolve_command as connectome_command
+        from tractography.saf import _resolve_command as saf_command
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            executable = root / 'mrconvert.exe'
+            executable.touch()
+            executable.chmod(0o755)
+            with patch('shared.external_process.sys.platform', 'win32'):
+                for resolver in (csd_command, act_command, connectome_command):
+                    self.assertEqual(resolver('mrconvert', root), executable.resolve().as_posix())
+                self.assertEqual(saf_command('mrconvert', bin_dir=root), executable.resolve().as_posix())
+    def test_macos_external_python_does_not_inherit_slicer_dylib_paths(self):
+        environment = {"PATH": "/usr/bin", "DYLD_LIBRARY_PATH": "/Applications/Slicer.app/Contents/lib:/opt/real-tool/lib",
+                       "DYLD_FALLBACK_LIBRARY_PATH": "/Applications/Slicer.app/Contents/lib"}
+        with patch("shared.external_process.startup_environment", return_value=environment.copy()):
+            actual = external_python_environment()
+        self.assertEqual(actual["DYLD_LIBRARY_PATH"], "/opt/real-tool/lib")
+        self.assertEqual(actual["DYLD_FALLBACK_LIBRARY_PATH"], "")
     def test_defaults_force_utf8_with_replacement(self) -> None:
         kwargs = text_subprocess_kwargs()
         self.assertEqual(

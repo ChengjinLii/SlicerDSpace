@@ -204,6 +204,26 @@ class SAFIntegrationTest(unittest.TestCase):
                 sys_exec("broken-command", ps)
         self.assertTrue(run.call_args.kwargs["check"])
 
+    def test_windows_saf_decodes_posix_quotes_without_cmd_shell(self) -> None:
+        from Support.sys_exec import sys_exec
+        ps = types.SimpleNamespace(dgn=False)
+        command = "PATH='C:/Tools with spaces':$PATH tckstats 'C:/Data/a ; name.tck' -dump 'C:/Data/lengths.txt'"
+        with mock.patch("sys.platform", "win32"), \
+                mock.patch("Support.sys_exec.startup_environment", return_value={"PATH": "original"}), \
+                mock.patch("Support.sys_exec.shutil.which", return_value="C:/Tools with spaces/tckstats.exe"), \
+                mock.patch("Support.sys_exec.subprocess.run") as run:
+            sys_exec(command, ps)
+        self.assertFalse(run.call_args.kwargs["shell"])
+        self.assertEqual(run.call_args.args[0], ["C:/Tools with spaces/tckstats.exe", "C:/Data/a ; name.tck", "-dump", "C:/Data/lengths.txt"])
+        self.assertTrue(run.call_args.kwargs["env"]["PATH"].startswith("C:/Tools with spaces"))
+
+    def test_windows_saf_rejects_shell_operators_without_launch(self) -> None:
+        from Support.sys_exec import sys_exec
+        with mock.patch("sys.platform", "win32"), mock.patch("Support.sys_exec.subprocess.run") as run:
+            with self.assertRaisesRegex(ValueError, "single executable"):
+                sys_exec("tckstats input.tck && other-command", types.SimpleNamespace(dgn=False))
+            run.assert_not_called()
+
     def test_write_curv_records_freesurfer_face_count(self) -> None:
         import importlib
 

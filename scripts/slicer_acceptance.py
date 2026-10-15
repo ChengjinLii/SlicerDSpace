@@ -98,6 +98,8 @@ def run(args):
         script_snapshot = dest / "test_script.py"
         shutil.copy2(script, script_snapshot)
         script_hash = hashlib.sha256(script_snapshot.read_bytes()).hexdigest()
+        inspector_snapshot = dest / 'archive_layout.py'
+        shutil.copy2(ROOT / 'scripts/extension_runtime/archive_layout.py', inspector_snapshot)
         bootstrap = dest / "settings_bootstrap.py"
         shutil.copy2(ROOT / "Testing/Python/slicer_settings_bootstrap.py", bootstrap)
         runtime_home = dest / "runtime"
@@ -115,6 +117,7 @@ def run(args):
                    SLICERDDSURFER_MODEL_ASSETS_DIR=str(args.assets),
                    SLICERDDSURFER_EXTENSION_MODULE_DIR=str(module),
                    SLICERDDSURFER_EXTENSION_ARCHIVE=str(archive),
+                   SLICERDDSURFER_ARCHIVE_INSPECTOR=str(inspector_snapshot),
                    SLICERDDSURFER_SMOKE_SUBJECT_ROOT=str(args.subject),
                    SLICERDDSURFER_SMOKE_SUBJECT_ID="100307",
                    SLICERDDSURFER_SMOKE_RUN_NAME="acceptance_plan",
@@ -159,6 +162,7 @@ def run(args):
         entry = {"name": name, "status": "TIMEOUT" if timed_out else ("PASS" if code == 0 else "FAIL"),
                  "exit_code": code, "seconds": time.monotonic() - started, "command": command,
                  "script_sha256": script_hash, "script_snapshot": str(script_snapshot), "log": str(log)}
+        entry['archive_inspector_sha256'] = hashlib.sha256(inspector_snapshot.read_bytes()).hexdigest()
         isolation_record = dest / "settings_isolation.json"
         if isolation_record.exists():
             entry["settings_isolation"] = json.loads(isolation_record.read_text())
@@ -192,7 +196,14 @@ def main():
     parser.add_argument("--results-report", type=Path)
     parser.add_argument("--results-expected-cases", type=int)
     parser.add_argument("--timeout", type=int, default=300)
-    return run(parser.parse_args())
+    args = parser.parse_args()
+    if not args.assets.is_dir():
+        parser.error('--assets must be an existing model-assets directory')
+    if {'real_tasks', 'bundle_products'}.intersection(args.tests) and args.tasks_config is None:
+        parser.error('real_tasks / bundle_products require --tasks-config')
+    if args.tasks_config is not None and not args.tasks_config.is_file():
+        parser.error('--tasks-config must name an existing JSON file')
+    return run(args)
 
 
 if __name__ == "__main__":

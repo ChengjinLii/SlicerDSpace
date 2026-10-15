@@ -311,6 +311,8 @@ def dki_outputs_current(config: DkiConfig) -> bool:
         manifest, qc = _read_json(paths["manifest"]), _read_json(paths["qc"])
         if manifest.get("status") != "completed" or qc.get("status") != "completed":
             return False
+        if int(qc.get("valid_voxels", 0)) <= 0:
+            return False
         if manifest.get("signature") != expected_dki_signature(config):
             return False
         import nibabel as nib
@@ -335,6 +337,8 @@ def dki_outputs_current(config: DkiConfig) -> bool:
             if external.get("kind") != "mkcurve_python_port" and not external.get("automatic_qc_passed"):
                 return False
             if external.get("kind") == "mkcurve_python_port" and external.get("status") != "completed":
+                return False
+            if external.get("kind") == "mkcurve_python_port" and int(external.get("corrected_valid_voxels", 0)) <= 0:
                 return False
             for key, value in (external.get("auxiliary_files") or {}).items():
                 if not Path(value).is_file() or (external.get("auxiliary_artifacts") or {}).get(key) != _signature(Path(value)):
@@ -453,6 +457,8 @@ def _compute_maps(config: DkiConfig, paths: dict[str, Path], log):
                     log(f"[DKI] Processed {completed}/{len(flat_indices)} mask voxels ({counts['valid_voxels']} valid)")
             if not counts["fitted_voxels"]:
                 raise ValueError("DKI has no masked voxels with finite, strictly positive selected measurements")
+            if not counts["valid_voxels"]:
+                raise ValueError("DKI has no valid quantitative voxels; inspect acquisition and raw fit quality")
             for key, array in arrays.items():
                 array.flush()
                 header = image.header.copy()

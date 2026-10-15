@@ -15,14 +15,16 @@ import tempfile
 import time
 import re
 import traceback
+import shlex
+import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 from shared.external_process import (
     external_python_environment,
-    merged_startup_environment,
     text_subprocess_kwargs,
+    slicer_runtime_roots,
 )
 from shared.output_contracts import vtp_streamline_count
 from shared.product_staging import archive_run_records, new_product_staging, publish_products, retain_failed_products
@@ -37,6 +39,9 @@ MIN_ANATOMICAL_TRACT_COUNT = 73
 # Requiring three quarters of the atlas tracts to be non-empty is deliberately
 # conservative while catching under-sampled or spatially invalid tractograms.
 MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT = 55
+REQUIRED_MAJOR_TRACTS = ('T_AF_left.vtp', 'T_AF_right.vtp', 'T_CST_left.vtp',
+                         'T_CST_right.vtp', 'T_CC4.vtp')
+MIN_MAJOR_TRACT_STREAMLINES = 20
 REQUIRED_WMA_COMMANDS = (
     "wm_append_clusters_to_anatomical_tracts.py",
     "wm_assess_cluster_location_by_hemisphere.py",
@@ -107,6 +112,12 @@ class WMAOrgAtlasResult:
     return_code: Optional[int] = None
 
 
+def _wma_script_path(root: Path) -> Path:
+    script = root / WMA_APPLY_ORG_SCRIPT
+    windows_binary = script.with_name(script.name + '.exe')
+    return windows_binary if sys.platform == 'win32' and windows_binary.is_file() else script
+
+
 def resolve_configured_wma_root() -> Path:
     """Resolve WMA from environment variables or PATH."""
 
@@ -133,7 +144,7 @@ def resolve_configured_wma_root() -> Path:
 def resolve_wma_root(wma_root: Optional[Path] = None, module_dir: Optional[Path] = None) -> Path:
     del module_dir  # Backward-compatible signature; WMA discovery is no longer repo-relative.
     candidate = (wma_root.expanduser().resolve() if wma_root is not None else resolve_configured_wma_root())
-    script = candidate / WMA_APPLY_ORG_SCRIPT
+    script = _wma_script_path(candidate)
     if not script.is_file():
         raise FileNotFoundError(
             f"WMA ORG atlas script not found: {script}. "
@@ -177,6 +188,9 @@ def _command_path(command_name: str, wma_root: Path) -> Optional[Path]:
         wma_root / "bin" / command_name,
         wma_root / "utilities" / command_name,
     ]
+    if sys.platform == 'win32':
+        local_candidates = [path for candidate in local_candidates
+                            for path in (candidate.with_name(candidate.name + '.exe'), candidate)]
     local_candidates.extend(tool_dir / command_name for tool_dir in EXTRA_TOOL_DIRS)
     for candidate in local_candidates:
         if candidate.is_file():
@@ -186,12 +200,16 @@ def _command_path(command_name: str, wma_root: Path) -> Optional[Path]:
 
 
 def _slicerdmri_module_paths(slicer_executable: Path) -> tuple[Path, ...]:
-    slicer_root = slicer_executable.expanduser().resolve().parent
-    candidates = sorted((slicer_root / "slicer.org").glob("Extensions-*/SlicerDMRI"))
-    if not candidates:
-        return ()
-    slicerdmri_root = candidates[-1]
-    module_roots = sorted((slicerdmri_root / "lib").glob("Slicer-*"))
+    roots = slicer_runtime_roots(slicer_executable.expanduser().resolve().parent)
+    candidates = sorted({path for root in roots for pattern in (
+        'slicer.org/Extensions-*/SlicerDMRI', 'Extensions-*/SlicerDMRI')
+        for path in root.glob(pattern)})
+    versions = {path.name for root in roots for path in (root / 'lib').glob('Slicer-*') if path.is_dir()}
+    matches = [(candidate, [path for path in sorted((candidate / 'lib').glob('Slicer-*'))
+                            if not versions or path.name in versions]) for candidate in candidates]
+    matching = [paths for _, paths in matches if paths]
+    # Do not mix cached extensions built against different Slicer versions.
+    module_roots = matching[-1] if matching else []
     paths: list[Path] = []
     for module_root in module_roots:
         paths.extend(
@@ -207,9 +225,9 @@ def _slicerdmri_module_paths(slicer_executable: Path) -> tuple[Path, ...]:
 def _slicer_runtime_library_paths(slicer_executable: Path) -> tuple[Path, ...]:
     """Return library directories needed by Slicer/PythonSlicer shims."""
 
-    slicer_root = slicer_executable.expanduser().resolve().parent
-    candidates = sorted((slicer_root / "lib").glob("Slicer-*"))
-    candidates.append(slicer_root / "lib")
+    roots = slicer_runtime_roots(slicer_executable.expanduser().resolve().parent)
+    candidates = [path for root in roots for path in sorted((root / 'lib').glob('Slicer-*'))]
+    candidates.extend(root / 'lib' for root in roots)
     slicerdmri_paths = _slicerdmri_module_paths(slicer_executable)
     for path in slicerdmri_paths:
         candidates.append(path)
@@ -228,6 +246,35 @@ def _resolve_slicer_launcher(slicer_executable: Path) -> Path:
     slicer_executable = slicer_executable.expanduser().resolve()
     launcher = slicer_executable.parent.parent / "run-slicer.sh"
     return launcher if launcher.is_file() else slicer_executable
+
+
+def _resolve_slicer_runtime(slicer_executable: Path) -> Path:
+    """Resolve a wrapper's advertised runtime without mixing Slicer versions."""
+    executable = slicer_executable.expanduser().resolve()
+    if sys.platform == 'win32' or any(
+        (root / relative).is_file()
+        for root in slicer_runtime_roots(executable.parent)
+        for relative in ('PythonSlicer', 'bin/PythonSlicer')
+    ):
+        return executable
+    completed = subprocess.run(
+        [str(executable), '--launcher-dump-environment'],
+        env=external_python_environment(), timeout=30, capture_output=True,
+        **text_subprocess_kwargs(),
+    )
+    homes = {line.partition('=')[2].strip() for line in (completed.stdout or '').splitlines()
+             if line.startswith('SLICER_HOME=')}
+    if not homes:
+        # External CLI bridges need not advertise a native Slicer runtime.
+        return executable
+    if completed.returncode != 0 or len(homes) != 1:
+        raise RuntimeError('Slicer wrapper did not identify one usable SLICER_HOME.')
+    home = Path(homes.pop()).expanduser().resolve()
+    launchers = (home / 'Slicer', home / 'MacOS' / 'Slicer')
+    native = next((path for path in launchers if path.is_file()), None)
+    if native is None or not (home / 'bin' / 'PythonSlicer').is_file():
+        raise RuntimeError(f'Slicer wrapper advertised an incomplete runtime: {home}')
+    return native.resolve()
 
 
 def _resolve_runtime_display() -> Optional[str]:
@@ -257,7 +304,7 @@ def inspect_wma_backend(
     }
     root = resolve_wma_root(wma_root)
     status["root"] = root.as_posix()
-    script = root / WMA_APPLY_ORG_SCRIPT
+    script = _wma_script_path(root)
     status["script"] = script.as_posix()
     status["source"] = wma_source_info(root)
 
@@ -356,6 +403,7 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
             count > 0 for count in readable_anatomical_line_counts.values()
         ),
         "anatomical_streamline_count": sum(readable_anatomical_line_counts.values()),
+        "anatomical_tract_streamline_counts": readable_anatomical_line_counts,
         "anatomical_empty_tracts": sorted(
             name for name, count in readable_anatomical_line_counts.items() if count == 0
         ),
@@ -449,6 +497,7 @@ def _derive_wma_status(output_summary: dict[str, Any], execution_error: Optional
         anatomical_tract_count >= MIN_ANATOMICAL_TRACT_COUNT
         and readable_tract_count >= MIN_ANATOMICAL_TRACT_COUNT
         and nonempty_tract_count >= MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT
+        and _wma_output_contract_error(output_summary) is None
     ):
         return "completed"
     if anatomical_tract_count > 0:
@@ -482,12 +531,19 @@ def _wma_output_contract_error(output_summary: dict[str, Any]) -> Optional[str]:
             f"(expected at least {MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT} non-empty tracts, found {nonempty_count}). "
             "Review whole-brain tractography coverage, streamline lengths and atlas registration."
         )
+    counts = output_summary.get('anatomical_tract_streamline_counts') or {}
+    sparse = [f'{name}={counts.get(name, "missing")}' for name in REQUIRED_MAJOR_TRACTS
+              if int(counts.get(name, 0)) < MIN_MAJOR_TRACT_STREAMLINES]
+    if sparse:
+        return ('WMA major-tract sampling/identity check failed (local sampling minimum '
+                f'{MIN_MAJOR_TRACT_STREAMLINES}, not anatomical accuracy): ' + ', '.join(sparse)
+                + '. Review input coverage and atlas registration; do not use for bundle quantification.')
     return None
 
 
 def build_wma_org_atlas_command(config: WMAOrgAtlasConfig) -> tuple[str, ...]:
     wma_root = resolve_wma_root(config.wma_root)
-    script = wma_root / WMA_APPLY_ORG_SCRIPT
+    script = _wma_script_path(wma_root)
     if config.registration_mode not in {"rig", "nonrig"}:
         raise ValueError("registration_mode must be 'rig' or 'nonrig'.")
     if config.num_threads < 1:
@@ -584,6 +640,11 @@ def validate_wma_org_inputs(config: WMAOrgAtlasConfig) -> None:
     if not backend_status["available"]:
         missing = ", ".join(backend_status["missing_required"])
         raise RuntimeError(f"WMA backend is incomplete. Missing required command(s): {missing}")
+    if config.execute and sys.platform == 'win32':
+        from shared.wsl_bridge import bridge_config
+        if bridge_config(Path(backend_status['script'])) is None:
+            raise RuntimeError('Windows WMA requires the managed WSL command bridge; a raw Linux .sh checkout '
+                               'cannot run natively. Run Advanced settings > Windows runtime setup.')
 
 
 def run_wma_org_atlas(
@@ -683,26 +744,33 @@ def run_wma_org_atlas(
     published_archive = None
     if config.execute:
         log_dir.mkdir(parents=True, exist_ok=True)
-        env = merged_startup_environment()
+        # PythonSlicer's launcher will restore its own runtime. Never pass a
+        # caller's Python stdlib overrides to an env-python author script.
+        env = external_python_environment()
         python_path = wma_root.as_posix()
         env["PYTHONPATH"] = (
             python_path if not env.get("PYTHONPATH") else python_path + os.pathsep + env["PYTHONPATH"]
         )
         slicer_executable = config.slicer_executable.expanduser().resolve()
-        slicer_python_candidates = (
-            slicer_executable.parent / "PythonSlicer",
-            slicer_executable.parent / "bin" / "PythonSlicer",
-        )
-        slicer_python = next((candidate for candidate in slicer_python_candidates if candidate.is_file()), None)
+        native_posix = sys.platform != 'win32'
+        slicer_python = None
         path_entries = [
             (wma_root / "bin").as_posix(),
             (wma_root / "utilities").as_posix(),
         ]
         path_entries.extend(tool_dir.as_posix() for tool_dir in EXTRA_TOOL_DIRS if tool_dir.is_dir())
-        library_entries = [path.as_posix() for path in _slicer_runtime_library_paths(slicer_executable)]
+        library_entries = []
         runtime_display = _resolve_runtime_display()
         temp_python_dir: Optional[tempfile.TemporaryDirectory[str]] = None
         try:
+            runtime_executable = _resolve_slicer_runtime(slicer_executable) if native_posix else slicer_executable
+            slicer_python_candidates = tuple(path for root in slicer_runtime_roots(runtime_executable.parent)
+                                            for path in (root / 'PythonSlicer', root / 'bin' / 'PythonSlicer'))
+            slicer_python = next((path for path in slicer_python_candidates if path.is_file()), None) if native_posix else None
+            library_entries = [str(path) for path in _slicer_runtime_library_paths(runtime_executable)] if native_posix else []
+            manifest['runtime'] = {'configured_launcher': str(slicer_executable),
+                                   'resolved_executable': str(runtime_executable),
+                                   'python': str(slicer_python) if slicer_python else None}
             if conversion_command:
                 prepared_tractography.parent.mkdir(parents=True, exist_ok=True)
                 if log:
@@ -719,8 +787,9 @@ def run_wma_org_atlas(
                 )
                 conversion_stdout_log.write_text(converted.stdout or "", encoding="utf-8")
                 conversion_stderr_log.write_text(converted.stderr or "", encoding="utf-8")
-            slicerdmri_paths = _slicerdmri_module_paths(slicer_executable)
-            if slicer_python is not None or config.use_virtual_x or slicerdmri_paths:
+            slicerdmri_paths = _slicerdmri_module_paths(runtime_executable) if native_posix else ()
+            # WSL supplies Python/CLIs; Windows cannot execute our POSIX shims.
+            if native_posix and (slicer_python is not None or config.use_virtual_x or slicerdmri_paths):
                 temp_python_dir = tempfile.TemporaryDirectory(prefix="slicerdds_wma_python_")
                 if slicer_python is not None:
                     shim = Path(temp_python_dir.name) / "python"
@@ -730,7 +799,7 @@ def run_wma_org_atlas(
                     if real_xvfb is not None:
                         xvfb_shim = Path(temp_python_dir.name) / "xvfb-run"
                         xvfb_shim.write_text(
-                            f"#!/bin/sh\nexec {real_xvfb.as_posix()} -a \"$@\"\n",
+                            f"#!/bin/sh\nexec {shlex.quote(real_xvfb.as_posix())} -a \"$@\"\n",
                             encoding="utf-8",
                         )
                         xvfb_shim.chmod(0o755)
@@ -738,10 +807,10 @@ def run_wma_org_atlas(
                     slicer_shim = Path(temp_python_dir.name) / "Slicer"
                     slicer_launcher = _resolve_slicer_launcher(slicer_executable)
                     module_args = " ".join(
-                        f"--additional-module-paths '{path.as_posix()}'" for path in slicerdmri_paths
+                        f"--additional-module-paths {shlex.quote(path.as_posix())}" for path in slicerdmri_paths
                     )
                     slicer_shim.write_text(
-                        f"#!/bin/sh\nexec '{slicer_launcher.as_posix()}' {module_args} \"$@\"\n",
+                        f"#!/bin/sh\nexec {shlex.quote(slicer_launcher.as_posix())} {module_args} \"$@\"\n",
                         encoding="utf-8",
                     )
                     slicer_shim.chmod(0o755)
@@ -758,8 +827,9 @@ def run_wma_org_atlas(
                 command_to_run = command
             env["PATH"] = os.pathsep.join(path_entries + ([env["PATH"]] if env.get("PATH") else []))
             if library_entries:
-                env["LD_LIBRARY_PATH"] = os.pathsep.join(
-                    library_entries + ([env["LD_LIBRARY_PATH"]] if env.get("LD_LIBRARY_PATH") else [])
+                library_variable = 'DYLD_LIBRARY_PATH' if sys.platform == 'darwin' else 'LD_LIBRARY_PATH'
+                env[library_variable] = os.pathsep.join(
+                    library_entries + ([env[library_variable]] if env.get(library_variable) else [])
                 )
             if runtime_display:
                 env["DISPLAY"] = runtime_display
@@ -827,6 +897,8 @@ def run_wma_org_atlas(
         "return_code": return_code,
         "elapsed_seconds": elapsed_seconds,
         "human_review": "pending",
+        "automatic_qc_passed": bool(config.execute and status == 'completed'),
+        "quantification_eligible": False,
         "scientific_scope": "Fresh decoded ORG products and explicit coverage policy; not expert anatomy or suitability of every tractogram for the atlas.",
         "previous_products": published_archive,
         "backend_available": bool(backend_status["available"]),
@@ -836,6 +908,9 @@ def run_wma_org_atlas(
             "minimum_anatomical_tract_count": MIN_ANATOMICAL_TRACT_COUNT,
             "minimum_readable_anatomical_tract_count": MIN_ANATOMICAL_TRACT_COUNT,
             "minimum_nonempty_anatomical_tract_count": MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT,
+            "required_major_tracts": list(REQUIRED_MAJOR_TRACTS),
+            "minimum_streamlines_per_major_tract": MIN_MAJOR_TRACT_STREAMLINES,
+            "scope": "Whole-brain adult ORG sampling/identity sanity, not anatomical accuracy or statistical power.",
         },
         "logs": {
             "stdout": stdout_log.as_posix(),

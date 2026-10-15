@@ -293,7 +293,10 @@ def _qc_completed(path: Path) -> bool:
     if not path.is_file():
         return False
     try:
-        return _read_json(path).get("status") == "completed"
+        record = _read_json(path)
+        checks = record.get("checks") or {}
+        return (record.get("status") == "completed" and record.get("automatic_qc_passed") is not False
+                and (not isinstance(checks, dict) or not any(value is False for value in checks.values())))
     except Exception:
         return False
 
@@ -317,10 +320,22 @@ def _wmql_complete(
     if not _qc_completed(qc_path):
         return False
     try:
-        from tractography.wmql import summarize_wmql_outputs, _wmql_output_contract_error
+        from tractography.wmql import summarize_wmql_outputs, _wmql_output_contract_error, WMQL_QC_VERSION, bundled_wmql_query_path, wmql_query_cache_current
+        import hashlib
 
         native_manifest_path = manifest_path or qc_path.with_name("wmql_manifest.json")
         manifest = _read_json(native_manifest_path)
+        qc = _read_json(qc_path)
+        if qc.get('version') != WMQL_QC_VERSION or qc.get('automatic_qc_passed') is not True:
+            return False
+        query = Path(manifest.get('query_path') or '')
+        if not query.is_file() or manifest.get('query_sha256') != hashlib.sha256(query.read_bytes()).hexdigest():
+            return False
+        # This orchestrator currently requests the bundled rules, not custom queries.
+        if manifest.get('query_sha256') != hashlib.sha256(bundled_wmql_query_path().read_bytes()).hexdigest():
+            return False
+        if not wmql_query_cache_current(manifest):
+            return False
         expected_dependencies = {
             key: path
             for key, path in {
@@ -673,7 +688,7 @@ def _wma_complete(
     if not _qc_completed(qc_path):
         return False
     try:
-        from tractography.wma import summarize_wma_outputs
+        from tractography.wma import summarize_wma_outputs, _wma_output_contract_error
 
         manifest = _read_json(manifest_path)
         expected_dependencies = {
@@ -696,13 +711,7 @@ def _wma_complete(
         summary = summarize_wma_outputs(output_dir, prepared_input)
     except Exception:
         return False
-    return (
-        int(summary.get("anatomical_tract_count", 0) or 0) >= WMA_MIN_ANATOMICAL_TRACT_COUNT
-        and int(summary.get("anatomical_tract_readable_count", 0) or 0)
-        == int(summary.get("anatomical_tract_count", 0) or 0)
-        and int(summary.get("anatomical_tract_nonempty_count", 0) or 0)
-        >= WMA_MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT
-    )
+    return _wma_output_contract_error(summary) is None
 
 
 def _tractcloud_complete(
@@ -1160,7 +1169,10 @@ def _parcellation_outputs(subject_root: Path, subject_id: str, output_root: Opti
 
 
 def _parcellation_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
-    return outputs_readable(_parcellation_outputs(subject_root, subject_id, output_root).values())
+    from shared.scalar_qc import scalar_qc_current
+
+    outputs = _parcellation_outputs(subject_root, subject_id, output_root)
+    return scalar_qc_current(outputs["wmparc"].parent / "ddparcel_qc.json", list(outputs.values()))
 
 
 def _surface_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -1301,11 +1313,30 @@ def _surface_postprocess_complete(
             expected_atlases = list(atlases or ('aparc', 'aparc.a2009s'))
             if manifest.get('cache_signature', {}).get('atlases') != expected_atlases:
                 return False
+            signature = manifest.get('cache_signature') or {}
+            if signature.get('mode') != mode:
+                return False
+            if signature.get('brain_source'):
+                from anatomy.surface.backend_bridge import sha256
+                if sha256(Path(signature['brain_source'])) != signature.get('brain_sha256'):
+                    return False
+            qc = _read_json(outputs['qc'])
+            integrity = qc.get('integrity') or {}
+            checks = integrity.get('checks')
+            if (integrity.get('version') != 1 or integrity.get('automatic_qc_passed') is not True
+                    or not isinstance(checks, dict) or not checks or not all(value is True for value in checks.values())):
+                return False
+            from shared.scalar_qc import _signature
+            from anatomy.surface.postprocess_qc import postprocess_output_paths
+            artifacts = integrity.get('output_artifacts')
+            required = postprocess_output_paths(structural_root, hemis, expected_atlases, stats_dir=outputs['stats'])
+            if artifacts != {str(path.resolve()): _signature(path) for path in required}:
+                return False
             if not all(_nonempty_file(structural_root / 'label' / f'{hemi}.{atlas}.annot')
                        and _nonempty_file(outputs['stats'] / f'{hemi}.{atlas}.stats')
                        for hemi in hemis for atlas in expected_atlases):
                 return False
-        except (OSError, ValueError):
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
             return False
     return (
         _nonempty_file(outputs["manifest"])
@@ -1358,13 +1389,23 @@ def _microstructure_dti_outputs(subject_root: Path, subject_id: str, output_root
         "l2": dti_dir / f"{subject_id}_dti_L2.nii.gz",
         "l3": dti_dir / f"{subject_id}_dti_L3.nii.gz",
         "trace": dti_dir / f"{subject_id}_dti_Trace.nii.gz",
+        "qc": dti_dir / "dti_qc.json",
         "manifest": layout.microstructure / "manifest.json",
     }
 
 
-def _microstructure_dti_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+def _microstructure_dti_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None, *, fit_method=None) -> bool:
+    from shared.scalar_qc import scalar_qc_current
+
     outputs = _microstructure_dti_outputs(subject_root, subject_id, output_root)
-    return outputs_readable(outputs.values()) and _manifest_inputs_match(
+    if fit_method is not None:
+        try:
+            recorded_method = str(_read_json(outputs["manifest"]).get("fit_method") or "").lower()
+        except (OSError, ValueError, AttributeError):
+            return False
+        if recorded_method != str(fit_method).lower():
+            return False
+    return scalar_qc_current(outputs["qc"], [outputs[key] for key in ("fa", "md", "ad", "rd", "l1", "l2", "l3", "trace")]) and _manifest_inputs_match(
         outputs["manifest"],
         _resolve_analysis_inputs(subject_root, subject_id, output_root),
         "raw_input_bundle",
@@ -1385,11 +1426,11 @@ def _microstructure_freewater_outputs(subject_root: Path, subject_id: str, outpu
     }
 
 
-def _microstructure_freewater_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+def _microstructure_freewater_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None, *, config=None) -> bool:
+    from shared.scalar_qc import scalar_qc_current
+
     outputs = _microstructure_freewater_outputs(subject_root, subject_id, output_root)
-    return outputs_readable(
-        outputs[key] for key in ("fwf", "fw_fa", "fw_md", "valid_mask", "qc", "manifest")
-    ) and _manifest_inputs_match(
+    return _optional_microstructure_options_match(config, outputs["manifest"], "freewater") and scalar_qc_current(outputs["qc"], [outputs[key] for key in ("fwf", "fw_fa", "fw_md", "valid_mask")]) and _manifest_inputs_match(
         outputs["manifest"],
         _resolve_analysis_inputs(subject_root, subject_id, output_root),
         "raw_input_bundle",
@@ -1412,16 +1453,37 @@ def _microstructure_noddi_outputs(subject_root: Path, subject_id: str, output_ro
     }
 
 
-def _microstructure_noddi_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+def _microstructure_noddi_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None, *, config=None) -> bool:
+    from shared.scalar_qc import scalar_qc_current
+
     outputs = _microstructure_noddi_outputs(subject_root, subject_id, output_root)
-    return outputs_readable(
-        outputs[key]
-        for key in ("ndi", "odi", "isovf", "valid_mask", "rmse", "nrmse", "qc", "manifest")
-    ) and _manifest_inputs_match(
+    return _optional_microstructure_options_match(config, outputs["manifest"], "noddi") and scalar_qc_current(outputs["qc"], [outputs[key] for key in ("ndi", "odi", "isovf", "valid_mask", "rmse", "nrmse")]) and _manifest_inputs_match(
         outputs["manifest"],
         _resolve_analysis_inputs(subject_root, subject_id, output_root),
         "raw_input_bundle",
     )
+
+
+def _optional_microstructure_options_match(config, manifest_path, stage):
+    if config is None:
+        return True
+    from microstructure.pipeline import MicrostructureConfig, _expected_free_water_manifest, _expected_noddi_manifest
+    from shared.pipeline import RawInputBundle
+
+    try:
+        inputs = _resolve_analysis_inputs(config.subject_root, config.subject_id, config.output_root)
+        raw = RawInputBundle(config.subject_root, config.subject_id, inputs["dwi"].parent,
+                             inputs["dwi"], inputs["bval"], inputs["bvec"], inputs["mask"])
+        options = MicrostructureConfig(config.subject_id, raw, None, manifest_path.parent,
+            free_water_chunk_size=config.microstructure_free_water_chunk_size,
+            free_water_engine=config.microstructure_free_water_engine,
+            free_water_n_jobs=config.microstructure_free_water_n_jobs,
+            free_water_vox_per_chunk=config.microstructure_free_water_vox_per_chunk,
+            free_water_max_fraction_for_tissue=config.microstructure_free_water_max_fraction_for_tissue)
+        expected = _expected_free_water_manifest(options) if stage == "freewater" else _expected_noddi_manifest(options)
+        return _read_json(manifest_path) == expected
+    except (OSError, KeyError, ValueError):
+        return False
 
 
 def _act_inputs_current(csd_manifest_path: Path) -> bool:
@@ -1461,9 +1523,9 @@ def _csd_act_complete(
 ) -> bool:
     """Require current inputs and decoded output evidence before CSD/ACT reuse.
 
-    The recorded 5TT/GMWMI must still be the current, version-2 ACT prep
+    The recorded 5TT/GMWMI must still be the current-version ACT prep
     outputs built from the current DDSeg/DDParcel files, so a tractogram built
-    from an outdated 5TT (e.g. the pre-v2 mirrored DDSeg) is never reused.
+    from an outdated 5TT (e.g. mirrored DDSeg or pre-v3 ventral-DC sGM) is never reused.
     """
 
     from tractography.csd import CSD_ACT_MANIFEST_VERSION
@@ -1757,11 +1819,11 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 atlases=config.postprocess_atlases,
             )
         if target == "microstructure":
-            return _microstructure_dti_complete(subject_root, config.subject_id, output_root)
+            return _microstructure_dti_complete(subject_root, config.subject_id, output_root, fit_method=config.microstructure_fit_method)
         if target == "microstructure_freewater":
-            return _microstructure_freewater_complete(subject_root, config.subject_id, output_root)
+            return _microstructure_freewater_complete(subject_root, config.subject_id, output_root, config=config)
         if target == "microstructure_noddi":
-            return _microstructure_noddi_complete(subject_root, config.subject_id, output_root)
+            return _microstructure_noddi_complete(subject_root, config.subject_id, output_root, config=config)
         if target == "microstructure_dki":
             from microstructure.dki import dki_outputs_current
             return dki_outputs_current(_dki_config(config, analysis_inputs))
@@ -1992,7 +2054,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
 
         if target == "microstructure":
             outputs = {**micro_outputs}
-            if config.resume and _microstructure_dti_complete(subject_root, config.subject_id, output_root):
+            if config.resume and _microstructure_dti_complete(subject_root, config.subject_id, output_root, fit_method=config.microstructure_fit_method):
                 add(target, "skipped", "completed DTI microstructure outputs found", "reuse", inputs=analysis_inputs, outputs=outputs)
             elif not raw_input_block(target, outputs):
                 add(target, "will_run", "ready to run Microstructure DTI", "runnable", inputs=analysis_inputs, outputs=outputs, dependencies={"parcellation": "optional ROI stats"})
@@ -2000,7 +2062,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
 
         if target == "microstructure_freewater":
             dti_ready = _microstructure_dti_complete(subject_root, config.subject_id, output_root) or available.get("microstructure", False)
-            if config.resume and _microstructure_freewater_complete(subject_root, config.subject_id, output_root):
+            if config.resume and _microstructure_freewater_complete(subject_root, config.subject_id, output_root, config=config):
                 add(target, "skipped", "completed Free Water outputs found", "reuse", inputs=analysis_inputs, outputs=freewater_outputs, dependencies={"microstructure": "available" if dti_ready else None})
             elif not dti_ready:
                 add(target, "blocked", "missing Microstructure DTI outputs; select microstructure or provide existing output", "upstream", inputs=raw, outputs=freewater_outputs, dependencies={"microstructure": "missing"}, provides=False)
@@ -2010,7 +2072,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
 
         if target == "microstructure_noddi":
             dti_ready = _microstructure_dti_complete(subject_root, config.subject_id, output_root) or available.get("microstructure", False)
-            if config.resume and _microstructure_noddi_complete(subject_root, config.subject_id, output_root):
+            if config.resume and _microstructure_noddi_complete(subject_root, config.subject_id, output_root, config=config):
                 add(target, "skipped", "completed NODDI outputs found", "reuse", inputs=analysis_inputs, outputs=noddi_outputs, dependencies={"microstructure": "available" if dti_ready else None})
             elif not dti_ready:
                 add(target, "blocked", "missing Microstructure DTI outputs; select microstructure or provide existing output", "upstream", inputs=raw, outputs=noddi_outputs, dependencies={"microstructure": "missing"}, provides=False)
@@ -3048,6 +3110,7 @@ def _run_subject_products_impl(
                     name="parcellation.ddparcel",
                     status="skipped",
                     reason="completed outputs found",
+                    qc_path=layout.ddparcel / "ddparcel_qc.json",
                     outputs={key: path.as_posix() for key, path in parcellation_outputs.items()},
                 )
             )
@@ -3094,6 +3157,7 @@ def _run_subject_products_impl(
                 ProductTaskRecord(
                     name="parcellation.ddparcel",
                     status="completed",
+                    qc_path=layout.ddparcel / "ddparcel_qc.json",
                     outputs={key: path.as_posix() for key, path in parcellation_outputs.items()},
                 )
             )
@@ -3294,7 +3358,7 @@ def _run_subject_products_impl(
         micro_outputs = _microstructure_dti_outputs(subject_root, config.subject_id, output_root)
         freewater_outputs = _microstructure_freewater_outputs(subject_root, config.subject_id, output_root)
         noddi_outputs = _microstructure_noddi_outputs(subject_root, config.subject_id, output_root)
-        if config.resume and _microstructure_dti_complete(subject_root, config.subject_id, output_root):
+        if config.resume and _microstructure_dti_complete(subject_root, config.subject_id, output_root, fit_method=config.microstructure_fit_method):
             outputs = {key: path.as_posix() for key, path in micro_outputs.items() if key != "manifest"}
             tasks.append(
                 ProductTaskRecord(
@@ -3302,6 +3366,7 @@ def _run_subject_products_impl(
                     status="skipped",
                     reason="completed DTI microstructure outputs found",
                     manifest_path=micro_outputs["manifest"],
+                    qc_path=micro_outputs["qc"],
                     outputs=outputs,
                 )
             )
@@ -3355,6 +3420,7 @@ def _run_subject_products_impl(
                     name="microstructure.dti",
                     status="completed",
                     manifest_path=layout.microstructure / "manifest.json",
+                    qc_path=layout.microstructure_dti / "dti_qc.json",
                     outputs={
                         "fa": result.fa_path.as_posix(),
                         "md": result.md_path.as_posix(),
@@ -3372,7 +3438,7 @@ def _run_subject_products_impl(
 
     if "microstructure_freewater" in run_targets:
         freewater_outputs = _microstructure_freewater_outputs(subject_root, config.subject_id, output_root)
-        if config.resume and _microstructure_freewater_complete(subject_root, config.subject_id, output_root):
+        if config.resume and _microstructure_freewater_complete(subject_root, config.subject_id, output_root, config=config):
             tasks.append(
                 ProductTaskRecord(
                     name="microstructure.freewater",
@@ -3442,7 +3508,7 @@ def _run_subject_products_impl(
 
     if "microstructure_noddi" in run_targets:
         noddi_outputs = _microstructure_noddi_outputs(subject_root, config.subject_id, output_root)
-        if config.resume and _microstructure_noddi_complete(subject_root, config.subject_id, output_root):
+        if config.resume and _microstructure_noddi_complete(subject_root, config.subject_id, output_root, config=config):
             tasks.append(
                 ProductTaskRecord(
                     name="microstructure.noddi",
@@ -3499,6 +3565,7 @@ def _run_subject_products_impl(
                     name="microstructure.noddi",
                     status="completed",
                     manifest_path=noddi_outputs["manifest"],
+                    qc_path=result.noddi_qc_path,
                     outputs={
                         "noddi_ndi": result.noddi_ndi_path.as_posix(),
                         "noddi_odi": result.noddi_odi_path.as_posix(),
@@ -3738,7 +3805,7 @@ def _run_subject_products_impl(
                     "bundles.wmql",
                     result,
                     status="completed" if wmql_complete else "failed",
-                    reason="" if wmql_complete else "WMQL QC does not declare at least one existing non-empty bundle",
+                    reason="" if wmql_complete else _read_json(result.qc_path).get('error', "WMQL scientific QC failed"),
                 )
             )
 

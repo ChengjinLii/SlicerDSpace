@@ -78,7 +78,9 @@ class ExtensionDistributionTest(unittest.TestCase):
                      "shared/pnl_mask_runner.py", "shared/synthstrip_mask_runner.py",
                      "shared/mrtrix_preproc_runner.py", "shared/managed_runtimes.py",
                      "shared/ui_managed_runtimes.py", "scripts/setup_managed_runtime.py",
-                     "docs/release/benchmarks/module_runtimes_20261013.csv"):
+                     "shared/wsl_bridge.py", "scripts/wsl/configure_device.py",
+                     "docs/release/benchmarks/module_runtimes_20261013.csv",
+                     "docs/release/benchmarks/module_runtimes_20261015.csv"):
             self.assertIn(name, selected)
         self.assertFalse(any("/tests/" in name or "/slicer_dmri_reference/" in name for name in selected))
         self.assertEqual([name for name in selected if "/" not in name and name.endswith(".py")], ["SlicerDDSurfer.py"])

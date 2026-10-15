@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import json
 import math
-import shutil
 import subprocess
 import time
 from collections import Counter
@@ -14,7 +13,7 @@ from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from shared import default_task_output_dir_for_dependency
-from shared.external_process import startup_environment
+from shared.external_process import startup_environment, resolve_external_command
 
 
 SUPPORTED_TRACTOGRAPHY_EXTENSIONS = {".trk", ".tck", ".vtk", ".vtp"}
@@ -130,11 +129,7 @@ def _resolve_lut_path(config: ConnectomeConfig) -> Optional[Path]:
 
 
 def _resolve_command(name: str, bin_dir: Optional[Path] = None) -> Optional[str]:
-    if bin_dir is not None:
-        candidate = bin_dir.expanduser() / name
-        if candidate.is_file():
-            return candidate.resolve().as_posix()
-    return shutil.which(name)
+    return resolve_external_command(name, bin_dir)
 
 
 def inspect_connectome_backends(bin_dir: Optional[Path] = None) -> dict[str, object]:

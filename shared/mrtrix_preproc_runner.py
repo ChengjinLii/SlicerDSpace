@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import runpy
+import shutil
 import shlex
 import subprocess
 import sys
@@ -62,7 +63,9 @@ def main(argv=None):
     gpu_visible = visible not in ("", "-1")
     if gpu_visible:
         try:
-            probe = subprocess.run(["nvidia-smi", "-L"], capture_output=True, text=True, timeout=10)
+            smi = shutil.which("nvidia-smi") or (
+                "/usr/lib/wsl/lib/nvidia-smi" if Path("/usr/lib/wsl/lib/nvidia-smi").is_file() else "nvidia-smi")
+            probe = subprocess.run([smi, "-L"], capture_output=True, text=True, timeout=10)
             gpu_visible = probe.returncode == 0 and "GPU " in probe.stdout
         except (OSError, subprocess.TimeoutExpired):
             if fsl.eddy_binary(True):

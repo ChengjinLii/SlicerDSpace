@@ -40,11 +40,15 @@ case_id=${case_id%.*}
 mkdir -p "$out/$case_id/FiberClustering" "$out/$case_id/AnatomicalTracts"
 index=1
 while [ "$index" -le 73 ]; do
-  printf 'VTP_FIXTURE\n' > "$out/$case_id/AnatomicalTracts/T_$(printf '%03d' "$index").vtp"
+  case "$index" in
+    1) name=T_AF_left ;; 2) name=T_AF_right ;; 3) name=T_CST_left ;;
+    4) name=T_CST_right ;; 5) name=T_CC4 ;; *) name=T_$(printf '%03d' "$index") ;;
+  esac
+  printf 'VTP_FIXTURE\n' > "$out/$case_id/AnatomicalTracts/$name.vtp"
   index=$((index + 1))
 done
 exit 0
-""".replace("VTP_FIXTURE", vtp_lines(1)),
+""".replace("VTP_FIXTURE", vtp_lines(20)),
             encoding="utf-8",
         )
         self.wma_script.chmod(0o755)
@@ -82,6 +86,75 @@ exit 0
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
+
+    def test_macos_app_discovers_python_libraries_and_dmri_modules(self):
+        from tractography.wma import _slicerdmri_module_paths, _slicer_runtime_library_paths
+        contents = self.tmp_path / 'Slicer.app' / 'Contents'
+        slicer = contents / 'MacOS' / 'Slicer'
+        slicer.parent.mkdir(parents=True)
+        slicer.touch()
+        lib = contents / 'lib' / 'Slicer-5.10'
+        lib.mkdir(parents=True)
+        modules = contents / 'Extensions-34045' / 'SlicerDMRI' / 'lib' / 'Slicer-5.10' / 'cli-modules'
+        modules.mkdir(parents=True)
+        obsolete = contents / 'Extensions-99999' / 'SlicerDMRI' / 'lib' / 'Slicer-4.11' / 'cli-modules'
+        obsolete.mkdir(parents=True)
+        self.assertIn(modules.resolve(), _slicerdmri_module_paths(slicer))
+        self.assertNotIn(obsolete.resolve(), _slicerdmri_module_paths(slicer))
+        self.assertIn(lib.resolve(), _slicer_runtime_library_paths(slicer))
+
+    def test_wrapper_runtime_comes_from_its_launcher_not_sibling_guess(self):
+        from tractography.wma import _resolve_slicer_runtime
+        home = self.tmp_path / 'actual-runtime'
+        (home / 'bin').mkdir(parents=True)
+        (home / 'Slicer').touch()
+        (home / 'bin' / 'PythonSlicer').touch()
+        completed = mock.Mock(returncode=0, stdout=f'SLICER_HOME={home}\n')
+        with mock.patch('tractography.wma.subprocess.run', return_value=completed) as run:
+            self.assertEqual(_resolve_slicer_runtime(self.slicer_executable), home / 'Slicer')
+            self.assertEqual(run.call_args.args[0][1], '--launcher-dump-environment')
+            self.assertNotIn('PYTHONHOME', run.call_args.kwargs['env'])
+        with mock.patch('tractography.wma.subprocess.run', return_value=mock.Mock(
+            returncode=0, stdout=f'SLICER_HOME={self.tmp_path / "missing"}\n')):
+            with self.assertRaisesRegex(RuntimeError, 'incomplete runtime'):
+                _resolve_slicer_runtime(self.slicer_executable)
+
+    def test_direct_runtime_does_not_probe_or_start_slicer(self):
+        from tractography.wma import _resolve_slicer_runtime
+        (self.tmp_path / 'bin').mkdir()
+        (self.tmp_path / 'bin' / 'PythonSlicer').touch()
+        with mock.patch('tractography.wma.subprocess.run') as run:
+            self.assertEqual(_resolve_slicer_runtime(self.slicer_executable), self.slicer_executable)
+            run.assert_not_called()
+
+    def test_coverage_alone_cannot_hide_sparse_major_tracts(self):
+        from tractography.wma import _wma_output_contract_error, REQUIRED_MAJOR_TRACTS
+        summary = dict(anatomical_tract_count=74, anatomical_tract_readable_count=74,
+                       anatomical_tract_nonempty_count=74,
+                       anatomical_tract_streamline_counts={name: 100 for name in REQUIRED_MAJOR_TRACTS})
+        self.assertIsNone(_wma_output_contract_error(summary))
+        summary['anatomical_tract_streamline_counts']['T_AF_left.vtp'] = 1
+        self.assertIn('T_AF_left.vtp=1', _wma_output_contract_error(summary))
+
+    def test_windows_rejects_raw_shell_backend_before_launch(self):
+        from tractography.wma import WMAOrgAtlasConfig, validate_wma_org_inputs
+        config = WMAOrgAtlasConfig(subject_id='100307', input_tractography=self.tractography,
+            atlas_dir=self.atlas_dir, output_dir=self.output_dir, slicer_executable=self.slicer_executable,
+            wma_root=self.wma_root, execute=True)
+        with mock.patch('tractography.wma.sys.platform', 'win32'):
+            with self.assertRaisesRegex(RuntimeError, 'managed WSL command bridge'):
+                validate_wma_org_inputs(config)
+
+    def test_windows_prefers_explicit_executable_bridge(self):
+        from tractography.wma import _wma_script_path, _command_path, resolve_wma_root
+        alias = self.wma_script.with_name(self.wma_script.name + '.exe')
+        alias.touch()
+        tool = self.wma_bin / 'wm_cluster_from_atlas.py.exe'
+        tool.touch()
+        with mock.patch('tractography.wma.sys.platform', 'win32'):
+            self.assertEqual(_wma_script_path(self.wma_root), alias)
+            self.assertEqual(_command_path('wm_cluster_from_atlas.py', self.wma_root), tool.resolve())
+            self.assertEqual(resolve_wma_root(self.wma_root), self.wma_root.resolve())
 
     def test_rerun_zero_exit_cannot_reuse_old_anatomical_products(self):
         from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
@@ -440,7 +513,7 @@ exit 0
         from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
 
         script = self.wma_script.read_text(encoding="utf-8").replace(
-            vtp_lines(1),
+            vtp_lines(20),
             vtp_lines(0),
         )
         self.wma_script.write_text(script, encoding="utf-8")

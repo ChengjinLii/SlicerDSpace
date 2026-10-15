@@ -172,6 +172,23 @@ class DkiRoiExtractionTest(unittest.TestCase):
 
 
 class DkiBackendContractTest(unittest.TestCase):
+    def test_zero_valid_voxels_are_failure_and_cannot_reuse_old_green_qc(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = write_case(root, synthetic_case())
+            raw = RawInputBundle(root, "synthetic", root / "input", paths["dwi"], paths["bval"], paths["bvec"], paths["mask"])
+            config = DkiConfig("synthetic", raw, root / "outputs", display_max_kurtosis=.01)
+            with self.assertRaisesRegex(ValueError, "no valid quantitative voxels"):
+                run_dki(config)
+            self.assertEqual(json.loads((config.output_dir / "dki_qc.json").read_text())["status"], "failed")
+            self.assertFalse(dki_outputs_current(config))
+            config = replace(config, display_max_kurtosis=3)
+            result = run_dki(config)
+            qc = json.loads(result.qc_path.read_text())
+            qc["valid_voxels"] = 0
+            result.qc_path.write_text(json.dumps(qc))
+            self.assertFalse(dki_outputs_current(config))
+
     """Synthetic inputs exercise real backend fit/caching and acquisition rejection."""
 
     def config(self, root, case=None, **options):

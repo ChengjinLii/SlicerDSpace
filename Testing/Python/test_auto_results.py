@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from shared.auto_results import auto_manifest_paths, automatic_result_candidates, uniform_streamline_indices
 from shared.result_scene import result_file_suffix
+from tractography.wma import REQUIRED_MAJOR_TRACTS
 
 
 class AutoResultsTest(unittest.TestCase):
@@ -45,6 +46,11 @@ class AutoResultsTest(unittest.TestCase):
             self.task("connectome.streamline_count", {"matrix_path": "csv", "nodes_path": "tsv", "stats": "csv"}),
         ]
         bundles = self.task("bundles.wmql", {name: "trk" for name in ("AF_left", "AF_right", "CST_left", "CST_right", "CC", "other")})
+        from tractography.wmql import WMQL_QC_VERSION
+        bundles['qc_path'] = self.file('wmql_qc.json', json.dumps({'status': 'completed', 'version': WMQL_QC_VERSION,
+            'automatic_qc_passed': True, 'output_summary': {'bundle_count': 6,
+                'bundle_readable_count': 6, 'bundle_nonempty_count': 6,
+                'bundles': [{'query_name': name, 'streamline_count': 20} for name in bundles['outputs']]}}))
         tasks.append(bundles)
         selected, skipped, deferred = automatic_result_candidates({"status": "running", "tasks": tasks})
         self.assertGreater(len(selected), 12)
@@ -68,7 +74,9 @@ class AutoResultsTest(unittest.TestCase):
     def test_current_qc_records_only_no_legacy_bundle_folder_scan(self):
         path = self.file("bundles/AF_left.vtp")
         self.file("bundles/stale.vtp")
-        qc = self.file("qc.json", json.dumps({"status": "completed", "output_summary": {"bundle_files": [path]}}))
+        qc = self.file("qc.json", json.dumps({"status": "completed", "output_summary": {"bundle_files": [path],
+            'anatomical_tract_count': 74, 'anatomical_tract_readable_count': 74, 'anatomical_tract_nonempty_count': 74,
+            'anatomical_tract_streamline_counts': {name: 20 for name in REQUIRED_MAJOR_TRACTS}}}))
         task = {"name": "bundles.wma", "status": "completed", "qc_path": qc, "outputs": {"output_dir": str(self.root)}}
         with patch.object(Path, "glob", side_effect=AssertionError("No automatic folder scans")), \
              patch.object(Path, "rglob", side_effect=AssertionError("No automatic folder scans")):
@@ -95,6 +103,29 @@ class AutoResultsTest(unittest.TestCase):
         self.assertFalse(selected)
         self.assertEqual(skipped[0]["qc_state"], "failed")
         self.assertEqual(skipped[0]["reason_category"], "qc_failed")
+
+    def test_failed_status_wins_over_contradictory_automatic_pass_flag(self):
+        task = self.task('microstructure.dti', {'fa': 'nii.gz'})
+        qc_path = Path(self.file('qc.json'))
+        task['qc_path'] = str(qc_path)
+        for status in ('failed', 'partial_failed', 'error', 'FAIL'):
+            with self.subTest(status=status):
+                qc_path.write_text(json.dumps({'status': status, 'automatic_qc_passed': True}))
+                selected, skipped, _ = automatic_result_candidates({'tasks': [task]})
+                self.assertEqual(selected, [])
+                self.assertEqual(skipped[0]['reason_category'], 'qc_failed')
+
+    def test_explicit_failed_check_or_error_cannot_be_hidden_by_pass_flag(self):
+        task = self.task('microstructure.dti', {'fa': 'nii.gz'})
+        qc = Path(self.file('qc.json'))
+        task['qc_path'] = str(qc)
+        for detail in ({'checks': {'native_grid': False}},
+                       {'checks': [{'name': 'native_grid', 'passed': False}]},
+                       {'error': 'Native grid mismatch'}):
+            qc.write_text(json.dumps({'status': 'completed', 'automatic_qc_passed': True, **detail}))
+            selected, skipped, _ = automatic_result_candidates({'tasks': [task]})
+            self.assertEqual(selected, [])
+            self.assertEqual(skipped[0]['qc_state'], 'failed')
 
     def test_dki_all_six_maps_and_distinct_corrected_maps(self):
         maps = ("mk", "ak", "rk", "kfa", "mkt", "rtk")

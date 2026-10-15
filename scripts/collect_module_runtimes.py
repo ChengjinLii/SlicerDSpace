@@ -35,12 +35,12 @@ CATALOG = [
     ('segmentation.ddseg_world_qc', 'DDSeg world-coordinate QC', 'DDSeg 世界坐标 QC'),
     ('parcellation.ddparcel', 'DDParcel', 'DDParcel'),
     ('surface.ddsurfer', 'DDSurfer native surfaces', 'DDSurfer 原生表面'),
-    ('surface.ddsurfer_postprocess', 'Surface postprocessing (historical)', '表面后处理（历史版）'),
+    ('surface.ddsurfer_postprocess', 'Surface postprocessing', '表面后处理'),
     ('microstructure.dti', 'DTI scalar export / ROI', 'DTI 参数导出 / ROI'),
     ('microstructure.freewater', 'Free-water', 'Free-water'),
     ('microstructure.noddi', 'AMICO NODDI', 'AMICO NODDI'),
-    ('microstructure.dki', 'DIPY DKI WLS (64 voxels)', 'DIPY DKI WLS（64 体素）'),
-    ('microstructure.mkcurve', 'Python MK-Curve (8 voxels)', 'Python MK-Curve（8 体素）'),
+    ('microstructure.dki', 'DIPY DKI WLS', 'DIPY DKI WLS'),
+    ('microstructure.mkcurve', 'Python MK-Curve', 'Python MK-Curve'),
     ('tractography.dti_det', 'DTI deterministic tractography', 'DTI 确定性追踪'),
     ('tractography.csd_act', 'CSD / ACT / SIFT2 route', 'CSD / ACT / SIFT2 路线'),
     ('tractography.saf', 'SAF re-filtering', 'SAF 重新筛选'),
@@ -59,6 +59,14 @@ SUCCESS = {'completed', 'passed', 'success', 'pass'}
 
 def read(path):
     return json.loads(path.read_text(encoding='utf-8'))
+
+
+def bundle_timing_status(module, payload):
+    from shared.bundle_qc import bundle_record_error
+
+    if bundle_record_error(module, payload):
+        return 'scientific_contract_failed'
+    return payload.get('status', 'unknown')
 
 
 def record(module, subject, seconds, source, field, scope, *, status='completed', priority=0, evidence='historical', **extra):
@@ -96,6 +104,8 @@ def collect_device_measurements(directory):
          'Phase-instrumented Auto GPU repeat', '288-volume real HCP DWI'),
         ('brainmask.synthstrip', 'sub-dicom', 'synthstrip_phase_gpu/synthstrip_acceptance.json', 'seconds', False,
          'Phase-instrumented Auto GPU repeat', '31-volume real DWI'),
+        ('preprocessing.mrtrix_fsl', 'sub-dicom', 'eddy_cuda_fresh/acceptance.json', 'runtime_seconds', True,
+         'Latest current-policy CUDA preprocessing rerun', '31-volume real DWI / reverse-PE b0'),
     ]
     for module, subject, relative, field, representative, label, inputs in runs:
         path = directory / relative
@@ -140,7 +150,7 @@ def collect_device_measurements(directory):
         }
         records.append(record(
             module, subject, payload.get(field), path, field, scopes[module], status=status,
-            priority=6 if representative else 5, evidence='real_device_acceptance',
+            priority=7 if relative == 'eddy_cuda_fresh/acceptance.json' else 6 if representative else 5, evidence='real_device_acceptance',
             input_scope=inputs, run_label=label, representative=representative,
             device=device.get('resolved'), requested_device=device.get('requested'),
             device_execution=device, input_records=result.get('signature', {}).get('inputs') or payload.get('source_sha256'),
@@ -158,6 +168,7 @@ def collect_device_measurements(directory):
 
 def device_table(records, chinese=False):
     names = {module: zh if chinese else en for module, en, zh in CATALOG}
+    selected_sources = {r['source_record'] for r in select(records) if r['source_record']}
     labels_zh = {
         'CPU reference': 'CPU 对照', 'Default Auto GPU run': '默认 Auto GPU 运行',
         'Explicit CUDA repeat': '显式 CUDA 重复',
@@ -169,6 +180,7 @@ def device_table(records, chinese=False):
         'Corrected CUDA eddy full preprocessing': '修正 CUDA eddy 后的完整预处理',
         'Seeded CUDA inference and decoded QC': '固定种子 CUDA 推理及解码 QC',
         'Phase-instrumented Auto GPU repeat': '含分阶段计时的 Auto GPU 重复',
+        'Latest current-policy CUDA preprocessing rerun': '当前策略最新 CUDA 预处理重跑',
     }
     unrecorded = '未记录' if chinese else 'not recorded'
     lines = ['| 模块 | 运行 / 范围 | 请求 → 实际设备 | 秒 | 执行 / 完整性状态 |' if chinese else
@@ -179,7 +191,7 @@ def device_table(records, chinese=False):
             continue
         seconds = f"{r['runtime_seconds']:.3f}" if r['runtime_seconds'] is not None else 'MISSING'
         state = r['status']
-        if r.get('representative') and state.lower() in SUCCESS:
+        if r['source_record'] in selected_sources and state.lower() in SUCCESS:
             state += ' / ' + ('主表采用' if chinese else 'representative')
         label = labels_zh.get(r['run_label'], r['run_label']) if chinese else r['run_label']
         lines.append(f"| {names[r['module']]} | {label} | {r.get('requested_device') or unrecorded} / "
@@ -210,6 +222,9 @@ def collect(campaign, verification, device_verification=None):
                 'tractography.saf': 'Historical SAF route before the corrected Python port; use the separate current re-filter timing instead',
             }
             execution = task.get('status', 'unknown') if m.get('execute') else 'dry_run'
+            if name in {'bundles.wmql', 'bundles.wma'} and execution in SUCCESS:
+                qc = Path(task.get('qc_path') or '')
+                execution = bundle_timing_status(name, read(qc) if qc.is_file() else {})
             records.append(record(name, m.get('subject_id'), task.get('runtime_seconds'), path,
                                   f'tasks[{index}].runtime_seconds', scopes.get(name, 'Recorded task wall time; shared prerequisite caches may already exist'),
                                   status=execution, started_at=task.get('started_at'), ended_at=task.get('ended_at'),
@@ -242,7 +257,7 @@ def collect(campaign, verification, device_verification=None):
         if path.is_file():
             m = read(path)
             records.append(record(module, subject, m.get(field), path, field, scope,
-                                  status=m.get('status', 'unknown'), priority=4, input_scope=inputs,
+                                  status=bundle_timing_status(module, m) if module in {'bundles.wmql', 'bundles.wma'} else m.get('status', 'unknown'), priority=4, input_scope=inputs,
                                   evidence='new_real_measurement' if path.is_relative_to(verification) else 'historical_backend_record',
                                   partial=partial))
     native = verification / 'native_cli_fixed/bundle_products/bundle_products.json'
@@ -271,6 +286,126 @@ def collect(campaign, verification, device_verification=None):
     return records
 
 
+def collect_bundle_followup(directory):
+    records = []
+    for module, relative, scope in (
+        ('bundles.wmql', 'wmql_dynamic1m/wmql_qc.json', 'Fresh 1M-track input; AF 80/53, CST 133/304; candidate integrity/sampling only, anatomy pending'),
+        ('bundles.wma', 'wma_dynamic50k/wma_org_atlas_qc.json', 'Fresh official 50k dynamic CSD input; 64/74 nonempty but CST 1/0; FAILED, not a successful benchmark'),
+    ):
+        path = directory / relative
+        if path.is_file():
+            payload = read(path)
+            records.append(record(module, payload.get('subject_id'), payload.get('elapsed_seconds'), path,
+                                  'elapsed_seconds', scope, status=bundle_timing_status(module, payload), priority=10,
+                                  evidence='real_bundle_followup', anatomical_review='pending', input_scope=scope))
+    return records
+
+
+def collect_cst_definition_followup(directory):
+    source = directory / 'default_v4_paired/wmql_qc.json'
+    audit_path = directory / 'default_v4_paired_audit.json'
+    if not source.is_file() or not audit_path.is_file():
+        return []
+    from tractography.wmql import wmql_query_cache_current
+    payload, independent = read(source), read(audit_path)
+    manifest = read(source.with_name('wmql_manifest.json'))
+    counts = {item['query_name']: item.get('streamline_count') for item in payload.get('output_summary', {}).get('bundles', [])}
+    passed = (bundle_timing_status('bundles.wmql', payload) == 'completed'
+              and wmql_query_cache_current(manifest)
+              and bool(independent.get('checks')) and all(value is True for value in independent['checks'].values()))
+    return [record('bundles.wmql', payload.get('subject_id'), payload.get('elapsed_seconds'), source,
+                   'elapsed_seconds', 'QC v4; original paired DDParcel atlas; published/tutorial CST endpoint definition; anatomy pending',
+                   status='completed' if passed else 'current_acceptance_failed', priority=30,
+                   evidence='paired_published_cst_recheck', anatomical_review='pending',
+                   input_scope=f"Existing {independent.get('input_streamlines')} CSD tracks; AF {counts.get('af.left')}/{counts.get('af.right')}, CST {counts.get('cst.left')}/{counts.get('cst.right')}; full query/import snapshots")]
+
+
+def collect_completion_measurements(directory):
+    """Promote new timings only after their independent acceptance completed."""
+    records = []
+    for module, relative in (
+        ('microstructure.dki', 'dki_independent'),
+        ('surface.ddsurfer_postprocess', 'postprocess'),
+        ('bundles.wma', 'wma_dynamic1m'),
+    ):
+        source = directory / relative / 'acceptance.json'
+        if not source.is_file():
+            continue
+        payload = read(source)
+        passed = payload.get('status') == 'passed' and payload.get('automatic_qc_passed') is True
+        passed &= bool(payload.get('checks') or payload.get('inputs_unchanged'))
+        if payload.get('checks'):
+            passed &= all(value is True for value in payload['checks'].values())
+        if module == 'microstructure.dki':
+            independent = payload.get('independent_checks') or []
+            passed &= bool(independent) and all(check.get('passed') is True for check in independent)
+            seconds = payload.get('full_fit_runtime_seconds')
+            field = 'full_fit_runtime_seconds'
+            scope = f"Full supplied brain mask: {payload.get('mask_voxels')} voxels; {payload.get('valid_voxels')} valid; read-only full-grid and direct-DIPY sample parity passed"
+        else:
+            seconds = payload.get('runtime_seconds')
+            field = 'runtime_seconds'
+            scope = ('Fresh full bilateral current-snapshot surface postprocessing; independent geometry/morphometry/annotation checks'
+                     if module == 'surface.ddsurfer_postprocess' else
+                     'Fresh official ORG atlas on existing 1M CSD input; decoded coverage and major-tract sampling checks')
+            if module == 'bundles.wma':
+                qc_path = Path(payload.get('qc') or '')
+                passed &= qc_path.is_file() and not bundle_timing_status(module, read(qc_path)) == 'scientific_contract_failed'
+            else:
+                qc_path = Path(payload.get('qc') or '')
+                qc = read(qc_path) if qc_path.is_file() else {}
+                integrity = qc.get('integrity') or {}
+                passed &= qc.get('automatic_qc_passed') is True and integrity.get('version') == 1
+                passed &= bool(integrity.get('checks')) and all(value is True for value in integrity['checks'].values())
+        records.append(record(module, payload.get('subject_id'), seconds, source, field, scope,
+                              status='completed' if passed else payload.get('status', 'failed') if payload.get('status') != 'passed' else 'integrity_contract_failed',
+                              priority=20, evidence='current_route_acceptance', anatomical_review=payload.get('human_review'),
+                              input_scope=scope, device='cpu'))
+    return records
+
+
+def collect_scientific_closure(directory):
+    """Full-brain timings and paired tracking comparisons, never anatomy approval."""
+    records = []
+    source = directory / 'mkcurve_fullbrain/acceptance.json'
+    if source.is_file():
+        payload = read(source)
+        parity, checks = payload.get('reference_parity') or {}, payload.get('checks') or []
+        passed = (payload.get('status') == 'passed' and payload.get('automatic_integrity_qc_passed') is True
+                  and payload.get('inputs_unchanged') is True and bool(parity) and bool(checks)
+                  and all(value.get('passed') is True for value in parity.values())
+                  and all(check.get('passed') is True for check in checks)
+                  and (payload.get('mask_voxels') or 0) > 0)
+        records.append(record('microstructure.mkcurve', payload.get('subject_id', '100307'),
+            payload.get('runtime_seconds'), source, 'runtime_seconds',
+            'Complete supplied brain mask; batched WLLS with ill-conditioned QR fallback; full grid, source hashes and reference sample parity; no voxel filling',
+            status='completed' if passed else 'current_acceptance_failed', priority=40,
+            evidence='full_brain_mkcurve_acceptance', device='cpu', anatomical_review='pending',
+            input_scope=f"{payload.get('mask_voxels')} mask voxels / {payload.get('corrected_valid_voxels')} corrected-valid; not all voxels valid",
+            quantitative_domain_all_voxels_valid=payload.get('quantitative_domain_all_voxels_valid')))
+    for module, relative, qc_name in (
+        ('bundles.wmql', 'wmql_legacy_ukf', 'wmql_qc.json'),
+        ('bundles.wma', 'wma_ukf_native', 'products/wma_org_atlas_qc.json'),
+    ):
+        source = directory / relative / qc_name
+        independent = directory / (relative + '_independent') / 'acceptance.json'
+        if not source.is_file():
+            continue
+        qc = read(source)
+        audited = read(independent) if independent.is_file() else {}
+        checks = audited.get('checks') or {}
+        passed = (bundle_timing_status(module, qc) == 'completed'
+                  and audited.get('status') == 'passed' and audited.get('automatic_qc_passed') is True
+                  and bool(checks) and all(value is True for value in checks.values()))
+        records.append(record(module, qc.get('subject_id'), qc.get('elapsed_seconds'), source,
+            'elapsed_seconds', 'New same-subject UKF input; unchanged author classifier/rules and fixed major-tract gates; independent source membership; anatomy pending',
+            status='completed' if passed else 'current_acceptance_failed', priority=40,
+            evidence='paired_ukf_comparison', device='cpu', anatomical_review='pending',
+            input_scope=f"{audited.get('input_streamlines')} UKF tracks; independent audit {'passed' if passed else 'required'}",
+            independent_record=str(independent.resolve()) if independent.is_file() else None))
+    return records
+
+
 def select(records):
     rows = []
     for module, en, zh in CATALOG:
@@ -295,12 +430,42 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--campaign', type=Path, default=ROOT / 'ignore/validation/slicer_acceptance_20261006/science/subjects')
     parser.add_argument('--verification', type=Path, default=ROOT / 'ignore/validation/bundles_runtime_20261013')
-    parser.add_argument('--device-verification', type=Path, default=ROOT / 'ignore/validation/pnl_gpu_20261013')
+    parser.add_argument('--device-verification', type=Path, action='append', default=[ROOT / 'ignore/validation/pnl_gpu_20261013'])
+    parser.add_argument('--report-date', default='2026-10-13', help='Dated documentation filename (YYYY-MM-DD); old inventories are preserved')
+    parser.add_argument('--bundle-followup', type=Path, default=ROOT / 'ignore/validation/bundle_fix_20261015')
+    parser.add_argument('--scalar-verification', type=Path)
+    parser.add_argument('--completion-verification', type=Path, default=ROOT / 'ignore/validation/pipeline_completion_20261015')
+    parser.add_argument('--cst-verification', type=Path, default=ROOT / 'ignore/validation/wmql_cst_20261015')
+    parser.add_argument('--scientific-closure', type=Path, default=ROOT / 'ignore/validation/scientific_closure_20261015')
     parser.add_argument('--output-dir', required=True, type=Path)
     parser.add_argument('--documentation-dir', type=Path)
     args = parser.parse_args()
-    records = collect(args.campaign, args.verification, args.device_verification)
+    try:
+        date_id = datetime.strptime(args.report_date, '%Y-%m-%d').strftime('%Y%m%d')
+    except ValueError:
+        parser.error('--report-date must be a valid YYYY-MM-DD date')
+    records = collect(args.campaign, args.verification)
+    records.extend(collect_bundle_followup(args.bundle_followup))
+    records.extend(collect_completion_measurements(args.completion_verification))
+    records.extend(collect_cst_definition_followup(args.cst_verification))
+    records.extend(collect_scientific_closure(args.scientific_closure))
+    if args.scalar_verification:
+        source = args.scalar_verification / 'acceptance.json'
+        if source.is_file():
+            payload = read(source)
+            for index, stage in enumerate(payload.get('checks') or []):
+                if stage.get('stage') == 'noddi_refit' and stage.get('status') == 'completed':
+                    qc = read(Path(stage['qc']))
+                    if qc.get('automatic_qc_passed') is True:
+                        progress = read(Path(stage['qc']).with_name('noddi_progress.json'))
+                        records.append(record('microstructure.noddi', payload['subject_id'], stage['seconds'], source,
+                            f'checks[{index}].seconds', stage['scope'], priority=10, evidence='full_brain_isolated_refit',
+                            input_scope=f"{qc.get('validity', {}).get('brain_mask_voxels')} mask voxels / {progress.get('nthreads')} CPU threads",
+                            device='cpu', anatomical_review='pending'))
+    for directory in dict.fromkeys(args.device_verification):
+        records.extend(collect_device_measurements(directory))
     rows = select(records)
+    preproc_seconds = next(r['seconds'] for r in rows if r['module'] == 'preprocessing.mrtrix_fsl')
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with (args.output_dir / 'module_runtimes.csv').open('w', newline='', encoding='utf-8') as file:
         writer = csv.DictWriter(file, fieldnames=list(rows[0]), lineterminator='\n')
@@ -314,7 +479,7 @@ def main():
                          'Representative device acceptances are chosen by protocol, not minimum runtime; CPU references, repeats and failures remain in records.',
                          'PNL CPU/GPU times include registration/startup; do not claim speedup over a historical unpaired CPU record.',
                          'CUDA eddy acceptance measures the whole preprocessing route, not eddy alone.',
-                         'Full-brain DKI and MK-Curve times are not extrapolated from their ROI measurements.',
+                         'DKI and MK-Curve use full-brain timings only after independent integrity/reference acceptance; historical ROI records remain, never extrapolated.',
                          'Resource downloads, optional UKF/WMA diffusion-measurement export, batch scheduling and final scene save are outside this catalog.'])
     (args.output_dir / 'module_runtimes.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     for chinese in (False, True):
@@ -332,24 +497,24 @@ def main():
             docs.mkdir(parents=True, exist_ok=True)
             suffix = '.zh-CN' if chinese else ''
             heading = '模块运行时间' if chinese else 'Module Runtime Inventory'
-            alternate = 'MODULE_RUNTIMES_20261013.md' if chinese else 'MODULE_RUNTIMES_20261013.zh-CN.md'
+            alternate = f'MODULE_RUNTIMES_{date_id}.md' if chinese else f'MODULE_RUNTIMES_{date_id}.zh-CN.md'
             introduction = (
                 f'汇总真实历史记录与本轮补测，共 {len(rows)} 项操作。READY 仅表示有明确范围的实测计时，不表示解剖准确性获认证。'
                 '缺失不填 0，失败/跳过/缓存复用不充作成功计算。完整账本和来源哈希见下方 CSV/JSON。\n\n'
                 '新增计时包括三种输入导入、MRtrix/SynthStrip 掩膜、全新全脑 DTI、六指标 ROI 统计和三类束的 Slicer 加载。'
-                'WMQL/TractCloud 用当前修正封装真实重跑；WMA 使用已有通过范围契约的 149741 记录。'
+                'WMQL/TractCloud 使用真实重跑；WMA 仅在新运行完成独立验收后替换原 149741 范围记录。'
                 'PNL/SynthStrip 和 MRtrix/FSL 已纳入本轮真实 GPU 验收，CPU 对照、重复运行和失败记录在下方单独展示。\n'
                 if chinese else
                 f'Real historical records and new measurements cover {len(rows)} operations. READY means a scoped time exists, not anatomical certification. '
                 'Missing values are not zero; failed/skipped/cache checks are not successful computation. CSV/JSON preserve the ledger and source hashes.\n\n'
                 'New measurements include three imports, MRtrix/SynthStrip masks, fresh full-volume DTI, six-map ROI statistics and native bundle loading. '
-                'WMQL/TractCloud use corrected reruns; WMA uses the existing scoped-pass 149741 run. '
+                'WMQL/TractCloud use real reruns; WMA replaces the scoped 149741 record only after a new independent acceptance. '
                 'PNL/SynthStrip and MRtrix/FSL now include real GPU acceptances; CPU references, repeats and failures are shown separately below.\n'
             )
             boundary = (
-                '- **DKI 和 MK-Curve 是真实小 ROI 的 PARTIAL 记录**：分别 64 / 8 体素，不能当作全脑耗时，不能外推。\n'
+                '- DKI/MK-Curve 只有完整独立验收通过后才采用实测全脑时间；旧 64/8 体素记录保留且不外推。MK-Curve 计时不表示全部体素有效。\n'
                 '- DTI 参数导出行复用已经拟合的张量；全新 DTI 行包含拟合与六指标转换，两者不混淆。\n'
-                '- 表面后处理为 10 月 6 日历史全流程，不能作为 10 月 13 日优化版的速度保证。\n'
+                '- 表面后处理只有新版独立完整验收通过后才替换历史计时；范围和版本以 JSON 来源为准。\n'
                 '- CSD/ACT/SIFT2 是组合阶段；没有伪造其中 FOD、ACT、SIFT2 的独立计时。\n'
                 '- Slicer 加载时间包含独立坐标对照，排除启动和束提取。新全脑 DTI 测试进程总时间 165.7 秒，不冒充 136 秒拟合计时。\n'
                 '- 不同被试、输入规模、缓存、线程、版本与当时负载不可直接横比或相加；历史硬件/线程缺记录时不从当前机器反推。\n'
@@ -360,9 +525,9 @@ def main():
                 '- 当前实测主机为 Xeon Platinum 8360Y、144 逻辑 CPU、约 503.5 GiB 内存、两张 H100；并非各记录都使用 GPU。\n'
                 '- 模型下载、可选 UKF 追踪/WMA diffusion-measurement 导出、批调度和最终场景保存不在本表范围。\n'
                 if chinese else
-                '- **DKI / MK-Curve are PARTIAL real-ROI measurements**, 64 / 8 voxels respectively. Full-brain times are unmeasured and not extrapolated.\n'
+                '- DKI/MK-Curve use full-brain times only after independent acceptance; historical 64/8-voxel records remain, never extrapolated. MK-Curve timing does not imply every voxel is valid.\n'
                 '- DTI scalar export reuses a fitted tensor; fresh DTI includes fitting and six scalar conversions.\n'
-                '- Surface postprocessing is the October 6 historical full route, not an October 13 optimized-version speed claim.\n'
+                '- A new surface-postprocessing time replaces the historical record only after independent full-route acceptance; JSON records identify the actual scope/version.\n'
                 '- CSD/ACT/SIFT2 is a combined stage; no individual FOD/ACT/SIFT2 timings are invented.\n'
                 '- Slicer loading includes independent coordinate comparison but excludes startup/extraction. The 165.7 s DTI acceptance process is not confused with the 136 s fitting measurement.\n'
                 '- Different subjects, sizes, caches, threads, versions and concurrent load cannot be compared or summed directly. Missing historical hardware/thread metadata is not inferred.\n'
@@ -373,10 +538,12 @@ def main():
                 '- New-measurement host: Xeon Platinum 8360Y, 144 logical CPUs, about 503.5 GiB RAM and two H100 GPUs; not every operation used GPUs.\n'
                 '- Downloads, optional UKF tracking/WMA diffusion-measurement export, batch scheduling and final scene saving are outside this catalog.\n'
             )
+            if preproc_seconds is not None:
+                boundary = boundary.replace('719', f'{preproc_seconds:.0f}')
             text = (f'<div align="center">\n\n# {heading}\n\n**2026-10-13 · Measured, scoped, traceable**\n\n'
                     f'[Project](../../README.md) | [QC](BUNDLE_BACKENDS_20261013{suffix}.md) | '
                     f'[GPU verification](GPU_POLICY_20261013.md) | '
-                    f'[CSV](benchmarks/module_runtimes_20261013.csv) | [JSON](benchmarks/module_runtimes_20261013.json) | '
+                    f'[CSV](benchmarks/module_runtimes_{date_id}.csv) | [JSON](benchmarks/module_runtimes_{date_id}.json) | '
                     f'[Other language]({alternate})\n\n</div>\n\n' + introduction + '\n---\n\n' + '\n'.join(lines) +
                     '\n\n---\n\n' + ('## 计时边界\n\n' if chinese else '## Measurement Boundaries\n\n') + boundary +
                     '\n---\n\n' + ('## CPU / GPU 对照与失败记录\n\n' if chinese else '## CPU / GPU References And Failed Attempts\n\n') +
@@ -384,12 +551,16 @@ def main():
                     ('设备缺少记录时不从日志推断；软件版本、输入哈希、来源文件和完整计时范围保留在 JSON。失败耗时仅供排障，不参与主表选取。\n'
                      if chinese else 'Unrecorded device choices are not inferred from logs. Software versions, input hashes, source files and full timing scopes remain in JSON. Failed durations are for troubleshooting, never representative compute timings.\n') +
                     '\n```bash\npython scripts/collect_module_runtimes.py --output-dir /path/to/report --documentation-dir docs/release\n```\n')
-            (docs / f'MODULE_RUNTIMES_20261013{suffix}.md').write_text(text, encoding='utf-8')
+            text = text.replace('**2026-10-13 · Measured, scoped, traceable**', f'**{args.report_date} · Measured, scoped, traceable**')
+            if date_id != '20261013':
+                text += ('\n本表为更新后的汇总；多数模块仍使用限定范围的历史记录，不表示全部在该日期重跑。\n'
+                         if chinese else '\nThis updated inventory includes scoped historical timings; not every module was rerun on this date.\n')
+            (docs / f'MODULE_RUNTIMES_{date_id}{suffix}.md').write_text(text, encoding='utf-8')
     if args.documentation_dir:
         numerical = args.documentation_dir / 'benchmarks'
         numerical.mkdir(exist_ok=True)
         for suffix in ('csv', 'json'):
-            shutil.copy2(args.output_dir / f'module_runtimes.{suffix}', numerical / f'module_runtimes_20261013.{suffix}')
+            shutil.copy2(args.output_dir / f'module_runtimes.{suffix}', numerical / f'module_runtimes_{date_id}.{suffix}')
     print(json.dumps({'rows': len(rows), 'records': len(records), 'missing': [r['module'] for r in rows if r['measurement_status'] == 'MISSING'],
                       'partial': [r['module'] for r in rows if r['measurement_status'] == 'PARTIAL']}, indent=2))
 

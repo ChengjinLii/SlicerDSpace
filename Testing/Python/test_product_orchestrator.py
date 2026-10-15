@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sys
 import tempfile
 import unittest
@@ -33,13 +34,13 @@ def _write_test_surface(path: Path) -> None:
     trimesh.creation.icosphere(subdivisions=1).export(path)
 
 
-def _write_test_tractogram(path: Path, *, length_mm: float = 20.0) -> None:
+def _write_test_tractogram(path: Path, *, length_mm: float = 20.0, count: int = 1) -> None:
     import nibabel as nib
     import numpy as np
 
     path.parent.mkdir(parents=True, exist_ok=True)
     streamline = np.asarray(((0.0, 0.0, 0.0), (length_mm, 0.0, 0.0)), dtype=np.float32)
-    tractogram = nib.streamlines.Tractogram([streamline], affine_to_rasmm=np.eye(4))
+    tractogram = nib.streamlines.Tractogram([streamline] * count, affine_to_rasmm=np.eye(4))
     nib.streamlines.save(tractogram, path.as_posix())
 
 
@@ -54,8 +55,27 @@ def _file_record(path: Path) -> dict[str, object]:
     }
 
 
+def _wmql_query_fixture(folder):
+    import shutil
+    from tractography.wmql import bundled_wmql_query_path, wmql_query_dependencies
+    query = bundled_wmql_query_path()
+    directories = [REPO_ROOT / 'third_party/tract_querier/tract_querier/data']
+    dependencies = wmql_query_dependencies(query, directories)
+    snapshot = folder / 'queries'
+    snapshot.mkdir(exist_ok=True)
+    for source in dependencies:
+        shutil.copy2(source, snapshot / Path(source).name)
+    staged = snapshot / query.name
+    return dict(query_path=str(query), staged_query=str(staged),
+                query_sha256=hashlib.sha256(query.read_bytes()).hexdigest(),
+                query_dependencies=dependencies, query_snapshot_dependencies=wmql_query_dependencies(staged, [snapshot]),
+                query_include_dirs=list(map(str, directories)))
+
+
 def _write_current_act_prep(layout, subject_id: str, segmentation: Path) -> dict[str, Path]:
-    """Write version-2 ACT prep outputs whose manifest records the current segmentation."""
+    """Write current ACT prep outputs recording the current segmentation."""
+
+    from tractography.act_prep import ACT_PREP_VERSION
 
     layout.act_prep.mkdir(parents=True, exist_ok=True)
     five_tt = layout.act_prep / f"{subject_id}_5tt_from_labels.nii.gz"
@@ -64,11 +84,11 @@ def _write_current_act_prep(layout, subject_id: str, segmentation: Path) -> dict
     gmwmi.write_text("gmwmi", encoding="utf-8")
     seg_record = {**_file_record(segmentation), "exists": True}
     (layout.act_prep / "act_prep_manifest.json").write_text(
-        json.dumps({"version": 2, "status": "completed", "inputs": {"segmentation": seg_record, "parcellation": None}}) + "\n",
+        json.dumps({"version": ACT_PREP_VERSION, "status": "completed", "inputs": {"segmentation": seg_record, "parcellation": None}}) + "\n",
         encoding="utf-8",
     )
     (layout.act_prep / "act_prep_qc.json").write_text(
-        json.dumps({"version": 2, "status": "completed"}) + "\n", encoding="utf-8"
+        json.dumps({"version": ACT_PREP_VERSION, "status": "completed"}) + "\n", encoding="utf-8"
     )
     return {"five_tt": five_tt, "gmwmi": gmwmi}
 
@@ -1247,11 +1267,13 @@ class ProductOrchestratorTest(unittest.TestCase):
                 encoding="utf-8",
             )
             wmql_bundle = wmql_dir / "100307_desc-wmql_CST.left.trk"
-            _write_test_tractogram(wmql_bundle)
+            _write_test_tractogram(wmql_bundle, count=20)
             (wmql_dir / "wmql_qc.json").write_text(
                 json.dumps(
                     {
                         "status": "completed",
+                        "version": 4,
+                        "automatic_qc_passed": True,
                         "output_summary": {"bundle_files": [wmql_bundle.as_posix()]},
                     }
                 )
@@ -1259,10 +1281,19 @@ class ProductOrchestratorTest(unittest.TestCase):
                 encoding="utf-8",
             )
             parcellation_path = parcel_dir / "100307-DDSurfer-wmparc.nii.gz"
+            from microstructure.pipeline import _file_signature
+            from shared.orchestrator import _parcellation_outputs
+
+            (parcel_dir / "ddparcel_qc.json").write_text(json.dumps({
+                "status": "completed", "automatic_qc_passed": True, "checks": {"synthetic_fixture": True},
+                "output_artifacts": {str(path.resolve()): _file_signature(path)
+                    for path in _parcellation_outputs(subject_root, "100307").values()},
+            }))
             (wmql_dir / "wmql_manifest.json").write_text(
                 json.dumps(
                     {
                         "query_selection": ["CST.left"],
+                        **_wmql_query_fixture(wmql_dir),
                         "dependencies": {
                             "input_tractography": _file_record(csd_trk),
                             "atlas": _file_record(parcellation_path),
@@ -1326,11 +1357,16 @@ class ProductOrchestratorTest(unittest.TestCase):
             micro_dir.mkdir(parents=True)
             for suffix in ("FA", "MD", "AD", "RD", "L1", "L2", "L3", "Trace"):
                 _write_test_volume(micro_dir / f"100307_dti_{suffix}.nii.gz")
+            (micro_dir / "dti_qc.json").write_text(json.dumps({
+                "status": "completed", "automatic_qc_passed": True, "checks": {"synthetic_fixture": True},
+                "output_artifacts": {str(path.resolve()): _file_signature(path) for path in micro_dir.glob("*.nii.gz")},
+            }))
             (layout.microstructure / "manifest.json").write_text(
                 json.dumps(
                     {
                         "status": "completed",
                         "raw_input_bundle": {key: _file_record(path) for key, path in raw_paths.items()},
+                        "fit_method": "wls",
                     }
                 )
                 + "\n",
@@ -1388,11 +1424,13 @@ class ProductOrchestratorTest(unittest.TestCase):
             wmql_dir = layout.bundles_wmql / run_name
             wmql_dir.mkdir(parents=True)
             bundle = wmql_dir / "100307_desc-wmql_CST.left.trk"
-            _write_test_tractogram(bundle)
+            _write_test_tractogram(bundle, count=20)
             (wmql_dir / "wmql_qc.json").write_text(
                 json.dumps(
                     {
                         "status": "completed",
+                        "version": 4,
+                        "automatic_qc_passed": True,
                         "output_summary": {"bundle_files": [bundle.as_posix()]},
                     }
                 )
@@ -1403,6 +1441,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                 json.dumps(
                     {
                         "query_selection": ["CST.left"],
+                        **_wmql_query_fixture(wmql_dir),
                         "dependencies": {
                             "input_tractography": _file_record(tractogram),
                             "atlas": _file_record(parcellation),
@@ -1523,6 +1562,15 @@ class ProductOrchestratorTest(unittest.TestCase):
                 "100307-dti-MidEigenvalue-Reg-NormMasked.nii.gz",
             ):
                 _write_test_volume(layout.ddparcel / name)
+
+            from microstructure.pipeline import _file_signature
+            from shared.orchestrator import _parcellation_outputs
+
+            (layout.ddparcel / "ddparcel_qc.json").write_text(json.dumps({
+                "status": "completed", "automatic_qc_passed": True, "checks": {"synthetic_fixture": True},
+                "output_artifacts": {str(path.resolve()): _file_signature(path)
+                    for path in _parcellation_outputs(subject_root, "100307", output_root).values()},
+            }))
 
             surface_dir = layout.ddsurfer / "pred_results_SlicerDDSurfer" / "native" / "100307"
             surface_dir.mkdir(parents=True)

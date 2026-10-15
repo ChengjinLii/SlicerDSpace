@@ -556,6 +556,7 @@ class SharedLogicMixin:
         model_assets_dir: Optional[Path] = None,
         ddseg_device: str = "auto",
         surface_device: str = "auto",
+        tractcloud_device: str = "auto",
         mrtrix_bin_dir: Optional[Path] = None,
         preprocessing_mrtrix_bin_dir: Optional[Path] = None,
         preprocessing_fsl_bin_dir: Optional[Path] = None,
@@ -611,6 +612,7 @@ class SharedLogicMixin:
                 model_assets_dir=model_assets_dir,
                 ddseg_device=ddseg_device,
                 surface_device=surface_device,
+                tractcloud_device=tractcloud_device,
                 select_streamlines=select_streamlines,
                 dti_min_length_mm=dti_min_length_mm,
                 dti_max_length_mm=dti_max_length_mm,
@@ -668,6 +670,7 @@ class SharedLogicMixin:
         model_assets_dir: Optional[Path] = None,
         ddseg_device: str = "auto",
         surface_device: str = "auto",
+        tractcloud_device: str = "auto",
         mrtrix_bin_dir: Optional[Path] = None,
         preprocessing_mrtrix_bin_dir: Optional[Path] = None,
         preprocessing_fsl_bin_dir: Optional[Path] = None,
@@ -723,6 +726,7 @@ class SharedLogicMixin:
                 model_assets_dir=model_assets_dir,
                 ddseg_device=ddseg_device,
                 surface_device=surface_device,
+                tractcloud_device=tractcloud_device,
                 select_streamlines=select_streamlines,
                 dti_min_length_mm=dti_min_length_mm,
                 dti_max_length_mm=dti_max_length_mm,
@@ -1018,12 +1022,20 @@ class SharedLogicMixin:
             from shared.auto_results import automatic_result_candidates
             candidates, skipped, deferred = automatic_result_candidates(manifest)
             for entry in skipped:
-                if entry.get("reason_category") == "qc_failed":
-                    for node in existing.get(entry["path"], []):
-                        if node.GetAttribute("SlicerDDSurfer.AutomaticLoaded") == "true":
-                            slicer.mrmlScene.RemoveNode(node)
-                    existing[entry["path"]] = [node for node in existing.get(entry["path"], [])
-                                               if node.GetAttribute("SlicerDDSurfer.AutomaticLoaded") != "true"]
+                if entry.get("reason_category") in {"qc_failed", "task_failed"}:
+                    failed_path = entry.get('path')
+                    failed_product = entry.get('product') or entry.get('label')
+                    for source, nodes in existing.items():
+                        retained = []
+                        for node in nodes:
+                            affected = (source == failed_path if failed_path else
+                                        node.GetAttribute('SlicerDDSurfer.Product') == failed_product)
+                            if affected and node.GetAttribute('SlicerDDSurfer.AutomaticLoaded') == 'true':
+                                slicer.mrmlScene.RemoveNode(node)
+                                self.log(f'[Slicer] Removed automatic preview for failed result: {source}')
+                            else:
+                                retained.append(node)
+                        existing[source] = retained
         else:
             candidates, skipped = result_candidates(manifest)
             deferred = candidates[max(0, max_items):]
@@ -1031,17 +1043,26 @@ class SharedLogicMixin:
         loaded, reused = [], []
         for candidate in candidates:
             path, label = Path(candidate["path"]), candidate["label"]
-            if mode == "reuse" and existing.get(candidate["path"]):
-                previous_nodes = existing[candidate["path"]]
+            previous_nodes = existing.get(candidate['path'], [])
+            if automatic:
+                automatic_nodes = [node for node in previous_nodes
+                                   if node.GetAttribute('SlicerDDSurfer.AutomaticLoaded') == 'true']
+                # Reuse a matching manual node without claiming ownership; an
+                # older manual review is retained alongside the new preview.
+                previous_nodes = automatic_nodes or [node for node in previous_nodes
+                    if node.GetAttribute('SlicerDDSurfer.SourceStamp') == source_stamp(path)]
+            if mode == "reuse" and previous_nodes:
                 if all(node.GetAttribute("SlicerDDSurfer.SourceStamp") == source_stamp(path) for node in previous_nodes):
                     if automatic:
                         for node in previous_nodes:
-                            annotate_automatic_result(node, candidate)
+                            if node.GetAttribute('SlicerDDSurfer.AutomaticLoaded') == 'true':
+                                annotate_automatic_result(node, candidate)
                     reused.append({**candidate, "node_ids": [node.GetID() for node in previous_nodes]})
                     continue
                 elif automatic:
                     for node in previous_nodes:
-                        slicer.mrmlScene.RemoveNode(node)
+                        if node.GetAttribute('SlicerDDSurfer.AutomaticLoaded') == 'true':
+                            slicer.mrmlScene.RemoveNode(node)
                 else:
                     skipped.append({"path": str(path), "reason": "Source changed since loading; use Replace to reload this run"})
                     continue

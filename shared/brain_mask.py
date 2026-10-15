@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 import os
+import platform
 from pathlib import Path
 import shutil
 import subprocess
@@ -84,7 +85,7 @@ def resolve_dwi2mask(explicit_bin_dir: Optional[Path] = None) -> Optional[Path]:
     return Path(found).resolve() if found else None
 
 
-def inspect_brain_mask_backend(config: BrainMaskConfig | None = None) -> dict[str, Any]:
+def inspect_brain_mask_backend(config: BrainMaskConfig | None = None, *, system: str | None = None) -> dict[str, Any]:
     """Inspect files/tools only; no TensorFlow import, model download or inference."""
     config = config or BrainMaskConfig()
     if config.backend not in BRAIN_MASK_BACKENDS:
@@ -138,9 +139,11 @@ def inspect_brain_mask_backend(config: BrainMaskConfig | None = None) -> dict[st
             else:
                 missing.append(command)
         tools["ants_bin_dir"] = str(ants) if ants else ""
-        if os.name == "nt":
+        if (system or platform.system()) == "Windows" or os.name == "nt":
             missing.append("PNL CNN requires a POSIX external runtime (use Linux/WSL pipeline execution)")
     elif config.backend == "synthstrip":
+        if (system or platform.system()) == "Windows" or os.name == "nt":
+            missing.append("Full FreeSurfer SynthStrip runtime is not native Windows; use a reviewed supplied mask or an explicitly configured Linux/WSL pipeline")
         home = _path(config.freesurfer_home, "FREESURFER_HOME")
         executable = home / "bin/mri_synthstrip" if home else _path(shutil.which("mri_synthstrip"))
         if executable is None or not executable.is_file() or not os.access(executable, os.X_OK):

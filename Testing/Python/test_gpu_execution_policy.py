@@ -50,6 +50,15 @@ class GPUExecutionPolicyTests(unittest.TestCase):
             self.assertEqual(os.environ["CUDA_VISIBLE_DEVICES"], "-1")
         tf.config.list_physical_devices.assert_not_called()
 
+    def test_macos_pnl_does_not_mislabel_tensorflow_metal_as_cuda(self):
+        tf = self.fake_tf(("METAL:0",))
+        with patch("shared.pnl_mask_runner.platform.system", return_value="Darwin"), patch.dict(os.environ):
+            self.assertEqual(pnl_device("auto", tf)["resolved"], "cpu")
+            self.assertEqual(os.environ["CUDA_VISIBLE_DEVICES"], "-1")
+            tf.config.set_visible_devices.assert_called_once_with([], "GPU")
+            with self.assertRaisesRegex(RuntimeError, "Metal is not a validated backend"):
+                pnl_device("cuda", tf)
+
     def test_pnl_no_gpu_auto_uses_cpu_but_explicit_cuda_fails(self):
         with patch.dict(os.environ):
             self.assertEqual(pnl_device("auto", self.fake_tf())["resolved"], "cpu")

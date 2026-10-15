@@ -79,6 +79,9 @@ def _analysis_input_path(manifest: dict[str, Any], key: str) -> Path:
         "bvec": "bvecs",
         "mask": "nodif_brain_mask.nii.gz",
     }
+    recorded = (manifest.get("analysis_inputs") or {}).get(key)
+    if recorded:
+        return Path(str(recorded))
     return Path(str(manifest["subject_root"])) / "input" / names[key]
 
 
@@ -399,6 +402,20 @@ def _audit_dti(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> bool:
     return True
 
 
+def _audit_act_preparation(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> None:
+    from shared.orchestrator import _act_inputs_current
+
+    task = _task_entry(manifest, "tractography.csd_act")
+    if not task:
+        return
+    path = Path(str(task.get("manifest_path") or ""))
+    _record_check(
+        checks, "tractography.csd_act.act_preparation_current",
+        path.is_file() and _act_inputs_current(path), str(path),
+        "unchanged ACT inputs with current tissue-mapping version; pre-v3 VentralDC sGM is not accepted",
+    )
+
+
 def _audit_tractography(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> bool:
     import nibabel as nib
     import numpy as np
@@ -654,6 +671,8 @@ def _audit_mkcurve(record_path, reference, checks):
     valid = arrays.get("corrected_valid_mask")
     if valid is not None:
         valid = valid > 0
+        _record_check(checks, "mkcurve.nonempty_corrected_valid", bool(valid.any()), int(valid.sum()),
+                      "at least one valid corrected quantitative voxel; not a quality-rate guarantee")
         _record_check(checks, "mkcurve.corrected_valid_count", int(valid.sum()) == record.get("corrected_valid_voxels"),
                       int(valid.sum()), "independent valid count agrees with record, not a clinical guarantee")
         for key in ("fa", "md", "ad", "rd", "mk", "ak", "rk", "nrmse"):
@@ -976,11 +995,34 @@ def _audit_qc_routes(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> 
                 summary["anatomical_tract_readable_count"] = sum(v is not None for v in decoded.values())
                 summary["anatomical_tract_nonempty_count"] = sum(v is not None and v > 0 for v in decoded.values())
                 summary["anatomical_empty_tracts"] = [k for k, v in decoded.items() if v == 0]
+                summary["anatomical_tract_count"] = len(paths)
+                summary["anatomical_tract_streamline_counts"] = decoded
+                from tractography.wma import _wma_output_contract_error
+
+                error = _wma_output_contract_error(summary)
+                _record_check(checks, "wma.current_sampling_contract", error is None, error,
+                              "current decoded coverage and major-tract sampling contract; anatomical review separate")
             else:
                 paths = [Path(str(value)) for value in summary.get("bundle_files", [])]
                 decoded = {str(path): vtp_streamline_count(path) for path in paths}
                 summary["bundle_readable_count"] = sum(v is not None for v in decoded.values())
                 summary["bundle_nonempty_count"] = sum(v is not None and v > 0 for v in decoded.values())
+        if route == "wmql":
+            from tractography.wmql import summarize_wmql_outputs, _wmql_output_contract_error
+
+            _, native_manifest = _json_record(task.get("manifest_path") or outputs.get("manifest"))
+            queries = tuple((native_manifest or {}).get("query_selection") or ())
+            root = summary.get("root") or (qc_path.parent if qc_path else None)
+            if root is not None:
+                try:
+                    summary = summarize_wmql_outputs(Path(root), str(qc.get("subject_id") or manifest.get("subject_id") or "") or None)
+                    error = _wmql_output_contract_error(summary, len(queries), queries)
+                except Exception as exc:
+                    error = str(exc)
+            else:
+                error = "Missing WMQL output root"
+            _record_check(checks, "wmql.current_sampling_contract", error is None, error,
+                          "current decoded requested-query/sampling contract; candidate anatomy remains pending")
         count_value = qc.get(count_key)
         if count_value is None:
             count_value = summary.get(count_key)
@@ -1535,6 +1577,7 @@ def audit_output_root(
         _audit_validation(manifest, checks)
         _audit_preprocessing(manifest, checks)
         has_dti = _audit_dti(manifest, checks)
+        _audit_act_preparation(manifest, checks)
         has_tractography = _audit_tractography(manifest, checks)
         structural_routes = _audit_structural(manifest, checks)
         optional_microstructure_routes = _audit_optional_microstructure(manifest, checks)

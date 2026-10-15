@@ -5,6 +5,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from shared.external_process import slicer_runtime_roots
+
 
 def _launcher(cli: Path, slicer_exe: Optional[Path]) -> list[str]:
     if slicer_exe and slicer_exe.exists():
@@ -13,13 +15,20 @@ def _launcher(cli: Path, slicer_exe: Optional[Path]) -> list[str]:
 
 
 def _find_slicer_lib_dir(slicer_base: Path) -> Path:
-    slicer_lib = slicer_base / "lib"
-    if not slicer_lib.exists():
-        raise FileNotFoundError(f"Missing Slicer lib directory: {slicer_lib}")
-    candidates = sorted(p for p in slicer_lib.iterdir() if p.is_dir() and p.name.startswith("Slicer-"))
-    if not candidates:
-        raise FileNotFoundError(f"No Slicer-* directory under {slicer_lib}")
-    return candidates[0]
+    for root in slicer_runtime_roots(slicer_base):
+        slicer_lib = root / "lib"
+        if slicer_lib.is_dir():
+            candidates = sorted(p for p in slicer_lib.iterdir() if p.is_dir() and p.name.startswith("Slicer-"))
+            if candidates:
+                return candidates[0]
+    raise FileNotFoundError(f"No Slicer-* library directory under install/app root: {slicer_base}")
+
+
+def _cli_path(directory: Path, name: str) -> Path:
+    for candidate in (directory / (name + ".exe"), directory / name):
+        if candidate.is_file():
+            return candidate
+    return directory / name
 
 
 def run_dti_feature_extraction(
@@ -41,11 +50,15 @@ def run_dti_feature_extraction(
         raise ValueError("slicer_ext is required for DTI feature extraction.")
 
     slicer_lib_dir = _find_slicer_lib_dir(slicer_base)
-    dwi_convert = slicer_lib_dir / "cli-modules" / "DWIConvert"
-    dti_est = slicer_ext / "lib" / slicer_lib_dir.name / "cli-modules" / "DWIToDTIEstimation"
-    dti_scalar = slicer_ext / "lib" / slicer_lib_dir.name / "cli-modules" / "DiffusionTensorScalarMeasurements"
-
-    slicer_exe = slicer_base / "Slicer"
+    extension_root = next((root for root in slicer_runtime_roots(slicer_ext)
+                           if (root / "lib" / slicer_lib_dir.name).is_dir()), slicer_ext)
+    dwi_convert = _cli_path(slicer_lib_dir / "cli-modules", "DWIConvert")
+    extension_cli = extension_root / "lib" / slicer_lib_dir.name / "cli-modules"
+    dti_est = _cli_path(extension_cli, "DWIToDTIEstimation")
+    dti_scalar = _cli_path(extension_cli, "DiffusionTensorScalarMeasurements")
+    slicer_exe = next((path for root in slicer_runtime_roots(slicer_base)
+                       for path in (root / "Slicer.exe", root / "Slicer", root / "MacOS/Slicer")
+                       if path.is_file()), None)
 
     dwi_nrrd = output_folder / "DWI.nrrd"
     dti_nrrd = output_folder / "DTI.nrrd"

@@ -17,6 +17,26 @@ from anatomy.segmentation.dti_slicer import run_dti_feature_extraction
 
 
 class DtiSlicerCommandConstructionTest(unittest.TestCase):
+    def test_windows_executables_and_macos_app_layout(self):
+        for windows in (True, False):
+            with self.subTest(windows=windows), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp) / ("SlicerWindows" if windows else "Slicer.app")
+                runtime = root if windows else root / "Contents"
+                cli = runtime / "lib/Slicer-5.10/cli-modules"
+                cli.mkdir(parents=True)
+                suffix = ".exe" if windows else ""
+                for name in ("DWIConvert", "DWIToDTIEstimation", "DiffusionTensorScalarMeasurements"):
+                    (cli / (name + suffix)).touch()
+                launcher = runtime / "Slicer.exe" if windows else runtime / "MacOS/Slicer"
+                launcher.parent.mkdir(parents=True, exist_ok=True)
+                launcher.touch()
+                with mock.patch("anatomy.segmentation.dti_slicer.subprocess.run") as run:
+                    with self.assertRaises(RuntimeError):
+                        run_dti_feature_extraction(root / "data.nii.gz", root / "bvals", root / "bvecs",
+                                                   root / "output", root, root)
+                self.assertEqual(run.call_count, 7)
+                self.assertEqual(run.call_args_list[0].args[0][:3], [str(launcher), "--launch", str(cli / ("DWIConvert" + suffix))])
+
     def _make_slicer_base(self, root: Path) -> Path:
         slicer_base = root / "SlicerBase"
         (slicer_base / "lib" / "Slicer-5.10").mkdir(parents=True)

@@ -18,6 +18,40 @@ from Testing.Python.test_microstructure_dki import synthetic_case, write_case
 
 
 class MKCurvePythonTests(unittest.TestCase):
+    def test_batched_solver_matches_pivoted_qr_and_falls_back_safely(self):
+        case = synthetic_case(noisy=True)
+        design = design_matrix(case['bvals'], case['bvecs'])
+        signals = case['data'].reshape(-1, len(design))
+        reference = fit_wlls(signals, design)
+        np.testing.assert_allclose(fit_wlls(signals, design, solver='batched'), reference, rtol=1e-8, atol=1e-10)
+        with patch('microstructure.mkcurve_tensor.np.linalg.eigvalsh', side_effect=lambda matrix: -np.ones(matrix.shape[:-1])):
+            np.testing.assert_equal(fit_wlls(signals, design, solver='batched'), reference)
+
+    def test_parallel_batched_maps_match_serial_reference(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            paths = write_case(root, synthetic_case(noisy=True))
+            inputs = [paths[key] for key in ('dwi', 'bval', 'bvec', 'mask')]
+            grid = np.arange(100, 2200, 100.)
+            reference = run_mkcurve(*inputs, root / 'reference', grid=grid)
+            parallel = run_mkcurve(*inputs, root / 'parallel', grid=grid, solver='batched', num_workers=2, voxels_per_chunk=2)
+            for key in reference['maps']:
+                np.testing.assert_allclose(nib.load(reference['maps'][key]).get_fdata(),
+                                           nib.load(parallel['maps'][key]).get_fdata(), rtol=2e-6, atol=2e-6)
+            np.testing.assert_allclose(np.load(reference['auxiliary_files']['curve']),
+                                       np.load(parallel['auxiliary_files']['curve']), rtol=2e-7, atol=2e-7)
+
+    def test_zero_valid_corrected_maps_cannot_finish_green(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            paths = write_case(root, synthetic_case(noisy=True))
+            with patch("microstructure.mkcurve_tensor.parameter_maps", side_effect=lambda coefficients: {
+                "mk": np.full(len(coefficients), np.nan)
+            }), self.assertRaisesRegex(ValueError, "no valid corrected"):
+                run_mkcurve(*[paths[key] for key in ("dwi", "bval", "bvec", "mask")], root / "fit",
+                            grid=np.arange(100, 2200, 100.))
+            self.assertEqual(json.loads((root / "fit/mkcurve_record.json").read_text())["status"], "failed")
+
     def test_backend_is_python_without_external_paths(self):
         record = inspect_mkcurve_backend()
         self.assertTrue(record["available"])

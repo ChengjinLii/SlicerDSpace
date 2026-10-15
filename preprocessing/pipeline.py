@@ -19,6 +19,7 @@ from typing import Any, Callable, Optional
 
 from shared.io_layout import default_task_output_dir
 from shared.external_process import external_python_environment, text_subprocess_kwargs
+from shared.wsl_bridge import preprocessing_launcher
 from shared.brain_mask import (
     BrainMaskConfig,
     brain_mask_config_from_options,
@@ -286,7 +287,7 @@ def _preprocessing_cache_key(
     }
     return {
         "kind": "dwi_preprocessing_cache_key",
-        "version": 4,
+        "version": 5,
         "backend": str(backend.get("backend") or config.backend).lower(),
         "inputs": {
             "dwi": _file_record(raw.dwi_path),
@@ -310,6 +311,12 @@ def _preprocessing_cache_key(
             ),
         },
         "executables": executables,
+        "runtime_bridge_configs": {
+            str(path): _file_record(path)
+            for value in dict(backend.get("commands") or {}).values() if value
+            for path in (Path(str(value) + ".conf"), Path(value).parent / "python.exe.conf")
+            if path.is_file()
+        },
         "eddy_binaries": eddy_binaries,
         "eddy_cuda_visibility": os.environ.get("CUDA_VISIBLE_DEVICES")
         if backend.get("backend") == "mrtrix_fsl" else None,
@@ -955,16 +962,7 @@ def _execute_preprocessing_backend(
             continue
         if command[0] == "optional-output":
             continue
-        runtime_command = command
-        if Path(command[0]).name == "dwifslpreproc":
-            script = Path(command[0])
-            if script.is_file() and "mrtrix3" in script.read_text(encoding="utf-8", errors="replace"):
-                python = shutil.which("python", path=env.get("PATH", ""))
-                if not python:
-                    raise FileNotFoundError("The selected MRtrix external environment has no Python interpreter")
-                runtime_command = [python, str(Path(__file__).resolve().parents[1] / "shared/mrtrix_preproc_runner.py"),
-                                   "--script", str(script), "--record", str(paths["qc_dir"] / "eddy_device.json"),
-                                   "--", *command[1:]]
+        runtime_command = preprocessing_launcher(command, paths["qc_dir"] / "eddy_device.json", env)
         _run_command(runtime_command, env=env, log=log)
     return _mrtrix_backend_details(paths, raw.subject_id, config)
 

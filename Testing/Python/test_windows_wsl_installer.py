@@ -107,6 +107,16 @@ class WindowsWslInstallerContractTest(unittest.TestCase):
         self.assertIn('key.Equals("arg"', source)
         self.assertIn("return process.ExitCode", source)
 
+    def test_bridge_supervision_is_installed_for_owned_tasks(self):
+        source = BRIDGE_SOURCE.read_text(encoding='utf-8')
+        powershell = POWERSHELL_INSTALLER.read_text(encoding='utf-8')
+        self.assertIn('supervisor_python', powershell)
+        self.assertIn('run-command.py', powershell)
+        self.assertIn('heartbeatTimer', source)
+        self.assertIn('File.SetLastWriteTimeUtc', source)
+        self.assertIn('command.Add("--heartbeat")', source)
+        self.assertIn('cp "$REPO_ROOT/scripts/wsl/run_command.py"', WSL_INSTALLER.read_text())
+
     def test_runtime_requirements_cover_all_external_python_backends(self) -> None:
         requirements = RUNTIME_REQUIREMENTS.read_text(encoding="utf-8")
         for requirement in (
@@ -114,12 +124,30 @@ class WindowsWslInstallerContractTest(unittest.TestCase):
             "dipy==1.11.0",
             "scikit-learn==1.6.1",
             "vtk==9.3.1",
-            "torch==2.11.0+cpu",
             "dmri-amico==2.1.0",
             "editables==0.5",
         ):
             self.assertIn(requirement, requirements)
-        self.assertIn("--extra-index-url https://download.pytorch.org/whl/cpu", requirements)
+        self.assertNotIn("torch==", requirements)
+        self.assertNotIn("--extra-index-url", requirements)
+        self.assertIn("configure_device.py", WSL_INSTALLER.read_text())
+
+    def test_gpu_selection_and_license_gate_are_explicit_and_bridges_complete(self):
+        powershell = POWERSHELL_INSTALLER.read_text()
+        bash = WSL_INSTALLER.read_text()
+        bridge = BRIDGE_SOURCE.read_text()
+        self.assertIn('[string]$Device = "auto"', powershell)
+        self.assertIn('[switch]$AcceptFslLicense', powershell)
+        self.assertIn('"--device", $Device, "--accept-fsl-license"', powershell)
+        self.assertIn('"dwiextract", "mrcat", "python"', powershell)
+        self.assertIn('"eddy_cuda.exe"', powershell)
+        self.assertIn('fsl_packages+=("$FSL_CUDA_PACKAGE")', bash)
+        self.assertIn('fsl-${FSL_EDDY_VERSION}-${DEVICE_RESOLVED}', bash)
+        self.assertIn('if [[ "$DEVICE" == cpu ]]', bash)
+        self.assertIn('CUDA_ENV="export CUDA_VISIBLE_DEVICES=-1"', bash)
+        self.assertIn('Environment.GetEnvironmentVariable("CUDA_VISIBLE_DEVICES")', bridge)
+        self.assertIn('command.Add("/usr/bin/env")', bridge)
+        self.assertLess(powershell.index("if ($PlanOnly)"), powershell.index("if (-not $AcceptFslLicense)"))
 
     def test_plan_only_runs_without_contacting_wsl(self) -> None:
         shell = _powershell_executable()
@@ -159,6 +187,9 @@ class WindowsWslInstallerContractTest(unittest.TestCase):
             self.assertEqual(plan["pinned"]["fsl_eddy_build"], "hb35a746_0")
             self.assertEqual(plan["pinned"]["fsl_topup_version"], "2203.5")
             self.assertEqual(plan["pinned"]["fsl_topup_build"], "ha905fa9_6")
+            self.assertEqual(plan["device"]["requested"], "auto")
+            self.assertIn("Deferred", plan["device"]["resolved"])
+            self.assertFalse(plan["fsl_license"]["accepted"])
 
     def test_url_override_without_digest_is_rejected(self) -> None:
         shell = _powershell_executable()

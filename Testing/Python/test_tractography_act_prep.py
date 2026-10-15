@@ -22,6 +22,7 @@ if str(REPO_ROOT) not in sys.path:
 from tractography.act_prep import (  # noqa: E402
     ACT_PREP_VERSION,
     DEFAULT_SGM_LABELS,
+    DEFAULT_WM_LABELS,
     build_partial_volume_5tt,
 )
 
@@ -82,7 +83,7 @@ class PartialVolumeChannelMappingTest(unittest.TestCase):
         # thalamus (10), hippocampus (17), ventral DC (60), cortex (1030), lateral ventricle (4)
         parcellation = np.array([[[10, 17, 1030, 60, 4]]], dtype=np.int32)
         five_tt, stats = build_partial_volume_5tt(labels, probabilities, parcellation)
-        for index in (0, 1, 3):
+        for index in (0, 1):
             self.assertAlmostEqual(float(five_tt[0, 0, index, 1]), 0.9, places=6)  # sGM = 1 - P(CSF)
             self.assertEqual(float(five_tt[0, 0, index, 0]), 0.0)
             self.assertEqual(float(five_tt[0, 0, index, 2]), 0.0)
@@ -90,15 +91,32 @@ class PartialVolumeChannelMappingTest(unittest.TestCase):
         # Cortex keeps DDSeg partial volume.
         self.assertAlmostEqual(float(five_tt[0, 0, 2, 0]), 0.7, places=6)
         np.testing.assert_array_equal(five_tt[0, 0, 4], [0, 0, 0, 1, 0])
+        np.testing.assert_allclose(five_tt[0, 0, 3], [0, 0, 0.9, 0.1, 0], atol=1e-6)
         np.testing.assert_allclose(five_tt.sum(axis=-1), 1.0, atol=1e-6)
-        self.assertEqual(stats["sgm_override_voxels"], 3)
+        self.assertEqual(stats["sgm_override_voxels"], 2)
+        self.assertEqual(stats["wm_prior_override_voxels"], 1)
         self.assertEqual(stats["ventricle_override_voxels"], 1)
 
     def test_default_sgm_labels_cover_requested_structures(self) -> None:
-        # thalamus, caudate, putamen, pallidum, hippocampus, amygdala, accumbens, ventral DC
-        for label in (10, 11, 12, 13, 17, 18, 26, 28, 49, 50, 51, 52, 53, 54, 58, 60):
+        for label in (10, 11, 12, 13, 17, 18, 26, 49, 50, 51, 52, 53, 54, 58):
             self.assertIn(label, DEFAULT_SGM_LABELS)
-        self.assertNotIn(16, DEFAULT_SGM_LABELS)  # brainstem stays WM
+        self.assertEqual(set(DEFAULT_WM_LABELS), {7, 16, 28, 46, 60})
+        self.assertFalse(set(DEFAULT_WM_LABELS) & set(DEFAULT_SGM_LABELS))
+
+    def test_non_cortical_wm_prior_preserves_csf_and_foreground(self) -> None:
+        parc = np.array([[[7, 16, 28, 46, 60, 16]]])
+        labels = np.array([[[2, 2, 2, 2, 2, 0]]])
+        probabilities = {"wm": np.full(labels.shape, 0.1),
+                         "gm": np.full(labels.shape, 0.7),
+                         "csf": np.full(labels.shape, 0.2)}
+        five_tt, stats = build_partial_volume_5tt(labels, probabilities, parc)
+        np.testing.assert_allclose(five_tt[0, 0, :5], np.tile([0, 0, 0.8, 0.2, 0], (5, 1)), atol=1e-6)
+        np.testing.assert_array_equal(five_tt[0, 0, 5], np.zeros(5))
+        self.assertEqual(stats["wm_prior_override_voxels"], 5)
+
+    def test_conflicting_tissue_priors_are_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "disjoint"):
+            build_partial_volume_5tt(np.ones((1, 1, 1)), None, sgm_labels=(28,))
 
     def test_hard_label_fallback_without_probabilities(self) -> None:
         labels = np.array([[[1, 2, 3, 0]]], dtype=np.int16)
@@ -203,7 +221,7 @@ class ACTPrepRunTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             segmentation, _ = self._write_ddseg(root)
-            with mock.patch("tractography.act_prep.shutil.which", return_value=None):
+            with mock.patch("shared.external_process.shutil.which", return_value=None):
                 with self.assertRaisesRegex(RuntimeError, "5ttcheck"):
                     run_act_prep(
                         ACTPrepConfig(

@@ -4,10 +4,29 @@ from __future__ import annotations
 
 import os
 import sys
+import shutil
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from typing import Iterable, Mapping, Optional
+
+
+def resolve_external_command(name: str, bin_dir: Optional[Path] = None, *, require_executable=False) -> Optional[str]:
+    """Prefer configured binaries, including Windows .exe, without shell lookup."""
+    if bin_dir is not None:
+        names = (name + '.exe', name) if sys.platform == 'win32' and not name.lower().endswith('.exe') else (name,)
+        for basename in names:
+            candidate = Path(bin_dir).expanduser() / basename
+            if candidate.is_file() and (not require_executable or os.access(candidate, os.X_OK)):
+                return candidate.resolve().as_posix()
+    return shutil.which(name)
+
+
+def slicer_runtime_roots(home: Path | str) -> tuple[Path, ...]:
+    """Accept an install root or macOS .app without hardcoding an OS layout."""
+    root = Path(home).expanduser()
+    candidates = (root, root / "Contents", root.parent if root.name == "MacOS" else root)
+    return tuple(dict.fromkeys(path for path in candidates if path.is_dir()))
 
 
 def startup_environment(extra_env: Optional[Mapping[str, str]] = None) -> dict[str, str]:
@@ -126,7 +145,7 @@ def external_python_environment(
         env.pop(key, None)
 
     prepend = [Path(path).expanduser().as_posix() for path in (path_prepend or [])]
-    for key in ("PATH", "LD_LIBRARY_PATH"):
+    for key in ("PATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH"):
         parts = _path_parts(env.get(key))
         if strip_slicer_paths:
             parts = [part for part in parts if not _looks_like_slicer_runtime_path(part)]

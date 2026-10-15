@@ -14,11 +14,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--manifest', required=True, type=Path)
     parser.add_argument('--output-dir', required=True, type=Path)
+    parser.add_argument('--query-path', type=Path, help='Explicit WMQL query; never silently substitute anatomical rules.')
+    parser.add_argument('--atlas-path', type=Path, help='Explicit paired atlas for a controlled WMQL recheck; source file is not modified.')
+    parser.add_argument('--query-selection', help='Comma-separated WMQL query names, explicit rather than inferred from filenames.')
+    parser.add_argument('--input-tractography', type=Path, help='Explicit input for a separately recorded tractography-method comparison.')
     args = parser.parse_args()
     if args.output_dir.exists():
         raise FileExistsError('Use a new directory so old scientific results are preserved.')
     m = json.loads(args.manifest.read_text())
-    common = dict(subject_id=m['subject_id'], input_tractography=Path(m['input_tractography']),
+    common = dict(subject_id=m['subject_id'], input_tractography=args.input_tractography or Path(m['input_tractography']),
                   output_dir=args.output_dir, execute=True)
     if m['kind'] == 'wmql_bundle_segmentation':
         from tractography.wmql import WMQLConfig, run_wmql_bundle_segmentation
@@ -26,8 +30,8 @@ def main():
         if python.name == 'python-real' and python.with_name('PythonSlicer').is_file():
             # The GUI's python-real requires launcher settings outside Slicer.
             python = python.with_name('PythonSlicer')
-        cfg = WMQLConfig(**common, atlas_path=Path(m['atlas_path']), query_path=Path(m['query_path']),
-                         query_selection=tuple(m['query_selection']), threshold=m['threshold'],
+        cfg = WMQLConfig(**common, atlas_path=args.atlas_path or Path(m['atlas_path']), query_path=args.query_path or Path(m['query_path']),
+                         query_selection=tuple(args.query_selection.split(',')) if args.query_selection else tuple(m['query_selection']), threshold=m['threshold'],
                          length_threshold=m['length_threshold'],
                          tract_querier_root=Path(m['backend']['root']),
                          python_executable=python)

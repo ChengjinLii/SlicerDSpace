@@ -28,6 +28,8 @@ FREESURFER_LICENSE=""
 SLICER_WINDOWS_EXE=""
 SKIP_LARGE_DOWNLOADS=0
 SKIP_FREESURFER=0
+DEVICE="auto"
+ACCEPT_FSL_LICENSE=0
 
 ORG_REG_URL=""
 ORG_REG_SHA256=""
@@ -52,6 +54,8 @@ while [[ $# -gt 0 ]]; do
     --install-root) INSTALL_ROOT=$2; shift 2 ;;
     --repo-root) REPO_ROOT=$2; shift 2 ;;
     --distro) DISTRO=$2; shift 2 ;;
+    --device) DEVICE=$2; shift 2 ;;
+    --accept-fsl-license) ACCEPT_FSL_LICENSE=1; shift ;;
     --freesurfer-license) FREESURFER_LICENSE=$2; shift 2 ;;
     --slicer-windows-exe) SLICER_WINDOWS_EXE=$2; shift 2 ;;
     --org-reg-url) ORG_REG_URL=$2; shift 2 ;;
@@ -75,6 +79,14 @@ if [[ -z "$REPO_ROOT" || ! -f "$REPO_ROOT/scripts/wsl/requirements-runtime.txt" 
 fi
 if [[ $EUID -eq 0 ]]; then
   echo "Run install_runtime.sh as the distribution's normal user, not root." >&2
+  exit 2
+fi
+if [[ "$DEVICE" != auto && "$DEVICE" != cpu && "$DEVICE" != cuda ]]; then
+  echo "--device must be auto, cpu or cuda" >&2
+  exit 2
+fi
+if [[ "$ACCEPT_FSL_LICENSE" != 1 ]]; then
+  echo "Read the FSL license and pass --accept-fsl-license before installing: https://fsl.fmrib.ox.ac.uk/fsl/docs/license.html" >&2
   exit 2
 fi
 if [[ "$INSTALL_ROOT" == "~/"* ]]; then
@@ -293,6 +305,12 @@ else
 fi
 "$RUNTIME_ENV/bin/python" -m pip install --upgrade "pip==25.3"
 "$RUNTIME_ENV/bin/python" -m pip install -r "$REPO_ROOT/scripts/wsl/requirements-runtime.txt"
+DEVICE_RECORD="$STATE_ROOT/device-runtime.json"
+"$RUNTIME_ENV/bin/python" "$REPO_ROOT/scripts/wsl/configure_device.py" \
+  --device "$DEVICE" --execute --result "$DEVICE_RECORD"
+FSL_CUDA_PACKAGE=$("$RUNTIME_ENV/bin/python" -c 'import json,sys; print(json.load(open(sys.argv[1]))["fsl_cuda_package"] or "")' "$DEVICE_RECORD")
+DEVICE_RESOLVED=$("$RUNTIME_ENV/bin/python" -c 'import json,sys; print(json.load(open(sys.argv[1]))["resolved"])' "$DEVICE_RECORD")
+FSL_ENV="$INSTALL_ROOT/envs/fsl-${FSL_EDDY_VERSION}-${DEVICE_RESOLVED}"
 if ! "$RUNTIME_ENV/bin/mrconvert" -version 2>&1 | grep -q "${MRTRIX_VERSION}"; then
   echo "MRtrix3 version verification failed" >&2
   exit 6
@@ -303,6 +321,9 @@ fsl_packages=(
   "fsl-eddy=${FSL_EDDY_VERSION}=${FSL_EDDY_BUILD}"
   "fsl-topup=${FSL_TOPUP_VERSION}=${FSL_TOPUP_BUILD}"
 )
+if [[ -n "$FSL_CUDA_PACKAGE" ]]; then
+  fsl_packages+=("$FSL_CUDA_PACKAGE")
+fi
 if [[ ! -x "$FSL_ENV/bin/eddy" ]]; then
   "$CONDA" create -y --override-channels --strict-channel-priority \
     -p "$FSL_ENV" -c "$FSL_PUBLIC_CHANNEL" -c conda-forge "${fsl_packages[@]}"
@@ -332,6 +353,13 @@ for command in eddy eddy_cpu topup; do
     exit 6
   fi
 done
+if [[ -n "$FSL_CUDA_PACKAGE" ]]; then
+  verify_conda_package "fsl-eddy-cuda" "2602.0" "h1a432fe_1"
+  if [[ ! -x "$FSL_ENV/bin/eddy_cuda" ]]; then
+    echo "CUDA eddy was selected but its executable is missing" >&2
+    exit 6
+  fi
+fi
 
 echo "[4/8] Checking out pinned bundle backends"
 clone_pinned "$TRACT_QUERIER_REPOSITORY" "$TRACT_QUERIER_COMMIT" "$TRACT_QUERIER_ROOT"
@@ -416,8 +444,13 @@ fi
 
 echo "[8/8] Creating the Windows Slicer reverse bridge and state file"
 RUNTIME_COMMAND_BRIDGE="$BIN_ROOT/run-in-runtime"
-printf '#!/usr/bin/env bash\nexport FSLDIR=%q\nexport FSLOUTPUTTYPE=NIFTI_GZ\nexport PATH=%q:%q:%q/bin:%q/utilities:%q:$PATH\nexport PYTHONPATH=%q${PYTHONPATH:+:$PYTHONPATH}\nexec "$@"\n' \
-  "$FSL_ENV" "$RUNTIME_ENV/bin" "$FSL_ENV/bin" "$WMA_ROOT" "$WMA_ROOT" "$BIN_ROOT" "$WMA_ROOT" > "$RUNTIME_COMMAND_BRIDGE"
+cp "$REPO_ROOT/scripts/wsl/run_command.py" "$BIN_ROOT/run-command.py"
+CUDA_ENV=""
+if [[ "$DEVICE" == cpu ]]; then
+  CUDA_ENV="export CUDA_VISIBLE_DEVICES=-1"
+fi
+printf '#!/usr/bin/env bash\nexport FSLDIR=%q\nexport FSLOUTPUTTYPE=NIFTI_GZ\n%s\nexport PATH=%q:%q:%q/bin:%q/utilities:%q:$PATH\nexport PYTHONPATH=%q${PYTHONPATH:+:$PYTHONPATH}\nexec "$@"\n' \
+  "$FSL_ENV" "$CUDA_ENV" "$RUNTIME_ENV/bin" "$FSL_ENV/bin" "$WMA_ROOT" "$WMA_ROOT" "$BIN_ROOT" "$WMA_ROOT" > "$RUNTIME_COMMAND_BRIDGE"
 chmod +x "$RUNTIME_COMMAND_BRIDGE"
 SLICER_BRIDGE=""
 if [[ -n "$SLICER_WINDOWS_EXE" ]]; then
@@ -456,6 +489,7 @@ STATE_FILE="$STATE_ROOT/install-state.json"
 export STATE_FILE DISTRO INSTALL_ROOT RUNTIME_ENV FSL_ENV FREESURFER_HOME ORG_ATLAS_ROOT TRACTCLOUD_DATA_ROOT
 export TRACT_QUERIER_ROOT WMA_ROOT TRACTCLOUD_ROOT SLICER_BRIDGE ORG_READY TRACTCLOUD_READY FREESURFER_READY FSL_READY
 export RUNTIME_COMMAND_BRIDGE
+export DEVICE_RECORD FSL_CUDA_PACKAGE
 export MRTRIX_VERSION FSL_EDDY_VERSION FSL_EDDY_BUILD FSL_TOPUP_VERSION FSL_TOPUP_BUILD
 export FREESURFER_VERSION TRACT_QUERIER_COMMIT WMA_COMMIT TRACTCLOUD_COMMIT MINIFORGE_VERSION
 "$RUNTIME_ENV/bin/python" - <<'PY'
@@ -476,6 +510,7 @@ payload = {
         "root": str(Path(os.environ["INSTALL_ROOT"]) / "miniforge3"),
     },
     "runtime_env": os.environ["RUNTIME_ENV"],
+    "device_runtime": json.loads(Path(os.environ["DEVICE_RECORD"]).read_text()),
     "mrtrix": {
         "version": os.environ["MRTRIX_VERSION"],
         "bin_dir": str(Path(os.environ["RUNTIME_ENV"]) / "bin"),
@@ -488,6 +523,7 @@ payload = {
         "home": os.environ["FSL_ENV"],
         "bin_dir": str(Path(os.environ["FSL_ENV"]) / "bin"),
         "ready": ready("FSL_READY"),
+        "cuda_ready": bool(os.environ["FSL_CUDA_PACKAGE"]),
     },
     "freesurfer": {
         "version": os.environ["FREESURFER_VERSION"],

@@ -15,6 +15,27 @@ VTK = '# vtk DataFile Version 3.0\nfixture\nASCII\nDATASET POLYDATA\nPOINTS 2 fl
 
 
 class BundleIsolationTest(unittest.TestCase):
+    def test_revalidation_preserves_raw_metadata_and_never_promotes_failed_sampling(self):
+        from scripts.audit_bundle_products import update_qc_records
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = root / 'wma_org_atlas_manifest.json'
+            qc = root / 'wma_org_atlas_qc.json'
+            report = root / 'audit.json'
+            manifest.write_text(json.dumps({'kind': 'wma_org_atlas', 'executed': True, 'status': 'completed'}))
+            qc.write_text(json.dumps({'status': 'completed', 'elapsed_seconds': 123}))
+            report.write_text('{}')
+            result = dict(checks={'current_output_contract': False, 'geometry': True},
+                          current_contract_error='CST insufficient', source_sha256='fixture', output_summary={})
+            update_qc_records(manifest, result, report)
+            current = json.loads(qc.read_text())
+            self.assertEqual(current['status'], 'partial_failed')
+            self.assertFalse(current['automatic_qc_passed'])
+            self.assertFalse(current['quantification_eligible'])
+            self.assertEqual(current['elapsed_seconds'], 123)
+            archive = Path(current['revalidation']['previous_records'])
+            self.assertEqual(json.loads((archive / qc.name).read_text())['status'], 'completed')
+
     def test_legacy_vtk_geometry_not_header(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'bundle.vtk'

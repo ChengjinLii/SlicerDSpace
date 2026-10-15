@@ -46,9 +46,20 @@
 
 ## 历史验证记录
 
+[CSD／ACT 专项排查](release/CSD_ACT_DIAGNOSIS_20261015.zh-CN.md)更正此前 CSD
+验收结论：发现 VentralDC 组织映射缺陷，已完成固定 FOD 对照，旧 ACT 依赖结果需重算。
+
+[本轮平台复核](release/PLATFORM_AUDIT_20261015.md)记录 Windows/WSL 设备与桥接修复、
+macOS 路径适配、计时边界及尚未验收的功能。
+
+[本轮白质束 QC](release/BUNDLE_QC_20261015.zh-CN.md)说明旧绿色状态、采样门禁、
+真实输入诊断和跨平台未验收边界。
+[WMQL CST 专项排查](release/WMQL_CST_20261015.zh-CN.md)区分历史经过查询和论文端点定义，
+记录配对输入对照及固定导入文件。
+
 [白质束后端核查](release/BUNDLE_BACKENDS_20261013.zh-CN.md) 区分 WMA 失败结果、
 稀疏 WMQL 候选束和固定种子验证的 TractCloud 输出。
-[模块运行时间](release/MODULE_RUNTIMES_20261013.zh-CN.md) 汇总历史与补测计时，
+[模块运行时间](release/MODULE_RUNTIMES_20261015.zh-CN.md) 汇总历史与补测计时，
 不把缓存复用或小 ROI 测量冒充全脑计算耗时。
 
 [SAF Python 核验](release/SAF_PYTHON_20261013.md)记录原版核心函数对照、
@@ -56,6 +67,10 @@
 
 [最新 DDSurfer 同步](release/DDSURFER_SYNC_20261013.md)记录 RAS 标记、Python 标签导出、
 批量 fsaverage 映射及真实结果对照。
+[Pipeline QC 与性能](release/PIPELINE_QC_20261015.zh-CN.md)记录最新失败门禁、
+全脑 NODDI 重复性、已完成的 DKI/后处理检查，以及剩余解剖与平台验收边界。
+[科学验证补充](release/SCIENTIFIC_CLOSURE_20261015.zh-CN.md)记录全脑 MK-Curve
+参考对照、UKF 输入上的未修改作者 WMQL，以及新版 WMA／GUI 联合运行状态；人工审核仍独立保留。
 [Python MK-Curve 验证](release/MKCURVE_PYTHON_20261012.md)记录 Python 校正路线与独立作者代码对照。
 
 [脑掩膜、微结构与场景验证](release/PIPELINE_MASK_MICROSTRUCTURE_20261012.md)

@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, Optional
 
 from shared import default_task_output_dir, find_subject_root
-from shared.external_process import startup_environment, text_subprocess_kwargs
+from shared.external_process import startup_environment, text_subprocess_kwargs, resolve_external_command
 from .saf_backend.provenance import implementation_record
 
 
@@ -128,11 +128,7 @@ def _configured_mrtrix_bin_dir(mrtrix_bin_dir: Optional[Path] = None) -> Optiona
 
 
 def _resolve_command(command: str, *, bin_dir: Optional[Path] = None) -> Optional[str]:
-    if bin_dir is not None:
-        candidate = bin_dir / command
-        if candidate.is_file() and os.access(candidate, os.X_OK):
-            return candidate.resolve().as_posix()
-    found = shutil.which(command)
+    found = resolve_external_command(command, bin_dir, require_executable=True)
     return Path(found).resolve().as_posix() if found else None
 
 

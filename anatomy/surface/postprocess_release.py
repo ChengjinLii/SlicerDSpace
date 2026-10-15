@@ -443,6 +443,14 @@ def _run_current_postprocess(config, subject_root, native_dir, log):
     try:
         run_backend(command, python_bin=config.python_bin, log=log, log_path=structural / 'backend.log')
         checks = json.loads((fs_subject / 'logs/qc.json').read_text())
+        from .postprocess_qc import validate_postprocess_outputs
+        integrity = validate_postprocess_outputs(fs_subject, hemis, signature['atlases'])
+        (fs_subject / 'logs/integrity_qc.json').write_text(json.dumps(integrity, indent=2) + '\n')
+        if not integrity['automatic_qc_passed']:
+            failed = [name for name, passed in integrity['checks'].items() if not passed]
+            raise ValueError('Surface postprocess integrity failed: ' + ', '.join(failed))
+        if native_surface_hashes(native_dir, config.mode) != inputs or (brain is not None and sha256(brain) != signature['brain_sha256']):
+            raise RuntimeError('Surface postprocess inputs changed while running; outputs are not current')
         for source, destination in [(fs_subject / name, structural / name) for name in
                                     ('surf', 'label', 'mri', 'fsaverage', 'logs')] + [(fs_subject / 'stats', stats / 'stats')]:
             if destination.exists() and not destination.is_symlink():
@@ -452,9 +460,13 @@ def _run_current_postprocess(config, subject_root, native_dir, log):
                     raise FileExistsError(f'Existing postprocess output conflicts with preserved backup: {backup}')
                 destination.rename(backup)
             _symlink_canonical_output(source, destination)
+        # Track the public copies too on platforms without directory symlinks.
+        integrity = validate_postprocess_outputs(structural, hemis, signature['atlases'], stats_dir=stats / 'stats')
+        if not integrity['automatic_qc_passed']:
+            raise ValueError('Published surface postprocess products failed integrity QC')
         manifest['status'] = 'completed'
         qc = dict(status='completed', upstream_commit=upstream_record()['commit'],
-                  automatic_qc=checks, human_review='pending')
+                  automatic_qc=checks, automatic_qc_passed=True, integrity=integrity, human_review='pending')
     except Exception as exc:
         manifest['status'] = 'failed'
         qc = dict(status='failed', error=str(exc))

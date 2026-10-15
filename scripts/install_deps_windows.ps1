@@ -7,6 +7,9 @@ param(
     [string]$FreeSurferLicensePath,
     [string]$ModelAssetsDir,
     [switch]$PlanOnly,
+    [ValidateSet("auto", "cpu", "cuda")]
+    [string]$Device = "auto",
+    [switch]$AcceptFslLicense,
     [switch]$SkipLargeDownloads,
     [switch]$SkipFreeSurfer,
     [switch]$SkipModelAssets,
@@ -175,6 +178,19 @@ $plan = [ordered]@{
     windows_install_root = $WindowsInstallRoot
     slicer_executable = $ResolvedSlicer
     python_executable = $ResolvedPython
+    device = [ordered]@{
+        requested = $Device
+        resolved = "Deferred: GPU discovery runs inside WSL"
+        torch_version = "2.11.0"
+        cpu_index = "https://download.pytorch.org/whl/cpu"
+        cuda_index = "https://download.pytorch.org/whl/cu126"
+        fsl_cuda_package = "fsl-eddy-cuda=2602.0=h1a432fe_1"
+    }
+    fsl_license = [ordered]@{
+        accepted = [bool]$AcceptFslLicense
+        terms_url = "https://fsl.fmrib.ox.ac.uk/fsl/docs/license.html"
+    }
+    new_user_brain_mask_backend = "mrtrix (existing user defaults are preserved)"
     apt = [ordered]@{
         execute_as = "wsl.exe --distribution <distro> --user root"
         skipped = [bool]$SkipApt
@@ -227,6 +243,9 @@ Write-Host "Install plan written: $PlanOutput"
 if ($PlanOnly) {
     $plan | ConvertTo-Json -Depth 8
     exit 0
+}
+if (-not $AcceptFslLicense) {
+    throw "Read the FSL license and pass -AcceptFslLicense before installation: https://fsl.fmrib.ox.ac.uk/fsl/docs/license.html"
 }
 
 if (-not $SkipSlicerBridge -and [string]::IsNullOrWhiteSpace($ResolvedSlicer)) {
@@ -313,6 +332,7 @@ $runtimeArguments = @(
     "--tractcloud-model-url", $TractCloudModelUrl,
     "--tractcloud-model-sha256", $TractCloudModelSha256
 )
+$runtimeArguments += @("--device", $Device, "--accept-fsl-license")
 if ($WslLicense) { $runtimeArguments += @("--freesurfer-license", $WslLicense) }
 if ($ResolvedSlicer) { $runtimeArguments += @("--slicer-windows-exe", $ResolvedSlicer) }
 if ($SkipLargeDownloads) { $runtimeArguments += "--skip-large-downloads" }
@@ -397,6 +417,8 @@ function Install-BridgeExecutable(
     }
     Copy-Item -LiteralPath $BridgeBinary -Destination $TargetPath -Force
     $configLines = @("distribution=$Distro", "target=$LinuxTarget")
+    $configLines += "supervisor=$AbsoluteWslInstallRoot/bin/run-command.py"
+    $configLines += "supervisor_python=$($state.runtime_env)/bin/python"
     foreach ($argument in $PrefixArguments) { $configLines += "arg=$argument" }
     foreach ($mapping in $Mappings) { $configLines += "map=$mapping" }
     [IO.File]::WriteAllLines("$TargetPath.conf", $configLines, (New-Object Text.UTF8Encoding($false)))
@@ -409,7 +431,8 @@ $mrtrixBridge = Join-Path $bridgeRoot "mrtrix"
 $mrtrixCommands = @(
     "mrconvert", "dwi2response", "dwi2fod", "mtnormalise", "tckgen", "tcksift2",
     "tckstats", "tckconvert", "tcksample", "tck2connectome", "tckedit", "dwi2mask",
-    "dwidenoise", "mrdegibbs", "dwifslpreproc", "5ttgen", "5tt2gmwmi"
+    "dwidenoise", "mrdegibbs", "dwifslpreproc", "5ttgen", "5tt2gmwmi",
+    "dwiextract", "mrcat", "python"
 )
 foreach ($command in $mrtrixCommands) {
     $linuxTarget = "$($state.runtime_env)/bin/$command"
@@ -422,6 +445,12 @@ foreach ($command in @("eddy", "eddy_cpu", "topup")) {
     $linuxTarget = "$($state.fsl.bin_dir)/$command"
     Install-BridgeExecutable $BridgeBinary (Join-Path $fslBridge $command) $state.runtime_command_bridge -PrefixArguments @($linuxTarget)
     Install-BridgeExecutable $BridgeBinary (Join-Path $fslBridge "$command.exe") $state.runtime_command_bridge -PrefixArguments @($linuxTarget)
+}
+if (($state.fsl.PSObject.Properties.Name -contains "cuda_ready") -and $state.fsl.cuda_ready) {
+    foreach ($command in @("eddy_cuda", "eddy_cuda.exe")) {
+        Install-BridgeExecutable $BridgeBinary (Join-Path $fslBridge $command) $state.runtime_command_bridge `
+            -PrefixArguments @("$($state.fsl.bin_dir)/eddy_cuda")
+    }
 }
 
 $tractCloudPythonBridge = Join-Path $bridgeRoot "tractcloud\python.exe"
@@ -471,6 +500,12 @@ foreach ($command in $wmaCommands) {
     Install-BridgeExecutable `
         $BridgeBinary `
         (Join-Path $wmaBridgeRoot "bin\$command") `
+        $state.runtime_command_bridge `
+        -Mappings $wmaMappings `
+        -PrefixArguments @($linuxTarget)
+    Install-BridgeExecutable `
+        $BridgeBinary `
+        (Join-Path $wmaBridgeRoot "bin\$command.exe") `
         $state.runtime_command_bridge `
         -Mappings $wmaMappings `
         -PrefixArguments @($linuxTarget)
@@ -551,6 +586,7 @@ if (-not $SkipUserConfigUpdate) {
                 run_name = "Test1"
                 targets = @("microstructure", "tractography", "bundles", "connectome")
                 preprocessing_backend = "dipy"
+                brain_mask_backend = "mrtrix"
                 tractography_backend = "csd_act"
                 bundle_backend = "wmql"
                 microstructure_stages = @("dti")

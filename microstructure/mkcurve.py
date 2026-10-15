@@ -97,9 +97,41 @@ def repair_nonpositive(data, mask):
             "policy": "sequential 26-neighbour positive-signal mean; working copy only; no parameter-map smoothing"}
 
 
+def _fit_chunk(payload):
+    import numpy as np
+    from microstructure.mkcurve_tensor import fit_wlls, mean_kurtosis, parameter_maps
+
+    signals, design, grid, threshold, solver = payload
+    b0 = signals[:, 0].copy()
+    original = fit_wlls(signals, design, solver=solver)
+    curves = np.empty((len(grid), len(signals)))
+    for step, value in enumerate(grid):
+        signals[:, 0] = value
+        curves[step] = mean_kurtosis(fit_wlls(signals, design, solver=solver))
+    detection = detect_abnormal(curves, b0, grid, threshold)
+    signals[:, 0] = detection["corrected_b0"]
+    corrected = fit_wlls(signals, design, solver=solver)
+    for kind, coefficients in (("original", original), ("corrected", corrected)):
+        maps = parameter_maps(coefficients)
+        valid = np.isfinite(coefficients).all(axis=1)
+        for key, values in maps.items():
+            lower, upper = (0, 1) if key == "fa" else ((0, 3) if key in {"mk", "ak", "rk"} else (0, .005))
+            valid &= np.isfinite(values) & (values >= lower) & (values <= upper)
+            detection[f"{kind}_{key}"] = values
+        observed = signals.copy()
+        if kind == "original":
+            observed[:, 0] = b0
+        with np.errstate(over="ignore", invalid="ignore"):
+            predicted = np.exp(coefficients @ design.T)
+            detection[f"{kind}_nrmse"] = np.sqrt(np.mean((predicted - observed) ** 2, axis=1)) / np.exp(coefficients[:, 0])
+        valid &= detection["curve_valid_mask"] & np.isfinite(detection[f"{kind}_nrmse"])
+        detection[f"{kind}_valid_mask"] = valid
+    return original, corrected, curves, detection
+
+
 def run_mkcurve(dwi_path, bval_path, bvec_path, mask_path, output_dir, *,
                 b0_threshold=50., max_bvalue=3000., voxels_per_chunk=64,
-                threshold=.5, grid=None, log=None, **legacy):
+                threshold=.5, grid=None, log=None, num_workers=1, solver="reference", **legacy):
     """Scan synthetic b0, identify abnormal curves, refit b0-corrected signals.
 
     Original inputs remain immutable. Raw untruncated maps, validity masks,
@@ -107,12 +139,14 @@ def run_mkcurve(dwi_path, bval_path, bvec_path, mask_path, output_dir, *,
     """
     import nibabel as nib
     import numpy as np
-    from microstructure.mkcurve_tensor import design_matrix, fit_wlls, mean_kurtosis, parameter_maps
+    from microstructure.mkcurve_tensor import design_matrix
     from microstructure.dki import _signature, _write_json
     from microstructure.mkcurve_inputs import _prepare_inputs
 
-    if voxels_per_chunk < 1 or not np.isfinite(threshold) or not 0 <= threshold <= 1:
+    if voxels_per_chunk < 1 or num_workers < 1 or not np.isfinite(threshold) or not 0 <= threshold <= 1:
         raise ValueError("MK-Curve requires a positive chunk size and finite threshold in [0,1]")
+    if solver not in {"reference", "batched"}:
+        raise ValueError("MK-Curve solver must be reference or batched")
     if any(value is not None for value in legacy.values()):
         raise ValueError("MATLAB/source paths belong to MKCURVE_MATLAB, not the Python port")
     root = Path(output_dir).resolve()
@@ -148,37 +182,36 @@ def run_mkcurve(dwi_path, bval_path, bvec_path, mask_path, output_dir, *,
             corrected_coefficients = np.lib.format.open_memmap(root / "corrected_coefficients.npy", mode="w+", dtype="float64", shape=(count, 22))
             results = {}
             try:
+                if num_workers > 1:
+                    from concurrent.futures import ProcessPoolExecutor
+                    import multiprocessing
+                    pool = handles.enter_context(ProcessPoolExecutor(max_workers=num_workers,
+                        mp_context=multiprocessing.get_context("spawn")))
+                else:
+                    pool = None
+                pending = {}
+                def submit(start):
+                    stop = min(start + voxels_per_chunk, count)
+                    chunk_coords = tuple(c[start:stop] for c in coords)
+                    payload = (data[chunk_coords].copy(), design, grid, threshold, solver)
+                    pending[start] = pool.submit(_fit_chunk, payload)
+                if pool:
+                    for start in range(0, min(count, num_workers * voxels_per_chunk), voxels_per_chunk):
+                        submit(start)
                 for start in range(0, count, voxels_per_chunk):
                     stop = min(start + voxels_per_chunk, count)
                     chunk_coords = tuple(c[start:stop] for c in coords)
-                    signals = data[chunk_coords].copy()
-                    original = fit_wlls(signals, design)
+                    if pool:
+                        original, corrected, chunk_curves, detection = pending.pop(start).result()
+                        next_start = start + num_workers * voxels_per_chunk
+                        if next_start < count:
+                            submit(next_start)
+                    else:
+                        original, corrected, chunk_curves, detection = _fit_chunk(
+                            (data[chunk_coords].copy(), design, grid, threshold, solver))
                     original_coefficients[start:stop] = original
-                    for step, value in enumerate(grid):
-                        signals[:, 0] = value
-                        curves[step, start:stop] = mean_kurtosis(fit_wlls(signals, design))
-                        if step % 20 == 0:
-                            _write_json(progress, {"status": "running", "completed_voxels": start,
-                                                   "total_voxels": count, "grid_step": step, "grid_steps": len(grid)})
-                    detection = detect_abnormal(curves[:, start:stop], b0[start:stop], grid, threshold)
-                    signals[:, 0] = detection["corrected_b0"]
-                    corrected = fit_wlls(signals, design)
+                    curves[:, start:stop] = chunk_curves
                     corrected_coefficients[start:stop] = corrected
-                    for kind, coefficients in (("original", original), ("corrected", corrected)):
-                        maps = parameter_maps(coefficients)
-                        valid = np.isfinite(coefficients).all(axis=1)
-                        for key, values in maps.items():
-                            lower, upper = (0, 1) if key == "fa" else ((0, 3) if key in {"mk", "ak", "rk"} else (0, .005))
-                            valid &= np.isfinite(values) & (values >= lower) & (values <= upper)
-                            detection[f"{kind}_{key}"] = values
-                        observed = signals.copy()
-                        if kind == "original":
-                            observed[:, 0] = b0[start:stop]
-                        with np.errstate(over="ignore", invalid="ignore"):
-                            predicted = np.exp(coefficients @ design.T)
-                            detection[f"{kind}_nrmse"] = np.sqrt(np.mean((predicted - observed) ** 2, axis=1)) / np.exp(coefficients[:, 0])
-                        valid &= detection["curve_valid_mask"] & np.isfinite(detection[f"{kind}_nrmse"])
-                        detection[f"{kind}_valid_mask"] = valid
                     for key, values in detection.items():
                         if key not in results:
                             results[key] = np.lib.format.open_memmap(Path(temporary) / f"{key}.npy", mode="w+", dtype=values.dtype, shape=mask.shape)
@@ -186,6 +219,8 @@ def run_mkcurve(dwi_path, bval_path, bvec_path, mask_path, output_dir, *,
                         results[key][chunk_coords] = values
                     if log:
                         log(f"[MK-Curve Python] {stop}/{count} voxels; {len(grid)} synthetic b0 samples")
+                    _write_json(progress, {"status": "running", "completed_voxels": stop, "total_voxels": count,
+                                           "num_workers": num_workers, "solver": solver})
                 paths, summaries = {}, {}
                 for key, values in results.items():
                     path = root / f"mkcurve_{key}.nii.gz"
@@ -198,7 +233,8 @@ def run_mkcurve(dwi_path, bval_path, bvec_path, mask_path, output_dir, *,
                     summaries[key] = {"finite": int(np.isfinite(selected).sum()), "nonzero": int(np.count_nonzero(selected))}
                 record = {"kind": "mkcurve_python_port", "status": "completed", "backend": backend,
                           "method": "author-style unconstrained WLLS, numerical 256-direction MK, synthetic-b0 correction",
-                          "settings": {"threshold": threshold, "grid_policy": "adaptive author integer grid, independent of directory name",
+                          "settings": {"threshold": threshold, "solver": solver, "num_workers": num_workers,
+                                       "grid_policy": "adaptive author integer grid, independent of directory name",
                                        "grid_samples": len(grid), "b0_threshold": b0_threshold, "max_bvalue": max_bvalue},
                           "maps": paths, "inputs": inputs, "preparation": preparation, "signal_repair": repair,
                           "mask_voxels": count, "corrected_voxels": summaries["abnormal_mask"]["nonzero"],
@@ -211,6 +247,8 @@ def run_mkcurve(dwi_path, bval_path, bvec_path, mask_path, output_dir, *,
                                                        "stable radial plane at principal-axis poles", "nonfinite curves are invalid, never silently corrected"],
                           "curve_storage": "mk_vs_synthetic_b0.npy: grid x masked voxels in MATLAB/Fortran order",
                           "record_path": str(root / "mkcurve_record.json")}
+                if record["corrected_valid_voxels"] == 0:
+                    raise ValueError("MK-Curve has no valid corrected quantitative voxels; inspect raw curves and acquisition")
                 for array in (curves, original_coefficients, corrected_coefficients):
                     array.flush()
                 record["auxiliary_files"] = {key: str(root / filename) for key, filename in

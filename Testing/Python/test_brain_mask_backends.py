@@ -249,6 +249,12 @@ class BrainMaskBackendsTest(unittest.TestCase):
         self.assertEqual(config.freesurfer_home, options.postprocess_freesurfer_home)
         self.assertEqual(config.b0_threshold, 25)
 
+    def test_windows_profile_rejects_posix_pnl_even_if_files_are_discovered(self):
+        config = fake_pnl_config(self.root)
+        result = inspect_brain_mask_backend(config, system="Windows")
+        self.assertFalse(result["available"])
+        self.assertTrue(any("POSIX external runtime" in item for item in result["missing_required"]))
+
     def test_missing_default_pnl_never_falls_through_to_available_mrtrix(self) -> None:
         with patch.dict(os.environ, {"SLICERDDSURFER_MRTRIX_BIN_DIR": str(self.mrtrix.parent)}):
             self.assertTrue(inspect_brain_mask_backend(self.mrtrix_config)["available"])

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ast
 import json
+import hashlib
 import os
 import shutil
 import subprocess
@@ -19,6 +21,9 @@ from shared.product_staging import archive_run_records, new_product_staging, pub
 
 TRACT_QUERIER_REPOSITORY = "https://github.com/demianw/tract_querier"
 VALID_TRACT_EXTENSIONS = {".vtk", ".vtp", ".trk"}
+WMQL_QC_VERSION = 4
+# Sampling sanity policy, not an anatomical accuracy or statistical-power test.
+MIN_BUNDLE_STREAMLINES = 20
 
 
 def _file_info(path: Path) -> dict[str, object]:
@@ -67,6 +72,71 @@ class WMQLResult:
 
 def bundled_wmql_query_path() -> Path:
     return Path(__file__).resolve().parent / "wmql_queries" / "AF_CST.qry"
+
+
+def wmql_query_dependencies(query_path: Path, include_dirs) -> dict[str, str]:
+    """Follow the same ordered import lookup as the author parser."""
+    records, active = {}, set()
+    folders = [Path(directory).resolve() for directory in include_dirs]
+
+    def visit(path):
+        path = Path(path).resolve()
+        if path in active:
+            raise ValueError(f"Cyclic WMQL query import: {path}")
+        if str(path) in records:
+            return
+        active.add(path)
+        contents = path.read_bytes()
+        records[str(path)] = hashlib.sha256(contents).hexdigest()
+        for node in ast.walk(ast.parse(contents.decode('utf-8'), filename=str(path))):
+            if not isinstance(node, ast.Import):
+                continue
+            for alias in node.names:
+                imported = next((directory / alias.name for directory in folders if (directory / alias.name).is_file()), None)
+                if imported is None:
+                    raise FileNotFoundError(f"WMQL imported query not found: {alias.name}")
+                visit(imported)
+        active.remove(path)
+
+    visit(query_path)
+    return records
+
+
+def wmql_query_cache_current(manifest) -> bool:
+    try:
+        sources = manifest.get('query_dependencies')
+        snapshot = manifest.get('query_snapshot_dependencies')
+        return (bool(sources) and bool(snapshot)
+                and sources == wmql_query_dependencies(Path(manifest['query_path']), manifest['query_include_dirs'])
+                and snapshot == wmql_query_dependencies(Path(manifest['staged_query']), [Path(manifest['staged_query']).parent]))
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, SyntaxError):
+        return False
+
+
+def wmql_query_provenance(query_path, dependencies=None):
+    query_path = Path(query_path)
+    digest = hashlib.sha256(Path(query_path).read_bytes()).hexdigest()
+    published = bundled_wmql_query_path().with_name('CST_WMQL2016.qry')
+    if digest in {hashlib.sha256(path.read_bytes()).hexdigest() for path in (published, bundled_wmql_query_path())}:
+        data_dir = _default_query_data_dir()
+        if dependencies is None:
+            dependencies = wmql_query_dependencies(query_path, [query_path.parent] + ([data_dir] if data_dir else []))
+        reference = data_dir / 'FreeSurfer.qry' if data_dir else None
+        aliases = [value for path, value in dependencies.items() if Path(path).name == 'FreeSurfer.qry']
+        original_aliases = bool(reference and reference.is_file() and aliases == [hashlib.sha256(reference.read_bytes()).hexdigest()])
+        if not original_aliases:
+            return {'preset': 'published_statement_custom_aliases', 'sha256': digest,
+                    'scope': 'Published endpoint statement with modified regional aliases; not certified equivalent to the published definition.'}
+        provenance = {'preset': 'published_cst_endpoints' if digest == hashlib.sha256(published.read_bytes()).hexdigest() else 'af_candidates_published_cst',
+                'CST': {'definition': 'brainstem endpoint AND precentral/postcentral endpoint; original FreeSurfer aliases',
+                        'reference': 'https://tract-querier.readthedocs.io/en/latest/example_script.html',
+                        'paper': 'https://doi.org/10.1007/s00429-015-1179-4'},
+                'scope': 'Definition provenance only; source membership and sampling do not certify anatomy.'}
+        if provenance['preset'] == 'af_candidates_published_cst':
+            provenance['AF'] = 'DDParcel-adapted endpoint candidates; not the legacy crossing/exclusion AF definition'
+        return provenance
+    return {'preset': 'external_query', 'sha256': digest,
+            'scope': 'Explicit external rules, not assumed equivalent to the bundled or published endpoint definitions.'}
 
 
 def _default_query_data_dir() -> Optional[Path]:
@@ -187,19 +257,20 @@ def _requires_windows_query_staging() -> bool:
 def _stage_query_includes(include_dirs: list[Path], queries_dir: Path) -> None:
     """Stage query includes in one cwd that TractQuerier can search on Windows."""
 
+    staged_names = set()
     for include_dir in include_dirs:
         source_dir = include_dir.expanduser().resolve()
         if not source_dir.is_dir():
             raise FileNotFoundError(f"WMQL include directory not found: {source_dir}")
         for source in sorted(source_dir.glob("*.qry")):
             target = queries_dir / source.name
+            if source.name in staged_names:
+                continue
+            staged_names.add(source.name)
             if source.resolve() == target.resolve():
                 continue
-            if target.exists():
-                # Include directories are ordered by precedence: the selected
-                # query directory, explicit user paths, then bundled fallbacks.
-                # Keep the first matching file, mirroring normal query lookup.
-                continue
+            # Refresh managed snapshots on rerun, while keeping first-directory
+            # precedence within this call. An old copied include is not a cache.
             shutil.copy2(source, target)
 
 
@@ -324,6 +395,14 @@ def _wmql_output_contract_error(
         return "WMQL produced one or more bundle files that could not be decoded."
     if nonempty_count < expected:
         return f"WMQL produced only {nonempty_count} non-empty bundles; at least {expected} were requested."
+    sparse = [f"{item['query_name']}={item['streamline_count']}"
+              for item in output_summary.get('bundles', [])
+              if item.get('query_name') in (expected_names or present)
+              and int(item.get('streamline_count', 0)) < MIN_BUNDLE_STREAMLINES]
+    if sparse:
+        return (f"WMQL insufficient bundle sampling (local minimum {MIN_BUNDLE_STREAMLINES} streamlines): "
+                + ', '.join(sparse) + '. Review atlas label compatibility and tractography coverage; '
+                'do not interpret these candidates as validated bundle quantification.')
     return None
 
 
@@ -366,11 +445,18 @@ def run_wmql_bundle_segmentation(
     queries_dir = output_dir / "queries"
     queries_dir.mkdir(parents=True, exist_ok=True)
     query_path = (config.query_path or bundled_wmql_query_path()).expanduser().resolve()
+    include_dirs = _query_include_dirs(config, query_path)
+    query_dependencies = wmql_query_dependencies(query_path, include_dirs)
+    provenance = wmql_query_provenance(query_path, query_dependencies)
     staged_query = queries_dir / query_path.name
     if query_path.resolve() != staged_query.resolve():
         shutil.copy2(query_path, staged_query)
-    if _requires_windows_query_staging():
-        _stage_query_includes(_query_include_dirs(config, query_path), queries_dir)
+    _stage_query_includes(include_dirs, queries_dir)
+    snapshot_dependencies = wmql_query_dependencies(staged_query, [queries_dir])
+    if {Path(path).name: digest for path, digest in query_dependencies.items()} != {
+        Path(path).name: digest for path, digest in snapshot_dependencies.items()
+    }:
+        raise ValueError('WMQL staged imports differ from the selected query source')
     command_config = replace(config, query_path=staged_query)
     command = build_wmql_command(command_config, backend_status)
 
@@ -380,11 +466,16 @@ def run_wmql_bundle_segmentation(
     output_summary = summarize_wmql_outputs(output_dir, config.subject_id)
     manifest: dict[str, Any] = {
         "kind": "wmql_bundle_segmentation",
-        "version": 2,
+        "version": WMQL_QC_VERSION,
         "subject_id": config.subject_id,
         "input_tractography": config.input_tractography.expanduser().resolve().as_posix(),
         "atlas_path": config.atlas_path.expanduser().resolve().as_posix(),
         "query_path": query_path.as_posix(),
+        "query_sha256": hashlib.sha256(query_path.read_bytes()).hexdigest(),
+        "query_dependencies": query_dependencies,
+        "query_snapshot_dependencies": snapshot_dependencies,
+        "query_include_dirs": list(map(str, include_dirs)),
+        "query_provenance": provenance,
         "staged_query": staged_query.as_posix(),
         "query_selection": list(config.query_selection),
         "threshold": config.threshold,
@@ -443,6 +534,10 @@ def run_wmql_bundle_segmentation(
             execution_exception = exc
         finally:
             output_summary = summarize_wmql_outputs(staging, config.subject_id) if staging else {}
+            if not wmql_query_cache_current(manifest):
+                execution_error = 'WMQL query/imports changed during execution; outputs are not reusable'
+            if any(record != _file_info(Path(record['path'])) for record in manifest['dependencies'].values()):
+                execution_error = 'WMQL source inputs changed during execution; outputs are not reusable'
             if execution_error is None:
                 execution_error = _wmql_output_contract_error(output_summary, len(config.query_selection), config.query_selection)
             if staging:
@@ -468,17 +563,24 @@ def run_wmql_bundle_segmentation(
     elapsed_seconds = time.monotonic() - start_time
     qc = {
         "kind": "wmql_bundle_segmentation_qc",
-        "version": 2,
+        "version": WMQL_QC_VERSION,
         "subject_id": config.subject_id,
         "status": "failed" if execution_error else ("completed" if config.execute else "planned"),
         "executed": bool(config.execute),
         "return_code": return_code,
         "elapsed_seconds": elapsed_seconds,
         "human_review": "pending",
-        "scientific_warnings": [f"{b['query_name']} has only {b['streamline_count']} streamline; insufficient evidence for reliable bundle-level interpretation"
-                                for b in output_summary.get('bundles', []) if b.get('streamline_count') == 1],
+        "automatic_qc_passed": bool(config.execute and execution_error is None),
+        "quantification_eligible": False,
+        "acceptance_criteria": {"minimum_streamlines_per_requested_bundle": MIN_BUNDLE_STREAMLINES,
+                                "scope": "Sampling sanity only; passing does not validate anatomical identity."},
+        "scientific_status": "insufficient_or_invalid_products" if execution_error else "anatomical_review_pending",
+        "scientific_warnings": [f"{b['query_name']} has only {b['streamline_count']} streamlines; insufficient sampling"
+                                for b in output_summary.get('bundles', [])
+                                if int(b.get('streamline_count', 0)) < MIN_BUNDLE_STREAMLINES],
         "previous_products": published_archive,
-        "scientific_scope": "Requested-query identity and decoded geometry; not expert anatomical validation. Bundled AF/CST definitions are DDParcel-adapted endpoint rules.",
+        "query_provenance": provenance,
+        "scientific_scope": "Requested-query identity, frozen imports and decoded geometry; not expert anatomical validation. Query definitions and references are recorded separately.",
         "backend_available": bool(backend_status["available"]),
         "output_summary": output_summary,
         "error": execution_error,

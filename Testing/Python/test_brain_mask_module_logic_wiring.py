@@ -12,8 +12,15 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-with patch.dict(sys.modules, {"slicer": types.ModuleType("slicer")}):
+_previous_slicer = sys.modules.get("slicer")
+try:
+    sys.modules["slicer"] = types.ModuleType("slicer")
     logic_module = importlib.import_module("shared.module_logic")
+finally:
+    if _previous_slicer is None:
+        sys.modules.pop("slicer", None)
+    else:
+        sys.modules["slicer"] = _previous_slicer
 
 
 METHODS = (
@@ -32,6 +39,22 @@ class DummyLogic(logic_module.SharedLogicMixin):
 
 
 class BrainMaskModuleLogicWiringTest(unittest.TestCase):
+    def test_real_widget_run_keywords_bind_and_forward_device(self):
+        from shared.ui_run_controller import RunSelection, build_single_subject_run_kwargs
+
+        selection = RunSelection('fixture', '/subject', '/output', ('microstructure',), 'test', 'csd_act',
+                                 'wmql', False, False, 1000000, 'cuda:0', 'auto', 'python', False)
+        options = build_single_subject_run_kwargs(selection, {}, preflight_blocked_targets={})
+        logic = DummyLogic(Path('/repository'))
+        for name, callee, value in (
+            ('runSelectedProductOrchestration', 'run_subject_products', types.SimpleNamespace(run_manifest_path=Path('/manifest'), tasks=())),
+            ('planSelectedProductOrchestration', 'plan_subject_products', types.SimpleNamespace(run_plan_path=Path('/plan'), items=())),
+        ):
+            with self.subTest(method=name), patch.object(logic_module, callee, return_value=value) as call:
+                inspect.signature(getattr(logic, name)).bind(**options)
+                getattr(logic, name)(**options)
+                self.assertEqual(call.call_args.args[0].tractcloud_device, 'cuda')
+
     def test_all_entrypoints_have_consistent_typed_defaults(self) -> None:
         for name in METHODS:
             with self.subTest(method=name):

@@ -23,7 +23,20 @@ def active_docs(root):
         "docs/release/DISTRIBUTION_VALIDATION_20261012.md",
         "docs/release/MODULE_RUNTIMES_20261013.md",
         "docs/release/MODULE_RUNTIMES_20261013.zh-CN.md",
-        "docs/release/GPU_POLICY_20261013.md"))
+        "docs/release/GPU_POLICY_20261013.md",
+        "docs/release/PLATFORM_AUDIT_20261015.md",
+        "docs/release/BUNDLE_QC_20261015.md",
+        "docs/release/BUNDLE_QC_20261015.zh-CN.md",
+        "docs/release/WMQL_CST_20261015.md",
+        "docs/release/WMQL_CST_20261015.zh-CN.md",
+        "docs/release/PIPELINE_QC_20261015.md",
+        "docs/release/PIPELINE_QC_20261015.zh-CN.md",
+        "docs/release/MODULE_RUNTIMES_20261015.md",
+        "docs/release/MODULE_RUNTIMES_20261015.zh-CN.md",
+        "docs/release/SCIENTIFIC_CLOSURE_20261015.md",
+        "docs/release/SCIENTIFIC_CLOSURE_20261015.zh-CN.md",
+        "docs/release/CSD_ACT_DIAGNOSIS_20261015.md",
+        "docs/release/CSD_ACT_DIAGNOSIS_20261015.zh-CN.md"))
     return paths
 
 

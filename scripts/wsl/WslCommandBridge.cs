@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace SlicerDDSurfer.WslBridge
 {
@@ -11,6 +12,8 @@ namespace SlicerDDSurfer.WslBridge
     {
         internal string Distribution = "Ubuntu";
         internal string Target = "";
+        internal string Supervisor = "";
+        internal string SupervisorPython = "";
         internal readonly List<string> PrefixArguments = new List<string>();
         internal readonly List<KeyValuePair<string, string>> Mappings =
             new List<KeyValuePair<string, string>>();
@@ -48,6 +51,14 @@ namespace SlicerDDSurfer.WslBridge
                 {
                     result.Target = value;
                 }
+                else if (key.Equals("supervisor", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Supervisor = value;
+                }
+                else if (key.Equals("supervisor_python", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.SupervisorPython = value;
+                }
                 else if (key.Equals("map", StringComparison.OrdinalIgnoreCase))
                 {
                     var mappingSeparator = value.IndexOf('|');
@@ -73,6 +84,12 @@ namespace SlicerDDSurfer.WslBridge
             if (String.IsNullOrWhiteSpace(result.Target) || !result.Target.StartsWith("/", StringComparison.Ordinal))
             {
                 throw new InvalidDataException("WSL bridge target must be an absolute Linux path");
+            }
+            if (result.Supervisor.Length > 0 &&
+                (!result.Supervisor.StartsWith("/", StringComparison.Ordinal) ||
+                 !result.SupervisorPython.StartsWith("/", StringComparison.Ordinal)))
+            {
+                throw new InvalidDataException("WSL supervisor and Python must have absolute Linux paths");
             }
             return result;
         }
@@ -211,14 +228,41 @@ namespace SlicerDDSurfer.WslBridge
 
         private static int Main(string[] args)
         {
+            string heartbeat = null;
+            Timer heartbeatTimer = null;
             try
             {
                 var executablePath = Process.GetCurrentProcess().MainModule.FileName;
                 var config = BridgeConfig.Load(executablePath);
                 var command = new List<string>
                 {
-                    "--distribution", config.Distribution, "--exec", config.Target,
+                    "--distribution", config.Distribution, "--exec",
                 };
+                if (config.Supervisor.Length > 0)
+                {
+                    heartbeat = Path.GetTempFileName();
+                    var localHeartbeat = heartbeat;
+                    heartbeatTimer = new Timer(_ =>
+                    {
+                        try { File.SetLastWriteTimeUtc(localHeartbeat, DateTime.UtcNow); }
+                        catch (IOException) { /* The supervisor fails closed on expired heartbeat. */ }
+                        catch (UnauthorizedAccessException) { }
+                    }, null, 0, 1000);
+                    command.Add(config.SupervisorPython);
+                    command.Add(config.Supervisor);
+                    command.Add("--heartbeat");
+                    command.Add(ConvertArgument(heartbeat, config));
+                    command.Add("--");
+                }
+                // Keep scheduler/user GPU restrictions without leaking the
+                // Windows PATH or Slicer Python environment into Linux.
+                var cudaVisibility = Environment.GetEnvironmentVariable("CUDA_VISIBLE_DEVICES");
+                if (cudaVisibility != null)
+                {
+                    command.Add("/usr/bin/env");
+                    command.Add("CUDA_VISIBLE_DEVICES=" + cudaVisibility);
+                }
+                command.Add(config.Target);
                 command.AddRange(config.PrefixArguments);
                 foreach (var argument in args)
                 {
@@ -240,6 +284,16 @@ namespace SlicerDDSurfer.WslBridge
             {
                 Console.Error.WriteLine("SlicerDDSurfer WSL bridge failed: " + error.Message);
                 return 125;
+            }
+            finally
+            {
+                if (heartbeatTimer != null) { heartbeatTimer.Dispose(); }
+                if (heartbeat != null)
+                {
+                    try { File.Delete(heartbeat); }
+                    catch (IOException) { }
+                    catch (UnauthorizedAccessException) { }
+                }
             }
         }
     }

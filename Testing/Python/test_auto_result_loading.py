@@ -156,6 +156,69 @@ class AutoResultLoadingTest(unittest.TestCase):
         self.assertIn("Source changed", second["skipped"][-1]["reason"])
         self.assertEqual(len(self.scene.nodes), len(first["loaded"]))
 
+    def test_failed_bundle_retracts_only_automatic_nodes_without_file_path(self):
+        path = self.root / 'run.json'
+        qc = self.root / 'failed_qc.json'
+        qc.write_text(json.dumps({'status': 'failed', 'automatic_qc_passed': False}))
+        for execution in ('completed', 'failed', 'cancelled'):
+            with self.subTest(execution=execution):
+                self.scene.nodes.clear()
+                automatic, manual, other = [self.scene.AddNewNodeByClass('vtkMRMLModelNode', name)
+                                            for name in ('automatic', 'manual', 'other')]
+                for node in (automatic, manual, other):
+                    node.SetAttribute('SlicerDDSurfer.Run', str(path))
+                    node.SetAttribute('SlicerDDSurfer.SourcePath', str(self.root / node.GetID()))
+                    node.SetAttribute('SlicerDDSurfer.Product', 'bundles.wmql' if node is not other else 'surface.ddsurfer')
+                automatic.SetAttribute('SlicerDDSurfer.AutomaticLoaded', 'true')
+                other.SetAttribute('SlicerDDSurfer.AutomaticLoaded', 'true')
+                path.write_text(json.dumps({'tasks': [{'name': 'bundles.wmql', 'status': execution, 'qc_path': str(qc)}]}))
+                result = self.logic.loadKeyResultsFromManifest(path, automatic=True)
+                self.assertFalse(result['loaded'])
+                self.assertEqual(self.scene.nodes, [manual, other])
+
+    def test_failed_scalar_qc_retracts_previous_automatic_node(self):
+        path = self.manifest()
+        result = self.logic.loadKeyResultsFromManifest(path, automatic=True)
+        identity = next(item['node_ids'][0] for item in result['loaded'] if item['path'] == str(self.fa))
+        qc = self.root / 'failed_qc.json'
+        qc.write_text(json.dumps({'status': 'failed', 'automatic_qc_passed': True}))
+        manifest = json.loads(path.read_text())
+        manifest['tasks'][0]['qc_path'] = str(qc)
+        path.write_text(json.dumps(manifest))
+        self.logic.loadKeyResultsFromManifest(path, automatic=True)
+        self.assertIsNone(self.scene.GetNodeByID(identity))
+
+    def test_automatic_reuse_does_not_take_ownership_of_manual_nodes(self):
+        path = self.manifest()
+        manual = self.logic.loadKeyResultsFromManifest(path)
+        identities = [identity for entry in manual['loaded'] for identity in entry['node_ids']]
+        reused = self.logic.loadKeyResultsFromManifest(path, automatic=True)
+        self.assertEqual(len(reused['reused']), 3)
+        self.assertFalse(reused['loaded'])
+        for identity in identities:
+            self.assertIsNone(self.scene.GetNodeByID(identity).GetAttribute('SlicerDDSurfer.AutomaticLoaded'))
+        qc = self.root / 'failed_qc.json'
+        qc.write_text(json.dumps({'status': 'failed'}))
+        manifest = json.loads(path.read_text())
+        for task in manifest['tasks']:
+            task['qc_path'] = str(qc)
+        path.write_text(json.dumps(manifest))
+        self.logic.loadKeyResultsFromManifest(path, automatic=True)
+        self.assertTrue(all(self.scene.GetNodeByID(identity) is not None for identity in identities))
+
+    def test_changed_source_refresh_preserves_manual_review_nodes(self):
+        path = self.manifest()
+        result = self.logic.loadKeyResultsFromManifest(path)
+        manual_identity = next(entry['node_ids'][0] for entry in result['loaded'] if entry['path'] == str(self.fa))
+        self.fa.write_bytes(b'new result; manual scene remains an older reviewed version')
+        automatic = self.logic.loadKeyResultsFromManifest(path, automatic=True)
+        self.assertEqual(len(automatic['loaded']), 1)
+        self.assertIsNotNone(self.scene.GetNodeByID(manual_identity))
+        current_identity = automatic['loaded'][0]['node_ids'][0]
+        again = self.logic.loadKeyResultsFromManifest(path, automatic=True)
+        self.assertFalse(again['loaded'])
+        self.assertEqual(next(entry['node_ids'] for entry in again['reused'] if entry['path'] == str(self.fa)), [current_identity])
+
     def test_automatic_loading_rejects_worker_thread_before_scene_mutation(self):
         self.fake.app = types.SimpleNamespace(thread=lambda: "gui")
         qt = types.SimpleNamespace(QThread=types.SimpleNamespace(currentThread=lambda: "worker"))

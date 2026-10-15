@@ -167,7 +167,13 @@ class MicrostructureDTIScalarsTest(unittest.TestCase):
             ):
                 paths[key].parent.mkdir(parents=True, exist_ok=True)
                 paths[key].write_text("map", encoding="utf-8")
-            paths["free_water_qc"].write_text('{"status":"completed"}\n', encoding="utf-8")
+            from microstructure.pipeline import _file_signature, FREE_WATER_KEYS, NODDI_KEYS
+
+            for qc_key, keys in (("free_water_qc", FREE_WATER_KEYS), ("noddi_qc", NODDI_KEYS)):
+                paths[qc_key].write_text(json.dumps({
+                    "status": "completed", "automatic_qc_passed": True, "checks": {"fixture": True},
+                    "output_artifacts": {str(paths[key].resolve()): _file_signature(paths[key]) for key in keys},
+                }), encoding="utf-8")
             paths["free_water_manifest"].write_text(
                 json.dumps(_expected_free_water_manifest(config)),
                 encoding="utf-8",

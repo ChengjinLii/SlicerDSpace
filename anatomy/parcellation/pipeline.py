@@ -9,8 +9,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
-from .conversion.nhdr_write import nhdr_write
-from .conversion.nifti_write import nifti_write
 from shared.external_process import text_subprocess_kwargs
 from shared.model_assets import model_asset_path
 from shared.pipeline import RegisteredDTIBundle, build_cli_environment, resolve_cli_executable
@@ -201,11 +199,7 @@ def run_ddparcel_from_registered_bundle(
     if not nii_wmparc.exists():
         cli_exe = resolve_cli_executable("resamplescalarvectordwivolume")
         if not bundle.inverse_transform_path.exists():
-            _log_message(
-                f"[DDParcel] Missing inverse transform: {bundle.inverse_transform_path}. "
-                "Native-space DDSurfer-wmparc export will be skipped.",
-                log,
-            )
+            raise FileNotFoundError(f"DDParcel requires the inverse transform for native labels: {bundle.inverse_transform_path}")
         else:
             cmd = [
                 cli_exe,
@@ -226,12 +220,18 @@ def run_ddparcel_from_registered_bundle(
         and nii_min_eig_reg_norm.exists()
         and nii_mid_eig_reg_norm.exists()
     ):
+        from .qc import validate_outputs
+
+        validate_outputs(subject_id, output_dir, config.native_mask)
         _log_message(f"[DDParcel] Completed successfully for {subject_id}", log)
     else:
         raise RuntimeError(f"[DDParcel] Pipeline failed for {subject_id}")
 
 
 def run_ddparcel(config: DDParcelConfig, log: Optional[Callable[[str], None]] = None) -> None:
+    from .conversion.nhdr_write import nhdr_write
+    from .conversion.nifti_write import nifti_write
+
     subject_id = config.subject_id.strip()
     if not subject_id:
         raise ValueError("Subject ID must be provided.")
@@ -389,11 +389,7 @@ def run_ddparcel(config: DDParcelConfig, log: Optional[Callable[[str], None]] = 
     if not nii_wmparc.exists():
         cli_exe = resolve_cli_executable("resamplescalarvectordwivolume")
         if not tfm_inv.exists():
-            _log_message(
-                f"[DDParcel] Missing inverse transform: {tfm_inv}. "
-                "Generate it before running the final resample step.",
-                log,
-            )
+            raise FileNotFoundError(f"DDParcel requires the inverse transform for native labels: {tfm_inv}")
         else:
             cmd = [
                 cli_exe,
@@ -414,6 +410,9 @@ def run_ddparcel(config: DDParcelConfig, log: Optional[Callable[[str], None]] = 
         and nii_min_eig_reg_norm.exists()
         and nii_mid_eig_reg_norm.exists()
     ):
+        from .qc import validate_outputs
+
+        validate_outputs(subject_id, output_dir, mask)
         _log_message(f"[DDParcel] Completed successfully for {subject_id}", log)
     else:
         raise RuntimeError(f"[DDParcel] Pipeline failed for {subject_id}")

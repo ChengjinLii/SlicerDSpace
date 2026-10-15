@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from shared.result_scene import result_candidates, result_file_suffix
+from shared.result_scene import result_candidates, result_file_suffix, record_qc_state
 
 
 DISPLAY_STREAMLINE_LIMIT = 30_000
@@ -201,11 +201,7 @@ def _qc_state(task):
     value = task.get("qc_path") or next((value for key, value in outputs.items()
         if key == "qc" or key.endswith("_qc") or key.endswith("_qc_path")), None)
     record = _read_record(value) if value and Path(str(value)).is_absolute() else {}
-    if record.get("automatic_qc_passed") is False:
-        return "failed"
-    if record.get("automatic_qc_passed") is True:
-        return "passed"
-    return str(record.get("status") or "unavailable")
+    return record_qc_state(record)
 
 
 def automatic_result_candidates(manifest: dict, *, per_product_caps: dict | None = None):

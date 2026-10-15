@@ -167,6 +167,7 @@ class ResumeInvalidationTest(unittest.TestCase):
 
     def test_tractogram_from_outdated_act_prep_is_not_reused(self) -> None:
         from shared.orchestrator import _act_inputs_current, _act_prep_complete
+        from tractography.act_prep import ACT_PREP_VERSION
 
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = _subject(tmp)
@@ -178,6 +179,11 @@ class ResumeInvalidationTest(unittest.TestCase):
 
             five_tt, gmwmi = self._act_prep(subject_root, segmentation, version=2)
             manifest = self._csd_manifest(Path(tmp), five_tt, gmwmi)
+            self.assertFalse(_act_inputs_current(manifest))
+            self.assertFalse(_act_prep_complete(subject_root, "100307"))
+
+            five_tt, gmwmi = self._act_prep(subject_root, segmentation, version=ACT_PREP_VERSION)
+            manifest = self._csd_manifest(Path(tmp), five_tt, gmwmi)
             self.assertTrue(_act_inputs_current(manifest))
             self.assertTrue(_act_prep_complete(subject_root, "100307"))
 
@@ -187,12 +193,14 @@ class ResumeInvalidationTest(unittest.TestCase):
 
     def test_rewritten_5tt_invalidates_the_tractogram(self) -> None:
         from shared.orchestrator import _act_inputs_current
+        from tractography.act_prep import ACT_PREP_VERSION
 
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = _subject(tmp)
             segmentation = self._write_ddseg(subject_root, _ddseg_qc(2, "x"))
-            five_tt, gmwmi = self._act_prep(subject_root, segmentation, version=2)
+            five_tt, gmwmi = self._act_prep(subject_root, segmentation, version=ACT_PREP_VERSION)
             manifest = self._csd_manifest(Path(tmp), five_tt, gmwmi)
+            self.assertTrue(_act_inputs_current(manifest))
             five_tt.write_text("a different 5tt", encoding="utf-8")
             self.assertFalse(_act_inputs_current(manifest))
 

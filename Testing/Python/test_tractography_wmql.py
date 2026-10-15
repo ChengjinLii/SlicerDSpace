@@ -18,6 +18,59 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class WMQLIntegrationTest(unittest.TestCase):
+    def test_custom_include_precedence_and_stale_snapshot_refresh(self):
+        from tractography.wmql import WMQLConfig, run_wmql_bundle_segmentation, wmql_query_cache_current
+
+        query = self.tmp_path / 'custom.qry'
+        query.write_text('import FreeSurfer.qry\nCST.left = Brain_Stem\n')
+        local = self.tmp_path / 'FreeSurfer.qry'
+        local.write_text('Brain_Stem |= 16\n# selected local definitions\n')
+        config = WMQLConfig('100307', self.tractography, self.atlas, self.output_dir,
+                            query_path=query, tract_querier_root=self.tract_querier_root, python_executable=self.python)
+        result = run_wmql_bundle_segmentation(config)
+        previous = json.loads(result.manifest_path.read_text())
+        self.assertTrue(wmql_query_cache_current(previous))
+        self.assertEqual((self.output_dir / 'queries/FreeSurfer.qry').read_bytes(), local.read_bytes())
+        local.write_text('Brain_Stem |= 116\n# deliberately changed synthetic label\n')
+        self.assertFalse(wmql_query_cache_current(previous))
+        result = run_wmql_bundle_segmentation(config)
+        current = json.loads(result.manifest_path.read_text())
+        self.assertTrue(wmql_query_cache_current(current))
+        self.assertEqual((self.output_dir / 'queries/FreeSurfer.qry').read_bytes(), local.read_bytes())
+        self.assertEqual(current['query_provenance']['preset'], 'external_query')
+        (self.output_dir / 'queries/FreeSurfer.qry').write_text('Brain_Stem |= 999\n')
+        self.assertFalse(wmql_query_cache_current(current))
+
+    def test_import_mutation_during_execution_is_not_successful(self):
+        from tractography.wmql import WMQLConfig, run_wmql_bundle_segmentation
+
+        backend = {'available': True, 'commands': {'python': str(self.python), 'tract_querier_executable': None,
+                   'root_script': str(self.tract_querier_root / 'scripts/cli_tract_querier.py')}}
+        def mutate(command, **kwargs):
+            (self.tract_querier_root / 'tract_querier/data/FreeSurfer.qry').write_text('Brain_Stem |= 116\n')
+            return subprocess.CompletedProcess(command, 0)
+        with mock.patch('tractography.wmql.inspect_wmql_backend', return_value=backend), mock.patch(
+            'tractography.wmql.subprocess.run', side_effect=mutate
+        ), mock.patch('tractography.wmql._wmql_output_contract_error', return_value=None):
+            result = run_wmql_bundle_segmentation(WMQLConfig('100307', self.tractography, self.atlas, self.output_dir,
+                 tract_querier_root=self.tract_querier_root, python_executable=self.python, execute=True))
+        qc = json.loads(result.qc_path.read_text())
+        self.assertEqual(qc['status'], 'failed')
+        self.assertFalse(qc['automatic_qc_passed'])
+        self.assertIn('query/imports changed', qc['error'])
+
+    def test_recursive_query_imports_reject_cycles_and_missing_files(self):
+        from tractography.wmql import wmql_query_dependencies
+
+        query = self.tmp_path / 'root.qry'
+        query.write_text('import absent.qry\n')
+        with self.assertRaises(FileNotFoundError):
+            wmql_query_dependencies(query, [self.tmp_path])
+        query.write_text('import second.qry\n')
+        (self.tmp_path / 'second.qry').write_text('import root.qry\n')
+        with self.assertRaisesRegex(ValueError, 'Cyclic'):
+            wmql_query_dependencies(query, [self.tmp_path])
+
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         # Resolve so paths recorded by the code under test (which resolves
@@ -125,11 +178,23 @@ exit 0
         self.assertTrue(result.executed)
         self.assertEqual(result.return_code, 0)
         qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
-        self.assertEqual(qc["status"], "completed")
+        self.assertEqual(qc["status"], "failed")
+        self.assertFalse(qc['automatic_qc_passed'])
+        self.assertFalse(qc['quantification_eligible'])
+        self.assertIn('insufficient bundle sampling', qc['error'])
         self.assertEqual(qc["output_summary"]["bundle_count"], 4)
         self.assertEqual(qc["output_summary"]["bundle_nonempty_count"], 4)
         self.assertEqual(len(qc["output_summary"]["bundles"]), 4)
         self.assertIn("size", qc["output_summary"]["bundles"][0])
+        self.assertFalse(list(self.output_dir.glob('100307_desc-wmql_*.vtk')))
+
+    def test_sampling_policy_is_not_just_nonempty(self):
+        from tractography.wmql import _wmql_output_contract_error, MIN_BUNDLE_STREAMLINES
+        summary = dict(bundle_count=1, bundle_readable_count=1, bundle_nonempty_count=1,
+                       bundles=[dict(query_name='af.left', streamline_count=1)])
+        self.assertIn('insufficient', _wmql_output_contract_error(summary, 1, ('AF.left',)))
+        summary['bundles'][0]['streamline_count'] = MIN_BUNDLE_STREAMLINES
+        self.assertIsNone(_wmql_output_contract_error(summary, 1, ('AF.left',)))
 
     def test_windows_stages_query_includes_without_drive_separated_I_argument(self) -> None:
         from tractography import WMQLConfig, run_wmql_bundle_segmentation

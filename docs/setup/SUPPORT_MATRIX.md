@@ -20,7 +20,7 @@ numerical accuracy for every acquisition or platform.
 | Inspect/plan | Input preview, validation, plans | Basic imaging runtime; converter for DICOM/NRRD |
 | Minimal DTI | Tensor scalars, optional deterministic tracks | SlicerDMRI or supported DTI route and Python packages |
 | Anatomical models | DDSurfer/DDSeg/DDParcel | PyTorch, matching assets, route-specific preparation |
-| Microstructure | Free-water/NODDI | Configured DIPY/AMICO and suitable acquisition |
+| Microstructure | DTI/FW/NODDI/DKI/MK-Curve | Configured numerical packages and eligible acquisition; DTI is default |
 | Advanced pathways | CSD/ACT/SIFT2/SAF/bundles | External backend only as selected |
 | Connectome | Regional matrices, scene QC | Tractogram/parcellation; weights only for weighted routes |
 
@@ -42,3 +42,58 @@ separately from runtime readiness.
 Resource checks are not three-platform Slicer builds. The opt-in SDK workflow
 needs separately provisioned runners and does not claim success before execution.
 See the [release gate](../release/EXTENSION_READINESS.md).
+
+---
+
+## Feature Routes
+
+**Native candidate** describes source feasibility, not native scientific acceptance.
+WSL is a Linux backend, not native Windows computation. Windows/macOS do not
+inherit Linux QC or timings.
+
+| Feature | Linux | Windows | macOS |
+| --- | --- | --- | --- |
+| UI, NIfTI/NRRD, validation, result loading | Scoped tests recorded | Native candidate with imaging packages | Native candidate with imaging packages |
+| DICOM conversion | Converter required | Native converter/Slicer candidate | Native converter/Slicer candidate |
+| DTI, deterministic tracking | SlicerDMRI route measured | Native SlicerDMRI candidate | Native SlicerDMRI candidate |
+| DDSeg/DDParcel/DDSurfer native reconstruction | Recorded data/routes and matching models | Native PyTorch/SlicerDMRI candidate with usable mask | Native CPU candidate with usable mask and matching models |
+| DIPY preprocessing, FW, NODDI | Scoped inputs measured | Native Python candidate; compatible DIPY/AMICO | Native Python candidate; architecture-compatible packages |
+| DKI/Python MK-Curve | Small real ROIs only; full-brain timing missing | Native numerical candidate; eligible multi-shell data | Native numerical candidate; eligible multi-shell data |
+| PNL CNN mask | External TensorFlow/Keras/ANTs route measured | **Unavailable in native Windows GUI**; supply a mask or explicitly select MRtrix/WSL | POSIX/ANTs/TensorFlow required; CPU only in this launcher, unmeasured here |
+| Full FreeSurfer SynthStrip environment | CPU/CUDA measured | **Not native Windows in this wrapper**; full Linux/WSL environment needed | FreeSurfer/Python CPU candidate, unmeasured here |
+| FreeSurfer-style surface postprocessing | Linux route recorded | WSL/Linux required; bridge end-to-end acceptance pending | macOS FreeSurfer candidate; shell/CLI acceptance pending |
+| MRtrix/FSL preprocessing | CPU/CUDA recorded | WSL 2 bridges; device policy runs in actual WSL Python | Native CPU MRtrix/FSL candidate; **no CUDA eddy** |
+| CSD/ACT/SIFT2 | External MRtrix route recorded | MRtrix WSL bridges; acceptance pending | Native MRtrix candidate; acceptance pending |
+| Full SAF | Python filter/geometry checks on recorded inputs | Windows argv/PATH adaptation added; MRtrix bridges/prepared surfaces; acceptance pending | POSIX/MRtrix with prepared surfaces; acceptance pending |
+| WMQL | Rule checks pass; sparse AF is **PARTIAL** | Pinned TractQuerier WSL bridge candidate | Configured author Python backend candidate |
+| WMA | 149741 scoped pass; old 100307 coverage failures remain excluded | WSL author shell/Slicer reverse bridge; acceptance pending | Author shell/display/Slicer CLI requirements; acceptance pending |
+| TractCloud | Seeded CUDA/repeat checks on recorded inputs | WSL device-selected CPU/CUDA; native Python not certified | External Python CPU candidate; MPS not implemented |
+| Python connectome/ROI statistics/VTK previews | Scoped tests recorded | Native candidate given valid input products | Native candidate given valid input products |
+| Managed MRtrix/FSL setup button | **Linux x86_64 only** | Separate Windows/WSL installer | **Unavailable**; detect/configure existing tools instead |
+
+---
+
+## Practical Limits
+
+- Preserve existing reviewed native masks on all platforms. No error-triggered silent algorithm substitution.
+- Linux defaults to PNL generation. Fresh Windows configs from the explicit WSL installer default to MRtrix masking; existing defaults are preserved. Without WSL, supply a reviewed mask for the minimal route.
+- Auto PyTorch uses CUDA when available, otherwise CPU. **Apple MPS is not implemented/validated**; this is not lack of Mac GPU hardware. PNL does not label unvalidated TensorFlow Metal execution as CUDA.
+- Windows setup defaults to `-Device auto`, detects the GPU inside WSL and verifies actual PyTorch CUDA allocation. Explicit CUDA errors are not retried on CPU.
+- FSL requires explicit license acceptance. Installers do not change NVIDIA drivers or install replacement Linux display drivers.
+- WSL process-tree cancellation and Windows/macOS scene reintegration require real-host acceptance. Unit/source checks do not prove every Linux descendant stops on Windows cancellation.
+
+The legacy DDSeg entry now handles `.exe` and `Slicer.app/Contents`; macOS
+external Python removes Slicer dylib-path contamination. Details:
+[platform audit](../release/PLATFORM_AUDIT_20261015.md), [Windows](WINDOWS.md), [macOS](MACOS.md).
+
+---
+
+## Upstream Boundaries
+
+FSL supports Linux/macOS and Windows through WSL; our wrappers still require host acceptance.
+[FSL installation](https://fsl.fmrib.ox.ac.uk/fsl/docs/install/index.html),
+[FSL Windows](https://fsl.fmrib.ox.ac.uk/fsl/docs/install/windows.html).
+FreeSurfer's Windows route hosts Linux, not native Windows binaries.
+[FreeSurfer requirements](https://surfer.nmr.mgh.harvard.edu/fswiki/SystemRequirements).
+PyTorch has MPS support, but this plugin does not yet implement it.
+[PyTorch MPS](https://docs.pytorch.org/docs/main/notes/mps.html).

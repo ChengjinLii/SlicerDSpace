@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import logging
+import os
 import shutil
 import time
 from dataclasses import dataclass
@@ -13,6 +15,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from shared.pipeline import NativeDTIBundle, RawInputBundle
+from shared.scalar_qc import scalar_qc_current
 
 LOGGER = logging.getLogger(__name__)
 FREE_WATER_ENGINES = {"serial", "joblib", "dask", "ray"}
@@ -31,6 +34,9 @@ FREE_WATER_MAX_FRACTION_FOR_TISSUE = 0.7
 # validity mask used by quantitative summaries.
 NODDI_MAX_ISOTROPIC_FRACTION_FOR_TISSUE = 0.7
 NODDI_UPPER_BOUND = 0.99
+DTI_KEYS = ("fa", "md", "ad", "rd", "l1", "l2", "l3", "trace")
+FREE_WATER_KEYS = ("fwf", "fw_tissue_fa", "fw_tissue_md", "fw_tissue_valid_mask")
+NODDI_KEYS = ("noddi_ndi", "noddi_odi", "noddi_fwf", "noddi_tissue_valid_mask", "noddi_rmse", "noddi_nrmse")
 
 try:
     import nibabel as nib
@@ -88,7 +94,7 @@ class MicrostructureConfig:
     noddi_b0_threshold: int = 50
     noddi_lmax: int = 12
     noddi_ndirs: int = 500
-    noddi_nthreads: int = 1
+    noddi_nthreads: int | None = None
     noddi_solver_lambda1: float = 0.5
     noddi_solver_lambda2: float = 0.001
     noddi_max_isotropic_fraction_for_tissue: float = NODDI_MAX_ISOTROPIC_FRACTION_FOR_TISSUE
@@ -164,7 +170,8 @@ def _read_json(path: Path) -> Optional[dict[str, object]]:
     if not path.is_file():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else None
     except Exception:  # pragma: no cover - corrupt manifest fallback
         LOGGER.warning("Unable to parse JSON file: %s", path)
         return None
@@ -200,11 +207,21 @@ def _copy_if_needed(src: Path, dest: Path) -> None:
 def _link_or_copy(src: Path, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists() or dest.is_symlink():
-        return
+        if dest.exists() and dest.samefile(src):
+            return
+        if dest.is_symlink():
+            dest.unlink()
+        else:
+            previous = _read_json(dest.with_name(dest.name + ".source.json"))
+            if (previous == _file_signature(src) and dest.stat().st_size == src.stat().st_size
+                    and dest.stat().st_mtime_ns == src.stat().st_mtime_ns):
+                return
+            dest.unlink()
     try:
         dest.symlink_to(src.resolve())
     except OSError:
         shutil.copy2(src, dest)
+        _write_json(dest.with_name(dest.name + ".source.json"), _file_signature(src))
 
 
 def _default_lut_path() -> Path:
@@ -297,6 +314,7 @@ def _output_paths(
         "l2": dti_dir / f"{subject_id}_dti_L2.nii.gz",
         "l3": dti_dir / f"{subject_id}_dti_L3.nii.gz",
         "trace": dti_dir / f"{subject_id}_dti_Trace.nii.gz",
+        "dti_qc": dti_dir / "dti_qc.json",
         "fwf": freewater_dir / f"{subject_id}_fw_fraction.nii.gz",
         "fw_tissue_fa": freewater_dir / f"{subject_id}_fw_FA.nii.gz",
         "fw_tissue_md": freewater_dir / f"{subject_id}_fw_MD.nii.gz",
@@ -335,7 +353,7 @@ def _expected_manifest(
         roi_metrics.extend(["NODDI_NDI", "NODDI_ODI", "NODDI_FWF"])
     return {
         "kind": "microstructure_phase3",
-        "version": 3,
+        "version": 4,
         "subject_id": config.subject_id,
         "fit_method": config.native_bundle.fit_method,
         "roi_metrics": roi_metrics,
@@ -369,7 +387,7 @@ def _expected_manifest(
             "b0_threshold": int(config.noddi_b0_threshold),
             "lmax": int(config.noddi_lmax),
             "ndirs": int(config.noddi_ndirs),
-            "nthreads": int(config.noddi_nthreads),
+            "nthreads": _noddi_threads(config),
             "solver": {
                 "lambda1": float(config.noddi_solver_lambda1),
                 "lambda2": float(config.noddi_solver_lambda2),
@@ -406,7 +424,7 @@ def _expected_free_water_manifest(config: MicrostructureConfig) -> dict[str, obj
 def _expected_noddi_manifest(config: MicrostructureConfig) -> dict[str, object]:
     return {
         "kind": "microstructure_noddi_stage",
-        "version": 2,
+        "version": 3,
         "subject_id": config.subject_id,
         "raw_input_bundle": {
             "dwi": _file_signature(config.raw_input_bundle.dwi_path),
@@ -421,7 +439,7 @@ def _expected_noddi_manifest(config: MicrostructureConfig) -> dict[str, object]:
             "b0_threshold": int(config.noddi_b0_threshold),
             "lmax": int(config.noddi_lmax),
             "ndirs": int(config.noddi_ndirs),
-            "nthreads": int(config.noddi_nthreads),
+            "nthreads": _noddi_threads(config),
             "solver": {
                 "lambda1": float(config.noddi_solver_lambda1),
                 "lambda2": float(config.noddi_solver_lambda2),
@@ -476,13 +494,16 @@ def _outputs_complete(
         )
     if roi_enabled:
         required.extend([paths["roi_stats_csv"], paths["roi_stats_json"]])
-    return all(path.is_file() for path in required)
+    return (
+        all(path.is_file() for path in required)
+        and scalar_qc_current(paths["dti_qc"], [paths[key] for key in DTI_KEYS])
+        and (not free_water_enabled or _free_water_outputs_complete(paths))
+        and (not noddi_enabled or _noddi_outputs_complete(paths))
+    )
 
 
 def _free_water_outputs_complete(paths: dict[str, Path]) -> bool:
-    return _free_water_maps_complete(paths) and paths["free_water_qc"].is_file() and (
-        _read_json(paths["free_water_qc"]).get("status") == "completed"
-    )
+    return scalar_qc_current(paths["free_water_qc"], [paths[key] for key in FREE_WATER_KEYS])
 
 
 def _free_water_maps_complete(paths: dict[str, Path]) -> bool:
@@ -493,18 +514,7 @@ def _free_water_maps_complete(paths: dict[str, Path]) -> bool:
 
 
 def _noddi_outputs_complete(paths: dict[str, Path]) -> bool:
-    return all(
-        paths[key].is_file()
-        for key in (
-            "noddi_ndi",
-            "noddi_odi",
-            "noddi_fwf",
-            "noddi_tissue_valid_mask",
-            "noddi_rmse",
-            "noddi_nrmse",
-            "noddi_qc",
-        )
-    )
+    return scalar_qc_current(paths["noddi_qc"], [paths[key] for key in NODDI_KEYS])
 
 
 def _free_water_outputs_current(config: MicrostructureConfig, paths: dict[str, Path]) -> bool:
@@ -537,6 +547,9 @@ def _compute_rd_map(l2_path: Path, l3_path: Path, output_path: Path) -> None:
 
 
 def _export_dti_scalar_maps(config: MicrostructureConfig, paths: dict[str, Path]) -> None:
+    if not config.force_recompute and _dti_outputs_current(config, paths):
+        return
+    source_before = _dti_source_signature(config)
     native = config.native_bundle
     _copy_if_needed(native.fa_nii_path, paths["fa"])
     _copy_if_needed(native.mean_diffusivity_nii_path, paths["md"])
@@ -545,8 +558,92 @@ def _export_dti_scalar_maps(config: MicrostructureConfig, paths: dict[str, Path]
     _copy_if_needed(native.min_eig_nii_path, paths["l3"])
     _copy_if_needed(native.trace_nii_path, paths["trace"])
     _copy_if_needed(native.max_eig_nii_path, paths["ad"])
-    if config.force_recompute or not paths["rd"].is_file():
-        _compute_rd_map(paths["l2"], paths["l3"], paths["rd"])
+    # RD belongs to the current eigenvalue export, never to a previous input.
+    _compute_rd_map(paths["l2"], paths["l3"], paths["rd"])
+    _write_dti_qc(config, paths)
+    if source_before != _dti_source_signature(config):
+        _write_json(paths["dti_qc"], {"status": "failed", "automatic_qc_passed": False,
+                                   "error": "Native DTI source changed during scalar export"})
+        raise RuntimeError("Native DTI source changed during scalar export; outputs are not reusable")
+
+
+def _dti_source_signature(config: MicrostructureConfig) -> dict[str, object]:
+    native = config.native_bundle
+    return {name: _file_signature(Path(getattr(native, name))) for name in (
+        "fa_nii_path", "mean_diffusivity_nii_path", "max_eig_nii_path", "mid_eig_nii_path",
+        "min_eig_nii_path", "trace_nii_path", "manifest_path",
+    )} | {"mask": _file_signature(config.raw_input_bundle.mask_path)}
+
+
+def _dti_outputs_current(config: MicrostructureConfig, paths: dict[str, Path]) -> bool:
+    try:
+        return (scalar_qc_current(paths["dti_qc"], [paths[key] for key in DTI_KEYS])
+                and (_read_json(paths["dti_qc"]) or {}).get("source_signature") == _dti_source_signature(config))
+    except OSError:
+        return False
+
+
+def _load_qc_maps(config, paths, keys, qc_key):
+    """Invalidate old green QC before decoding, including on corrupt geometry."""
+    _ensure_base_imports_ready()
+    _write_json(paths[qc_key], {"status": "running", "automatic_qc_passed": False})
+    try:
+        mask_img = nib.load(str(config.raw_input_bundle.mask_path))
+        mask_data = np.asarray(mask_img.dataobj)
+        if mask_data.ndim != 3 or not np.isfinite(mask_data).all() or not np.any(mask_data > 0):
+            raise ValueError("QC requires a finite, nonempty 3D brain mask")
+        mask = mask_data > 0
+        images = {key: nib.load(str(paths[key])) for key in keys}
+        for key, image in images.items():
+            if image.shape != mask.shape or not np.allclose(image.affine, mask_img.affine, rtol=0, atol=1e-4):
+                raise ValueError(f"{key} does not match the native mask grid")
+        arrays = {key: image.get_fdata(dtype=np.float32) for key, image in images.items()}
+        return mask_img, mask, arrays
+    except Exception as exc:
+        _write_json(paths[qc_key], {"status": "failed", "automatic_qc_passed": False,
+                                  "subject_id": config.subject_id, "error": str(exc)})
+        raise
+
+
+def _finish_scalar_qc(paths, qc_key, keys, payload):
+    passed = all(value is True for value in payload["checks"].values())
+    payload.update({"status": "completed" if passed else "failed", "automatic_qc_passed": passed,
+                    "human_review": "pending", "updated_at": _utc_now(),
+                    "output_artifacts": {str(paths[key].resolve()): _file_signature(paths[key]) for key in keys}})
+    _write_json(paths[qc_key], payload)
+    if not passed:
+        failed = ", ".join(key for key, value in payload["checks"].items() if not value)
+        raise RuntimeError(f"{qc_key} failed automatic QC: {failed}")
+    return payload
+
+
+def _write_dti_qc(config, paths):
+    _, mask, arrays = _load_qc_maps(config, paths, DTI_KEYS, "dti_qc")
+    eigen_sum = arrays["l1"] + arrays["l2"] + arrays["l3"]
+    trace_close = np.isclose(arrays["trace"], eigen_sum, rtol=1e-4, atol=1e-8)
+    # Slicer's Trace uses the original tensor; its eigensystem scalars clamp
+    # negative eigenvalues. Differences are allowed only at that clamp boundary.
+    trace_explained = trace_close | ((arrays["l3"] <= 1e-8) & (arrays["trace"] <= eigen_sum + 1e-8))
+    checks = {
+        "native_grid_matches": True,
+        "all_values_finite": all(bool(np.isfinite(array).all()) for array in arrays.values()),
+        "fa_in_range": bool(np.all((arrays["fa"][mask] >= 0) & (arrays["fa"][mask] <= 1.00001))),
+        "nonempty_brain_signal": bool(np.any(arrays["md"][mask] > 0)),
+        "ad_equals_l1": bool(np.allclose(arrays["ad"], arrays["l1"], rtol=1e-4, atol=1e-8)),
+        "rd_equals_mean_l2_l3": bool(np.allclose(arrays["rd"], (arrays["l2"] + arrays["l3"]) / 2, rtol=1e-4, atol=1e-8)),
+        "eigenvalues_nonnegative_ordered": bool(np.all((arrays["l3"][mask] >= -1e-8)
+            & (arrays["l1"][mask] >= arrays["l2"][mask] - 1e-8) & (arrays["l2"][mask] >= arrays["l3"][mask] - 1e-8))),
+        "trace_matches_or_negative_eigenvalue_clamp": bool(np.all(trace_explained[mask])),
+        "md_equals_eigenvalue_mean": bool(np.allclose(arrays["md"][mask], eigen_sum[mask] / 3, rtol=1e-4, atol=1e-8)),
+    }
+    return _finish_scalar_qc(paths, "dti_qc", DTI_KEYS, {
+        "kind": "dti_export_qc", "version": 1, "subject_id": config.subject_id,
+        "source_signature": _dti_source_signature(config), "checks": checks,
+        "warnings": ["Scalar integrity/relations are checked; this is not an anatomical or model-fit accuracy certification."],
+        "trace_clamp_boundary_voxels": int(np.count_nonzero(mask & ~trace_close)),
+        "reference": "https://github.com/Slicer/Slicer/blob/main/Libs/vtkTeem/vtkDiffusionTensorMathematics.cxx",
+        "negative_eigenvalue_voxels": int(np.count_nonzero(mask & ((arrays["l1"] < 0) | (arrays["l2"] < 0) | (arrays["l3"] < 0)))),
+    })
 
 
 def _remove_legacy_roi_outputs(output_dir: Path, subject_id: str) -> None:
@@ -641,25 +738,14 @@ def _sanitize_free_water_scalars(
 def _write_free_water_qc(config: MicrostructureConfig, paths: dict[str, Path]) -> dict[str, object]:
     """Validate saved Free Water maps and persist a reusable scientific QC record."""
 
-    _ensure_base_imports_ready()
-    mask_image = nib.load(str(config.raw_input_bundle.mask_path))
-    mask = np.asarray(mask_image.dataobj) > 0
-    images = {
-        "fwf": nib.load(str(paths["fwf"])),
-        "fw_tissue_fa": nib.load(str(paths["fw_tissue_fa"])),
-        "fw_tissue_md": nib.load(str(paths["fw_tissue_md"])),
-        "valid_mask": nib.load(str(paths["fw_tissue_valid_mask"])),
-    }
-    arrays = {key: np.asarray(image.dataobj, dtype=np.float64) for key, image in images.items()}
+    mask_image, mask, arrays = _load_qc_maps(config, paths, FREE_WATER_KEYS, "free_water_qc")
+    arrays["valid_mask"] = arrays.pop("fw_tissue_valid_mask")
     valid = arrays["valid_mask"] > 0.0
     brain_voxels = int(np.count_nonzero(mask))
     valid_voxels = int(np.count_nonzero(valid))
     checks = {
         "shape_matches_mask": all(array.shape == mask.shape for array in arrays.values()),
-        "affine_matches_mask": all(
-            bool(np.allclose(image.affine, mask_image.affine, atol=1e-4))
-            for image in images.values()
-        ),
+        "affine_matches_mask": True,
         "all_values_finite": all(bool(np.isfinite(array).all()) for array in arrays.values()),
         "valid_mask_binary": bool(np.all(np.isin(arrays["valid_mask"], (0.0, 1.0)))),
         "valid_mask_within_brain": bool(np.all(~valid | mask)),
@@ -683,13 +769,16 @@ def _write_free_water_qc(config: MicrostructureConfig, paths: dict[str, Path]) -
             all(np.allclose(array[~mask], 0.0, atol=1e-7) for array in arrays.values())
         ),
         "nonempty_valid_tissue": valid_voxels > 0,
+        "valid_tissue_fraction_threshold": bool(np.all(arrays["fwf"][valid] <= config.free_water_max_fraction_for_tissue + 1e-6)),
     }
     payload: dict[str, object] = {
         "kind": "freewater_qc",
-        "version": 1,
+        "version": 2,
         "status": "completed" if all(checks.values()) else "failed",
         "subject_id": config.subject_id,
         "model": "DIPY FreeWaterTensorModel",
+        "source_signature": {key: _file_signature(Path(getattr(config.raw_input_bundle, key + "_path")))
+                             for key in ("dwi", "bval", "bvec", "mask")},
         "input": {
             "dwi": str(config.raw_input_bundle.dwi_path.resolve()),
             "bval": str(config.raw_input_bundle.bval_path.resolve()),
@@ -722,17 +811,75 @@ def _write_free_water_qc(config: MicrostructureConfig, paths: dict[str, Path]) -
             "Tissue FA and MD are interpreted only where the tissue-validity mask is non-zero."
         ],
     }
-    _write_json(paths["free_water_qc"], payload)
-    if payload["status"] != "completed":
-        failed = ", ".join(name for name, passed in checks.items() if not passed)
-        raise RuntimeError(f"Free Water outputs failed scientific QC: {failed}")
-    return payload
+    return _finish_scalar_qc(paths, "free_water_qc", FREE_WATER_KEYS, payload)
+
+
+def _write_noddi_qc(config, paths, *, source_maps=None, validity=None):
+    """Check saved conditional tissue maps AND residuals without filling voxels."""
+    _, mask, arrays = _load_qc_maps(config, paths, NODDI_KEYS, "noddi_qc")
+    valid = arrays["noddi_tissue_valid_mask"] > 0
+    brain_voxels = int(np.count_nonzero(mask))
+    valid_voxels = int(np.count_nonzero(valid))
+    checks = {
+        "native_grid_matches": True,
+        "all_values_finite": all(bool(np.isfinite(array).all()) for array in arrays.values()),
+        "valid_mask_binary": bool(np.all(np.isin(arrays["noddi_tissue_valid_mask"], (0, 1)))),
+        "valid_mask_within_brain": bool(np.all(~valid | mask)),
+        "nonempty_valid_tissue": valid_voxels > 0,
+        "parameters_in_range": all(bool(np.all((arrays[key] >= 0) & (arrays[key] <= 1))) for key in NODDI_KEYS[:3]),
+        "parameters_zero_outside_brain": all(bool(np.all(arrays[key][~mask] == 0)) for key in NODDI_KEYS[:3]),
+        "residuals_nonnegative": all(bool(np.all(arrays[key][mask] >= 0)) for key in ("noddi_rmse", "noddi_nrmse")),
+        "valid_tissue_fraction_threshold": bool(np.all(arrays["noddi_fwf"][valid] <= config.noddi_max_isotropic_fraction_for_tissue + 1e-6)),
+    }
+    summaries = {name: _scalar_summary(arrays[key], scope) for name, key, scope in (
+        ("ndi_valid_tissue", "noddi_ndi", valid), ("odi_valid_tissue", "noddi_odi", valid),
+        ("isovf_brain_mask", "noddi_fwf", mask), ("rmse_valid_tissue", "noddi_rmse", valid),
+        ("nrmse_valid_tissue", "noddi_nrmse", valid),
+    )}
+    warnings = ["NDI/ODI display retains brain estimates; quantitative summaries use the separate tissue-validity mask. Anatomical review remains required."]
+    if valid_voxels < brain_voxels / 2:
+        warnings.append("Fewer than half the brain-mask voxels are tissue-valid; inspect IsoVF and fit quality.")
+    if summaries["nrmse_valid_tissue"]["p95"] > 0.5:
+        warnings.append("NRMSE p95 exceeds the local review threshold 0.5; inspect residual maps and acquisition compatibility.")
+    return _finish_scalar_qc(paths, "noddi_qc", NODDI_KEYS, {
+        "kind": "noddi_qc", "version": 2, "subject_id": config.subject_id,
+        "model": "AMICO NODDI", "checks": checks,
+        "source_signature": {key: _file_signature(Path(getattr(config.raw_input_bundle, key + "_path")))
+                             for key in ("dwi", "bval", "bvec", "mask") if hasattr(config.raw_input_bundle, key + "_path")},
+        "source_maps": {key: str(Path(path).resolve()) for key, path in (source_maps or {}).items()},
+        "public_maps": {key: str(paths[key].resolve()) for key in NODDI_KEYS},
+        "validity": {**(validity or {}), "brain_mask_voxels": brain_voxels, "valid_tissue_voxels": valid_voxels,
+                     "valid_tissue_fraction": valid_voxels / max(1, brain_voxels)},
+        "summary": summaries, "warnings": warnings,
+    })
 
 
 def _compute_free_water_maps(
     *,
     config: MicrostructureConfig,
     paths: dict[str, Path],
+    log: Optional[Callable[[str], None]] = None,
+) -> None:
+    from shared.diffusion_io import diffusion_image
+
+    started = time.monotonic()
+    signature = _expected_free_water_manifest(config)
+    # Without indexed_gzip, every axial slab can re-decompress the entire 4D
+    # file. Use one sequential decode and disk-backed slabs, not full-RAM data.
+    with diffusion_image(config.raw_input_bundle.dwi_path, paths["fwf"].parent) as image:
+        _compute_free_water_maps_impl(config=config, paths=paths, log=log, dwi_img=image, started=started)
+    if signature != _expected_free_water_manifest(config):
+        _write_json(paths["free_water_qc"], {"status": "failed", "automatic_qc_passed": False,
+                                            "error": "Free Water inputs changed during fitting"})
+        raise RuntimeError("Free Water inputs changed during fitting; results are not reusable")
+
+
+def _compute_free_water_maps_impl(
+    *,
+    config: MicrostructureConfig,
+    paths: dict[str, Path],
+    dwi_img,
+    started: float | None = None,
     log: Optional[Callable[[str], None]] = None,
 ) -> None:
     raw = config.raw_input_bundle
@@ -742,7 +889,7 @@ def _compute_free_water_maps(
     n_jobs = config.free_water_n_jobs
     vox_per_chunk = config.free_water_vox_per_chunk
     progress_path = paths["free_water_progress"]
-    started = time.monotonic()
+    started = time.monotonic() if started is None else started
 
     bvals, bvecs = _load_bvals_bvecs(raw)
     gtab = gradient_table(bvals, bvecs=bvecs, b0_threshold=50)
@@ -755,14 +902,18 @@ def _compute_free_water_maps(
         log,
     )
 
-    dwi_img = nib.load(str(raw.dwi_path))
     mask_img = nib.load(str(raw.mask_path))
-    mask = mask_img.get_fdata(dtype=np.float32) > 0
+    mask_data = mask_img.get_fdata(dtype=np.float32)
+    mask = mask_data > 0
 
-    if dwi_img.shape[:3] != mask.shape:
+    if dwi_img.shape[:3] != mask.shape or not np.allclose(dwi_img.affine, mask_img.affine, rtol=0, atol=1e-4):
         raise ValueError(
             f"DWI shape {dwi_img.shape[:3]} does not match mask shape {mask.shape}."
         )
+    if not np.isfinite(mask_data).all() or not mask.any():
+        raise ValueError("Free Water requires a finite, nonempty native-space mask")
+    if len(dwi_img.shape) != 4 or dwi_img.shape[3] != len(bvals):
+        raise ValueError("Free Water DWI/gradient volume counts differ")
 
     fwf_map = np.zeros(mask.shape, dtype=np.float32)
     fw_tissue_fa_map = np.zeros(mask.shape, dtype=np.float32)
@@ -922,7 +1073,24 @@ def _compute_free_water_maps(
 
 
 def _amico_cache_root(config: MicrostructureConfig) -> Path:
-    return config.raw_input_bundle.subject_root / "cache" / "microstructure" / "amico"
+    # AMICO skips generation when ANY A_*.npy exists. Different protocols,
+    # directions or dictionaries must never share that upstream kernel path.
+    payload = {"stage": _expected_noddi_manifest(config), "amico_version": getattr(amico, "__version__", None)}
+    key = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:24]
+    return config.raw_input_bundle.subject_root / "cache" / "microstructure" / "amico" / key
+
+
+def _noddi_threads(config) -> int:
+    if config.noddi_nthreads is not None:
+        count = int(config.noddi_nthreads)
+        if count < 1:
+            raise ValueError("noddi_nthreads must be positive or None (automatic)")
+        return count
+    try:
+        available = len(os.sched_getaffinity(0))
+    except (AttributeError, OSError):
+        available = os.cpu_count() or 1
+    return max(1, min(8, available))
 
 
 def _amico_subject_dir(config: MicrostructureConfig) -> Path:
@@ -1050,6 +1218,7 @@ def _compute_noddi_maps(
 ) -> None:
     if amico is None:
         raise RuntimeError("AMICO is required for NODDI modeling.")
+    signature = _expected_noddi_manifest(config)
     progress_path = paths["noddi_progress"]
     started = time.monotonic()
 
@@ -1068,7 +1237,7 @@ def _compute_noddi_maps(
                 "b0_threshold": int(config.noddi_b0_threshold),
                 "lmax": int(config.noddi_lmax),
                 "ndirs": int(config.noddi_ndirs),
-                "nthreads": int(config.noddi_nthreads),
+                "nthreads": _noddi_threads(config),
                 **extra,
             },
         )
@@ -1117,7 +1286,7 @@ def _compute_noddi_maps(
     evaluation.set_config("doSaveModulatedMaps", False)
     evaluation.set_config("doComputeRMSE", True)
     evaluation.set_config("doComputeNRMSE", True)
-    evaluation.set_config("nthreads", int(config.noddi_nthreads))
+    evaluation.set_config("nthreads", _noddi_threads(config))
     evaluation.set_config("BLAS_nthreads", 1)
     evaluation.load_data(
         dwi_filename=dwi_path.name,
@@ -1190,40 +1359,11 @@ def _compute_noddi_maps(
     _save_mask_nifti(valid_tissue, mask_img, paths["noddi_tissue_valid_mask"])
     shutil.copy2(noddi_sources["noddi_rmse"], paths["noddi_rmse"])
     shutil.copy2(noddi_sources["noddi_nrmse"], paths["noddi_nrmse"])
-    qc_payload = {
-        "kind": "noddi_qc",
-        "version": 1,
-        "status": "completed",
-        "subject_id": config.subject_id,
-        "model": "AMICO NODDI",
-        "input": {
-            "dwi": str(config.raw_input_bundle.dwi_path.resolve()),
-            "bval": str(config.raw_input_bundle.bval_path.resolve()),
-            "bvec": str(config.raw_input_bundle.bvec_path.resolve()),
-            "mask": str(config.raw_input_bundle.mask_path.resolve()),
-        },
-        "source_maps": {key: str(path.resolve()) for key, path in noddi_sources.items()},
-        "public_maps": {
-            "ndi": str(paths["noddi_ndi"].resolve()),
-            "odi": str(paths["noddi_odi"].resolve()),
-            "isovf": str(paths["noddi_fwf"].resolve()),
-            "tissue_valid_mask": str(paths["noddi_tissue_valid_mask"].resolve()),
-            "rmse": str(paths["noddi_rmse"].resolve()),
-            "nrmse": str(paths["noddi_nrmse"].resolve()),
-        },
-        "validity": validity_qc,
-        "summary": {
-            "ndi_valid_tissue": _scalar_summary(source_arrays["noddi_ndi"], valid_tissue),
-            "odi_valid_tissue": _scalar_summary(source_arrays["noddi_odi"], valid_tissue),
-            "isovf_brain_mask": _scalar_summary(source_arrays["noddi_fwf"], mask),
-            "rmse_valid_tissue": _scalar_summary(source_arrays["noddi_rmse"], valid_tissue),
-            "nrmse_valid_tissue": _scalar_summary(source_arrays["noddi_nrmse"], valid_tissue),
-        },
-        "warnings": [
-            "NDI and ODI are displayed within the brain mask; quantitative summaries additionally exclude voxels where NODDI IsoVF exceeds the tissue-validity threshold."
-        ],
-    }
-    _write_json(paths["noddi_qc"], qc_payload)
+    if signature != _expected_noddi_manifest(config):
+        _write_json(paths["noddi_qc"], {"status": "failed", "automatic_qc_passed": False,
+                                      "error": "NODDI inputs changed during fitting"})
+        raise RuntimeError("NODDI inputs changed during fitting; results are not reusable")
+    _write_noddi_qc(config, paths, source_maps=noddi_sources, validity=validity_qc)
     write_noddi_progress(
         "completed",
         "completed",
@@ -1394,13 +1534,22 @@ def run_microstructure(
         ), log=log)
     expected_free_water_manifest = _expected_free_water_manifest(config)
     if (
-        bool(config.run_free_water)
+        bool(config.run_free_water) and not config.force_recompute
         and _read_json(paths["free_water_manifest"]) == expected_free_water_manifest
         and _free_water_maps_complete(paths)
         and not _free_water_outputs_complete(paths)
     ):
         _emit("[Microstructure] Backfilling scientific QC for reusable Free Water outputs", log)
         _write_free_water_qc(config, paths)
+    if (
+        bool(config.run_noddi) and not config.force_recompute
+        and _read_json(paths["noddi_manifest"]) == _expected_noddi_manifest(config)
+        and all(paths[key].is_file() for key in NODDI_KEYS)
+        and not _noddi_outputs_complete(paths)
+    ):
+        _emit("[Microstructure] Revalidating saved NODDI maps and residuals before reuse", log)
+        previous = _read_json(paths["noddi_qc"]) or {}
+        _write_noddi_qc(config, paths, source_maps=previous.get("source_maps"), validity=previous.get("validity"))
     roi_label_map = _resolve_roi_label_map(config)
     free_water_available = bool(config.run_free_water) or _free_water_outputs_current(config, paths)
     noddi_available = bool(config.run_noddi) or _noddi_outputs_current(config, paths)
@@ -1421,6 +1570,9 @@ def run_microstructure(
     if (
         not force_recompute
         and actual_manifest == expected_manifest
+        and _dti_outputs_current(config, paths)
+        and (not config.run_free_water or _free_water_outputs_current(config, paths))
+        and (not config.run_noddi or _noddi_outputs_current(config, paths))
         and _outputs_complete(
             paths,
             roi_enabled=roi_enabled,

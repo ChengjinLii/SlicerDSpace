@@ -1961,7 +1961,7 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
         ),)
     if config.brain_mask_required:
         from shared.brain_mask import brain_mask_config_from_options, inspect_brain_mask_backend
-        masking = inspect_brain_mask_backend(brain_mask_config_from_options(config))
+        masking = inspect_brain_mask_backend(brain_mask_config_from_options(config), system=platform_name)
         mask_targets = tuple(target for target in targets if target in {
             "validation", "preprocessing", "segmentation", "parcellation", "surface",
             "microstructure", "microstructure_freewater", "microstructure_noddi", "microstructure_dki", "tractography"})

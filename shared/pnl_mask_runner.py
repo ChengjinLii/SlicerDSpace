@@ -12,6 +12,7 @@ import hashlib
 import importlib.metadata
 import json
 import os
+import platform
 from pathlib import Path
 import sys
 
@@ -19,6 +20,21 @@ import sys
 def select_device(requested: str, tf=None) -> dict:
     if requested not in ("auto", "cpu", "cuda"):
         raise ValueError("PNL device must be auto, cpu or cuda")
+    if platform.system() == "Darwin":
+        if requested == "cuda":
+            raise RuntimeError("PNL CUDA is not available on macOS; TensorFlow Metal is not a validated backend for this launcher")
+        if tf is None:
+            try:
+                import tensorflow as tf
+            except ImportError:
+                tf = None
+        # CUDA_VISIBLE_DEVICES does not hide TensorFlow's Metal plug-in.
+        if tf is not None:
+            tf.config.set_visible_devices([], "GPU")
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+        return {"requested": requested, "resolved": "cpu",
+                "reason": "macOS CUDA unavailable; PNL Metal execution is not validated",
+                "tensorflow_version": tf.__version__ if tf is not None else None}
     if requested == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
         return {"requested": requested, "resolved": "cpu", "reason": "Explicit CPU selection"}

@@ -1,9 +1,12 @@
-# Default SlicerDDSurfer WMQL bundle definitions.
+# AF is a DDParcel-adapted endpoint candidate definition. CST follows the
+# endpoint definition in the author's WMQL tutorial and 2016 paper, NOT the
+# legacy freesurfer_queries.qry crossing/exclusion variant.
+# https://tract-querier.readthedocs.io/en/latest/example_script.html
+# Sampling QC and expert review are required before quantification.
 #
-# These definitions target aparc/wmparc-style parcellations. They intentionally
-# use ctx_* cortical labels instead of the broader FreeSurfer aliases, because
-# dMRI-only DDParcel wmparc may not include the 3000/4000-series white-matter
-# parcellation labels referenced by the original Tract Querier examples.
+# AF uses ctx_* labels. CST keeps the original FreeSurfer aliases, allowing
+# either cortical-only DDParcel or genuine regional-WM parcellations.
+# No endpoints, atlas labels or thresholds are dilated or relaxed.
 
 import FreeSurfer.qry
 
@@ -24,5 +27,5 @@ AF.side = (
 
 CST.side = (
     endpoints_in(Brain_Stem)
-    and endpoints_in(ctx_precentral.side or ctx_postcentral.side)
+    and (endpoints_in(precentral.side) or endpoints_in(postcentral.side))
 )

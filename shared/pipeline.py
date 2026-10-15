@@ -16,7 +16,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from shared.external_process import merged_startup_environment, text_subprocess_kwargs
+from shared.external_process import merged_startup_environment, text_subprocess_kwargs, slicer_runtime_roots
 from shared.brain_mask import BrainMaskConfig, generate_brain_mask
 
 LOGGER = logging.getLogger(__name__)
@@ -149,8 +149,9 @@ def _slicer_home_candidates() -> list[Path]:
         candidates.append(executable.parent)
     unique: list[Path] = []
     for candidate in candidates:
-        if candidate.exists() and candidate not in unique:
-            unique.append(candidate)
+        for root in slicer_runtime_roots(candidate):
+            if root not in unique:
+                unique.append(root)
     return unique
 
 
@@ -381,6 +382,7 @@ def resolve_launcher_executable() -> str:
         slicer_home / "Slicer.exe",
         slicer_home / "bin" / "Slicer",
         slicer_home / "bin" / "Slicer.exe",
+        slicer_home / "MacOS" / "Slicer",
     ):
         if fallback.is_file():
             return fallback.as_posix()
@@ -395,6 +397,7 @@ def resolve_pythonslicer_executable() -> str:
         slicer_home / "bin" / "PythonSlicer.exe",
         slicer_home / "PythonSlicer",
         slicer_home / "PythonSlicer.exe",
+        slicer_home / "MacOS" / "PythonSlicer",
     ]
     for candidate in candidates:
         if candidate.is_file():
@@ -415,7 +418,8 @@ def build_cli_environment(cli_executable: str) -> dict[str, str]:
     if qt_loadable_dir.is_dir():
         extra_lib_dirs.append(qt_loadable_dir.as_posix())
 
-    library_var = "LD_LIBRARY_PATH"
+    library_var = "PATH" if os.name == "nt" or sys.platform == "win32" else (
+        "DYLD_LIBRARY_PATH" if sys.platform == "darwin" else "LD_LIBRARY_PATH")
     existing = [entry for entry in env.get(library_var, "").split(os.pathsep) if entry]
     merged: list[str] = []
     for entry in [*extra_lib_dirs, *existing]:

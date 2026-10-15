@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from shared.result_scene import result_candidates, recorded_qc_summary, result_nodes, owned_nodes, clear_run
+from tractography.wma import REQUIRED_MAJOR_TRACTS
 
 
 class ResultSelectionTest(unittest.TestCase):
@@ -36,7 +37,11 @@ class ResultSelectionTest(unittest.TestCase):
             good.touch()
             stale.touch()
             qc = root / "qc.json"
-            qc.write_text(json.dumps({"status": "completed", "output_summary": {"bundle_files": [str(good)]}}))
+            from tractography.wmql import WMQL_QC_VERSION
+            qc.write_text(json.dumps({"status": "completed", "version": WMQL_QC_VERSION, 'automatic_qc_passed': True,
+                "output_summary": {"bundle_files": [str(good)], 'bundle_count': 1,
+                    'bundle_readable_count': 1, 'bundle_nonempty_count': 1,
+                    'bundles': [{'query_name': 'af.left', 'streamline_count': 20}]}}))
             for name in ("bundles.wmql", "bundles.tractcloud"):
                 task = {"name": name, "status": "completed", "qc_path": str(qc), "outputs": {"output_dir": str(root)}}
                 candidates, _ = result_candidates({"tasks": [task]})
@@ -51,13 +56,28 @@ class ResultSelectionTest(unittest.TestCase):
             folder.mkdir()
             good = folder / "af.vtp"
             good.touch()
+            for index in range(72):
+                (folder / f'other_{index}.vtp').touch()
             qc = root / "qc.json"
             qc.write_text(json.dumps({"status": "completed", "output_summary": {
-                "anatomical_tracts_dir": str(folder), "anatomical_tract_count": 1}}))
+                "anatomical_tracts_dir": str(folder), "anatomical_tract_count": 73,
+                'anatomical_tract_readable_count': 73, 'anatomical_tract_nonempty_count': 73,
+                'anatomical_tract_streamline_counts': {name: 20 for name in REQUIRED_MAJOR_TRACTS}}}))
             task = {"name": "bundles.wma", "status": "skipped", "reason": "completed outputs found", "qc_path": str(qc)}
-            self.assertEqual([c["path"] for c in result_candidates({"tasks": [task]})[0]], [str(good)])
+            self.assertEqual(len(result_candidates({"tasks": [task]})[0]), 73)
             (folder / "unexpected.vtp").touch()
             self.assertEqual(result_candidates({"tasks": [task]})[0], [])
+
+    def test_old_green_bundle_record_is_not_accepted_without_current_scientific_qc(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            qc = Path(tmp) / 'qc.json'
+            for name, summary in [('bundles.wmql', {'bundle_files': []}),
+                                  ('bundles.wma', {'anatomical_tract_count': 74,
+                                   'anatomical_tract_readable_count': 74, 'anatomical_tract_nonempty_count': 45})]:
+                qc.write_text(json.dumps({'status': 'completed', 'output_summary': summary}))
+                task = {'name': name, 'status': 'completed', 'qc_path': str(qc)}
+                self.assertEqual(recorded_qc_summary({'tasks': [task]})['issues'], 1)
+                self.assertEqual(result_candidates({'tasks': [task]})[0], [])
 
     def test_failed_bundle_qc_cannot_enable_loading(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -72,6 +92,14 @@ class ResultSelectionTest(unittest.TestCase):
             summary = recorded_qc_summary({"tasks": [
                 {"status": "completed", "qc_path": str(path)}, {"status": "completed"}]})
             self.assertEqual(summary, {"passed": 0, "issues": 1, "unavailable": 1})
+
+    def test_failed_execution_cannot_borrow_historical_passed_qc(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'qc.json'
+            path.write_text(json.dumps({'status': 'completed', 'automatic_qc_passed': True}))
+            summary = recorded_qc_summary({'tasks': [
+                {'name': 'microstructure.dti', 'status': 'failed', 'qc_path': str(path)}]})
+            self.assertEqual(summary, {'passed': 0, 'issues': 1, 'unavailable': 0})
     def test_only_successful_manifest_outputs_are_candidates(self):
         with tempfile.TemporaryDirectory() as tmp:
             # result_candidates() reports str(path.resolve()); resolve here
