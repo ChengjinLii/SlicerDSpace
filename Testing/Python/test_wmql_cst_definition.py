@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -15,16 +16,31 @@ class PublishedCSTDefinitionTests(unittest.TestCase):
         from tractography.wmql import bundled_wmql_query_path, wmql_query_provenance
 
         published = bundled_wmql_query_path().with_name('CST_WMQL2016.qry')
-        self.assertEqual(wmql_query_provenance(published)['preset'], 'published_cst_endpoints')
-        self.assertNotIn('AF', wmql_query_provenance(published))
         with tempfile.TemporaryDirectory() as temporary:
-            copy = Path(temporary) / published.name
-            copy.write_bytes(published.read_bytes())
-            (copy.parent / 'FreeSurfer.qry').write_text('brain_stem |= 999\n')
-            self.assertEqual(wmql_query_provenance(copy)['preset'], 'published_statement_custom_aliases')
+            reference = Path(temporary) / 'reference'
+            reference.mkdir()
+            # Exercise reference-hash logic without certifying these test aliases.
+            (reference / 'FreeSurfer.qry').write_text('# Synthetic reference fixture\nBrain_Stem |= 16\n')
+            with mock.patch('tractography.wmql._default_query_data_dir', return_value=reference):
+                self.assertEqual(wmql_query_provenance(published)['preset'], 'published_cst_endpoints')
+                self.assertNotIn('AF', wmql_query_provenance(published))
+                copy = Path(temporary) / published.name
+                copy.write_bytes(published.read_bytes())
+                (copy.parent / 'FreeSurfer.qry').write_text('Brain_Stem |= 999\n')
+                self.assertEqual(wmql_query_provenance(copy)['preset'], 'published_statement_custom_aliases')
+
+    def test_missing_aliases_are_rejected_not_certified_as_published(self):
+        from tractography.wmql import bundled_wmql_query_path, wmql_query_provenance
+
+        with mock.patch('tractography.wmql._default_query_data_dir', return_value=None):
+            with self.assertRaisesRegex(FileNotFoundError, 'FreeSurfer.qry'):
+                wmql_query_provenance(bundled_wmql_query_path())
 
     def evaluate(self, terminal_label):
-        sys.path.insert(0, str(ROOT / 'third_party/tract_querier'))
+        backend = ROOT / 'third_party/tract_querier'
+        if not (backend / 'tract_querier/__init__.py').is_file():
+            self.skipTest('Optional author TractQuerier source is not installed; rule integration test only')
+        sys.path.insert(0, str(backend))
         self.addCleanup(sys.path.pop, 0)
         import tract_querier as tq
         from tractography.wmql import bundled_wmql_query_path

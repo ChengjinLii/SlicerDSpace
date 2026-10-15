@@ -59,7 +59,11 @@ def _wmql_query_fixture(folder):
     import shutil
     from tractography.wmql import bundled_wmql_query_path, wmql_query_dependencies
     query = bundled_wmql_query_path()
-    directories = [REPO_ROOT / 'third_party/tract_querier/tract_querier/data']
+    # Cache tests need an import graph, not an installed author backend.
+    data = folder / 'synthetic_query_data'
+    data.mkdir(exist_ok=True)
+    (data / 'FreeSurfer.qry').write_text('# Synthetic cache-only dependency\nBrain_Stem |= 16\n')
+    directories = [data]
     dependencies = wmql_query_dependencies(query, directories)
     snapshot = folder / 'queries'
     snapshot.mkdir(exist_ok=True)
