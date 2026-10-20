@@ -137,10 +137,9 @@
       video.focus({ preventScroll: true });
     });
     video.addEventListener('ended', function () {
-      /* Without controls the video cannot hold focus, so focus would fall to <body>. If the video (or nothing) had
-         it, move it to the play button; focus the user put elsewhere stays where it is. */
-      var active = document.activeElement;
-      var hadFocus = !active || active === video || active === document.body;
+      /* Without controls the video cannot hold focus, so focus would fall to <body>. If the video had it, move it to
+         the play button; focus anywhere else (a control, or <body> after a click on plain text) stays where it is. */
+      var hadFocus = document.activeElement === video;
       video.removeAttribute('controls');
       show('Play again');
       if (hadFocus) { btn.focus({ preventScroll: true }); }

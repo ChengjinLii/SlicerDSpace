@@ -91,8 +91,8 @@ Not fixed (non-blocking):
   slow `site.js` loads, the no-JS header (182 px, wrapped links) shows and then drops to 64 px when the class arrives
   (one layout shift, CLS 0.13 with an 800 ms delay; none on a fast load); this is the accepted cost of keeping the
   content visible. Opus item 3 (P3) is done: SPEC §9 records the §4 sentence.
-- Opus N2 (P2). **Fixed 2026-10-20** (user request): when the film ends and the video (or nothing) had focus, focus
-  moves to the play button; focus the user put elsewhere stays. `browser_check.mjs` checks both cases; the first failed
+- Opus N2 (P2). **Fixed 2026-10-20** (user request): when the film ends and the video had focus, focus moves to the
+  play button; focus the user put elsewhere stays (narrowed by r4 B1 below). `browser_check.mjs` checks both cases; the first failed
   on bd002dd (focus on `BODY`).
 - Opus N3 (P2). **Fixed 2026-10-20** (user request): the open menu closes when focus moves to an element outside the
   nav and the Menu button (a focusout with no new target is left to the click handlers). `browser_check.mjs` tabs out
@@ -129,10 +129,10 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   the no-JS layout (182 px header on phones). They agree at 1440×900 and 390×844 but not at 375×667 (the film is
   off screen without JS, on screen with it), so adding that size would fail the check with no real blink. Fix idea:
   in the snapshot, remove `js`, measure, add it back.
-- r4 B1 (P2): SPEC §5.3 says focus moves to the play button at film end “when the video had focus”; the code also moves
-  it when `<body>` or nothing has focus. So a mouse user who clicked plain text far down the page has their Tab start
-  point reset to the play button when the film ends (focus is not lost; `preventScroll` keeps the page still). Fix
-  idea: `hadFocus = active === video`, and write “the play button” for “it” in SPEC.
+- r4 B1 (P2). **Fixed 2026-10-21** (user request): `hadFocus = document.activeElement === video`, so focus moves to
+  the play button at film end only when the video had it; SPEC §5.3 says “move focus to the play button”.
+  `browser_check.mjs` starts the film with a click, clicks plain text (focus on `<body>`) and needs focus still on
+  `<body>` after the end; it failed on 484bf17 (focus on the play button).
 - r4 B2 (P3): the `focusout` comment, the N3 note above and SPEC §4 say a focus change to nothing “is left to the click
   handlers”; no click handler closes the menu on a tap outside it (this was so before N3, and SPEC never asked for
   it). Fix idea: reword to “a focus change to nothing does not close it”.

@@ -140,7 +140,7 @@ Links: “Film” `#film`, “Idea” `#idea`, “Outputs” `#outputs`, “Work
   `<source src="media/SlicerDDSurfer_promo_1080p.mp4" type="video/mp4">` and a fallback link “Download the film (MP4)”.
 - Progressive enhancement: JS removes `controls` at start and shows a centred play button (round, 88px, glass,
   triangle icon, label “Play film · 1:05”). Click/Enter/Space: hide the button, add `controls`, `play()` with sound.
-  On `ended`: show the button again (label “Play again”) and, when the video had focus, move focus to it. Without JS the native controls stay.
+  On `ended`: show the button again (label “Play again”) and, when the video had focus, move focus to the play button. Without JS the native controls stay.
 - Meta row under the frame (mono, small): “64.8 s · 1920 × 1080 · narrated · subtitles in the picture” and links
   “Download MP4 (41 MB)” `media/SlicerDDSurfer_promo_1080p.mp4` (`download`), “Subtitles (.srt)”
   `media/SlicerDDSurfer.en.srt` (`download`). [F9]

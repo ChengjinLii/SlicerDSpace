@@ -363,6 +363,16 @@ async function runFocusChecks(browser, origin) {
   await toEnd();
   const a2 = await active();
   record(!/film-play/.test(a2) && /A/.test(a2), '1440x900: when the film ends, focus on a nav link stays there', `active: ${a2}`);
+  // Opus r4 B1: a mouse user who starts the film and then clicks plain text (focus on <body>, and the Tab start point at
+  // the click) keeps that focus when the film ends; it does not jump to the play button.
+  await page.click('.film-play');
+  const b0 = await active();
+  await page.click('.hero .lead', { position: { x: 4, y: 4 } });
+  const b1 = await active();
+  await toEnd();
+  const b2 = await active();
+  record(/VIDEO/.test(b0) && b1 === 'BODY' && b2 === 'BODY',
+    '1440x900: when the film ends after a click on plain text, focus stays on <body>', JSON.stringify({ afterStart: b0, afterClick: b1, afterEnd: b2 }));
   await ctx.close();
 
   const c2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
