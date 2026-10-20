@@ -122,6 +122,25 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
   shows “Private pre-release”).
 - r2 N5 (P3): the model-asset banned pattern does not catch the reverse order (“private model-asset repository”).
 
+### Review of the N1 fix round and of N2/N3 (commits cce86e2 and ceedd6f; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus review; Codex found nothing):
+- r4 A1 (P3): the blink check measures “on screen” in the JS layout (64 px header); the `site.js` pre-pass measures in
+  the no-JS layout (182 px header on phones). They agree at 1440×900 and 390×844 but not at 375×667 (the film is
+  off screen without JS, on screen with it), so adding that size would fail the check with no real blink. Fix idea:
+  in the snapshot, remove `js`, measure, add it back.
+- r4 B1 (P2): SPEC §5.3 says focus moves to the play button at film end “when the video had focus”; the code also moves
+  it when `<body>` or nothing has focus. So a mouse user who clicked plain text far down the page has their Tab start
+  point reset to the play button when the film ends (focus is not lost; `preventScroll` keeps the page still). Fix
+  idea: `hadFocus = active === video`, and write “the play button” for “it” in SPEC.
+- r4 B2 (P3): the `focusout` comment, the N3 note above and SPEC §4 say a focus change to nothing “is left to the click
+  handlers”; no click handler closes the menu on a tap outside it (this was so before N3, and SPEC never asked for
+  it). Fix idea: reword to “a focus change to nothing does not close it”.
+- r4 B3 (P3): no check guards the null `relatedTarget` test; without it, a click on the status chip inside the open
+  menu would close the menu and all focus checks would still pass. Fix idea: at 390×844 open the menu, click
+  `.chip-status`, need it still open.
+- r4 B4 (P3): SPEC §9 has no line for the N2/N3 edits to §4 and §5.3.
+
 
 ## Image crop boxes as finally used
 
