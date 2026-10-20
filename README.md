@@ -69,27 +69,6 @@ Items from the spec review (SPEC §9) that were not taken. They do not block the
 - N18 (P3): for DDSeg the QC that passed is the world-space QC (DDSeg-vs-DDParcel WM Dice 0.848). The Outputs note says “Automatic QC passed for the … DDSeg … stages”; the reviewer found that acceptable.
 - N19 (P3): CITATION.cff writes O'Donnell with an ASCII apostrophe in the DDSurfer entry; the page uses ’ (allowed by the SPEC typography rule).
 
-## Image crop boxes as finally used
-
-Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the
-1920×1080 frame. JPEG quality 82, progressive, sRGB. Every output was checked by eye: no subtitle text, no cut-off
-brain, no cut-off label.
-
-| File | t (s) | Crop box | Output size | Change from SPEC v2 §3 |
-|---|---|---|---|---|
-| poster.jpg | 43.0 | full frame | 1920×1080 | none |
-| idea.jpg | 9.0 | 60,60,1760,945 | 1400×729 | none (SPEC v2 uses y1 = 945) |
-| out-dec.jpg | 22.8 | 815,155,1855,935 | 1200×900 | none |
-| out-tissue.jpg | 27.0 | 725,150,1765,930 | 1200×900 | none |
-| out-regions.jpg | 30.6 | 700,150,1740,930 | 1200×900 | none |
-| out-surfaces.jpg | 34.8 | 665,155,1705,935 | 1200×900 | none |
-| out-tracts.jpg | 43.0 | 470,0,1910,1080 | 1200×900 | none |
-| out-connectome.jpg | 50.2 | 585,140,1838,1080 | 1200×900 | none |
-| slicer.jpg | 56.8 | full frame | 1920×1080 | none (SPEC v2 uses 56.8 s: cue 11 ends at 56.5 s, the fade starts at 56.9 s) |
-| social.jpg | – | `cover_1280x640.png` | 1280×640 | none (PNG converted to JPEG) |
-
-`icon-64.png` and `icon-180.png` are resized from `Resources/Icons/SlicerDDSurfer.png` of the repository.
-
 ### Code review, round 1 (commit 935a5d9; Opus and Codex)
 
 Fixed in the fix round (each with a check that fails on 935a5d9 and passes after):
@@ -121,3 +100,36 @@ Not fixed (non-blocking):
   gesture would still pass.
 - Opus N10 (P3): the "How to test" section lists 1440, 390 and 320 px only.
 
+### Re-review of the fix round (commit 444d8db; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
+- r2 N1 (P3): the round-1 notes sat under “Image crop boxes”; they are now here, under “Review backlog”.
+- r2 N2 (P3): the header width loop checks fit and overlap, not that the Menu button shows at 1023 px and hides at
+  1024 px; a moved CSS fold or a CSS/JS breakpoint drift would still pass. Fix idea: record
+  `menuVisible === (w <= 1023)` in the loop.
+- r2 N3 (P3): SPEC §7.2 should say “320×640 for overflow only”, as the code runs it.
+- r2 N4 (P3): SPEC §4 should say that the status chip folds with the links at ≤ 1023 px (the hero status line still
+  shows “Private pre-release”).
+- r2 N5 (P3): the model-asset banned pattern does not catch the reverse order (“private model-asset repository”).
+
+
+## Image crop boxes as finally used
+
+Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the
+1920×1080 frame. JPEG quality 82, progressive, sRGB. Every output was checked by eye: no subtitle text, no cut-off
+brain, no cut-off label.
+
+| File | t (s) | Crop box | Output size | Change from SPEC v2 §3 |
+|---|---|---|---|---|
+| poster.jpg | 43.0 | full frame | 1920×1080 | none |
+| idea.jpg | 9.0 | 60,60,1760,945 | 1400×729 | none (SPEC v2 uses y1 = 945) |
+| out-dec.jpg | 22.8 | 815,155,1855,935 | 1200×900 | none |
+| out-tissue.jpg | 27.0 | 725,150,1765,930 | 1200×900 | none |
+| out-regions.jpg | 30.6 | 700,150,1740,930 | 1200×900 | none |
+| out-surfaces.jpg | 34.8 | 665,155,1705,935 | 1200×900 | none |
+| out-tracts.jpg | 43.0 | 470,0,1910,1080 | 1200×900 | none |
+| out-connectome.jpg | 50.2 | 585,140,1838,1080 | 1200×900 | none |
+| slicer.jpg | 56.8 | full frame | 1920×1080 | none (SPEC v2 uses 56.8 s: cue 11 ends at 56.5 s, the fade starts at 56.9 s) |
+| social.jpg | – | `cover_1280x640.png` | 1280×640 | none (PNG converted to JPEG) |
+
+`icon-64.png` and `icon-180.png` are resized from `Resources/Icons/SlicerDDSurfer.png` of the repository.
