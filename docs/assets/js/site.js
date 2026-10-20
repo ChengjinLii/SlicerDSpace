@@ -59,6 +59,16 @@
         setOpen(false, true);
       }
     });
+    /* Tab out of the open menu closes it, so focus never sits on controls under the panel. Only a known new focus
+       target counts: a tap that focuses nothing (relatedTarget null) is left to the click handlers. */
+    function onFocusOut(e) {
+      var to = e.relatedTarget;
+      if (btn.getAttribute('aria-expanded') === 'true' && to && to !== btn && !nav.contains(to)) {
+        setOpen(false);
+      }
+    }
+    nav.addEventListener('focusout', onFocusOut);
+    btn.addEventListener('focusout', onFocusOut);
     /* Leaving the narrow layout closes the menu state. */
     if (window.matchMedia) {
       var mq = window.matchMedia('(min-width: 1024px)');
@@ -127,8 +137,13 @@
       video.focus({ preventScroll: true });
     });
     video.addEventListener('ended', function () {
+      /* Without controls the video cannot hold focus, so focus would fall to <body>. If the video (or nothing) had
+         it, move it to the play button; focus the user put elsewhere stays where it is. */
+      var active = document.activeElement;
+      var hadFocus = !active || active === video || active === document.body;
       video.removeAttribute('controls');
       show('Play again');
+      if (hadFocus) { btn.focus({ preventScroll: true }); }
     });
 
     /* Hero button: scroll to the film and start it. */

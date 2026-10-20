@@ -337,6 +337,62 @@ async function run404AndNoJs(browser, origin) {
   await c2.close();
 }
 
+// ---------------------------------------------------------------- focus after the film ends, and the open menu
+// Opus N2 (code review round 1): when the film ended, the handler removed `controls` from the focused video and focus
+// fell to <body>. Opus N3: with the phone menu open, Tab moved focus to controls under the menu panel.
+async function runFocusChecks(browser, origin) {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  await page.goto(origin + '/index.html', { waitUntil: 'load' });
+  await page.waitForFunction(() => document.getElementById('film-video').readyState >= 1, null, { timeout: 15000 }).catch(() => {});
+  const toEnd = async () => {
+    await page.evaluate(() => { const v = document.getElementById('film-video'); v.muted = true; v.currentTime = Math.max(0, v.duration - 0.4); if (v.paused) v.play(); });
+    await page.waitForFunction(() => document.getElementById('film-video').ended, null, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(100);
+  };
+  const active = () => page.evaluate(() => { const a = document.activeElement; return a ? (a.className || a.tagName) + (a.id ? '#' + a.id : '') : 'null'; });
+  // Keyboard start: focus the play button, press Enter (focus goes to the video), let the film end.
+  await page.focus('.film-play');
+  await page.keyboard.press('Enter');
+  await toEnd();
+  const a1 = await active();
+  record(/film-play/.test(a1), '1440x900: when the film ends, focus moves to the play button', `active: ${a1}`);
+  // Focus the user moved elsewhere stays there.
+  await page.keyboard.press('Enter');
+  await page.focus('#site-nav a[href="#idea"]');
+  await toEnd();
+  const a2 = await active();
+  record(!/film-play/.test(a2) && /A/.test(a2), '1440x900: when the film ends, focus on a nav link stays there', `active: ${a2}`);
+  await ctx.close();
+
+  const c2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p2 = await c2.newPage();
+  await p2.goto(origin + '/index.html', { waitUntil: 'load' });
+  const state = () => p2.evaluate(() => {
+    const nav = document.getElementById('site-nav'), btn = document.getElementById('menu-btn'), a = document.activeElement;
+    return { expanded: btn.getAttribute('aria-expanded'), navShown: getComputedStyle(nav).display !== 'none',
+             inMenu: !!a && (a === btn || nav.contains(a)), active: a ? (a.textContent || '').trim().slice(0, 20) : 'null' };
+  });
+  // Shift+Tab from the first link back to the Menu button keeps the menu open.
+  await p2.focus('#menu-btn');
+  await p2.keyboard.press('Enter');
+  await p2.keyboard.press('Tab');
+  await p2.keyboard.press('Shift+Tab');
+  const back = await state();
+  record(back.expanded === 'true' && back.navShown && back.active === 'Menu',
+    '390x844: Shift+Tab from the first menu link to the Menu button keeps the menu open', JSON.stringify(back));
+  // Tab past the last link closes the menu as soon as focus leaves it.
+  let left = null;
+  for (let i = 0; i < 12 && !left; i++) {
+    await p2.keyboard.press('Tab');
+    const s = await state();
+    if (!s.inMenu) left = s;
+  }
+  record(!!left && left.expanded === 'false' && !left.navShown,
+    '390x844: Tab out of the open menu closes it', JSON.stringify(left));
+  await c2.close();
+}
+
 // ---------------------------------------------------------------- site.js fails to load
 // Opus N1 (code review round 1): an inline script set the js class, so when site.js failed to load every .reveal
 // section stayed at opacity 0 and the folded nav could not open. site.js now sets the class itself.
@@ -428,6 +484,7 @@ try {
   }
   await run404AndNoJs(browser, origin);
   await runScriptBlocked(browser, origin);
+  await runFocusChecks(browser, origin);
 } catch (err) {
   record(false, 'browser run', String(err && err.stack || err));
 } finally {

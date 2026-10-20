@@ -91,7 +91,7 @@ poster is the `<video poster>`, not an `<img>`.)
   blocks scroll inside themselves (`overflow-x: auto`), grid children have `min-width: 0`.
 - Header: sticky, 64px, `--bg` at 80% with backdrop blur, bottom tri-rule. Left: icon (28px) + "SlicerDDSurfer".
   Centre/right: anchor links. Right: chip "Private pre-release". At ≤ 1023px the links fold into a "Menu" button
-  (`aria-expanded`, keyboard operable, closes on link click and Escape).
+  (`aria-expanded`, keyboard operable, closes on link click, on Escape, and when focus moves out of the menu).
 - Accessibility: skip link to `#main`; visible `:focus-visible` outline (2px `--blue`, 2px offset); one `<h1>`;
   headings in order; landmarks (`header`, `nav`, `main`, `footer`); body text contrast ≥ 7:1, small text never below
   `--muted`.
@@ -140,7 +140,7 @@ Links: “Film” `#film`, “Idea” `#idea`, “Outputs” `#outputs`, “Work
   `<source src="media/SlicerDDSurfer_promo_1080p.mp4" type="video/mp4">` and a fallback link “Download the film (MP4)”.
 - Progressive enhancement: JS removes `controls` at start and shows a centred play button (round, 88px, glass,
   triangle icon, label “Play film · 1:05”). Click/Enter/Space: hide the button, add `controls`, `play()` with sound.
-  On `ended`: show the button again (label “Play again”). Without JS the native controls stay.
+  On `ended`: show the button again (label “Play again”) and, when the video had focus, move focus to it. Without JS the native controls stay.
 - Meta row under the frame (mono, small): “64.8 s · 1920 × 1080 · narrated · subtitles in the picture” and links
   “Download MP4 (41 MB)” `media/SlicerDDSurfer_promo_1080p.mp4` (`download`), “Subtitles (.srt)”
   `media/SlicerDDSurfer.en.srt` (`download`). [F9]

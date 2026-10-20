@@ -87,14 +87,17 @@ Not fixed (non-blocking):
   390 px and needs all sections and the 8 nav links visible; it failed on 5b09bc2 (8 sections hidden; 0 links at 390 px).
   Review of bd002dd (Opus 0 blocking; Codex 1): Codex P1, the DOMContentLoaded check raced the IntersectionObserver
   (it passed 2 of 3 runs on 5b09bc2). Fixed in the fix round: an init script records the on-screen sections' state at
-  the moment the `js` class appears, at 1440 and 390 px. Not fixed (non-blocking, Opus): N1 (P2) on a phone, while a
+  the moment the `js` class appears, at 1440 and 390 px. Not fixed (non-blocking, Opus item 1, P2): on a phone, while a
   slow `site.js` loads, the no-JS header (182 px, wrapped links) shows and then drops to 64 px when the class arrives
   (one layout shift, CLS 0.13 with an 800 ms delay; none on a fast load); this is the accepted cost of keeping the
-  content visible. N3 (P3) is done: SPEC §9 records the §4 sentence.
-- Opus N2 (P2): when the film ends, focus falls to `body` (the `ended` handler removes `controls` from the focused
-  video). Fix idea: focus the play button.
-- Opus N3 (P2): with the phone menu open, Tab moves focus to controls under the menu panel. Fix idea: close on
-  `focusout` outside the nav.
+  content visible. Opus item 3 (P3) is done: SPEC §9 records the §4 sentence.
+- Opus N2 (P2). **Fixed 2026-10-20** (user request): when the film ends and the video (or nothing) had focus, focus
+  moves to the play button; focus the user put elsewhere stays. `browser_check.mjs` checks both cases; the first failed
+  on bd002dd (focus on `BODY`).
+- Opus N3 (P2). **Fixed 2026-10-20** (user request): the open menu closes when focus moves to an element outside the
+  nav and the Menu button (a focusout with no new target is left to the click handlers). `browser_check.mjs` tabs out
+  of the open menu at 390 px and needs it closed (failed on bd002dd: still open), and checks that Shift+Tab back to the
+  Menu button keeps it open.
 - Opus N4 (P3): `slicer.jpg` shows path fragments from the film frame ("fer-promo/runtime/subjects/sub-01").
 - Opus N5 (P3): the IBM Plex Mono subset keeps the name "IBM Plex Mono", while the OFL text names the Reserved Font
   Name "Plex". Option: use IBM's published Latin-1 subset files.
