@@ -168,7 +168,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
     const vis = (el) => { const s = getComputedStyle(el); return s.display !== 'none' && s.visibility !== 'hidden'; };
     return { fits: inner.scrollWidth <= inner.clientWidth, menuVisible: vis(btn), navVisible: vis(nav) };
   });
-  const narrow = width <= 860;
+  const narrow = width <= 1023;
   record(hdr.fits, `${tag}: header content fits`, 'header-inner overflows');
   record(hdr.menuVisible === narrow, `${tag}: menu button ${narrow ? 'shown' : 'hidden'}`, JSON.stringify(hdr));
   if (!narrow) record(hdr.navVisible, `${tag}: nav links visible`, JSON.stringify(hdr));
@@ -350,16 +350,29 @@ try {
   await runViewport(browser, origin, '1440x900', 1440, 900, {});
   await runViewport(browser, origin, '390x844', 390, 844, {});
   await runViewport(browser, origin, '320x640', 320, 640, { overflowOnly: true });
-  // Header edge widths: 861 (links in a row) must fit.
-  for (const w of [861, 1000]) {
+  // Header edge widths around the nav fold (Codex code review r1 B1: at 861-930 px the nav row overlapped the brand
+  // inside the header, which the scrollWidth check could not see). The header must fit, and the brand, the visible
+  // nav links, the status chip and the Menu button must not overlap.
+  for (const w of [861, 900, 1023, 1024, 1100]) {
     const ctx = await browser.newContext({ viewport: { width: w, height: 800 } });
     const pg = await ctx.newPage();
     await pg.goto(origin + '/index.html', { waitUntil: 'load' });
-    const fits = await pg.evaluate(() => {
+    const hdr = await pg.evaluate(() => {
       const inner = document.querySelector('.header-inner');
-      return inner.scrollWidth <= inner.clientWidth && document.documentElement.scrollWidth <= window.innerWidth;
+      const shown = (el) => { const s = getComputedStyle(el), r = el.getBoundingClientRect(); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+      const items = [document.querySelector('.brand'), document.getElementById('menu-btn'),
+        ...document.querySelectorAll('#site-nav a, #site-nav .chip-status')].filter(shown);
+      const rects = items.map((el) => ({ name: (el.textContent || '').trim().slice(0, 20), r: el.getBoundingClientRect() }));
+      const hits = [];
+      for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i].r, b = rects[j].r;
+        if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) hits.push(`${rects[i].name} / ${rects[j].name}`);
+      }
+      const fits = inner.scrollWidth <= inner.clientWidth && document.documentElement.scrollWidth <= window.innerWidth;
+      return { fits, hits };
     });
-    record(fits, `${w}px: header fits and page does not scroll sideways`, 'overflow');
+    record(hdr.fits, `${w}px: header fits and page does not scroll sideways`, 'overflow');
+    record(!hdr.hits.length, `${w}px: brand, nav links, chip and Menu button do not overlap`, hdr.hits.join('; '));
     await ctx.close();
   }
   await run404AndNoJs(browser, origin);

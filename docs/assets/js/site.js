@@ -49,7 +49,7 @@
     });
     /* Leaving the narrow layout closes the menu state. */
     if (window.matchMedia) {
-      var mq = window.matchMedia('(min-width: 861px)');
+      var mq = window.matchMedia('(min-width: 1024px)');
       var onChange = function () { if (mq.matches) { setOpen(false); } };
       if (mq.addEventListener) { mq.addEventListener('change', onChange); }
       else if (mq.addListener) { mq.addListener(onChange); }

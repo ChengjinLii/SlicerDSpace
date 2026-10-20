@@ -88,7 +88,7 @@ poster is the `<video poster>`, not an `<img>`.)
   two-column sections → 1 (≤ 900px); workflow cards 5 → 2 → 1. No horizontal page scroll at 320px or wider; code
   blocks scroll inside themselves (`overflow-x: auto`), grid children have `min-width: 0`.
 - Header: sticky, 64px, `--bg` at 80% with backdrop blur, bottom tri-rule. Left: icon (28px) + "SlicerDDSurfer".
-  Centre/right: anchor links. Right: chip "Private pre-release". At ≤ 860px the links fold into a "Menu" button
+  Centre/right: anchor links. Right: chip "Private pre-release". At ≤ 1023px the links fold into a "Menu" button
   (`aria-expanded`, keyboard operable, closes on link click and Escape).
 - Accessibility: skip link to `#main`; visible `:focus-visible` outline (2px `--blue`, 2px offset); one `<h1>`;
   headings in order; landmarks (`header`, `nav`, `main`, `footer`); body text contrast ≥ 7:1, small text never below
@@ -272,8 +272,9 @@ Two columns: text left, `idea.jpg` right.
 
 - Eyebrow: “Get started”.
 - H2: “Install from source.”
-- Callout (top): “The repository and its model-asset repository are private during pre-release. Use an authorized
-  checkout; links into the repository need access.” [F1 README:51; MODEL_ASSETS.md:124-125]
+- Callout (top): “The repository is private during pre-release. Use an authorized checkout; links into the
+  repository need access.” [F1 README:51] (Not the model-asset repository: `SlicerDDSurfer-models` is public,
+  R/docs/release/VALIDATION_20260816.md:36.)
 - Steps, each with a short title, text and (where given) a code block with a “Copy” button [F6 README:51-81]:
   1. “Stage the extension” —
      ```
@@ -395,8 +396,8 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
 Serves `docs/` from a local HTTP server with Range support (to match GitHub Pages), opens it in Google Chrome
-(`channel: 'chrome'`; Playwright's Chromium lacks H.264/AAC), and checks at 1440×900 and 390×844 (and 320×640, 861 and
-1000 px wide for overflow only):
+(`channel: 'chrome'`; Playwright's Chromium lacks H.264/AAC), and checks at 1440×900 and 390×844 (and 320×640; and 861, 900,
+1023, 1024 and 1100 px wide for header fit and no overlap of brand, nav links, chip and Menu button):
 
 1. no console error; no failed request, except `net::ERR_ABORTED` on `media/*.mp4` (Chrome cancels and re-issues
    byte-range requests for video); no response with status ≥ 400; no request to another host;
@@ -432,3 +433,8 @@ and “must share”; B8 Extension Manager / Catalog test; B9 ERR_ABORTED exempt
 Non-blocking items taken in the same edit (copy precision or test scope): N1, N3, N4 (overflow widths), N5, N6, N7,
 N8, N9, N10, N11, N13, N14, N17. Not taken (recorded in `README.md` → “Review backlog”): N2 (rule text only; boxes
 fine), N12 (surfaces frame at 35.4 s), N15 (tool names), N16 (no inline SVG with xmlns is used), N18, N19.
+
+Code review round 1 (commit 935a5d9): Opus B1 removed the “model-asset repository … private” clause from §5.9 (that
+repository is public); Codex B1 moved the nav fold from ≤ 860px to ≤ 1023px and added the header overlap check to
+§7.2. Non-blocking items are in `README.md` → “Review backlog”.
+

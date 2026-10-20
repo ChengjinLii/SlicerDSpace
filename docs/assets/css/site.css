@@ -293,7 +293,7 @@ code { font-size: .88em; }
   .header-inner { gap: 16px; }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1023px) {
   .js .menu-btn { display: inline-flex; }
   .js .site-nav {
     display: none;

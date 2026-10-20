@@ -580,7 +580,10 @@ BANNED = [r"T1w?-free", r"T1-weighted-free", r"fully automatic", r"no registrati
           r"clinical-grade", r"diagnos", r"FDA", r"available now", r"open[- ]source",
           r"\bfaster\b", r"\baccura(te|cy)\b", r"state[- ]of[- ]the[- ]art", r"cross-platform",
           r"(install|get|download)\w*\s+(SlicerDDSurfer|it)\b.{0,40}Extensions? (Manager|Catalog|Index)",
-          r"(?<!not )(available )?(in|from|through) the (official )?Extensions? (Manager|Catalog)"]
+          r"(?<!not )(available )?(in|from|through) the (official )?Extensions? (Manager|Catalog)",
+          # Opus code review r1 B1: the SlicerDDSurfer-models repository is public
+          # (R/docs/release/VALIDATION_20260816.md:36), so the page must not call it private.
+          r"model[- ]asset\w* repositor(y|ies)\b[^.]{0,40}\bprivate"]
 EXT_MANAGER_SENTENCE = "Install SlicerDMRI and PyTorch from Slicer\u2019s Extension Manager."
 
 

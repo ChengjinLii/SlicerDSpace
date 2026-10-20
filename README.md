@@ -89,3 +89,35 @@ brain, no cut-off label.
 | social.jpg | – | `cover_1280x640.png` | 1280×640 | none (PNG converted to JPEG) |
 
 `icon-64.png` and `icon-180.png` are resized from `Resources/Icons/SlicerDDSurfer.png` of the repository.
+
+### Code review, round 1 (commit 935a5d9; Opus and Codex)
+
+Fixed in the fix round (each with a check that fails on 935a5d9 and passes after):
+- Opus B1 (P1): the Get started callout called the model-asset repository private; `SlicerDDSurfer-models` is public
+  (R/docs/release/VALIDATION_20260816.md:36). The clause is gone; `claims_banned` now rejects it.
+- Codex B1 (P1): at 861–930 px the nav row overlapped the brand inside the header. The nav now folds at ≤ 1023 px;
+  `browser_check.mjs` checks brand, nav links, chip and Menu button for overlap at 861, 900, 1023, 1024 and 1100 px.
+
+Not fixed (non-blocking):
+- Codex B2–B5, reclassified from P1 to P2: each is a form that `check_site.py` would miss, and none occurs on the site,
+  so the site stays correct. B2: CSS `url()` in inline `<style>` blocks and `style` attributes is not host-checked.
+  B3: `srcset` is host-checked as one URL, not per candidate. B4: CSS `url()` targets are not checked to stay inside
+  `docs/`. B5: fragments on filename links (`index.html#x`) are not checked.
+- Opus N1 (P2): if `site.js` fails to load while JS is on, the inline `js` class hides every `.reveal` section and the
+  folded nav. Fix idea: let `site.js` add the class.
+- Opus N2 (P2): when the film ends, focus falls to `body` (the `ended` handler removes `controls` from the focused
+  video). Fix idea: focus the play button.
+- Opus N3 (P2): with the phone menu open, Tab moves focus to controls under the menu panel. Fix idea: close on
+  `focusout` outside the nav.
+- Opus N4 (P3): `slicer.jpg` shows path fragments from the film frame ("fer-promo/runtime/subjects/sub-01").
+- Opus N5 (P3): the IBM Plex Mono subset keeps the name "IBM Plex Mono", while the OFL text names the Reserved Font
+  Name "Plex". Option: use IBM's published Latin-1 subset files.
+- Opus N6 (P3): `check_site.py` accepts any §6 URL in `<link rel="canonical">` and does not limit where the Pages URLs
+  and the `.git` URL may appear.
+- Opus N7 (P3): on the 404 page, `browser_check.mjs` ignores console errors that contain "404", so a missing asset
+  there would pass.
+- Opus N8 (P3): the no-JS block collects failed requests but does not check them; it runs only at 1440 px.
+- Opus N9 (P3): Chrome runs with `--autoplay-policy=no-user-gesture-required`, so a future `play()` outside a user
+  gesture would still pass.
+- Opus N10 (P3): the "How to test" section lists 1440, 390 and 320 px only.
+
