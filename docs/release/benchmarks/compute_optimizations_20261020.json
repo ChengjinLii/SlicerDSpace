@@ -1,0 +1,510 @@
+{
+  "status": "passed",
+  "reviewed_on": "2026-10-20",
+  "comparison": "Immediately preceding Python implementation versus optimized Python; not author MATLAB runtime",
+  "source_inputs_unchanged": true,
+  "records": [
+    {
+      "operation": "six_map_roi_export",
+      "subject_id": "100206",
+      "baseline_median_seconds": 5.549577096477151,
+      "optimized_median_seconds": 0.5524481907486916,
+      "speed_ratio": 10.045425416193735,
+      "time_reduction_percent": 90.04522000245058,
+      "times_seconds": {
+        "baseline": [
+          5.51448898948729,
+          5.549577096477151,
+          5.568359035998583
+        ],
+        "optimized": [
+          0.5534355770796537,
+          0.552317675203085,
+          0.5524481907486916
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_output_parity": true,
+      "scope": "Full native atlas + six DTI files + brain mask, read/validate/statistics/hash/write; not model fitting",
+      "shape": [
+        145,
+        174,
+        145
+      ],
+      "metrics": [
+        "fa",
+        "md",
+        "ad",
+        "rd",
+        "l1",
+        "trace"
+      ],
+      "csv_byte_identical": true
+    },
+    {
+      "operation": "mkcurve_parameter_extraction",
+      "subject_id": "100206",
+      "baseline_median_seconds": 0.5278077330440283,
+      "optimized_median_seconds": 0.3704061880707741,
+      "speed_ratio": 1.4249430761215556,
+      "time_reduction_percent": 29.821758022655608,
+      "times_seconds": {
+        "baseline": [
+          0.5278077330440283,
+          0.5270031653344631,
+          0.5282023642212152
+        ],
+        "optimized": [
+          0.3703955430537462,
+          0.3709840774536133,
+          0.3704061880707741
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_output_parity": true,
+      "scope": "Ten raw parameter arrays for 1024 uniformly selected real coefficient rows; no fitting",
+      "coefficient_rows": 936256,
+      "sampled_rows": 1024,
+      "index_sha256": "909f2754934394dcd35f68583ed14595c00099114943f9df0c2c89610a8e11b4"
+    },
+    {
+      "operation": "mkcurve_full_chunk",
+      "subject_id": "100206",
+      "baseline_median_seconds": 0.9403797574341297,
+      "optimized_median_seconds": 0.8493142668157816,
+      "speed_ratio": 1.107222372420244,
+      "time_reduction_percent": 9.683905879346511,
+      "times_seconds": {
+        "baseline": [
+          0.9403797574341297,
+          0.9396246206015348,
+          0.9413950834423304
+        ],
+        "optimized": [
+          0.8525066431611776,
+          0.848106000572443,
+          0.8493142668157816
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_output_parity": true,
+      "scope": "One full 64-voxel numeric chunk: all original synthetic-b0 samples, WLLS, correction, parameters, masks, residuals; excludes disk preparation/export",
+      "voxels": 64,
+      "grid_samples": 200,
+      "solver": "batched",
+      "measurements": 181,
+      "all_saved_comparison_arrays_exact": true,
+      "signals_sha256": "9460856b4cbda8cc771d42867021d37f138907411ccab1978991e3a99dd689c0"
+    },
+    {
+      "operation": "six_map_roi_export",
+      "subject_id": "149741",
+      "baseline_median_seconds": 5.561943396925926,
+      "optimized_median_seconds": 0.5208342019468546,
+      "speed_ratio": 10.678913512468334,
+      "time_reduction_percent": 90.63575148508849,
+      "times_seconds": {
+        "baseline": [
+          5.509123079478741,
+          5.577227050438523,
+          5.561943396925926
+        ],
+        "optimized": [
+          0.5204190630465746,
+          0.5208342019468546,
+          0.5230330545455217
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_output_parity": true,
+      "scope": "Full native atlas + six DTI files + brain mask, read/validate/statistics/hash/write; not model fitting",
+      "shape": [
+        145,
+        174,
+        145
+      ],
+      "metrics": [
+        "fa",
+        "md",
+        "ad",
+        "rd",
+        "l1",
+        "trace"
+      ],
+      "csv_byte_identical": true
+    },
+    {
+      "operation": "mkcurve_parameter_extraction",
+      "subject_id": "149741",
+      "baseline_median_seconds": 0.5243057534098625,
+      "optimized_median_seconds": 0.3686922676861286,
+      "speed_ratio": 1.422068753164656,
+      "time_reduction_percent": 29.679911904778788,
+      "times_seconds": {
+        "baseline": [
+          0.5243057534098625,
+          0.5242297537624836,
+          0.5245576351881027
+        ],
+        "optimized": [
+          0.3686922676861286,
+          0.36968561820685863,
+          0.3685564287006855
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_output_parity": true,
+      "scope": "Ten raw parameter arrays for 1024 uniformly selected real coefficient rows; no fitting",
+      "coefficient_rows": 825145,
+      "sampled_rows": 1024,
+      "index_sha256": "f72223755eff6aa455cfb41e28207c3ead0a4a35858f22782b2ed39a1a3239c5"
+    },
+    {
+      "operation": "mkcurve_full_chunk",
+      "subject_id": "149741",
+      "baseline_median_seconds": 0.9513058792799711,
+      "optimized_median_seconds": 0.8613075520843267,
+      "speed_ratio": 1.1044903495596345,
+      "time_reduction_percent": 9.460503625160266,
+      "times_seconds": {
+        "baseline": [
+          0.9526286385953426,
+          0.9513058792799711,
+          0.9481271486729383
+        ],
+        "optimized": [
+          0.8613075520843267,
+          0.8594450447708368,
+          0.8651747833937407
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_output_parity": true,
+      "scope": "One full 64-voxel numeric chunk: all original synthetic-b0 samples, WLLS, correction, parameters, masks, residuals; excludes disk preparation/export",
+      "voxels": 64,
+      "grid_samples": 201,
+      "solver": "batched",
+      "measurements": 181,
+      "all_saved_comparison_arrays_exact": true,
+      "signals_sha256": "90acc9f3ce07f5577c95cfa24d99f8055e710114fb67a623979a51638870d4e6"
+    },
+    {
+      "operation": "six_map_roi_export",
+      "subject_id": "877168",
+      "baseline_median_seconds": 5.5227171797305346,
+      "optimized_median_seconds": 0.4827763643115759,
+      "speed_ratio": 11.439493703478542,
+      "time_reduction_percent": 91.25835438245035,
+      "times_seconds": {
+        "baseline": [
+          5.549700146540999,
+          5.511918600648642,
+          5.5227171797305346
+        ],
+        "optimized": [
+          0.4827763643115759,
+          0.48236977122724056,
+          0.4873316641896963
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_output_parity": true,
+      "scope": "Full native atlas + six DTI files + brain mask, read/validate/statistics/hash/write; not model fitting",
+      "shape": [
+        145,
+        174,
+        145
+      ],
+      "metrics": [
+        "fa",
+        "md",
+        "ad",
+        "rd",
+        "l1",
+        "trace"
+      ],
+      "csv_byte_identical": true
+    },
+    {
+      "operation": "mkcurve_parameter_extraction",
+      "subject_id": "877168",
+      "baseline_median_seconds": 0.5274372138082981,
+      "optimized_median_seconds": 0.37066829204559326,
+      "speed_ratio": 1.4229358839882151,
+      "time_reduction_percent": 29.722764654919466,
+      "times_seconds": {
+        "baseline": [
+          0.5283094253391027,
+          0.5256078857928514,
+          0.5274372138082981
+        ],
+        "optimized": [
+          0.37066829204559326,
+          0.37095094099640846,
+          0.3696659076958895
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_output_parity": true,
+      "scope": "Ten raw parameter arrays for 1024 uniformly selected real coefficient rows; no fitting",
+      "coefficient_rows": 699932,
+      "sampled_rows": 1024,
+      "index_sha256": "e7360b331094595245d7b5d8cff9096105e674fd2ab231a3d76c22cb7fdf130e"
+    },
+    {
+      "operation": "mkcurve_full_chunk",
+      "subject_id": "877168",
+      "baseline_median_seconds": 0.9739947468042374,
+      "optimized_median_seconds": 0.876873891800642,
+      "speed_ratio": 1.1107580644283521,
+      "time_reduction_percent": 9.971394129409571,
+      "times_seconds": {
+        "baseline": [
+          1.003730347380042,
+          0.969991572201252,
+          0.9739947468042374
+        ],
+        "optimized": [
+          0.8780570402741432,
+          0.876873891800642,
+          0.8730124644935131
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_output_parity": true,
+      "scope": "One full 64-voxel numeric chunk: all original synthetic-b0 samples, WLLS, correction, parameters, masks, residuals; excludes disk preparation/export",
+      "voxels": 64,
+      "grid_samples": 200,
+      "solver": "batched",
+      "measurements": 181,
+      "all_saved_comparison_arrays_exact": true,
+      "signals_sha256": "b6d9a65dd0c6687f12a97519f3d662c86327606b04304858c517c0aab6d08757"
+    }
+  ],
+  "source_sha256": {
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/outputs/03_structural/ddparcel/100206-DDSurfer-wmparc.nii.gz": "5129fc562e0e16fb22bb60b97d69ce05d7a486ae23922ea49a5e3acd23fc7ba6",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/input/nodif_brain_mask.nii.gz": "14d0b0f107ee17184313e2cee3213d2a72731a51294f4c35b3c31bef87c7f1ea",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/outputs/02_microstructure/dti/100206_dti_FA.nii.gz": "584144bf34a331a015d3ecaa8cafdd2781c181d96267fdc6f47bed8a0b2921c9",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/outputs/02_microstructure/dti/100206_dti_MD.nii.gz": "49f344418d27adab2e10f33e3b9445b398e8336923dfd8eee40d9894887c6838",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/outputs/02_microstructure/dti/100206_dti_AD.nii.gz": "1ea99828dfd595f82713d70dccc37c3087065be1e7970e8aa431d740503f9c09",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/outputs/02_microstructure/dti/100206_dti_RD.nii.gz": "f78edab92af72372dafe9e9dfffeb729107d34f98f9410a3314aa74b3d98dd44",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/outputs/02_microstructure/dti/100206_dti_L1.nii.gz": "1ea99828dfd595f82713d70dccc37c3087065be1e7970e8aa431d740503f9c09",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/outputs/02_microstructure/dti/100206_dti_Trace.nii.gz": "58e3f9d6294a69916097081e6cbb4642ba03279154ae9c079c8d443c1732a88a",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/mkcurve_cohort_20261017/100206/original_coefficients.npy": "4c6d1731e68caffe8d4424f015d5f5ebd387e180894cbe478a998ebc48e7de07",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100206/T1w/Diffusion/data.nii.gz": "551bd2b7866187674162e2525a8fccf370d2e15a5878eb7520744cfd33f6d03d",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100206/T1w/Diffusion/bvals": "26bfc9904dc08251ea36ef831f35e4973a48046c7c62017caa27f0a0e7071eea",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100206/T1w/Diffusion/bvecs": "661a494c36f8570fb7e8a43a8937ef117767eb2ba635241c141c9faba217a3f1",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100206/T1w/Diffusion/nodif_brain_mask.nii.gz": "14d0b0f107ee17184313e2cee3213d2a72731a51294f4c35b3c31bef87c7f1ea",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/mkcurve_cohort_20261017/100206/synthetic_b0_grid.csv": "653b434645eb76650185384a74337682eab570ac3423ae2d0cdc6deca62657c9",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/outputs/03_structural/ddparcel/149741-DDSurfer-wmparc.nii.gz": "2f8403e5e321139208da72c8dab082ee439f6982374649f9eec3ea7e5005977a",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/input/nodif_brain_mask.nii.gz": "98f8cf9fef47528b31f18c8313b9d2a6c6cf4cfa20fd045d101b017a026c280c",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/outputs/02_microstructure/dti/149741_dti_FA.nii.gz": "9c9688c6cc85cf8bb62123b4967d8ac679407b1c5f2fd80cadd09bc9f278a0fa",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/outputs/02_microstructure/dti/149741_dti_MD.nii.gz": "c49971a1e0c963b84d7969fb313d30680dad6d45a4b6ad767a658c718164b4f9",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/outputs/02_microstructure/dti/149741_dti_AD.nii.gz": "f6cbe36b4e88976d0220df2960c092f4592db89c2967edcdf69dcf73ee4c384f",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/outputs/02_microstructure/dti/149741_dti_RD.nii.gz": "feee2f2f7802dcc794943a4b0ba1b073e6572971b00e08d9d34554059aedd867",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/outputs/02_microstructure/dti/149741_dti_L1.nii.gz": "f6cbe36b4e88976d0220df2960c092f4592db89c2967edcdf69dcf73ee4c384f",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/outputs/02_microstructure/dti/149741_dti_Trace.nii.gz": "d03db9e509131d4c526aa4f4a8e87f95dba1c78bc7242f69304e72100c5e67d5",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/mkcurve_cohort_20261017/149741/original_coefficients.npy": "8aedb5ba0d3f97d9b87553aee62fe7e7181bfde9e265683287abcc08ffd635c3",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/149741/input/data.nii.gz": "14da8fd6d5a0929c05f95b92c4b36fc56ea48d7398018f1874dcd6bbe0f0a6bd",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/149741/input/bvals": "aa3247a2cc39b80ac02286483dcc6fb612ab870fea153f1d8b87369c41bc7807",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/149741/input/bvecs": "770cc56c46ec51438938062a67aad644427c43e337118b05a81d8ac48b5a2102",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/149741/input/nodif_brain_mask.nii.gz": "98f8cf9fef47528b31f18c8313b9d2a6c6cf4cfa20fd045d101b017a026c280c",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/mkcurve_cohort_20261017/149741/synthetic_b0_grid.csv": "4c7b661980e3f25101a3ed985a8573aec09a75d0cbe781985584afea3de8ce03",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/03_structural/ddparcel/877168-DDSurfer-wmparc.nii.gz": "b42636a176bc06ce0b6dc6eb83118b56b719f62e315cebab4bbc4ac829031878",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/877168/input/nodif_brain_mask.nii.gz": "3f91c95779e340cb0f7286a816d91518ef167b3c52528659a73496170d86268c",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/02_microstructure/dti/877168_dti_FA.nii.gz": "7b4c583b1e2905be1ad9c19d8cf4189f62aeb0a09741ba5c9c0cd32d911be2a2",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/02_microstructure/dti/877168_dti_MD.nii.gz": "ee5b566b238e440d9f0cb021fb354950aab2bb16d2857b051dc04f2c8b91dce9",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/02_microstructure/dti/877168_dti_AD.nii.gz": "634021b743b7d2f4078c7ee9dc199808afa4ba3aacb9ea12c374fb9259ae7283",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/02_microstructure/dti/877168_dti_RD.nii.gz": "a32345d369f1c30171d3171d8336f548e010f8ac7ef5080681c90d00c68ba4ce",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/02_microstructure/dti/877168_dti_L1.nii.gz": "634021b743b7d2f4078c7ee9dc199808afa4ba3aacb9ea12c374fb9259ae7283",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/02_microstructure/dti/877168_dti_Trace.nii.gz": "4f0e093160b4ea8e447c2bddf48962582190029f2b6c38b88d861e7b0db1f3e1",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/mkcurve_cohort_20261017/877168/original_coefficients.npy": "c05641b90f8ba375012ed21f5204d022eaea20d97b663d3a58d5b41d76c8a90b",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/877168/T1w/Diffusion/data.nii.gz": "b503d7045c17fbc81da7dc3fd26c72b6cd898a1a793ac8fc77f46114603a8c26",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/877168/T1w/Diffusion/bvals": "4c1bfeeb0cd4198c1af282539a562782a85d62233a9acb54f46f87858ba9f429",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/877168/T1w/Diffusion/bvecs": "58ed7970ce5ca934bf584c658710020e3c84d46475b625ddfd6990278d5220e9",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/877168/T1w/Diffusion/nodif_brain_mask.nii.gz": "3f91c95779e340cb0f7286a816d91518ef167b3c52528659a73496170d86268c",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/mkcurve_cohort_20261017/877168/synthetic_b0_grid.csv": "c0abe831a503caf52aef9f01e805cf7cf7f0f818a1537358d4edcab3e1e5fc9e"
+  },
+  "baseline_code_sha256": {
+    "microstructure/pipeline.py": "62ad31c3ac25643d20583061b2b0bf064b440da938737ebeee44250c918981a9",
+    "microstructure/mkcurve_tensor.py": "4d23fcbdea8b9813565b680b662d1dead3afb65cbc7e6e75d91c619dd7e8212a"
+  },
+  "optimized_code_sha256": {
+    "microstructure/pipeline.py": "938c6ebb190308c0db8e19f3c63f9fed6b3e1136afa2e8ce3fb34a4141daf4d2",
+    "microstructure/mkcurve_tensor.py": "d4448d900366a26d3c77899f9419574ae69cbca37cc0666c3111e16f810b3516"
+  },
+  "benchmark_sha256": "ffba23de9baba36a1b46f66009f7556f4513a61888647412203997754dfedf52",
+  "environment": {
+    "python": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:09:02) [GCC 11.2.0]",
+    "numpy": "2.3.3",
+    "scipy": "1.17.0",
+    "nibabel": "5.3.3",
+    "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+    "thread_env": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1"
+    },
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140,
+      141,
+      142,
+      143
+    ]
+  },
+  "limitations": [
+    "Warm-process/page-cache comparison, alternating order, not exclusive host access",
+    "Three subjects, three repeats per method; not whole scientific workflow timing",
+    "Original full-brain fits and failures are not modified; no accuracy improvement claimed",
+    "Native Windows/macOS unmeasured; no new dependency or GPU requirement"
+  ]
+}

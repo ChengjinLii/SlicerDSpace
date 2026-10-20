@@ -94,6 +94,7 @@ class WMAOrgAtlasConfig:
     fiber_tract_measurements_cli: Optional[Path] = None
     clean_files: int = 0
     execute: bool = False
+    registration_preprocess_cache: bool = True
 
 
 @dataclass(frozen=True)
@@ -688,6 +689,7 @@ def run_wma_org_atlas(
     stderr_log = log_dir / "wma_stderr.log"
     conversion_stdout_log = log_dir / "tckconvert_stdout.log"
     conversion_stderr_log = log_dir / "tckconvert_stderr.log"
+    previous_cache_reports = set(log_dir.glob("registration_cache_*.json"))
     output_summary = summarize_wma_outputs(output_dir, prepared_tractography)
 
     manifest = {
@@ -706,6 +708,8 @@ def run_wma_org_atlas(
         "atlas_dir": config.atlas_dir.expanduser().resolve().as_posix(),
         "output_dir": output_dir.as_posix(),
         "registration_mode": config.registration_mode,
+        "registration_preprocess_cache": {"requested": config.registration_preprocess_cache,
+                                           "installed": False, "reports": []},
         "num_threads": config.num_threads,
         "use_virtual_x": config.use_virtual_x,
         "export_diffusion_measures": config.export_diffusion_measures,
@@ -794,6 +798,17 @@ def run_wma_org_atlas(
                 if slicer_python is not None:
                     shim = Path(temp_python_dir.name) / "python"
                     shim.symlink_to(slicer_python)
+                    if config.registration_preprocess_cache:
+                        runner = Path(__file__).resolve().parents[1] / "scripts" / "run_wma_registration.py"
+                        author_registration = wma_root / "bin" / "wm_register_to_atlas_new.py"
+                        if runner.is_file() and author_registration.is_file():
+                            registration_shim = Path(temp_python_dir.name) / author_registration.name
+                            registration_shim.write_text(
+                                f"#!/bin/sh\nexec {shlex.quote(str(slicer_python))} {shlex.quote(str(runner))} "
+                                f"--author-script {shlex.quote(str(author_registration))} "
+                                f'--report-dir {shlex.quote(str(log_dir))} -- "$@"\n', encoding="utf-8")
+                            registration_shim.chmod(0o755)
+                            manifest["registration_preprocess_cache"]["installed"] = True
                 if config.use_virtual_x:
                     real_xvfb = _command_path("xvfb-run", wma_root)
                     if real_xvfb is not None:
@@ -887,6 +902,11 @@ def run_wma_org_atlas(
                     execution_error = f'Failed to publish WMA products: {exc}'
 
     elapsed_seconds = time.monotonic() - start_time
+    if manifest["registration_preprocess_cache"]["installed"]:
+        manifest["registration_preprocess_cache"]["reports"] = [
+            str(path) for path in sorted(log_dir.glob("registration_cache_*.json"))
+            if path not in previous_cache_reports
+        ]
     status = _derive_wma_status(output_summary, execution_error, bool(config.execute))
     qc = {
         "kind": "wma_org_atlas_qc",

@@ -15,6 +15,20 @@ The integrity check is not a legal opinion or a grant of model/template rights.
 
 ---
 
+## WMA Registration Preprocessing
+
+`tractography/wma_preprocessing.py` is a modified bulk implementation of the
+attribute-free length filter in SlicerDMRI/whitematteranalysis, pinned at
+`4532b911386d2d1bc7ebba63fdd13e65b1660623`. The author length-estimation,
+threshold and float32 copy semantics are retained; this is not an upstream release.
+
+All or portions of this licensed product (such portions are the "Software")
+have been obtained under license from The Brigham and Women's Hospital, Inc.
+and are subject to the terms and conditions in [the full WMA/Slicer agreement](licenses/WMA.txt).
+Optional upstream WMA code and atlas assets retain their own distribution terms.
+
+---
+
 ## FastSurfer-derived code (Apache License 2.0)
 
 - `anatomy/parcellation/models/networks.py`

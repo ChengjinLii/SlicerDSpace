@@ -1,0 +1,215 @@
+{
+  "kind": "derived_scoped_performance_evidence",
+  "reviewed_on": "2026-10-20",
+  "generation_scope": "Read preserved JSON only; no scientific workflow rerun or source product modification",
+  "base_commit": "a48fc95e0a52a88a1ae99dd683a547520acc0c5d",
+  "working_tree": "dirty; base commit alone does not identify the measured implementations",
+  "formulas": {
+    "speed_ratio": "reference_seconds / optimized_seconds",
+    "wall_time_reduction_percent": "100 * (1 - optimized_seconds / reference_seconds)"
+  },
+  "comparisons": [
+    {
+      "id": "wma_registration_preprocessing",
+      "reference_seconds": 533.7745765317231,
+      "optimized_seconds": 180.54995530471206,
+      "speed_ratio": 2.9563816597510533,
+      "wall_time_reduction_percent": 66.17486796057968,
+      "category": "same_input_stage_comparison",
+      "scope": "Three fixed-seed preparation calls, including first cache fill; not full WMA",
+      "output_check": "Bitwise-equal registration input signatures; source hashes unchanged",
+      "evidence": [
+        "ignore/validation/wma_cache_benchmark_20261017/acceptance.json"
+      ],
+      "atlas_streamlines": 1989106,
+      "subject_streamlines": 277875,
+      "iterations": 3,
+      "independent_subjects": 1,
+      "cache_hits": 4,
+      "cache_misses": 2
+    },
+    {
+      "id": "wma_memory_bounded_validation",
+      "reference_seconds": 533.7745765317231,
+      "optimized_seconds": 181.54162028990686,
+      "speed_ratio": 2.9402325245270453,
+      "wall_time_reduction_percent": 65.98908448028762,
+      "category": "preserved_author_reference_new_cache_repeat",
+      "scope": "Memory-bounded revision versus the preserved author timings; not a new paired control",
+      "output_check": "Same three author signatures; retained-cache budget respected",
+      "evidence": [
+        "ignore/validation/wma_cache_benchmark_20261017/acceptance.json",
+        "ignore/validation/wma_cache_memory_20261017/acceptance.json"
+      ],
+      "cache_peak_retained_bytes": 3374317568,
+      "cache_max_bytes": 4294967296
+    },
+    {
+      "id": "surface_four_overlay_mapping",
+      "reference_seconds": 13.37943259254098,
+      "optimized_seconds": 3.5190587118268013,
+      "speed_ratio": 3.80199186435156,
+      "wall_time_reduction_percent": 73.69799737405401,
+      "category": "same_input_stage_comparison",
+      "scope": "100307 left hemisphere; four separate FreeSurfer commands versus one multi-frame command",
+      "output_check": "Four byte-identical MGH outputs; 163842 vertices per overlay; source hashes unchanged",
+      "evidence": [
+        "ignore/validation/ddsurfer_sync_20261013/real-postprocess-100307/parity.json"
+      ],
+      "attribution": "Inherited from pinned DDSurfer upstream c3b2d40",
+      "independent_subjects": 1,
+      "additional_packing_and_validation_overhead_included": false
+    },
+    {
+      "id": "diffusion_three_slab_io",
+      "reference_seconds": 37.25199197977781,
+      "optimized_seconds": 17.078589437529445,
+      "speed_ratio": 2.181210111996615,
+      "wall_time_reduction_percent": 54.15388941670414,
+      "category": "same_input_io_comparison",
+      "scope": "Three real slabs including sequential decode. NOT a model-fit or full pipeline speedup.",
+      "output_check": "Exact arrays and affine for all three slabs; unchanged input hash",
+      "evidence": [
+        "ignore/validation/pipeline_qc_20261015/dwi_io_benchmark_current.json"
+      ],
+      "shape": [
+        145,
+        174,
+        145,
+        288
+      ],
+      "indexed_gzip_available": false,
+      "independent_subjects": 1,
+      "repeated_trials_per_method": 1,
+      "os_page_cache_not_controlled": true
+    },
+    {
+      "id": "synthstrip_cpu_gpu",
+      "reference_seconds": 14.267635237425566,
+      "optimized_seconds": 9.494466383010149,
+      "speed_ratio": 1.502731660934284,
+      "wall_time_reduction_percent": 33.45451979242414,
+      "category": "same_input_device_comparison",
+      "scope": "Full mask-generation acceptance, not isolated CNN; single CPU/GPU pair",
+      "output_check": "Native geometry agrees; Dice measures agreement, not ground-truth accuracy",
+      "evidence": [
+        "ignore/validation/pnl_gpu_20261013/synthstrip-comparison.json"
+      ],
+      "dice": 0.9999939184217088,
+      "different_voxels": 2,
+      "cpu": "CPU",
+      "gpu": "H100 CUDA",
+      "runtime": "PyTorch 2.4.1 / CUDA 12.1",
+      "attribution": "Enable the upstream GPU path; not a novel estimator"
+    },
+    {
+      "id": "noddi_historical_one_vs_eight_threads",
+      "reference_seconds": 1784.2798335235566,
+      "optimized_seconds": 343.0981025509536,
+      "speed_ratio": 5.200494611475074,
+      "wall_time_reduction_percent": 80.77105977970893,
+      "category": "historical_uncontrolled_observation",
+      "scope": "100307 full-brain; historical one-thread record versus later eight-thread run",
+      "output_check": "Six saved arrays agree exactly; compressed file hashes can differ",
+      "evidence": [
+        "docs/release/benchmarks/module_runtimes_20261017.json",
+        "ignore/validation/pipeline_qc_20261015/100307_noddi_refit/acceptance.json",
+        "ignore/validation/pipeline_qc_20261015/noddi_refit_parity.json"
+      ],
+      "controlled_speedup_claim_allowed": false,
+      "metrics_compared": [
+        "NDI",
+        "ODI",
+        "IsoVF",
+        "RMSE",
+        "NRMSE",
+        "tissue_valid_mask"
+      ]
+    },
+    {
+      "id": "dti_export_reuse",
+      "reference_seconds": 1.102781180292368,
+      "optimized_seconds": 0.0012512486428022385,
+      "speed_ratio": 881.3445566043774,
+      "wall_time_reduction_percent": 99.88653699707946,
+      "category": "cold_export_vs_completed_stage_reuse",
+      "scope": "eight scalar export+QC, NOT tensor fitting",
+      "output_check": "Cached output timestamps unchanged; this is no fitting comparison",
+      "evidence": [
+        "ignore/validation/pipeline_qc_20261015/100307_current/acceptance.json"
+      ],
+      "controlled_algorithm_speedup_claim_allowed": false
+    },
+    {
+      "id": "pnl_cpu_auto_gpu",
+      "reference_seconds": 78.96066503971815,
+      "optimized_seconds": 84.43726085312665,
+      "speed_ratio": 0.9351400583335514,
+      "wall_time_reduction_percent": -6.935853200645781,
+      "category": "same_input_device_comparison_no_observed_speed_gain",
+      "scope": "Full mask-generation acceptance including registration/startup",
+      "output_check": "See retained CPU/GPU Dice comparisons; GPU selection is not a speed guarantee",
+      "evidence": [
+        "ignore/validation/pnl_gpu_20261013/comparison.json"
+      ],
+      "device_policy": "GPU-preferred Auto; explicit user CPU remains supported"
+    }
+  ],
+  "evidence_records": {
+    "ignore/validation/wma_cache_benchmark_20261017/acceptance.json": {
+      "sha256": "462364a909ca9c2b1f813aad98180bccd42e3bf66c67e00c0ad6746c926abc79",
+      "bytes": 4573
+    },
+    "ignore/validation/wma_cache_memory_20261017/acceptance.json": {
+      "sha256": "98f1bdf35299b41739452f6f85fff587b882cd7b8fa6130679a77997e6d6ee72",
+      "bytes": 5066
+    },
+    "ignore/validation/ddsurfer_sync_20261013/real-postprocess-100307/parity.json": {
+      "sha256": "9b39a81e3f83b7cb5dbc4f9bc5c1ea4ac2adf1630d92e81519f327b1c86de864",
+      "bytes": 8559
+    },
+    "ignore/validation/pipeline_qc_20261015/dwi_io_benchmark_current.json": {
+      "sha256": "d26f9a16e81211af0a7984f71034617f6df764bf8e4ade6cf5342c6d32ba8b72",
+      "bytes": 1253
+    },
+    "ignore/validation/pnl_gpu_20261013/synthstrip-comparison.json": {
+      "sha256": "753293ce4345223abc0763047b4dafbe20f0bd46babb9db78491680da117f9a4",
+      "bytes": 3027
+    },
+    "docs/release/benchmarks/module_runtimes_20261017.json": {
+      "sha256": "0b463ba4ca15f670f05a89f012c3c9639b58bf90bbc9aaed0f3ce215b4a06aca",
+      "bytes": 175803
+    },
+    "ignore/validation/pipeline_qc_20261015/100307_noddi_refit/acceptance.json": {
+      "sha256": "e4b7baa3f9109fba8f00d1302f1bab682fbbb36e56f6c63bf179300d441906e7",
+      "bytes": 3005
+    },
+    "ignore/validation/pipeline_qc_20261015/noddi_refit_parity.json": {
+      "sha256": "2012d289cb3840919fa00a96902c4a62837398643e2cc4388acdc0b8845249a0",
+      "bytes": 4468
+    },
+    "ignore/validation/pipeline_qc_20261015/100307_current/acceptance.json": {
+      "sha256": "e2a97e621446665e876caf36f0792c81c3dbe4f49e36f8eb05b3cdc14fae6a31",
+      "bytes": 2644
+    },
+    "ignore/validation/pnl_gpu_20261013/comparison.json": {
+      "sha256": "8743c70403b426ca6cfae0ffdfbd72c2030f1fe89b9f3bd4f6075a1935f53c22",
+      "bytes": 4988
+    }
+  },
+  "reviewed_code_sha256": {
+    "tractography/wma_registration.py": "f2bde54d447aaec51e1892cea9e14483f325db35fea358efb70403a2835d5285",
+    "scripts/run_wma_registration.py": "ffa99d3270baea34ef8115d5c1cb89ff4b0a8da099ebec4facefe71e66f14c75",
+    "shared/diffusion_io.py": "db63bc8779e2a0bdd487dd3ac22f046241029933d7e2eaca356bfbcd18c2d7eb",
+    "microstructure/pipeline.py": "938c6ebb190308c0db8e19f3c63f9fed6b3e1136afa2e8ce3fb34a4141daf4d2",
+    "microstructure/mkcurve.py": "668a27ee3546b71de7fb2d66feab8699d5e77f379c8b3861f3a8a6f175839395",
+    "microstructure/mkcurve_tensor.py": "d4448d900366a26d3c77899f9419574ae69cbca37cc0666c3111e16f810b3516",
+    "anatomy/surface/ddsurfer_backend/postprocessing/overlays.py": "cd1402d23526e60c9fbd5da639ca9597c2ba896b5ba3e14b289b90f6a6737e0c"
+  },
+  "limitations": [
+    "Stage/device/historical/reuse comparisons must not be pooled into a workflow speedup",
+    "No new accuracy, human anatomical or clinical acceptance is established",
+    "No independent multi-subject, native Windows or macOS speed benchmark",
+    "Historical hardware/thread/load metadata are not retroactively inferred"
+  ]
+}

@@ -402,6 +402,23 @@ def _audit_dti(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> bool:
     return True
 
 
+def _audit_regional_statistics(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> None:
+    outputs = _task_outputs(manifest, 'microstructure.dti')
+    if not (outputs.get('roi_stats_json') or outputs.get('roi_stats_csv')):
+        return
+    from scripts.audit_regional_validity import audit_statistics
+
+    try:
+        result = audit_statistics(Path(str(outputs.get('roi_stats_json') or '')),
+                                  Path(str(outputs.get('roi_stats_csv') or '')), required_metrics=DTI_KEYS)
+        value = {key: result.get(key) for key in ('status', 'checks', 'regions', 'metrics', 'comparisons', 'failures')}
+        passed = result['automatic_qc_passed'] is True
+    except Exception as exc:
+        value, passed = {'error': f'{type(exc).__name__}: {exc}'}, False
+    _record_check(checks, 'microstructure.regional_statistics', passed, value,
+                  'Current source-linked tables and independently recomputed native-grid counts/estimates; invalid samples excluded')
+
+
 def _audit_act_preparation(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> None:
     from shared.orchestrator import _act_inputs_current
 
@@ -1577,6 +1594,7 @@ def audit_output_root(
         _audit_validation(manifest, checks)
         _audit_preprocessing(manifest, checks)
         has_dti = _audit_dti(manifest, checks)
+        _audit_regional_statistics(manifest, checks)
         _audit_act_preparation(manifest, checks)
         has_tractography = _audit_tractography(manifest, checks)
         structural_routes = _audit_structural(manifest, checks)

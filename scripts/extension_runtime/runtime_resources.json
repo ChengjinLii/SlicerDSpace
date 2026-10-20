@@ -15,6 +15,8 @@
     "anatomy/surface/ddsurfer_backend/utils/LICENSE.pytorch3d",
     "tractography/wmql_queries/AF_CST.qry",
     "tractography/wmql_queries/CST_WMQL2016.qry",
+    "tractography/wma_preprocessing.py",
+    "licenses/WMA.txt",
     "scripts/wsl/WslCommandBridge.cs",
     "scripts/wsl/requirements-runtime.txt",
     "shared/pnl_mask_runner.py",
@@ -27,7 +29,8 @@
     "scripts/wsl/run_command.py",
     "scripts/setup_managed_runtime.py",
     "docs/release/benchmarks/module_runtimes_20261013.csv",
-    "docs/release/benchmarks/module_runtimes_20261015.csv"
+    "docs/release/benchmarks/module_runtimes_20261015.csv",
+    "docs/release/benchmarks/module_runtimes_20261017.csv"
   ],
   "trees": [
     {"root": "shared", "patterns": ["*.py"]},
@@ -37,7 +40,7 @@
     {"root": "tractography", "patterns": ["*.py", "*.qry", "*.md", "requirements.txt"]},
     {"root": "connectome", "patterns": ["*.py"]},
     {"root": "scripts", "patterns": ["*.py", "*.sh", "*.ps1", "*.cs", "*.txt", "*.json", "*.cmake"]},
-    {"root": "docs", "patterns": ["*.md", "*.png", "*.json"]},
+    {"root": "docs", "patterns": ["*.md", "*.png", "*.json", "*.csv"]},
     {"root": "licenses", "patterns": ["*"]}
   ],
   "excluded_components": ["tests", "Testing", "third_party", "__pycache__", ".pytest_cache", ".mypy_cache", ".git"],

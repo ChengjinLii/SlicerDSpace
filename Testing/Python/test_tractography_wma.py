@@ -221,6 +221,47 @@ exit 0
         self.assertEqual(qc["status"], "planned")
         self.assertFalse(qc["executed"])
 
+    @unittest.skipIf(sys.platform == 'win32', 'POSIX shim; Windows uses the WSL bridge')
+    def test_registration_dispatch_and_reports_are_fresh_per_run(self):
+        from tractography.wma import WMAOrgAtlasConfig, run_wma_org_atlas
+        python = self.tmp_path / 'bin' / 'PythonSlicer'
+        python.parent.mkdir()
+        python.symlink_to(sys.executable)
+        package = self.wma_root / 'whitematteranalysis'
+        package.mkdir()
+        (package / '__init__.py').write_text('')
+        self.wma_script.write_text(self.wma_script.read_text().replace(
+            'while [ "$#" -gt 0 ]; do',
+            'wm_register_to_atlas_new.py -mode affine || exit $?\nwhile [ "$#" -gt 0 ]; do'))
+        (self.wma_bin / 'wm_register_to_atlas_new.py').write_text(
+            '#!/usr/bin/env python\nimport sys\nassert sys.argv[1:] == ["-mode", "affine"]\n')
+        config = WMAOrgAtlasConfig(subject_id='100307', input_tractography=self.tractography,
+            atlas_dir=self.atlas_dir, output_dir=self.output_dir, slicer_executable=self.slicer_executable,
+            wma_root=self.wma_root, execute=True)
+        first = run_wma_org_atlas(config)
+        self.assertEqual(first.status, 'completed')
+        manifest = json.loads(first.manifest_path.read_text())
+        first_reports = manifest['registration_preprocess_cache']['reports']
+        self.assertTrue(manifest['registration_preprocess_cache']['installed'])
+        self.assertEqual(len(first_reports), 1)
+        report = json.loads(Path(first_reports[0]).read_text())
+        self.assertFalse(report['enabled'])  # Unverified fixture source is never optimized.
+        self.assertEqual(report['status'], 'completed')
+        second = run_wma_org_atlas(config)
+        second_reports = json.loads(second.manifest_path.read_text())['registration_preprocess_cache']['reports']
+        self.assertEqual(len(second_reports), 1)
+        self.assertNotEqual(first_reports, second_reports)
+
+    def test_cache_can_be_disabled_without_changing_author_command(self):
+        from tractography.wma import WMAOrgAtlasConfig, run_wma_org_atlas
+        config = WMAOrgAtlasConfig(subject_id='100307', input_tractography=self.tractography,
+            atlas_dir=self.atlas_dir, output_dir=self.output_dir, slicer_executable=self.slicer_executable,
+            wma_root=self.wma_root, registration_preprocess_cache=False)
+        result = run_wma_org_atlas(config)
+        manifest = json.loads(result.manifest_path.read_text())
+        self.assertEqual(manifest['registration_preprocess_cache'],
+                         {'requested': False, 'installed': False, 'reports': []})
+
     def test_rejects_non_vtk_inputs(self) -> None:
         from tractography import WMAOrgAtlasConfig, run_wma_org_atlas
 

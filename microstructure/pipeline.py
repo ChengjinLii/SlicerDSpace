@@ -34,6 +34,7 @@ FREE_WATER_MAX_FRACTION_FOR_TISSUE = 0.7
 # validity mask used by quantitative summaries.
 NODDI_MAX_ISOTROPIC_FRACTION_FOR_TISSUE = 0.7
 NODDI_UPPER_BOUND = 0.99
+ROI_STATISTICS_SCHEMA = 2
 DTI_KEYS = ("fa", "md", "ad", "rd", "l1", "l2", "l3", "trace")
 FREE_WATER_KEYS = ("fwf", "fw_tissue_fa", "fw_tissue_md", "fw_tissue_valid_mask")
 NODDI_KEYS = ("noddi_ndi", "noddi_odi", "noddi_fwf", "noddi_tissue_valid_mask", "noddi_rmse", "noddi_nrmse")
@@ -353,7 +354,8 @@ def _expected_manifest(
         roi_metrics.extend(["NODDI_NDI", "NODDI_ODI", "NODDI_FWF"])
     return {
         "kind": "microstructure_phase3",
-        "version": 4,
+        "version": 6,
+        "roi_statistics_schema": ROI_STATISTICS_SCHEMA,
         "subject_id": config.subject_id,
         "fit_method": config.native_bundle.fit_method,
         "roi_metrics": roi_metrics,
@@ -456,6 +458,7 @@ def _outputs_complete(
     roi_enabled: bool,
     free_water_enabled: bool,
     noddi_enabled: bool,
+    brain_mask_path: Path | None = None,
 ) -> bool:
     required = [
         paths["fa"],
@@ -496,6 +499,9 @@ def _outputs_complete(
         required.extend([paths["roi_stats_csv"], paths["roi_stats_json"]])
     return (
         all(path.is_file() for path in required)
+        and (not roi_enabled or roi_statistics_current(
+            paths["roi_stats_json"], paths["roi_stats_csv"], required_metrics=DTI_KEYS,
+            brain_mask_path=brain_mask_path))
         and scalar_qc_current(paths["dti_qc"], [paths[key] for key in DTI_KEYS])
         and (not free_water_enabled or _free_water_outputs_complete(paths))
         and (not noddi_enabled or _noddi_outputs_complete(paths))
@@ -1380,6 +1386,65 @@ def _compute_noddi_maps(
     )
 
 
+def _roi_validity_mask(path: Path, reference_path: Path) -> np.ndarray:
+    mask_img, reference = nib.load(str(path)), nib.load(str(reference_path))
+    values = mask_img.get_fdata(dtype=np.float32)
+    if mask_img.shape != reference.shape or not np.allclose(mask_img.affine, reference.affine, atol=1e-4):
+        raise ValueError(f"Validity mask does not share the scalar's native grid: {path}")
+    if values.ndim != 3 or not np.isfinite(values).all() or not np.isin(values, (0, 1)).all():
+        raise ValueError(f"Validity mask must be finite, binary and 3D: {path}")
+    return values.astype(bool)
+
+
+def roi_statistics_current(
+    json_path: Path, csv_path: Path, *, roi_label_map: Path | None = None,
+    required_metrics: tuple[str, ...] = (),
+    brain_mask_path: Path | None = None,
+) -> bool:
+    """Reject legacy, stale or inconsistent regional tables without refitting maps."""
+
+    try:
+        payload = _read_json(json_path) or {}
+        if payload.get("schema_version") != ROI_STATISTICS_SCHEMA:
+            return False
+        if roi_label_map is not None and payload.get("roi_label_map") != str(roi_label_map.resolve()):
+            return False
+        if brain_mask_path is not None and payload.get("brain_mask") != str(brain_mask_path.resolve()):
+            return False
+        sources = payload.get("source_signatures") or {}
+        metrics = payload.get("feature_maps") or {}
+        if not set(required_metrics).issubset(metrics):
+            return False
+        required_sources = {"atlas", *(f"metric:{key}" for key in metrics)}
+        for key, policy in (payload.get("validity_policy") or {}).items():
+            if policy == "explicit_validity_mask":
+                required_sources.add(f"mask:{key}")
+            else:
+                # A zero-pair fallback cannot certify explicit tissue validity.
+                return False
+        if not metrics or not required_sources.issubset(sources):
+            return False
+        if sources['atlas']['path'] != payload.get('roi_label_map') or any(
+            sources[f'metric:{key}']['path'] != path for key, path in metrics.items()
+        ):
+            return False
+        if payload.get('brain_mask') and (sources.get('brain_mask') or {}).get('path') != payload['brain_mask']:
+            return False
+        if any(record != _file_signature(Path(record["path"])) for record in sources.values()):
+            return False
+        if payload.get("csv_sha256") != hashlib.sha256(csv_path.read_bytes()).hexdigest():
+            return False
+        with csv_path.open(encoding="utf-8", newline="") as handle:
+            csv_rows = list(csv.DictReader(handle))
+        rows = payload["rows"]
+        return len(rows) == len(csv_rows) == payload["roi_count"] and all(
+            csv_row == {key: "" if value is None else str(value) for key, value in row.items()}
+            for csv_row, row in zip(csv_rows, rows)
+        )
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return False
+
+
 def _compute_roi_stats(
     *,
     metric_paths: dict[str, Path],
@@ -1388,10 +1453,17 @@ def _compute_roi_stats(
     csv_path: Path,
     json_path: Path,
     validity_masks: dict[str, np.ndarray] | None = None,
+    validity_mask_paths: dict[str, Path] | None = None,
+    brain_mask_path: Path | None = None,
 ) -> int:
     started = time.monotonic()
+    if not metric_paths:
+        raise ValueError("ROI statistics require at least one scalar map.")
     roi_img = nib.load(str(roi_label_map))
     roi_data = roi_img.get_fdata(dtype=np.float32)
+    if roi_data.ndim != 3 or not np.isfinite(roi_data).all() or np.any(roi_data < 0):
+        raise ValueError("ROI label map must be a finite non-negative 3D image.")
+    brain_mask = _roi_validity_mask(brain_mask_path, roi_label_map) if brain_mask_path is not None else None
     metric_arrays: dict[str, np.ndarray] = {}
     metric_fieldnames: list[str] = []
 
@@ -1411,24 +1483,44 @@ def _compute_roi_stats(
                 f"{metric_key}_std",
                 f"{metric_key}_min",
                 f"{metric_key}_max",
+                f"{metric_key}_valid_voxel_count",
+                f"{metric_key}_excluded_voxel_count",
+                f"{metric_key}_valid_fraction",
             ]
         )
 
     metric_validity_masks: dict[str, np.ndarray] = dict(validity_masks or {})
+    loaded_masks: dict[Path, np.ndarray] = {}
+    for metric_key, mask_path in (validity_mask_paths or {}).items():
+        if metric_key not in metric_arrays:
+            raise ValueError(f"Validity mask supplied for unknown metric: {metric_key}.")
+        mask_path = Path(mask_path).resolve()
+        if mask_path not in loaded_masks:
+            loaded_masks[mask_path] = _roi_validity_mask(mask_path, roi_label_map)
+        valid_mask = loaded_masks[mask_path]
+        if metric_key in metric_validity_masks and not np.array_equal(metric_validity_masks[metric_key], valid_mask):
+            raise ValueError(f"Validity mask array and file disagree for {metric_key}.")
+        metric_validity_masks[metric_key] = valid_mask
     for metric_key, valid_mask in metric_validity_masks.items():
         if metric_key not in metric_arrays:
             raise ValueError(f"Validity mask supplied for unknown metric: {metric_key}.")
-        if np.asarray(valid_mask).shape != roi_data.shape:
+        values = np.asarray(valid_mask)
+        if values.shape != roi_data.shape:
             raise ValueError(f"Validity mask shape does not match ROI label map for {metric_key}.")
-        metric_validity_masks[metric_key] = np.asarray(valid_mask, dtype=bool)
+        if not np.isfinite(values).all() or not np.isin(values, (0, 1)).all():
+            raise ValueError(f"Validity mask must be finite and binary for {metric_key}.")
+        metric_validity_masks[metric_key] = values.astype(bool)
+    mask_policies = {key: "explicit_validity_mask" for key in metric_validity_masks}
     if {"fw_tissue_fa", "fw_tissue_md"}.issubset(metric_arrays):
         tissue_fa = metric_arrays["fw_tissue_fa"]
         tissue_md = metric_arrays["fw_tissue_md"]
-        valid_tissue_pair = np.isfinite(tissue_fa) & np.isfinite(tissue_md) & (
-            (tissue_fa != 0.0) | (tissue_md != 0.0)
-        )
-        metric_validity_masks["fw_tissue_fa"] = valid_tissue_pair
-        metric_validity_masks["fw_tissue_md"] = valid_tissue_pair
+        finite_pair = np.isfinite(tissue_fa) & np.isfinite(tissue_md)
+        for key in ("fw_tissue_fa", "fw_tissue_md"):
+            if key in metric_validity_masks:
+                metric_validity_masks[key] &= finite_pair
+            else:
+                metric_validity_masks[key] = finite_pair & ((tissue_fa != 0.0) | (tissue_md != 0.0))
+                mask_policies[key] = "legacy_zero_pair_fallback_no_explicit_mask"
 
     rounded_roi = np.rint(roi_data)
     non_integer_mask = np.logical_and(roi_data > 0, np.abs(roi_data - rounded_roi) > 1e-3)
@@ -1436,54 +1528,79 @@ def _compute_roi_stats(
         raise ValueError("ROI label map must contain discrete integer labels.")
 
     roi_labels = rounded_roi.astype(np.int64)
-    unique_labels = sorted(int(label) for label in np.unique(roi_labels) if int(label) > 0)
+    # Stable groups retain the C-order voxel sequence used by boolean indexing,
+    # without rescanning the entire volume for every region and metric.
+    positive_indices = np.flatnonzero(roi_labels.ravel() > 0)
+    positive_labels = roi_labels.flat[positive_indices]
+    order = np.argsort(positive_labels, kind="stable")
+    grouped_indices, grouped_labels = positive_indices[order], positive_labels[order]
+    boundaries = np.r_[0, np.flatnonzero(np.diff(grouped_labels)) + 1, len(grouped_labels)]
+    groups = [(int(grouped_labels[start]), grouped_indices[start:stop])
+              for start, stop in zip(boundaries[:-1], boundaries[1:]) if start < stop]
+    unique_labels = [label for label, _ in groups]
     label_names = _parse_label_names(unique_labels, lut_path)
 
     rows: list[dict[str, object]] = []
-    for label in unique_labels:
+    for label, indices in groups:
         row: dict[str, object] = {
             "label_id": label,
             "label_name": label_names.get(label, ""),
         }
-        label_mask = roi_labels == label
+        row["roi_voxel_count"] = int(len(indices))
         voxel_count: int | None = None
 
         for metric_key, metric_data in metric_arrays.items():
-            metric_valid_mask = np.logical_and(label_mask, np.isfinite(metric_data))
+            voxels = metric_data.flat[indices]
+            metric_valid_mask = np.isfinite(voxels)
+            if brain_mask is not None:
+                metric_valid_mask &= brain_mask.flat[indices]
             if metric_key in metric_validity_masks:
-                metric_valid_mask = np.logical_and(metric_valid_mask, metric_validity_masks[metric_key])
-            voxels = metric_data[metric_valid_mask]
-            if voxels.size == 0:
-                voxel_count = 0 if voxel_count is None else voxel_count
-                for suffix in ("mean", "std", "min", "max"):
-                    row[f"{metric_key}_{suffix}"] = 0.0
-                continue
+                metric_valid_mask &= metric_validity_masks[metric_key].flat[indices]
+            voxels = voxels[metric_valid_mask]
             if voxel_count is None:
                 voxel_count = int(voxels.size)
+            row[f"{metric_key}_valid_voxel_count"] = int(voxels.size)
+            row[f"{metric_key}_excluded_voxel_count"] = row["roi_voxel_count"] - int(voxels.size)
+            row[f"{metric_key}_valid_fraction"] = float(voxels.size / row["roi_voxel_count"])
+            if voxels.size == 0:
+                for suffix in ("mean", "std", "min", "max"):
+                    row[f"{metric_key}_{suffix}"] = None
+                continue
             row[f"{metric_key}_mean"] = float(np.mean(voxels))
             row[f"{metric_key}_std"] = float(np.std(voxels))
             row[f"{metric_key}_min"] = float(np.min(voxels))
             row[f"{metric_key}_max"] = float(np.max(voxels))
 
-        if not voxel_count:
-            continue
-        row["voxel_count"] = int(voxel_count)
+        row["voxel_count"] = int(voxel_count or 0)
         rows.append(row)
 
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     with csv_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=["label_id", "label_name", "voxel_count", *metric_fieldnames],
+            fieldnames=["label_id", "label_name", "voxel_count", "roi_voxel_count", *metric_fieldnames],
         )
         writer.writeheader()
         writer.writerows(rows)
 
     payload = {
+        "schema_version": ROI_STATISTICS_SCHEMA,
         "subject_id": next(iter(metric_paths.values())).name.split("_")[0],
         "roi_label_map": str(roi_label_map.resolve()),
+        "brain_mask": str(brain_mask_path.resolve()) if brain_mask_path is not None else None,
         "lut_path": str(lut_path.resolve()) if lut_path is not None else None,
         "feature_maps": {metric_key: str(metric_path.resolve()) for metric_key, metric_path in metric_paths.items()},
+        "validity_policy": mask_policies,
+        "source_signatures": {
+            "atlas": _file_signature(roi_label_map),
+            **({"brain_mask": _file_signature(brain_mask_path)} if brain_mask_path is not None else {}),
+            **{f"metric:{key}": _file_signature(path) for key, path in metric_paths.items()},
+            **{f"mask:{key}": _file_signature(path) for key, path in (validity_mask_paths or {}).items()},
+            **({"lut": _file_signature(lut_path)} if lut_path is not None else {}),
+        },
+        "csv_sha256": hashlib.sha256(csv_path.read_bytes()).hexdigest(),
+        "voxel_count_basis": next(iter(metric_paths)),
+        "statistics_policy": "Per-metric finite valid samples only. Empty estimates are null/blank, never zero-filled; all atlas regions retained with coverage.",
         "roi_count": len(rows),
         "runtime_seconds": time.monotonic() - started,
         "timing_scope": "Read scalar maps/atlas and compute/write ROI statistics; excludes scalar model fitting",
@@ -1578,6 +1695,7 @@ def run_microstructure(
             roi_enabled=roi_enabled,
             free_water_enabled=bool(config.run_free_water),
             noddi_enabled=bool(config.run_noddi),
+            brain_mask_path=config.raw_input_bundle.mask_path,
         )
     ):
         _emit(f"[Microstructure] Reusing outputs in {output_dir}", log)
@@ -1709,28 +1827,25 @@ def run_microstructure(
                     "noddi_fwf": paths["noddi_fwf"],
                 }
             )
-        validity_masks: dict[str, np.ndarray] = {}
+        validity_mask_paths: dict[str, Path] = {}
+        if _free_water_outputs_current(config, paths):
+            validity_mask_paths.update({key: paths["fw_tissue_valid_mask"] for key in ("fw_tissue_fa", "fw_tissue_md")})
         if dki_result is not None:
             from microstructure.dki import DKI_METRICS
 
-            valid = nib.load(str(dki_result.valid_mask_path)).get_fdata(dtype=np.float32) > 0
             for key in DKI_METRICS:
                 metric_paths[f"dki_{key}"] = dki_result.outputs[f"{key}_raw"]
-                validity_masks[f"dki_{key}"] = valid
+                validity_mask_paths[f"dki_{key}"] = dki_result.valid_mask_path
             corrected_mask = dki_result.mkcurve_outputs.get("corrected_valid_mask")
             if corrected_mask is not None:
-                corrected_valid = nib.load(str(corrected_mask)).get_fdata(dtype=np.float32) > 0
                 for key in ("fa", "md", "ad", "rd", "mk", "ak", "rk"):
                     corrected = dki_result.mkcurve_outputs.get(f"corrected_{key}")
                     if corrected is not None:
                         metric_paths[f"mkcurve_corrected_{key}"] = corrected
-                        validity_masks[f"mkcurve_corrected_{key}"] = corrected_valid
+                        validity_mask_paths[f"mkcurve_corrected_{key}"] = dki_result.mkcurve_outputs.get(
+                            f"corrected_{key}_valid_mask", corrected_mask)
         if _noddi_outputs_current(config, paths):
-            noddi_valid_mask = nib.load(str(paths["noddi_tissue_valid_mask"])).get_fdata(dtype=np.float32) > 0.0
-            validity_masks.update({
-                "noddi_ndi": noddi_valid_mask,
-                "noddi_odi": noddi_valid_mask,
-            })
+            validity_mask_paths.update({key: paths["noddi_tissue_valid_mask"] for key in ("noddi_ndi", "noddi_odi")})
         _emit(f"[Microstructure] Computing ROI-wise statistics from {roi_label_map}", log)
         roi_count = _compute_roi_stats(
             metric_paths=metric_paths,
@@ -1738,7 +1853,8 @@ def run_microstructure(
             lut_path=lut_path,
             csv_path=paths["roi_stats_csv"],
             json_path=paths["roi_stats_json"],
-            validity_masks=validity_masks,
+            validity_mask_paths=validity_mask_paths,
+            brain_mask_path=config.raw_input_bundle.mask_path,
         )
         _emit(
             f"[Microstructure] ROI-wise statistics written for {roi_count} labels",

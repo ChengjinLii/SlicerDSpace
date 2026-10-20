@@ -36,7 +36,9 @@ def active_docs(root):
         "docs/release/SCIENTIFIC_CLOSURE_20261015.md",
         "docs/release/SCIENTIFIC_CLOSURE_20261015.zh-CN.md",
         "docs/release/CSD_ACT_DIAGNOSIS_20261015.md",
-        "docs/release/CSD_ACT_DIAGNOSIS_20261015.zh-CN.md"))
+        "docs/release/CSD_ACT_DIAGNOSIS_20261015.zh-CN.md",
+        "docs/release/PERFORMANCE_OPTIMIZATIONS.md",
+        "docs/release/PERFORMANCE_OPTIMIZATIONS.zh-CN.md"))
     return paths
 
 

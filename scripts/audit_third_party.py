@@ -23,6 +23,7 @@ REQUIRED_RECORDS = {
     "pytorch3d": "licenses/PyTorch3D.txt",
     "mkcurve": "licenses/MK-Curve-LICENSE.txt",
     "mkcurve_dki": "licenses/MK-Curve-DKI-MPL-2.0.txt",
+    "wma_preprocessing": "licenses/WMA.txt",
 }
 
 

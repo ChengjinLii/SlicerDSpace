@@ -41,10 +41,15 @@
 - [发布流程](release/RELEASE.md)：代码归档、资源、标签与证据。
 - [目录结构](architecture/REPOSITORY_LAYOUT.md)：解剖、微结构与连接分析源码。
 - [产品架构](architecture/PRODUCT_ARCHITECTURE.zh-CN.md)：原生客户端、按需依赖、隔离后端与发布边界。
+- [性能优化与实测](release/PERFORMANCE_OPTIMIZATIONS.zh-CN.md)：原作者 WMA 同输入实测与逐字节一致性；旧插件比较和 GPU／缓存收益单独列出。
 
 ---
 
 ## 历史验证记录
+
+[10 月 16 日后续验证](release/QC_FOLLOWUP_20261016.zh-CN.md)记录已核实的 MK-Curve
+排除与逐指标覆盖率、新版 ACT／WMA 及 Linux SDK／CPack 检查，以及仍未通过的
+端点 WMQL 采样与解剖人审门禁。
 
 [CSD／ACT 专项排查](release/CSD_ACT_DIAGNOSIS_20261015.zh-CN.md)更正此前 CSD
 验收结论：发现 VentralDC 组织映射缺陷，已完成固定 FOD 对照，旧 ACT 依赖结果需重算。
@@ -59,7 +64,7 @@ macOS 路径适配、计时边界及尚未验收的功能。
 
 [白质束后端核查](release/BUNDLE_BACKENDS_20261013.zh-CN.md) 区分 WMA 失败结果、
 稀疏 WMQL 候选束和固定种子验证的 TractCloud 输出。
-[模块运行时间](release/MODULE_RUNTIMES_20261015.zh-CN.md) 汇总历史与补测计时，
+[模块运行时间](release/MODULE_RUNTIMES_20261017.zh-CN.md) 汇总历史与补测计时，
 不把缓存复用或小 ROI 测量冒充全脑计算耗时。
 
 [SAF Python 核验](release/SAF_PYTHON_20261013.md)记录原版核心函数对照、

@@ -721,6 +721,25 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertIn("WMA-compatible", items["wma"].reason)
             self.assertNotIn("input_tractography", items["wma"].inputs)
 
+    def test_wma_no_resume_does_not_take_inner_cache_shortcut(self):
+        from shared import ProductOrchestratorConfig, run_subject_products
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'input_ukf.vtk'
+            source.write_text('fixture')
+            atlas = root / 'atlas'
+            atlas.mkdir()
+            slicer = root / 'Slicer'
+            slicer.touch()
+            config = ProductOrchestratorConfig(subject_id='100307', subject_root=root / 'subject',
+                targets=('wma',), wma_input_tractography=source, wma_atlas_dir=atlas,
+                slicer_executable=slicer, execute=True, resume=False)
+            with mock.patch('shared.orchestrator._wma_complete', return_value=True), mock.patch(
+                    'tractography.run_wma_org_atlas', side_effect=RuntimeError('fresh WMA called')) as run:
+                with self.assertRaisesRegex(RuntimeError, 'fresh WMA called'):
+                    run_subject_products(config)
+            run.assert_called_once()
+
     def test_saf_tractography_backend_expands_surface_postprocess_and_saf(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 
@@ -1150,6 +1169,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             input_dir.mkdir(parents=True)
             for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
                 (input_dir / name).write_text("input", encoding="utf-8")
+            _write_test_volume(input_dir / 'nodif_brain_mask.nii.gz')
             layout = subject_layout(subject_root)
             run_name = "csd_act_test"
             csd_dir = layout.csd / run_name
@@ -1375,6 +1395,17 @@ class ProductOrchestratorTest(unittest.TestCase):
                 )
                 + "\n",
                 encoding="utf-8",
+            )
+            from microstructure.pipeline import DTI_KEYS, _compute_roi_stats
+
+            _compute_roi_stats(
+                metric_paths={key: micro_dir / f"100307_dti_{'Trace' if key == 'trace' else key.upper()}.nii.gz"
+                              for key in DTI_KEYS},
+                roi_label_map=parcellation_path,
+                brain_mask_path=raw_paths['mask'],
+                lut_path=None,
+                csv_path=layout.regional_microstructure / "100307_ROIWise-Microstructure.csv",
+                json_path=layout.regional_microstructure / "100307_ROIWise-Microstructure.json",
             )
 
             from types import SimpleNamespace

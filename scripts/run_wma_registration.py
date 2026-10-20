@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Run author registration with explicitly audited bulk filtering and caching."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import runpy
+import sys
+import time
+import uuid
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tractography.wma_registration import RegistrationPreprocessCache, registration_cache_support
+from tractography.wma_preprocessing import AuthorCompatibleLengthFilter
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--author-script", type=Path, required=True)
+    parser.add_argument("--report-dir", type=Path, required=True)
+    parser.add_argument("author_args", nargs=argparse.REMAINDER)
+    args = parser.parse_args(argv)
+    author_args = args.author_args[1:] if args.author_args[:1] == ["--"] else args.author_args
+    author = args.author_script.resolve(strict=True)
+    args.report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = args.report_dir / ("registration_cache_" + uuid.uuid4().hex + ".json")
+    record = {"kind": "wma_registration_preprocess_cache", "version": 1,
+              "author_script": str(author), "author_script_sha256": hashlib.sha256(author.read_bytes()).hexdigest(),
+              "author_args": author_args, "status": "running", "enabled": False,
+              "implementation_sha256": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in (
+                  Path(__file__), Path(__file__).resolve().parents[1] / 'tractography/wma_registration.py',
+                  Path(__file__).resolve().parents[1] / 'tractography/wma_preprocessing.py')}}
+    cache = original = filter_module = bulk_filter = None
+    previous_argv = sys.argv
+    started = time.monotonic()
+    try:
+        import whitematteranalysis as wma
+        package_dir = Path(wma.__file__).resolve().parent
+        record["compatibility"] = registration_cache_support(package_dir)
+        if record["compatibility"]["supported"]:
+            filter_module = wma.filter
+            original = filter_module.preprocess
+            bulk_filter = AuthorCompatibleLengthFilter(original)
+            cache = RegistrationPreprocessCache(bulk_filter)
+            filter_module.preprocess = cache
+            record["enabled"] = True
+        sys.argv = [str(author), *author_args]
+        runpy.run_path(str(author), run_name="__main__")
+        record["status"] = "completed"
+    except SystemExit as exc:
+        record["status"] = "completed" if exc.code in (None, 0) else "failed"
+        record["exit_code"] = exc.code if isinstance(exc.code, (int, str)) else None
+        raise
+    except BaseException as exc:
+        record.update(status="failed", error=f"{type(exc).__name__}: {exc}")
+        raise
+    finally:
+        sys.argv = previous_argv
+        if original is not None:
+            filter_module.preprocess = original
+        if cache is not None:
+            record["cache"] = cache.summary()
+        if bulk_filter is not None:
+            record["length_filter"] = bulk_filter.summary()
+        record["elapsed_seconds"] = time.monotonic() - started
+        temporary = report_path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        temporary.replace(report_path)
+
+
+if __name__ == "__main__":
+    main()

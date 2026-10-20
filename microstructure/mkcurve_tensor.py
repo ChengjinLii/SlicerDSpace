@@ -15,10 +15,16 @@ import numpy as np
 from scipy.linalg import lstsq
 
 
+@lru_cache(maxsize=8)
+def _tensor_terms(order):
+    indices = tuple(combinations_with_replacement(range(3), order))
+    counts = tuple(factorial(order) / np.prod([factorial(index.count(j)) for j in range(3)]) for index in indices)
+    return indices, counts
+
+
 def tensor_basis(directions, order):
     directions = np.asarray(directions, dtype=np.float64)
-    indices = list(combinations_with_replacement(range(3), order))
-    counts = [factorial(order) / np.prod([factorial(index.count(j)) for j in range(3)]) for index in indices]
+    indices, counts = _tensor_terms(order)
     return np.stack([np.prod(directions[..., index], axis=-1) * count
                      for index, count in zip(indices, counts)], axis=-1)
 
@@ -30,6 +36,15 @@ def integration_directions():
         raise ValueError("Invalid author MK-Curve integration directions")
     directions.setflags(write=False)
     return directions
+
+
+@lru_cache(maxsize=1)
+def _integration_bases():
+    # The author's quadrature is fixed; never cache voxel-dependent fits.
+    bases = tuple(tensor_basis(integration_directions(), order).T for order in (2, 4))
+    for basis in bases:
+        basis.setflags(write=False)
+    return bases
 
 
 def design_matrix(bvals, bvecs):
@@ -104,9 +119,9 @@ def fit_wlls(signals, design, *, solver="reference"):
 
 
 def mean_kurtosis(coefficients):
-    directions = integration_directions()
-    adc = coefficients[:, 1:7] @ tensor_basis(directions, 2).T
-    fourth = coefficients[:, 7:22] @ tensor_basis(directions, 4).T
+    diffusion_basis, kurtosis_basis = _integration_bases()
+    adc = coefficients[:, 1:7] @ diffusion_basis
+    fourth = coefficients[:, 7:22] @ kurtosis_basis
     with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
         result = np.mean(fourth / adc ** 2, axis=1)
         md_squared = np.mean(coefficients[:, [1, 4, 6]], axis=1) ** 2

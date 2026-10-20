@@ -13,7 +13,27 @@ import time
 
 UPSTREAM_URL = "https://github.com/zhangfanmark/MK-Curve"
 UPSTREAM_COMMIT = "9a213e1a5850fe50c998793f31ed852df00242f8"
-PORT_VERSION = 1
+PORT_VERSION = 2
+
+
+def metric_validity(maps, coefficients_finite, curve_valid, nrmse):
+    """Separate per-parameter eligibility from the stricter joint-map gate.
+
+    A failed radial kurtosis must not erase an independently valid mean
+    kurtosis. All masks still require a finite fit and positive diffusion
+    tensor. Raw values and the original joint gate remain unchanged.
+    """
+    import numpy as np
+
+    base = np.asarray(coefficients_finite, dtype=bool) & curve_valid & np.isfinite(nrmse)
+    for key in ("e1", "e2", "e3"):
+        if key in maps:
+            base &= np.isfinite(maps[key]) & (maps[key] > 0)
+    masks = {}
+    for key, values in maps.items():
+        lower, upper = (0, 1) if key == "fa" else ((0, 3) if key in {"mk", "ak", "rk"} else (0, .005))
+        masks[key] = base & np.isfinite(values) & (values >= lower) & (values <= upper)
+    return masks
 
 
 def inspect_mkcurve_backend(*_legacy_paths):
@@ -126,6 +146,9 @@ def _fit_chunk(payload):
             detection[f"{kind}_nrmse"] = np.sqrt(np.mean((predicted - observed) ** 2, axis=1)) / np.exp(coefficients[:, 0])
         valid &= detection["curve_valid_mask"] & np.isfinite(detection[f"{kind}_nrmse"])
         detection[f"{kind}_valid_mask"] = valid
+        for key, mask in metric_validity(maps, np.isfinite(coefficients).all(axis=1),
+                                        detection["curve_valid_mask"], detection[f"{kind}_nrmse"]).items():
+            detection[f"{kind}_{key}_valid_mask"] = mask
     return original, corrected, curves, detection
 
 
@@ -240,6 +263,10 @@ def run_mkcurve(dwi_path, bval_path, bvec_path, mask_path, output_dir, *,
                           "mask_voxels": count, "corrected_voxels": summaries["abnormal_mask"]["nonzero"],
                           "corrected_valid_voxels": summaries["corrected_valid_mask"]["nonzero"], "summaries": summaries,
                           "automatic_qc_passed": summaries["corrected_valid_mask"]["nonzero"] == count,
+                          "metric_valid_voxels": {key: summaries[f"corrected_{key}_valid_mask"]["nonzero"]
+                                                  for key in ("fa", "md", "ad", "rd", "mk", "ak", "rk")
+                                                  if f"corrected_{key}_valid_mask" in summaries},
+                          "validity_policy": "Per-metric finite/range checks with finite coefficients, finite curve/residual and positive diffusion eigenvalues. Joint validity is retained separately; exclusions are not fitted values.",
                           "human_review": "pending", "raw_metric_clipping": False, "smoothing": False,
                           "runtime_seconds": time.monotonic() - started,
                           "created_at": datetime.now(timezone.utc).isoformat(),

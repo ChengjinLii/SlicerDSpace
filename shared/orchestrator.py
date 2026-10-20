@@ -1380,7 +1380,7 @@ def _act_prep_complete(subject_root: Path, subject_id: str, output_root: Optiona
 def _microstructure_dti_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
     layout = subject_layout(subject_root, output_root=output_root)
     dti_dir = layout.microstructure_dti
-    return {
+    outputs = {
         "fa": dti_dir / f"{subject_id}_dti_FA.nii.gz",
         "md": dti_dir / f"{subject_id}_dti_MD.nii.gz",
         "ad": dti_dir / f"{subject_id}_dti_AD.nii.gz",
@@ -1392,9 +1392,16 @@ def _microstructure_dti_outputs(subject_root: Path, subject_id: str, output_root
         "qc": dti_dir / "dti_qc.json",
         "manifest": layout.microstructure / "manifest.json",
     }
+    if _resolve_parcellation(subject_root, subject_id, output_root) is not None:
+        outputs.update({
+            "roi_stats_csv": layout.regional_microstructure / f"{subject_id}_ROIWise-Microstructure.csv",
+            "roi_stats_json": layout.regional_microstructure / f"{subject_id}_ROIWise-Microstructure.json",
+        })
+    return outputs
 
 
 def _microstructure_dti_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None, *, fit_method=None) -> bool:
+    from microstructure.pipeline import DTI_KEYS, roi_statistics_current
     from shared.scalar_qc import scalar_qc_current
 
     outputs = _microstructure_dti_outputs(subject_root, subject_id, output_root)
@@ -1404,6 +1411,17 @@ def _microstructure_dti_complete(subject_root: Path, subject_id: str, output_roo
         except (OSError, ValueError, AttributeError):
             return False
         if recorded_method != str(fit_method).lower():
+            return False
+    atlas = _resolve_parcellation(subject_root, subject_id, output_root)
+    if atlas is not None:
+        regional = subject_layout(subject_root, output_root=output_root).regional_microstructure
+        if not roi_statistics_current(
+            regional / f"{subject_id}_ROIWise-Microstructure.json",
+            regional / f"{subject_id}_ROIWise-Microstructure.csv",
+            roi_label_map=atlas,
+            required_metrics=DTI_KEYS,
+            brain_mask_path=_resolve_analysis_inputs(subject_root, subject_id, output_root)["mask"],
+        ):
             return False
     return scalar_qc_current(outputs["qc"], [outputs[key] for key in ("fa", "md", "ad", "rd", "l1", "l2", "l3", "trace")]) and _manifest_inputs_match(
         outputs["manifest"],
@@ -3943,7 +3961,7 @@ def _run_subject_products_impl(
                     None,
                     output_root=output_root,
                 )
-            if _wma_complete(
+            if config.resume and _wma_complete(
                 wma_dir,
                 input_tractography=wma_input_tractography,
                 atlas_dir=config.wma_atlas_dir,

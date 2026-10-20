@@ -49,6 +49,15 @@
       "conditions": "Preserve the complete BWH MK-Curve agreement and attribution; identify the modified Python translation as unofficial. No endorsement or clinical clearance is implied."
     },
     {
+      "id": "wma_preprocessing",
+      "license": "LicenseRef-WMA-Slicer-BWH",
+      "path": "licenses/WMA.txt",
+      "sha256": "03fc5cd907e5c2004ce199d66318d32a08fa2de2b5b28bee184edda6307d0b86",
+      "source": "https://github.com/SlicerDMRI/whitematteranalysis/blob/4532b911386d2d1bc7ebba63fdd13e65b1660623/License.txt",
+      "covers": ["tractography/wma_preprocessing.py"],
+      "conditions": "Preserve the full Slicer/BWH agreement and attribution; clearly identify this modified bulk implementation, not an original upstream release. No model/atlas rights are inferred."
+    },
+    {
       "id": "mkcurve_dki",
       "license": "MPL-2.0",
       "path": "licenses/MK-Curve-DKI-MPL-2.0.txt",

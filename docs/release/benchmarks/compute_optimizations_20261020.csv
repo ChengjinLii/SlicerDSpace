@@ -1,0 +1,10 @@
+operation,subject_id,baseline_median_seconds,optimized_median_seconds,speed_ratio,time_reduction_percent,repeats,exact_output_parity,scope
+six_map_roi_export,100206,5.549577096477151,0.5524481907486916,10.045425416193735,90.04522000245058,3,True,"Full native atlas + six DTI files + brain mask, read/validate/statistics/hash/write; not model fitting"
+mkcurve_parameter_extraction,100206,0.5278077330440283,0.3704061880707741,1.4249430761215556,29.821758022655608,3,True,Ten raw parameter arrays for 1024 uniformly selected real coefficient rows; no fitting
+mkcurve_full_chunk,100206,0.9403797574341297,0.8493142668157816,1.107222372420244,9.683905879346511,3,True,"One full 64-voxel numeric chunk: all original synthetic-b0 samples, WLLS, correction, parameters, masks, residuals; excludes disk preparation/export"
+six_map_roi_export,149741,5.561943396925926,0.5208342019468546,10.678913512468334,90.63575148508849,3,True,"Full native atlas + six DTI files + brain mask, read/validate/statistics/hash/write; not model fitting"
+mkcurve_parameter_extraction,149741,0.5243057534098625,0.3686922676861286,1.422068753164656,29.679911904778788,3,True,Ten raw parameter arrays for 1024 uniformly selected real coefficient rows; no fitting
+mkcurve_full_chunk,149741,0.9513058792799711,0.8613075520843267,1.1044903495596345,9.460503625160266,3,True,"One full 64-voxel numeric chunk: all original synthetic-b0 samples, WLLS, correction, parameters, masks, residuals; excludes disk preparation/export"
+six_map_roi_export,877168,5.5227171797305346,0.4827763643115759,11.439493703478542,91.25835438245035,3,True,"Full native atlas + six DTI files + brain mask, read/validate/statistics/hash/write; not model fitting"
+mkcurve_parameter_extraction,877168,0.5274372138082981,0.37066829204559326,1.4229358839882151,29.722764654919466,3,True,Ten raw parameter arrays for 1024 uniformly selected real coefficient rows; no fitting
+mkcurve_full_chunk,877168,0.9739947468042374,0.876873891800642,1.1107580644283521,9.971394129409571,3,True,"One full 64-voxel numeric chunk: all original synthetic-b0 samples, WLLS, correction, parameters, masks, residuals; excludes disk preparation/export"

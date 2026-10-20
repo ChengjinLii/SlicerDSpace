@@ -1,0 +1,827 @@
+{
+  "status": "passed",
+  "kind": "original_author_algorithm_stage_optimization",
+  "reviewed_on": "2026-10-20",
+  "reference": "Actually executed original WMA filter.py from pinned author commit, not an older plugin",
+  "author_commit": "4532b911386d2d1bc7ebba63fdd13e65b1660623",
+  "upstream_verification": {
+    "status": "passed",
+    "records": [
+      {
+        "url": "https://raw.githubusercontent.com/SlicerDMRI/whitematteranalysis/4532b911386d2d1bc7ebba63fdd13e65b1660623/whitematteranalysis/filter.py",
+        "remote_sha256": "725f733c0c4396dccc563a314f3037cf3782c59dc4935819e224ef41ac08c4bb",
+        "local_sha256": "725f733c0c4396dccc563a314f3037cf3782c59dc4935819e224ef41ac08c4bb",
+        "exact": true
+      },
+      {
+        "url": "https://raw.githubusercontent.com/SlicerDMRI/whitematteranalysis/4532b911386d2d1bc7ebba63fdd13e65b1660623/whitematteranalysis/congeal_to_atlas.py",
+        "remote_sha256": "0ae1682aa09f1b9d2ff6a2984255e0e59920babfcd1a216c8ee1744c64882822",
+        "local_sha256": "0ae1682aa09f1b9d2ff6a2984255e0e59920babfcd1a216c8ee1744c64882822",
+        "exact": true
+      },
+      {
+        "url": "https://raw.githubusercontent.com/SlicerDMRI/whitematteranalysis/4532b911386d2d1bc7ebba63fdd13e65b1660623/License.txt",
+        "remote_sha256": "03fc5cd907e5c2004ce199d66318d32a08fa2de2b5b28bee184edda6307d0b86",
+        "local_sha256": "03fc5cd907e5c2004ce199d66318d32a08fa2de2b5b28bee184edda6307d0b86",
+        "exact": true
+      }
+    ]
+  },
+  "three_subjects": {
+    "kind": "original_author_wma_vs_bulk_filter",
+    "status": "passed",
+    "author_repository": "SlicerDMRI/whitematteranalysis",
+    "author_commit": "4532b911386d2d1bc7ebba63fdd13e65b1660623",
+    "compatibility": {
+      "supported": true,
+      "source_sha256": {
+        "filter.py": "725f733c0c4396dccc563a314f3037cf3782c59dc4935819e224ef41ac08c4bb",
+        "congeal_to_atlas.py": "0ae1682aa09f1b9d2ff6a2984255e0e59920babfcd1a216c8ee1744c64882822"
+      },
+      "reason": "verified immutable registration preprocessing"
+    },
+    "sample_size": 50000,
+    "repeats": 3,
+    "warmups": 1,
+    "length_minimum_mm": 40,
+    "length_maximum_mm": 260,
+    "output_reuse": false,
+    "implementation_sha256": {
+      "scripts/benchmark_wma_author_preprocessing.py": "305d9e219df6c6be8aeab05ed633cd0696a71139727a6fac416b3358b192a0df",
+      "tractography/wma_preprocessing.py": "654b8419919caf2134135102571d3c9bc0fa181b8aed862eb5953b3ced02778b"
+    },
+    "cases": [
+      {
+        "input": "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/outputs/04_tractography/tractograms/one_pass/100206_csd_act_ifod2.vtk",
+        "input_sha256": "af1c22836794f7f98688105d90e4ae3432337ae090cca1d500c337e5be9ce88d",
+        "source_lines": 1000000,
+        "measured_input": {
+          "lines": 50000,
+          "points": 5139487,
+          "points_sha256": "7d3b605ec6ce5a145c127ccf1b5d82338e471357c2466efd00efc11c6e6eddac",
+          "lines_sha256": "725ebbfe5f022f253ccaece228e75d74249498963d0f480247a0a035685a88ad",
+          "point_dtype": 10,
+          "point_arrays": 0,
+          "cell_arrays": 0
+        },
+        "full_input_measured": false,
+        "author_median_seconds": 6.323442660272121,
+        "optimized_median_seconds": 0.11040658690035343,
+        "speed_ratio": 57.27414312679816,
+        "time_reduction_percent": 98.25401141700868,
+        "raw_seconds": {
+          "author": [
+            6.361313968896866,
+            6.323442660272121,
+            6.260016433894634
+          ],
+          "optimized": [
+            0.11040658690035343,
+            0.11243817768990993,
+            0.10996960662305355
+          ]
+        },
+        "output_signature": {
+          "lines": 26807,
+          "points": 4233988,
+          "points_sha256": "d9a4b9485cd155144b2444ffdefd4030b3dc0d7672c774df2f50e7240f5385a7",
+          "lines_sha256": "d4ec89118aff50aa2a934d1e6a9677a40423787fb02b72d1e0a8fb5c1f8a8629",
+          "point_dtype": 10,
+          "point_arrays": 0,
+          "cell_arrays": 0
+        },
+        "sampling_signatures": [
+          {
+            "seed": 124,
+            "geometry": {
+              "lines": 200,
+              "points": 32722,
+              "points_sha256": "bcef67654abdf0ea54807eef01a144726f1b970fc087dd3aa8af5f2124ad3a7d",
+              "lines_sha256": "8a30b1d4213c708967d2594058f9c8c90ca4d731c6f8684ccbf5d0d139435102",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "24bdee5d346c786f1e14bbac4f18e1e60090df48fc99bf55ee179b9b7aab1808",
+            "fibers": [
+              "f8d93e538a6b6b48cd09eee16619817bddf443fad38d07e323f2e6057435e182",
+              "77e187eecebdccb62f9ae6b5b558abdcdcf11bb7b08bba17abb4874c414dbb2b",
+              "d490ddc62a6e6d5afcbd183e231a90de43270724dcb5d7d2fef1105861c89d1f"
+            ],
+            "random_state": "00f2e26118cdd260961f5fec595c70d9b175b44e70238ac9442dcae4021b6b8f"
+          },
+          {
+            "seed": 125,
+            "geometry": {
+              "lines": 200,
+              "points": 31862,
+              "points_sha256": "91c5293365db8977b67690106a6097fddb6c8270bd7e6cadeeb6f02b8792d542",
+              "lines_sha256": "48539d29c59fac388e32b241a8c5d6bff9e46500838bb8845ee3444a55c089b8",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "dd001f58e522fdff6a4c43eafcac260529d30d6fd3ff1f8763778e3fdf7f6b59",
+            "fibers": [
+              "9ebfa65d33c0410fd6607026a903f7785b0cccdc461179981be5f78d5986c0fb",
+              "de5397a35527e832a52c615563582e7b3e4acdbbde95270424d39f38a70d20b5",
+              "7353d0c34559d6480398227de8c75a1fbb9a8552744942d19c7dc588b5b06a4d"
+            ],
+            "random_state": "6d0cb9820d02170fe6ca83c03c5bd1838c7e575398c0b22df166185ddd5cb640"
+          },
+          {
+            "seed": 126,
+            "geometry": {
+              "lines": 200,
+              "points": 30242,
+              "points_sha256": "e792718b2011513314fba62b1bf755655383c2f54160bdb165d4b9d099e68622",
+              "lines_sha256": "8b62097e3c5677d2bf3b8eeb29dd777cdbde821e0c283db615a8f4743b783760",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "c276fd79c0cc5b18498fca495bc361ef96588b3ce6de35457f0e8eb42c23a849",
+            "fibers": [
+              "bdc8ac1e531ca4edec1e85cdbc77971f8bdb74868a42d03ec8f82d614c7d7887",
+              "e2f92fbd557e956b23dc998ac979f349add09f1a0763a77ce8e166dd8c409df3",
+              "bd2bfe9dced898c273c3f61b3999fdb795ea768b58ec7bde2970a562cca4a4b7"
+            ],
+            "random_state": "b66fac43cb49434c196f7cf44b9433bf814e37c9dfde182b847727027e85f633"
+          }
+        ],
+        "all_output_bytes_equal": true,
+        "source_unchanged": true,
+        "bulk": {
+          "bulk_calls": 4,
+          "author_bypasses": 0,
+          "points_copied": 16935952,
+          "block_points": 262144,
+          "peak_block_points": 262144,
+          "bulk_seconds": 0.49183881282806396,
+          "scope": "Author length rule and float32 point-copy semantics; bounded bulk copying; no transform, sampling or classification changes"
+        }
+      },
+      {
+        "input": "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/outputs/04_tractography/tractograms/one_pass/149741_csd_act_ifod2.vtk",
+        "input_sha256": "87f1c1d7555b3badee6a8a9519670e5272a38f906a9f2ec19ceb33664276755c",
+        "source_lines": 1000000,
+        "measured_input": {
+          "lines": 50000,
+          "points": 4868709,
+          "points_sha256": "153865e1771f36b2ab24ab7b0d4ffbefe7a06c552b34290cff4f66fb59834fc1",
+          "lines_sha256": "a8d1dfcc226af9f5eff73203b5155bdf6d6bde511e631a31202fcc33c0658722",
+          "point_dtype": 10,
+          "point_arrays": 0,
+          "cell_arrays": 0
+        },
+        "full_input_measured": false,
+        "author_median_seconds": 5.899137031286955,
+        "optimized_median_seconds": 0.08517412841320038,
+        "speed_ratio": 69.25972876022645,
+        "time_reduction_percent": 98.55615952025751,
+        "raw_seconds": {
+          "author": [
+            5.923626052215695,
+            5.86422673240304,
+            5.899137031286955
+          ],
+          "optimized": [
+            0.08270471915602684,
+            0.08517412841320038,
+            0.10883709415793419
+          ]
+        },
+        "output_signature": {
+          "lines": 26523,
+          "points": 3960377,
+          "points_sha256": "4bf6df1e4a4889ea8bbbb56fc8ac4c72567d4d6ccf8bd1d68a671fa2ea132455",
+          "lines_sha256": "bdceaf1d5ca3f0e3c82c33b5845939d751b05dd79854b4b8421f0982e63f70df",
+          "point_dtype": 10,
+          "point_arrays": 0,
+          "cell_arrays": 0
+        },
+        "sampling_signatures": [
+          {
+            "seed": 124,
+            "geometry": {
+              "lines": 200,
+              "points": 30131,
+              "points_sha256": "a1b92b7aa95e5f89b7d24a5fba498226254a693cf40421a19b1590114cc01ddf",
+              "lines_sha256": "d718e645a6bbba92be03c461d88af9b1caf742ad7cd11aac76762ec423d95689",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "a3183d76c041837289e8047b33ab2e0ce05bdc754bbac7101300727248816907",
+            "fibers": [
+              "9f1cb5bdbcbe00a9890b96581b22e5e1912362f73d16503c61b7ff2b49d7960f",
+              "d715362a27824ab29314fbc46f5a98fd930ae2bffa961c1caae72e92b8b81a3b",
+              "635ce485e778929e11b069acdf7252c34b12865652c0d61745f78d77a04dbbb9"
+            ],
+            "random_state": "e35e59294ef67cf292b9afb1c53c309bdbb05cb7df1b6b96ddce2ab375c3dbac"
+          },
+          {
+            "seed": 125,
+            "geometry": {
+              "lines": 200,
+              "points": 29388,
+              "points_sha256": "72bec7ea1e69d4f0268a62c45fd7b2a097f197d86dc6514e68dab427fcb3f8d1",
+              "lines_sha256": "e3fa08e2be76f6d1eb8ac912d9237003e93385165043dab858de81657ad95515",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "d17d32114e8b2c9d9902df1965351fcfe9c68777a31b077bf82ad37d897439b1",
+            "fibers": [
+              "d0b9b8f7079881f4b6183aeebd70249c8a2f4ad9917e4a796c129f64a142a3b1",
+              "56b7ba1ac1fd3c3f1e12d39d8cf602b7afaf408facdd2d35eec747a82ba328d7",
+              "4a99381ab04fa43aebfd9e42b5a2bf420680b6ef7a7265e656a6bc04eae9b1e4"
+            ],
+            "random_state": "b89cfc0a4775ff418ef9ea973e50294e7e0de901b524ad1dca6d6fa4f759078f"
+          },
+          {
+            "seed": 126,
+            "geometry": {
+              "lines": 200,
+              "points": 28871,
+              "points_sha256": "be8e701effc386469f6ed726a9cf91847a205d4d8eb534dcffddcb1ae4149285",
+              "lines_sha256": "677f8210424f03373d4b35d2008bc32f3b2399c962cacb7cdea75abd489672c3",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "f6ab04df375ef450c7f84944e7f1a99efe15ed758703b008dbfe0ef527e68dfe",
+            "fibers": [
+              "84c8be2b553ba9b272c94797445b0dc1f28e654e9ff0ec2aaafe0e05dee00d01",
+              "d75e009acd6f8185a9e5f13f7066fa89c88b8e6f07d1ebff81a7ec92f9b6d4a1",
+              "477f06c2c9ba764bfeae4d3e302b7a52f840d3368ae554fc5838fed93ac1742f"
+            ],
+            "random_state": "b66fac43cb49434c196f7cf44b9433bf814e37c9dfde182b847727027e85f633"
+          }
+        ],
+        "all_output_bytes_equal": true,
+        "source_unchanged": true,
+        "bulk": {
+          "bulk_calls": 4,
+          "author_bypasses": 0,
+          "points_copied": 15841508,
+          "block_points": 262144,
+          "peak_block_points": 262144,
+          "bulk_seconds": 0.3819702882319689,
+          "scope": "Author length rule and float32 point-copy semantics; bounded bulk copying; no transform, sampling or classification changes"
+        }
+      },
+      {
+        "input": "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/04_tractography/tractograms/one_pass/877168_csd_act_ifod2.vtk",
+        "input_sha256": "167b9d6cc6b72b2fdf9be729fd557d240b9cf09666ce88599a3466c07cb32ccc",
+        "source_lines": 1000000,
+        "measured_input": {
+          "lines": 50000,
+          "points": 4835074,
+          "points_sha256": "20982ad3f017933822db355e98cc6c83a0019e5e167ac675743c16125eb3b78e",
+          "lines_sha256": "738c5a72d667120a8a7dc3133c4e57ff81a2f001a676d3dc8ff401ed6a53cb01",
+          "point_dtype": 10,
+          "point_arrays": 0,
+          "cell_arrays": 0
+        },
+        "full_input_measured": false,
+        "author_median_seconds": 5.840789200738072,
+        "optimized_median_seconds": 0.1083266120404005,
+        "speed_ratio": 53.91832247610352,
+        "time_reduction_percent": 98.1453428925887,
+        "raw_seconds": {
+          "author": [
+            5.862585490569472,
+            5.840789200738072,
+            5.830530794337392
+          ],
+          "optimized": [
+            0.1083266120404005,
+            0.10825728625059128,
+            0.1156322006136179
+          ]
+        },
+        "output_signature": {
+          "lines": 26399,
+          "points": 3922790,
+          "points_sha256": "7bb811e08da464909e0b78d13e23bf8d586e1779c3a4e197ba3296570f916825",
+          "lines_sha256": "a92bbdbe516012a2d34148dab03be0f882b5c7d26cabd09e8b706d037c12ebb2",
+          "point_dtype": 10,
+          "point_arrays": 0,
+          "cell_arrays": 0
+        },
+        "sampling_signatures": [
+          {
+            "seed": 124,
+            "geometry": {
+              "lines": 200,
+              "points": 31135,
+              "points_sha256": "4631a47425531cd228c913e6e45bc5f5d937aebac244a80ce13b89a08de39e09",
+              "lines_sha256": "4d0088e1991077c3a6bb5c869e2b70933a1f8fb220a53d1e8ff13ad661ad6bfe",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "802ff0416ce09342289ec7aa5890b20ba57a206ef20b753cd6ec00d2cb6f086f",
+            "fibers": [
+              "fb0267ede6d162392c68b5bb56fbae1e6334e02e7798231b9cdf66c9bb444848",
+              "676aa5f51e739219c520b60f4fbdd3b0269e8260e525c1fa837593a2842239ac",
+              "207157b7234e88b5108eaef77d7532a1c77833a4dabf287bdede221b2c6e1d5c"
+            ],
+            "random_state": "e35e59294ef67cf292b9afb1c53c309bdbb05cb7df1b6b96ddce2ab375c3dbac"
+          },
+          {
+            "seed": 125,
+            "geometry": {
+              "lines": 200,
+              "points": 28671,
+              "points_sha256": "83e081021db5ac183d87ca1415a1660fa94f5c63d1d8bf7bb42680feda37a258",
+              "lines_sha256": "eba5599367f3f9b8cf1adc05db637699b007a20c2f0362a774241a606e3c0875",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "510f293b83e208f19d90917f93f9b3085a24de46d92156f3656351040bfe25f0",
+            "fibers": [
+              "7c17dad2ffa2d44cffd7980b3d6fba5374026fa3a74441343a0f051cdbc12578",
+              "dfa51c4cbcebaa5dfbed946a7d59101e59a314fe8dff42deb3ba6478ee6ee683",
+              "b55ab326be83154cfc37213e9361521f1c273e3f3751b25abdc055459f7420f4"
+            ],
+            "random_state": "b89cfc0a4775ff418ef9ea973e50294e7e0de901b524ad1dca6d6fa4f759078f"
+          },
+          {
+            "seed": 126,
+            "geometry": {
+              "lines": 200,
+              "points": 30084,
+              "points_sha256": "9cb808b4ac47668a200c406cbc145d051e63e7e6e33d4f69d2e4720f6c74e741",
+              "lines_sha256": "76f50b04c62a2fb30ea81ee8ec6cf1da8536c6fb56e4b76459e0f01671d1384c",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "7f5520047f825eb980ef51f34efc19d3907af12dcda67126e53191a948c3ba0e",
+            "fibers": [
+              "13b2b6fe515f6502868f720c64a3310f1e2cced0fb61719b6dbef937e9effae3",
+              "2303f44c47820b605b531663b72e81debe07fd020ce4c888d1c09461ca4d1d50",
+              "cc12d77f1e16f74b202a1f62776dc65ecc426a99b9db1f32b030d68a2bf60ee4"
+            ],
+            "random_state": "ffd22e02eff15446349d5a29af7ed6e73f9df7bc4d8dbad3098dc21ee41c8703"
+          }
+        ],
+        "all_output_bytes_equal": true,
+        "source_unchanged": true,
+        "bulk": {
+          "bulk_calls": 4,
+          "author_bypasses": 0,
+          "points_copied": 15691160,
+          "block_points": 262144,
+          "peak_block_points": 262144,
+          "bulk_seconds": 0.4143949393182993,
+          "scope": "Author length rule and float32 point-copy semantics; bounded bulk copying; no transform, sampling or classification changes"
+        }
+      }
+    ],
+    "environment": {
+      "python": "3.12.10 (main, Nov 10 2025, 07:45:19) [GCC 14.2.1 20250110 (Red Hat 14.2.1-7)]",
+      "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+      "numpy": "2.2.6",
+      "vtk": "9.5.2",
+      "thread_env": {
+        "OMP_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": "1"
+      }
+    },
+    "scope": "Fresh author preprocess() calls vs fresh bulk calls, never the old plugin or completed-fit cache; filtering only",
+    "limitations": [
+      "Shared Linux host, not exclusive hardware",
+      "No whole registration/classification or anatomical accuracy claim",
+      "One full-atlas repetition is a scoped observation, not a confidence interval",
+      "Native Windows/macOS not benchmarked"
+    ]
+  },
+  "full_inputs": {
+    "kind": "original_author_wma_vs_bulk_filter",
+    "status": "passed",
+    "author_repository": "SlicerDMRI/whitematteranalysis",
+    "author_commit": "4532b911386d2d1bc7ebba63fdd13e65b1660623",
+    "compatibility": {
+      "supported": true,
+      "source_sha256": {
+        "filter.py": "725f733c0c4396dccc563a314f3037cf3782c59dc4935819e224ef41ac08c4bb",
+        "congeal_to_atlas.py": "0ae1682aa09f1b9d2ff6a2984255e0e59920babfcd1a216c8ee1744c64882822"
+      },
+      "reason": "verified immutable registration preprocessing"
+    },
+    "sample_size": 0,
+    "repeats": 1,
+    "warmups": 0,
+    "length_minimum_mm": 40,
+    "length_maximum_mm": 260,
+    "output_reuse": false,
+    "implementation_sha256": {
+      "scripts/benchmark_wma_author_preprocessing.py": "305d9e219df6c6be8aeab05ed633cd0696a71139727a6fac416b3358b192a0df",
+      "tractography/wma_preprocessing.py": "654b8419919caf2134135102571d3c9bc0fa181b8aed862eb5953b3ced02778b"
+    },
+    "cases": [
+      {
+        "input": "/data/chengjin/SlicerDDSurfer-test/resources/ORG-Atlases/ORG-RegAtlas-100HCP/registration_atlas.vtk",
+        "input_sha256": "0c200f6e33f4e143f0cd39847d689c5420d99546007bb8b28b4f41bf2d6b96eb",
+        "source_lines": 1989106,
+        "measured_input": {
+          "lines": 1989106,
+          "points": 88809022,
+          "points_sha256": "0932eea7e8c59bf14c4a8ab83293094d294c0a9102307141ae43d6e28290ca6f",
+          "lines_sha256": "2e698587d5b82f0b729915d3ffa8c271d78de1739ae9328d311586ac73ee0f45",
+          "point_dtype": 10,
+          "point_arrays": 0,
+          "cell_arrays": 0
+        },
+        "full_input_measured": true,
+        "author_median_seconds": 134.28870687261224,
+        "optimized_median_seconds": 2.4840614162385464,
+        "speed_ratio": 54.060139574148266,
+        "time_reduction_percent": 98.1502082534796,
+        "raw_seconds": {
+          "author": [
+            134.28870687261224
+          ],
+          "optimized": [
+            2.4840614162385464
+          ]
+        },
+        "output_signature": {
+          "lines": 1643298,
+          "points": 82832934,
+          "points_sha256": "7b9bbba8d59c659a0f59dfac0f5c51845af97058560dedd6bb61030b75d81ede",
+          "lines_sha256": "9a49dc9c63a4c979e769fe0a8efea67d9b9aab1f9d7e15f63301bc8956d8a28d",
+          "point_dtype": 10,
+          "point_arrays": 0,
+          "cell_arrays": 0
+        },
+        "sampling_signatures": [
+          {
+            "seed": 124,
+            "geometry": {
+              "lines": 200,
+              "points": 9927,
+              "points_sha256": "86b26119bee652c596e26519691f45ed6bbe6ca8dfc0ee98499fdcc7dad15e1d",
+              "lines_sha256": "e47f755f2ea07f4beb648846d10c90bf77a4b8f5d6981bfb0b60e5fc09ce0ee8",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "e6efbf96ea3c3fc477cabb7ce09db6ba2a1fb2505750eafdd9020906d6f3ea37",
+            "fibers": [
+              "ac1104bd54d1ee87ea0e689cf54e47c9d7898841175a310cf1ddbd95dfe2f2ba",
+              "594c2643cdd4bc4963e87f994853c7f689e396415ce866ba30a932a3a5eb671a",
+              "acdcf480c699552d85134999f58d74d5f3759d0d6cd1f1de96dad245f479df15"
+            ],
+            "random_state": "ec4a4273392c090be8a3f7e4b4fdb08f90b12513297a2af654f52193443e0421"
+          },
+          {
+            "seed": 125,
+            "geometry": {
+              "lines": 200,
+              "points": 10116,
+              "points_sha256": "d4f08adf344ed0adaaac0da1530ef684a736be199c124122f800e7648b36e3da",
+              "lines_sha256": "03d828e3966ab8c73af802bd20099e402a7359bc3ee9abe5e2f91d1abf765baf",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "6d5fc08f347ac75e28b657c37413c20d92fa1182cea59d326cecae4546d2017b",
+            "fibers": [
+              "6d0bfd8fa0d25aec2601f855a6b68f08ea8d5ec05914809ef62a491c88a6f996",
+              "70c9c8ed98d642f6e552bd196b2b7f3192a29da070da8b54abb5c2860a29802e",
+              "72f15dedf20314d3c13dac4532fda21ab8af62ad8611de8905272db9cb4c534d"
+            ],
+            "random_state": "bff1c1151d40bdc53f6b30d0164e6c575a1b8a084155839489c407ba1b7c29e9"
+          },
+          {
+            "seed": 126,
+            "geometry": {
+              "lines": 200,
+              "points": 10160,
+              "points_sha256": "166e5be35b3039efddfea2cbbdf5ff286797d12ecdb12771af763f2db498fe11",
+              "lines_sha256": "d8ef79c4add43bb33796723a6955adf135e20318dc8709025cc310399625240f",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "5c104ebe5a064d95e2cfba0a2a597ff66383f0da1052b1e28a02c43ae54739fd",
+            "fibers": [
+              "2c6ffe5e5de5cc89d40a8bff5818598c496047f2d96dd993f784d9f9bd5a4315",
+              "40469206d951688d5e3b48e94038745f5ea93331c7df8c23378d82b7140aefe2",
+              "5f6755cf4361a5aeb5d860af855c61e93b20350ee9bbbab63b1551047fbcf321"
+            ],
+            "random_state": "ca7ed9eae607fc40584f269506cfc70ea38be8a5c440439ea78bf466773e82c4"
+          }
+        ],
+        "all_output_bytes_equal": true,
+        "source_unchanged": true,
+        "bulk": {
+          "bulk_calls": 1,
+          "author_bypasses": 0,
+          "points_copied": 82832934,
+          "block_points": 262144,
+          "peak_block_points": 262144,
+          "bulk_seconds": 2.483915314078331,
+          "scope": "Author length rule and float32 point-copy semantics; bounded bulk copying; no transform, sampling or classification changes"
+        }
+      },
+      {
+        "input": "/data/chengjin/SlicerDDSurfer/ignore/validation/scientific_closure_20261015/ukf_output/100307_ukf.vtk",
+        "input_sha256": "1c3358fa0e922826c3e90b2f36e6f831ef8ed41a18de36f48fb43cac0a04be7b",
+        "source_lines": 277875,
+        "measured_input": {
+          "lines": 277875,
+          "points": 26615894,
+          "points_sha256": "1d173acee304c9432152d7a921846559145c5289006869777cb97048a11868ad",
+          "lines_sha256": "d9690081c4f530ee99c3824e236f4e0d10275b133913866d09c316223ad23420",
+          "point_dtype": 10,
+          "point_arrays": 5,
+          "cell_arrays": 0
+        },
+        "full_input_measured": true,
+        "author_median_seconds": 37.41450993530452,
+        "optimized_median_seconds": 0.6904032099992037,
+        "speed_ratio": 54.19225952809182,
+        "time_reduction_percent": 98.15471801931118,
+        "raw_seconds": {
+          "author": [
+            37.41450993530452
+          ],
+          "optimized": [
+            0.6904032099992037
+          ]
+        },
+        "output_signature": {
+          "lines": 230032,
+          "points": 25081839,
+          "points_sha256": "2b9195c68981b50e5654b3c6f3ece0796262683f49bcdf7f30b29b187b29d327",
+          "lines_sha256": "fa2bb41b4d3949b847209ed734f1e87ddbc490f03e947420056a8b9c1c248ffc",
+          "point_dtype": 10,
+          "point_arrays": 0,
+          "cell_arrays": 0
+        },
+        "sampling_signatures": [
+          {
+            "seed": 124,
+            "geometry": {
+              "lines": 200,
+              "points": 21158,
+              "points_sha256": "289d1e01b251bbcb8965065e8a347099aeab10a95ae65763e39ea3e2e741bbcc",
+              "lines_sha256": "25daa2a610f291c2bf63542a172bb7f9e21ba16450730585b02019875bff4c3b",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "fe78b062d337570b12c67f26349dc3cfe6ad73978728bc3948ceeb76d60f50b9",
+            "fibers": [
+              "9fc4a5b42bb1ac7a80384b6165f36e3613d5e4611b72cd2699800a563b70510a",
+              "729bdfe923f14690857eb9ab7538fe69a111677f6e7213bdf6340846da4dba71",
+              "7dae0d989764d52fe62a3b830bcad6c266698b4d3bec7c8401c1fcf10ab6a481"
+            ],
+            "random_state": "ae24cdf0e6e189bce2785c02bb9b774baed41a5c42675e074450dd4b6f68cc29"
+          },
+          {
+            "seed": 125,
+            "geometry": {
+              "lines": 200,
+              "points": 21378,
+              "points_sha256": "b641ba7c5f34ec7c55e459a30e57dbd6dbb1ce66c7f111b0f02eb48a06b2177d",
+              "lines_sha256": "ca2fb98622e88380bd05e2a2e042da1c42c541239f01b30a1530edf23a013e1f",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "5adc23e8e0d26cf8ac6ea43434e82a59362941d6f09adf08782e1153e8cd5821",
+            "fibers": [
+              "6f5ff39752ab63d39587ce646c38dae4780dbb47e2ec147af43ad05d974f7217",
+              "605c921262bf245ee1a46455be35c8d35c7140160adae61280ccdf7587a6ac28",
+              "6fbdd6eec668ab6a94d5b4b8da1472237684e524db381c85a103d6f4fe5117d8"
+            ],
+            "random_state": "c1e1c2d7089c83d783802d5f43c877545e8cd4c77753cfdcd1de203501bba077"
+          },
+          {
+            "seed": 126,
+            "geometry": {
+              "lines": 200,
+              "points": 22371,
+              "points_sha256": "6acf5ac123b143cbcfd1f0c1c8261620bd9b3649559e7e6370598ee3a60574b4",
+              "lines_sha256": "80f4204d59c8a4f7c85a6389cf87032f1db0a29ce86710105aac3bb2f3894644",
+              "point_dtype": 10,
+              "point_arrays": 0,
+              "cell_arrays": 0
+            },
+            "indices": "a5f9f5bc401bd5ef2694fdad88e8a398dcc52adf8e40b70842c0b4edfa505420",
+            "fibers": [
+              "902188aed11611f4f8d506442bb731c483ac3796ef687792fea521e0787f108f",
+              "619d0105641147c1152d324f5f63b9d3d3ff66586e2c0aa797bf98df123dd654",
+              "fea919ce600e6370d119834f82a799d0e96113a8bcbc144da64e773c383e5ae5"
+            ],
+            "random_state": "f410e42e63460d705a1fc10d28945639a7679b247566670a0ea68da5f92b7de7"
+          }
+        ],
+        "all_output_bytes_equal": true,
+        "source_unchanged": true,
+        "bulk": {
+          "bulk_calls": 1,
+          "author_bypasses": 0,
+          "points_copied": 25081839,
+          "block_points": 262144,
+          "peak_block_points": 262144,
+          "bulk_seconds": 0.6902060471475124,
+          "scope": "Author length rule and float32 point-copy semantics; bounded bulk copying; no transform, sampling or classification changes"
+        }
+      }
+    ],
+    "environment": {
+      "python": "3.12.10 (main, Nov 10 2025, 07:45:19) [GCC 14.2.1 20250110 (Red Hat 14.2.1-7)]",
+      "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+      "numpy": "2.2.6",
+      "vtk": "9.5.2",
+      "thread_env": {
+        "OMP_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": "1"
+      }
+    },
+    "scope": "Fresh author preprocess() calls vs fresh bulk calls, never the old plugin or completed-fit cache; filtering only",
+    "limitations": [
+      "Shared Linux host, not exclusive hardware",
+      "No whole registration/classification or anatomical accuracy claim",
+      "One full-atlas repetition is a scoped observation, not a confidence interval",
+      "Native Windows/macOS not benchmarked"
+    ]
+  },
+  "optimizer_fixture": {
+    "status": "passed",
+    "checks": {
+      "fixed_and_moving_exact": true,
+      "transform_exact": true,
+      "objective_history_exact": true,
+      "objective_change_exact": true,
+      "all_optimizer_outputs_finite": true,
+      "source_unchanged": true,
+      "objective_actually_improved": true
+    },
+    "source": "/data/chengjin/SlicerDDSurfer/ignore/validation/wma_cache_full_20261017/products/100307_ukf/AnatomicalTracts/T_AF_left.vtp",
+    "source_sha256": "074fea8ee907bdddbb3d4ab35898c6060ced187fe34b4ab02b2fe7eda8d312b0",
+    "source_lines": 287,
+    "parameters": {
+      "mode": "Affine",
+      "fixed_fibers": 128,
+      "moving_fibers": 64,
+      "points_per_fiber": 10,
+      "maxfun": 300,
+      "sigma": 20,
+      "steps": [
+        10,
+        5
+      ],
+      "seed_fixed": 124,
+      "seed_moving": 125,
+      "controlled_fixture_offset_ras_mm": [
+        20,
+        0,
+        0
+      ]
+    },
+    "transform": [
+      -17.122505094803675,
+      -2.266007806897001,
+      1.062849558213172,
+      -8.644659692034704,
+      -10.136584105232078,
+      -2.021645070022776,
+      1.0109467638321163,
+      0.981148611607908,
+      1.0018885561502395,
+      -6.712077553990522,
+      -2.653327238638825,
+      1.331200298330877,
+      9.29798905130128,
+      -3.098485989847865,
+      7.469697528024223
+    ],
+    "objective_history": [
+      127.1216709261592,
+      204.3205738115168,
+      136.50946909548674,
+      138.2874188598868,
+      148.1595294204759,
+      164.89668968421915,
+      204.94779950819174,
+      120.64107367400797,
+      122.6861921193896,
+      121.50191325294296,
+      124.29843337065626,
+      131.3277924578856,
+      104.0453802992571,
+      103.77386278921506,
+      109.45750958605025,
+      109.31747245503037,
+      88.61986802924906,
+      78.26865699250465,
+      93.17963631893875,
+      86.20899849852054,
+      93.24887699310543,
+      78.65564792373789,
+      80.34585667515564,
+      81.09984883589604,
+      77.90230206022562,
+      75.81966609217484,
+      75.97197302581483,
+      77.93540146135001,
+      72.57935421852687,
+      71.60968454807879,
+      72.39764267525018,
+      68.77628063712666,
+      74.31866114631926,
+      84.0864850593545,
+      70.9532951832752,
+      95.820959489915,
+      69.55052642375115,
+      79.12910224800703,
+      70.70178382750224,
+      68.56906412427314,
+      74.76883482003605,
+      68.29641896040422,
+      70.49002312262644,
+      68.24582371015292,
+      68.18147315039165,
+      68.29446589708425,
+      71.7701022768695,
+      71.411754810127,
+      68.80570923986008,
+      68.77237732010556,
+      68.55112631590555
+    ],
+    "objective_change": -58.57054461025365,
+    "author_sha256": {
+      "third_party/whitematteranalysis/whitematteranalysis/filter.py": "725f733c0c4396dccc563a314f3037cf3782c59dc4935819e224ef41ac08c4bb",
+      "third_party/whitematteranalysis/whitematteranalysis/congeal_multisubject.py": "89ef0a85ee62646590db1277c04087edca92277578803384b3d5e6ba5f8f3639",
+      "third_party/whitematteranalysis/whitematteranalysis/register_two_subjects.py": "eb6cb9293df3fe3e2d783e096ea979ae279e94c7f3e9f335b3fc34818a93920f"
+    },
+    "scope": "Actual author optimizer on a small real AF-derived numeric fixture; not whole-brain registration, a new bundle result or a timing claim"
+  },
+  "nonimproving_control": {
+    "status": "failed",
+    "checks": {
+      "fixed_and_moving_exact": true,
+      "transform_exact": true,
+      "objective_history_exact": true,
+      "objective_change_exact": true,
+      "all_optimizer_outputs_finite": true,
+      "source_unchanged": true,
+      "objective_actually_improved": false
+    },
+    "explanation": "The unshifted within-subject fixture did not improve the objective in either implementation; parity remained exact. Not scientific registration acceptance."
+  },
+  "backend_regression": {
+    "status": "passed",
+    "total": 1110,
+    "passed": 1105,
+    "skipped": 5,
+    "elapsed_seconds": 55.84,
+    "command": "env OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 /home/chengjin/miniconda3/bin/python3 -m unittest discover -s Testing/Python -p test_*.py -q",
+    "scope": "Full backend regression, not anatomical, complete-WMA or cross-platform scientific acceptance"
+  },
+  "evidence_records": {
+    "three_subjects.json": {
+      "path": "ignore/validation/wma_author_bulk_20261020/three_subjects.json",
+      "sha256": "e00a4a612c9fea7b8c8779998cab1e17c78e5885ca432d7eb816a842019c697a"
+    },
+    "full_inputs.json": {
+      "path": "ignore/validation/wma_author_bulk_20261020/full_inputs.json",
+      "sha256": "7ab10ff725b003b421d2b388eef134f8a8e179431f31dadcbb2e80b429e6ad8a"
+    },
+    "upstream_verification.json": {
+      "path": "ignore/validation/wma_author_bulk_20261020/upstream_verification.json",
+      "sha256": "397d8d7e4e04d33bde980ffd26b2602df78a28c896988f8c345421de39c48426"
+    },
+    "optimizer_shifted_300.json": {
+      "path": "ignore/validation/wma_author_bulk_20261020/optimizer_shifted_300.json",
+      "sha256": "ef94fc953b603443bf136b7199b8b82ee34a33f262b86fef66ece95aed8f7203"
+    },
+    "optimizer_parity_300.json": {
+      "path": "ignore/validation/wma_author_bulk_20261020/optimizer_parity_300.json",
+      "sha256": "fb5ca507401c710ebea1f822ee9190c384cd59db8c85ca3f18e8dfab4e12e1ce"
+    },
+    "full_tests_final.log": {
+      "path": "ignore/validation/wma_author_bulk_20261020/full_tests_final.log",
+      "sha256": "ff00868733091fa9fbe49dab36ec2b627493f4efc4ea5733035638cf4b78504f"
+    }
+  },
+  "source_unchanged": true,
+  "limitations": [
+    "Only the attribute-free original length-filter/copy stage is accelerated",
+    "Does not claim a new estimator, improved anatomical accuracy or equivalent full-pipeline speedup",
+    "Small optimizer fixture includes an explicit synthetic +20 mm R displacement of real AF-derived coordinates",
+    "Full input timings use one fresh pair without warmup; no confidence interval",
+    "Production hook is verified-source POSIX only; native Windows/macOS not benchmarked"
+  ]
+}

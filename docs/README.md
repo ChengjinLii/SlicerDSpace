@@ -46,6 +46,10 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 
 ## Validation Records
 
+[16 October follow-up](release/QC_FOLLOWUP_20261016.md) records verified MK-Curve
+exclusion, per-metric regional coverage, completed ACT-v3/WMA and Linux SDK/CPack
+checks, plus the unresolved endpoint-WMQL sampling and anatomical-review gates.
+
 [CSD/ACT investigation](release/CSD_ACT_DIAGNOSIS_20261015.md) supersedes the
 earlier CSD acceptance: VentralDC tissue mapping was wrong, the controlled saved-FOD
 experiment isolates its effect, and old ACT-dependent outputs require regeneration.
@@ -60,8 +64,11 @@ crossing query from the published endpoint rule, with paired inputs and frozen i
 
 [Bundle backend verification](release/BUNDLE_BACKENDS_20261013.md) separates
 real WMA failures, sparse WMQL candidates and seed-verified TractCloud products.
-[Module runtimes](release/MODULE_RUNTIMES_20261015.md) inventories historical and
+[Module runtimes](release/MODULE_RUNTIMES_20261017.md) inventories historical and
 new measurements without treating cache reuse or ROI timings as full computations.
+[Performance optimizations](release/PERFORMANCE_OPTIMIZATIONS.md) distinguishes
+original-author WMA comparisons with byte-identical geometry from older-plugin
+iterations, inherited improvements, device effects and cache reuse.
 
 [SAF Python verification](release/SAF_PYTHON_20261013.md) records independent
 author-kernel comparisons, intentional corrections and actual tractogram geometry checks.
