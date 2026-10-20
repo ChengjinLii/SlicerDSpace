@@ -162,6 +162,18 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   check now needs `active === 'BODY'` after the click (the separate `onBody` probe is gone); with the old `state()` it
   fails.
 
+### Review of the r5/r6 fix (commit 90a6a03; Opus 0 blocking, Codex 1)
+
+- Codex P1 (Opus: P3), fixed in the fix round: SPEC §7.1 item 15 quotes the phrase, and `menu_focus_wording` read all of
+  SPEC, so a wrong §4 passed (it failed on badbad2). The check now reads SPEC only from `## 4.` to `## 5.`. With §4
+  changed to “a focus change to nothing closes it too” and item 15 kept, it passed on 90a6a03 and fails now.
+
+Not fixed (non-blocking, from the Opus review):
+- r7 1 (P3): film-end checks 1 and 2 do not prove that the film started (check 3 does, with `/VIDEO/`). If Enter did not
+  start the film, check 1 would still pass, because `toEnd()` plays it to the end. This gap is older than 90a6a03. Fix
+  idea: after each start, need focus on the video, `ended` false and the button hidden.
+- r7 2 (P3): SPEC §9 has no line for §7.1 items 15 and 16 (same kind as r4 B4).
+
 
 ## Image crop boxes as finally used
 

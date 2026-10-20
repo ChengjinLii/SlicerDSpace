@@ -653,6 +653,7 @@ def menu_focus_wording():
     # Opus r4 B2: the focusout comment, README and SPEC §4 said the click handlers deal with a focus change to
     # nothing; none closes the menu then. All three must state the behaviour as it is.
     # Opus r6 1: in README only the Opus N3 note states the rule; the backlog entries may quote either wording.
+    # Review of 90a6a03 (Codex P1): SPEC §7.1 item 15 quotes the phrase, so in SPEC only §4 counts.
     want = "a focus change to nothing does not close it"
     old = "left to the click handlers"
     problems = []
@@ -664,6 +665,13 @@ def menu_focus_wording():
                 problems.append("README.md has no 'Opus N3' note")
                 continue
             rel, text = "README.md (Opus N3 note)", m.group(0)
+        elif rel == "SPEC.md":
+            start = text.find("\n## 4. ")
+            end = text.find("\n## 5. ", start + 1)
+            if start < 0 or end < 0:
+                problems.append("SPEC.md has no §4 / §5 headings")
+                continue
+            rel, text = "SPEC.md (§4)", text[start:end]
         text = " ".join(text.split())
         if want not in text:
             problems.append("%s lacks %r" % (rel, want))
