@@ -648,6 +648,22 @@ def fonts_licensed():
     return fail_list(problems) if problems else None
 
 
+@check("menu_focus_wording")
+def menu_focus_wording():
+    # Opus r4 B2: the focusout comment, README and SPEC §4 said the click handlers deal with a focus change to
+    # nothing; none closes the menu then. All three must state the behaviour as it is.
+    want = "a focus change to nothing does not close it"
+    old = "left to the click handlers"
+    problems = []
+    for rel in ("docs/assets/js/site.js", "README.md", "SPEC.md"):
+        text = " ".join(read(os.path.join(ROOT, rel)).split())
+        if want not in text:
+            problems.append("%s lacks %r" % (rel, want))
+        if old in text:
+            problems.append("%s still says %r" % (rel, old))
+    return fail_list(problems) if problems else None
+
+
 # ---------------------------------------------------------------- main
 def main(argv):
     film_arg = None
@@ -675,6 +691,7 @@ def main(argv):
     no_local_paths()
     links_safe(pages)
     fonts_licensed()
+    menu_focus_wording()
 
     failed = 0
     for status, name, reason in results:

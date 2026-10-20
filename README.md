@@ -95,7 +95,7 @@ Not fixed (non-blocking):
   play button; focus the user put elsewhere stays (narrowed by r4 B1 below). `browser_check.mjs` checks both cases; the first failed
   on bd002dd (focus on `BODY`).
 - Opus N3 (P2). **Fixed 2026-10-20** (user request): the open menu closes when focus moves to an element outside the
-  nav and the Menu button (a focusout with no new target is left to the click handlers). `browser_check.mjs` tabs out
+  nav and the Menu button (a focus change to nothing does not close it). `browser_check.mjs` tabs out
   of the open menu at 390 px and needs it closed (failed on bd002dd: still open), and checks that Shift+Tab back to the
   Menu button keeps it open.
 - Opus N4 (P3): `slicer.jpg` shows path fragments from the film frame ("fer-promo/runtime/subjects/sub-01").
@@ -133,12 +133,13 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   the play button at film end only when the video had it; SPEC §5.3 says “move focus to the play button”.
   `browser_check.mjs` starts the film with a click, clicks plain text (focus on `<body>`) and needs focus still on
   `<body>` after the end; it failed on 484bf17 (focus on the play button).
-- r4 B2 (P3): the `focusout` comment, the N3 note above and SPEC §4 say a focus change to nothing “is left to the click
-  handlers”; no click handler closes the menu on a tap outside it (this was so before N3, and SPEC never asked for
-  it). Fix idea: reword to “a focus change to nothing does not close it”.
-- r4 B3 (P3): no check guards the null `relatedTarget` test; without it, a click on the status chip inside the open
-  menu would close the menu and all focus checks would still pass. Fix idea: at 390×844 open the menu, click
-  `.chip-status`, need it still open.
+- r4 B2 (P3). **Fixed 2026-10-21** (user request): the `focusout` comment, the N3 note above and SPEC §4 claimed that
+  the click handlers deal with a focus change to nothing; none closes the menu then. All three now say “a focus change
+  to nothing does not close it”. `check_site.py` `menu_focus_wording` needs that phrase in `site.js`, `README.md` and
+  `SPEC.md` and rejects the old wording; it failed on c08a743.
+- r4 B3 (P3). **Fixed 2026-10-21** (user request): `browser_check.mjs` opens the menu at 390×844 with a click on the
+  Menu button, clicks `.chip-status` (focus moves to `<body>`) and needs the menu still open. It passes on c08a743 and
+  fails on a copy of its `site.js` without the `to &&` test (the menu closes).
 - r4 B4 (P3): SPEC §9 has no line for the N2/N3 edits to §4 and §5.3.
 
 

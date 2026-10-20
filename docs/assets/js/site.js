@@ -59,8 +59,9 @@
         setOpen(false, true);
       }
     });
-    /* Tab out of the open menu closes it, so focus never sits on controls under the panel. Only a known new focus
-       target counts: a tap that focuses nothing (relatedTarget null) is left to the click handlers. */
+    /* Tab out of the open menu closes it, so focus never sits on controls under the panel. Only a move to a known
+       element counts: a focus change to nothing does not close it (relatedTarget null, e.g. a tap on the status chip
+       or on plain text). */
     function onFocusOut(e) {
       var to = e.relatedTarget;
       if (btn.getAttribute('aria-expanded') === 'true' && to && to !== btn && !nav.contains(to)) {

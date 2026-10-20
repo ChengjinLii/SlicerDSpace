@@ -400,6 +400,16 @@ async function runFocusChecks(browser, origin) {
   }
   record(!!left && left.expanded === 'false' && !left.navShown,
     '390x844: Tab out of the open menu closes it', JSON.stringify(left));
+  // Opus r4 B3: a focus change to nothing must not close the open menu. A click on the Menu button focuses it; a click on
+  // the status chip inside the open nav then moves focus to <body> (focusout with relatedTarget null).
+  await p2.click('#menu-btn');
+  const chip0 = await state();
+  await p2.click('#site-nav .chip-status');
+  await p2.waitForTimeout(100);
+  const chip1 = await state();
+  const onBody = await p2.evaluate(() => document.activeElement === document.body);
+  record(chip0.expanded === 'true' && chip0.active === 'Menu' && onBody && chip1.expanded === 'true' && chip1.navShown,
+    '390x844: a click on the status chip in the open menu keeps it open', JSON.stringify({ before: chip0, after: chip1, onBody }));
   await c2.close();
 }
 

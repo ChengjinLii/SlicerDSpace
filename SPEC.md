@@ -91,7 +91,8 @@ poster is the `<video poster>`, not an `<img>`.)
   blocks scroll inside themselves (`overflow-x: auto`), grid children have `min-width: 0`.
 - Header: sticky, 64px, `--bg` at 80% with backdrop blur, bottom tri-rule. Left: icon (28px) + "SlicerDDSurfer".
   Centre/right: anchor links. Right: chip "Private pre-release". At ≤ 1023px the links fold into a "Menu" button
-  (`aria-expanded`, keyboard operable, closes on link click, on Escape, and when focus moves out of the menu).
+  (`aria-expanded`, keyboard operable, closes on link click, on Escape, and when focus moves to an element outside the menu; a focus change to nothing
+  does not close it).
 - Accessibility: skip link to `#main`; visible `:focus-visible` outline (2px `--blue`, 2px offset); one `<h1>`;
   headings in order; landmarks (`header`, `nav`, `main`, `footer`); body text contrast ≥ 7:1, small text never below
   `--muted`.
