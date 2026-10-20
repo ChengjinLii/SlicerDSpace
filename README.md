@@ -149,6 +149,16 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   for the r4 B1 check `<body>` is also the state before the end, so a failed seek would pass it on old code too. The
   reviewer's probe saw `ended: true`. Fix idea: record `video.ended` and the visible play button, and require both.
 
+### Review of the r4 B2/B3 fix (commit 42e316d; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus review; Codex found nothing):
+- r6 1 (P3): for README, `menu_focus_wording` finds the phrase in the r4 B2 entry as well as in the N3 note, so a wrong
+  N3 note still passes; only the ban on the old wording guards README, and that ban also forbids quoting it in this
+  history. Fix idea: search only the N3 bullet, or drop README from the presence test.
+- r6 2 (P3): SPEC §7.1 lists 14 checks; `check_site.py` now runs 15 (`menu_focus_wording` is not listed).
+- r6 3 (P3): in `browser_check.mjs` `state()`, `active` is the focused element's text, so with focus on `<body>` the
+  failure detail prints page text. The assertion uses `onBody` and is correct. Fix idea: print the tag for `<body>`.
+
 
 ## Image crop boxes as finally used
 
