@@ -363,18 +363,29 @@ async function runScriptBlocked(browser, origin) {
     await page.screenshot({ path: path.join(OUT, `noscript-file-${w}.png`), fullPage: true });
     await context.close();
   }
-  // With site.js loaded, the class is set by the script and the sections on the first screen are shown at once.
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  const page = await context.newPage();
-  await page.goto(origin + '/index.html', { waitUntil: 'domcontentloaded' });
-  const st = await page.evaluate(() => {
-    const vh = window.innerHeight;
-    const onScreen = [...document.querySelectorAll('.reveal')].filter((e) => { const r = e.getBoundingClientRect(); return r.top < vh && r.bottom > 0; });
-    return { js: document.documentElement.classList.contains('js'), onScreen: onScreen.length, notIn: onScreen.filter((e) => !e.classList.contains('in')).map((e) => e.id) };
-  });
-  record(st.js && st.onScreen > 0 && st.notIn.length === 0,
-    '1440x900 with site.js: js class set by the script; on-screen sections shown at DOMContentLoaded', JSON.stringify(st));
-  await context.close();
+  // With site.js loaded, the sections on the first screen must already be shown when the js class appears, so they do
+  // not blink. Codex review of bd002dd (P1): reading the page after DOMContentLoaded raced the IntersectionObserver,
+  // which could add `in` first. An init script now records the state at the moment the class is set.
+  for (const [w, h] of [[1440, 900], [390, 844]]) {
+    const context = await browser.newContext({ viewport: { width: w, height: h } });
+    await context.addInitScript(() => {
+      new MutationObserver((records, obs) => {
+        const html = document.documentElement;
+        if (!html || !html.classList.contains('js')) return;
+        obs.disconnect();
+        const vh = window.innerHeight;
+        const reveal = [...document.querySelectorAll('.reveal')];
+        const onScreen = reveal.filter((e) => { const r = e.getBoundingClientRect(); return r.top < vh && r.bottom > 0; });
+        window.__jsSnap = { reveal: reveal.length, onScreen: onScreen.map((e) => e.id), notIn: onScreen.filter((e) => !e.classList.contains('in')).map((e) => e.id) };
+      }).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    });
+    const page = await context.newPage();
+    await page.goto(origin + '/index.html', { waitUntil: 'load' });
+    const st = await page.evaluate(() => window.__jsSnap || null);
+    record(!!st && st.reveal > 0 && st.onScreen.length > 0 && st.notIn.length === 0,
+      `${w}x${h} with site.js: when the js class appears, every on-screen section is already shown`, JSON.stringify(st));
+    await context.close();
+  }
 }
 
 // ---------------------------------------------------------------- main

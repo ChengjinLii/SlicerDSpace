@@ -440,3 +440,5 @@ Code review round 1 (commit 935a5d9): Opus B1 removed the “model-asset reposit
 repository is public); Codex B1 moved the nav fold from ≤ 860px to ≤ 1023px and added the header overlap check to
 §7.2. Non-blocking items are in `README.md` → “Review backlog”.
 
+After code review (2026-10-20, README backlog Opus N1): §4 gains the sentence that `site.js` sets the `js` class itself.
+
