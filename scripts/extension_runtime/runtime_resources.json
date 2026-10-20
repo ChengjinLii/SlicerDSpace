@@ -47,6 +47,8 @@
   ],
   "excluded_components": ["tests", "Testing", "third_party", "__pycache__", ".pytest_cache", ".mypy_cache", ".git"],
   "excluded_prefixes": [
+    "docs/site",
+    "docs/website",
     "tractography/slicer_dmri_reference",
     "anatomy/surface/weights",
     "anatomy/surface/template",

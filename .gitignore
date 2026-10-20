@@ -2,6 +2,8 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
+Testing/Website/node_modules/
+Testing/Website/out/
 .coverage
 htmlcov/
 Testing/Temporary/

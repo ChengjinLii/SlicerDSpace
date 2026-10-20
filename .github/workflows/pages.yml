@@ -1,0 +1,114 @@
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/site/**
+      - Testing/Website/**
+      - scripts/audit_pages_site.py
+      - .github/workflows/pages.yml
+  pull_request:
+    paths:
+      - docs/site/**
+      - Testing/Website/**
+      - scripts/audit_pages_site.py
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Testing/Website/package-lock.json
+      - name: Verify the publication boundary and static site
+        run: |
+          python scripts/audit_pages_site.py
+          python -I Testing/Website/check_site.py
+      - name: Install isolated browser-test dependencies
+        run: npm ci --prefix Testing/Website
+      - name: Check desktop, mobile, video and navigation
+        run: node Testing/Website/browser_check.mjs
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-browser-checks
+          path: Testing/Website/out/
+          if-no-files-found: warn
+          retention-days: 14
+
+  pages-status:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: read
+    outputs:
+      enabled: ${{ steps.site.outputs.enabled }}
+    steps:
+      - name: Check owner-enabled Pages configuration
+        id: site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          code=$(curl --silent --show-error --output "$RUNNER_TEMP/pages.json" --write-out '%{http_code}' \
+            --header "Authorization: Bearer $GH_TOKEN" --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pages")
+          if [ "$code" = 200 ]; then
+            if python -c 'import json,sys; sys.exit(json.load(open(sys.argv[1])).get("build_type") != "workflow")' "$RUNNER_TEMP/pages.json"; then
+              echo 'enabled=true' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          elif [ "$code" != 403 ] && [ "$code" != 404 ]; then
+            echo "Unexpected Pages API status: $code"
+            exit 1
+          fi
+          echo 'enabled=false' >> "$GITHUB_OUTPUT"
+          echo '::notice::Deployment is waiting for the repository owner to enable GitHub Pages with GitHub Actions.'
+          {
+            echo '## Website Deployment Not Enabled'
+            echo 'Site validation still runs. No public deployment has been performed.'
+            echo "Owner action: https://github.com/$GITHUB_REPOSITORY/settings/pages"
+            echo 'Choose Source: GitHub Actions. A private repository requires an eligible paid plan.'
+            echo 'Then run this Website workflow again. Only docs/site is published; the repository stays private.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    needs: [validate, pages-status]
+    if: github.event_name != 'pull_request' && needs.pages-status.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/configure-pages@v5
+      - name: Upload public website only
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/site
+      - name: Publish
+        id: deployment
+        uses: actions/deploy-pages@v4

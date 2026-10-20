@@ -10,6 +10,8 @@
 
 [Overview](#overview) | [Install](#installation) | [Quick Start](#quick-start) | [Documentation](docs/README.md) | [Validation](#validation-and-release-status) | [Citation](#citation) | [中文](README.zh-CN.md)
 
+[Project Website](https://chengjinlii.github.io/SlicerDDSurfer/) | [Website Publishing](https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/website/README.md)
+
 </div>
 
 SlicerDDSurfer brings diffusion-MRI anatomical reconstruction, microstructural

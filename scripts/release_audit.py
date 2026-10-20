@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -19,6 +20,11 @@ except ModuleNotFoundError:
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+# The public Pages film is intentionally ordinary Git content, not a model asset
+# or an LFS pointer that a static Pages server could not play. No blanket media exemption.
+PUBLIC_FILM = "docs/site/media/SlicerDDSurfer_promo_1080p.mp4"
+PUBLIC_FILM_BYTES = 41070370
+PUBLIC_FILM_SHA256 = "68320429a874343e5f06fcbb99b42320f479933e5eff66703e172117010e5cec"
 LFS_REQUIRED_SUFFIXES = (
     ".pt",
     ".pkl",
@@ -107,6 +113,16 @@ def _file_size(path: str) -> int:
         return (REPO_ROOT / path).stat().st_size
     except OSError:
         return 0
+
+
+def _verified_public_film(path: str) -> bool:
+    if path != PUBLIC_FILM or _file_size(path) != PUBLIC_FILM_BYTES:
+        return False
+    digest = hashlib.sha256()
+    with (REPO_ROOT / path).open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            digest.update(block)
+    return digest.hexdigest() == PUBLIC_FILM_SHA256
 
 
 def _index_blob_size(path: str) -> int | None:
@@ -339,7 +355,7 @@ def audit_repository(*, large_file_mb: float = 20.0) -> dict[str, object]:
                 )
             )
         size = _file_size(path)
-        if size >= large_threshold and not _matches_suffix(path, LFS_REQUIRED_SUFFIXES):
+        if size >= large_threshold and not _matches_suffix(path, LFS_REQUIRED_SUFFIXES) and not _verified_public_film(path):
             issues.append(
                 AuditIssue(
                     severity="blocker",

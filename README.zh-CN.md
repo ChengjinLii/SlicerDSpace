@@ -10,6 +10,8 @@
 
 [概览](#概览) | [安装](#安装) | [快速开始](#快速开始) | [文档](docs/README.zh-CN.md) | [验证状态](#验证与发布状态) | [引用](#引用) | [English](README.md)
 
+[项目网站](https://chengjinlii.github.io/SlicerDDSurfer/) | [网站发布与贡献记录](https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/website/README.zh-CN.md)
+
 </div>
 
 SlicerDDSurfer 在一个 Slicer 模块中组织扩散 MRI 解剖重建、微结构定量和白质

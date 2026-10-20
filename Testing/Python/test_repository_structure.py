@@ -210,7 +210,8 @@ class RepositoryStructureTest(unittest.TestCase):
                 offenders.append(relative)
                 continue
             name = Path(relative).name
-            if relative.endswith(".html") or name in {"goal.md", "goal_completion_audit.md", "AGENTS.md"}:
+            public_pages = {'docs/site/index.html', 'docs/site/404.html'}
+            if (relative.endswith(".html") and relative not in public_pages) or name in {"goal.md", "goal_completion_audit.md", "AGENTS.md"}:
                 offenders.append(relative)
                 continue
             if "/" not in relative and any(name.startswith(prefix) for prefix in FORBIDDEN_TRACKED_ROOT_PATTERNS):
