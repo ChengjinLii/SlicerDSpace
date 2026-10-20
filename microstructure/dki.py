@@ -37,6 +37,7 @@ class DkiConfig:
     mkcurve_root: Optional[Path] = None
     display_min_kurtosis: float = 0.0
     display_max_kurtosis: float = 3.0
+    dense_metrics: bool = True
 
 
 @dataclass(frozen=True)
@@ -370,9 +371,14 @@ def _progress(path: Path, config: DkiConfig, status: str, **details) -> None:
 
 
 def _compute_maps(config: DkiConfig, paths: dict[str, Path], log):
+    phase_start = time.monotonic()
+    phase_times = {key:0.0 for key in ('preparation','signal_read','tensor_fit','metrics_prediction','map_assignment','file_export')}
     import nibabel as nib
     import numpy as np
     from dipy.reconst.dki import DiffusionKurtosisModel
+    import dipy
+    dense_supported = dipy.__version__.split('.')[:2] in (['1','11'], ['1','12'])
+    dense_used = False
 
     image, mask, gtab, selected, eligibility = _load_protocol(config)
     flat_indices = np.flatnonzero(mask.ravel())
@@ -406,7 +412,9 @@ def _compute_maps(config: DkiConfig, paths: dict[str, Path], log):
                 array.reshape((-1, 27) if key == "params" else (-1,))[flat_indices] = np.nan
             arrays[key] = array
         try:
+            phase_times['preparation'] = time.monotonic()-phase_start
             for start in range(0, len(flat_indices), config.voxels_per_chunk):
+                stamp = time.monotonic()
                 indices = flat_indices[start:start + config.voxels_per_chunk]
                 coordinates = np.unravel_index(indices, mask.shape)
                 signals = np.asarray(unscaled[coordinates[0], coordinates[1], coordinates[2], :][:, selected], dtype=np.float64)
@@ -416,11 +424,23 @@ def _compute_maps(config: DkiConfig, paths: dict[str, Path], log):
                 counts["nonfinite_signal_voxels"] += int(np.count_nonzero(~finite))
                 counts["nonpositive_signal_voxels"] += int(np.count_nonzero(finite & ~positive))
                 fit_indices = indices[finite & positive]
+                phase_times['signal_read'] += time.monotonic()-stamp
                 if len(fit_indices):
+                    stamp = time.monotonic()
                     observed = signals[finite & positive]
                     fitted = model.fit(observed)
                     params = np.asarray(fitted.model_params)
                     s0 = np.asarray(fitted.model_S0).reshape(-1)
+                    phase_times['tensor_fit'] += time.monotonic()-stamp
+                    stamp = time.monotonic()
+                    if config.dense_metrics and dense_supported:
+                        # Keep the author fit/parameters. Evaluate its existing
+                        # array-capable metrics without per-voxel Python wrappers.
+                        from dipy.reconst.multi_voxel import MultiVoxelFit
+                        from dipy.reconst.dki import DiffusionKurtosisFit
+                        if isinstance(fitted, MultiVoxelFit):
+                            fitted = DiffusionKurtosisFit(model, params, model_S0=s0)
+                            dense_used = True
                     predictions = np.asarray(fitted.predict(gtab, S0=s0))
                     with np.errstate(invalid="ignore", divide="ignore", over="ignore"):
                         raw = {
@@ -430,6 +450,8 @@ def _compute_maps(config: DkiConfig, paths: dict[str, Path], log):
                         raw["kfa"] = np.asarray(fitted.kfa).reshape(-1)
                         rmse = np.sqrt(np.mean((predictions - observed) ** 2, axis=1))
                         nrmse = rmse / s0
+                    phase_times['metrics_prediction'] += time.monotonic()-stamp
+                    stamp = time.monotonic()
                     valid = np.isfinite(params).all(axis=1) & np.isfinite(s0) & (s0 > 0)
                     valid &= (np.asarray(fitted.evals) > model.min_diffusivity).all(axis=1)
                     valid &= np.isfinite(rmse) & np.isfinite(nrmse)
@@ -451,6 +473,7 @@ def _compute_maps(config: DkiConfig, paths: dict[str, Path], log):
                     arrays["valid_mask"].ravel()[fit_indices] = valid.astype(np.uint8)
                     counts["fitted_voxels"] += len(fit_indices)
                     counts["valid_voxels"] += int(np.count_nonzero(valid))
+                    phase_times['map_assignment'] += time.monotonic()-stamp
                 completed = min(start + len(indices), len(flat_indices))
                 _progress(paths["progress"], config, "running", completed_voxels=completed, total_voxels=len(flat_indices), **counts)
                 if log:
@@ -459,6 +482,7 @@ def _compute_maps(config: DkiConfig, paths: dict[str, Path], log):
                 raise ValueError("DKI has no masked voxels with finite, strictly positive selected measurements")
             if not counts["valid_voxels"]:
                 raise ValueError("DKI has no valid quantitative voxels; inspect acquisition and raw fit quality")
+            stamp = time.monotonic()
             for key, array in arrays.items():
                 array.flush()
                 header = image.header.copy()
@@ -466,11 +490,13 @@ def _compute_maps(config: DkiConfig, paths: dict[str, Path], log):
                 staged = work / paths[key].name
                 nib.save(nib.Nifti1Image(array, image.affine, header), str(staged))
                 staged.replace(paths[key])
+            phase_times['file_export'] = time.monotonic()-stamp
         finally:
             for array in arrays.values():
                 array._mmap.close()
             if isinstance(unscaled, np.memmap):
                 unscaled._mmap.close()
+    phase_times['other'] = max(0.,time.monotonic()-phase_start-sum(phase_times.values()))
     return {
         "kind": "microstructure_dki_qc", "status": "completed", "subject_id": config.subject_id,
         "fit_method": "WLS" if _method(config).startswith("MKCURVE") else _method(config),
@@ -489,6 +515,10 @@ def _compute_maps(config: DkiConfig, paths: dict[str, Path], log):
             "Standard DIPY kurtosis maps are not the author's MK-Curve correction.",
         ],
         "reference": DKI_REFERENCE,
+        "metric_evaluation": "DIPY array-level metrics, unchanged fit" if dense_used else "DIPY per-voxel metrics",
+        "dense_metrics_requested": config.dense_metrics,
+        "dense_metrics_supported": dense_supported,
+        "phase_runtime_seconds": phase_times,
     }
 
 

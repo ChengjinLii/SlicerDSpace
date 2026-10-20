@@ -10,7 +10,7 @@ from slicer.ScriptedLoadableModule import (
     ScriptedLoadableModuleLogic,
     ScriptedLoadableModuleWidget,
 )
-from slicer.parameterNodeWrapper import Choice, parameterNodeWrapper
+from slicer.parameterNodeWrapper import Choice, WithinRange, parameterNodeWrapper
 from slicer.util import VTKObservationMixin
 
 from connectome.module_logic import ConnectomeLogicMixin
@@ -106,6 +106,7 @@ class SlicerDDSurferParameterNode:
     orchestrationRunName: str = "Test1"
     orchestrationTractographyBackend: Annotated[str, Choice(["csd_act", "dti_det", "saf"])] = "csd_act"
     orchestrationBundleBackend: Annotated[str, Choice(["wmql", "wma", "tractcloud", "all"])] = "wmql"
+    maxParallelModels: Annotated[int, WithinRange(1, 3)] = 1
     wmaInputTractography: str = ""
     orchestrationSelectStreamlines: int = 1000000
     orchestrationMicrostructureStages: Annotated[str, Choice([

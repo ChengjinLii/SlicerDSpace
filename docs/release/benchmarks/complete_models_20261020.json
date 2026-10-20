@@ -1,0 +1,482 @@
+{
+  "kind": "complete_models_and_concurrency_evidence",
+  "updated_at": "2026-10-20T07:43:28.962705+00:00",
+  "campaign_status": "running",
+  "current_pair": {
+    "stage": "wma",
+    "variant": "optimized",
+    "status": "running"
+  },
+  "measurements": [
+    {
+      "stage": "noddi",
+      "scope": "complete_model",
+      "status": "passed",
+      "reference_seconds": 1748.934918699786,
+      "optimized_seconds": 311.5250518564135,
+      "speed_ratio": 5.614106821514618,
+      "seconds_saved": 1437.4098668433726
+    },
+    {
+      "stage": "DKI 100307",
+      "scope": "real_24^3_ROI_complete_stage",
+      "status": "passed",
+      "reference_seconds": 54.50919272378087,
+      "optimized_seconds": 16.94772887416184,
+      "speed_ratio": 3.216312529455464,
+      "seconds_saved": 37.56146384961903
+    },
+    {
+      "stage": "DKI 100206",
+      "scope": "real_24^3_ROI_complete_stage",
+      "status": "passed",
+      "reference_seconds": 54.506174113601446,
+      "optimized_seconds": 17.038492055609822,
+      "speed_ratio": 3.1990022318703732,
+      "seconds_saved": 37.467682057991624
+    },
+    {
+      "stage": "DKI 149741",
+      "scope": "real_24^3_ROI_complete_stage",
+      "status": "passed",
+      "reference_seconds": 54.33011369034648,
+      "optimized_seconds": 16.79381899908185,
+      "speed_ratio": 3.2351255955132547,
+      "seconds_saved": 37.53629469126463
+    },
+    {
+      "stage": "FW + DKI",
+      "scope": "real_24^3_ROI_model_scheduling",
+      "status": "passed",
+      "reference_seconds": 43.952803229913116,
+      "optimized_seconds": 24.630718195810914,
+      "speed_ratio": 1.7844710365525769,
+      "seconds_saved": 19.3220850341022
+    }
+  ],
+  "complete_model_pairs": [
+    {
+      "status": "passed",
+      "products": [
+        {
+          "product": "noddi_ndi",
+          "exact": true
+        },
+        {
+          "product": "noddi_odi",
+          "exact": true
+        },
+        {
+          "product": "noddi_fwf",
+          "exact": true
+        },
+        {
+          "product": "noddi_tissue_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "noddi_rmse",
+          "exact": true
+        },
+        {
+          "product": "noddi_nrmse",
+          "exact": true
+        }
+      ],
+      "reference_seconds": 1748.934918699786,
+      "optimized_seconds": 311.5250518564135,
+      "speed_ratio": 5.614106821514618,
+      "seconds_saved": 1437.4098668433726,
+      "interpretation": "AMICO original thread capability, not a new algorithm",
+      "limitations": [
+        "One pair on a shared Linux host; no confidence interval",
+        "Not whole-workflow or anatomical-accuracy acceptance"
+      ],
+      "stage": "noddi"
+    }
+  ],
+  "wma_input_audit": {
+    "status": "pending",
+    "captured_before_wma": true,
+    "inputs_unchanged": null,
+    "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/wma_input_audit.json",
+    "sha256": "eadf02d82f37100dd82079bf707d20fd71a4d2b4b7f842172ac8736157a1b186"
+  },
+  "completed_variants": [
+    {
+      "stage": "noddi",
+      "variant": "reference",
+      "seconds": 1748.934918699786,
+      "inputs_unchanged": true,
+      "evidence": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/noddi/reference/measurement.json",
+      "sha256": "a7ba7bcfd294c1888914b0bbb2aa379756b9646489f861284aa751f99489f0e3"
+    },
+    {
+      "stage": "noddi",
+      "variant": "optimized",
+      "seconds": 311.5250518564135,
+      "inputs_unchanged": true,
+      "evidence": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/noddi/optimized/measurement.json",
+      "sha256": "3c9d1e807c62a2535660e775eead656c721dab821217690d0444cd0880541cff"
+    }
+  ],
+  "roi_evidence": {
+    "status": "passed",
+    "scope": "Complete WLS DKI stage on fixed real native-grid ROIs, not full brain",
+    "implementation": "Unchanged DIPY WLS and metrics; array-level evaluation only",
+    "environment": {
+      "python": "3.12.10 (main, Nov 10 2025, 07:45:19) [GCC 14.2.1 20250110 (Red Hat 14.2.1-7)]",
+      "numpy": "2.2.6",
+      "dipy": "1.12.1",
+      "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35"
+    },
+    "implementation_sha256": {
+      "microstructure/dki.py": "70a42cfb23986e8704d7fcb96c1feb5f65301ca6d12241cbcf70c7d05aaeebed",
+      "scripts/benchmark_dki_dense_metrics.py": "9a8f3419b2bd3e9f17a6b51de09cbdc2ff13c49898c30434453b53175a6578f9"
+    },
+    "repeats": 3,
+    "roi_side": 24,
+    "cases": [
+      {
+        "subject": "100307",
+        "source": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/100307/input",
+        "source_sha256": {
+          "data.nii.gz": "0c146b380d873cd6987c968fdf090875f89fd5795b0d6c72564a3acab737f07c",
+          "bvals": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08",
+          "bvecs": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71",
+          "nodif_brain_mask.nii.gz": "d4f83d76459efe879bd41c2b555ea6ff6d2754258ca849cb12fa9c53f0ac9a06"
+        },
+        "source_unchanged": true,
+        "start_ijk": [
+          60,
+          77,
+          48
+        ],
+        "stop_ijk": [
+          84,
+          101,
+          72
+        ],
+        "mask_voxels": 13824,
+        "fitted_voxels": 13817,
+        "valid_voxels": 13122,
+        "all_output_arrays_exact": true,
+        "raw_seconds": {
+          "reference": [
+            54.771946685388684,
+            54.50919272378087,
+            54.352764120325446
+          ],
+          "optimized": [
+            16.920816654339433,
+            16.974917827174067,
+            16.94772887416184
+          ]
+        },
+        "median_seconds": {
+          "reference": 54.50919272378087,
+          "optimized": 16.94772887416184
+        },
+        "speed_ratio": 3.216312529455464,
+        "seconds_saved": 37.56146384961903
+      },
+      {
+        "subject": "100206",
+        "source": "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/input",
+        "source_sha256": {
+          "data.nii.gz": "551bd2b7866187674162e2525a8fccf370d2e15a5878eb7520744cfd33f6d03d",
+          "bvals": "26bfc9904dc08251ea36ef831f35e4973a48046c7c62017caa27f0a0e7071eea",
+          "bvecs": "661a494c36f8570fb7e8a43a8937ef117767eb2ba635241c141c9faba217a3f1",
+          "nodif_brain_mask.nii.gz": "14d0b0f107ee17184313e2cee3213d2a72731a51294f4c35b3c31bef87c7f1ea"
+        },
+        "source_unchanged": true,
+        "start_ijk": [
+          59,
+          74,
+          49
+        ],
+        "stop_ijk": [
+          83,
+          98,
+          73
+        ],
+        "mask_voxels": 13824,
+        "fitted_voxels": 13819,
+        "valid_voxels": 12394,
+        "all_output_arrays_exact": true,
+        "raw_seconds": {
+          "reference": [
+            54.506174113601446,
+            54.46044808626175,
+            54.60781748406589
+          ],
+          "optimized": [
+            17.038492055609822,
+            17.00326969474554,
+            17.078249530866742
+          ]
+        },
+        "median_seconds": {
+          "reference": 54.506174113601446,
+          "optimized": 17.038492055609822
+        },
+        "speed_ratio": 3.1990022318703732,
+        "seconds_saved": 37.467682057991624
+      },
+      {
+        "subject": "149741",
+        "source": "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/input",
+        "source_sha256": {
+          "data.nii.gz": "14da8fd6d5a0929c05f95b92c4b36fc56ea48d7398018f1874dcd6bbe0f0a6bd",
+          "bvals": "aa3247a2cc39b80ac02286483dcc6fb612ab870fea153f1d8b87369c41bc7807",
+          "bvecs": "770cc56c46ec51438938062a67aad644427c43e337118b05a81d8ac48b5a2102",
+          "nodif_brain_mask.nii.gz": "98f8cf9fef47528b31f18c8313b9d2a6c6cf4cfa20fd045d101b017a026c280c"
+        },
+        "source_unchanged": true,
+        "start_ijk": [
+          60,
+          76,
+          53
+        ],
+        "stop_ijk": [
+          84,
+          100,
+          77
+        ],
+        "mask_voxels": 13824,
+        "fitted_voxels": 13822,
+        "valid_voxels": 12732,
+        "all_output_arrays_exact": true,
+        "raw_seconds": {
+          "reference": [
+            54.33011369034648,
+            54.343407263979316,
+            54.30492075532675
+          ],
+          "optimized": [
+            16.79381899908185,
+            16.950357731431723,
+            16.7680968567729
+          ]
+        },
+        "median_seconds": {
+          "reference": 54.33011369034648,
+          "optimized": 16.79381899908185
+        },
+        "speed_ratio": 3.2351255955132547,
+        "seconds_saved": 37.53629469126463
+      }
+    ]
+  },
+  "concurrency_evidence": {
+    "status": "passed",
+    "scope": "Full independent FW+DKI model calls on an explicitly cropped real 24^3 ROI, not full brain",
+    "source_sha256": {
+      "data.nii.gz": "0b3753d98c9e4d9e43f1981db15470bbbaa9754abfcacdc19354996cb46ac73c",
+      "bvals": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08",
+      "bvecs": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71",
+      "nodif_brain_mask.nii.gz": "b1bca25e0ad28d21f2acfca985ad6fccd2db0bbde3dad52ac16b30992ad4d5ff"
+    },
+    "implementation_sha256": {
+      "shared/compute_schedule.py": "d8504f6a2f9d19ff94f0f56895b57d7d30ed6d9c2381b29812d9c6f0862f61aa",
+      "microstructure/compute_worker.py": "da4c1b2f2e8fabcf1a5e0e0e6273112b2b9c9a3c6b34733f87a5a9f35291397f",
+      "microstructure/pipeline.py": "ccdd5c2926f73b4de9958a7e27ce77d69f028e257da1783659475943c24d8cda",
+      "microstructure/dki.py": "5c85193040194e2d07562b0e13a833875646902541bcfd18927d19b126f69725"
+    },
+    "measurements": [
+      {
+        "mode": "sequential",
+        "elapsed_seconds": 43.952803229913116,
+        "schedule": {
+          "kind": "independent_model_schedule",
+          "status": "completed",
+          "max_workers": 1,
+          "requested_workers": 1,
+          "cpu_budget": 144,
+          "memory_budget": 290652625715,
+          "jobs": [
+            {
+              "name": "freewater",
+              "status": "completed",
+              "threads": 1,
+              "memory_bytes": 2195922944,
+              "command": [
+                "/data/chengjin/software/Slicer-5.10.0-linux-amd64/bin/python-real",
+                "/data/chengjin/SlicerDDSurfer/microstructure/compute_worker.py",
+                "--stage",
+                "freewater",
+                "--config",
+                "/data/chengjin/SlicerDDSurfer/ignore/validation/real_model_concurrency_20261020_v2/sequential/compute_schedules/09fe5b4188404afa97a4d3227438c5ae.json"
+              ],
+              "started_at": "2026-10-20T07:09:56.107135+00:00",
+              "start_offset_seconds": 0.0014840830117464066,
+              "pid": 3001531,
+              "log": "/data/chengjin/SlicerDDSurfer/ignore/validation/real_model_concurrency_20261020_v2/sequential/compute_schedules/09fe5b4188404afa97a4d3227438c5ae/freewater.log",
+              "exit_code": 0,
+              "ended_at": "2026-10-20T07:10:21.027700+00:00",
+              "runtime_seconds": 24.920633394271135
+            },
+            {
+              "name": "dki",
+              "status": "completed",
+              "threads": 1,
+              "memory_bytes": 2195922944,
+              "command": [
+                "/data/chengjin/software/Slicer-5.10.0-linux-amd64/bin/python-real",
+                "/data/chengjin/SlicerDDSurfer/microstructure/compute_worker.py",
+                "--stage",
+                "dki",
+                "--config",
+                "/data/chengjin/SlicerDDSurfer/ignore/validation/real_model_concurrency_20261020_v2/sequential/compute_schedules/09fe5b4188404afa97a4d3227438c5ae.json"
+              ],
+              "started_at": "2026-10-20T07:10:21.135031+00:00",
+              "start_offset_seconds": 25.029408225789666,
+              "pid": 3002058,
+              "log": "/data/chengjin/SlicerDDSurfer/ignore/validation/real_model_concurrency_20261020_v2/sequential/compute_schedules/09fe5b4188404afa97a4d3227438c5ae/dki.log",
+              "exit_code": 0,
+              "ended_at": "2026-10-20T07:10:40.051849+00:00",
+              "runtime_seconds": 18.91688971966505
+            }
+          ],
+          "scope": "Independent model subprocess wall time, not an algorithmic speedup",
+          "elapsed_seconds": 43.94786978699267,
+          "job_seconds_sum": 43.837523113936186
+        },
+        "all_arrays_exact": true,
+        "products": {
+          "fwf": true,
+          "fw_tissue_fa": true,
+          "fw_tissue_md": true,
+          "fw_tissue_valid_mask": true,
+          "dki_mk": true,
+          "dki_ak": true,
+          "dki_rk": true,
+          "dki_kfa": true,
+          "dki_mkt": true,
+          "dki_rtk": true,
+          "dki_mk_raw": true,
+          "dki_ak_raw": true,
+          "dki_rk_raw": true,
+          "dki_kfa_raw": true,
+          "dki_mkt_raw": true,
+          "dki_rtk_raw": true,
+          "dki_rmse": true,
+          "dki_nrmse": true,
+          "dki_valid_mask": true,
+          "dki_fit_mask": true,
+          "dki_params": true,
+          "dki_s0": true
+        }
+      },
+      {
+        "mode": "concurrent",
+        "elapsed_seconds": 24.630718195810914,
+        "schedule": {
+          "kind": "independent_model_schedule",
+          "status": "completed",
+          "max_workers": 2,
+          "requested_workers": 2,
+          "cpu_budget": 144,
+          "memory_budget": 290671873228,
+          "jobs": [
+            {
+              "name": "freewater",
+              "status": "completed",
+              "threads": 1,
+              "memory_bytes": 2195922944,
+              "command": [
+                "/data/chengjin/software/Slicer-5.10.0-linux-amd64/bin/python-real",
+                "/data/chengjin/SlicerDDSurfer/microstructure/compute_worker.py",
+                "--stage",
+                "freewater",
+                "--config",
+                "/data/chengjin/SlicerDDSurfer/ignore/validation/real_model_concurrency_20261020_v2/concurrent/compute_schedules/a170460fd53f456aac741eed26c3c46e.json"
+              ],
+              "started_at": "2026-10-20T07:10:40.140785+00:00",
+              "start_offset_seconds": 0.0016129408031702042,
+              "pid": 3002373,
+              "log": "/data/chengjin/SlicerDDSurfer/ignore/validation/real_model_concurrency_20261020_v2/concurrent/compute_schedules/a170460fd53f456aac741eed26c3c46e/freewater.log",
+              "exit_code": 0,
+              "ended_at": "2026-10-20T07:11:04.765380+00:00",
+              "runtime_seconds": 24.624654026702046
+            },
+            {
+              "name": "dki",
+              "status": "completed",
+              "threads": 1,
+              "memory_bytes": 2195922944,
+              "command": [
+                "/data/chengjin/software/Slicer-5.10.0-linux-amd64/bin/python-real",
+                "/data/chengjin/SlicerDDSurfer/microstructure/compute_worker.py",
+                "--stage",
+                "dki",
+                "--config",
+                "/data/chengjin/SlicerDDSurfer/ignore/validation/real_model_concurrency_20261020_v2/concurrent/compute_schedules/a170460fd53f456aac741eed26c3c46e.json"
+              ],
+              "started_at": "2026-10-20T07:10:40.142627+00:00",
+              "start_offset_seconds": 0.00344916433095932,
+              "pid": 3002374,
+              "log": "/data/chengjin/SlicerDDSurfer/ignore/validation/real_model_concurrency_20261020_v2/concurrent/compute_schedules/a170460fd53f456aac741eed26c3c46e/dki.log",
+              "exit_code": 0,
+              "ended_at": "2026-10-20T07:10:59.059514+00:00",
+              "runtime_seconds": 18.916944056749344
+            }
+          ],
+          "scope": "Independent model subprocess wall time, not an algorithmic speedup",
+          "elapsed_seconds": 24.627293791621923,
+          "job_seconds_sum": 43.54159808345139
+        },
+        "all_arrays_exact": true,
+        "products": {
+          "fwf": true,
+          "fw_tissue_fa": true,
+          "fw_tissue_md": true,
+          "fw_tissue_valid_mask": true,
+          "dki_mk": true,
+          "dki_ak": true,
+          "dki_rk": true,
+          "dki_kfa": true,
+          "dki_mkt": true,
+          "dki_rtk": true,
+          "dki_mk_raw": true,
+          "dki_ak_raw": true,
+          "dki_rk_raw": true,
+          "dki_kfa_raw": true,
+          "dki_mkt_raw": true,
+          "dki_rtk_raw": true,
+          "dki_rmse": true,
+          "dki_nrmse": true,
+          "dki_valid_mask": true,
+          "dki_fit_mask": true,
+          "dki_params": true,
+          "dki_s0": true
+        }
+      }
+    ],
+    "sources_unchanged": true,
+    "implementation_unchanged": true,
+    "seconds_saved": 19.3220850341022,
+    "speed_ratio": 1.7844710365525769
+  },
+  "evidence": {
+    "campaign": {
+      "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/campaign.json",
+      "sha256": "884d7778c493352815e77e83249f4b17850d003798d5bd2d3cca3c55b0c83c1e"
+    },
+    "roi": {
+      "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/measurements.json",
+      "sha256": "24c2ef4af825c4e48335df1f16db0473cb20608cfd119eaeb135bb1fee710dfd"
+    },
+    "concurrency": {
+      "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/real_model_concurrency_20261020_v2/acceptance.json",
+      "sha256": "606c645ed7985490a48da9608ec808837772b32389371e09ea5e4a48f43dba0e"
+    }
+  },
+  "limitations": [
+    "ROI measurements are never extrapolated to full brain",
+    "Concurrent scheduling is not an original-algorithm speedup",
+    "No whole SlicerDDSurfer matched end-to-end pair completed by this summary",
+    "Shared Linux host; single complete-model pair, no confidence interval",
+    "Scientific validity/excluded voxels and human anatomical review remain separate"
+  ]
+}

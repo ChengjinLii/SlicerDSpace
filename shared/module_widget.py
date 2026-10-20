@@ -2010,6 +2010,7 @@ class SharedWidgetMixin:
         if node:
             groups = (
                 (bool(node.targetMicrostructure), ("orchestrationMicrostructureStagesLabel", "orchestrationMicrostructureStageOptions")),
+                (bool(node.targetMicrostructure), ('parallelModelsLabel','parallelModelsSpinBox')),
                 (bool(node.targetMicrostructure) and self._microstructure_dki_enabled(),
                  ("orchestrationDkiFitMethodLabel", "orchestrationDkiFitMethodComboBox")),
                 (bool(node.targetBundles), ("orchestrationBundleBackendLabel", "orchestrationBundleBackendComboBox")),
@@ -2830,6 +2831,7 @@ class SharedWidgetMixin:
             tractography_backend=self._tractography_backend_text(),
             bundle_backend=self._bundle_backend_text(),
             microstructure_freewater=run_free_water,
+            max_parallel_models=int(getattr(self._parameterNode, 'maxParallelModels', 1)),
             microstructure_noddi=run_noddi,
             microstructure_dki=self._microstructure_dki_enabled(),
             dki_fit_method=getattr(self._parameterNode, "orchestrationDkiFitMethod", "WLS") or "WLS",

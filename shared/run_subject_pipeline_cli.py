@@ -502,6 +502,8 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("python", "mrtrix"),
         help="Connectome backend.",
     )
+    parser.add_argument('--max-parallel-models', type=int, choices=(1,2,3), default=1,
+                        help='Independent Free-water/NODDI/DKI processes; resource-bounded; default sequential.')
     parser.add_argument(
         "--select-streamlines",
         type=int,
@@ -835,6 +837,7 @@ def main(argv: list[str] | None = None) -> int:
         tractography_backend=args.tractography_backend,
         bundle_backend=args.bundle_backend,
         execute=bool(args.execute),
+        max_parallel_models=args.max_parallel_models,
         resume=not args.no_resume,
         preprocessing_backend=args.preprocessing_backend,
         brain_mask_backend=args.brain_mask_backend,

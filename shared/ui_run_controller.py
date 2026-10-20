@@ -66,6 +66,7 @@ class RunSelection:
     brain_mask_device: str = "auto"
     microstructure_dki: bool = False
     dki_fit_method: str = "WLS"
+    max_parallel_models: int = 1
 
 
 @dataclass(frozen=True)
@@ -395,6 +396,7 @@ def build_single_subject_run_kwargs(
         "run_name": selection.run_name,
         "tractography_backend": selection.tractography_backend,
         "bundle_backend": selection.bundle_backend,
+        "max_parallel_models": selection.max_parallel_models,
         "preprocessing_backend": selection.preprocessing_backend,
         "brain_mask_backend": selection.brain_mask_backend,
         "brain_mask_device": selection.brain_mask_device,
@@ -450,6 +452,7 @@ def build_batch_run_kwargs(selection: RunSelection, *, batch_root: Path) -> dict
         "run_name": selection.run_name,
         "tractography_backend": selection.tractography_backend,
         "bundle_backend": selection.bundle_backend,
+        "max_parallel_models": selection.max_parallel_models,
         "preprocessing_backend": selection.preprocessing_backend,
         "brain_mask_backend": selection.brain_mask_backend,
         "brain_mask_device": selection.brain_mask_device,
@@ -740,6 +743,7 @@ def build_background_cli_args(
         str(common_run_kwargs["tractography_backend"]),
         "--bundle-backend",
         str(common_run_kwargs["bundle_backend"]),
+        '--max-parallel-models', str(common_run_kwargs.get('max_parallel_models', 1)),
         "--connectome-backend",
         str(common_run_kwargs["connectome_backend"]),
         "--select-streamlines",
@@ -804,6 +808,7 @@ def build_batch_background_cli_args(
         str(common_run_kwargs["tractography_backend"]),
         "--bundle-backend",
         str(common_run_kwargs["bundle_backend"]),
+        '--max-parallel-models', str(common_run_kwargs.get('max_parallel_models', 1)),
         "--connectome-backend",
         str(common_run_kwargs["connectome_backend"]),
         "--select-streamlines",

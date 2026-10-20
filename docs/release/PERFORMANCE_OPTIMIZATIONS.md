@@ -18,11 +18,107 @@ against older plugin code, **not original author implementations**. They remain
 in an engineering appendix, not evidence of outperforming the original algorithm.
 Device changes and inherited upstream improvements are also separate categories.
 
-This review recomputes historical JSON and adds new paired implementation
-experiments without rerunning or modifying the previous full-brain fits.
-The reviewed working tree is dirty, based on commit
-`a48fc95e0a52a88a1ae99dd683a547520acc0c5d`; that commit alone does not identify
-the measured implementations. The JSON records evidence and reviewed-code hashes.
+This review recomputes historical JSON and adds paired implementation experiments.
+Historical fits remain untouched; new long-model fits use separate directories.
+The author-WMA section and engineering appendix follow commit
+`a48fc95e0a52a88a1ae99dd683a547520acc0c5d`; the long-model/scheduling supplement
+uses the working tree after `65fee3e411da34f0d0a220f3384c81f604f60079`.
+The tree is dirty, so a commit alone does not identify measured implementations.
+JSON evidence records implementation hashes and immutable snapshots.
+
+---
+
+## Long Models And Independent Scheduling
+
+There are three different claims, not one new scientific algorithm:
+
+| Category | Implementation | Permitted claim |
+| --- | --- | --- |
+| Computational implementation | WMA bulk copying; DKI array-level derived metrics | Same estimator, less computational overhead, not extra threads or greater accuracy |
+| Parallel configuration | Original AMICO NODDI at 1/8 threads | Upstream multicore capability, not a novel plugin estimator |
+| Workflow scheduling | Concurrent FW/NODDI/DKI; no duplicate fresh FW fit when entering NODDI | Less route wall time, not faster single-model mathematics |
+
+Profiling located substantial per-voxel Python-wrapper overhead in derived DKI
+metrics. The [implementation](../../microstructure/dki.py) retains DIPY WLS/OLS,
+SVD, parameters, S0 and validity rules; existing array-capable author metrics
+operate on `DiffusionKurtosisFit` rather than thousands of single-voxel wrappers.
+This follows [DIPY source](https://docs.dipy.org/stable/_modules/dipy/reconst/dki.html),
+not normal-equation substitution, smoothing or downsampling. Versions 1.11/1.12
+are regression-tested; other versions retain per-voxel evaluation.
+
+Three HCP subjects each had three alternating fresh complete-stage repeats on
+real native-grid 24-cubed ROIs:
+
+| Subject | Per-voxel metrics, median | Array-level metrics, median | Ratio | Agreement |
+| --- | ---: | ---: | ---: | --- |
+| 100307 | 54.509 s | 16.948 s | 3.22x | All exported voxel arrays and affines exact |
+| 100206 | 54.506 s | 17.038 s | 3.20x | Same |
+| 149741 | 54.330 s | 16.794 s | 3.24x | Same |
+
+Timings include I/O, fitting, six metrics, residuals, raw parameters, masks, QC and
+export. Fitted/valid counts also match, without removing difficult voxels.
+Full measurements are updated in the
+[CSV](benchmarks/complete_models_20261020.csv) and
+[incremental JSON](benchmarks/complete_models_20261020.json). **ROI measurements
+are not full-brain timings and cannot be applied to the historical 91.6 min.**
+A diagonal-weight WLS candidate was rejected because raw parameter agreement
+failed on extreme real voxels; it is not used by the pipeline. Instrumented
+14/4-second observations locate hotspots, not formal timing claims.
+
+**Advanced -> Concurrent microstructure models** accepts 1/2/3; the default is
+sequential. CLI: `--max-parallel-models 2`. Independent FW, NODDI and DKI processes
+run only after input/native-DTI preparation; shared ROI tables/manifests publish
+once afterward. This is not a complete parallel anatomical/CSD/WMA DAG.
+CPU/memory reservations bound overlap, unknown memory serializes, and oversized
+jobs fail explicitly. GPU selection is inherited unchanged, numeric CPU limits
+are child-only, and failure/cancellation stops owned work rather than publishing
+success. Budgets are per subject, not cluster-wide: avoid high batch and model
+concurrency together. Individual logs/times live under `compute_schedules/`.
+
+A complete FW+DKI scheduling pair on the real 24-cubed ROI measured
+**43.953 -> 24.631 s, 1.78x, 19.322 s saved**, with unchanged source/code hashes
+and identical output maps/masks. An earlier 55.662/25.832 pair is retained,
+not selected as the headline. Neither pair proves a full-brain improvement.
+An isolated native Slicer session passed Advanced-control visibility, bounds
+and bidirectional binding. `WithinRange(1,3)` fixes the numeric range overwritten
+by Slicer parameter binding in the first GUI test.
+
+Fresh complete-model pairs have also started on an immutable code snapshot:
+NODDI 1/8 threads, original versus optimized complete WMA, full MK-Curve before/
+after Python-port caching, and DKI original/dense metrics. No original outputs
+are overwritten and no full-brain masks or scientific settings are reduced.
+The complete NODDI 1/8-thread pair has finished: **1748.935 s / 29.15 min ->
+311.525 s / 5.19 min, 5.61x, 23.96 min saved**. Both used the same frozen
+implementation, complete 740916-voxel brain mask and scientific settings, with
+independent cold outputs. All NDI, ODI, IsoVF, RMSE, NRMSE and validity-mask voxel
+arrays and affines match exactly, and both automatic QC reports pass. This is
+native multicore benefit for this complete NODDI route, not a new algorithm or
+a whole-workflow/cross-hardware guarantee. One shared-host pair has no confidence
+interval. Complete optimized WMA is now running; its original reference and
+MK-Curve/DKI pairs follow. Actual UKF, complete atlas and author Python sources
+also have independent before/after hash auditing, not just the DWI.
+A completed side is not a paired speedup. The incremental JSON
+retains pending/failure states and only computes ratios after output equality.
+Local campaign: `ignore/validation/long_tasks_full_20261020_v2/campaign.json`.
+`scripts/summarize_complete_models.py --watch` updates summaries, not GitHub.
+
+No matched complete SlicerDDSurfer end-to-end speedup percentage is available.
+New DKI phase times and workflow task intervals/fractions support further
+profiling; overlapping task seconds must not be summed as wall time.
+Anatomical and full cross-platform scientific acceptance remain separate.
+
+Current backend regression: **1125 tests, 1120 passed, five skipped, no failures**;
+log: `ignore/validation/long_tasks_20261020/regression_release_verified.log`.
+The 1110-test count in the author-WMA section below belongs to the earlier round.
+Native GUI checks used an isolated installation; neither the current user Slicer
+nor MRI Agent was restarted. The active user session needs redeployment before
+showing the new controls.
+Two DKI agreement tests and ten scheduler tests also passed under Slicer's own
+Python with DIPY 1.12.1.
+Before pushing, an independent export of the staged changes excluded unrelated
+uncommitted work: **1085 tests, 1077 passed, eight skipped, no failures**. The
+native Slicer concurrency GUI check passed again (19.0 s). Logs are retained under
+`ignore/validation/push_performance_20261020/`.
 
 ---
 

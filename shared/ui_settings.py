@@ -12,6 +12,7 @@ COMMON_USER_SETTING_SPECS: tuple[tuple[str, type], ...] = (
     ("orchestrationRunName", str),
     ("orchestrationTractographyBackend", str),
     ("orchestrationBundleBackend", str),
+    ("maxParallelModels", int),
     ("orchestrationSelectStreamlines", int),
     ("orchestrationMicrostructureStages", str),
     ("connectomeBackend", str),

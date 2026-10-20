@@ -868,6 +868,20 @@
              </property>
             </widget>
            </item>
+           <item row="6" column="0">
+            <widget class="QLabel" name="parallelModelsLabel">
+             <property name="text"><string>Concurrent microstructure models</string></property>
+            </widget>
+           </item>
+           <item row="6" column="1">
+            <widget class="QSpinBox" name="parallelModelsSpinBox">
+             <property name="minimum"><number>1</number></property>
+             <property name="maximum"><number>3</number></property>
+             <property name="value"><number>1</number></property>
+             <property name="toolTip"><string>1 keeps sequential execution. 2 or 3 allows independent Free-water, NODDI and DKI fits to overlap after input preparation. CPU and memory budgets limit actual overlap; ROI tables are written once afterward. Does not change GPU selection.</string></property>
+             <property name="SlicerParameterName" stdset="0"><string>maxParallelModels</string></property>
+            </widget>
+           </item>
            <item row="2" column="0">
             <widget class="QLabel" name="batchModeLabel">
              <property name="text">

@@ -99,6 +99,7 @@ class MicrostructureConfig:
     noddi_solver_lambda1: float = 0.5
     noddi_solver_lambda2: float = 0.001
     noddi_max_isotropic_fraction_for_tissue: float = NODDI_MAX_ISOTROPIC_FRACTION_FOR_TISSUE
+    max_parallel_models: int = 1
 
 
 @dataclass(frozen=True)
@@ -129,6 +130,7 @@ class MicrostructureResult:
     roi_stats_csv_path: Path | None
     roi_stats_json_path: Path | None
     dki_result: object | None = None
+    compute_schedule: dict | None = None
 
 
 def _emit(message: str, log: Optional[Callable[[str], None]] = None) -> None:
@@ -1610,6 +1612,57 @@ def _compute_roi_stats(
     return len(rows)
 
 
+def _run_independent_models(config, log):
+    """Compute disjoint scalar products first; publish shared ROI tables once."""
+    from dataclasses import replace
+    import uuid
+    from shared.compute_schedule import ComputeJob, available_resources, run_independent_jobs
+    from microstructure.compute_worker import encode
+    from shared.pipeline import resolve_pythonslicer_executable
+    from shared.pipeline import slicer
+    import sys
+
+    cpu, _ = available_resources()
+    stages = [stage for stage, enabled in (('freewater', config.run_free_water),
+              ('noddi', config.run_noddi), ('dki', config.run_dki)) if enabled]
+    threads = min(_noddi_threads(config), max(1, cpu - (len(stages)-1)))
+    adjusted = replace(config, max_parallel_models=1,
+                       noddi_nthreads=threads if config.noddi_nthreads is None else config.noddi_nthreads,
+                       free_water_n_jobs=(config.free_water_n_jobs if config.free_water_engine == 'serial' else
+                                          config.free_water_n_jobs or max(1, cpu // len(stages))))
+    root = config.output_dir / 'compute_schedules' / uuid.uuid4().hex
+    root.parent.mkdir(parents=True, exist_ok=True)
+    description = root.with_suffix('.json')
+    description.write_text(json.dumps(encode(adjusted), indent=2)+'\n', encoding='utf-8')
+    image = nib.load(str(config.raw_input_bundle.dwi_path))
+    # Conservative reservation for a full loaded DWI, parameter maps and kernels.
+    reserve = 2 * 1024**3 + int(np.prod(image.shape[:3])) * (image.shape[3]*8 + 1200)
+    jobs = []
+    python = resolve_pythonslicer_executable() if getattr(slicer, 'app', None) is not None else sys.executable
+    for stage in stages:
+        if not adjusted.force_recompute:
+            paths = _output_paths(adjusted.subject_id, adjusted.output_dir)
+            if stage == 'freewater' and _free_water_outputs_current(adjusted, paths):
+                continue
+            if stage == 'noddi' and _noddi_outputs_current(adjusted, paths):
+                continue
+            if stage == 'dki':
+                from microstructure.dki import DkiConfig, dki_outputs_current
+                if dki_outputs_current(DkiConfig(adjusted.subject_id,adjusted.raw_input_bundle,
+                    adjusted.output_dir/'dki',fit_method=adjusted.dki_fit_method,
+                    matlab_executable=adjusted.dki_matlab_executable,mkcurve_root=adjusted.dki_mkcurve_root)):
+                    continue
+        count = (_noddi_threads(adjusted) if stage == 'noddi' else
+                 (1 if adjusted.free_water_engine == 'serial' else adjusted.free_water_n_jobs)
+                 if stage == 'freewater' else 1)
+        jobs.append(ComputeJob(stage, (python, str(Path(__file__).with_name('compute_worker.py')),
+            '--stage', stage, '--config', str(description)), threads=count, memory_bytes=reserve,
+            environment={'OPENBLAS_NUM_THREADS':'1','OMP_NUM_THREADS':'1','MKL_NUM_THREADS':'1'}))
+    schedule = run_independent_jobs(jobs, directory=root,
+                                    max_workers=config.max_parallel_models, log=log)
+    return replace(adjusted, force_recompute=False), schedule
+
+
 def run_microstructure(
     config: MicrostructureConfig,
     log: Optional[Callable[[str], None]] = None,
@@ -1637,6 +1690,14 @@ def run_microstructure(
         raise ValueError("noddi_max_isotropic_fraction_for_tissue must be between 0 and 1.")
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    if config.max_parallel_models not in (1, 2, 3):
+        raise ValueError('max_parallel_models must be 1, 2 or 3')
+    schedule = None
+    if config.max_parallel_models > 1 and sum((config.run_free_water, config.run_noddi, config.run_dki)) > 1:
+        # DTI/cache preparation is complete before this entry; worker outputs are
+        # independent. No concurrent writes to manifest.json or ROI statistics.
+        config, schedule = _run_independent_models(config, log)
 
     paths = _output_paths(subject_id, output_dir)
     dki_result = None
@@ -1726,6 +1787,7 @@ def run_microstructure(
             roi_stats_csv_path=paths["roi_stats_csv"] if roi_enabled else None,
             roi_stats_json_path=paths["roi_stats_json"] if roi_enabled else None,
             dki_result=dki_result,
+            compute_schedule=schedule,
         )
 
     _emit(
@@ -1896,4 +1958,5 @@ def run_microstructure(
         roi_stats_csv_path=paths["roi_stats_csv"] if roi_label_map is not None else None,
         roi_stats_json_path=paths["roi_stats_json"] if roi_label_map is not None else None,
         dki_result=dki_result,
+        compute_schedule=schedule,
     )

@@ -108,6 +108,7 @@ class ProductOrchestratorConfig:
     microstructure_run_free_water: bool = False
     microstructure_run_noddi: bool = False
     microstructure_run_dki: bool = False
+    max_parallel_models: int = 1
     microstructure_dki_fit_method: str = "WLS"
     microstructure_dki_matlab_executable: Optional[Path] = None
     microstructure_dki_mkcurve_root: Optional[Path] = None
@@ -2803,6 +2804,10 @@ def _build_performance_profile(
                 "declared_output_files": output_files,
                 "declared_output_bytes": output_bytes,
                 "reason": task.reason,
+                "started_at": task.started_at,
+                "ended_at": task.ended_at,
+                "wall_time_fraction": (float(task.runtime_seconds or 0.0) / orchestration_elapsed_seconds
+                                       if orchestration_elapsed_seconds > 0 else None),
             }
         )
 
@@ -2818,10 +2823,12 @@ def _build_performance_profile(
         "created_at": _now_utc(),
         "orchestration_elapsed_seconds": orchestration_elapsed_seconds,
         "task_runtime_seconds_total": sum(float(row["runtime_seconds"]) for row in task_rows),
+        "task_intervals": task_rows,
         "profile_notes": [
-            "Task runtime_seconds are measured by the product orchestrator around each task append.",
+            "Task runtime_seconds use explicit subprocess intervals when available; otherwise they measure elapsed time between orchestrator task appends.",
             "Skipped task runtimes measure resume detection overhead, not the original compute runtime.",
             "Declared output sizes are computed from task output paths that exist when the manifest is written.",
+            "Concurrent task intervals overlap: summed task seconds/fractions are not workflow wall time or speedup. Compare fresh matched complete runs, not sums of historical tasks.",
         ],
         "slowest_tasks": sorted(task_rows, key=lambda row: float(row["runtime_seconds"]), reverse=True)[:8],
         "largest_task_outputs": sorted(task_rows, key=lambda row: int(row["declared_output_bytes"]), reverse=True)[:8],
@@ -2835,6 +2842,50 @@ def _build_performance_profile(
     return profile
 
 
+def _parallel_model_products(config, targets, parcellation, log):
+    _emit('[Orchestrator] Running independent microstructure model processes',log)
+    from microstructure import MicrostructureConfig, run_microstructure
+    from shared.pipeline import find_subject_root, resolve_preprocessed_input_bundle, ensure_native_dti_bundle
+    from shared.brain_mask import brain_mask_config_from_options
+
+    raw = find_subject_root(config.subject_root, config.subject_id,
+        mrtrix_bin_dir=config.mrtrix_bin_dir or config.preprocessing_mrtrix_bin_dir,
+        brain_mask_config=brain_mask_config_from_options(config))
+    raw = resolve_preprocessed_input_bundle(raw, output_root=config.output_root)
+    native = ensure_native_dti_bundle(raw, fit_method=config.microstructure_fit_method, reuse=True, log=log)
+    layout = subject_layout(config.subject_root, output_root=config.output_root)
+    result = run_microstructure(MicrostructureConfig(config.subject_id,raw,native,layout.microstructure,
+        roi_label_map=parcellation,run_free_water='microstructure_freewater' in targets,
+        run_noddi='microstructure_noddi' in targets,run_dki='microstructure_dki' in targets,
+        dki_fit_method=config.microstructure_dki_fit_method,
+        dki_matlab_executable=config.microstructure_dki_matlab_executable,
+        dki_mkcurve_root=config.microstructure_dki_mkcurve_root,
+        free_water_chunk_size=config.microstructure_free_water_chunk_size,
+        free_water_engine=config.microstructure_free_water_engine,
+        free_water_n_jobs=config.microstructure_free_water_n_jobs,
+        free_water_vox_per_chunk=config.microstructure_free_water_vox_per_chunk,
+        free_water_max_fraction_for_tissue=config.microstructure_free_water_max_fraction_for_tissue,
+        force_recompute=not config.resume,max_parallel_models=config.max_parallel_models),log=log)
+    rows = {row['name']:row for row in result.compute_schedule['jobs']}
+    getters = {'freewater':_microstructure_freewater_outputs,'noddi':_microstructure_noddi_outputs}
+    tasks = {}
+    for stage,row in rows.items():
+        if stage == 'dki':
+            product = result.dki_result
+            outputs = dict(product.outputs)
+            outputs.update({f'mkcurve_{key}':value for key,value in product.mkcurve_outputs.items()})
+            manifest,qc = product.manifest_path,product.qc_path
+        else:
+            outputs = getters[stage](config.subject_root,config.subject_id,config.output_root)
+            manifest,qc = outputs['manifest'],outputs['qc']
+        tasks['microstructure_'+stage] = ProductTaskRecord(name='microstructure.'+stage,status='completed',
+            reason='Independent process; shared ROI statistics published after all model fits',
+            manifest_path=manifest,qc_path=qc,outputs={key:str(value) for key,value in outputs.items()},
+            started_at=row['started_at'],ended_at=row['ended_at'],runtime_seconds=row['runtime_seconds'],
+            logs=(row['log'],))
+    return tasks
+
+
 def _run_subject_products_impl(
     config: ProductOrchestratorConfig,
     *,
@@ -2846,6 +2897,8 @@ def _run_subject_products_impl(
         raise ValueError("subject_id is required.")
     if config.select_streamlines <= 0:
         raise ValueError("select_streamlines must be > 0.")
+    if config.max_parallel_models not in (1, 2, 3):
+        raise ValueError('max_parallel_models must be 1, 2 or 3')
     if config.dti_min_length_mm < 0 or config.dti_max_length_mm <= config.dti_min_length_mm:
         raise ValueError("DTI streamline lengths require 0 <= dti_min_length_mm < dti_max_length_mm.")
     if config.mrtrix_nthreads is not None and config.mrtrix_nthreads < 0:
@@ -3454,9 +3507,18 @@ def _run_subject_products_impl(
                 )
             )
 
+    parallel_tasks = {}
+    parallel_targets = tuple(target for target in run_targets
+        if target in {'microstructure_freewater','microstructure_noddi','microstructure_dki'}
+        and (plan_by_target.get(target) is None or plan_by_target[target].status != 'blocked'))
+    if config.execute and config.max_parallel_models > 1 and len(parallel_targets) > 1:
+        parallel_tasks = _parallel_model_products(config,parallel_targets,parcellation,log)
+
     if "microstructure_freewater" in run_targets:
         freewater_outputs = _microstructure_freewater_outputs(subject_root, config.subject_id, output_root)
-        if config.resume and _microstructure_freewater_complete(subject_root, config.subject_id, output_root, config=config):
+        if 'microstructure_freewater' in parallel_tasks:
+            tasks.append(parallel_tasks['microstructure_freewater'])
+        elif config.resume and _microstructure_freewater_complete(subject_root, config.subject_id, output_root, config=config):
             tasks.append(
                 ProductTaskRecord(
                     name="microstructure.freewater",
@@ -3526,7 +3588,9 @@ def _run_subject_products_impl(
 
     if "microstructure_noddi" in run_targets:
         noddi_outputs = _microstructure_noddi_outputs(subject_root, config.subject_id, output_root)
-        if config.resume and _microstructure_noddi_complete(subject_root, config.subject_id, output_root, config=config):
+        if 'microstructure_noddi' in parallel_tasks:
+            tasks.append(parallel_tasks['microstructure_noddi'])
+        elif config.resume and _microstructure_noddi_complete(subject_root, config.subject_id, output_root, config=config):
             tasks.append(
                 ProductTaskRecord(
                     name="microstructure.noddi",
@@ -3567,7 +3631,9 @@ def _run_subject_products_impl(
                     native_bundle=native_bundle,
                     output_dir=layout.microstructure,
                     roi_label_map=parcellation,
-                    run_free_water=config.microstructure_run_free_water,
+                    # Free-water has its own preceding task. A fresh run must
+                    # not fit it a second time while entering NODDI.
+                    run_free_water=False,
                     run_noddi=True,
                     free_water_chunk_size=config.microstructure_free_water_chunk_size,
                     free_water_engine=config.microstructure_free_water_engine,
@@ -3600,7 +3666,9 @@ def _run_subject_products_impl(
         from microstructure.dki import run_dki
 
         dki_plan = plan_by_target.get("microstructure_dki")
-        if not config.execute:
+        if 'microstructure_dki' in parallel_tasks:
+            tasks.append(parallel_tasks['microstructure_dki'])
+        elif not config.execute:
             tasks.append(ProductTaskRecord(name="microstructure.dki", status="planned", reason="execute=False"))
         elif dki_plan and dki_plan.status == "blocked":
             tasks.append(ProductTaskRecord(name="microstructure.dki", status="blocked", reason=dki_plan.reason))
@@ -4289,6 +4357,7 @@ def _run_subject_products_impl(
         "tractography_backend": config.tractography_backend,
         "primary_tractography_backend": primary_tractography_backend,
         "bundle_backend": config.bundle_backend,
+        "max_parallel_models": config.max_parallel_models,
         "bundle_backends": list(bundle_backends),
         "execute": config.execute,
         "resume": config.resume,
