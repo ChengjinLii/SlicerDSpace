@@ -99,6 +99,7 @@ class EnvironmentDoctorConfig:
     pnl_mask_ants_bin_dir: Optional[Path] = None
     synthstrip_python: Optional[Path] = None
     tractography_backend: str = "csd_act"
+    ukf_executable: Optional[Path] = None
     connectome_backend: str = "python"
     ddseg_device: str = "auto"
     surface_device: str = "auto"
@@ -1220,6 +1221,20 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 config.mrtrix_bin_dir,
             )
 
+        if target == 'tractography' and config.tractography_backend == 'ukf':
+            from tractography.ukf import resolve_executable
+            _add_core_python(specs, target)
+            for name, package in (('nrrd', 'pynrrd'), ('vtk', 'vtk')):
+                _python(specs, target=target, import_name=name, package=package)
+            for name, group in (('UKFTractography', 'ukf'), ('DWIConvert', 'slicer-dmri')):
+                try:
+                    binary = resolve_executable(config.ukf_executable if name == 'UKFTractography' else None, name=name)
+                except (OSError, RuntimeError):
+                    binary = None
+                _command(specs, target=target, command=name, group=group,
+                         bin_dir=binary.parent if binary else None,
+                         notes='Optional native Slicer extension; no vendored UKF algorithm or MRtrix dependency.')
+
         if target == "bundles":
             _add_core_python(specs, target)
             tract_querier_root_source = "user setting"
@@ -1577,6 +1592,8 @@ def _install_hint(spec: DependencySpec, platform_name: str) -> str:
         return "Pass --slicer-executable or set SLICERDDSURFER_SLICER_EXECUTABLE to the local Slicer executable."
     if spec.install_group == "slicer-dmri":
         return "Install SlicerDMRI in Slicer and point to the required CLI if this optional export is enabled."
+    if spec.install_group == 'ukf':
+        return 'Install UKFTractography and SlicerDMRI through Slicer Extension Manager and restart Slicer. UKF is optional; no automatic algorithm fallback.'
     if spec.install_group == "device":
         return "Use CPU, or install a CUDA-capable PyTorch runtime and NVIDIA driver visible to the selected Python/Slicer environment."
     return spec.notes

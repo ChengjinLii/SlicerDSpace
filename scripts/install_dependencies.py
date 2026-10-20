@@ -217,7 +217,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Return exit code 2 when required dependencies are still missing after planning/installation.",
     )
     parser.add_argument("--preprocessing-backend", default="dipy", choices=("dipy", "mrtrix_fsl"))
-    parser.add_argument("--tractography-backend", default="csd_act", choices=("csd_act", "dti_det"))
+    parser.add_argument("--tractography-backend", default="csd_act", choices=("csd_act", "ukf", "dti_det", "saf"))
     parser.add_argument("--connectome-backend", default="python", choices=("python", "mrtrix"))
     parser.add_argument("--ddseg-device", default="auto", help="Requested DDSeg torch device. auto uses cuda:0 when available, otherwise cpu.")
     parser.add_argument("--surface-device", default="auto", help="Requested DDSurfer torch device. auto uses cuda:0 when available, otherwise cpu.")

@@ -8,6 +8,7 @@ import slicer
 from slicer.ScriptedLoadableModule import (
     ScriptedLoadableModule,
     ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
     ScriptedLoadableModuleWidget,
 )
 from slicer.parameterNodeWrapper import Choice, WithinRange, parameterNodeWrapper
@@ -104,8 +105,10 @@ class SlicerDDSurferParameterNode:
     preprocessingReadoutTime: float = 0.0
     preprocessingReversePhaseB0: str = ""
     orchestrationRunName: str = "Test1"
-    orchestrationTractographyBackend: Annotated[str, Choice(["csd_act", "dti_det", "saf"])] = "csd_act"
+    orchestrationTractographyBackend: Annotated[str, Choice(["csd_act", "ukf", "dti_det", "saf"])] = "csd_act"
+    ukfParameters: str = "{}"
     orchestrationBundleBackend: Annotated[str, Choice(["wmql", "wma", "tractcloud", "all"])] = "wmql"
+    orchestrationWmqlPreset: Annotated[str, Choice(["ddparcel_act", "author", "published_endpoints"])] = "ddparcel_act"
     maxParallelModels: Annotated[int, WithinRange(1, 3)] = 1
     wmaInputTractography: str = ""
     orchestrationSelectStreamlines: int = 1000000
@@ -191,3 +194,26 @@ class SlicerDDSurferLogic(
 
     def getParameterNode(self) -> SlicerDDSurferParameterNode:
         return SlicerDDSurferParameterNode(super().getParameterNode())
+
+
+class SlicerDDSurferTest(ScriptedLoadableModuleTest):
+    """Native Slicer contracts without downloading models or clearing user data."""
+
+    def runTest(self):
+        self.test_native_parameter_defaults()
+
+    def test_native_parameter_defaults(self):
+        raw = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScriptedModuleNode')
+        try:
+            parameters = SlicerDDSurferParameterNode(raw)
+            self.assertEqual(parameters.brainMaskBackend, 'pnl_cnn')
+            self.assertEqual(parameters.brainMaskDevice, 'auto')
+            self.assertEqual(parameters.orchestrationMicrostructureStages, 'dti')
+            self.assertFalse(parameters.orchestrationRunFreeWater)
+            self.assertFalse(parameters.orchestrationRunNoddi)
+            self.assertFalse(parameters.orchestrationRunDki)
+            parameters.subjectId = 'native-smoke'
+            self.assertEqual(SlicerDDSurferParameterNode(raw).subjectId, 'native-smoke')
+            self.assertIsInstance(SlicerDDSurferLogic(), ScriptedLoadableModuleLogic)
+        finally:
+            slicer.mrmlScene.RemoveNode(raw)

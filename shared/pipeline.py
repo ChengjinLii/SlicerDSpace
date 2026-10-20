@@ -407,6 +407,12 @@ def resolve_pythonslicer_executable() -> str:
 
 def build_cli_environment(cli_executable: str) -> dict[str, str]:
     env = os.environ.copy()
+    requested = env.get("OMP_NUM_THREADS", "")
+    if (not env.get("ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS")
+            and requested.isdecimal() and int(requested) > 0):
+        # Propagate an explicit budget to ITK consumers only. SlicerDMRI's
+        # VTK tensor estimator does not use ITK's thread setting.
+        env["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = requested
     cli_path = Path(cli_executable).resolve()
     extra_lib_dirs: list[str] = []
 
@@ -686,6 +692,8 @@ def ensure_native_dti_bundle(
         'kind': 'native_dti_timing', 'status': 'completed', 'subject_id': raw.subject_id,
         'runtime_seconds': time.monotonic() - started, 'fit_method': fit_key,
         'source_dwi': str(raw.dwi_path), 'cache_reused': False,
+        'itk_default_threads': build_cli_environment(dti_cli).get('ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'),
+        'thread_control_scope': 'ITK environment only; not a thread limit on the VTK tensor estimator',
         'timing_scope': 'Fresh native tensor fitting, six scalar measurements, compatibility copies and NIfTI conversion; excludes registration and later ROI statistics',
     })
     return bundle

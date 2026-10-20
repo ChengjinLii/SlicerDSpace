@@ -1,0 +1,69 @@
+{
+  "kind": "regional_postprocessing_validation",
+  "date": "2026-10-20",
+  "status": "PASS_WITH_REVIEW_BOUNDARIES",
+  "scope": "Optional selected-region postprocessing; no new model fitting, anatomical acceptance or Windows/macOS acceptance",
+  "regression": {
+    "tests_run": 1175,
+    "passed": 1170,
+    "skipped": 5,
+    "failed": 0,
+    "seconds": 62.456,
+    "local_evidence": "ignore/validation/regions_unit_20261020_acceptance.log",
+    "active_documentation_audit": "PASS, 62 documents, no findings"
+  },
+  "native_slicer": {
+    "version": "5.10.0",
+    "revision": "34045",
+    "platform": "Linux",
+    "slicerdmri_loaded": true,
+    "fixture": "Synthetic known-coordinate atlas, scalar, tractogram and connectivity",
+    "regional_panel": "PASS",
+    "compact_ui": "PASS",
+    "automatic_result_nodes": 6,
+    "heartbeat_ticks_during_gui_test": 96,
+    "checks": [
+      "Advanced-only, collapsed by default",
+      "English and Chinese labels",
+      "440-pixel panel",
+      "Background inspection and processing",
+      "Search and select visible regions",
+      "Known scalar statistics and whole-streamline selection",
+      "Unchanged matrix weights",
+      "Automatic grouped scene loading and duplicate reuse",
+      "Display-preview versus full quantitative-source metadata",
+      "Custom FreeSurfer LUT foreground opacity with labels above 1000",
+      "Transparent background and visible generated-color fallback",
+      "Input changes invalidate the catalog"
+    ],
+    "local_evidence": "ignore/validation/regions_gui_20261020_display/gui_acceptance.json"
+  },
+  "real_subject": {
+    "dataset": "HCP-YA",
+    "subject_id": "100206",
+    "source": "Existing one_pass run; no refitting",
+    "regions": [
+      {"label_id": 1024, "name": "ctx-lh-precentral", "valid_voxels": 8143},
+      {"label_id": 2024, "name": "ctx-rh-precentral", "valid_voxels": 8026}
+    ],
+    "metrics": ["fa", "md", "ad", "rd"],
+    "source_streamlines": 1000000,
+    "selected_streamlines": 83598,
+    "rule": "through_any",
+    "full_geometry_maximum_coordinate_error_mm": 0.0,
+    "matching_sift2_weights": "EXACT",
+    "induced_matrix_and_connection_weights": "EXACT",
+    "independent_boolean_mask_statistics": "PASS",
+    "postprocessing_seconds": 26.90499371662736,
+    "independent_validation_seconds": 9.560752859339118,
+    "timing_boundary": "Includes source/QC inspection, hashes, four-map statistics, million-line selection, VTK exports and subgraph extraction; excludes upstream model fitting and GUI startup/loading. Single run, not a controlled speedup benchmark.",
+    "local_evidence": "ignore/validation/regions_real_20261020/independent_audit_v2.json"
+  },
+  "scientific_boundaries": [
+    "ROI streamline subsets are not anatomical bundle identification",
+    "Recorded upstream failures remain excluded",
+    "No invalid-voxel zero filling or fabricated streamlines",
+    "Quantitative files and source weights are unchanged",
+    "Human anatomical review remains pending"
+  ]
+}

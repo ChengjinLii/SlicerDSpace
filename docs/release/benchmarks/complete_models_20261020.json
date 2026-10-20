@@ -1,10 +1,10 @@
 {
   "kind": "complete_models_and_concurrency_evidence",
-  "updated_at": "2026-10-20T07:43:28.962705+00:00",
+  "updated_at": "2026-10-20T15:07:45.240517+00:00",
   "campaign_status": "running",
   "current_pair": {
-    "stage": "wma",
-    "variant": "optimized",
+    "stage": "mkcurve",
+    "variant": "reference",
     "status": "running"
   },
   "measurements": [
@@ -16,6 +16,15 @@
       "optimized_seconds": 311.5250518564135,
       "speed_ratio": 5.614106821514618,
       "seconds_saved": 1437.4098668433726
+    },
+    {
+      "stage": "wma",
+      "scope": "complete_model",
+      "status": "passed",
+      "reference_seconds": 6126.164444088936,
+      "optimized_seconds": 4452.999639907852,
+      "speed_ratio": 1.3757388141661084,
+      "seconds_saved": 1673.164804181084
     },
     {
       "stage": "DKI 100307",
@@ -93,14 +102,325 @@
         "Not whole-workflow or anatomical-accuracy acceptance"
       ],
       "stage": "noddi"
+    },
+    {
+      "status": "passed",
+      "products": [
+        {
+          "product": "T_Intra-CBLM-I&P_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_EC_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CR-P_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-PT_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SLF-II_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_TP_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-O_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SP_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_ILF_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_MdLF_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-OT_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-P_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SO_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-PO_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CC5.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CST_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_ILF_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CB_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SP_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_EmC_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SF_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_IOFF_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CC3.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_TP_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CC7.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CC4.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_PLIC_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CB_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CPC_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_PLIC_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SLF-I_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SO_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CR-P_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CC6.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SF_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SLF-I_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-FP_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CC1.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_IOFF_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_ICP_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_UF_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CC2.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SLF-II_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_UF_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CR-F_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-T_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_ICP_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-O_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Intra-CBLM-PaT_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_EC_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-F_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_TF_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Intra-CBLM-I&P_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-PO_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-T_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-P_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Intra-CBLM-PaT_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SLF-III_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-PT_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_TO_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_EmC_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_SLF-III_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CPC_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_MdLF_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CST_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_MCP.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_AF_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-OT_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-FP_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_CR-F_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_TO_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_Sup-F_left.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_TF_right.vtp",
+          "exact": true
+        },
+        {
+          "product": "T_AF_left.vtp",
+          "exact": true
+        }
+      ],
+      "reference_seconds": 6126.164444088936,
+      "optimized_seconds": 4452.999639907852,
+      "speed_ratio": 1.3757388141661084,
+      "seconds_saved": 1673.164804181084,
+      "interpretation": "Original WMA versus verified-source bulk/cache",
+      "limitations": [
+        "One pair on a shared Linux host; no confidence interval",
+        "Not whole-workflow or anatomical-accuracy acceptance"
+      ],
+      "stage": "wma"
     }
   ],
   "wma_input_audit": {
-    "status": "pending",
+    "status": "passed",
     "captured_before_wma": true,
-    "inputs_unchanged": null,
+    "inputs_unchanged": true,
     "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/wma_input_audit.json",
-    "sha256": "eadf02d82f37100dd82079bf707d20fd71a4d2b4b7f842172ac8736157a1b186"
+    "sha256": "54dc94a940e35cb6db667b0a11f8b565c4764d5733e7ba0e9c0181bff947d4ae"
   },
   "completed_variants": [
     {
@@ -118,6 +438,30 @@
       "inputs_unchanged": true,
       "evidence": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/noddi/optimized/measurement.json",
       "sha256": "3c9d1e807c62a2535660e775eead656c721dab821217690d0444cd0880541cff"
+    },
+    {
+      "stage": "wma",
+      "variant": "reference",
+      "seconds": 6126.164444088936,
+      "inputs_unchanged": true,
+      "evidence": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/wma/reference/measurement.json",
+      "sha256": "6213f03aac52042b01f5ac0d02095ad887620676ebf19673269f0ca16d411de0"
+    },
+    {
+      "stage": "wma",
+      "variant": "optimized",
+      "seconds": 4452.999639907852,
+      "inputs_unchanged": true,
+      "evidence": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/wma/optimized/measurement.json",
+      "sha256": "a1c6005c2fc4406281b4203964a8cf26eed5b7108c27bd60ffb3cba045172294"
+    },
+    {
+      "stage": "mkcurve",
+      "variant": "optimized",
+      "seconds": 9211.890267523006,
+      "inputs_unchanged": true,
+      "evidence": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/mkcurve/optimized/measurement.json",
+      "sha256": "996b21ad92859b0aaa4dfd36144e2666d216c9c4a722e7f6bbffdf66315f79a1"
     }
   ],
   "roi_evidence": {
@@ -461,7 +805,7 @@
   "evidence": {
     "campaign": {
       "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/campaign.json",
-      "sha256": "884d7778c493352815e77e83249f4b17850d003798d5bd2d3cca3c55b0c83c1e"
+      "sha256": "3928b2507c945f486d0787595107368ee6809f8529d7120ed9032dfc017fb2f4"
     },
     "roi": {
       "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/measurements.json",

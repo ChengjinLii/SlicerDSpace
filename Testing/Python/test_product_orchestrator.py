@@ -63,6 +63,7 @@ def _wmql_query_fixture(folder):
     data = folder / 'synthetic_query_data'
     data.mkdir(exist_ok=True)
     (data / 'FreeSurfer.qry').write_text('# Synthetic cache-only dependency\nBrain_Stem |= 16\n')
+    (data / 'freesurfer_queries.qry').write_text('# Synthetic cache-only dependency\nimport FreeSurfer.qry\n')
     directories = [data]
     dependencies = wmql_query_dependencies(query, directories)
     snapshot = folder / 'queries'
@@ -1296,7 +1297,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                 json.dumps(
                     {
                         "status": "completed",
-                        "version": 4,
+                        "version": 5,
                         "automatic_qc_passed": True,
                         "output_summary": {"bundle_files": [wmql_bundle.as_posix()]},
                     }
@@ -1464,7 +1465,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                 json.dumps(
                     {
                         "status": "completed",
-                        "version": 4,
+                        "version": 5,
                         "automatic_qc_passed": True,
                         "output_summary": {"bundle_files": [bundle.as_posix()]},
                     }

@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import sys
 import time
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -28,18 +29,26 @@ def run_postprocess(args, record):
     import numpy as np
     from anatomy.surface.backend_bridge import native_surface_hashes, upstream_record
     from anatomy.surface.postprocess_release import DDSurferPostprocessConfig, run_ddsurfer_postprocess
-    from shared.orchestrator import _surface_postprocess_complete
+    from shared.orchestrator import _surface_postprocess_complete, _surface_postprocess_outputs
 
     before = native_surface_hashes(args.native_dir)
     output_root = args.existing_output_root or args.output_dir / "outputs"
-    result = run_ddsurfer_postprocess(DDSurferPostprocessConfig(
-        subject_id=args.subject_id, subject_root=args.subject_root, output_root=output_root,
-        native_dir=args.native_dir, freesurfer_home=args.freesurfer_home, python_bin=Path(sys.executable),
-    ), log=lambda message: print(message, flush=True))
+    if args.existing_output_root:
+        outputs = _surface_postprocess_outputs(args.subject_root, args.subject_id, output_root)
+        result = SimpleNamespace(manifest_path=outputs['manifest'], qc_path=outputs['qc'],
+                                 structural_root=outputs['manifest'].parent, stats_root=outputs['stats'].parent)
+    else:
+        result = run_ddsurfer_postprocess(DDSurferPostprocessConfig(
+            subject_id=args.subject_id, subject_root=args.subject_root, output_root=output_root,
+            native_dir=args.native_dir, freesurfer_home=args.freesurfer_home, python_bin=Path(sys.executable),
+        ), log=lambda message: print(message, flush=True))
     record["manifest"] = str(result.manifest_path)
     record["qc"] = str(result.qc_path)
     checks = {"current_output_contract": _surface_postprocess_complete(args.subject_root, args.subject_id, output_root),
               "native_inputs_unchanged": before == native_surface_hashes(args.native_dir)}
+    if not all(checks.values()):
+        record.update(checks=checks, automatic_qc_passed=False, human_review='pending')
+        return
     details = {}
     for hemi in ("lh", "rh"):
         white, faces = nib.freesurfer.read_geometry(result.structural_root / "surf" / f"{hemi}.white")
@@ -59,10 +68,52 @@ def run_postprocess(args, record):
                   automatic_qc_passed=all(checks.values()), human_review="pending")
 
 
+def wait_for_csd_source(manifest_path, tractogram, wait_seconds):
+    from shared.orchestrator import _csd_act_complete
+
+    started = time.monotonic()
+    while True:
+        manifest = {}
+        if manifest_path.is_file():
+            try:
+                manifest = json.loads(manifest_path.read_text())
+            except json.JSONDecodeError:
+                pass  # The upstream writer may still be publishing its record.
+        if manifest.get('status') == 'failed':
+            raise RuntimeError('CSD source stage failed; WMA cannot consume its products')
+        outputs = manifest.get('outputs') or {}
+        if outputs.get('tractogram') and Path(outputs['tractogram']).resolve() != tractogram.resolve():
+            raise ValueError('Requested WMA tractogram does not match the CSD source manifest')
+        if manifest.get('status') == 'completed' and outputs.get('qc'):
+            qc_path = Path(outputs['qc'])
+            try:
+                qc = json.loads(qc_path.read_text()) if qc_path.is_file() else {}
+            except json.JSONDecodeError:
+                qc = {}
+            if qc.get('status') == 'failed':
+                raise RuntimeError('CSD source QC failed; WMA cannot consume its products')
+            if qc.get('status') == 'completed':
+                inputs = {key: Path(manifest['dependencies'][key]['path']) for key in ('dwi', 'bval', 'bvec', 'mask')}
+                paths = [Path(outputs[key]) for key in ('tractogram', 'tractogram_trk', 'tractogram_vtk', 'sift2_weights')]
+                if not _csd_act_complete(qc_path, manifest_path, *paths, inputs):
+                    raise RuntimeError('CSD source failed the current ACT, input, export or SIFT2 contract')
+                return dict(manifest=fingerprint(manifest_path), qc=fingerprint(qc_path),
+                            current_csd_contract=True, wait_seconds=time.monotonic() - started)
+        elapsed = time.monotonic() - started
+        if elapsed >= wait_seconds:
+            raise TimeoutError('CSD source is not completed; no WMA extraction was started')
+        time.sleep(min(5, wait_seconds - elapsed))
+
+
 def run_wma(args, record):
     from tractography.wma import WMAOrgAtlasConfig, run_wma_org_atlas
 
+    source_manifest = getattr(args, 'csd_manifest', None)
+    if source_manifest is not None:
+        print('Waiting for completed current-version CSD/ACT and SIFT2 source checks', flush=True)
+        record['csd_source'] = wait_for_csd_source(source_manifest, args.tractogram, args.wait_seconds)
     before = fingerprint(args.tractogram)
+    execution_started = time.monotonic()
     result = run_wma_org_atlas(WMAOrgAtlasConfig(
         subject_id=args.subject_id, input_tractography=args.tractogram, atlas_dir=args.atlas_dir,
         output_dir=args.output_dir / "products", slicer_executable=args.slicer,
@@ -71,9 +122,15 @@ def run_wma(args, record):
     ), log=lambda message: print(message, flush=True))
     qc = json.loads(result.qc_path.read_text())
     unchanged = before == fingerprint(args.tractogram)
+    source_current = True
+    if source_manifest is not None:
+        after = wait_for_csd_source(source_manifest, args.tractogram, 0)
+        source_current = all(after[key] == record['csd_source'][key] for key in ('manifest', 'qc'))
     record.update(manifest=str(result.manifest_path), qc=str(result.qc_path), input=before,
                   inputs_unchanged=unchanged,
-                  automatic_qc_passed=unchanged and qc.get("automatic_qc_passed") is True,
+                  source_stage_unchanged=source_current,
+                  wma_execution_seconds=time.monotonic() - execution_started,
+                  automatic_qc_passed=unchanged and source_current and qc.get("automatic_qc_passed") is True,
                   backend_status=result.status, output_summary=qc.get("output_summary"),
                   error=qc.get("error"), human_review="pending")
 
@@ -180,11 +237,16 @@ def run_bundle_audit(args, record):
 
     deadline = time.monotonic() + args.wait_seconds
     while True:
-        manifest = json.loads(args.stage_manifest.read_text())
-        if manifest.get("status") != "running":
+        manifest = {}
+        if args.stage_manifest.is_file():
+            try:
+                manifest = json.loads(args.stage_manifest.read_text())
+            except json.JSONDecodeError:
+                pass
+        if manifest.get("status") in {"completed", "failed", "partial_failed", "blocked"}:
             break
         if time.monotonic() >= deadline:
-            raise TimeoutError("Bundle stage still running; final independent QC is not available")
+            raise TimeoutError("Bundle stage is not completed; final independent QC is not available")
         time.sleep(min(15, max(0, deadline - time.monotonic())))
     result = audit(args.stage_manifest)
     path = args.output_dir / "bundle_audit.json"
@@ -210,9 +272,10 @@ def main():
     parser.add_argument("--mrtrix-bin-dir", type=Path)
     parser.add_argument("--slicer", type=Path)
     parser.add_argument("--stage-manifest", type=Path)
+    parser.add_argument("--csd-manifest", type=Path, help="WMA only: wait for and verify this CSD/ACT + SIFT2 source stage")
     parser.add_argument("--sample-voxels", type=int, default=128)
-    parser.add_argument("--existing-output-root", type=Path, help="Surface stage resume/audit only; not a fresh compute timing")
-    parser.add_argument("--wait-seconds", type=int, default=0, help="Wait at most this long for an existing bundle stage before independent audit")
+    parser.add_argument("--existing-output-root", type=Path, help="Read-only surface audit; never execute or repair the existing stage")
+    parser.add_argument("--wait-seconds", type=int, default=0, help="Maximum wait for a finished bundle audit source or --csd-manifest")
     parser.add_argument("--threads", type=int, default=8)
     args = parser.parse_args()
     required = {"postprocess": ("subject_root", "native_dir", "freesurfer_home"),
@@ -222,6 +285,8 @@ def main():
     for name in required:
         if getattr(args, name) is None:
             parser.error(f"{args.route} requires --{name.replace('_', '-')}")
+    if args.csd_manifest is not None and args.route != 'wma':
+        parser.error('--csd-manifest is only valid for wma')
     if args.threads < 1 or args.sample_voxels < 1 or args.wait_seconds < 0:
         parser.error("threads/sample-voxels must be positive; wait-seconds must be nonnegative")
     args.output_dir = args.output_dir.resolve()
@@ -238,7 +303,7 @@ def main():
     if args.existing_output_root:
         if args.route != "postprocess":
             parser.error("existing-output-root is only valid for postprocess")
-        record["scope"] = "Surface stage resume plus strengthened integrity QC; NOT a fresh postprocessing timing"
+        record["scope"] = "Read-only surface integrity QC; no stage execution or repair, NOT a postprocessing timing"
     report = args.output_dir / "acceptance.json"
     report.write_text(json.dumps(record, indent=2) + "\n")
     started = time.perf_counter()

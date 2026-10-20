@@ -1,0 +1,46 @@
+{
+  "kind": "ukf_optional_extension_integration_evidence",
+  "date": "2026-10-20",
+  "base_commit": "07333ad2db101309b843c6947879b15bf6185a7c",
+  "working_tree": "Uncommitted changes; exact runtime package hashes retained in local acceptance evidence",
+  "source_sha256": {
+    "tractography/ukf.py": "25b56af8f53788df44349016db5d0f6569cbd1beb9d2bab29971adb565acb23a",
+    "shared/ui_ukf.py": "374ccfa42614d7e1372e4523bc5d342681c8fe3f1ebb67ccddd40cac1e332765",
+    "shared/orchestrator.py": "04bf63749d6fe16efc1b2c8e5c4c7f32d055322ed9d2038e6ac701c674a4638f"
+  },
+  "unit_regression": {
+    "run": 1148,
+    "passed": 1143,
+    "skipped": 5,
+    "failed": 0,
+    "ukf_specific_tests": 23,
+    "log": "ignore/validation/ukf_unit_regression_20261020_final.log",
+    "log_sha256": "c7144ec984be09f7a510f67c7024cf244f8cf0753296283a93a2b809fe84f3b1"
+  },
+  "native_slicer": {
+    "platform": "Linux",
+    "version": "5.10.0",
+    "ukf_gui_and_synthetic_cli": "PASS",
+    "compact_ui": "PASS",
+    "synthetic_dimensions": [14, 14, 14, 31],
+    "parameter_override": {"numThreads": 2},
+    "streamlines": 1728,
+    "native_mask_overlap": 1.0,
+    "tensor_and_fa_arrays": "PASS",
+    "vtk_trk_coordinate_verification": "PASS, all 1728 streamlines, 0.0001 mm absolute tolerance",
+    "lossy_conversion": false,
+    "ukf_executable_sha256": "15112908eec3096733c9fe7fa9082648762f1003ec17eaca71c3e25d896975fd",
+    "ukf_library_sha256": "6fd6de0bf495dd5167a8368bf88c1e2dc98a370fd8b6b6064b9de3eb3def0439",
+    "manifest": "ignore/validation/ukf_gui_20261020_final/ukf/synthetic/outputs/ukf_manifest.json",
+    "manifest_sha256": "c1c60f2305305e952c3ab402518f673da123acc27a686b7fb13ece9b06eff5cb",
+    "gui_report": "ignore/validation/ukf_gui_20261020_final/gui_acceptance.json",
+    "gui_report_sha256": "95165452549d8106b9b06bfd529c631f360cfffe54dca200a5796807d06b8347"
+  },
+  "limitations": [
+    "Actual author-source UKF build supplied explicitly; not a new Extension Manager UKF package installation test",
+    "Synthetic tensor field, not human anatomical validation or a full UKF-WMA ORG acceptance run",
+    "GUI validates automatic-thread default; synthetic computation uses two threads to limit test resources",
+    "No Windows or macOS complete scientific acceptance claim",
+    "Historical failed attempts retained in ukf_gui_20261020 and v2-v5; only the final code is summarized here"
+  ]
+}

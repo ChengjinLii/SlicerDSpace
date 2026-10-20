@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import sys
 import unittest
@@ -11,6 +12,21 @@ import shared.pipeline as pipeline
 
 
 class SharedPipelineWindowsCompatibilityTest(unittest.TestCase):
+    def test_itk_respects_explicit_cpu_budget_without_disabling_cuda(self):
+        with patch.dict(os.environ, {'OMP_NUM_THREADS': '4', 'CUDA_VISIBLE_DEVICES': '1'}, clear=True):
+            env = pipeline.build_cli_environment('DWIToDTIEstimation')
+        self.assertEqual(env['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'], '4')
+        self.assertEqual(env['CUDA_VISIBLE_DEVICES'], '1')
+
+    def test_explicit_itk_user_override_is_preserved(self):
+        with patch.dict(os.environ, {'OMP_NUM_THREADS': '4', 'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS': '16'}, clear=True):
+            self.assertEqual(pipeline.build_cli_environment('CLI')['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'], '16')
+
+    def test_no_unrequested_thread_cap_or_invalid_budget_is_invented(self):
+        for value in ('', '0', '-1', 'not-an-integer'):
+            with patch.dict(os.environ, {'OMP_NUM_THREADS': value}, clear=True):
+                self.assertNotIn('ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS', pipeline.build_cli_environment('CLI'))
+
     def test_macos_app_root_and_launcher_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             app = Path(tmp) / "Slicer.app"

@@ -42,6 +42,23 @@ MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT = 55
 REQUIRED_MAJOR_TRACTS = ('T_AF_left.vtp', 'T_AF_right.vtp', 'T_CST_left.vtp',
                          'T_CST_right.vtp', 'T_CC4.vtp')
 MIN_MAJOR_TRACT_STREAMLINES = 20
+WMA_QC_VERSION = 2
+
+
+def tract_sampling_eligibility(counts: dict[str, Optional[int]]) -> dict[str, Any]:
+    """Never infer suitability of all atlas tracts from five major tracts."""
+    records = {name: {"streamlines": count,
+                      "sampling_passed": count is not None and count >= MIN_MAJOR_TRACT_STREAMLINES,
+                      "quantification_eligible": False,
+                      "reason": ("unreadable" if count is None else "insufficient_sampling"
+                                 if count < MIN_MAJOR_TRACT_STREAMLINES else "anatomical_review_pending")}
+               for name, count in sorted(counts.items())}
+    return {"minimum_streamlines": MIN_MAJOR_TRACT_STREAMLINES,
+            "scope": "Sampling sanity only, not statistical power or anatomical accuracy. No automatic upsampling or duplication.",
+            "tracts": records,
+            "all_tract_sampling_passed": bool(records) and all(item["sampling_passed"] for item in records.values()),
+            "excluded_from_quantification": [name for name, item in records.items() if not item["sampling_passed"]],
+            "human_review": "pending"}
 REQUIRED_WMA_COMMANDS = (
     "wm_append_clusters_to_anatomical_tracts.py",
     "wm_assess_cluster_location_by_hemisphere.py",
@@ -405,6 +422,7 @@ def summarize_wma_outputs(output_dir: Path, input_tractography: Path) -> dict[st
         ),
         "anatomical_streamline_count": sum(readable_anatomical_line_counts.values()),
         "anatomical_tract_streamline_counts": readable_anatomical_line_counts,
+        "tract_sampling": tract_sampling_eligibility(anatomical_line_counts),
         "anatomical_empty_tracts": sorted(
             name for name, count in readable_anatomical_line_counts.items() if count == 0
         ),
@@ -910,15 +928,22 @@ def run_wma_org_atlas(
     status = _derive_wma_status(output_summary, execution_error, bool(config.execute))
     qc = {
         "kind": "wma_org_atlas_qc",
-        "version": 1,
+        "version": WMA_QC_VERSION,
         "subject_id": config.subject_id,
         "status": status,
         "executed": bool(config.execute),
         "return_code": return_code,
         "elapsed_seconds": elapsed_seconds,
         "human_review": "pending",
-        "automatic_qc_passed": bool(config.execute and status == 'completed'),
+        "execution_completed": bool(config.execute and status == 'completed'),
+        "automatic_qc_passed": bool(config.execute and status == 'completed'
+                                    and output_summary.get('tract_sampling', {}).get('all_tract_sampling_passed')),
+        "major_tract_contract_passed": bool(config.execute and status == 'completed'),
         "quantification_eligible": False,
+        "tract_sampling": output_summary.get("tract_sampling", {}),
+        "warnings": (["Some atlas tracts have insufficient sampling and must not be used for quantification: "
+                      + ", ".join(output_summary["tract_sampling"]["excluded_from_quantification"])]
+                     if output_summary.get("tract_sampling", {}).get("excluded_from_quantification") else []),
         "scientific_scope": "Fresh decoded ORG products and explicit coverage policy; not expert anatomy or suitability of every tractogram for the atlas.",
         "previous_products": published_archive,
         "backend_available": bool(backend_status["available"]),

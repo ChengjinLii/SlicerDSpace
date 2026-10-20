@@ -91,6 +91,7 @@ TRANSLATIONS = {
         "run_name": "Run name",
         "tractography_backend": "Tractography backend",
         "bundle_backend": "Bundle backend",
+        "wmql_definition": "WMQL definition",
         "parallel_models": "Concurrent microstructure models",
         "wma_input_tractography": "WMA tractography input",
         "act_saf_streamlines": "ACT/SAF streamlines",
@@ -270,6 +271,7 @@ TRANSLATIONS = {
         "run_name": "运行名称",
         "tractography_backend": "纤维追踪后端",
         "bundle_backend": "纤维束后端",
+        "wmql_definition": "WMQL 解剖查询定义",
         "parallel_models": "微结构模型并发数",
         "wma_input_tractography": "WMA 纤维追踪输入",
         "act_saf_streamlines": "ACT/SAF 流线数量",
@@ -560,6 +562,7 @@ MAIN_UI_TEXT_BINDINGS = {
     "orchestrationRunNameLabel": "run_name",
     "orchestrationTractographyBackendLabel": "tractography_backend",
     "orchestrationBundleBackendLabel": "bundle_backend",
+    "wmqlQueryPresetLabel": "wmql_definition",
     "parallelModelsLabel": "parallel_models",
     "wmaInputTractographyLabel": "wma_input_tractography",
     "orchestrationSelectStreamlinesLabel": "act_saf_streamlines",
@@ -1194,6 +1197,11 @@ def apply_onboarding_language(owner: Any, language: str) -> None:
     from shared.ui_compact import apply_compact_language
 
     apply_compact_language(owner, lang)
+    from shared.ui_regions import apply_region_language
+    apply_region_language(owner, lang)
+    if hasattr(owner, '_ukfControls'):
+        from shared.ui_ukf import refresh_ukf_controls
+        refresh_ukf_controls(owner, getattr(getattr(owner, '_parameterNode', None), 'orchestrationTractographyBackend', None) or 'csd_act')
 
 
 def maybe_show_first_run_wizard(owner: Any) -> None:

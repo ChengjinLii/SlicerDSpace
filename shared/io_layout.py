@@ -621,17 +621,17 @@ def archive_development_outputs(
     if archive_alternate_tractograms and tractograms.is_dir():
         backend = (current_tractography_backend or "csd_act").strip().lower()
         run_name = (current_run_name or "csd_act").strip() or "csd_act"
-        allowed_top_dirs = {"dti_det"} if backend == "dti_det" else {run_name}
+        allowed_top_dirs = {backend} if backend in {"dti_det", "ukf"} else {run_name}
         for child in tractograms.iterdir():
             if not child.is_dir() or child.name in allowed_top_dirs:
                 continue
             _move_if_exists(child, layout.tractography / "cache" / "alternate_runs" / "tractograms")
-        if backend == "dti_det":
-            dti_root = layout.tractograms_dti_det
+        if backend in {"dti_det", "ukf"}:
+            dti_root = layout.tractograms / backend
             if dti_root.is_dir():
                 for child in dti_root.iterdir():
                     if child.is_dir() and child.name != run_name:
-                        _move_if_exists(child, layout.tractography / "cache" / "alternate_runs" / "tractograms" / "dti_det")
+                        _move_if_exists(child, layout.tractography / "cache" / "alternate_runs" / "tractograms" / backend)
 
     bundles = layout.bundles
     if bundles.is_dir():

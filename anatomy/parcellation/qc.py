@@ -4,6 +4,28 @@ import json
 from pathlib import Path
 
 
+def label_semantics(values) -> dict:
+    """Describe DK label content without certifying anatomy or FS equivalence."""
+    import numpy as np
+    labels = np.asarray(values)
+    cortical = ((labels >= 1001) & (labels <= 1035)) | ((labels >= 2001) & (labels <= 2035))
+    left_wm = (labels >= 3001) & (labels <= 3035)
+    right_wm = (labels >= 4001) & (labels <= 4035)
+    regional_wm = left_wm | right_wm
+    missing = bool(cortical.any() and not regional_wm.any())
+    return {'schema': 'dk_label_content.v1', 'cortical_region_voxels': int(cortical.sum()),
+            'regional_white_matter_voxels': int(regional_wm.sum()),
+            'left_regional_white_matter_voxels': int(left_wm.sum()),
+            'right_regional_white_matter_voxels': int(right_wm.sum()),
+            'generic_cerebral_white_matter_voxels': int(np.count_nonzero((labels == 2) | (labels == 41))),
+            'regional_white_matter_label_ids': [int(value) for value in np.unique(labels[regional_wm])],
+            'cortical_labels_without_regional_wm': missing,
+            'scope': 'DK label content only; neither anatomical validation nor FreeSurfer wmparc equivalence',
+            'warnings': (['Cortical/aseg labels are present without DK regional WM territories (3000/4000 series). '
+                          'The legacy wmparc filename does not establish FreeSurfer wmparc equivalence. '
+                          'WMQL crossing coverage on ACT boundary-cropped tracks needs separate validation.'] if missing else [])}
+
+
 def validate_outputs(subject_id: str, output_dir: Path, native_mask: Path) -> dict:
     import nibabel as nib
     import numpy as np
@@ -32,13 +54,16 @@ def validate_outputs(subject_id: str, output_dir: Path, native_mask: Path) -> di
             "nonempty_labels_in_brain": bool(grid and np.any(native[mask] > 0)),
             "nonempty_registered_labels": bool(np.any(arrays[1] > 0)),
         }
+        semantics = label_semantics(native)
         payload = {"kind": "ddparcel_output_qc", "version": 1, "subject_id": subject_id,
                    "status": "completed" if all(checks.values()) else "failed",
                    "automatic_qc_passed": all(checks.values()), "human_review": "pending",
                    "checks": checks, "source_signature": {"native_mask": _file_signature(Path(native_mask))},
                    "output_artifacts": {str(path.resolve()): _file_signature(path) for path in paths},
                    "label_ids": [int(value) for value in np.unique(native) if np.isfinite(value)],
-                   "warnings": ["Decoded geometry/label integrity only. Atlas coverage and anatomical accuracy require independent review."]}
+                   "label_semantics": semantics,
+                   "warnings": ["Decoded geometry/label integrity only. Atlas coverage and anatomical accuracy require independent review.",
+                                *semantics['warnings']]}
         _write_json(qc_path, payload)
         if not payload["automatic_qc_passed"]:
             raise ValueError("DDParcel output QC failed: " + ", ".join(key for key, value in checks.items() if not value))

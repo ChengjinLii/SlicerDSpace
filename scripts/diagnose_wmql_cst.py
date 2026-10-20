@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Trace unmodified author CST predicates on the exact original tractogram."""
+"""Trace unmodified author AF/CST predicates on the exact original tractogram."""
 
 import argparse
 import ast
@@ -12,6 +12,57 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+
+def track_multiset_parity(reference, candidate, tolerance=.001):
+    """Check one-to-one geometry identity, allowing the recorded ASCII precision."""
+    from collections import Counter
+    import numpy as np
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import maximum_bipartite_matching
+    from scipy.spatial import cKDTree
+    from scripts.audit_bundle_products import line_hash
+
+    if not np.isfinite(tolerance) or tolerance <= 0:
+        raise ValueError('Geometry tolerance must be finite and positive')
+    reference, candidate = list(reference), list(candidate)
+    geometry_ok = all(np.asarray(t).ndim == 2 and np.asarray(t).shape[1] == 3
+                      and len(t) >= 2 and np.isfinite(t).all() for t in reference + candidate)
+    result = dict(reference_count=len(reference), candidate_count=len(candidate),
+                  tolerance_mm=tolerance, finite_geometry=geometry_ok,
+                  exact_byte_multiset=False, matched_count=0,
+                  max_coordinate_delta_mm=None, passed=False)
+    if not geometry_ok:
+        return result
+    result['exact_byte_multiset'] = Counter(map(line_hash, reference)) == Counter(map(line_hash, candidate))
+    if not reference or not candidate:
+        result['passed'] = not reference and not candidate
+        return result
+    endpoints = np.asarray([np.r_[t[0], t[-1]] for t in reference])
+    tree = cKDTree(np.vstack([endpoints, endpoints[:, [3, 4, 5, 0, 1, 2]]]))
+    rows, columns, errors = [], [], {}
+    for i, track in enumerate(candidate):
+        track = np.asarray(track, dtype=float)
+        for j in {int(j) % len(reference) for j in tree.query_ball_point(
+                np.r_[track[0], track[-1]], tolerance, p=np.inf)}:
+            original = np.asarray(reference[j], dtype=float)
+            if original.shape != track.shape:
+                continue
+            delta = min(float(np.max(np.abs(original - track))),
+                        float(np.max(np.abs(original[::-1] - track))))
+            if delta <= tolerance:
+                rows.append(i)
+                columns.append(j)
+                errors[i, j] = delta
+    # Membership alone would allow duplicate output tracks to replace a missing
+    # source track. A bipartite match preserves the selected multiset instead.
+    graph = csr_matrix((np.ones(len(rows), dtype=np.int8), (rows, columns)),
+                       shape=(len(candidate), len(reference)))
+    matching = maximum_bipartite_matching(graph, perm_type='column')
+    deltas = [errors[i, int(j)] for i, j in enumerate(matching) if j >= 0]
+    result.update(matched_count=len(deltas), max_coordinate_delta_mm=max(deltas, default=None),
+                  passed=len(deltas) == len(reference) == len(candidate))
+    return result
 
 
 def compare_cst_results(reference_manifest, candidate_manifest, output):
@@ -72,20 +123,58 @@ def trace_predicates(queries, side, structure):
                 original_query_count=len(expected), exact_author_set_match=remaining == expected), base, remaining
 
 
+def trace_af_predicates(queries, side):
+    frontal = set().union(*(queries[f'{name}.{side}'].tracts for name in
+                          ('inferior_frontal_gyrus', 'middle_frontal_gyrus', 'precentral')))
+    temporal = set().union(*(queries[f'{name}.{side}'].tracts for name in ('superiortemporal', 'middletemporal')))
+    base = frontal & temporal
+    remaining, stages = set(base), []
+    for name in ('slf_ii', 'slf_iii', 'mdlf', 'ioff', 'ilf', 'extreme_capsule',
+                 'insula', 'centrum_semiovale', 'occipital', 'temporalpole',
+                 'medialorbitofrontal', 'lateralorbitofrontal'):
+        excluded = queries[f'{name}.{side}'].tracts
+        stages.append(dict(predicate=f'{name}.{side}', input=len(remaining),
+                           excluded_alone=len(base & excluded), removed=len(remaining & excluded),
+                           remaining=len(remaining - excluded)))
+        remaining -= excluded
+    expected = queries[f'af.{side}'].tracts
+    return dict(frontal_candidates=len(frontal), temporal_candidates=len(temporal),
+                base_streamlines=len(base), stages=stages, final_count=len(remaining),
+                original_query_count=len(expected), exact_author_set_match=remaining == expected), remaining
+
+
+def author_trace_query(manifest):
+    """Do not apply the author's AF exclusions to an adapted endpoint query."""
+    from tractography.wmql import wmql_query_dependencies, wmql_query_provenance
+
+    query = Path(manifest.get('staged_query') or manifest['query_path'])
+    folders = [query.parent]
+    if not manifest.get('staged_query'):
+        folders.append(Path(manifest['backend']['root']) / 'tract_querier/data')
+    dependencies = wmql_query_dependencies(query, folders)
+    recorded = manifest.get('query_snapshot_dependencies')
+    if manifest.get('staged_query') and recorded and dependencies != recorded:
+        raise ValueError('WMQL query snapshot no longer matches its recorded dependencies')
+    provenance = wmql_query_provenance(query, dependencies)
+    if provenance['preset'] != 'author_repository_crossing_exclusion':
+        raise ValueError('Author AF/CST trace requires the unmodified author preset and aliases; '
+                         'use endpoint_rule_check for DDParcel AF candidates or endpoint protocols')
+    return query, folders, dependencies
+
+
 def diagnose(manifest_path, output):
-    from collections import Counter
-    from scripts.audit_bundle_products import line_hash, tracks_from_file
+    from scripts.audit_bundle_products import tracks_from_file
     import nibabel as nib
     import numpy as np
 
     manifest = json.loads(manifest_path.read_text())
+    query_path, includes, dependencies = author_trace_query(manifest)
     backend_root = Path(manifest['backend']['root'])
     sys.path.insert(0, str(backend_root))
     import tract_querier as tq
 
-    tract_path, atlas_path, query_path = map(Path, (manifest['input_tractography'], manifest['atlas_path'], manifest['query_path']))
-    includes = [query_path.parent, backend_root / 'tract_querier/data']
-    before = {str(path.resolve()): sha256(path) for path in (tract_path, atlas_path, query_path, includes[1] / 'FreeSurfer.qry')}
+    tract_path, atlas_path = map(Path, (manifest['input_tractography'], manifest['atlas_path']))
+    before = {**dependencies, **{str(path.resolve()): sha256(path) for path in (tract_path, atlas_path)}}
     original = tq.tractography.tractography_from_file(str(tract_path))
     tracks = original.tracts()
     atlas = nib.load(atlas_path)
@@ -117,6 +206,8 @@ def diagnose(manifest_path, output):
             return set().union(*(index.ending_labels_tracts[end].get(label, set()) for label in region for end in (0, 1)))
         published = endings(cortex) & endings(brainstem)
         base, final = set.union(*bases), set.union(*finals)
+        saved_parity = track_multiset_parity(
+            (tracks[number] for number in sorted(final)), tracks_from_file(saved[f'cst.{side}']))
         missing_crossing = dict(cortical_crossing_below_threshold=0, brainstem_crossing_below_threshold=0)
         selected = []
         inverse = np.linalg.inv(atlas.affine)
@@ -137,17 +228,38 @@ def diagnose(manifest_path, output):
                                  endpoint_labels=list(map(int, point_labels[[0, -1]])), point_label_fractions=fractions))
         hemisphere.update(legacy_cst=len(queries[f'cst.{side}'].tracts),
                           traced_legacy_union_match=final == queries[f'cst.{side}'].tracts,
-                          saved_cst_matches_author_set=(Counter(line_hash(tracks[number]) for number in final)
-                              == Counter(map(line_hash, tracks_from_file(saved[f'cst.{side}'])))),
+                          saved_cst_matches_author_set=saved_parity['passed'],
+                          saved_cst_geometry_parity=saved_parity,
                           published_endpoint_cst=len(published), published_also_legacy_base=len(published & base),
                           published_also_legacy_final=len(published & final),
                           endpoint_candidates_missing_crossings=missing_crossing,
                           relevant_label_voxels={str(label): int(np.count_nonzero(labels == label)) for label in sorted(cortex | brainstem)},
                           published_endpoint_source_indices=sorted(published), endpoint_predicate_details=selected)
+        if f'af.{side}' in saved:
+            af, af_final = trace_af_predicates(queries, side)
+            af['saved_geometry_parity'] = track_multiset_parity(
+                (tracks[number] for number in sorted(af_final)), tracks_from_file(saved[f'af.{side}']))
+            involved = ('inferior_frontal_gyrus', 'middle_frontal_gyrus', 'precentral',
+                        'superiortemporal', 'middletemporal')
+            involved_labels = set().union(*(queries[f'{name}.{side}'].labels for name in involved))
+            af['relevant_label_voxels'] = {str(label): int(np.count_nonzero(labels == label))
+                                           for label in sorted(involved_labels)}
+            from tractography.wmql import MIN_BUNDLE_STREAMLINES
+            af['sampling_passed'] = af['final_count'] >= MIN_BUNDLE_STREAMLINES
+            af['sampling_minimum'] = MIN_BUNDLE_STREAMLINES
+            hemisphere['af'] = af
+            csv_rows.extend(dict(hemisphere=side, branch='af', **row) for row in af['stages'])
         report['hemispheres'][side] = hemisphere
     unique = np.unique(labels)
     report['regional_wm_labels'] = [int(value) for value in unique if 3001 <= value <= 3035 or 4001 <= value <= 4035]
     report['inputs_unchanged'] = all(sha256(Path(path)) == value for path, value in before.items())
+    report['automatic_predicate_parity_passed'] = report['inputs_unchanged'] and all(
+        h['traced_legacy_union_match'] and h['saved_cst_matches_author_set']
+        and all(h[s]['exact_author_set_match'] for s in ('precentral', 'postcentral'))
+        and ('af' not in h or (h['af']['exact_author_set_match'] and h['af']['saved_geometry_parity']['passed']))
+        for h in report['hemispheres'].values())
+    report['scope'] = 'Author predicate and saved geometry parity only; diagnostic success does not certify sampling or anatomy'
+    report['status'] = 'passed' if report['automatic_predicate_parity_passed'] else 'failed'
     report['limitations'] = ['Predicate tracing is not anatomical ground truth.',
                              'Legacy repository crossing/exclusion queries differ from the published/tutorial endpoint CST definition.',
                              'No thresholds, labels, endpoints, or tracts were changed.']
@@ -179,5 +291,5 @@ if __name__ == '__main__':
     else:
         result = diagnose(args.manifest, args.output)
     print(f'Diagnostic seconds: {time.monotonic() - started:.3f}', flush=True)
-    if args.reference_manifest and result['status'] != 'passed':
+    if result['status'] != 'passed':
         raise SystemExit(1)

@@ -21,6 +21,20 @@ def fingerprint(path):
     return dict(path=str(path), sha256=digest.hexdigest(), size=path.stat().st_size)
 
 
+def bundle_review_context(manifest, manifest_path):
+    """Keep a failed definition/control distinguishable from a passing route."""
+    preset = (manifest.get('query_provenance') or {}).get('preset')
+    query = Path(manifest['query_path']).name if manifest.get('query_path') else None
+    status = manifest.get('status', 'unknown')
+    run = Path(manifest_path).parent.name
+    caption = f'{manifest.get("kind", "bundle")} | run {run} | recorded status: {status}'
+    if query:
+        digest = str(manifest.get('query_sha256') or 'unrecorded')[:12]
+        caption += f'\nQuery: {query} | {preset or "unverified definition"} | SHA256 {digest}'
+    return dict(caption=caption, recorded_stage_status=status, query_preset=preset,
+                query_file=query, query_sha256=manifest.get('query_sha256'), run=run)
+
+
 def prepare(args):
     import matplotlib
     matplotlib.use('Agg')
@@ -163,6 +177,7 @@ def prepare(args):
         for manifest_path in args.bundle_manifest:
             capture(manifest_path)
             manifest = json.loads(manifest_path.read_text())
+            context = bundle_review_context(manifest, manifest_path)
             summary = manifest['outputs']['summary']
             files = summary.get('bundle_files') or summary.get('anatomical_tract_files') or []
             for value in files:
@@ -180,8 +195,10 @@ def prepare(args):
                     ax.add_collection(LineCollection([np.asarray(tracks[i])[:, dims] for i in chosen], colors='#246b87', linewidths=.45, alpha=.55))
                     ax.set(xlim=extent[:2], ylim=extent[2:], title=f'{title} projection', xlabel=xlabel, ylabel=ylabel)
                     ax.set_aspect('equal')
-                fig.suptitle(f'{path.name} | {len(chosen)}/{len(tracks)} tracks | review pending')
-                save(fig, 'bundle', dict(name=path.name, source=str(path.resolve()), manifest=str(manifest_path.resolve()),
+                fig.suptitle(f'{path.name} | {len(chosen)}/{len(tracks)} tracks | review pending\n' + context['caption'], fontsize=9)
+                fig.subplots_adjust(top=.72 if context['query_file'] else .78)
+                save(fig, 'bundle', dict(name=f'{path.name} [{context["run"]}; {context["recorded_stage_status"]}]',
+                                        source=str(path.resolve()), manifest=str(manifest_path.resolve()), review_context=context,
                                         kind='orthogonal_projection_NOT_slices', total_tracks=len(tracks), preview_tracks=len(chosen),
                                         selection='deterministic evenly spaced file indices; preview only',
                                         underlay='reference maximum intensity projection', source_coordinate_system='RAS'))

@@ -417,6 +417,8 @@ class SharedWidgetMixin:
         self._initialize_run_status_panel()
         self._initialize_background_run_controls()
         install_compact_layout(self)
+        from shared.ui_regions import install_region_panel
+        install_region_panel(self)
         self._apply_slicerddsurfer_ui_style()
         self._configure_log_widget()
         self._refresh_advanced_run_settings()
@@ -2014,7 +2016,7 @@ class SharedWidgetMixin:
                 (bool(node.targetMicrostructure) and self._microstructure_dki_enabled(),
                  ("orchestrationDkiFitMethodLabel", "orchestrationDkiFitMethodComboBox")),
                 (bool(node.targetBundles), ("orchestrationBundleBackendLabel", "orchestrationBundleBackendComboBox")),
-                (bool(node.targetTractography or node.targetConnectome), ("orchestrationTractographyBackendLabel", "orchestrationTractographyBackendComboBox")),
+                (bool(node.targetTractography or node.targetBundles or node.targetConnectome), ("orchestrationTractographyBackendLabel", "orchestrationTractographyBackendComboBox")),
                 (bool(node.batchMode), ("batchRootLabel", "batchRootPath", "batchSizeLabel", "batchSizeSpinBox", "batchArrangeInputsLabel", "batchArrangeInputsComboBox")),
             )
             for visible, names in groups:
@@ -2026,6 +2028,8 @@ class SharedWidgetMixin:
             if legacy_combo is not None:
                 legacy_combo.visible = False
         backend = (backend or self._tractography_backend_text() or "csd_act").strip() or "csd_act"
+        from shared.ui_ukf import refresh_ukf_controls
+        refresh_ukf_controls(self, backend)
         run_name_edit = getattr(self.ui, "orchestrationRunNameLineEdit", None)
         current_run_name = self._line_edit_text(run_name_edit) if run_name_edit else ""
         desired_default = self._default_run_name_for_backend(backend)
@@ -2051,6 +2055,11 @@ class SharedWidgetMixin:
 
     def _refresh_bundle_backend_highlight(self, *, bundle_backend: Optional[str] = None) -> None:
         active_sections = active_bundle_backend_sections(bundle_backend or self._bundle_backend_text())
+        node = self._parameterNode
+        for name in ("wmqlQueryPresetLabel", "wmqlQueryPresetComboBox"):
+            control = getattr(self.ui, name, None)
+            if control is not None:
+                control.visible = bool(node and node.targetBundles and (bundle_backend or self._bundle_backend_text()) in {"wmql", "all"})
 
         wma_input_widgets = (
             getattr(self.ui, "wmaInputTractographyLabel", None),
@@ -2831,7 +2840,9 @@ class SharedWidgetMixin:
             tractography_backend=self._tractography_backend_text(),
             bundle_backend=self._bundle_backend_text(),
             microstructure_freewater=run_free_water,
+            wmql_query_preset=getattr(self._parameterNode, "orchestrationWmqlPreset", "ddparcel_act") or "ddparcel_act",
             max_parallel_models=int(getattr(self._parameterNode, 'maxParallelModels', 1)),
+            ukf_parameters_text=getattr(self._parameterNode, 'ukfParameters', '{}'),
             microstructure_noddi=run_noddi,
             microstructure_dki=self._microstructure_dki_enabled(),
             dki_fit_method=getattr(self._parameterNode, "orchestrationDkiFitMethod", "WLS") or "WLS",

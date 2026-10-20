@@ -49,7 +49,7 @@ SUPPORTED_TARGETS = {
     "tractcloud",
 }
 
-TRACTOGRAPHY_BACKENDS = {"csd_act", "dti_det", "saf"}
+TRACTOGRAPHY_BACKENDS = {"csd_act", "ukf", "dti_det", "saf"}
 BUNDLE_BACKENDS = {"wmql", "wma", "tractcloud"}
 WMA_MIN_ANATOMICAL_TRACT_COUNT = 73
 WMA_MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT = 55
@@ -82,7 +82,10 @@ class ProductOrchestratorConfig:
     output_root: Optional[Path] = None
     run_name: str = "csd_act"
     tractography_backend: str = "csd_act"
+    ukf_parameters: dict[str, Any] = field(default_factory=dict)
+    ukf_executable: Optional[Path] = None
     bundle_backend: str = "wmql"
+    wmql_query_preset: str = "ddparcel_act"
     execute: bool = False
     resume: bool = True
     preprocessing_backend: str = "dipy"
@@ -315,6 +318,7 @@ def _wmql_complete(
     manifest_path: Optional[Path] = None,
     input_tractography: Optional[Path] = None,
     parcellation: Optional[Path] = None,
+    query_preset: str = "ddparcel_act",
 ) -> bool:
     """Return true only when completed WMQL QC points to real bundles."""
 
@@ -332,8 +336,7 @@ def _wmql_complete(
         query = Path(manifest.get('query_path') or '')
         if not query.is_file() or manifest.get('query_sha256') != hashlib.sha256(query.read_bytes()).hexdigest():
             return False
-        # This orchestrator currently requests the bundled rules, not custom queries.
-        if manifest.get('query_sha256') != hashlib.sha256(bundled_wmql_query_path().read_bytes()).hexdigest():
+        if manifest.get('query_sha256') != hashlib.sha256(bundled_wmql_query_path(query_preset).read_bytes()).hexdigest():
             return False
         if not wmql_query_cache_current(manifest):
             return False
@@ -491,6 +494,18 @@ def _primary_tractography_backend(config: ProductOrchestratorConfig) -> str:
     return "csd_act" if config.tractography_backend == "saf" else config.tractography_backend
 
 
+def _ukf_raw(config, inputs):
+    from shared.pipeline import RawInputBundle
+    return RawInputBundle(subject_root=config.subject_root, subject_id=config.subject_id,
+        input_dir=inputs['dwi'].parent, dwi_path=inputs['dwi'], bval_path=inputs['bval'],
+        bvec_path=inputs['bvec'], mask_path=inputs['mask'])
+
+
+def _ukf_current(config, inputs, directory):
+    from tractography.ukf import current
+    return current(_ukf_raw(config, inputs), directory, config.ukf_parameters, config.ukf_executable)
+
+
 def normalize_orchestrator_targets(
     targets: tuple[str, ...],
     *,
@@ -525,6 +540,8 @@ def normalize_orchestrator_targets(
             expanded.append("saf")
 
     requested_set = set(expanded)
+    if tractography_backend == "ukf" and requested_set.intersection({"bundles", "wma", "tractcloud", "connectome"}):
+        requested_set.add("tractography")
     normalized = tuple(target for target in TARGET_ORDER if target in requested_set)
     unsupported = sorted(set(normalized) - SUPPORTED_TARGETS)
     if unsupported:
@@ -712,7 +729,8 @@ def _wma_complete(
         summary = summarize_wma_outputs(output_dir, prepared_input)
     except Exception:
         return False
-    return _wma_output_contract_error(summary) is None
+    return (_wma_output_contract_error(summary) is None
+            and summary.get('tract_sampling', {}).get('all_tract_sampling_passed') is True)
 
 
 def _tractcloud_complete(
@@ -850,7 +868,7 @@ def _task_name_for_target(target: str, config: ProductOrchestratorConfig) -> str
     if target == "microstructure_dki":
         return "microstructure.dki"
     if target == "tractography":
-        return "tractography.csd_act" if _primary_tractography_backend(config) == "csd_act" else "tractography.dti_det"
+        return "tractography." + _primary_tractography_backend(config)
     if target == "bundles":
         return "bundles.wmql"
     if target == "connectome":
@@ -1692,6 +1710,9 @@ def _validate_surface_settings(config: ProductOrchestratorConfig) -> None:
 
 
 def _validate_tractography_settings(config: ProductOrchestratorConfig) -> None:
+    if config.tractography_backend == 'ukf':
+        from tractography.ukf import parameters
+        parameters(config.ukf_parameters)
     from tractography.csd import SEEDING_MODES
 
     if config.mrtrix_random_seed is not None and config.mrtrix_random_seed < 0:
@@ -1728,7 +1749,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     if not 0.0 < float(config.microstructure_free_water_max_fraction_for_tissue) < 1.0:
         raise ValueError("microstructure_free_water_max_fraction_for_tissue must be between 0 and 1.")
     if config.tractography_backend not in TRACTOGRAPHY_BACKENDS:
-        raise ValueError("tractography_backend must be one of: csd_act, dti_det, saf.")
+        raise ValueError("tractography_backend must be one of: csd_act, ukf, dti_det, saf.")
     bundle_backends = _normalize_bundle_backends(config.bundle_backend)
     if config.connectome_backend not in {"python", "mrtrix"}:
         raise ValueError("connectome_backend must be one of: python, mrtrix.")
@@ -1788,6 +1809,13 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     dti_tractogram_trk = dti_tractogram_dir / f"{dti_stem}.trk"
     tractogram = csd_tractogram if primary_tractography_backend == "csd_act" else dti_tractogram_trk
     tractogram_trk = csd_tractogram_trk if primary_tractography_backend == "csd_act" else dti_tractogram_trk
+    from tractography.ukf import paths as ukf_paths
+    ukf_dir = layout.tractograms / 'ukf' / run_name
+    ukf_outputs = ukf_paths(config.subject_id, ukf_dir)
+    if primary_tractography_backend == 'ukf':
+        tractogram, tractogram_trk = ukf_outputs['tractogram'], ukf_outputs['tractogram_trk']
+    current_vtk = tractogram if primary_tractography_backend == 'ukf' else csd_tractogram_vtk
+    ukf_cached = primary_tractography_backend != 'ukf' or _ukf_current(config, analysis_inputs, ukf_dir)
     saf_tractogram = saf_dir / "SAF.tck"
     if config.wma_input_tractography is not None:
         wma_input_tractography = _resolve_wma_input_tractography(
@@ -1801,14 +1829,16 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             None,
             output_root=output_root,
         )
+    if primary_tractography_backend == 'ukf' and config.wma_input_tractography is None:
+        wma_input_tractography = tractogram
     tractcloud_input_tractography = _resolve_bundle_input_tractography(
         subject_root,
         config.tractcloud_input_tractography,
         output_root=output_root,
         run_name=run_name,
-        current_run_tractography=csd_tractogram_vtk,
-        require_current_run=primary_tractography_backend == "csd_act" and "tractography" in selected,
-        allow_planned_current_run=primary_tractography_backend == "csd_act" and "tractography" in selected,
+        current_run_tractography=current_vtk,
+        require_current_run=primary_tractography_backend in {"csd_act", "ukf"} and "tractography" in selected,
+        allow_planned_current_run=primary_tractography_backend in {"csd_act", "ukf"} and "tractography" in selected,
     )
     slicer_executable = _resolve_slicer_executable(config)
     segmentation = _resolve_segmentation(subject_root, output_root)
@@ -1847,6 +1877,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             from microstructure.dki import dki_outputs_current
             return dki_outputs_current(_dki_config(config, analysis_inputs))
         if target == "tractography":
+            if primary_tractography_backend == 'ukf':
+                return ukf_cached
             if primary_tractography_backend == "csd_act":
                 return _csd_act_complete(
                     csd_qc,
@@ -1861,6 +1893,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         if target == "bundles":
             return _wmql_complete(
                 wmql_dir / "wmql_qc.json",
+                query_preset=config.wmql_query_preset,
                 input_tractography=tractogram_trk,
                 parcellation=parcellation,
             )
@@ -2120,6 +2153,20 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             continue
 
         if target == "tractography":
+            if primary_tractography_backend == 'ukf':
+                from tractography.ukf import resolve_executable
+                if config.resume and ukf_cached:
+                    add(target, 'skipped', 'matching official UKF outputs found', 'reuse', outputs=ukf_outputs)
+                elif not raw_input_block(target, ukf_outputs):
+                    try:
+                        resolve_executable(config.ukf_executable)
+                        resolve_executable(name='DWIConvert')
+                    except (OSError, RuntimeError) as exc:
+                        add(target, 'blocked', str(exc), 'environment', outputs=ukf_outputs, provides=False)
+                    else:
+                        add(target, 'will_run', 'official UKF CLI; explicit author defaults/overrides', 'runnable',
+                            inputs=analysis_inputs, outputs=ukf_outputs)
+                continue
             tractography_qc = csd_qc if primary_tractography_backend == "csd_act" else dti_qc
             tractography_outputs = {
                 "tractogram": tractogram,
@@ -2155,9 +2202,11 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         if target == "bundles":
             wmql_outputs = {"qc": wmql_dir / "wmql_qc.json", "manifest": wmql_dir / "wmql_manifest.json", "bundle_dir": wmql_dir}
             parcellation_ready = parcellation is not None or available.get("parcellation", False)
-            tractogram_ready = tractogram_trk.is_file() or available.get("tractography", False)
-            if config.resume and _wmql_complete(
+            tractogram_ready = (available.get('tractography', False) if primary_tractography_backend == 'ukf'
+                                else tractogram_trk.is_file() or available.get("tractography", False))
+            if config.resume and ukf_cached and _wmql_complete(
                 wmql_outputs["qc"],
+                query_preset=config.wmql_query_preset,
                 manifest_path=wmql_outputs["manifest"],
                 input_tractography=tractogram_trk,
                 parcellation=parcellation,
@@ -2197,9 +2246,13 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             wma_input_available = bool(
                 wma_input_tractography is not None and wma_input_tractography.is_file()
             )
-            wma_input_will_run = False
+            wma_input_will_run = (primary_tractography_backend == 'ukf' and
+                                 config.wma_input_tractography is None and available.get('tractography', False))
+            if primary_tractography_backend == 'ukf' and config.wma_input_tractography is None:
+                wma_input_available = ukf_cached
             if (
                 config.resume
+                and (ukf_cached or config.wma_input_tractography is not None)
                 and _wma_complete(
                     wma_dir,
                     input_tractography=wma_input_tractography,
@@ -2254,10 +2307,10 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 tractcloud_input_tractography is not None and tractcloud_input_tractography.is_file()
             )
             tractcloud_input_will_run = bool(
-                tractcloud_input_tractography == csd_tractogram_vtk
+                tractcloud_input_tractography == current_vtk
                 and available.get("tractography", False)
             )
-            if config.resume and _tractcloud_complete(
+            if config.resume and (ukf_cached or config.tractcloud_input_tractography is not None) and _tractcloud_complete(
                 tractcloud_dir,
                 input_tractography=tractcloud_input_tractography,
                 random_seed=config.tractcloud_random_seed,
@@ -2283,8 +2336,9 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 "sift2_output_dir": sift2_connectome_dir,
             }
             parcellation_ready = parcellation is not None or available.get("parcellation", False)
-            tractogram_ready = tractogram.is_file() or available.get("tractography", False)
-            if config.resume and _connectome_complete(
+            tractogram_ready = (available.get('tractography', False) if primary_tractography_backend == 'ukf'
+                                else tractogram.is_file() or available.get("tractography", False))
+            if config.resume and ukf_cached and _connectome_complete(
                 conn_qc,
                 conn_matrix,
                 conn_nodes,
@@ -2298,14 +2352,14 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             elif not tractogram_ready:
                 add(target, "blocked", "missing tractogram; select tractography or provide existing output", "upstream", outputs=conn_outputs, dependencies={"tractogram": "missing"}, provides=False)
             elif primary_tractography_backend != "csd_act" and config.connectome_backend == "mrtrix":
-                add(target, "blocked", "DTI tractography currently supports python connectome backend only", "configuration", outputs=conn_outputs, provides=False)
+                add(target, "blocked", "UKF/DTI tractography currently supports python connectome backend only", "configuration", outputs=conn_outputs, provides=False)
             else:
                 add(
                     target,
                     "will_run",
                     "ready to run connectome",
                     "runnable",
-                    inputs={"tractogram": tractogram, "parcellation": parcellation, "sift2_weights": sift2_weights if sift2_weights.is_file() else None},
+                    inputs={"tractogram": tractogram, "parcellation": parcellation, "sift2_weights": sift2_weights if primary_tractography_backend == 'csd_act' and sift2_weights.is_file() else None},
                     outputs=conn_outputs,
                     dependencies={"parcellation": "available" if parcellation is not None else "will_run", "tractogram": "available" if tractogram.is_file() else "will_run"},
                 )
@@ -2914,7 +2968,7 @@ def _run_subject_products_impl(
     if not 0.0 < float(config.microstructure_free_water_max_fraction_for_tissue) < 1.0:
         raise ValueError("microstructure_free_water_max_fraction_for_tissue must be between 0 and 1.")
     if config.tractography_backend not in TRACTOGRAPHY_BACKENDS:
-        raise ValueError("tractography_backend must be one of: csd_act, dti_det, saf.")
+        raise ValueError("tractography_backend must be one of: csd_act, ukf, dti_det, saf.")
     bundle_backends = _normalize_bundle_backends(config.bundle_backend)
     if config.connectome_backend not in {"python", "mrtrix"}:
         raise ValueError("connectome_backend must be one of: python, mrtrix.")
@@ -3094,6 +3148,12 @@ def _run_subject_products_impl(
     dti_tractogram_trk = dti_tractogram_dir / f"{dti_stem}.trk"
     tractogram = csd_tractogram if primary_tractography_backend == "csd_act" else dti_tractogram_trk
     tractogram_trk = csd_tractogram_trk if primary_tractography_backend == "csd_act" else dti_tractogram_trk
+    from tractography.ukf import paths as ukf_paths
+    ukf_dir = layout.tractograms / 'ukf' / run_name
+    ukf_outputs = ukf_paths(config.subject_id, ukf_dir)
+    if primary_tractography_backend == 'ukf':
+        tractogram, tractogram_trk = ukf_outputs['tractogram'], ukf_outputs['tractogram_trk']
+    current_vtk = tractogram if primary_tractography_backend == 'ukf' else csd_tractogram_vtk
     saf_tractogram = saf_dir / "SAF.tck"
     if config.wma_input_tractography is not None:
         wma_input_tractography = _resolve_wma_input_tractography(
@@ -3107,13 +3167,15 @@ def _run_subject_products_impl(
             None,
             output_root=output_root,
         )
+    if primary_tractography_backend == 'ukf' and config.wma_input_tractography is None:
+        wma_input_tractography = tractogram
     tractcloud_input_tractography = _resolve_bundle_input_tractography(
         subject_root,
         config.tractcloud_input_tractography,
         output_root=output_root,
         run_name=run_name,
-        current_run_tractography=csd_tractogram_vtk,
-        require_current_run=primary_tractography_backend == "csd_act" and "tractography" in targets,
+        current_run_tractography=current_vtk,
+        require_current_run=primary_tractography_backend in {"csd_act", "ukf"} and "tractography" in targets,
     )
     slicer_executable = _resolve_slicer_executable(config)
     ddseg_device = config.ddseg_device
@@ -3689,7 +3751,29 @@ def _run_subject_products_impl(
                 tasks.append(ProductTaskRecord(name="microstructure.dki", status="failed", reason=str(exc)))
                 _emit(f"[Orchestrator] DKI failed; other selected products can continue: {exc}", log)
 
-    if "tractography" in run_targets:
+    if "tractography" in run_targets and primary_tractography_backend == 'ukf':
+        from tractography.ukf import run_ukf
+        try:
+            if not config.execute:
+                tasks.append(ProductTaskRecord(name='tractography.ukf', status='planned', reason='execute=False'))
+            else:
+                result = run_ukf(_ukf_raw(config, analysis_inputs), ukf_dir,
+                    options=config.ukf_parameters, executable=config.ukf_executable, force=not config.resume, log=log)
+                tasks.append(ProductTaskRecord(name='tractography.ukf',
+                    status='skipped' if result['status'] == 'cached' else 'completed',
+                    qc_path=ukf_outputs['qc'], manifest_path=ukf_outputs['manifest'],
+                    outputs={key: str(path) for key, path in ukf_outputs.items() if key not in {'qc', 'manifest'}}))
+        except Exception as exc:
+            tasks.append(ProductTaskRecord(name='tractography.ukf', status='failed', reason=str(exc),
+                qc_path=ukf_outputs['qc'] if ukf_outputs['qc'].is_file() else None,
+                manifest_path=ukf_outputs['manifest'] if ukf_outputs['manifest'].is_file() else None))
+            _emit('[Orchestrator] UKF failed; downstream UKF consumers blocked: ' + str(exc), log)
+
+    ukf_upstream_invalid = (primary_tractography_backend == 'ukf' and config.execute and
+        (any(task.name == 'tractography.ukf' and task.status not in {'completed', 'skipped'} for task in tasks)
+         or not _ukf_current(config, analysis_inputs, ukf_dir)))
+
+    if "tractography" in run_targets and primary_tractography_backend != 'ukf':
         tractography_qc = csd_qc if primary_tractography_backend == "csd_act" else dti_qc
         tractography_manifest = csd_dir / "csd_act_manifest.json" if primary_tractography_backend == "csd_act" else dti_manifest
         tractography_task_name = "tractography.csd_act" if primary_tractography_backend == "csd_act" else "tractography.dti_det"
@@ -3851,8 +3935,11 @@ def _run_subject_products_impl(
 
     if "bundles" in run_targets:
         wmql_qc = wmql_dir / "wmql_qc.json"
-        if config.resume and _wmql_complete(
+        if ukf_upstream_invalid:
+            tasks.append(ProductTaskRecord(name='bundles.wmql', status='blocked', reason='current UKF run is not QC-valid'))
+        elif config.resume and _wmql_complete(
             wmql_qc,
+            query_preset=config.wmql_query_preset,
             input_tractography=tractogram_trk,
             parcellation=parcellation,
         ):
@@ -3875,6 +3962,7 @@ def _run_subject_products_impl(
                     atlas_path=parcellation,
                     output_dir=wmql_dir,
                     tract_querier_root=config.tract_querier_root,
+                    query_preset=config.wmql_query_preset,
                     execute=True,
                 ),
                 log=log,
@@ -3885,6 +3973,7 @@ def _run_subject_products_impl(
                 manifest_path=result.manifest_path,
                 input_tractography=tractogram_trk,
                 parcellation=parcellation,
+                query_preset=config.wmql_query_preset,
             )
             tasks.append(
                 _task_from_result(
@@ -3993,7 +4082,9 @@ def _run_subject_products_impl(
         wma_summary = _wma_output_summary(wma_dir)
         anatomical_tract_count = int(wma_summary.get("anatomical_tract_count", 0) or 0)
         nonempty_tract_count = int(wma_summary.get("anatomical_tract_nonempty_count", 0) or 0)
-        if config.resume and _wma_complete(
+        if ukf_upstream_invalid and config.wma_input_tractography is None:
+            tasks.append(ProductTaskRecord(name='bundles.wma', status='blocked', reason='current UKF run is not QC-valid'))
+        elif config.resume and _wma_complete(
             wma_dir,
             input_tractography=wma_input_tractography,
             atlas_dir=config.wma_atlas_dir,
@@ -4023,7 +4114,7 @@ def _run_subject_products_impl(
                     config.wma_input_tractography,
                     output_root=output_root,
                 )
-            else:
+            elif primary_tractography_backend != 'ukf':
                 wma_input_tractography = _resolve_wma_input_tractography(
                     subject_root,
                     None,
@@ -4099,10 +4190,12 @@ def _run_subject_products_impl(
             config.tractcloud_input_tractography,
             output_root=output_root,
             run_name=run_name,
-            current_run_tractography=csd_tractogram_vtk,
-            require_current_run=primary_tractography_backend == "csd_act" and "tractography" in targets,
+            current_run_tractography=current_vtk,
+            require_current_run=primary_tractography_backend in {"csd_act", "ukf"} and "tractography" in targets,
         )
-        if config.resume and _tractcloud_complete(
+        if ukf_upstream_invalid and config.tractcloud_input_tractography is None:
+            tasks.append(ProductTaskRecord(name='bundles.tractcloud', status='blocked', reason='current UKF run is not QC-valid'))
+        elif config.resume and _tractcloud_complete(
             tractcloud_dir,
             input_tractography=tractcloud_input_tractography,
             random_seed=config.tractcloud_random_seed,
@@ -4156,7 +4249,9 @@ def _run_subject_products_impl(
         conn_matrix = connectome_dir / f"{config.subject_id}-connectome-streamline_count.csv"
         conn_nodes = connectome_dir / f"{config.subject_id}-connectome-nodes.tsv"
         conn_manifest = connectome_dir / f"{config.subject_id}-connectome-streamline_count_manifest.json"
-        if config.resume and _connectome_complete(
+        if ukf_upstream_invalid:
+            tasks.append(ProductTaskRecord(name='connectome.streamline_count', status='blocked', reason='current UKF run is not QC-valid'))
+        elif config.resume and _connectome_complete(
             conn_qc,
             conn_matrix,
             conn_nodes,
@@ -4176,7 +4271,7 @@ def _run_subject_products_impl(
         elif primary_tractography_backend == "csd_act" and not tractogram.is_file():
             tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="blocked", reason="missing TCK tractogram"))
         elif primary_tractography_backend != "csd_act" and config.connectome_backend == "mrtrix":
-            tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="blocked", reason="DTI tractography currently supports python connectome backend only"))
+            tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="blocked", reason="UKF/DTI tractography currently supports python connectome backend only"))
         elif not tractogram.is_file():
             tasks.append(ProductTaskRecord(name="connectome.streamline_count", status="blocked", reason="missing tractogram"))
         else:
@@ -4200,7 +4295,7 @@ def _run_subject_products_impl(
             )
             _finish_task_timer(f"connectome {run_name}", task_started, log)
             tasks.append(_task_from_result("connectome.streamline_count", result))
-            if sift2_weights.is_file():
+            if primary_tractography_backend == 'csd_act' and sift2_weights.is_file():
                 weighted = run_connectome(
                     ConnectomeConfig(
                         subject_id=config.subject_id,
@@ -4219,7 +4314,7 @@ def _run_subject_products_impl(
                 tasks.append(_task_from_result("connectome.sift2_weighted", weighted))
                 weighted_connectome_handled = True
 
-        if not weighted_connectome_handled and sift2_weights.is_file():
+        if not weighted_connectome_handled and primary_tractography_backend == 'csd_act' and sift2_weights.is_file():
             sift2_qc = sift2_connectome_dir / f"{config.subject_id}-connectome-sift2_weighted_streamline_count_qc.json"
             sift2_matrix = sift2_connectome_dir / f"{config.subject_id}-connectome-sift2_weighted_streamline_count.csv"
             sift2_nodes = sift2_connectome_dir / f"{config.subject_id}-connectome-nodes.tsv"
@@ -4355,8 +4450,11 @@ def _run_subject_products_impl(
         "preflight_blocked_targets": preflight_blocked_targets,
         "run_name": run_name,
         "tractography_backend": config.tractography_backend,
+        "ukf_parameters": config.ukf_parameters,
+        "ukf_executable": str(config.ukf_executable) if config.ukf_executable else None,
         "primary_tractography_backend": primary_tractography_backend,
         "bundle_backend": config.bundle_backend,
+        "wmql_query_preset": config.wmql_query_preset,
         "max_parallel_models": config.max_parallel_models,
         "bundle_backends": list(bundle_backends),
         "execute": config.execute,

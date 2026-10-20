@@ -42,6 +42,7 @@ class CMakeExtensionConfigTest(unittest.TestCase):
                 "\n".join(
                     (
                         "include(CMakeParseArguments)",
+                        "include(CTest)",
                         "macro(slicerMacroBuildScriptedModule)",
                         '  cmake_parse_arguments(SM "WITH_GENERIC_TESTS" "NAME" "SCRIPTS;RESOURCES" ${ARGN})',
                         '  if(NOT SM_NAME OR NOT SM_SCRIPTS)',
@@ -90,9 +91,11 @@ class CMakeExtensionConfigTest(unittest.TestCase):
             self.assertIn("SlicerDDSurfer", package_contract)
             self.assertIn("SlicerDMRI", package_contract)
             self.assertIn("PyTorch", package_contract)
-            registered = (build / "registered-tests.txt").read_text(encoding="utf-8")
+            registered = (build / "Testing/Python/CTestTestfile.cmake").read_text(encoding="utf-8")
             for script in (REPO_ROOT / "Testing/Python").glob("test_*.py"):
                 self.assertIn(script.name, registered)
+            self.assertIn('backend-unit', registered)
+            self.assertNotIn('slicer.testing.runUnitTest', registered)
             prefix = root / "installed"
             installed = subprocess.run([cmake, "--install", str(build), "--prefix", str(prefix)],
                                        check=False, capture_output=True, text=True, timeout=120)

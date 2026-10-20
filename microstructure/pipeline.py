@@ -1402,12 +1402,15 @@ def roi_statistics_current(
     json_path: Path, csv_path: Path, *, roi_label_map: Path | None = None,
     required_metrics: tuple[str, ...] = (),
     brain_mask_path: Path | None = None,
+    selected_labels: tuple[int, ...] | None = None,
 ) -> bool:
     """Reject legacy, stale or inconsistent regional tables without refitting maps."""
 
     try:
         payload = _read_json(json_path) or {}
         if payload.get("schema_version") != ROI_STATISTICS_SCHEMA:
+            return False
+        if payload.get('selected_labels') != (sorted(set(selected_labels)) if selected_labels is not None else None):
             return False
         if roi_label_map is not None and payload.get("roi_label_map") != str(roi_label_map.resolve()):
             return False
@@ -1457,6 +1460,7 @@ def _compute_roi_stats(
     validity_masks: dict[str, np.ndarray] | None = None,
     validity_mask_paths: dict[str, Path] | None = None,
     brain_mask_path: Path | None = None,
+    selected_labels: tuple[int, ...] | None = None,
 ) -> int:
     started = time.monotonic()
     if not metric_paths:
@@ -1539,6 +1543,14 @@ def _compute_roi_stats(
     boundaries = np.r_[0, np.flatnonzero(np.diff(grouped_labels)) + 1, len(grouped_labels)]
     groups = [(int(grouped_labels[start]), grouped_indices[start:stop])
               for start, stop in zip(boundaries[:-1], boundaries[1:]) if start < stop]
+    if selected_labels is not None:
+        if not selected_labels or any(type(label) is not int or label <= 0 for label in selected_labels):
+            raise ValueError('Select at least one positive integer ROI label')
+        selected_labels = sorted(set(selected_labels))
+        absent = set(selected_labels) - {label for label, _ in groups}
+        if absent:
+            raise ValueError('Selected ROI labels are absent: ' + ', '.join(map(str, sorted(absent))))
+        groups = [(label, indices) for label, indices in groups if label in selected_labels]
     unique_labels = [label for label, _ in groups]
     label_names = _parse_label_names(unique_labels, lut_path)
 
@@ -1568,8 +1580,10 @@ def _compute_roi_stats(
                 for suffix in ("mean", "std", "min", "max"):
                     row[f"{metric_key}_{suffix}"] = None
                 continue
-            row[f"{metric_key}_mean"] = float(np.mean(voxels))
-            row[f"{metric_key}_std"] = float(np.std(voxels))
+            # Selected-region exports use double reductions, including near-constant ROIs.
+            reduction_dtype = np.float64 if selected_labels is not None else None
+            row[f"{metric_key}_mean"] = float(np.mean(voxels, dtype=reduction_dtype))
+            row[f"{metric_key}_std"] = float(np.std(voxels, dtype=reduction_dtype))
             row[f"{metric_key}_min"] = float(np.min(voxels))
             row[f"{metric_key}_max"] = float(np.max(voxels))
 
@@ -1602,8 +1616,13 @@ def _compute_roi_stats(
         },
         "csv_sha256": hashlib.sha256(csv_path.read_bytes()).hexdigest(),
         "voxel_count_basis": next(iter(metric_paths)),
-        "statistics_policy": "Per-metric finite valid samples only. Empty estimates are null/blank, never zero-filled; all atlas regions retained with coverage.",
+        "statistics_policy": (
+            "Per-metric finite valid samples only. Empty estimates are null/blank, never zero-filled; all requested atlas regions retained with coverage."
+            if selected_labels is not None else
+            "Per-metric finite valid samples only. Empty estimates are null/blank, never zero-filled; all atlas regions retained with coverage."
+        ),
         "roi_count": len(rows),
+        "selected_labels": selected_labels,
         "runtime_seconds": time.monotonic() - started,
         "timing_scope": "Read scalar maps/atlas and compute/write ROI statistics; excludes scalar model fitting",
         "rows": rows,

@@ -108,6 +108,17 @@ class TckgenSeedingTest(unittest.TestCase):
             self.assertEqual(tckgen[tckgen.index("-nthreads") + 1], "8")
             self.assertFalse(reproducibility_record(config)["tckgen_bit_reproducible"])
 
+    def test_every_mrtrix_stage_respects_the_requested_thread_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            for seed, threads in ((None, 8), (17, 8), (None, 0)):
+                with self.subTest(seed=seed, threads=threads):
+                    commands = build_csd_act_commands(_config(Path(tmp), random_seed=seed, nthreads=threads,
+                                                              export_vtk=True))
+                    for command in commands:
+                        self.assertEqual(command.count('-nthreads'), 1)
+                        expected = 0 if Path(command[0]).name == 'tckgen' and seed is not None else threads
+                        self.assertEqual(command[command.index('-nthreads') + 1], str(expected))
+
     def test_tcksift2_writes_mu(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             config = _config(Path(tmp))
@@ -137,6 +148,7 @@ class TckgenSeedingTest(unittest.TestCase):
                     run_csd_act(config)
             for call in mock_run.call_args_list:
                 self.assertNotIn("MRTRIX_RNG_SEED", call.kwargs["env"])
+                self.assertEqual(call.kwargs['cwd'], config.output_dir.resolve())
 
 
 class AnatomySpaceTest(unittest.TestCase):

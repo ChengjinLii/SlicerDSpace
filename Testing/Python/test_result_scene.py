@@ -49,20 +49,19 @@ class ResultSelectionTest(unittest.TestCase):
                 task["status"] = "failed"
                 self.assertEqual(result_candidates({"tasks": [task]})[0], [])
 
-    def test_legacy_wma_only_uses_qc_declared_directory_and_count(self):
+    def test_current_wma_only_uses_qc_declared_directory_and_count(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
             folder = root / "anatomical"
             folder.mkdir()
-            good = folder / "af.vtp"
-            good.touch()
-            for index in range(72):
-                (folder / f'other_{index}.vtp').touch()
+            names = list(REQUIRED_MAJOR_TRACTS) + [f'other_{index}.vtp' for index in range(68)]
+            for name in names:
+                (folder / name).touch()
             qc = root / "qc.json"
-            qc.write_text(json.dumps({"status": "completed", "output_summary": {
+            qc.write_text(json.dumps({"status": "completed", "version": 2, "automatic_qc_passed": True, "output_summary": {
                 "anatomical_tracts_dir": str(folder), "anatomical_tract_count": 73,
                 'anatomical_tract_readable_count': 73, 'anatomical_tract_nonempty_count': 73,
-                'anatomical_tract_streamline_counts': {name: 20 for name in REQUIRED_MAJOR_TRACTS}}}))
+                'anatomical_tract_streamline_counts': {name: 20 for name in names}}}))
             task = {"name": "bundles.wma", "status": "skipped", "reason": "completed outputs found", "qc_path": str(qc)}
             self.assertEqual(len(result_candidates({"tasks": [task]})[0]), 73)
             (folder / "unexpected.vtp").touch()

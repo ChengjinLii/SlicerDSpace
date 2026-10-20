@@ -572,7 +572,7 @@
         <item row="2" column="1">
          <widget class="QComboBox" name="orchestrationTractographyBackendComboBox">
           <property name="toolTip">
-           <string>csd_act runs MRtrix CSD/FOD/ACT plus optional SIFT2. dti_det runs in-plugin DIPY deterministic tracking. saf runs CSD/ACT first and then applies SAF surface filtering. Streamline count below is only used by csd_act and saf.</string>
+           <string>csd_act: MRtrix CSD/ACT/SIFT2. ukf: installed official UKFTractography extension (Advanced author-default parameters). dti_det: DIPY deterministic tracking. saf: CSD plus surface filtering. ACT streamline count does not apply to UKF.</string>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>orchestrationTractographyBackend</string>
@@ -580,6 +580,11 @@
           <item>
            <property name="text">
             <string>csd_act</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>ukf</string>
            </property>
           </item>
           <item>
@@ -629,6 +634,20 @@
             <string>all</string>
            </property>
           </item>
+         </widget>
+        </item>
+        <item row="8" column="0">
+         <widget class="QLabel" name="wmqlQueryPresetLabel">
+          <property name="text"><string>WMQL definition</string></property>
+         </widget>
+        </item>
+        <item row="8" column="1">
+         <widget class="QComboBox" name="wmqlQueryPresetComboBox">
+          <property name="SlicerParameterName" stdset="0"><string>orchestrationWmqlPreset</string></property>
+          <property name="toolTip"><string>ddparcel_act: existing DDParcel AF endpoint candidates plus author CST crossings; recommended for this pipeline. author: unchanged repository AF/CST crossing rules. published_endpoints: distinct strict brainstem endpoint protocol. No subject-specific fallback or relaxed sampling threshold.</string></property>
+          <item><property name="text"><string>ddparcel_act</string></property></item>
+          <item><property name="text"><string>author</string></property></item>
+          <item><property name="text"><string>published_endpoints</string></property></item>
          </widget>
         </item>
         <item row="4" column="0">

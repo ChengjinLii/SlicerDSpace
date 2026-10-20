@@ -30,15 +30,21 @@ class WMQLIntegrationTest(unittest.TestCase):
         result = run_wmql_bundle_segmentation(config)
         previous = json.loads(result.manifest_path.read_text())
         self.assertTrue(wmql_query_cache_current(previous))
-        self.assertEqual((self.output_dir / 'queries/FreeSurfer.qry').read_bytes(), local.read_bytes())
+        previous_query = Path(previous['staged_query'])
+        previous_aliases = previous_query.parent / 'FreeSurfer.qry'
+        previous_bytes = previous_aliases.read_bytes()
+        self.assertEqual(previous_bytes, local.read_bytes())
         local.write_text('Brain_Stem |= 116\n# deliberately changed synthetic label\n')
         self.assertFalse(wmql_query_cache_current(previous))
         result = run_wmql_bundle_segmentation(config)
         current = json.loads(result.manifest_path.read_text())
         self.assertTrue(wmql_query_cache_current(current))
-        self.assertEqual((self.output_dir / 'queries/FreeSurfer.qry').read_bytes(), local.read_bytes())
+        current_query = Path(current['staged_query'])
+        self.assertNotEqual(previous_query, current_query)
+        self.assertEqual(previous_aliases.read_bytes(), previous_bytes)
+        self.assertEqual((current_query.parent / 'FreeSurfer.qry').read_bytes(), local.read_bytes())
         self.assertEqual(current['query_provenance']['preset'], 'external_query')
-        (self.output_dir / 'queries/FreeSurfer.qry').write_text('Brain_Stem |= 999\n')
+        (current_query.parent / 'FreeSurfer.qry').write_text('Brain_Stem |= 999\n')
         self.assertFalse(wmql_query_cache_current(current))
 
     def test_import_mutation_during_execution_is_not_successful(self):
@@ -125,8 +131,9 @@ exit 0
         query = bundled_wmql_query_path()
         self.assertTrue(query.is_file())
         text = query.read_text(encoding="utf-8")
-        self.assertIn("AF.side", text)
-        self.assertIn("CST.side", text)
+        self.assertIn("import freesurfer_queries.qry", text)
+        self.assertNotIn("endpoints_in(Brain_Stem)", text)
+        self.assertIn("CST.side", bundled_wmql_query_path('published_endpoints').read_text())
 
     def test_builds_wmql_command_without_running(self) -> None:
         from tractography import WMQLConfig, run_wmql_bundle_segmentation
@@ -158,7 +165,8 @@ exit 0
         self.assertEqual(manifest["kind"], "wmql_bundle_segmentation")
         self.assertEqual(manifest["status"], "planned")
         self.assertEqual(manifest["backend"]["repository"], "https://github.com/demianw/tract_querier")
-        self.assertTrue((self.output_dir / "queries" / "AF_CST.qry").is_file())
+        self.assertTrue(Path(manifest['staged_query']).is_file())
+        self.assertEqual(Path(manifest['staged_query']).parent.parent, self.output_dir / 'queries')
 
     def test_execute_true_summarizes_created_bundles_with_fake_backend(self) -> None:
         from tractography import WMQLConfig, run_wmql_bundle_segmentation
@@ -213,9 +221,10 @@ exit 0
             )
 
         self.assertNotIn("-I", result.command)
-        self.assertTrue((self.output_dir / "queries" / "FreeSurfer.qry").is_file())
         manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
-        self.assertEqual(manifest["execution_cwd"], (self.output_dir / "queries").as_posix())
+        snapshot = Path(manifest['staged_query']).parent
+        self.assertTrue((snapshot / 'FreeSurfer.qry').is_file())
+        self.assertEqual(manifest["execution_cwd"], snapshot.as_posix())
 
     def test_failed_backend_writes_qc_before_reraising(self) -> None:
         from tractography import WMQLConfig, run_wmql_bundle_segmentation

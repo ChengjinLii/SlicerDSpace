@@ -228,8 +228,41 @@ def annotate_automatic_result(node, candidate):
         node.SetAttribute(PREFIX + "HumanReviewState", "pending")
     if candidate["display_role"].startswith(("tractography", "bundle:")):
         node.SetAttribute(PREFIX + "DisplayPreview", "true")
-        node.SetAttribute(PREFIX + "QuantitativeSourcePath", candidate["path"])
+        node.SetAttribute(PREFIX + "QuantitativeSourcePath", candidate.get('quantitative_source_path', candidate["path"]))
         node.SetAttribute(PREFIX + "MeasurementWarning", "Display preview; use the original file for quantitative measurements")
+
+
+def regional_color_node(slicer, candidate):
+    """Interpret FreeSurfer's unused alpha column as opaque foreground for display."""
+    labels = sorted(set(candidate.get('region_label_ids') or []))
+    if not labels:
+        return None
+    if min(labels) <= 0 or max(labels) > 1_000_000:
+        raise ValueError('Regional display supports positive label IDs up to 1000000; quantitative files remain unchanged')
+    lut_path = candidate.get('color_lut_path')
+    stamp = source_stamp(lut_path) if lut_path and Path(lut_path).is_file() else None
+    identity = str(lut_path) if stamp else 'generated:' + ','.join(map(str, labels))
+    color = next((item for item in slicer.util.getNodesByClass('vtkMRMLColorTableNode')
+                  if item.GetAttribute(PREFIX + 'LUTSourcePath') == identity
+                  and item.GetAttribute(PREFIX + 'LUTSourceStamp') == (stamp or 'generated')), None)
+    if color is None:
+        color = slicer.util.loadColorTable(str(lut_path)) if stamp else None
+        if color is None:
+            color = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLColorTableNode', 'Selected region colors')
+            color.SetTypeToUser()
+        color.SetAttribute(PREFIX + 'LUTSourcePath', identity)
+        color.SetAttribute(PREFIX + 'LUTSourceStamp', stamp or 'generated')
+    supplied = {label: (color.GetColorName(label), color.GetLookupTable().GetTableValue(label)[:3])
+                for label in labels if label < color.GetNumberOfColors() and color.GetColorName(label) not in {None, '', '(none)', 'NoName'}}
+    if color.GetNumberOfColors() <= max(labels):
+        color.SetNumberOfColors(max(labels) + 1)
+    color.GetLookupTable().SetTableRange(0, color.GetNumberOfColors() - 1)
+    palette = ((.31, .52, .70), (.78, .47, .31), (.35, .64, .53), (.68, .54, .72), (.77, .65, .30))
+    color.SetColor(0, 'Background', 0., 0., 0., 0.)
+    for index, label in enumerate(labels):
+        name, rgb = supplied.get(label, ('ROI-' + str(label), palette[index % len(palette)]))
+        color.SetColor(label, name, *rgb, 1.)
+    return color
 
 
 def automatic_display_preset(slicer, node, candidate, *, hide_pial=True):
@@ -265,7 +298,11 @@ def automatic_display_preset(slicer, node, candidate, *, hide_pial=True):
         maximum = 0.003 if metric in {"md", "ad", "rd", "fw_md"} else 3.0 if metric.removeprefix("corrected_") in {"mk", "ak", "rk", "mkt", "rtk"} else 1.0
         display.SetWindowLevel(maximum, maximum / 2)
     elif role.startswith("categorical"):
-        if candidate["product"].startswith("parcellation."):
+        if role == 'categorical:region_selection':
+            color = regional_color_node(slicer, candidate)
+            if color is not None:
+                display.SetAndObserveColorNodeID(color.GetID())
+        elif candidate["product"].startswith("parcellation."):
             color_node("vtkMRMLColorTableNodeFileFreeSurferColorLUT.txt", "vtkMRMLColorTableNodeLabels")
         else:
             color_node("vtkMRMLColorTableNodeGenericAnatomyColors", "vtkMRMLColorTableNodeLabels")

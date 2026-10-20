@@ -74,9 +74,11 @@ class AutoResultsTest(unittest.TestCase):
     def test_current_qc_records_only_no_legacy_bundle_folder_scan(self):
         path = self.file("bundles/AF_left.vtp")
         self.file("bundles/stale.vtp")
-        qc = self.file("qc.json", json.dumps({"status": "completed", "output_summary": {"bundle_files": [path],
+        counts = {name: 20 for name in REQUIRED_MAJOR_TRACTS}
+        counts.update({f'other_{index}.vtp': 20 for index in range(69)})
+        qc = self.file("qc.json", json.dumps({"status": "completed", "version": 2, "automatic_qc_passed": True, "output_summary": {"bundle_files": [path],
             'anatomical_tract_count': 74, 'anatomical_tract_readable_count': 74, 'anatomical_tract_nonempty_count': 74,
-            'anatomical_tract_streamline_counts': {name: 20 for name in REQUIRED_MAJOR_TRACTS}}}))
+            'anatomical_tract_streamline_counts': counts}}))
         task = {"name": "bundles.wma", "status": "completed", "qc_path": qc, "outputs": {"output_dir": str(self.root)}}
         with patch.object(Path, "glob", side_effect=AssertionError("No automatic folder scans")), \
              patch.object(Path, "rglob", side_effect=AssertionError("No automatic folder scans")):

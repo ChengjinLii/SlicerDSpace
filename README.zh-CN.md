@@ -87,6 +87,10 @@ python3 scripts/download_model_assets.py --profile surface \
 DICOM/NRRD 等格式转换位于 **高级设置 > 输入导入 / 转换**；
 已经准备好的输入无需重复转换。
 
+**高级设置 > 脑区分析（可选）** 可按名称或 ID 选择 DDParcel 脑区，复用已完成的
+参数图、完整流线和连接矩阵，计算区域统计、筛选相关流线、导出局部连接。
+默认不运行，不重新拟合模型。详见[脑区分析指南](docs/setup/REGIONAL_ANALYSIS.zh-CN.md)。
+
 ```text
 sub-01/
   input/
@@ -108,6 +112,9 @@ DKI 在拟合前检查 b0、非零壳层、梯度方向和设计矩阵秩。
 **MK-Curve** 使用内置的作者算法 Python 移植版，不需要 MATLAB；与 DIPY WLS/OLS 是不同路线。
 MATLAB 仅保留为可选对照后端，不能把普通 MK 图称为 MK-Curve。详见[微结构说明](docs/setup/MICROSTRUCTURE.zh-CN.md)。
 自动显示流线时生成限量 VTK 预览，原始 TCK/TRK 不变；预览不用于定量分析。
+追踪默认 CSD/ACT；可在高级设置选择 **UKFTractography**，自动调用已安装的
+官方扩展并将流线传给 WMA，不复制 UKF 源码。参数采用作者默认值并可展开修改；
+UKF 不套用 CSD 目标流线数。详见 [UKF 接入与默认参数](docs/setup/UKF.zh-CN.md)。
 [最小 DTI 教程](docs/setup/QUICKSTART.zh-CN.md)包含明确标识的合成安装测试；
 合成数据不是人体科研示例。
 
@@ -143,12 +150,19 @@ Linux 真实数据与 GUI 验证见[验收记录](docs/release/SLICER_ACCEPTANCE
 简洁界面另有 [UI 验证记录](docs/release/UI_SIMPLIFICATION_20261008.md)。
 这些记录仅覆盖对应代码快照、路线和数据，不代表所有配置均已通过。
 
-[10 月 12 日复核](docs/release/DISTRIBUTION_VALIDATION_20261012.md)记录许可补齐、
-干净克隆测试与尚未完成的 SDK 门禁。CI 徽章跟踪 main 的 push 检查；
+[10 月 17 日根因与一次运行队列验收](docs/release/WORKFLOW_GENERALIZATION_20261017.zh-CN.md)
+说明 WMQL 默认 `ddparcel_act` 兼容协议（原 DDParcel AF 端点候选＋作者 CST 穿行规则）、
+WMA 逐束采样门禁及 MK-Curve 逐指标有效性。它不是完整作者 AF/CST 复现；高级选项仍可
+选择 `author` 或 `published_endpoints`。多被试新协议验收仍在运行，不能据此宣称所有结果通过。
+
+[10 月 16 日复核](docs/release/QC_FOLLOWUP_20261016.zh-CN.md)记录新版 CSD／WMA
+检查、真实 Linux SDK／CPack 安装验收，以及仍失败的 WMQL 采样和人审边界。
+CI 徽章跟踪 main 的 push 检查；
 私有仓库的徽章不能供外部公开访问，请以登录后的 Actions 结果为准。
 
 - CMake 与 staging 共用一份运行资源清单，安装包检查核对文件和源文件哈希。
 - 快速 CI 和本地安装测试不能替代真实 SDK/CTest/CPack 构建。
+- Linux SDK／CPack、隔离 Extension Manager 安装及限定的 DTI 缓存／束加载已通过；不等于空白机器上的完整科学流程验收。
 - 尚未认证 Windows/macOS 原生科学工作流或三平台 SDK 构建。
 - Extension Index JSON 是 **Tier 1 申请草稿**，不是官方已收录状态。
 - 已补齐的第三方源码许可证不等于完整授权清理；仓库公开和模型再分发审查仍是独立门禁。

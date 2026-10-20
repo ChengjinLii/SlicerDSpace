@@ -24,6 +24,8 @@
 | [GPU 策略](setup/GPU_EXECUTION.zh-CN.md) | 神经网络优先 GPU、明确 CPU 选择与 CPU-only 路线边界 |
 | [插件内自动配置](setup/MANAGED_SETUP.zh-CN.md) | 按需安装 MRtrix/FSL、自动填写路径、默认模型目录 |
 | [微结构分析](setup/MICROSTRUCTURE.zh-CN.md) | DTI 默认、独立 FW/NODDI/DKI 与原作者 MK-Curve 边界 |
+| [UKF 纤维追踪](setup/UKF.zh-CN.md) | 可选作者扩展、默认参数、无损输入及自动 WMA 衔接 |
+| [脑区分析](setup/REGIONAL_ANALYSIS.zh-CN.md) | 高级设置中按需选择脑区，进行参数统计、流线筛选和原权重连接分析 |
 | [自动加载](setup/AUTOMATIC_RESULTS.md) | 当前运行记录与 RAS VTK 显示预览 |
 | [配置](setup/USER_CONFIG.md) | GUI/CLI 共用设置 |
 | [Linux](setup/LINUX_HPC.md)、[Windows](setup/WINDOWS.md)、[macOS](setup/MACOS.md) | 平台设置与边界 |

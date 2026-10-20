@@ -14,6 +14,29 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class SlicerSdkHarnessTest(unittest.TestCase):
+    def test_python_zero_test_suite_prevents_packaging_even_with_ctest_exit_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = root / 'mock-sdk-not-release-evidence'
+            sdk.mkdir()
+            (sdk / 'SlicerConfig.cmake').write_text('# Unit-test fixture only\n')
+            output = root / 'build'
+            detail = output / 'Testing/Temporary/LastTest.log'
+            detail.parent.mkdir(parents=True)
+            detail.write_text('Ran 0 tests in 0.000s\n\nNO TESTS RAN\n')
+            args = argparse.Namespace(source_root=ROOT, build_dir=output, slicer_dir=sdk,
+                                      cmake='cmake', ctest='ctest', cpack='cpack', jobs=1,
+                                      timeout=10, package_generator='TGZ')
+            with patch('scripts.build_slicer_sdk.platform.platform', return_value='unit-test fixture'), \
+                    patch('scripts.build_slicer_sdk.subprocess.check_output', side_effect=['fixture', b'fixture']), \
+                    patch('scripts.build_slicer_sdk.subprocess.run',
+                          return_value=subprocess.CompletedProcess([], 0)) as runner:
+                result = build(args)
+            self.assertEqual(result['status'], 'fail')
+            self.assertIn('zero-test', result['error'])
+            self.assertEqual(runner.call_count, 3)
+            self.assertEqual(result['packages'], [])
+
     def test_ctest_failure_prevents_packaging_and_zero_tests_are_errors(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

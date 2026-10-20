@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -21,9 +22,12 @@ from shared.product_staging import archive_run_records, new_product_staging, pub
 
 TRACT_QUERIER_REPOSITORY = "https://github.com/demianw/tract_querier"
 VALID_TRACT_EXTENSIONS = {".vtk", ".vtp", ".trk"}
-WMQL_QC_VERSION = 4
+WMQL_QC_VERSION = 5
 # Sampling sanity policy, not an anatomical accuracy or statistical-power test.
 MIN_BUNDLE_STREAMLINES = 20
+AUTHOR_QUERY_COMMIT = "5c69c594d489859e08485110678dca7f6f4cba40"
+AUTHOR_ALIAS_SHA256 = "3fc2f3685af5061f5106f5f3c6c5644b926f0850211de0380082f274cb7be8a0"
+AUTHOR_BUNDLE_QUERY_SHA256 = "554a4eed4b99cdbe497cc5296d49ea8a65961e2b1920c1868e41d2f0dfc080ba"
 
 
 def _file_info(path: Path) -> dict[str, object]:
@@ -55,6 +59,7 @@ class WMQLConfig:
     threshold: float = 2.0
     length_threshold: float = 0.0
     execute: bool = False
+    query_preset: str = "ddparcel_act"
 
 
 @dataclass(frozen=True)
@@ -70,8 +75,12 @@ class WMQLResult:
     status: str = 'planned'
 
 
-def bundled_wmql_query_path() -> Path:
-    return Path(__file__).resolve().parent / "wmql_queries" / "AF_CST.qry"
+def bundled_wmql_query_path(preset: str = "ddparcel_act") -> Path:
+    files = {"ddparcel_act": "AF_CST_DDParcel_ACT.qry", "author": "AF_CST_ACT.qry",
+             "published_endpoints": "AF_CST.qry"}
+    if preset not in files:
+        raise ValueError(f"Unknown WMQL query preset: {preset}")
+    return Path(__file__).resolve().parent / "wmql_queries" / files[preset]
 
 
 def wmql_query_dependencies(query_path: Path, include_dirs) -> dict[str, str]:
@@ -117,17 +126,46 @@ def wmql_query_provenance(query_path, dependencies=None):
     query_path = Path(query_path)
     digest = hashlib.sha256(Path(query_path).read_bytes()).hexdigest()
     published = bundled_wmql_query_path().with_name('CST_WMQL2016.qry')
-    if digest in {hashlib.sha256(path.read_bytes()).hexdigest() for path in (published, bundled_wmql_query_path())}:
+    endpoint_digests = {hashlib.sha256(path.read_bytes()).hexdigest() for path in (published, bundled_wmql_query_path('published_endpoints'))}
+    author_selection = digest == hashlib.sha256(bundled_wmql_query_path('author').read_bytes()).hexdigest()
+    adapted_selection = digest == hashlib.sha256(bundled_wmql_query_path('ddparcel_act').read_bytes()).hexdigest()
+    if digest in endpoint_digests or digest == AUTHOR_BUNDLE_QUERY_SHA256 or author_selection or adapted_selection:
         data_dir = _default_query_data_dir()
         if dependencies is None:
             dependencies = wmql_query_dependencies(query_path, [query_path.parent] + ([data_dir] if data_dir else []))
-        reference = data_dir / 'FreeSurfer.qry' if data_dir else None
         aliases = [value for path, value in dependencies.items() if Path(path).name == 'FreeSurfer.qry']
-        original_aliases = bool(reference and reference.is_file() and aliases == [hashlib.sha256(reference.read_bytes()).hexdigest()])
+        # Installed extensions do not contain the optional author source tree.
+        # Certify bytes against the pinned upstream file, not the local checkout.
+        original_aliases = aliases == [AUTHOR_ALIAS_SHA256]
+        author_query = digest == AUTHOR_BUNDLE_QUERY_SHA256 or author_selection
+        if (author_selection or adapted_selection) and not any(Path(path).name == 'freesurfer_queries.qry' and value == AUTHOR_BUNDLE_QUERY_SHA256
+                                        for path, value in dependencies.items()):
+            return {'preset': 'ddparcel_act_custom_definitions' if adapted_selection and not author_selection else 'author_selection_custom_definitions', 'sha256': digest,
+                    'scope': 'Author selection wrapper with modified or absent bundle definitions; not certified upstream.'}
         if not original_aliases:
-            return {'preset': 'published_statement_custom_aliases', 'sha256': digest,
-                    'scope': 'Published endpoint statement with modified regional aliases; not certified equivalent to the published definition.'}
+            return {'preset': ('author_statement_custom_aliases' if author_query else
+                               'ddparcel_act_custom_aliases' if adapted_selection else 'published_statement_custom_aliases'),
+                    'sha256': digest,
+                    'scope': 'Recognized query statement with modified or unverified regional aliases; not certified equivalent to the reference definition.'}
+        source = f'{TRACT_QUERIER_REPOSITORY}/blob/{AUTHOR_QUERY_COMMIT}/tract_querier/data/'
+        if adapted_selection and not author_query:
+            return {'preset': 'ddparcel_af_candidates_author_cst', 'sha256': digest,
+                    'reference': source + 'freesurfer_queries.qry',
+                    'aliases_reference': source + 'FreeSurfer.qry',
+                    'AF': 'Existing DDParcel-adapted cortical endpoint candidates, unchanged from AF_CST.qry; not the author crossing/exclusion AF definition',
+                    'CST': {'definition': 'Unmodified author repository motor/brainstem crossing and exclusion predicates.'},
+                    'scope': 'Explicit compatibility combination, not an unchanged official AF/CST protocol. No subject-specific fallback; sampling and anatomy remain separate.',
+                    'act_compatibility': 'AF does not require cortical crossing percentage; CST does not require brainstem termination.'}
+        if author_query:
+            return {'preset': 'author_repository_crossing_exclusion', 'sha256': digest,
+                    'reference': source + 'freesurfer_queries.qry',
+                    'aliases_reference': source + 'FreeSurfer.qry',
+                    'CST': {'definition': 'Brainstem and motor-region crossings with repository exclusions; not the published endpoint predicate.'},
+                    'scope': 'Fixed author crossing/exclusion protocol. Distinct from the strict endpoint protocol; historical failures remain failures.',
+                    'selection_wrapper': author_selection,
+                    'act_compatibility': 'Requires brainstem traversal, not termination inside white matter.'}
         provenance = {'preset': 'published_cst_endpoints' if digest == hashlib.sha256(published.read_bytes()).hexdigest() else 'af_candidates_published_cst',
+                'sha256': digest, 'aliases_reference': source + 'FreeSurfer.qry',
                 'CST': {'definition': 'brainstem endpoint AND precentral/postcentral endpoint; original FreeSurfer aliases',
                         'reference': 'https://tract-querier.readthedocs.io/en/latest/example_script.html',
                         'paper': 'https://doi.org/10.1007/s00429-015-1179-4'},
@@ -269,8 +307,7 @@ def _stage_query_includes(include_dirs: list[Path], queries_dir: Path) -> None:
             staged_names.add(source.name)
             if source.resolve() == target.resolve():
                 continue
-            # Refresh managed snapshots on rerun, while keeping first-directory
-            # precedence within this call. An old copied include is not a cache.
+            # Keep first-directory precedence within this invocation's snapshot.
             shutil.copy2(source, target)
 
 
@@ -280,7 +317,7 @@ def build_wmql_command(config: WMQLConfig, backend_status: Optional[dict[str, An
         tract_querier_executable=config.tract_querier_executable,
         python_executable=config.python_executable,
     )
-    query_path = (config.query_path or bundled_wmql_query_path()).expanduser().resolve()
+    query_path = (config.query_path or bundled_wmql_query_path(config.query_preset)).expanduser().resolve()
     output_prefix = config.output_dir.expanduser().resolve() / f"{config.subject_id}_desc-wmql"
     include_dirs = _query_include_dirs(config, query_path)
     query_selection = ",".join(name.lower() for name in config.query_selection if name.strip())
@@ -415,7 +452,7 @@ def _validate_wmql_config(config: WMQLConfig, backend_status: dict[str, Any]) ->
         raise FileNotFoundError(f"Input tractography not found: {config.input_tractography}")
     if not config.atlas_path.expanduser().is_file():
         raise FileNotFoundError(f"WMQL atlas/parcellation not found: {config.atlas_path}")
-    query_path = config.query_path or bundled_wmql_query_path()
+    query_path = config.query_path or bundled_wmql_query_path(config.query_preset)
     if not query_path.expanduser().is_file():
         raise FileNotFoundError(f"WMQL query file not found: {query_path}")
     import math
@@ -442,9 +479,10 @@ def run_wmql_bundle_segmentation(
     _validate_wmql_config(config, backend_status)
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    queries_dir = output_dir / "queries"
-    queries_dir.mkdir(parents=True, exist_ok=True)
-    query_path = (config.query_path or bundled_wmql_query_path()).expanduser().resolve()
+    queries_root = output_dir / "queries"
+    queries_root.mkdir(parents=True, exist_ok=True)
+    queries_dir = Path(tempfile.mkdtemp(prefix="run-", dir=queries_root))
+    query_path = (config.query_path or bundled_wmql_query_path(config.query_preset)).expanduser().resolve()
     include_dirs = _query_include_dirs(config, query_path)
     query_dependencies = wmql_query_dependencies(query_path, include_dirs)
     provenance = wmql_query_provenance(query_path, query_dependencies)
@@ -468,6 +506,7 @@ def run_wmql_bundle_segmentation(
         "kind": "wmql_bundle_segmentation",
         "version": WMQL_QC_VERSION,
         "subject_id": config.subject_id,
+        "query_preset": config.query_preset,
         "input_tractography": config.input_tractography.expanduser().resolve().as_posix(),
         "atlas_path": config.atlas_path.expanduser().resolve().as_posix(),
         "query_path": query_path.as_posix(),

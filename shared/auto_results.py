@@ -151,6 +151,11 @@ def _role(candidate):
     key = candidate["key"].lower().removesuffix("_path")
     path = Path(candidate["path"])
     suffix = result_file_suffix(path)
+    if product == 'statistics.regions':
+        if key == 'selected_regions' and suffix in {'.nii', '.nii.gz'}:
+            return 'categorical:region_selection'
+        if key == 'region_summary':
+            return 'table:regions'
     if product.startswith("preprocessing.") and suffix in {".nii", ".nii.gz", ".mgz"}:
         if key in {"mask", "brain_mask", "brainmask", "final_mask", "brain_mask_final"}:
             return "categorical:mask"
@@ -189,7 +194,7 @@ def _role(candidate):
             return "bundle:cc"
         return "bundle:representative"
     if suffix in {".csv", ".tsv"}:
-        if product.startswith("connectome.") and any(word in key for word in ("matrix", "nodes", "stat")):
+        if product.startswith("connectome.") and any(word in key for word in ("matrix", "nodes", "stat", "connections")):
             return "table:" + key
         if any(word in key for word in ("stat", "summary")):
             return "table:statistics"
@@ -222,6 +227,11 @@ def automatic_result_candidates(manifest: dict, *, per_product_caps: dict | None
             continue
         candidate = {**candidate, "display_role": role, "qc_state": _qc_state(tasks.get(candidate["product"], {})),
                      "human_review_state": "pending"}
+        if candidate['product'] == 'tractography.regions' and candidate['key'] == 'display_preview':
+            candidate['quantitative_source_path'] = tasks[candidate['product']]['outputs'].get('tractogram', candidate['path'])
+        if role == 'categorical:region_selection':
+            candidate['color_lut_path'] = manifest.get('atlas_lut_path')
+            candidate['region_label_ids'] = (manifest.get('request') or {}).get('selected_labels', [])
         if candidate["qc_state"] in {"failed", "partial_failed", "error"}:
             skipped.append({**candidate, "reason": "Recorded QC failed; automatic display excluded", "reason_category": "qc_failed"})
             continue
@@ -237,7 +247,7 @@ def automatic_result_candidates(manifest: dict, *, per_product_caps: dict | None
     for _, role, _, _, candidate in sorted(ranked, key=lambda item: item[:4]):
         product = candidate["product"]
         group = product.split(".", 1)[0]
-        cap = max(0, int(caps.get(product, caps.get(group, 2))))
+        cap = max(0, int(caps.get(product, 3 if product == 'statistics.regions' else caps.get(group, 2))))
         if role == "bundle:representative" and product in named_bundle_products:
             deferred.append({**candidate, "reason": "Named anatomical representatives are available"})
             continue

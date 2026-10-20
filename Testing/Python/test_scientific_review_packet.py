@@ -9,10 +9,23 @@ import unittest
 import nibabel as nib
 import numpy as np
 
-from scripts.prepare_scientific_review import prepare, fingerprint
+from scripts.prepare_scientific_review import prepare, fingerprint, bundle_review_context
 
 
 class ScientificReviewPacketTest(unittest.TestCase):
+    def test_query_controls_and_failed_status_are_distinguishable_on_plates(self):
+        failed = dict(kind='wmql_bundle_segmentation', status='failed', query_path='/rules/AF_CST.qry',
+                      query_sha256='abc123', query_provenance={'preset': 'af_candidates_published_cst'})
+        context = bundle_review_context(failed, Path('/reports/endpoint/wmql_manifest.json'))
+        self.assertIn('recorded status: failed', context['caption'])
+        self.assertIn('AF_CST.qry', context['caption'])
+        self.assertIn('af_candidates_published_cst', context['caption'])
+        self.assertIn('run endpoint', context['caption'])
+        self.assertEqual(context['recorded_stage_status'], 'failed')
+        author = dict(failed, status='completed', query_path='/author/freesurfer_queries.qry',
+                      query_provenance={'preset': 'author_repository_crossing_exclusion'})
+        self.assertNotEqual(context['caption'], bundle_review_context(author, Path('/reports/author/wmql_manifest.json'))['caption'])
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

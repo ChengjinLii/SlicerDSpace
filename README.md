@@ -97,6 +97,11 @@ There is no visible Beginner section or automatic first-run wizard in the
 default interface. Input conversion is under **Advanced settings > Input import /
 conversion**; ordinary prepared inputs do not need conversion again.
 
+**Advanced settings > Regional analysis (optional)** lets you select DDParcel
+regions and reuse completed maps, full tractograms and connectivity matrices for
+regional statistics, ROI streamline selection and local connectivity. It does
+not refit models or alter the default workflow. See [regional analysis](docs/setup/REGIONAL_ANALYSIS.md).
+
 Canonical input layout:
 
 ```text
@@ -124,6 +129,17 @@ Python port of the author's algorithm, distinct from standard DIPY WLS/OLS.
 MATLAB is only an optional reference backend. See [microstructure routes](docs/setup/MICROSTRUCTURE.md).
 Automatic tractography display uses a capped VTK preview, preserving the full
 TCK/TRK source; a preview is not the analysis tractogram.
+Tractography defaults to CSD/ACT. An optional **UKFTractography** backend invokes
+the installed official Slicer extension and can feed WMA automatically. Its
+author-default parameters are editable only under Advanced; no UKF source is
+vendored and no CSD streamline budget is applied to UKF. See [UKF setup and defaults](docs/setup/UKF.md).
+WMQL defaults to `ddparcel_act`: the existing DDParcel AF endpoint candidates
+combined with the author's CST crossing/exclusion rules. This is an explicitly
+adapted protocol, not unchanged official AF/CST. The full `author` and strict
+`published_endpoints` presets remain available under Advanced. WMA reports
+per-tract sampling, and MK-Curve regional summaries use per-metric validity.
+See [root causes and one-pass cohort validation](docs/release/WORKFLOW_GENERALIZATION_20261017.md)
+for actual evidence and remaining limitations, not an all-results-passed claim.
 For a minimal DTI-only walkthrough and a clearly identified synthetic
 installation test, see the [tutorial](docs/setup/QUICKSTART.md).
 
@@ -162,8 +178,9 @@ the compact interface has a separate
 These records describe specific checkouts, routes and datasets, not all
 future configurations.
 
-The [12 October follow-up](docs/release/DISTRIBUTION_VALIDATION_20261012.md)
-records source notices, fresh-clone tests and the remaining SDK gate.
+The [16 October follow-up](docs/release/QC_FOLLOWUP_20261016.md) records the
+new CSD/WMA checks and real Linux SDK/CPack installation acceptance, including
+the remaining WMQL sampling failure and human-review boundaries.
 For this private repository, consult authenticated Actions results; the live
 badge tracks main push runs and is not externally accessible without authorization.
 
@@ -171,6 +188,7 @@ Current release boundaries:
 
 - CMake and staging now use one runtime resource manifest; package audits check file inclusion and source hashes.
 - Fast CI and local installation checks are not substitutes for a real SDK/CTest/CPack build.
+- Linux SDK/CPack, private Extension Manager installation and selected cached-DTI/bundle loading have passed; this is not a blank-machine full scientific workflow.
 - Native Windows/macOS scientific workflows and three-platform SDK builds are not certified.
 - The Extension Index JSON is a **Tier 1 proposal**, not acceptance by Slicer.
 - Public source access, third-party licensing clearance and asset redistribution review remain release gates.

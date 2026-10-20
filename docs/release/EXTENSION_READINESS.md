@@ -14,6 +14,7 @@ explicitly chooses otherwise. No Index PR, visibility change or package upload
 is performed by the build tools.
 
 Executed local checks and their limits are recorded in the
+[16 October follow-up](QC_FOLLOWUP_20261016.md),
 [12 October follow-up](DISTRIBUTION_VALIDATION_20261012.md) and
 [11 October validation record](DISTRIBUTION_VALIDATION_20261011.md).
 
@@ -51,13 +52,19 @@ platform/SDK revision:
 
 ~~~bash
 python3 scripts/build_slicer_sdk.py --slicer-dir /path/to/Slicer-build \
-  --build-dir ignore/sdk-release-linux --package-generator TGZ
+  --build-dir ignore/sdk-release-linux --package-generator TGZ \
+  --unit-test-python /path/to/test-env/bin/python
 ~~~
 
 Use ZIP on Windows. The helper configures, builds, runs CTest, runs CPack and
 audits produced packages. Commands, exit codes and log paths are retained in
 sdk_build_report.json. Missing SDK configuration is reported as BLOCKED, not
 PASS. No external model download is implicit.
+
+Run from a terminal with backend test dependencies installed in that independent
+Python. Backend unit fixtures are not executed inside an embedded Slicer app;
+generic/native module tests still use the real SDK application. Linux headless
+hosts need a working display, for example `xvfb-run -a` around the build command.
 
 The manual **Slicer SDK** Actions workflow requires trusted self-hosted Linux,
 Windows and macOS runners labelled <code>slicer-sdk</code>. Set the repository
@@ -66,9 +73,13 @@ input. Different paths can instead be handled by separate manual runs.
 Do not run untrusted pull requests on these machines. Three-platform lightweight
 resource checks run separately in normal CI.
 
-**Current limitation:** no complete genuine SDK build or native Windows/macOS
-scientific acceptance is asserted by this change. Contract tests use a clearly
-identified minimal SDK stub only to exercise CMake install rules.
+**16 October evidence:** a genuine Linux Slicer v5.10.0 superbuild and extension
+configure/build, 128 CTests, CPack and 460-resource hash audit passed. That actual
+CPack archive was installed through Extension Manager with private settings and
+no developer module path; cached DTI/ROI and real bundle loading/rejection checks
+passed. Scientific dependencies/SlicerDMRI were preconfigured: this is not a
+blank-machine full workflow, native Windows/macOS acceptance, or anatomical
+certification. Minimal SDK stubs remain contract-test fixtures only.
 
 ---
 
@@ -97,7 +108,8 @@ source tests and already configured workstations cannot replace this test.
 | LICENSE.txt and Index metadata draft | Prepared; Tier 1 is a proposal |
 | Compact-interface documentation, EN/ZH and screenshot sources | Prepared |
 | Public repository, resolvable icon/screenshot URLs, GitHub topic | Deferred by maintainer; required before public Index submission |
-| Real SDK/CPack + clean installation on claimed platforms | Requires independent evidence |
+| Linux real SDK/CPack and private installation | Passed for the documented selected routes; not a blank-machine full workflow |
+| Windows/macOS native SDK and scientific workflows | Not validated |
 | Recorded source licenses and LUT notices | Conversion/BWH, FreeSurfer/MGH, DDSurfer/MIT and PyTorch3D/BSD notices restored and checked; not a blanket legal clearance |
 | Model/template and fixture redistribution | Unconfirmed groups remain excluded from public asset archives |
 | Authorized real-data tutorial and Sample Data registration | Not completed |

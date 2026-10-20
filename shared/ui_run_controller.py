@@ -66,7 +66,9 @@ class RunSelection:
     brain_mask_device: str = "auto"
     microstructure_dki: bool = False
     dki_fit_method: str = "WLS"
+    wmql_query_preset: str = "ddparcel_act"
     max_parallel_models: int = 1
+    ukf_parameters_text: str = '{}'
 
 
 @dataclass(frozen=True)
@@ -282,6 +284,8 @@ def streamline_control_state(tractography_backend: str) -> StreamlineControlStat
             "Number of streamlines generated during the MRtrix CSD/ACT stage before SAF filtering. "
             "One million is recommended when SAF, bundle analysis or connectome outputs are selected."
         )
+    elif backend == 'ukf':
+        description = 'Official UKF uses seeds per voxel in Advanced settings, not an ACT target streamline count.'
     else:
         description = (
             "DTI deterministic tracking does not use MRtrix ACT streamline selection. "
@@ -389,6 +393,7 @@ def build_single_subject_run_kwargs(
     """Build product-orchestration kwargs for one subject."""
 
     return {
+        **_ukf_run_options(selection),
         "subject_id": selection.subject_id,
         "subject_root": Path(selection.subject_root_text).expanduser(),
         "output_root": Path(selection.output_root_text).expanduser() if selection.output_root_text else None,
@@ -396,6 +401,7 @@ def build_single_subject_run_kwargs(
         "run_name": selection.run_name,
         "tractography_backend": selection.tractography_backend,
         "bundle_backend": selection.bundle_backend,
+        "wmql_query_preset": selection.wmql_query_preset,
         "max_parallel_models": selection.max_parallel_models,
         "preprocessing_backend": selection.preprocessing_backend,
         "brain_mask_backend": selection.brain_mask_backend,
@@ -445,6 +451,7 @@ def build_batch_run_kwargs(selection: RunSelection, *, batch_root: Path) -> dict
     """Build product-orchestration kwargs for a batch run."""
 
     return {
+        **_ukf_run_options(selection),
         "subject_id": "batch",
         "subject_root": batch_root,
         "output_root": Path(selection.output_root_text).expanduser() if selection.output_root_text else None,
@@ -452,6 +459,7 @@ def build_batch_run_kwargs(selection: RunSelection, *, batch_root: Path) -> dict
         "run_name": selection.run_name,
         "tractography_backend": selection.tractography_backend,
         "bundle_backend": selection.bundle_backend,
+        "wmql_query_preset": selection.wmql_query_preset,
         "max_parallel_models": selection.max_parallel_models,
         "preprocessing_backend": selection.preprocessing_backend,
         "brain_mask_backend": selection.brain_mask_backend,
@@ -743,6 +751,8 @@ def build_background_cli_args(
         str(common_run_kwargs["tractography_backend"]),
         "--bundle-backend",
         str(common_run_kwargs["bundle_backend"]),
+        "--wmql-query-preset",
+        str(common_run_kwargs.get("wmql_query_preset", "ddparcel_act")),
         '--max-parallel-models', str(common_run_kwargs.get('max_parallel_models', 1)),
         "--connectome-backend",
         str(common_run_kwargs["connectome_backend"]),
@@ -757,6 +767,7 @@ def build_background_cli_args(
     ]
     if output_root is not None:
         args.extend(["--output-root", _path_text(output_root)])
+    _append_ukf_args(args, common_run_kwargs)
     args.extend(["--microstructure-stages", microstructure_stages_arg(common_run_kwargs)])
     args.extend(["--dki-fit-method", str(common_run_kwargs.get("microstructure_dki_fit_method", "WLS"))])
     if common_run_kwargs.get("connectome_compress_mrtrix_dense"):
@@ -808,6 +819,8 @@ def build_batch_background_cli_args(
         str(common_run_kwargs["tractography_backend"]),
         "--bundle-backend",
         str(common_run_kwargs["bundle_backend"]),
+        "--wmql-query-preset",
+        str(common_run_kwargs.get("wmql_query_preset", "ddparcel_act")),
         '--max-parallel-models', str(common_run_kwargs.get('max_parallel_models', 1)),
         "--connectome-backend",
         str(common_run_kwargs["connectome_backend"]),
@@ -822,6 +835,7 @@ def build_batch_background_cli_args(
     ]
     if output_root is not None:
         args.extend(["--output-root", _path_text(output_root)])
+    _append_ukf_args(args, common_run_kwargs)
     args.extend(["--microstructure-stages", microstructure_stages_arg(common_run_kwargs)])
     args.extend(["--dki-fit-method", str(common_run_kwargs.get("microstructure_dki_fit_method", "WLS"))])
     if common_run_kwargs.get("connectome_compress_mrtrix_dense"):
@@ -833,6 +847,26 @@ def build_batch_background_cli_args(
 
 
 _BATCH_MANIFEST_LINE_PREFIX = "[Batch] manifest:"
+
+
+def _ukf_run_options(selection):
+    if selection.tractography_backend != 'ukf':
+        return {}
+    from tractography.ukf import parameters, resolve_executable
+    from dataclasses import asdict
+    options = asdict(parameters(json.loads(selection.ukf_parameters_text or '{}')))
+    try:
+        binary = resolve_executable()
+    except (OSError, RuntimeError):
+        binary = None  # Dependency Doctor supplies the actionable installation message.
+    return dict(ukf_parameters=options, ukf_executable=binary)
+
+
+def _append_ukf_args(args, kwargs):
+    if kwargs.get('tractography_backend') == 'ukf':
+        args.extend(('--ukf-parameters', json.dumps(kwargs.get('ukf_parameters', {}), sort_keys=True)))
+        if kwargs.get('ukf_executable'):
+            args.extend(('--ukf-executable', str(kwargs['ukf_executable'])))
 
 
 def parse_manifest_line(line: str) -> Optional[str]:

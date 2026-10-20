@@ -241,6 +241,7 @@ def _environment_config_from_args(
         pnl_mask_ants_bin_dir=args.pnl_mask_ants_bin_dir,
         synthstrip_python=args.synthstrip_python,
         tractography_backend=args.tractography_backend,
+        ukf_executable=getattr(args, 'ukf_executable', None),
         connectome_backend=args.connectome_backend,
         ddseg_device=args.ddseg_device,
         surface_device=args.surface_device,
@@ -485,9 +486,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tractography-backend",
         default="csd_act",
-        choices=("csd_act", "dti_det", "saf"),
+        choices=("csd_act", "ukf", "dti_det", "saf"),
         help="Tractography backend. saf expands tractography to CSD/FOD plus SAF surface filtering.",
     )
+    parser.add_argument('--ukf-parameters', default='{}',
+                        help='JSON overrides of official UKF defaults; never applies CSD streamline budgets.')
+    parser.add_argument('--ukf-executable', type=Path,
+                        help='Optional installed UKFTractography CLI; GUI discovers the extension automatically.')
     parser.add_argument(
         "--bundle-backend",
         default="wmql",
@@ -504,6 +509,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument('--max-parallel-models', type=int, choices=(1,2,3), default=1,
                         help='Independent Free-water/NODDI/DKI processes; resource-bounded; default sequential.')
+    parser.add_argument("--wmql-query-preset", choices=("ddparcel_act", "author", "published_endpoints"), default="ddparcel_act",
+                        help="ddparcel_act preserves DDParcel AF endpoint candidates and author CST crossings; author keeps original AF/CST crossings; published_endpoints keeps strict brainstem termination. No automatic fallback.")
     parser.add_argument(
         "--select-streamlines",
         type=int,
@@ -836,7 +843,10 @@ def main(argv: list[str] | None = None) -> int:
         run_name=args.run_name,
         tractography_backend=args.tractography_backend,
         bundle_backend=args.bundle_backend,
+        ukf_parameters=json.loads(args.ukf_parameters),
+        ukf_executable=args.ukf_executable,
         execute=bool(args.execute),
+        wmql_query_preset=args.wmql_query_preset,
         max_parallel_models=args.max_parallel_models,
         resume=not args.no_resume,
         preprocessing_backend=args.preprocessing_backend,

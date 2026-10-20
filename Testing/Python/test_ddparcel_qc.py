@@ -9,12 +9,25 @@ from unittest.mock import patch
 import nibabel as nib
 import numpy as np
 
-from anatomy.parcellation.qc import validate_outputs
+from anatomy.parcellation.qc import validate_outputs, label_semantics
 from anatomy.parcellation.pipeline import DDParcelRegisteredConfig, run_ddparcel_from_registered_bundle
 from microstructure.pipeline import scalar_qc_current
 
 
 class DDParcelQcTest(unittest.TestCase):
+    def test_legacy_filename_cannot_establish_regional_white_matter_content(self):
+        values = np.array([0, 2, 41, 1001, 1024, 2001, 2024]).reshape(1, 1, -1)
+        record = label_semantics(values)
+        self.assertTrue(record['cortical_labels_without_regional_wm'])
+        self.assertEqual(record['regional_white_matter_voxels'], 0)
+        self.assertEqual(record['generic_cerebral_white_matter_voxels'], 2)
+        self.assertTrue(record['warnings'])
+        regional = label_semantics(np.array([1001, 2001, 3001, 4001]))
+        self.assertFalse(regional['cortical_labels_without_regional_wm'])
+        self.assertEqual(regional['regional_white_matter_label_ids'], [3001, 4001])
+        self.assertEqual(regional['left_regional_white_matter_voxels'], 1)
+        self.assertEqual(regional['right_regional_white_matter_voxels'], 1)
+
     def test_native_export_missing_corrupt_or_wrong_grid_cannot_complete(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

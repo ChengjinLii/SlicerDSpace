@@ -1014,11 +1014,16 @@ def _audit_qc_routes(manifest: dict[str, Any], checks: list[dict[str, Any]]) -> 
                 summary["anatomical_empty_tracts"] = [k for k, v in decoded.items() if v == 0]
                 summary["anatomical_tract_count"] = len(paths)
                 summary["anatomical_tract_streamline_counts"] = decoded
-                from tractography.wma import _wma_output_contract_error
+                from tractography.wma import _wma_output_contract_error, tract_sampling_eligibility
 
                 error = _wma_output_contract_error(summary)
                 _record_check(checks, "wma.current_sampling_contract", error is None, error,
                               "current decoded coverage and major-tract sampling contract; anatomical review separate")
+                sampling = tract_sampling_eligibility(decoded)
+                summary['tract_sampling'] = sampling
+                _record_check(checks, "wma.all_tract_sampling", sampling['all_tract_sampling_passed'],
+                              sampling['excluded_from_quantification'],
+                              "every returned atlas tract satisfies the unchanged sampling minimum; not statistical power or anatomical accuracy")
             else:
                 paths = [Path(str(value)) for value in summary.get("bundle_files", [])]
                 decoded = {str(path): vtp_streamline_count(path) for path in paths}

@@ -1,0 +1,3 @@
+# Select AF/CST from the author's repository definitions without editing them.
+# CST uses brainstem crossings and exclusions, not termination inside ACT WM.
+import freesurfer_queries.qry

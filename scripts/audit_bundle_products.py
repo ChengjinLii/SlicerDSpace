@@ -61,23 +61,29 @@ def endpoint_rule_check(manifest, files):
     """Independent voxel-space check of the shipped endpoint rules and aliases."""
     from tractography.wmql import bundled_wmql_query_path, wmql_query_dependencies, wmql_query_provenance
     query = Path(manifest.get('staged_query') or manifest['query_path'])
-    bundled = bundled_wmql_query_path()
-    if query.read_bytes() not in (bundled.read_bytes(), bundled.with_name('CST_WMQL2016.qry').read_bytes()):
+    bundled = bundled_wmql_query_path('published_endpoints')
+    if query.read_bytes() not in (bundled.read_bytes(), bundled.with_name('CST_WMQL2016.qry').read_bytes(),
+                                  bundled_wmql_query_path('ddparcel_act').read_bytes()):
         return {'status': 'not_checked', 'reason': 'Custom query; fixed bundled-rule audit does not apply.'}
     try:
         dependencies = wmql_query_dependencies(query, [query.parent])
         provenance = wmql_query_provenance(query, dependencies)
     except (OSError, ValueError, SyntaxError):
         return {'status': 'not_checked', 'reason': 'Regional alias snapshot unavailable; fixed bundled-rule audit does not apply.'}
-    if provenance['preset'] not in {'published_cst_endpoints', 'af_candidates_published_cst'}:
+    if provenance['preset'] not in {'published_cst_endpoints', 'af_candidates_published_cst',
+                                     'ddparcel_af_candidates_author_cst'}:
         return {'status': 'not_checked', 'reason': 'Modified regional aliases; fixed bundled-rule audit does not apply.'}
     import nibabel as nib
     atlas = nib.load(manifest['atlas_path'])
     labels = np.asarray(atlas.dataobj)
     inverse = np.linalg.inv(atlas.affine)
-    results = []
+    results, not_checked = [], []
     for file in files:
         name = file.stem.split('_desc-wmql_', 1)[-1].lower()
+        if (name not in {'af.left', 'af.right', 'cst.left', 'cst.right'}
+                or (provenance['preset'] == 'ddparcel_af_candidates_author_cst' and not name.startswith('af.'))):
+            not_checked.append({'query': name, 'reason': 'Not a certified endpoint predicate in this preset.'})
+            continue
         shift = 1000 if name.endswith('.right') else 0
         frontal = {1003, 1018, 1019, 1020, 1024, 1027}
         temporal = {1015, 1030}
@@ -97,14 +103,18 @@ def endpoint_rule_check(manifest, files):
             valid += int(matches)
             invalid += int(not matches)
         results.append(dict(query=name, matches=valid, violations=invalid, outside_fov=outside, endpoint_label_pairs=dict(pairs)))
-    return {'status': 'passed' if all(r['violations'] == 0 for r in results) else 'failed', 'bundles': results,
+    return {'status': ('passed' if all(r['violations'] == 0 for r in results) else 'failed') if results else 'not_checked',
+            'reason': None if results else 'No applicable endpoint products.',
+            'bundles': results, 'checks_not_run': not_checked,
             'scope': 'Exact selected endpoint label rules, not anatomical AF/CST ground truth; no image resampling or endpoint dilation.'}
 
 
-def applicable_checks(kind, contract_error, geometry_ok, duplicate_count, endpoint_rules):
+def applicable_checks(kind, contract_error, geometry_ok, duplicate_count, endpoint_rules, *, wma_sampling=None):
     checks = {'current_output_contract': contract_error is None,
               'finite_positive_geometry_and_source_membership': geometry_ok}
     not_run = {}
+    if kind == 'wma_org_atlas':
+        checks['wma_all_tract_sampling'] = wma_sampling is True
     if kind == 'tractcloud_parcellation':
         checks['tractcloud_disjoint_assignment'] = duplicate_count == 0
     else:
@@ -200,7 +210,8 @@ def audit(manifest_path, tolerance=.001):
                                         (r['streamlines'] == 0 or r['length_mm']['min'] > 0) for r in records)
     endpoint_rules = endpoint_rule_check(manifest, files) if kind == 'wmql_bundle_segmentation' else None
     duplicate_count = sum(v - 1 for v in all_assigned.values())
-    checks, not_run = applicable_checks(kind, contract_error, geometry_ok, duplicate_count, endpoint_rules)
+    checks, not_run = applicable_checks(kind, contract_error, geometry_ok, duplicate_count, endpoint_rules,
+        wma_sampling=summary.get('tract_sampling', {}).get('all_tract_sampling_passed'))
     return {'status': 'integrity_pass_anatomical_review_pending' if all(checks.values()) else 'needs_review',
             'subject_id': manifest['subject_id'], 'backend': kind, 'manifest': str(manifest_path.resolve()),
             'source': str(source_path.resolve()), 'source_sha256': hashlib.sha256(source_path.read_bytes()).hexdigest(),
@@ -226,15 +237,17 @@ def update_qc_records(manifest_path, result, report_path):
     qc_path = manifest_path.with_name('wma_org_atlas_qc.json')
     qc = json.loads(qc_path.read_text())
     passed = all(result['checks'].values())
-    error = result['current_contract_error'] or (None if passed else 'Independent geometry/source-membership audit failed')
+    failed_checks = [key for key, value in result['checks'].items() if not value]
+    error = result['current_contract_error'] or (None if passed else 'Independent checks failed: ' + ', '.join(failed_checks))
     archive = archive_run_records(manifest_path.parent, (manifest_path.name, qc_path.name))
     record = {'checked_at': datetime.now(timezone.utc).isoformat(), 'previous_records': archive,
               'original_recorded_status': qc.get('status'), 'source_sha256': result['source_sha256'],
               'audit_report': str(Path(report_path).resolve()),
               'audit_sha256': hashlib.sha256(Path(report_path).read_bytes()).hexdigest(),
               'scope': 'Current automatic sampling/identity/source-geometry contract; NOT anatomical certification'}
-    from tractography.wma import REQUIRED_MAJOR_TRACTS, MIN_MAJOR_TRACT_STREAMLINES
+    from tractography.wma import REQUIRED_MAJOR_TRACTS, MIN_MAJOR_TRACT_STREAMLINES, WMA_QC_VERSION
     qc.update(status='completed' if passed else 'partial_failed', automatic_qc_passed=passed,
+              version=WMA_QC_VERSION, tract_sampling=result['output_summary'].get('tract_sampling', {}),
               quantification_eligible=False, human_review='pending', revalidation=record,
               error=error, output_summary=result['output_summary'])
     qc.setdefault('acceptance_criteria', {}).update(required_major_tracts=list(REQUIRED_MAJOR_TRACTS),

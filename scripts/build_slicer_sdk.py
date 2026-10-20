@@ -9,6 +9,7 @@ import json
 import platform
 from pathlib import Path
 import subprocess
+import sys
 import time
 
 try:
@@ -44,6 +45,13 @@ def build(args):
             [args.ctest, "--test-dir", str(output), "-C", "Release", "--output-on-failure", "--no-tests=error"],
             [args.cpack, "--config", str(output / "CPackConfig.cmake"), "-C", "Release", "-G", args.package_generator],
         ]
+        unit_python = getattr(args, 'unit_test_python', None)
+        if unit_python is not None:
+            unit_python = Path(unit_python).expanduser().absolute()
+            if not unit_python.is_file():
+                raise FileNotFoundError(f'Backend test Python not found: {unit_python}')
+            commands[0].append(f'-DSLICERDDSURFER_UNIT_TEST_PYTHON={unit_python}')
+            evidence['backend_unit_test_python'] = str(unit_python)
         for name, command in zip(("configure", "build", "ctest", "cpack"), commands):
             log = output / f"sdk-{name}.log"
             started = time.monotonic()
@@ -56,6 +64,10 @@ def build(args):
             evidence["steps"].append({"name": name, "command": command, "returncode": code, "seconds": time.monotonic() - started, "log": str(log)})
             if code:
                 raise RuntimeError(f"SDK {name} failed; see {log}")
+            if name == 'ctest':
+                detail = output / 'Testing/Temporary/LastTest.log'
+                if detail.is_file() and 'NO TESTS RAN' in detail.read_text(encoding='utf-8', errors='replace'):
+                    raise RuntimeError('SDK CTest included a zero-test Python suite; not accepted as successful testing')
         suffix = ".zip" if args.package_generator == "ZIP" else ".tar.gz"
         packages = sorted(output.glob("*" + suffix))
         if not packages:
@@ -84,6 +96,8 @@ def main(argv=None):
     parser.add_argument("--cmake", default="cmake")
     parser.add_argument("--ctest", default="ctest")
     parser.add_argument("--cpack", default="cpack")
+    parser.add_argument('--unit-test-python', type=Path, default=Path(sys.executable),
+                        help='Independent Python with test dependencies; native module tests still run in Slicer')
     args = parser.parse_args(argv)
     result = build(args)
     print(json.dumps(result, indent=2))

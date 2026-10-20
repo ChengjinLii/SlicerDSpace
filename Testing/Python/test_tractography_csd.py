@@ -18,10 +18,29 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-from tractography.csd import CSDActConfig, inspect_mrtrix_csd_backend, run_csd_act
+from tractography.csd import CSDActConfig, _timed_step, inspect_mrtrix_csd_backend, run_csd_act
 
 
 class CSDActBackendTest(unittest.TestCase):
+    def test_phase_timing_preserves_running_success_and_failed_subprocess(self):
+        import subprocess
+
+        records, snapshots = [], []
+        def persist():
+            snapshots.append(json.loads(json.dumps(records)))
+        with _timed_step(records, 'tckgen', persist, ['tckgen', 'input', 'output']) as phase:
+            phase['return_code'] = 0
+        self.assertEqual(snapshots[0][0]['status'], 'running')
+        self.assertEqual(snapshots[1][0]['status'], 'completed')
+        self.assertEqual(records[0]['command'], ['tckgen', 'input', 'output'])
+        self.assertGreaterEqual(records[0]['elapsed_seconds'], 0)
+        with self.assertRaises(subprocess.CalledProcessError):
+            with _timed_step(records, 'tcksift2', persist):
+                raise subprocess.CalledProcessError(7, ['tcksift2'])
+        self.assertEqual(snapshots[-1][-1]['status'], 'failed')
+        self.assertEqual(records[-1]['return_code'], 7)
+        self.assertEqual(records[-1]['index'], 1)
+
     def test_dry_run_writes_manifest_qc_and_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -92,6 +111,7 @@ class CSDActBackendTest(unittest.TestCase):
             self.assertIsNone(manifest["parameters"]["nthreads"])
             self.assertNotIn("-nthreads", tckgen)
             self.assertFalse(manifest["reproducibility"]["tckgen_bit_reproducible"])
+            self.assertEqual(manifest['phase_timings'], [])
             self.assertIn("reproducibility_note", manifest)
             # Dynamic seeding is the default, on the normalised WM FOD.
             self.assertEqual(manifest["parameters"]["seeding"], "dynamic")
@@ -223,6 +243,15 @@ class CSDActBackendTest(unittest.TestCase):
             tcksift2_command = next(cmd for cmd in seen_commands if "tcksift2" in cmd)
             self.assertTrue(tckgen_command)
             self.assertTrue(tcksift2_command)
+            manifest = json.loads((config.output_dir / 'csd_act_manifest.json').read_text())
+            qc = json.loads((config.output_dir / 'csd_act_qc.json').read_text())
+            self.assertEqual(manifest['status'], 'failed')
+            self.assertEqual(len(manifest['phase_timings']), mock_run.call_count + 1)
+            self.assertTrue(all(p['status'] == 'completed' for p in manifest['phase_timings'][:-1]))
+            self.assertEqual(manifest['phase_timings'][-1]['step'], 'scientific_output_validation')
+            self.assertEqual(manifest['phase_timings'][-1]['status'], 'failed')
+            self.assertEqual(qc['phase_timings'], manifest['phase_timings'])
+            self.assertEqual(qc['elapsed_seconds'], manifest['runtime_seconds'])
 
     def test_backend_inspection_honors_explicit_bin_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

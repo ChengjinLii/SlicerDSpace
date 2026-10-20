@@ -7,10 +7,23 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from scripts.collect_module_runtimes import collect_device_measurements, collect_completion_measurements, collect_cst_definition_followup, collect_scientific_closure, device_table, select, bundle_timing_status
+from scripts.collect_module_runtimes import collect, collect_device_measurements, collect_completion_measurements, collect_cst_definition_followup, collect_scientific_closure, collect_one_pass_cohort, collect_wma_acceptance, device_table, select, bundle_timing_status
 
 
 class ModuleRuntimeInventoryTests(unittest.TestCase):
+    def test_new_subject_timing_does_not_inherit_100307_or_ukf_input_claims(self):
+        campaign = self.root / 'campaign'
+        manifest = self.save('campaign/new_orchestration_manifest.json', {
+            'kind': 'slicerddsurfer_product_orchestration', 'execute': True, 'subject_id': '100206',
+            'tasks': [{'name': 'segmentation.ddseg', 'status': 'completed', 'runtime_seconds': 50}],
+        })
+        with patch('scripts.collect_module_runtimes.ROOT', self.root):
+            rows = collect(campaign, self.root / 'absent')
+        result = next(item for item in rows if item['source_record'] == str(manifest))
+        self.assertIn('100206', result['input_scope'])
+        self.assertNotIn('100307', result['input_scope'])
+        self.assertNotIn('UKF', result['input_scope'])
+
     def test_cst_followup_counts_come_from_decoded_products(self):
         from tractography.wmql import WMQL_QC_VERSION
 
@@ -44,6 +57,61 @@ class ModuleRuntimeInventoryTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload), encoding="utf-8")
         return path
+
+    def test_one_pass_times_require_finished_immutable_independent_acceptance(self):
+        manifest = dict(execute=True, status='completed', subject_id='new-subject', tasks=[{
+            'name': 'surface.ddsurfer', 'status': 'completed', 'runtime_seconds': 42}])
+        path = self.save('subject/manifest.json', manifest)
+        subject = dict(subject_id='new-subject', status='passed', attempt=1, return_code=0,
+                       inputs_unchanged=True, independent_audit_passed=True, manifest=str(path))
+        payload = dict(kind='one_pass_cohort_acceptance', status='failed', runtime_unchanged=True,
+                       backend_unchanged=True, subjects=[subject])
+        # Another subject's failure must remain visible, not invalidate this
+        # independently accepted timing or turn the whole cohort green.
+        self.save('acceptance.json', payload)
+        records = collect_one_pass_cohort(self.root)
+        self.assertEqual(self.row(records, 'surface.ddsurfer')['seconds'], 42)
+        self.assertEqual(records[0]['cohort_status'], 'failed')
+        for key, value in (('attempt', 2), ('inputs_unchanged', False),
+                           ('independent_audit_passed', False), ('return_code', 2), ('status', 'failed')):
+            self.save('acceptance.json', dict(payload, subjects=[dict(subject, **{key: value})]))
+            records = collect_one_pass_cohort(self.root)
+            self.assertEqual(records[0]['runtime_seconds'], 42)
+            self.assertEqual(self.row(records, 'surface.ddsurfer')['measurement_status'], 'MISSING')
+        self.save('acceptance.json', dict(payload, subjects=[dict(subject, status='running')]))
+        self.assertEqual(collect_one_pass_cohort(self.root), [])
+        self.save('acceptance.json', payload)
+        self.save('subject/manifest.json', dict(manifest, tasks=manifest['tasks'] * 2))
+        self.assertEqual(self.row(collect_one_pass_cohort(self.root), 'surface.ddsurfer')['measurement_status'], 'MISSING')
+
+    def test_fresh_wma_times_require_all_current_checks_not_only_execution(self):
+        qc = self.save('qc.json', {})
+        audit = {'checks': {'membership': True}, 'input_streamlines': 123,
+                 'source_sha256': 'same-source', 'manifest': str(self.root / 'manifest.json')}
+        independent = self.save('independent.json', audit)
+        payload = dict(subject_id='new-subject', status='passed', automatic_qc_passed=True,
+                       source_unchanged=True, runtime_unchanged=True, wma_seconds=420,
+                       wma_qc=str(qc), independent_audit=str(independent), source_sha256='same-source',
+                       wma_manifest=str(self.root / 'manifest.json'), independent_audit_return_code=0)
+        self.save('acceptance.json', payload)
+        with patch('scripts.collect_module_runtimes.bundle_timing_status', return_value='completed'):
+            row = self.row(collect_wma_acceptance(self.root), 'bundles.wma')
+            self.assertEqual(row['seconds'], 420)
+            self.assertIn('123 source tracks', row['input_scope'])
+            for key in ('source_unchanged', 'runtime_unchanged', 'automatic_qc_passed'):
+                self.save('acceptance.json', dict(payload, **{key: False}))
+                self.assertEqual(self.row(collect_wma_acceptance(self.root), 'bundles.wma')['measurement_status'], 'MISSING')
+            self.save('acceptance.json', payload)
+            self.save('independent.json', dict(audit, checks={'membership': False}))
+            self.assertEqual(self.row(collect_wma_acceptance(self.root), 'bundles.wma')['measurement_status'], 'MISSING')
+            for key, value in (('source_sha256', 'other-source'), ('manifest', str(self.root / 'old.json'))):
+                self.save('independent.json', dict(audit, **{key: value}))
+                self.assertEqual(self.row(collect_wma_acceptance(self.root), 'bundles.wma')['measurement_status'], 'MISSING')
+            self.save('independent.json', audit)
+        with patch('scripts.collect_module_runtimes.bundle_timing_status', return_value='scientific_contract_failed'):
+            records = collect_wma_acceptance(self.root)
+            self.assertEqual(records[0]['runtime_seconds'], 420)
+            self.assertEqual(self.row(records, 'bundles.wma')['measurement_status'], 'MISSING')
 
     def mask(self, seconds, requested="auto", resolved="cuda"):
         return {"status": "pass", "seconds": seconds, "anatomical_review": "pending",

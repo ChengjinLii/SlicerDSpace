@@ -228,7 +228,8 @@ def collect(campaign, verification, device_verification=None):
             records.append(record(name, m.get('subject_id'), task.get('runtime_seconds'), path,
                                   f'tasks[{index}].runtime_seconds', scopes.get(name, 'Recorded task wall time; shared prerequisite caches may already exist'),
                                   status=execution, started_at=task.get('started_at'), ended_at=task.get('ended_at'),
-                                  input_scope='31-volume real DWI' if m.get('subject_id') == 'sub-dicom' else '100k UKF tracks' if name == 'bundles.wma' else 'HCP 100307 / task-specific real inputs'))
+                                  input_scope=('31-volume real DWI' if m.get('subject_id') == 'sub-dicom' else
+                                               f"Subject {m.get('subject_id', 'unknown')} / task-specific inputs; see source manifest")))
     measurements = verification / 'missing_times_slicer/measurements.json'
     if measurements.is_file():
         for index, r in enumerate(read(measurements)['records']):
@@ -406,6 +407,79 @@ def collect_scientific_closure(directory):
     return records
 
 
+def collect_one_pass_cohort(directory):
+    """A completed task is not a successful cold-run benchmark on its own."""
+    source = directory / 'acceptance.json'
+    if not source.is_file():
+        return []
+    payload = read(source)
+    if payload.get('kind') != 'one_pass_cohort_acceptance':
+        raise ValueError(f'Not a one-pass cohort acceptance: {source}')
+    records = []
+    for subject in payload.get('subjects', []):
+        manifest_path = Path(subject.get('manifest') or '')
+        if subject.get('status') not in {'passed', 'failed'} or not manifest_path.is_file():
+            continue
+        manifest = read(manifest_path)
+        accepted = (subject.get('status') == 'passed' and subject.get('attempt') == 1
+                    and subject.get('return_code') == 0 and subject.get('inputs_unchanged') is True
+                    and subject.get('independent_audit_passed') is True
+                    and payload.get('runtime_unchanged') is True and payload.get('backend_unchanged') is True
+                    and manifest.get('execute') is True and manifest.get('status') == 'completed'
+                    and manifest.get('subject_id') == subject.get('subject_id'))
+        tasks = manifest.get('tasks') or []
+        names = [task.get('name') for task in tasks]
+        accepted &= bool(names) and len(names) == len(set(names))
+        for index, task in enumerate(tasks):
+            status = task.get('status', 'unknown')
+            current = accepted and status in SUCCESS
+            if task.get('name') in {'bundles.wmql', 'bundles.wma'}:
+                qc_path = Path(task.get('qc_path') or '')
+                current &= qc_path.is_file() and bundle_timing_status(task['name'], read(qc_path)) in SUCCESS
+            records.append(record(task.get('name'), subject.get('subject_id'), task.get('runtime_seconds'),
+                manifest_path, f'tasks[{index}].runtime_seconds',
+                'Fresh fixed-protocol one-pass cohort task; acceptance includes independent audit and unchanged sources/runtime. '
+                'DTI may reuse the shared prerequisite fit; task time is not isolated fresh tensor fitting.',
+                status=status if current else 'cohort_acceptance_failed', priority=50,
+                evidence='one_pass_cohort_task', anatomical_review='pending',
+                input_scope=f"Subject {subject.get('subject_id')} / {directory.name}; see frozen protocol",
+                started_at=task.get('started_at'), original_status=status,
+                cohort_status=payload.get('status'), subject_acceptance=subject.get('status'),
+                cohort_record=str(source.resolve()), cohort_record_sha256=hashlib.sha256(source.read_bytes()).hexdigest()))
+    return records
+
+
+def collect_wma_acceptance(directory):
+    source = directory / 'acceptance.json'
+    if not source.is_file():
+        return []
+    payload = read(source)
+    seconds = payload.get('wma_seconds')
+    if seconds is None:
+        return []
+    qc_path = Path(payload.get('wma_qc') or '')
+    audit_path = Path(payload.get('independent_audit') or '')
+    qc = read(qc_path) if qc_path.is_file() else {}
+    independent = read(audit_path) if audit_path.is_file() else {}
+    checks = independent.get('checks') or {}
+    passed = (payload.get('status') == 'passed' and payload.get('automatic_qc_passed') is True
+              and payload.get('source_unchanged') is True and payload.get('runtime_unchanged') is True
+              and payload.get('independent_audit_return_code') == 0
+              and bool(payload.get('source_sha256')) and independent.get('source_sha256') == payload.get('source_sha256')
+              and bool(payload.get('wma_manifest'))
+              and Path(independent.get('manifest') or '').resolve() == Path(payload['wma_manifest']).resolve()
+              and bool(checks) and all(value is True for value in checks.values())
+              and bundle_timing_status('bundles.wma', qc) in SUCCESS)
+    return [record('bundles.wma', payload.get('subject_id'), seconds, source, 'wma_seconds',
+        'Complete fresh author registration/classification plus wrapper QC; no prior transform reuse. '
+        'Not the paired preprocessing-only speedup; anatomical review pending.',
+        status='completed' if passed else 'current_acceptance_failed', priority=50,
+        evidence='fresh_wma_acceptance', anatomical_review=payload.get('human_review'),
+        input_scope=f"{independent.get('input_streamlines', 'unverified')} source tracks / {directory.name}",
+        independent_record=str(audit_path.resolve()) if audit_path.is_file() else None,
+        independent_sha256=hashlib.sha256(audit_path.read_bytes()).hexdigest() if audit_path.is_file() else None)]
+
+
 def select(records):
     rows = []
     for module, en, zh in CATALOG:
@@ -437,6 +511,8 @@ def main():
     parser.add_argument('--completion-verification', type=Path, default=ROOT / 'ignore/validation/pipeline_completion_20261015')
     parser.add_argument('--cst-verification', type=Path, default=ROOT / 'ignore/validation/wmql_cst_20261015')
     parser.add_argument('--scientific-closure', type=Path, default=ROOT / 'ignore/validation/scientific_closure_20261015')
+    parser.add_argument('--one-pass-cohort', type=Path, action='append', default=[], help='Additional frozen one-pass acceptance directories; failed attempts stay in the ledger')
+    parser.add_argument('--wma-acceptance', type=Path, action='append', default=[], help='Additional fresh WMA acceptance directories; independent current QC is required')
     parser.add_argument('--output-dir', required=True, type=Path)
     parser.add_argument('--documentation-dir', type=Path)
     args = parser.parse_args()
@@ -449,6 +525,10 @@ def main():
     records.extend(collect_completion_measurements(args.completion_verification))
     records.extend(collect_cst_definition_followup(args.cst_verification))
     records.extend(collect_scientific_closure(args.scientific_closure))
+    for directory in dict.fromkeys(args.one_pass_cohort):
+        records.extend(collect_one_pass_cohort(directory))
+    for directory in dict.fromkeys(args.wma_acceptance):
+        records.extend(collect_wma_acceptance(directory))
     if args.scalar_verification:
         source = args.scalar_verification / 'acceptance.json'
         if source.is_file():
@@ -472,6 +552,7 @@ def main():
         writer.writeheader()
         writer.writerows(rows)
     result = dict(generated_at=datetime.now(timezone.utc).isoformat(), modules=rows, records=records,
+                  generation_command=[sys.executable, *sys.argv], report_date=args.report_date,
                   report_host=_report_generation_system(),
                   notes=['READY means a scoped timing exists, not scientific accuracy certification.',
                          'Do not sum these rows: inputs, subjects, cached prerequisites and versions differ.',
@@ -515,7 +596,7 @@ def main():
                 '- DKI/MK-Curve 只有完整独立验收通过后才采用实测全脑时间；旧 64/8 体素记录保留且不外推。MK-Curve 计时不表示全部体素有效。\n'
                 '- DTI 参数导出行复用已经拟合的张量；全新 DTI 行包含拟合与六指标转换，两者不混淆。\n'
                 '- 表面后处理只有新版独立完整验收通过后才替换历史计时；范围和版本以 JSON 来源为准。\n'
-                '- CSD/ACT/SIFT2 是组合阶段；没有伪造其中 FOD、ACT、SIFT2 的独立计时。\n'
+                '- 本表的历史 CSD/ACT/SIFT2 为组合阶段，不反推独立时间；新版运行在 manifest/QC 中逐步记录实际命令、转换和输出检查的耗时及失败位置。\n'
                 '- Slicer 加载时间包含独立坐标对照，排除启动和束提取。新全脑 DTI 测试进程总时间 165.7 秒，不冒充 136 秒拟合计时。\n'
                 '- 不同被试、输入规模、缓存、线程、版本与当时负载不可直接横比或相加；历史硬件/线程缺记录时不从当前机器反推。\n'
                 '- PNL 主表采用默认 Auto GPU 实测，而非最快一次；CPU 对照、显式 CUDA 重复和旧 CPU 346.7 秒记录均保留在 JSON。本轮 CPU 已约 79 秒，不能声称相对历史记录的四倍 GPU 加速。\n'
@@ -528,7 +609,7 @@ def main():
                 '- DKI/MK-Curve use full-brain times only after independent acceptance; historical 64/8-voxel records remain, never extrapolated. MK-Curve timing does not imply every voxel is valid.\n'
                 '- DTI scalar export reuses a fitted tensor; fresh DTI includes fitting and six scalar conversions.\n'
                 '- A new surface-postprocessing time replaces the historical record only after independent full-route acceptance; JSON records identify the actual scope/version.\n'
-                '- CSD/ACT/SIFT2 is a combined stage; no individual FOD/ACT/SIFT2 timings are invented.\n'
+                '- The historical CSD/ACT/SIFT2 row is combined, without inferred substep times. New runs persist actual command, conversion and output-validation phase durations/failures in manifest/QC.\n'
                 '- Slicer loading includes independent coordinate comparison but excludes startup/extraction. The 165.7 s DTI acceptance process is not confused with the 136 s fitting measurement.\n'
                 '- Different subjects, sizes, caches, threads, versions and concurrent load cannot be compared or summed directly. Missing historical hardware/thread metadata is not inferred.\n'
                 '- The PNL representative is the default Auto GPU run, not the fastest repeat. CPU reference, explicit CUDA repeat and historical 346.7 s CPU time remain in JSON. The new CPU time is already about 79 s: no fourfold GPU speedup is claimed.\n'

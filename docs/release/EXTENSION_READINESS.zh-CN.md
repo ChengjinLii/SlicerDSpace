@@ -8,9 +8,10 @@
 
 </div>
 
-最新记录见[2026-10-12 复核](DISTRIBUTION_VALIDATION_20261012.md)，
+最新记录见[2026-10-16 复核](QC_FOLLOWUP_20261016.zh-CN.md)，
+历史记录见[2026-10-12 复核](DISTRIBUTION_VALIDATION_20261012.md)，
 前一轮见[2026-10-11 分发验证](DISTRIBUTION_VALIDATION_20261011.md)。
-分别列出已通过的本地检查和未完成的真实 SDK 验收。
+分别列出已通过的本地检查和各轮尚未完成的验收。
 
 目标是通过门禁后申请 Tier 1，不代表已获 Slicer 批准。
 仓库保持私有；构建工具不自动公开仓库、不提交 Index PR、不上传扩展包。
@@ -43,20 +44,28 @@ python3 scripts/audit_extension_package.py ignore/release-test/SlicerDDSurfer.ta
 
 ~~~bash
 python3 scripts/build_slicer_sdk.py --slicer-dir /path/to/Slicer-build \
-  --build-dir ignore/sdk-release-linux --package-generator TGZ
+  --build-dir ignore/sdk-release-linux --package-generator TGZ \
+  --unit-test-python /path/to/test-env/bin/python
 ~~~
 
 Windows 使用 ZIP。脚本执行配置、构建、CTest、CPack 和包内容检查，
 在 sdk_build_report.json 保留命令、返回码与日志位置。
 SDK 缺失标记为 BLOCKED，不能显示为通过；不会隐式下载模型。
 
+从终端运行，并在指定的独立 Python 中准备后端测试依赖。后端单元测试不在嵌入式
+Slicer 内执行，通用／原生模块测试仍使用真实 SDK 应用。Linux 无显示环境需提供
+显示服务，例如在构建命令前使用 `xvfb-run -a`。
+
 手动 **Slicer SDK** Actions workflow 需要可信 self-hosted Linux/Windows/macOS
 runner，标签含 <code>slicer-sdk</code>，并配置 SLICER_SDK_DIR。
 不同平台目录不同可分别运行。不要让不可信 PR 在这些机器执行。
 常规 CI 中三平台轻量资源检查与真实 SDK 验收分开。
 
-**目前边界：** 本次不声称完成真实 SDK 或 Windows/macOS 原生科学验收。
-CMake 合同测试用明确标识的最小 SDK stub，仅测试安装规则。
+**10 月 16 日证据：** 真实 Linux Slicer v5.10.0 superbuild、扩展配置／构建、
+128 项 CTest、CPack 及 460 项资源哈希审计通过。实际 CPack 包通过隔离设置的
+Extension Manager 安装，不加入开发模块路径；DTI 缓存／区域表及真实束加载、
+失败结果拒绝检查通过。科学依赖和 SlicerDMRI 已预配置，不能说是空白机器全流程、
+Windows／macOS 原生验收或解剖认证。最小 SDK stub 仍仅是合同测试夹具。
 
 ---
 
@@ -84,7 +93,8 @@ staging、旧源码测试或已配置好的工作站不能替代这种验收。
 | LICENSE.txt 与 Index JSON | 已准备；Tier 1 仅为草稿 |
 | 简洁界面中英文指南及截图来源 | 已准备 |
 | 仓库公开、公开图标/截图 URL、GitHub topic | 按用户要求暂缓；公开提交前必须处理 |
-| 真实 SDK/CPack 与平台干净安装 | 待独立证据 |
+| Linux 真实 SDK／CPack 与隔离安装 | 已通过记录所述限定路线，不等于空白机器全流程 |
+| Windows／macOS 原生 SDK 及科学流程 | 未验收 |
 | 第三方源码许可 | BWH conversion、MGH FreeSurfer、DDSurfer MIT 与 PyTorch3D BSD 声明已补齐并校验；不等于全面法律认证 |
 | 权重/模板/测试数据再分发 | 未确认组不能进入公开资产归档 |
 | 真实数据教程及 Sample Data 注册 | 未完成 |

@@ -24,6 +24,8 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 | [GPU execution](setup/GPU_EXECUTION.md) | GPU-preferred neural inference, explicit CPU choices and CPU-only route boundaries |
 | [Managed setup](setup/MANAGED_SETUP.md) | Selected MRtrix/FSL installation, automatic paths and default model directories |
 | [Microstructure](setup/MICROSTRUCTURE.md) | DTI default, independent FW/NODDI/DKI and original MK-Curve boundary |
+| [UKF tractography](setup/UKF.md) | Optional author extension, defaults, lossless input and automatic WMA handoff |
+| [Regional analysis](setup/REGIONAL_ANALYSIS.md) | Optional Advanced region selection, scalar statistics, ROI streamlines and unchanged-weight subgraphs |
 | [Automatic results](setup/AUTOMATIC_RESULTS.md) | Current-run loading and RAS VTK display previews |
 | [Settings](setup/USER_CONFIG.md) | Persistent GUI/CLI configuration |
 | [Linux](setup/LINUX_HPC.md), [Windows](setup/WINDOWS.md), [macOS](setup/MACOS.md) | Platform-specific setup and limitations |

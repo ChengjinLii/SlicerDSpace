@@ -10,7 +10,9 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -93,6 +95,29 @@ class CSDActResult:
 def _emit(message: str, log: Optional[Callable[[str], None]] = None) -> None:
     if log:
         log(message)
+
+
+@contextmanager
+def _timed_step(records, name, persist, command=None):
+    """Persist partial progress without changing the command or its RNG state."""
+    entry = {'step': name, 'index': len(records), 'status': 'running',
+             'started_at': datetime.now(timezone.utc).isoformat(),
+             'command': list(command) if command is not None else None}
+    records.append(entry)
+    started = time.monotonic()
+    persist()
+    try:
+        yield entry
+    except BaseException as exc:
+        entry.update(status='failed', error=str(exc), return_code=getattr(exc, 'returncode', None))
+        raise
+    else:
+        if entry['status'] == 'running':
+            entry['status'] = 'completed'
+    finally:
+        entry.update(elapsed_seconds=time.monotonic() - started,
+                     ended_at=datetime.now(timezone.utc).isoformat())
+        persist()
 
 
 def _file_info(path: Path) -> dict[str, object]:
@@ -197,6 +222,7 @@ def reproducibility_record(config: CSDActConfig) -> dict[str, object]:
         "nthreads_requested": config.nthreads,
         "tckgen_nthreads": threads,
         "tckgen_nthreads_pinned_for_seed": seeded,
+        "pretracking_nthreads": config.nthreads,
         "tcksift2_nthreads": config.nthreads,
         "tckgen_bit_reproducible": bool(seeded and threads == 0),
         "note": (
@@ -337,6 +363,11 @@ def build_csd_act_commands(config: CSDActConfig) -> tuple[tuple[str, ...], ...]:
                 "-force",
             )
         )
+    if config.nthreads is not None:
+        commands = [
+            command if "-nthreads" in command else (*command, "-nthreads", str(config.nthreads))
+            for command in commands
+        ]
     return tuple(commands)
 
 
@@ -535,6 +566,7 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
         "version": CSD_ACT_MANIFEST_VERSION,
         "subject_id": config.subject_id,
         "executed": bool(config.execute),
+        "working_directory": output_dir.as_posix(),
         "status": "running" if config.execute else "planned",
         "backend": backend_status,
         "parameters": {
@@ -613,6 +645,14 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
 
     return_code: Optional[int] = None
     error: Optional[str] = None
+    phase_timings: list[dict[str, object]] = []
+    manifest['phase_timings'] = phase_timings
+    qc['phase_timings'] = phase_timings
+    def persist_timings():
+        temporary = manifest_path.with_suffix('.json.tmp')
+        temporary.write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+        temporary.replace(manifest_path)
+
     start = time.monotonic()
     if config.execute:
         if not backend_status["available"]:
@@ -628,21 +668,22 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
         try:
             for command in commands:
                 _emit(f"[Tractography] Running MRtrix CSD/ACT command: {' '.join(command)}", log)
-                completed = subprocess.run(command, check=True, env=command_env)
-                return_code = completed.returncode
+                with _timed_step(phase_timings, Path(command[0]).name, persist_timings, command) as phase:
+                    completed = subprocess.run(command, check=True, env=command_env, cwd=output_dir)
+                    return_code = completed.returncode
+                    phase['return_code'] = return_code
             if config.export_trk and tractogram_trk is not None:
                 _emit(f"[Tractography] Exporting ACT TCK to TRK for WMQL: {tractogram_trk}", log)
-                export_tck_to_trk(tractogram, config.dwi_path, tractogram_trk)
-            scientific_summary, validation_error = _validate_generated_outputs(
-                config,
-                tractogram,
-                tractogram_trk,
-                tractogram_vtk,
-                weights,
-            )
-            qc["scientific_output_summary"] = scientific_summary
-            if validation_error is not None:
-                error = validation_error
+                with _timed_step(phase_timings, 'export_tck_to_trk', persist_timings):
+                    export_tck_to_trk(tractogram, config.dwi_path, tractogram_trk)
+            with _timed_step(phase_timings, 'scientific_output_validation', persist_timings) as phase:
+                scientific_summary, validation_error = _validate_generated_outputs(
+                    config, tractogram, tractogram_trk, tractogram_vtk, weights,
+                )
+                qc["scientific_output_summary"] = scientific_summary
+                if validation_error is not None:
+                    error = validation_error
+                    phase.update(status='failed', error=validation_error)
         except subprocess.CalledProcessError as exc:
             return_code = exc.returncode
             error = str(exc)
@@ -666,6 +707,7 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
         )
         manifest["status"] = qc["status"]
         manifest["return_code"] = return_code
+        manifest['runtime_seconds'] = qc['elapsed_seconds']
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if error is not None:
