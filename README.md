@@ -142,6 +142,13 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   fails on a copy of its `site.js` without the `to &&` test (the menu closes).
 - r4 B4 (P3): SPEC §9 has no line for the N2/N3 edits to §4 and §5.3.
 
+### Review of the r4 B1 fix (commit c08a743; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus review; Codex found nothing):
+- r5 1 (P3): the three film-end focus checks do not prove that the film ended. `toEnd()` swallows its wait timeout, and
+  for the r4 B1 check `<body>` is also the state before the end, so a failed seek would pass it on old code too. The
+  reviewer's probe saw `ended: true`. Fix idea: record `video.ended` and the visible play button, and require both.
+
 
 ## Image crop boxes as finally used
 
