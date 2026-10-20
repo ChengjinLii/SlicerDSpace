@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SlicerDDSurfer — Brain anatomy from diffusion MRI, inside 3D Slicer</title>
+<meta name="description" content="SlicerDDSurfer brings diffusion-MRI anatomical reconstruction, microstructural mapping and white-matter connectivity analysis into one 3D Slicer module.">
+<meta name="theme-color" content="#06080b">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="SlicerDDSurfer — Brain anatomy from diffusion MRI, inside 3D Slicer">
+<meta property="og:description" content="SlicerDDSurfer brings diffusion-MRI anatomical reconstruction, microstructural mapping and white-matter connectivity analysis into one 3D Slicer module.">
+<meta property="og:url" content="https://chengjinlii.github.io/SlicerDDSurfer/">
+<meta property="og:image" content="https://chengjinlii.github.io/SlicerDDSurfer/assets/img/social.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://chengjinlii.github.io/SlicerDDSurfer/">
+<link rel="icon" type="image/png" href="assets/img/icon-64.png">
+<link rel="apple-touch-icon" href="assets/img/icon-180.png">
+<link rel="preload" href="assets/fonts/InterTight.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/css/site.css">
+<script>document.documentElement.classList.add('js');</script>
+<script src="assets/js/site.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header" id="site-header">
+  <div class="header-inner">
+    <a class="brand" href="#top" aria-label="SlicerDDSurfer, back to top">
+      <img src="assets/img/icon-64.png" alt="SlicerDDSurfer icon" width="28" height="28" loading="lazy">
+      <span>SlicerDDSurfer</span>
+    </a>
+    <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">
+      <span class="menu-icon" aria-hidden="true"></span>
+      <span>Menu</span>
+    </button>
+    <nav class="site-nav" id="site-nav" aria-label="Sections">
+      <ul>
+        <li><a href="#film">Film</a></li>
+        <li><a href="#idea">Idea</a></li>
+        <li><a href="#outputs">Outputs</a></li>
+        <li><a href="#workflows">Workflows</a></li>
+        <li><a href="#slicer">In Slicer</a></li>
+        <li><a href="#status">Status</a></li>
+        <li><a href="#start">Get started</a></li>
+        <li><a href="#cite">Cite</a></li>
+      </ul>
+      <span class="chip chip-status"><span class="dot" aria-hidden="true"></span>Private pre-release</span>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero" id="top">
+  <div class="container">
+    <p class="eyebrow">3D Slicer module · Diffusion MRI</p>
+    <h1>Brain anatomy from diffusion MRI, inside 3D Slicer.</h1>
+    <p class="lead">SlicerDDSurfer reconstructs tissue labels, brain regions and cortical surfaces directly from diffusion MRI, with no T1-weighted scan needed at analysis time. The same module maps microstructure, traces white-matter pathways and builds structural connectomes.</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="#film" data-play-film>
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>
+        Watch the film
+      </a>
+      <a class="btn btn-secondary" href="#start">Get started</a>
+    </div>
+    <p class="status-line">Research software · Private pre-release · BSD-3-Clause code</p>
+  </div>
+</section>
+
+<section class="section film-section reveal" id="film">
+  <h2 class="sr-only">Film</h2>
+  <div class="container">
+    <div class="film-wrap">
+      <div class="film-frame" id="film-frame">
+        <video id="film-video" controls playsinline preload="metadata" poster="assets/img/poster.jpg" width="1920" height="1080" aria-label="SlicerDDSurfer film, 65 seconds, narrated, with subtitles in the picture">
+          <source src="media/SlicerDDSurfer_promo_1080p.mp4" type="video/mp4">
+          <a href="media/SlicerDDSurfer_promo_1080p.mp4" download>Download the film (MP4)</a>
+        </video>
+      </div>
+    </div>
+    <p class="meta-row">
+      <span>64.8 s · 1920 × 1080 · narrated · subtitles in the picture</span>
+      <a href="media/SlicerDDSurfer_promo_1080p.mp4" download>Download MP4 (41 MB)</a>
+      <a href="media/SlicerDDSurfer.en.srt" download>Subtitles (.srt)</a>
+    </p>
+    <details class="transcript" id="transcript">
+      <summary>Transcript</summary>
+      <ol>
+        <li>Diffusion MRI records how water moves through the living brain.</li>
+        <li>Mapping anatomy has usually meant a second, T1-weighted scan, registered into diffusion space.</li>
+        <li>SlicerDDSurfer reconstructs anatomy directly from diffusion MRI, without a T1-weighted scan.</li>
+        <li>It maps microstructure, from DTI to free water, NODDI and kurtosis.</li>
+        <li>Tissue labels.</li>
+        <li>Brain regions.</li>
+        <li>White and pial surfaces,</li>
+        <li>all in native diffusion space.</li>
+        <li>Whole-brain tractography, traced in the same native space.</li>
+        <li>And structural connectomes, built on the same anatomy.</li>
+        <li>One 3D Slicer module, with automatic QC and a record of every run.</li>
+        <li>SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer.</li>
+      </ol>
+    </details>
+    <p class="note">The film shows one SlicerDDSurfer run on one public dataset (EDDEN sub-01). Free water, NODDI and kurtosis are optional routes; they were not run for the film.</p>
+  </div>
+</section>
+
+<section class="section reveal" id="idea">
+  <div class="container split">
+    <div class="split-text">
+      <p class="eyebrow">The idea</p>
+      <h2>Anatomy from the diffusion scan itself.</h2>
+      <p>Mapping anatomy for a diffusion study has usually meant a second, T1-weighted scan, registered into diffusion space.</p>
+      <p>SlicerDDSurfer works from the diffusion scan. DDSeg labels tissue, DDParcel labels brain regions and DDSurfer builds white and pial surfaces, all in native diffusion space.</p>
+      <div class="panel input-card">
+        <h3 class="card-title">Canonical input</h3>
+        <pre class="code-block"><code>sub-01/
+  input/
+    data.nii.gz
+    bvals
+    bvecs
+    nodif_brain_mask.nii.gz   # optional; generation needs a supported backend</code></pre>
+        <p class="caption">A DWI series, its gradient files and an optional brain mask. DWI and mask must share one voxel grid.</p>
+      </div>
+      <p class="small muted">‘No T1-weighted scan’ describes analysis time. The models were trained with labels derived from T1-weighted MRI.</p>
+    </div>
+    <figure class="split-media">
+      <img src="assets/img/idea.jpg" width="1400" height="729" loading="lazy" alt="DWI slice, “registration” arrow, “+ T1-weighted scan” card">
+      <figcaption>From the film: the usual route registers a separate T1-weighted scan into diffusion space.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section section-alt reveal" id="outputs">
+  <div class="container">
+    <p class="eyebrow">One subject, one space</p>
+    <h2>From one diffusion dataset to six kinds of result.</h2>
+    <p class="intro">Every image here is a frame from the film. Each shows output from one SlicerDDSurfer run on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. The run used the b = 0 and b ≈ 1000 volumes (117 of 297).</p>
+    <div class="gallery">
+      <article class="tile">
+        <img src="assets/img/out-dec.jpg" width="1200" height="900" loading="lazy" alt="DEC map on three planes">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DTI</span> · <span class="chip-q">microstructure</span></p>
+          <h3>Direction-encoded colour</h3>
+          <p>Principal diffusion direction weighted by FA, from the DTI fit.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-tissue.jpg" width="1200" height="900" loading="lazy" alt="DDSeg tissue labels">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DDSeg</span> · <span class="chip-q">tissue</span></p>
+          <h3>Tissue labels</h3>
+          <p>White matter, grey matter and CSF, predicted from DTI features.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-regions.jpg" width="1200" height="900" loading="lazy" alt="DDParcel regions">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DDParcel</span> · <span class="chip-q">regions</span></p>
+          <h3>Brain regions</h3>
+          <p>Anatomical regions labelled in the diffusion volume.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-surfaces.jpg" width="1200" height="900" loading="lazy" alt="DDSurfer pial surface">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DDSurfer</span> · <span class="chip-q">surfaces</span></p>
+          <h3>White and pial surfaces</h3>
+          <p>Cortical surface meshes in native diffusion space.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-tracts.jpg" width="1200" height="900" loading="lazy" alt="Tractography">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">Tractography</span> · <span class="chip-q">DTI</span></p>
+          <h3>Whole-brain tractography</h3>
+          <p>Deterministic DTI tractography. Shown: a display subset of 24,000 of 130,780 streamlines.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-connectome.jpg" width="1200" height="900" loading="lazy" alt="Connectome nodes/edges and matrix">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">Connectome</span> · <span class="chip-q">DDParcel nodes</span></p>
+          <h3>Structural connectome</h3>
+          <p>The 260 strongest of 854 edges are drawn; the matrix shows all 84 × 84 nodes.</p>
+        </div>
+      </article>
+    </div>
+    <p class="note">Colours, subsets and upsampling are display choices; they change the look, not the data. Automatic QC passed for the DTI, DDSeg, DDParcel and DDSurfer stages. No expert has reviewed these outputs.</p>
+  </div>
+</section>
+
+<section class="section reveal" id="workflows">
+  <div class="container">
+    <p class="eyebrow">Workflows</p>
+    <h2>One module, five workflow families.</h2>
+    <p class="intro">Select only the products you need. Install dependencies for the route you select, not for every possible product.</p>
+    <div class="wf-grid">
+      <article class="wf-card">
+        <p class="wf-num">01</p>
+        <h3>Input preparation</h3>
+        <dl>
+          <dt>Products</dt>
+          <dd>DICOM/NIfTI/NRRD import, gradient validation, optional mask generation and preprocessing</dd>
+          <dt>Needs</dt>
+          <dd>Appropriate import/preprocessing backend</dd>
+        </dl>
+      </article>
+      <article class="wf-card">
+        <p class="wf-num">02</p>
+        <h3>Anatomical reconstruction</h3>
+        <dl>
+          <dt>Products</dt>
+          <dd>DDSeg tissue labels, DDParcel regions, DDSurfer white/pial surfaces</dd>
+          <dt>Needs</dt>
+          <dd>Matching model assets, PyTorch and SlicerDMRI for the selected route</dd>
+        </dl>
+      </article>
+      <article class="wf-card">
+        <p class="wf-num">03</p>
+        <h3>Microstructural analysis</h3>
+        <dl>
+          <dt>Products</dt>
+          <dd>DTI FA/MD/AD/RD, optional Free-water, NODDI and DKI, regional summaries</dd>
+          <dt>Needs</dt>
+          <dd>Route-specific packages and acquisition suitability checks</dd>
+        </dl>
+      </article>
+      <article class="wf-card">
+        <p class="wf-num">04</p>
+        <h3>White-matter pathways</h3>
+        <dl>
+          <dt>Products</dt>
+          <dd>DTI/CSD tractography, ACT/SIFT2, SAF, WMQL/WMA/TractCloud bundles</dd>
+          <dt>Needs</dt>
+          <dd>Backend-specific tools and assets</dd>
+        </dl>
+      </article>
+      <article class="wf-card">
+        <p class="wf-num">05</p>
+        <h3>Structural connectivity</h3>
+        <dl>
+          <dt>Products</dt>
+          <dd>Regional matrices, Slicer scene inspection, QC and provenance</dd>
+          <dt>Needs</dt>
+          <dd>Compatible parcellation and tractogram; SIFT2 weights for weighted routes</dd>
+        </dl>
+      </article>
+    </div>
+    <ul class="note-row">
+      <li class="n-red"><span class="n-icon" aria-hidden="true"></span><span>Microstructure runs DTI only by default. Free-water, NODDI and DKI are each enabled independently under Advanced.</span></li>
+      <li class="n-green"><span class="n-icon" aria-hidden="true"></span><span>MRtrix3, FSL, FreeSurfer and advanced bundle backends are optional and are not installed silently.</span></li>
+      <li class="n-blue"><span class="n-icon" aria-hidden="true"></span><span>A missing backend is reported, never silently replaced.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section section-alt reveal" id="slicer">
+  <div class="container">
+    <p class="eyebrow">In 3D Slicer</p>
+    <h2>One 3D Slicer module, with QC and a record of every run.</h2>
+    <figure class="panel shot">
+      <img src="assets/img/slicer.jpg" width="1920" height="1080" loading="lazy" alt="Real 3D Slicer screenshot from the film">
+      <figcaption>From the film: a real screenshot of 3D Slicer 5.12.4 with the SlicerDDSurfer module and the results of the EDDEN run, loaded into the scene by the module. A capture script filled in the inputs and ticked the products to match the run; the run itself was started from the command line.</figcaption>
+    </figure>
+    <div class="slicer-grid">
+      <div>
+        <h3 class="card-title">A run in six steps</h3>
+        <ol class="steps">
+          <li>Open SlicerDDSurfer from the module selector and choose English or Chinese.</li>
+          <li>Enter the Subject ID, the subject root and, if you like, a separate output directory.</li>
+          <li>Tick only the products you need.</li>
+          <li>In Advanced settings, set routes, dependencies and models, and check the environment.</li>
+          <li>Click Run SlicerDDSurfer. Missing inputs turn red; the log says what to correct.</li>
+          <li>Key results from successful stages load into the scene. Review QC, reload, replace or clear them in Advanced settings › Results and QC.</li>
+        </ol>
+      </div>
+      <aside class="panel side-note">
+        <h3 class="card-title">From the command line</h3>
+        <p>Check inputs and the environment without running any algorithm:</p>
+        <div class="code" data-code>
+          <div class="code-head"><span>shell</span><button class="copy" type="button" hidden>Copy</button></div>
+          <pre><code>python3 run_subject_pipeline.py --subject-root /path/to/sub-01 --targets validation,microstructure --microstructure-stages dti --doctor</code></pre>
+        </div>
+        <p>Use <code>--plan</code> instead of <code>--doctor</code> to write a run plan.</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="status">
+  <div class="container">
+    <p class="eyebrow">Status</p>
+    <h2>Research software, stated plainly.</h2>
+    <div class="status-grid">
+      <article class="panel status-col s-green">
+        <h3>Recorded</h3>
+        <ul>
+          <li>Linux real-data and GUI evidence is documented for specific checkouts, routes and datasets.</li>
+          <li>The compact interface has its own UI validation record.</li>
+        </ul>
+      </article>
+      <article class="panel status-col s-orange">
+        <h3>Not certified</h3>
+        <ul>
+          <li>Native Windows and macOS scientific workflows.</li>
+          <li>Three-platform SDK builds.</li>
+        </ul>
+      </article>
+      <article class="panel status-col s-blue">
+        <h3>Not yet released</h3>
+        <ul>
+          <li>Private pre-release; not in the official Extensions Catalog.</li>
+          <li>The Extension Index JSON is a draft Tier 1 proposal, not a submitted catalog entry and not acceptance by Slicer.</li>
+          <li>Public source access, third-party licence clearance and asset redistribution review remain release gates.</li>
+        </ul>
+      </article>
+    </div>
+    <div class="origins">
+      <h3 class="card-title">Implementation origins</h3>
+      <p>DDSeg is a MATLAB-to-Python/PyTorch reimplementation. SAF and MK-Curve are unofficial Python ports of author MATLAB methods. PNL CNN masking invokes the author’s existing Python backend, not a rewritten PNL pipeline. DDSurfer runs bundled upstream Python code.</p>
+      <p><a class="link-arrow" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/architecture/IMPLEMENTATION_PROVENANCE.md" target="_blank" rel="noopener">Implementation provenance and verification limits</a></p>
+    </div>
+    <p class="panel callout callout-warn">A completed run is not a clinical assessment or proof of scientific correctness.</p>
+  </div>
+</section>
+
+<section class="section section-alt reveal" id="start">
+  <div class="container">
+    <p class="eyebrow">Get started</p>
+    <h2>Install from source.</h2>
+    <p class="panel callout callout-info">The repository and its model-asset repository are private during pre-release. Use an authorized checkout; links into the repository need access.</p>
+    <ol class="start-steps">
+      <li class="start-step">
+        <div class="start-body">
+          <h3>Stage the extension</h3>
+          <div class="code" data-code>
+            <div class="code-head"><span>bash</span><button class="copy" type="button" hidden>Copy</button></div>
+            <pre><code>git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
+cd SlicerDDSurfer
+python3 scripts/stage_slicer_extension.py \
+  --install-root ~/SlicerDDSurfer-extension --link-mode copy --clean</code></pre>
+          </div>
+          <p>Set <code>--slicer-version</code> to your Slicer version. This is a source/staging installation, not an official CPack release.</p>
+        </div>
+      </li>
+      <li class="start-step">
+        <div class="start-body">
+          <h3>Add the module path</h3>
+          <p>In Edit › Application Settings › Modules, add the expanded absolute path of <code>~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules</code> to Additional module paths, then restart Slicer. Local GUI validation uses Slicer 5.10.</p>
+        </div>
+      </li>
+      <li class="start-step">
+        <div class="start-body">
+          <h3>Add the extensions your routes need</h3>
+          <p>Install SlicerDMRI and PyTorch from Slicer’s Extension Manager.</p>
+        </div>
+      </li>
+      <li class="start-step">
+        <div class="start-body">
+          <h3>Get the model files</h3>
+          <p>Review the asset terms first, then download only the profile you need to a writable folder outside the checkout:</p>
+          <div class="code" data-code>
+            <div class="code-head"><span>bash</span><button class="copy" type="button" hidden>Copy</button></div>
+            <pre><code>python3 scripts/download_model_assets.py --profile surface \
+  --asset-root ~/SlicerDDSurfer-model-assets --source url \
+  --source-id slicerdsurfer_models_git</code></pre>
+          </div>
+          <p>Availability and SHA256 verification do not establish redistribution rights.</p>
+        </div>
+      </li>
+      <li class="start-step">
+        <div class="start-body">
+          <h3>Prepare the input</h3>
+          <p>Use the canonical layout shown above. Gradient files must match the DWI measurements; corrected gradients must accompany motion-corrected DWI.</p>
+        </div>
+      </li>
+    </ol>
+    <ul class="doc-links">
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/setup/QUICKSTART.md" target="_blank" rel="noopener">Quick Start</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/setup/SUPPORT_MATRIX.md" target="_blank" rel="noopener">Support matrix</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/assets/MODEL_ASSET_TERMS.md" target="_blank" rel="noopener">Model asset terms</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer" target="_blank" rel="noopener">Repository</a></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section reveal" id="cite">
+  <div class="container">
+    <p class="eyebrow">Cite</p>
+    <h2>Cite the software and the methods you use.</h2>
+    <p class="intro">The SlicerDDSurfer protocol manuscript is in preparation. Cite the tested software version using <a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/CITATION.cff" target="_blank" rel="noopener">CITATION.cff</a>, together with the methods actually used.</p>
+    <div class="paper-grid">
+      <article class="panel paper">
+        <p class="chip"><span class="chip-name">DDSurfer</span></p>
+        <h3>DDSurfer: A Weakly-Supervised Dual-Stream Deep Learning Framework for Cortical Surface Reconstruction From Diffusion MRI.</h3>
+        <p class="authors">Chengjin Li, Wei Zhang, Xi Zhu, Yuqian Chen, Nir A. Sochen, Jarrett Rushmore, Carl-Fredrik Westin, Yogesh Rathi, Lauren J. O’Donnell, Ofer Pasternak, Fan Zhang.</p>
+        <p class="venue">Advanced Science, 2026, e76596.</p>
+        <p><a class="doi" href="https://doi.org/10.1002/advs.76596" target="_blank" rel="noopener">DOI 10.1002/advs.76596</a></p>
+      </article>
+      <article class="panel paper">
+        <p class="chip"><span class="chip-name">DDSeg</span></p>
+        <h3>Deep learning based segmentation of brain tissue from diffusion MRI.</h3>
+        <p class="authors">Fan Zhang, Anna Breger, Kang Ik Kevin Cho, Lipeng Ning, Carl-Fredrik Westin, Lauren J. O’Donnell, Ofer Pasternak.</p>
+        <p class="venue">NeuroImage, 2021, 233, 117934.</p>
+        <p><a class="doi" href="https://doi.org/10.1016/j.neuroimage.2021.117934" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2021.117934</a></p>
+      </article>
+      <article class="panel paper">
+        <p class="chip"><span class="chip-name">DDParcel</span></p>
+        <h3>DDParcel: Deep Learning Anatomical Brain Parcellation From Diffusion MRI.</h3>
+        <p class="authors">Fan Zhang, Kang Ik Kevin Cho, Johanna Seitz-Holland, Lipeng Ning, Jon Haitz Legarreta, Yogesh Rathi, Carl-Fredrik Westin, Lauren J. O’Donnell, Ofer Pasternak.</p>
+        <p class="venue">IEEE Transactions on Medical Imaging, 2024, 43(3), 1191–1202.</p>
+        <p><a class="doi" href="https://doi.org/10.1109/TMI.2023.3331691" target="_blank" rel="noopener">DOI 10.1109/TMI.2023.3331691</a></p>
+      </article>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-col">
+        <p class="foot-brand"><img src="assets/img/icon-64.png" alt="SlicerDDSurfer icon" width="28" height="28" loading="lazy"><span>SlicerDDSurfer</span></p>
+        <p>Diffusion MRI workflows in 3D Slicer.</p>
+        <p>© 2026 Chengjin Li and the SlicerDDSurfer contributors.</p>
+      </div>
+      <div class="foot-col">
+        <h2 class="foot-title">Licence</h2>
+        <p>Project code: BSD-3-Clause. Bundled components keep their own licences and notices. Model weights, templates and subject-derived data are not relicensed by the project licence.</p>
+        <p class="foot-links"><a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/LICENSE.txt" target="_blank" rel="noopener">LICENSE.txt</a> <a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">Third-party notices</a></p>
+      </div>
+      <div class="foot-col">
+        <h2 class="foot-title">About the film</h2>
+        <p>Data: EDDEN, OpenNeuro <a href="https://openneuro.org/datasets/ds004666" target="_blank" rel="noopener">ds004666</a> (CC0), Manzano-Patron et al., Imaging Neuroscience <a href="https://doi.org/10.1162/imag_a_00060" target="_blank" rel="noopener">2024</a>.</p>
+        <p>Run: SlicerDDSurfer a48fc95, started from the command line, with 3D Slicer 5.12.4, SlicerDMRI and PyTorch on macOS (x86_64 build under Rosetta, CPU only). This run is outside the Linux validation and needed local run-time workarounds that are not in the repository.</p>
+        <p>Made with <a href="https://github.com/lemomo-ai/lemo-opuscar" target="_blank" rel="noopener">lemo-opuscar</a> (MIT) and three.js (MIT). Voice: Kokoro TTS (Apache-2.0). Fonts: Inter, Inter Tight, IBM Plex Mono (SIL OFL 1.1). Music and sound: original, synthesized in code.</p>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <p>Static site: no cookies, no trackers, no third-party requests.</p>
+      <a href="#top">Back to top</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
