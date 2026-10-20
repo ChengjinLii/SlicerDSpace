@@ -395,6 +395,10 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 12. `no_local_paths`: no file in `docs/` contains `/Volumes/`, `/Users/`, `/private/tmp`, `file://`.
 13. `links_safe`: every `target="_blank"` link has `rel` containing `noopener`.
 14. `fonts_licensed`: every `.woff2` in `docs/assets/fonts/` has its OFL text next to it.
+15. `menu_focus_wording`: the `site.js` focusout comment, the README “Opus N3” note and this spec (§4) each say “a
+    focus change to nothing does not close it”, and none keeps the old wording that hands that case to the click
+    handlers.
+16. `spec_lists_checks`: this list names every check the script runs, in run order, numbered 1..n.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 

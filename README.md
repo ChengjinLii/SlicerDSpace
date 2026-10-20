@@ -145,19 +145,22 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
 ### Review of the r4 B1 fix (commit c08a743; Opus and Codex: 0 blocking)
 
 Not fixed (non-blocking, from the Opus review; Codex found nothing):
-- r5 1 (P3): the three film-end focus checks do not prove that the film ended. `toEnd()` swallows its wait timeout, and
-  for the r4 B1 check `<body>` is also the state before the end, so a failed seek would pass it on old code too. The
-  reviewer's probe saw `ended: true`. Fix idea: record `video.ended` and the visible play button, and require both.
+- r5 1 (P3). **Fixed 2026-10-21** (user request): the three film-end focus checks now also need `video.ended` and
+  the play button shown again (`endProof()`), and print both. With the seek in `toEnd()` skipped once (a copy of the
+  test), the old checks for the nav link and for `<body>` passed with no film end; the new ones fail.
 
 ### Review of the r4 B2/B3 fix (commit 42e316d; Opus and Codex: 0 blocking)
 
 Not fixed (non-blocking, from the Opus review; Codex found nothing):
-- r6 1 (P3): for README, `menu_focus_wording` finds the phrase in the r4 B2 entry as well as in the N3 note, so a wrong
-  N3 note still passes; only the ban on the old wording guards README, and that ban also forbids quoting it in this
-  history. Fix idea: search only the N3 bullet, or drop README from the presence test.
-- r6 2 (P3): SPEC §7.1 lists 14 checks; `check_site.py` now runs 15 (`menu_focus_wording` is not listed).
-- r6 3 (P3): in `browser_check.mjs` `state()`, `active` is the focused element's text, so with focus on `<body>` the
-  failure detail prints page text. The assertion uses `onBody` and is correct. Fix idea: print the tag for `<body>`.
+- r6 1 (P3). **Fixed 2026-10-21** (user request): in README, `menu_focus_wording` now reads only the Opus N3 note, so
+  a wrong N3 note fails even when another entry carries the phrase, and this history may quote the old wording
+  (“is left to the click handlers”) again.
+- r6 2 (P3). **Fixed 2026-10-21** (user request): SPEC §7.1 lists `menu_focus_wording` as item 15. Its test is a new
+  check, item 16 `spec_lists_checks`: §7.1 must name every check the script runs, in run order, numbered 1..n. It
+  failed on the badbad2 SPEC.
+- r6 3 (P3). **Fixed 2026-10-21** (user request): `state()` returns `BODY` when `<body>` has focus. The status chip
+  check now needs `active === 'BODY'` after the click (the separate `onBody` probe is gone); with the old `state()` it
+  fails.
 
 
 ## Image crop boxes as finally used

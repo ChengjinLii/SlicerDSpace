@@ -351,28 +351,37 @@ async function runFocusChecks(browser, origin) {
     await page.waitForTimeout(100);
   };
   const active = () => page.evaluate(() => { const a = document.activeElement; return a ? (a.className || a.tagName) + (a.id ? '#' + a.id : '') : 'null'; });
+  // Opus r5 1: toEnd() does not fail on its own, so each film-end check also needs proof that the film ended:
+  // video.ended and the play button shown again.
+  const endProof = () => page.evaluate(() => {
+    const v = document.getElementById('film-video'), b = document.querySelector('.film-play');
+    return { ended: v.ended, btnShown: !b.hidden && b.getBoundingClientRect().width > 0 };
+  });
   // Keyboard start: focus the play button, press Enter (focus goes to the video), let the film end.
   await page.focus('.film-play');
   await page.keyboard.press('Enter');
   await toEnd();
-  const a1 = await active();
-  record(/film-play/.test(a1), '1440x900: when the film ends, focus moves to the play button', `active: ${a1}`);
+  const a1 = await active(), e1 = await endProof();
+  record(e1.ended && e1.btnShown && /film-play/.test(a1), '1440x900: when the film ends, focus moves to the play button',
+    JSON.stringify({ active: a1, ...e1 }));
   // Focus the user moved elsewhere stays there.
   await page.keyboard.press('Enter');
   await page.focus('#site-nav a[href="#idea"]');
   await toEnd();
-  const a2 = await active();
-  record(!/film-play/.test(a2) && /A/.test(a2), '1440x900: when the film ends, focus on a nav link stays there', `active: ${a2}`);
+  const a2 = await active(), e2 = await endProof();
+  record(e2.ended && e2.btnShown && !/film-play/.test(a2) && /A/.test(a2), '1440x900: when the film ends, focus on a nav link stays there',
+    JSON.stringify({ active: a2, ...e2 }));
   // Opus r4 B1: a mouse user who starts the film and then clicks plain text (focus on <body>, and the Tab start point at
   // the click) keeps that focus when the film ends; it does not jump to the play button.
-  await page.click('.film-play');
+  await page.click('.film-play', { timeout: 5000 }).catch(() => {});
   const b0 = await active();
   await page.click('.hero .lead', { position: { x: 4, y: 4 } });
   const b1 = await active();
   await toEnd();
-  const b2 = await active();
-  record(/VIDEO/.test(b0) && b1 === 'BODY' && b2 === 'BODY',
-    '1440x900: when the film ends after a click on plain text, focus stays on <body>', JSON.stringify({ afterStart: b0, afterClick: b1, afterEnd: b2 }));
+  const b2 = await active(), e3 = await endProof();
+  record(e3.ended && e3.btnShown && /VIDEO/.test(b0) && b1 === 'BODY' && b2 === 'BODY',
+    '1440x900: when the film ends after a click on plain text, focus stays on <body>',
+    JSON.stringify({ afterStart: b0, afterClick: b1, afterEnd: b2, ...e3 }));
   await ctx.close();
 
   const c2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -381,7 +390,9 @@ async function runFocusChecks(browser, origin) {
   const state = () => p2.evaluate(() => {
     const nav = document.getElementById('site-nav'), btn = document.getElementById('menu-btn'), a = document.activeElement;
     return { expanded: btn.getAttribute('aria-expanded'), navShown: getComputedStyle(nav).display !== 'none',
-             inMenu: !!a && (a === btn || nav.contains(a)), active: a ? (a.textContent || '').trim().slice(0, 20) : 'null' };
+             inMenu: !!a && (a === btn || nav.contains(a)),
+             // Opus r6 3: <body> is named by its tag; its text would be the whole page.
+             active: !a ? 'null' : a === document.body ? 'BODY' : (a.textContent || '').trim().slice(0, 20) };
   });
   // Shift+Tab from the first link back to the Menu button keeps the menu open.
   await p2.focus('#menu-btn');
@@ -407,9 +418,8 @@ async function runFocusChecks(browser, origin) {
   await p2.click('#site-nav .chip-status');
   await p2.waitForTimeout(100);
   const chip1 = await state();
-  const onBody = await p2.evaluate(() => document.activeElement === document.body);
-  record(chip0.expanded === 'true' && chip0.active === 'Menu' && onBody && chip1.expanded === 'true' && chip1.navShown,
-    '390x844: a click on the status chip in the open menu keeps it open', JSON.stringify({ before: chip0, after: chip1, onBody }));
+  record(chip0.expanded === 'true' && chip0.active === 'Menu' && chip1.active === 'BODY' && chip1.expanded === 'true' && chip1.navShown,
+    '390x844: a click on the status chip in the open menu keeps it open', JSON.stringify({ before: chip0, after: chip1 }));
   await c2.close();
 }
 

@@ -652,15 +652,42 @@ def fonts_licensed():
 def menu_focus_wording():
     # Opus r4 B2: the focusout comment, README and SPEC §4 said the click handlers deal with a focus change to
     # nothing; none closes the menu then. All three must state the behaviour as it is.
+    # Opus r6 1: in README only the Opus N3 note states the rule; the backlog entries may quote either wording.
     want = "a focus change to nothing does not close it"
     old = "left to the click handlers"
     problems = []
     for rel in ("docs/assets/js/site.js", "README.md", "SPEC.md"):
-        text = " ".join(read(os.path.join(ROOT, rel)).split())
+        text = read(os.path.join(ROOT, rel))
+        if rel == "README.md":
+            m = re.search(r"(?ms)^- Opus N3 \(P2\).*?(?=^(?! )|\Z)", text)
+            if not m:
+                problems.append("README.md has no 'Opus N3' note")
+                continue
+            rel, text = "README.md (Opus N3 note)", m.group(0)
+        text = " ".join(text.split())
         if want not in text:
             problems.append("%s lacks %r" % (rel, want))
         if old in text:
             problems.append("%s still says %r" % (rel, old))
+    return fail_list(problems) if problems else None
+
+
+@check("spec_lists_checks")
+def spec_lists_checks(names):
+    # Opus r6 2: SPEC §7.1 listed 14 checks while this script ran 15. Every check that runs must be listed there,
+    # numbered 1..n in order, and nothing else.
+    spec = read(os.path.join(ROOT, "SPEC.md"))
+    start = spec.find("### 7.1 ")
+    end = spec.find("### 7.2 ", start)
+    if start < 0 or end < 0:
+        return "SPEC.md has no §7.1 / §7.2 headings"
+    items = re.findall(r"(?m)^(\d+)\. `(\w+)`", spec[start:end])
+    listed = [n for _, n in items]
+    problems = []
+    if [int(i) for i, _ in items] != list(range(1, len(items) + 1)):
+        problems.append("§7.1 numbering is not 1..%d" % len(items))
+    if listed != names:
+        problems.append("§7.1 lists %s; the script runs %s" % (listed, names))
     return fail_list(problems) if problems else None
 
 
@@ -692,6 +719,7 @@ def main(argv):
     links_safe(pages)
     fonts_licensed()
     menu_focus_wording()
+    spec_lists_checks([r[1] for r in results] + ["spec_lists_checks"])
 
     failed = 0
     for status, name, reason in results:
