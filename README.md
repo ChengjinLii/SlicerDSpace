@@ -82,8 +82,9 @@ Not fixed (non-blocking):
   so the site stays correct. B2: CSS `url()` in inline `<style>` blocks and `style` attributes is not host-checked.
   B3: `srcset` is host-checked as one URL, not per candidate. B4: CSS `url()` targets are not checked to stay inside
   `docs/`. B5: fragments on filename links (`index.html#x`) are not checked.
-- Opus N1 (P2): if `site.js` fails to load while JS is on, the inline `js` class hides every `.reveal` section and the
-  folded nav. Fix idea: let `site.js` add the class.
+- Opus N1 (P2). **Fixed 2026-10-20** (user request): `site.js` now sets the `js` class itself (the inline script is
+  gone) and first marks the sections already on screen as shown. `browser_check.mjs` blocks `site.js` at 1440 and
+  390 px and needs all sections and the 8 nav links visible; it failed on 5b09bc2 (8 sections hidden; 0 links at 390 px).
 - Opus N2 (P2): when the film ends, focus falls to `body` (the `ended` handler removes `controls` from the focused
   video). Fix idea: focus the play button.
 - Opus N3 (P2): with the phone menu open, Tab moves focus to controls under the menu panel. Fix idea: close on

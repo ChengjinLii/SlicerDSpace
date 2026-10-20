@@ -6,6 +6,18 @@
   var reduceMotion = window.matchMedia &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  /* ---------- The js class ----------
+     This file sets it, not an inline script in the page, so a page whose script fails to load keeps every
+     section and the full nav visible. Sections already on screen are marked shown first, so they do not
+     blink when the hidden state starts to apply. */
+  Array.prototype.forEach.call(document.querySelectorAll('.reveal'), function (el) {
+    var r = el.getBoundingClientRect();
+    if (r.top < (window.innerHeight || document.documentElement.clientHeight) && r.bottom > 0) {
+      el.classList.add('in');
+    }
+  });
+  document.documentElement.classList.add('js');
+
   /* ---------- Section reveal (fade and rise once) ---------- */
   function initReveal() {
     var items = Array.prototype.slice.call(document.querySelectorAll('.reveal'));

@@ -83,7 +83,9 @@ poster is the `<video poster>`, not an `<img>`.)
 - Background: `--bg` with two fixed soft radial glows (blue upper left, faint green lower right, ≤ 10% opacity).
 - Panels: `--panel`, 1px `--line`, `--radius`. No drop shadows except a soft DEC glow behind the film frame.
 - Motion: sections fade and rise 12px once when they enter the viewport (IntersectionObserver, 600ms). None under
-  `prefers-reduced-motion: reduce`. Content must be visible without JS (add the hidden state only from JS).
+  `prefers-reduced-motion: reduce`. Content must be visible without JS (add the hidden state only from JS). The `js`
+  class is set by `site.js` itself, not by an inline script, so a failed load of `site.js` also leaves everything
+  visible; sections already on screen are marked shown before the class is set.
 - Layout: max width `--max`, side gutter `--gutter`. Grids collapse: gallery 3 → 2 (≤ 900px) → 1 (≤ 560px);
   two-column sections → 1 (≤ 900px); workflow cards 5 → 2 → 1. No horizontal page scroll at 320px or wider; code
   blocks scroll inside themselves (`overflow-x: auto`), grid children have `min-width: 0`.

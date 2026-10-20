@@ -337,6 +337,46 @@ async function run404AndNoJs(browser, origin) {
   await c2.close();
 }
 
+// ---------------------------------------------------------------- site.js fails to load
+// Opus N1 (code review round 1): an inline script set the js class, so when site.js failed to load every .reveal
+// section stayed at opacity 0 and the folded nav could not open. site.js now sets the class itself.
+async function runScriptBlocked(browser, origin) {
+  for (const [w, h] of [[1440, 900], [390, 844]]) {
+    const context = await browser.newContext({ viewport: { width: w, height: h } });
+    await context.route('**/assets/js/site.js', (r) => r.abort());
+    const page = await context.newPage();
+    await page.goto(origin + '/index.html', { waitUntil: 'load' });
+    await page.waitForTimeout(1200);
+    const st = await page.evaluate(() => {
+      const shown = (el) => { const s = getComputedStyle(el), r = el.getBoundingClientRect(); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+      const reveal = [...document.querySelectorAll('.reveal')];
+      return {
+        js: document.documentElement.classList.contains('js'),
+        sections: reveal.length,
+        hidden: reveal.filter((e) => getComputedStyle(e).opacity !== '1' || !shown(e)).length,
+        links: [...document.querySelectorAll('#site-nav a')].filter(shown).length,
+        overflow: document.documentElement.scrollWidth > window.innerWidth,
+      };
+    });
+    record(!st.js && st.sections > 0 && st.hidden === 0 && st.links === 8 && !st.overflow,
+      `${w}x${h} with site.js blocked: all ${st.sections} sections and 8 nav links visible, no sideways scroll`, JSON.stringify(st));
+    await page.screenshot({ path: path.join(OUT, `noscript-file-${w}.png`), fullPage: true });
+    await context.close();
+  }
+  // With site.js loaded, the class is set by the script and the sections on the first screen are shown at once.
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  await page.goto(origin + '/index.html', { waitUntil: 'domcontentloaded' });
+  const st = await page.evaluate(() => {
+    const vh = window.innerHeight;
+    const onScreen = [...document.querySelectorAll('.reveal')].filter((e) => { const r = e.getBoundingClientRect(); return r.top < vh && r.bottom > 0; });
+    return { js: document.documentElement.classList.contains('js'), onScreen: onScreen.length, notIn: onScreen.filter((e) => !e.classList.contains('in')).map((e) => e.id) };
+  });
+  record(st.js && st.onScreen > 0 && st.notIn.length === 0,
+    '1440x900 with site.js: js class set by the script; on-screen sections shown at DOMContentLoaded', JSON.stringify(st));
+  await context.close();
+}
+
 // ---------------------------------------------------------------- main
 const server = await serve();
 const origin = `http://127.0.0.1:${server.address().port}`;
@@ -376,6 +416,7 @@ try {
     await ctx.close();
   }
   await run404AndNoJs(browser, origin);
+  await runScriptBlocked(browser, origin);
 } catch (err) {
   record(false, 'browser run', String(err && err.stack || err));
 } finally {
