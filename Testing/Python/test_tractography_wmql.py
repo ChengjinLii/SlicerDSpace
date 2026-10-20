@@ -116,6 +116,14 @@ exit 0
         data.mkdir(parents=True)
         (scripts / "cli_tract_querier.py").write_text("# fake cli\n", encoding="utf-8")
         (data / "FreeSurfer.qry").write_text("brain_stem |= 16\n", encoding="utf-8")
+        # Exercise the complete import graph without depending on an installed author checkout.
+        # This fake CLI never interprets anatomical rules; no equivalence claim is made.
+        (data / "freesurfer_queries.qry").write_text(
+            "# Synthetic import fixture only\nimport FreeSurfer.qry\n", encoding="utf-8"
+        )
+        default_data = mock.patch('tractography.wmql._default_query_data_dir', return_value=None)
+        self.addCleanup(default_data.stop)
+        default_data.start()
         self.tractography = self.tmp_path / "wholebrain.vtk"
         self.tractography.write_text("# vtk DataFile Version 3.0\n", encoding="utf-8")
         self.atlas = self.tmp_path / "wmparc.nii.gz"
@@ -134,6 +142,19 @@ exit 0
         self.assertIn("import freesurfer_queries.qry", text)
         self.assertNotIn("endpoints_in(Brain_Stem)", text)
         self.assertIn("CST.side", bundled_wmql_query_path('published_endpoints').read_text())
+
+    def test_default_import_graph_is_required_without_local_author_data(self):
+        from tractography import WMQLConfig, run_wmql_bundle_segmentation
+
+        config = WMQLConfig('100307', self.tractography, self.atlas, self.output_dir,
+                            tract_querier_root=self.tract_querier_root, python_executable=self.python)
+        result = run_wmql_bundle_segmentation(config)
+        manifest = json.loads(result.manifest_path.read_text())
+        self.assertEqual({Path(path).name for path in manifest['query_dependencies']},
+                         {'AF_CST_DDParcel_ACT.qry', 'freesurfer_queries.qry', 'FreeSurfer.qry'})
+        (self.tract_querier_root / 'tract_querier/data/freesurfer_queries.qry').unlink()
+        with self.assertRaisesRegex(FileNotFoundError, 'freesurfer_queries.qry'):
+            run_wmql_bundle_segmentation(config)
 
     def test_builds_wmql_command_without_running(self) -> None:
         from tractography import WMQLConfig, run_wmql_bundle_segmentation
