@@ -374,6 +374,18 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
 - r15 2 (P3), closed by the B1 row: the summary flag moved above `RUN["compared"] = True` passed (stricter, not a
   false pass), but SPEC §7.1 item 16 (“the line above `failed = 0`”) no longer matched. The B1 row now fails it.
 
+### Re-review of the r13 fix round (commit 5a8ade4; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
+- r16 1 (P3, the dead-code limit; also on 5989f8b): with the `if RUN["compared"]:` block indented one level, it sits
+  under the summary test, after `sys.exit(1)`, and never runs; the B2 row still matches (17/0; with a check after
+  the comparison, 18/0). Fix ideas: name it under the r14 1 limit, or anchor the row on the indent, as the B1 row is.
+- r16 2 (P3): r15 2 sits under “Not fixed”, but it says “closed by the B1 row”. Fix: move it, or rename the list.
+- r16 3 (P3): the comment above the r13 1 order row still says “and the summary flag is in MAIN_TAIL (above
+  failed = 0)”; that summary row has its own row and comment now. Fix: drop the clause.
+- r16 4 (information): the B1 locator reads raw text, so a trailing comment on the flag line or a blank line
+  before `failed = 0` fails it (a visible false FAIL, not a false pass).
+
 
 ## Image crop boxes as finally used
 
