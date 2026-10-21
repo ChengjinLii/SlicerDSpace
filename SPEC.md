@@ -98,7 +98,8 @@ poster is the `<video poster>`, not an `<img>`.)
   two-column sections → 1 (≤ 900px); workflow cards 5 → 2 → 1. No horizontal page scroll at 320px or wider; code
   blocks scroll inside themselves (`overflow-x: auto`), grid children have `min-width: 0`.
 - Header: sticky, 64px, `--bg` at 80% with backdrop blur, bottom tri-rule. Left: icon (28px) + "SlicerDDSurfer".
-  Centre/right: anchor links. Right: chip "Private pre-release". At ≤ 1023px the links fold into a "Menu" button
+  Centre/right: anchor links. Right: chip "Private pre-release". At ≤ 1023px the links and the chip fold into a "Menu"
+  button (the hero status line still shows “Private pre-release”)
   (`aria-expanded`, keyboard operable, closes on link click, on Escape, and when focus moves to an element outside the menu; a focus change to nothing
   does not close it).
 - Accessibility: skip link to `#main`; visible `:focus-visible` outline (2px `--blue`, 2px offset); one `<h1>`;
@@ -423,20 +424,24 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     check, is not covered.
 17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4, r10 1, 2, 4, 5, r11 3,
     4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20
-    6 and r21 1) stay in place: in the part of a file that each row names (found exactly once), the fixed phrase is
-    there and, where there is one, the old phrase is not (a string or a regex). In a `.py` part made of comment lines
-    the `#` marks are removed before the test; from a `.py` part that holds code every comment is removed (Python
-    `tokenize`, also a comment at the end of a line), so code commented out with `#` does not count; code inside a
-    string still counts. A built-in sample checks the comment remover. `main()` also runs this check on built-in rows
-    (`WORDING_SELF_TEST`) and fails it unless they give a “lacks”, a “still says” and a “still matches” problem (a
-    crash there is a FAIL too). It also fails it when the normal call went through fewer or more rows than
-    `WORDING_FIXES` holds.
+    6, r21 1, N5, N10, N12, N15, r2 N3, r2 N4 and r4 B4) stay in place: in the part of a file that each row names
+    (found exactly once), the fixed phrase is there and, where there is one, the old phrase is not (a string or a
+    regex). In a `.py` part made of comment lines the `#` marks are removed before the test; from a `.py` part that
+    holds code every comment is removed (Python `tokenize`, also a comment at the end of a line), so code commented
+    out with `#` does not count; code inside a string still counts. A built-in sample checks the comment remover.
+    `main()` also runs this check on built-in rows (`WORDING_SELF_TEST`) and fails it unless they give a “lacks”, a
+    “still says” and a “still matches” problem (a crash there is a FAIL too). It also fails it when the normal call
+    went through fewer or more rows than `WORDING_FIXES` holds.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
 Serves `docs/` from a local HTTP server with Range support (to match GitHub Pages), opens it in Google Chrome
-(`channel: 'chrome'`; Playwright's Chromium lacks H.264/AAC), and checks at 1440×900 and 390×844 (and 320×640; and 861, 900,
-1023, 1024 and 1100 px wide for header fit and no overlap of brand, nav links, chip and Menu button):
+(`channel: 'chrome'`; Playwright's Chromium lacks H.264/AAC) with Chrome's own autoplay policy (no `--autoplay-policy`
+flag), and checks at 1440×900 and 390×844 (and 320×640 for overflow only; 861, 900, 1023, 1024 and 1100 px wide for
+header fit, no overlap of brand, nav links, chip and Menu button, and the Menu button shown up to 1023 px and hidden
+from 1024 px; the no-JS page at 1440×900 and 390×844, with no failed load; the 404 page at `/404.html` and at a missing
+path, where only the page's own 404 status may appear; the first-screen sections at 1440×900, 390×844 and 375×667,
+measured in the no-JS layout as `site.js` does; and a `play()` with sound that no user gesture starts must be refused):
 
 1. no console error; no failed request, except `net::ERR_ABORTED` on `media/*.mp4` (Chrome cancels and re-issues
    byte-range requests for video); no response with status ≥ 400; no request to another host;
@@ -444,8 +449,8 @@ Serves `docs/` from a local HTTP server with Range support (to match GitHub Page
 3. every `<img>` is `complete` with `naturalWidth > 0` after scrolling the page through;
 4. the video: `readyState >= 1`, `duration` 64.8 ± 0.05 s, `videoWidth` 1920; `canPlayType` for
    `video/mp4; codecs="avc1.640032, mp4a.40.2"` (High, level 5.0, as ffprobe reports) is not empty;
-5. clicking the play button starts playback (`currentTime` advances within 3 s; muted in the test only) and shows
-   `controls`;
+5. clicking the play button starts playback with sound (`currentTime` advances within 3 s) and shows `controls`; the
+   play button is then not drawn (computed style), and after `ended` it is drawn again;
 6. at 390px the Menu button opens and closes the nav with the keyboard;
 7. full-page screenshots to `tests/out/` (git-ignored) for a human look.
 
@@ -567,3 +572,14 @@ After code review (2026-10-22, README backlog Codex r1 B2–B5, Opus N6 and r2 N
 file name; item 3 `external_urls` checks each `srcset` candidate and inline CSS, accepts only the Pages root as the
 canonical link, and limits where the Pages URLs and the `.git` URL appear; item 11 `claims_banned` also bans
 “private model-asset repository”.
+
+After code review (2026-10-20 and 2026-10-21, README backlog Opus N2, Opus N3, r4 B1 and r4 B2; recorded 2026-10-22,
+README r4 B4): §5.3 says that on `ended`, when the video had focus, focus moves to the play button; §4 says that the
+open menu closes when focus moves to an element outside the menu, and that a focus change to nothing does not close
+it.
+
+After code review (2026-10-22, README backlog r2 N2–N4, r4 A1, Opus N7–N10 and the r7 CSS note): §4 says that the chip
+folds with the links; §7.2 names every size the browser checks run at, drops the autoplay flag and adds the policy
+check, checks the failed loads of the no-JS page at two sizes and every load of the 404 page at two paths, measures
+the first-screen sections in the no-JS layout (and at 375×667), checks the Menu button at the header widths, and
+needs the play button not drawn while the film plays. `404.html` names its inline icon as the favicon.

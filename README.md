@@ -35,8 +35,11 @@ PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs
 - `check_site.py` uses the Python 3 standard library. It uses `ffprobe` when it is on PATH. With `--film PATH` it also
   compares the SHA-256 of the film with that file.
 - `browser_check.mjs` needs Node, `playwright-core` and Google Chrome (`channel: 'chrome'`; Playwright's Chromium has
-  no H.264/AAC). It serves `docs/` with Range support, runs the checks at 1440×900, 390×844 and 320×640, and writes
-  screenshots to `tests/out/` (git-ignored).
+  no H.264/AAC). It serves `docs/` with Range support and runs Chrome with its own autoplay policy. It runs the page
+  checks at 1440×900 and 390×844, the overflow checks at 320×640, the header checks at 861, 900, 1023, 1024 and
+  1100 px wide, the no-JS checks at 1440×900 and 390×844, the 404 checks at 390×844, the first-screen checks at
+  1440×900, 390×844 and 375×667, and the focus checks at 1440×900 and 390×844. It writes screenshots to `tests/out/`
+  (git-ignored).
 
 ## Revisit at public release
 
@@ -120,33 +123,41 @@ Not fixed (non-blocking):
   `og:image` of `index.html`, the home links of `404.html`, and right after `git clone `). A canonical link to the
   social image, a Pages link in the page body and the `.git` URL in a paragraph each pass the 49806c6 script and fail
   the new one.
-- Opus N7 (P3): on the 404 page, `browser_check.mjs` ignores console errors that contain "404", so a missing asset
-  there would pass.
-- Opus N8 (P3): the no-JS block collects failed requests but does not check them; it runs only at 1440 px.
-- Opus N9 (P3): Chrome runs with `--autoplay-policy=no-user-gesture-required`, so a future `play()` outside a user
-  gesture would still pass.
-- Opus N10 (P3): the "How to test" section lists 1440, 390 and 320 px only.
+- Opus N7 (P3). **Fixed 2026-10-22** (user request): on the 404 page, `browser_check.mjs` now ignores only the
+  console error of the page's own 404 status; any other console error, failed request or response ≥ 400 fails, at
+  `/404.html` and at a missing path. The fix showed a real miss: Chrome asked for `/favicon.ico` (404). `404.html` now
+  names its inline icon as the favicon. With a `<link rel="icon" href="/missing.png">` added to `404.html`, the
+  3ba7996 suite passes and the new one fails.
+- Opus N8 (P3). **Fixed 2026-10-22** (user request): the no-JS block checks failed requests and responses ≥ 400,
+  at 1440×900 and 390×844. A missing image in a `<noscript>` block, and a CSS rule that hides the sections without JS
+  only at ≤ 400 px, each pass the 3ba7996 suite and fail the new one.
+- Opus N9 (P3). **Fixed 2026-10-22** (user request): Chrome runs without `--autoplay-policy`, so its own policy
+  applies, and the click test plays with sound. A new check makes a `play()` with sound from an init script (no user
+  gesture; Playwright's `page.evaluate()` counts as one) and needs `NotAllowedError`. With the old flag the attempt
+  plays and the check fails.
+- Opus N10 (P3). **Fixed 2026-10-22** (user request): “How to test” lists every size the browser checks run at.
+  A row pins the 375×667 entry.
 
 ### Re-review of the fix round (commit 444d8db; Opus and Codex: 0 blocking)
 
 Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
 - r2 N1 (P3): the round-1 notes sat under “Image crop boxes”; they are now here, under “Review backlog”.
-- r2 N2 (P3): the header width loop checks fit and overlap, not that the Menu button shows at 1023 px and hides at
-  1024 px; a moved CSS fold or a CSS/JS breakpoint drift would still pass. Fix idea: record
-  `menuVisible === (w <= 1023)` in the loop.
-- r2 N3 (P3): SPEC §7.2 should say “320×640 for overflow only”, as the code runs it.
-- r2 N4 (P3): SPEC §4 should say that the status chip folds with the links at ≤ 1023 px (the hero status line still
-  shows “Private pre-release”).
+- r2 N2 (P3). **Fixed 2026-10-22** (user request): the header width loop records `menuVisible === (w <= 1023)`.
+  With the CSS fold moved to ≤ 1000 px, the 3ba7996 suite passes and the new one fails at 1023 px.
+- r2 N3 (P3). **Fixed 2026-10-22** (user request): SPEC §7.2 says “320×640 for overflow only” and names the other
+  sizes. A row pins it.
+- r2 N4 (P3). **Fixed 2026-10-22** (user request): SPEC §4 says that the links and the chip fold into the Menu
+  button, and that the hero status line still shows “Private pre-release”. A row pins it.
 - r2 N5 (P3). **Fixed 2026-10-22** (user request): `claims_banned` also bans the reverse order (“private
   model-asset repository”). A copy with that sentence passes the 49806c6 script and fails the new one.
 
 ### Review of the N1 fix round and of N2/N3 (commits cce86e2 and ceedd6f; Opus and Codex: 0 blocking)
 
 Not fixed (non-blocking, from the Opus review; Codex found nothing):
-- r4 A1 (P3): the blink check measures “on screen” in the JS layout (64 px header); the `site.js` pre-pass measures in
-  the no-JS layout (182 px header on phones). They agree at 1440×900 and 390×844 but not at 375×667 (the film is
-  off screen without JS, on screen with it), so adding that size would fail the check with no real blink. Fix idea:
-  in the snapshot, remove `js`, measure, add it back.
+- r4 A1 (P3). **Fixed 2026-10-22** (user request): the snapshot removes the `js` class, measures, and adds it back,
+  so it measures in the no-JS layout as the `site.js` pre-pass does; the check also runs at 375×667. The old snapshot
+  fails at 375×667 with no real blink, and the new one passes; with the pre-pass removed from `site.js`, the new one
+  fails at every size.
 - r4 B1 (P2). **Fixed 2026-10-21** (user request): `hadFocus = document.activeElement === video`, so focus moves to
   the play button at film end only when the video had it; SPEC §5.3 says “move focus to the play button”.
   `browser_check.mjs` starts the film with a click, clicks plain text (focus on `<body>`) and needs focus still on
@@ -158,7 +169,8 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
 - r4 B3 (P3). **Fixed 2026-10-21** (user request): `browser_check.mjs` opens the menu at 390×844 with a click on the
   Menu button, clicks `.chip-status` (focus moves to `<body>`) and needs the menu still open. It passes on c08a743 and
   fails on a copy of its `site.js` without the `to &&` test (the menu closes).
-- r4 B4 (P3): SPEC §9 has no line for the N2/N3 edits to §4 and §5.3.
+- r4 B4 (P3). **Fixed 2026-10-22** (user request): SPEC §9 has a paragraph for the N2/N3 edits to §4 and §5.3. A
+  row pins it.
 
 ### Review of the r4 B1 fix (commit c08a743; Opus and Codex: 0 blocking)
 
@@ -211,9 +223,10 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   sources, but the “§4 only” scope of item 15 came from the Codex P1 of the 90a6a03 review; the list now names it.
   Test: `spec_lists_checks` needs a §9 paragraph that records item 15 to cite that review (`SECTION9_SOURCES`).
   It fails on the ca62e10 SPEC, and on a copy where the citation is in another §9 paragraph.
-- Note (outside this diff): with the CSS rule `.film-play[hidden]{display:none}` removed, the play button stays
-  drawn over the playing film, and `startProof()` still passes, because it reads the `hidden` attribute. The proof
-  shows that the start handler ran; it does not check the CSS.
+- Note (outside this diff), **fixed 2026-10-22** (user request): with the CSS rule `.film-play[hidden]{display:none}`
+  removed, the play button stayed drawn over the playing film, and `startProof()` still passed, because it read the
+  `hidden` attribute. The start checks (`startProof()` and the click test) now need the button not drawn (computed
+  style), and the end checks need it drawn. With the rule removed, the 3ba7996 suite passes and the new one fails.
 
 ### Review of the r8 fix (commit 18827b4; Opus 0 blocking, Codex 1, reclassified P3)
 

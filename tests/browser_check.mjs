@@ -252,8 +252,8 @@ async function runViewport(browser, origin, name, width, height, opts) {
   await page.screenshot({ path: path.join(OUT, `fold-${width}.png`) });
 
   // 5. play button starts playback
+  // Opus r1 N9: with sound, under Chrome's own autoplay policy (the click is the user gesture).
   await page.locator('#film').scrollIntoViewIfNeeded();
-  await page.evaluate(() => { document.getElementById('film-video').muted = true; });
   await page.locator('.film-play').click();
   const t0 = await page.evaluate(() => document.getElementById('film-video').currentTime);
   let advanced = false;
@@ -266,10 +266,12 @@ async function runViewport(browser, origin, name, width, height, opts) {
   const post = await page.evaluate(() => {
     const v = document.getElementById('film-video');
     const b = document.querySelector('.film-play');
-    return { controls: v.hasAttribute('controls'), btnHidden: b.hidden, paused: v.paused };
+    // README r7 note: the CSS must hide the button too; the hidden attribute alone does not.
+    const drawn = getComputedStyle(b).display !== 'none' && b.getBoundingClientRect().width > 0;
+    return { controls: v.hasAttribute('controls'), btnHidden: b.hidden, btnDrawn: drawn, paused: v.paused };
   });
   record(advanced && !post.paused, `${tag}: click on the play button starts playback (currentTime ${t0.toFixed(2)} -> ${t1.toFixed(2)})`, JSON.stringify({ t0, t1, ...post }));
-  record(post.controls && post.btnHidden, `${tag}: controls shown and play button hidden after start`, JSON.stringify(post));
+  record(post.controls && post.btnHidden && !post.btnDrawn, `${tag}: controls shown and play button hidden after start`, JSON.stringify(post));
   await page.screenshot({ path: path.join(OUT, `playing-${width}.png`) });
 
   // Ended state: jump near the end and wait for the button to return.
@@ -277,9 +279,10 @@ async function runViewport(browser, origin, name, width, height, opts) {
   await page.waitForFunction(() => !document.querySelector('.film-play').hidden, null, { timeout: 8000 }).catch(() => {});
   const ended = await page.evaluate(() => {
     const b = document.querySelector('.film-play');
-    return { hidden: b.hidden, label: b.textContent.trim(), controls: document.getElementById('film-video').hasAttribute('controls') };
+    const drawn = getComputedStyle(b).display !== 'none' && b.getBoundingClientRect().width > 0;
+    return { hidden: b.hidden, drawn, label: b.textContent.trim(), controls: document.getElementById('film-video').hasAttribute('controls') };
   });
-  record(!ended.hidden && ended.label === 'Play again' && !ended.controls, `${tag}: on ended the button returns as "${ended.label}"`, JSON.stringify(ended));
+  record(!ended.hidden && ended.drawn && ended.label === 'Play again' && !ended.controls, `${tag}: on ended the button returns as "${ended.label}"`, JSON.stringify(ended));
 
   // Hero button: scrolls to the film and plays.
   await page.evaluate(() => { const v = document.getElementById('film-video'); v.currentTime = 0; v.pause(); window.scrollTo(0, 0); });
@@ -310,31 +313,73 @@ async function runViewport(browser, origin, name, width, height, opts) {
 
 // ---------------------------------------------------------------- 404 and no-JS
 async function run404AndNoJs(browser, origin) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, javaScriptEnabled: false });
-  const page = await context.newPage();
-  const failed = [];
-  page.on('requestfailed', (r) => failed.push(r.url()));
-  await page.goto(origin + '/index.html', { waitUntil: 'load' });
-  const nojs = await page.evaluate(() => {
-    const v = document.getElementById('film-video');
-    const hidden = [...document.querySelectorAll('.reveal')].filter((e) => getComputedStyle(e).opacity !== '1').length;
-    return { controls: v.hasAttribute('controls'), hidden, copyShown: [...document.querySelectorAll('.copy')].some((b) => getComputedStyle(b).display !== 'none') };
-  }).catch((e) => ({ error: String(e) }));
-  record(nojs.controls === true && nojs.hidden === 0 && nojs.copyShown === false,
-    'no-JS: native controls stay, all sections visible, no dead Copy buttons', JSON.stringify(nojs));
-  await page.screenshot({ path: path.join(OUT, 'nojs-1440.png') });
-  await context.close();
+  // Opus r1 N8: the no-JS run checks its failed loads, and it runs on a phone too.
+  for (const [w, h] of [[1440, 900], [390, 844]]) {
+    const context = await browser.newContext({ viewport: { width: w, height: h }, javaScriptEnabled: false });
+    const page = await context.newPage();
+    const failed = [];
+    page.on('requestfailed', (r) => {
+      const err = r.failure()?.errorText || '';
+      if (err.includes('ERR_ABORTED') && /\/media\/[^/?#]+\.mp4$/.test(new URL(r.url()).pathname)) return;
+      failed.push(`${r.url()} (${err})`);
+    });
+    page.on('response', (r) => { if (r.status() >= 400) failed.push(`${r.url()} (HTTP ${r.status()})`); });
+    await page.goto(origin + '/index.html', { waitUntil: 'load' });
+    await page.waitForTimeout(300);
+    const nojs = await page.evaluate(() => {
+      const v = document.getElementById('film-video');
+      const hidden = [...document.querySelectorAll('.reveal')].filter((e) => getComputedStyle(e).opacity !== '1').length;
+      return { controls: v.hasAttribute('controls'), hidden, copyShown: [...document.querySelectorAll('.copy')].some((b) => getComputedStyle(b).display !== 'none') };
+    }).catch((e) => ({ error: String(e) }));
+    record(nojs.controls === true && nojs.hidden === 0 && nojs.copyShown === false && failed.length === 0,
+      `${w}x${h} no-JS: native controls stay, all sections visible, no dead Copy buttons, no failed load`,
+      JSON.stringify({ ...nojs, failed }));
+    await page.screenshot({ path: path.join(OUT, `nojs-${w}.png`) });
+    await context.close();
+  }
 
-  const c2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const p2 = await c2.newPage();
-  const errs = [];
-  p2.on('console', (m) => { if (m.type() === 'error' && !/404/.test(m.text())) errs.push(m.text()); });
-  const resp = await p2.goto(origin + '/404.html', { waitUntil: 'load' });
-  await p2.waitForTimeout(300);
-  const sw = await p2.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
-  record(sw && errs.length === 0, '404 page renders without overflow or console errors', JSON.stringify({ sw, errs }));
-  await p2.screenshot({ path: path.join(OUT, '404-390.png') });
-  await c2.close();
+  // Opus r1 N7: on the 404 page only the page's own 404 status is expected. Any other console error, failed request
+  // or response >= 400 fails, at /404.html and at a missing path (where GitHub Pages serves this file).
+  for (const [p, status] of [['/404.html', 200], ['/no-such/page', 404]]) {
+    const c2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p2 = await c2.newPage();
+    const docUrl = origin + p;
+    const errs = [], bad = [];
+    p2.on('console', (m) => { if (m.type() === 'error' && m.location().url !== docUrl) errs.push(m.text() + ' @ ' + m.location().url); });
+    p2.on('requestfailed', (r) => bad.push(`${r.url()} (${r.failure()?.errorText || ''})`));
+    p2.on('response', (r) => { if (r.status() >= 400 && r.url() !== docUrl) bad.push(`${r.url()} (HTTP ${r.status()})`); });
+    const resp = await p2.goto(docUrl, { waitUntil: 'load' });
+    await p2.waitForTimeout(300);
+    const sw = await p2.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+    record(resp.status() === status && sw && errs.length === 0 && bad.length === 0,
+      `404 page at ${p} (HTTP ${resp.status()}) renders without overflow, console errors or failed loads`,
+      JSON.stringify({ status: resp.status(), sw, errs, bad }));
+    if (status === 200) await p2.screenshot({ path: path.join(OUT, '404-390.png') });
+    await c2.close();
+  }
+}
+
+// ---------------------------------------------------------------- autoplay policy
+// Opus r1 N9: the test browser keeps Chrome's own autoplay policy (no --autoplay-policy flag), so a play() with sound
+// that no user gesture starts is refused here as it is for visitors. Playwright's page.evaluate() counts as a user
+// gesture, so an init script makes the attempt.
+async function runAutoplayPolicy(browser, origin) {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await ctx.addInitScript(() => {
+    document.addEventListener('DOMContentLoaded', () => {
+      const v = document.getElementById('film-video');
+      if (!v) return;
+      v.addEventListener('loadedmetadata', () => {
+        v.play().then(() => { window.__autoplay = 'played'; v.pause(); }, (e) => { window.__autoplay = e.name; });
+      }, { once: true });
+    });
+  });
+  const page = await ctx.newPage();
+  await page.goto(origin + '/index.html', { waitUntil: 'load' });
+  await page.waitForFunction(() => window.__autoplay, null, { timeout: 10000 }).catch(() => {});
+  const r = await page.evaluate(() => window.__autoplay || 'no result');
+  record(r === 'NotAllowedError', `1440x900: a play() with sound and no user gesture is refused (${r})`, r);
+  await ctx.close();
 }
 
 // ---------------------------------------------------------------- focus after the film ends, and the open menu
@@ -355,7 +400,7 @@ async function runFocusChecks(browser, origin) {
   // video.ended and the play button shown again.
   const endProof = () => page.evaluate(() => {
     const v = document.getElementById('film-video'), b = document.querySelector('.film-play');
-    return { ended: v.ended, btnShown: !b.hidden && b.getBoundingClientRect().width > 0 };
+    return { ended: v.ended, btnShown: !b.hidden && getComputedStyle(b).display !== 'none' && b.getBoundingClientRect().width > 0 };
   });
   // Opus r7 1: toEnd() plays the film even when Enter did not start it, so checks 1 and 2 also need proof that the start
   // ran: focus on the video, video.ended false and the play button hidden. The wait covers the seek to 0 on a replay.
@@ -364,9 +409,10 @@ async function runFocusChecks(browser, origin) {
       const v = document.getElementById('film-video'), b = document.querySelector('.film-play');
       return document.activeElement === v && !v.ended && b.hidden;
     }, null, { timeout: 3000 }).catch(() => {});
+    // README r7 note: "shown" means drawn (CSS), not only the hidden attribute.
     const s = await page.evaluate(() => {
       const v = document.getElementById('film-video'), b = document.querySelector('.film-play');
-      return { ended: v.ended, btnShown: !b.hidden && b.getBoundingClientRect().width > 0 };
+      return { ended: v.ended, btnShown: getComputedStyle(b).display !== 'none' && b.getBoundingClientRect().width > 0 };
     });
     return { active: await active(), ...s };
   };
@@ -468,7 +514,11 @@ async function runScriptBlocked(browser, origin) {
   // With site.js loaded, the sections on the first screen must already be shown when the js class appears, so they do
   // not blink. Codex review of bd002dd (P1): reading the page after DOMContentLoaded raced the IntersectionObserver,
   // which could add `in` first. An init script now records the state at the moment the class is set.
-  for (const [w, h] of [[1440, 900], [390, 844]]) {
+  // Opus r4 A1: site.js picks the on-screen sections in the no-JS layout (before it adds the class), and the no-JS
+  // header is taller on phones, so the snapshot measures there too: it removes the class, measures, and adds it back.
+  // At 375x667 the two layouts disagree about the film section. There the no-JS hero fills the first screen, so no
+  // section is on it (needOn false).
+  for (const [w, h, needOn] of [[1440, 900, true], [390, 844, true], [375, 667, false]]) {
     const context = await browser.newContext({ viewport: { width: w, height: h } });
     await context.addInitScript(() => {
       new MutationObserver((records, obs) => {
@@ -477,14 +527,16 @@ async function runScriptBlocked(browser, origin) {
         obs.disconnect();
         const vh = window.innerHeight;
         const reveal = [...document.querySelectorAll('.reveal')];
+        html.classList.remove('js');
         const onScreen = reveal.filter((e) => { const r = e.getBoundingClientRect(); return r.top < vh && r.bottom > 0; });
+        html.classList.add('js');
         window.__jsSnap = { reveal: reveal.length, onScreen: onScreen.map((e) => e.id), notIn: onScreen.filter((e) => !e.classList.contains('in')).map((e) => e.id) };
       }).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] });
     });
     const page = await context.newPage();
     await page.goto(origin + '/index.html', { waitUntil: 'load' });
     const st = await page.evaluate(() => window.__jsSnap || null);
-    record(!!st && st.reveal > 0 && st.onScreen.length > 0 && st.notIn.length === 0,
+    record(!!st && st.reveal > 0 && (!needOn || st.onScreen.length > 0) && st.notIn.length === 0,
       `${w}x${h} with site.js: when the js class appears, every on-screen section is already shown`, JSON.stringify(st));
     await context.close();
   }
@@ -495,11 +547,8 @@ const server = await serve();
 const origin = `http://127.0.0.1:${server.address().port}`;
 let browser;
 try {
-  browser = await chromium.launch({
-    channel: 'chrome',
-    headless: true,
-    args: ['--autoplay-policy=no-user-gesture-required'],
-  });
+  // Opus r1 N9: no --autoplay-policy flag, so Chrome's own policy applies (see runAutoplayPolicy).
+  browser = await chromium.launch({ channel: 'chrome', headless: true });
   await runViewport(browser, origin, '1440x900', 1440, 900, {});
   await runViewport(browser, origin, '390x844', 390, 844, {});
   await runViewport(browser, origin, '320x640', 320, 640, { overflowOnly: true });
@@ -522,15 +571,18 @@ try {
         if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) hits.push(`${rects[i].name} / ${rects[j].name}`);
       }
       const fits = inner.scrollWidth <= inner.clientWidth && document.documentElement.scrollWidth <= window.innerWidth;
-      return { fits, hits };
+      return { fits, hits, menuVisible: shown(document.getElementById('menu-btn')) };
     });
     record(hdr.fits, `${w}px: header fits and page does not scroll sideways`, 'overflow');
     record(!hdr.hits.length, `${w}px: brand, nav links, chip and Menu button do not overlap`, hdr.hits.join('; '));
+    // Opus r2 N2: the Menu button shows up to 1023 px and hides from 1024 px, so a moved CSS fold fails.
+    record(hdr.menuVisible === (w <= 1023), `${w}px: Menu button ${w <= 1023 ? 'shown' : 'hidden'}`, JSON.stringify(hdr));
     await ctx.close();
   }
   await run404AndNoJs(browser, origin);
   await runScriptBlocked(browser, origin);
   await runFocusChecks(browser, origin);
+  await runAutoplayPolicy(browser, origin);
 } catch (err) {
   record(false, 'browser run', String(err && err.stack || err));
 } finally {
