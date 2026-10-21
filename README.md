@@ -270,6 +270,23 @@ Not fixed (non-blocking, from the Opus review):
 - Limit (not a finding): with the `later` loop deleted and the comparison commented out (two edits), the suite
   passes with 16 results, because the rows run inside that loop.
 
+### Re-review of the r10 fix round (commit dfc17e5; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus re-review; Codex found nothing). Each item also passes on af78411, so the fix
+round did not cause it:
+- r12 1 (P2): a code part loses only whole `#` lines. A trailing comment and a `"""` block still count as code: with
+  the comparison deleted and the phrase left in a trailing comment, or the four comparison lines wrapped in `"""`,
+  the suite passes (17/0). SPEC §7.1 item 17 (“commented-out code does not count”) and the af78411 §9 paragraph
+  (“does not satisfy a pin”) say more than the code does. Fix ideas: remove `COMMENT` tokens with `tokenize`, and
+  narrow the two SPEC phrases, or record these cases as a limit (a `"""` block is dead code, as in r11 2).
+- r12 2 (P2): the r10 2 row pins the condition, not the action: with the `results.append(...)` body replaced by
+  `pass`, the suite passes (17/0). Fix idea: pin the append line too, or record it with r11 2.
+- r12 3 (P3): the review record of af78411 above says that the af78411 script passes with “the `re.split` line
+  commented out”. That is true only when the old split is also put back (with single quotes); with the line only
+  commented out, af78411 fails with a `NameError`.
+- r12 4 (P3): the committed guard comment in `spec_lists_checks` is not pinned; with that sentence deleted and the
+  af78411 logic put back (two edits), the suite passes. This is the same kind of guard as the r10 3 wrapped comment.
+
 
 ## Image crop boxes as finally used
 
