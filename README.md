@@ -537,6 +537,35 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
   comment line below it, fails the row while the test still runs (a visible false FAIL, not a false pass).
 
 
+### Review of the backlog batch (commits 12cd7fb..01ef29c; Opus 2 blocking, Codex 2 blocking)
+
+Fixed in the fix round (the same two items from both reviewers):
+- B1 (Opus B1, Codex P1; new in e544067): the autoplay check was flaky. Its init script listened for
+  `loadedmetadata` only after `DOMContentLoaded`, and the metadata sometimes came first; the check then saw “no
+  result” on a correct page (Opus: 1 of 3 full runs, 2 of 10 probe runs). Now the script tries at once when
+  `readyState >= 1` and waits for `loadedmetadata` only otherwise. With `site.js` held for 3 s (so `DOMContentLoaded`
+  comes after the metadata), the 01ef29c check fails 5 of 5 times (“no result”) and the new one passes 5 of 5
+  (`NotAllowedError`); with the old flag the new one fails 5 of 5 (“played”). The full suite then gave 68/0 in 5 of 5
+  runs (2 at a time).
+- B2 (Opus B2, Codex P1; new in 12cd7fb): no row held the r21 1 fix (SPEC item 17 names r20 1). A row now wants
+  “r20 1, r20 2, r20 6, r21 1” in item 17; with “r20 1, ” removed, the 01ef29c script passes and the new one fails.
+
+Not fixed (non-blocking):
+- r22 1 (P2, Opus; the gap predates, the B4 check inherits it): `resolve_local` does not `normpath` a root-relative
+  reference, so `url("/../README.md")` in `site.css` passes the B4 test (17/0). Fix: `normpath` that branch.
+- r22 2 (P3, Opus; predates): root-relative references (`/index.html#film`, `/assets/…`) pass both suites, which serve
+  `docs/` at `/`, but break on the project site under `/SlicerDDSurfer/`. None is on the site.
+- r22 3 (P2, Opus and Codex P3): the r4 A1 entry says that with the pre-pass removed the new check “fails at every
+  size”; the run fails at 1440×900 and 390×844 and passes at 375×667, where no section is on the first screen of the
+  no-JS layout, so the 375×667 run only guards a future layout.
+- r22 4 (P2, Opus): SPEC §7.2 item 5 says the click test plays “with sound”, but the test does not check it; with
+  `video.muted = true` in `start()` the suite passes. Fix: add `!v.muted && v.volume > 0`, or reword SPEC.
+- r22 5 (P2 Codex, P3 Opus): the 404 console filter drops every console error located at the page URL, also errors
+  from an inline script and on `/404.html` (HTTP 200); there is no `pageerror` listener on the 404 contexts. Fix:
+  exempt only “status of 404” at the missing path, and add `pageerror`.
+- r22 6 (P3, Opus): `fonts_licensed` reads only `site.css`; a Plex `@font-face` in an inline `<style>` passes.
+- r22 7 (information, Opus): on a slow machine the autoplay check depends only on its 10 s wait.
+
 ## Image crop boxes as finally used
 
 Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the

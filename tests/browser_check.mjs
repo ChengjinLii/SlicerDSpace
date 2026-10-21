@@ -362,16 +362,19 @@ async function run404AndNoJs(browser, origin) {
 // ---------------------------------------------------------------- autoplay policy
 // Opus r1 N9: the test browser keeps Chrome's own autoplay policy (no --autoplay-policy flag), so a play() with sound
 // that no user gesture starts is refused here as it is for visitors. Playwright's page.evaluate() counts as a user
-// gesture, so an init script makes the attempt.
+// gesture, so an init script makes the attempt. Review of 01ef29c (Opus B1, Codex P1): the metadata can load before
+// DOMContentLoaded, so the script tries at once when it is there and waits for loadedmetadata only when it is not.
 async function runAutoplayPolicy(browser, origin) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await ctx.addInitScript(() => {
     document.addEventListener('DOMContentLoaded', () => {
       const v = document.getElementById('film-video');
       if (!v) return;
-      v.addEventListener('loadedmetadata', () => {
+      const go = () => {
         v.play().then(() => { window.__autoplay = 'played'; v.pause(); }, (e) => { window.__autoplay = e.name; });
-      }, { once: true });
+      };
+      if (v.readyState >= 1) go();
+      else v.addEventListener('loadedmetadata', go, { once: true });
     });
   });
   const page = await ctx.newPage();

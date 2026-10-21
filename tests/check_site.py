@@ -987,6 +987,8 @@ WORDING_FIXES = (
      r"(?ms)^After code review \(2026-10-20 and 2026-10-21, README backlog Opus N2.*?(?=\n\n)",
      "focus moves to the play button", None),
     ("N10", "README.md", r"(?ms)^## How to test.*?(?=^## )", "1440×900, 390×844 and 375×667", None),
+    # Review of 01ef29c (Opus B2, Codex P1): SPEC item 17 names r20 1 (README r21 1).
+    ("r21 1", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)", "r20 1, r20 2, r20 6, r21 1", None),
     ("r20 6", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
      "went through fewer or more rows than `WORDING_FIXES` holds", "did not go through every row of `WORDING_FIXES`"),
     ("r20 6", "SPEC.md", r"(?ms)^After code review of 49681a8 .*?(?=\n\n|\Z)",
