@@ -222,6 +222,25 @@ Not fixed (non-blocking):
 - Accepted limits of the pinned-text citation check (not findings): a negated citation and a citation inside an
   HTML comment both pass.
 
+### Review of the r9 fix (commit 84c2ffd; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus review; Codex found nothing):
+- r10 1 (P2): no committed test guards the r9 1 fix. With `split("\n\n")` put back, every check passes on the
+  committed tree; the fail-before runs exist only as copies. This is the same convention as the other fixes that
+  make a check stronger (r5 1, r7 1, r8 1). Fix ideas: a fourth `WORDING_FIXES` row that pins the `re.split` call
+  in `spec_lists_checks`, or a fixture self-test (a new check, so a scope change).
+- r10 2 (P2): `spec_lists_checks` now trusts that the checks in `later` run. With the `for f in later: f()` loop
+  deleted, `spec_lists_checks` passes with 16 results while §7.1 lists 17. Before 84c2ffd every name came from
+  `results`. Fix: after the loop, compare the names in `results` with the list given to `spec_lists_checks`, and
+  add a FAIL if they differ.
+- r10 3 (P3): the r9 4 row keeps the `#` comment marks when it normalizes whitespace, so a phrase that wraps across
+  two comment lines gets a `#` in the middle: the old phrase wrapped passes, the new phrase wrapped fails. Fix:
+  remove `^[ \t]*# ?` from each line before the join.
+- r10 4 (P3): the comment above `SECTION9_SOURCES` and the r8 2 entry above still say “the §9 paragraph” where
+  the code accepts any recording paragraph (r9 2 named only §7.1 item 16).
+- r10 5 (P3): SPEC §7.1 item 17 and the r9 test entry above say that each row has an old phrase; the r9 3 row has
+  none. Fix: “and, where there is one, the old phrase”.
+
 
 ## Image crop boxes as finally used
 
