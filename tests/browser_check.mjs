@@ -357,20 +357,36 @@ async function runFocusChecks(browser, origin) {
     const v = document.getElementById('film-video'), b = document.querySelector('.film-play');
     return { ended: v.ended, btnShown: !b.hidden && b.getBoundingClientRect().width > 0 };
   });
+  // Opus r7 1: toEnd() plays the film even when Enter did not start it, so checks 1 and 2 also need proof that the start
+  // ran: focus on the video, video.ended false and the play button hidden. The wait covers the seek to 0 on a replay.
+  const startProof = async () => {
+    await page.waitForFunction(() => {
+      const v = document.getElementById('film-video'), b = document.querySelector('.film-play');
+      return document.activeElement === v && !v.ended && b.hidden;
+    }, null, { timeout: 3000 }).catch(() => {});
+    const s = await page.evaluate(() => {
+      const v = document.getElementById('film-video'), b = document.querySelector('.film-play');
+      return { ended: v.ended, btnShown: !b.hidden && b.getBoundingClientRect().width > 0 };
+    });
+    return { active: await active(), ...s };
+  };
+  const started = (s) => /VIDEO/.test(s.active) && !s.ended && !s.btnShown;
   // Keyboard start: focus the play button, press Enter (focus goes to the video), let the film end.
   await page.focus('.film-play');
   await page.keyboard.press('Enter');
+  const s1 = await startProof();
   await toEnd();
   const a1 = await active(), e1 = await endProof();
-  record(e1.ended && e1.btnShown && /film-play/.test(a1), '1440x900: when the film ends, focus moves to the play button',
-    JSON.stringify({ active: a1, ...e1 }));
+  record(started(s1) && e1.ended && e1.btnShown && /film-play/.test(a1), '1440x900: when the film ends, focus moves to the play button',
+    JSON.stringify({ start: s1, active: a1, ...e1 }));
   // Focus the user moved elsewhere stays there.
   await page.keyboard.press('Enter');
+  const s2 = await startProof();
   await page.focus('#site-nav a[href="#idea"]');
   await toEnd();
   const a2 = await active(), e2 = await endProof();
-  record(e2.ended && e2.btnShown && !/film-play/.test(a2) && /A/.test(a2), '1440x900: when the film ends, focus on a nav link stays there',
-    JSON.stringify({ active: a2, ...e2 }));
+  record(started(s2) && e2.ended && e2.btnShown && !/film-play/.test(a2) && /A/.test(a2), '1440x900: when the film ends, focus on a nav link stays there',
+    JSON.stringify({ start: s2, active: a2, ...e2 }));
   // Opus r4 B1: a mouse user who starts the film and then clicks plain text (focus on <body>, and the Tab start point at
   // the click) keeps that focus when the film ends; it does not jump to the play button.
   await page.click('.film-play', { timeout: 5000 }).catch(() => {});

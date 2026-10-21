@@ -680,6 +680,12 @@ def menu_focus_wording():
     return fail_list(problems) if problems else None
 
 
+# The checks in SPEC v2 §7.1 (items 1-14). A check added later needs a line in SPEC §9.
+V2_CHECKS = ("html_basics", "local_refs", "external_urls", "film_bytes", "film_faststart", "film_probe",
+             "transcript_matches_srt", "sizes", "images", "claims_required", "claims_banned", "no_local_paths",
+             "links_safe", "fonts_licensed")
+
+
 @check("spec_lists_checks")
 def spec_lists_checks(names):
     # Opus r6 2: SPEC §7.1 listed 14 checks while this script ran 15. Every check that runs must be listed there,
@@ -696,6 +702,16 @@ def spec_lists_checks(names):
         problems.append("§7.1 numbering is not 1..%d" % len(items))
     if listed != names:
         problems.append("§7.1 lists %s; the script runs %s" % (listed, names))
+    # Opus r7 2: §9 had no line for items 15 and 16. Every check added after the v2 list must be named in §9.
+    s9 = spec.find("\n## 9. ")
+    if s9 < 0:
+        problems.append("SPEC.md has no §9 heading")
+    else:
+        e9 = spec.find("\n## ", s9 + 1)
+        section9 = spec[s9:] if e9 < 0 else spec[s9:e9]
+        for n in listed:
+            if n not in V2_CHECKS and "`%s`" % n not in section9:
+                problems.append("§9 does not name `%s`" % n)
     return fail_list(problems) if problems else None
 
 

@@ -169,10 +169,16 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   changed to “a focus change to nothing closes it too” and item 15 kept, it passed on 90a6a03 and fails now.
 
 Not fixed (non-blocking, from the Opus review):
-- r7 1 (P3): film-end checks 1 and 2 do not prove that the film started (check 3 does, with `/VIDEO/`). If Enter did not
-  start the film, check 1 would still pass, because `toEnd()` plays it to the end. This gap is older than 90a6a03. Fix
-  idea: after each start, need focus on the video, `ended` false and the button hidden.
-- r7 2 (P3): SPEC §9 has no line for §7.1 items 15 and 16 (same kind as r4 B4).
+- r7 1 (P3). **Fixed 2026-10-21** (user request): film-end checks 1 and 2 did not prove that the film started (check 3
+  does, with `/VIDEO/`); if Enter did not start the film, `toEnd()` played it to the end and check 1 still passed. Now
+  each start is followed by `startProof()`: focus on the video, `video.ended` false and the play button hidden, printed
+  as `start`. With the first or the second Enter press removed (copies of the test), the 3e1cbeb check 1 or 2 passed;
+  the new one fails. The proof shows that the start handler ran, not that playback advanced.
+- r7 2 (P3). **Fixed 2026-10-21** (user request): SPEC §9 gains a line for §7.1 items 15 and 16. Its test is a new
+  rule in item 16 `spec_lists_checks`: §9 must name, in backticks, every §7.1 check that is not in the v2 list
+  (`V2_CHECKS`, items 1–14). It failed on the 3e1cbeb SPEC (“§9 does not name `menu_focus_wording`; §9 does not name
+  `spec_lists_checks`”). §7.1 item 16 now states the rule. The rule is a scope change (a new rule in an existing
+  check), not only a fix.
 
 
 ## Image crop boxes as finally used

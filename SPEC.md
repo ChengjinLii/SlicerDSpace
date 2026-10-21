@@ -398,7 +398,8 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 15. `menu_focus_wording`: the `site.js` focusout comment, the README “Opus N3” note and this spec (§4) each say “a
     focus change to nothing does not close it”, and none keeps the old wording that hands that case to the click
     handlers.
-16. `spec_lists_checks`: this list names every check the script runs, in run order, numbered 1..n.
+16. `spec_lists_checks`: this list names every check the script runs, in run order, numbered 1..n, and §9 names
+    every check added after v2 (items 15 on).
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
@@ -447,3 +448,6 @@ repository is public); Codex B1 moved the nav fold from ≤ 860px to ≤ 1023px 
 
 After code review (2026-10-20, README backlog Opus N1): §4 gains the sentence that `site.js` sets the `js` class itself.
 
+After code review (2026-10-21, README backlog r4 B2, r6 1–2 and r7 2): §7.1 gains item 15 `menu_focus_wording` (the
+wording in the `site.js` focusout comment, the README “Opus N3” note and §4 only) and item 16 `spec_lists_checks`
+(§7.1 names every check in run order, numbered 1..n; this section names every check added after v2).
