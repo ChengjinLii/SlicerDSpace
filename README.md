@@ -196,6 +196,24 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   drawn over the playing film, and `startProof()` still passes, because it reads the `hidden` attribute. The proof
   shows that the start handler ran; it does not check the CSS.
 
+### Review of the r8 fix (commit 18827b4; Opus 0 blocking, Codex 1, reclassified P3)
+
+Not fixed (non-blocking):
+- r9 1 (Codex P1, Opus P3; reclassified P3): `spec_lists_checks` splits §9 on `\n\n`, so a blank line that holds
+  a space joins two paragraphs. With the citation moved to the r8 paragraph and a space on the blank line between,
+  the check passed. Why P3: the committed SPEC has no whitespace-only line, so the check passes for the right reason;
+  it fails on both real forms of r8 2 (the ca62e10 SPEC and the moved citation); a false pass needs two edits at once.
+  This differs from the Codex P1 of the 90a6a03 review, where the committed SPEC itself (item 15 quoting the phrase)
+  made the check unable to fail on a wrong §4. Fix: `re.split(r"\n[ \t]*\n", …)`.
+- r9 2 (Opus P3): the code accepts the citation from any §9 paragraph that records item 15; §7.1 item 16 says
+  “the §9 paragraph”. Fix: a wording choice in item 16, or none.
+- r9 3 (Opus P3): a sentence that uses the ``item <n> `<name>` `` form in passing, without recording the item, still
+  passes. This is the limit of a pinned-form text check; a stricter rule would be a scope change.
+- r9 4 (Opus P3, nit): the comment above `V2_CHECKS` (“A check added later needs a line in SPEC §9”) does not name
+  the ``item <n> `<name>` `` form.
+- Accepted limits of the pinned-text citation check (not findings): a negated citation and a citation inside an
+  HTML comment both pass.
+
 
 ## Image crop boxes as finally used
 
