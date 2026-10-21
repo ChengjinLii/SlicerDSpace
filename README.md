@@ -355,6 +355,25 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
   `ran` row in the fix round.
 - r14 6 (P3, from the fix round): the 8d0597f record says “these four edits”, but its bullets name six runs.
 
+### Review of the r13 fix (commit 5989f8b; Opus 2 blocking, Codex 0)
+
+- Opus B1 (P1), fixed in the fix round: with `RUN["summary"] = True` indented one level, it sat in the
+  `if ran != checked:` block and was never set; a late check then passed (17/0 or 18/0, exit 0), and every check
+  stayed green, because the row looked for the line anywhere in `MAIN_TAIL`. The row now wants the line with its
+  indent, on the line above `failed = 0`.
+- Opus B2 (P1), fixed in the fix round: with the `compared` test moved above the `summary` test in `check()`, the
+  `compared` branch caught a late check first and the run exited 0. The `check()` row now wants the summary test
+  followed by `if RUN["compared"]:`.
+- For each of these edits (the Opus copies, alone and with a check after the count or between the summary loop and
+  the count) the 5989f8b script passes and the fixed script fails.
+
+Not fixed (non-blocking, from the Opus review; Codex found nothing):
+- r15 1 (P3): the r13 2 limit sentence under r11 2 names “dead code (a block under `if False:`)”, but the r10 1 ban
+  is a text regex: the old split under `if False:` still fails it. Fix: drop that example, or say that the dead code
+  is a pinned line under `if False:`.
+- r15 2 (P3), closed by the B1 row: the summary flag moved above `RUN["compared"] = True` passed (stricter, not a
+  false pass), but SPEC §7.1 item 16 (“the line above `failed = 0`”) no longer matched. The B1 row now fails it.
+
 
 ## Image crop boxes as finally used
 

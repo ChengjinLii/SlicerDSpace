@@ -769,16 +769,20 @@ WORDING_FIXES = (
     # failed = 0).
     ("r13 1", "tests/check_site.py", MAIN_TAIL,
      'RUN["compared"] = True ran = [r[1] for r in results] if ran != checked:', None),
-    ("r13 1", "tests/check_site.py", MAIN_TAIL, 'RUN["summary"] = True', None),
+    # Review of 5989f8b (Opus P1 B1): the summary flag keeps its indent and stays on the line above failed = 0.
+    ("r13 1", "tests/check_site.py", r'(?m)^    RUN\["summary"\] = True\n(?=    failed = 0)',
+     'RUN["summary"] = True', None),
     # Found in the fix round of the 8d0597f review: "ran = checked" would switch off the comparison in one edit.
     ("r10 2", "tests/check_site.py", MAIN_TAIL, "ran = [r[1] for r in results]", None),
     ("r11 3", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)", 'if RUN["compared"]:', None),
     # Review of 8d0597f (Codex P1): pin the action too, not only the condition.
     ("r11 3", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)",
      'results.append(("FAIL", name, "runs after the run-order comparison', None),
-    # Opus r13 1: a check that runs after the summary started prints its FAIL and exits 1.
+    # Opus r13 1: a check that runs after the summary started prints its FAIL and exits 1. Review of 5989f8b (Opus P1
+    # B2): that test comes before the "compared" test, which would catch the check first.
     ("r13 1", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)",
-     'if RUN["summary"]: print("FAIL %s - runs after the summary of main() started" % name) sys.exit(1)', None),
+     'if RUN["summary"]: print("FAIL %s - runs after the summary of main() started" % name) sys.exit(1)'
+     ' if RUN["compared"]:', None),
     ("r10 4", "tests/check_site.py", r"(?m)(?:^#.*\n)+(?=SECTION9_SOURCES = )",
      "a §9 paragraph that records it", "The §9 paragraph that"),
     ("r10 4", "README.md", r"(?ms)^- r8 2 \(P3\).*?(?=^(?! )|\Z)",

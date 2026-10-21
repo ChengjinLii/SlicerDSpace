@@ -497,3 +497,6 @@ flag on the line above the comparison, and a check that runs once the summary ha
 exits 1; item 17 `backlog_wording` gains rows for the order of the flag and the comparison, the summary flag, the
 print and exit in `check()`, the README r11 2 limit sentence and the two lines named in the paragraph above for
 README backlog r11 1–4 and r12 1–4.
+
+After code review of 5989f8b (2026-10-21, Opus P1 B1–B2): item 17 `backlog_wording` pins the summary flag with
+its indent on the line above `failed = 0`, and the summary test in `check()` before the `compared` test.
