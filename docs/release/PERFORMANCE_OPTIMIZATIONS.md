@@ -478,11 +478,36 @@ Evidence: [WLS JSON](benchmarks/freewater_tensor_helpers_20261022.json)/
 [Slicer WLS JSON](benchmarks/freewater_tensor_helpers_slicer_20261022.json)/
 [CSV](benchmarks/freewater_tensor_helpers_slicer_20261022.csv), and
 [NLS JSON](benchmarks/freewater_tensor_helpers_nls_20261022.json).
-These are shared-host complete ROI stages; independent full-brain measurement
-uses `ignore/validation/full_freewater_tensor_20261022/`, with new immutable
-code/harness snapshots and fresh outputs. A running full-brain pair is not yet
-a measured whole-brain improvement. No estimator, thread count, GPU policy,
-sampling, precision or QC threshold is changed.
+These are shared-host complete ROI stages, not full-brain or whole-workflow ratios.
+
+### Complete Full-Brain Pair for the Current Implementation
+
+A separate full-brain pair has now completed with immutable code/harness
+snapshots and fresh outputs. Subject 100307 retains the original **740916 mask
+voxels and 288 measurements**, with one numerical thread in both paths:
+
+| Original author WLS | Current equivalent implementation | Saved | Time reduction | Speed ratio |
+| ---: | ---: | ---: | ---: | ---: |
+| 918.158 s (15.30 min) | 785.648 s (13.09 min) | 132.510 s (2.21 min) | 14.43% | 1.169x |
+
+Independent verification covers all 13 raw fit parameters in 54 computational
+chunks, plus FWF, tissue FA, tissue MD and the valid-tissue mask. Arrays, dtypes,
+affines and QC match exactly. Both automatic QC checks pass, preserving
+**623981 valid-tissue and 116935 excluded voxels**; invalid fits are not relabeled
+as valid. Input SHA256 values, frozen runtime and benchmark-harness hashes are
+unchanged. Local evidence remains in `ignore/validation/full_freewater_tensor_20261022/`.
+Published evidence: [full-brain JSON](benchmarks/freewater_tensor_helpers_full_20261022.json)/
+[CSV](benchmarks/freewater_tensor_helpers_full_20261022.csv).
+
+This is **one subject and one pair on a shared Linux host**, optimized first
+and reference second, without flushing OS caches or estimating a confidence
+interval. Both timed calls include the same raw-parameter evidence export.
+Do not compare absolute times across historical runs, multiply earlier ratios,
+or call this a whole-workflow improvement. No estimator, thread count, GPU policy,
+sampling, precision or QC threshold changes; anatomical review remains pending.
+
+The current regression ran **1298 tests: 1295 passed, 3 skipped, no failures**.
+All nine dedicated Free-water tests also passed in Slicer's own Python.
 
 ---
 
@@ -782,9 +807,9 @@ devices and cache state; repeat both implementations on multiple independent
 subjects while recording wall time, RSS/VRAM, output error and failures. Highest
 priorities are multisubject repetitions of the completed WMA/NODDI/default-WLS pairs,
 finishing the interrupted complete DKI pair, and full-brain pairs for the new
-Free-water NLS and default-QR MK-Curve changes. Default WLS now has one full-brain
-pair, but multisubject repeats and full-stage qualification of the helper
-candidate remain needed. Complete 74-tract WMA pairs for the new changes are
+Free-water NLS and default-QR MK-Curve changes. Default WLS helper dispatch now
+has one qualified full-brain pair, but multisubject, repeated measurements
+remain needed. Complete 74-tract WMA pairs for the new changes are
 still missing; small fixtures cannot predict minutes saved. Original MATLAB MK-Curve
 runtime is also unmeasured.
 Linux evidence does not certify native Windows/macOS scientific performance.
