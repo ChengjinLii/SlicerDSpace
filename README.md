@@ -537,7 +537,7 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
   comment line below it, fails the row while the test still runs (a visible false FAIL, not a false pass).
 
 
-### Review of the backlog batch (commits 12cd7fb..01ef29c; Opus 2 blocking, Codex 2 blocking)
+### Review of the backlog batch (`git diff f3b0bd6 01ef29c`, commits 12cd7fb to 01ef29c; Opus 2 blocking, Codex 2 blocking)
 
 Fixed in the fix round (the same two items from both reviewers):
 - B1 (Opus B1, Codex P1; new in e544067): the autoplay check was flaky. Its init script listened for
@@ -565,6 +565,14 @@ Not fixed (non-blocking):
   exempt only “status of 404” at the missing path, and add `pageerror`.
 - r22 6 (P3, Opus): `fonts_licensed` reads only `site.css`; a Plex `@font-face` in an inline `<style>` passes.
 - r22 7 (information, Opus): on a slow machine the autoplay check depends only on its 10 s wait.
+
+Re-review of the fix round (3b027a2; Opus 0 blocking, Codex 0 blocking). Both reproduced the B1 and B2 runs; Opus also
+found that both paths of the B1 fix run (`readyState` 4 or 0 at `DOMContentLoaded`) and that an aborted film request
+gives a visible FAIL, not a false pass. The review is closed.
+- r23 1 (P3, Opus; predates 3b027a2): the r21 1 row pins only “r20 1, r20 2, r20 6, r21 1”; removing another name
+  (for example “r18 1, ” or “N5, ”) from SPEC item 17 still passes. No row pinned the older names either.
+- r23 2 (P3, Opus; from 3b027a2): the heading of this record said “12cd7fb..01ef29c”, which in git leaves out 12cd7fb.
+  Fixed in the record commit: the heading names `git diff f3b0bd6 01ef29c`.
 
 ## Image crop boxes as finally used
 
