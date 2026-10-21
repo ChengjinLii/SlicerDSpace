@@ -715,7 +715,8 @@ def spec_lists_checks(names):
         problems.append("SPEC.md has no §9 heading")
     else:
         e9 = spec.find("\n## ", s9 + 1)
-        # Opus r9 1: a line with only spaces or tabs also ends a paragraph, as in Markdown.
+        # Opus r9 1: a line with only spaces or tabs also ends a paragraph, as in Markdown. The old .split("\n\n") did
+        # not split there. (This comment also tests that backlog_wording ignores the comment lines of a code part.)
         paras = re.split(r"\n[ \t]*\n", spec[s9:] if e9 < 0 else spec[s9:e9])
         for i, n in items:
             if n in V2_CHECKS:
@@ -731,7 +732,8 @@ def spec_lists_checks(names):
 
 # Fixes from the README review backlog that only a text check can hold (wording, and code lines that guard a fix):
 # (finding, file, the part of the file the finding names as a regex, the phrase that must be there, the phrase that
-# must not be or None). In a .py part the comment marks are removed; then the part is whitespace-normalized.
+# must not be or None). In a .py part, a part made of comment lines loses its comment marks, and a part that holds
+# code loses its comment lines; then the part is whitespace-normalized.
 WORDING_FIXES = (
     ("r9 2", "SPEC.md", r"(?ms)^16\. `spec_lists_checks`.*?(?=^(?! )|\Z)",
      "a §9 paragraph that records item 15", "the §9 paragraph that records item 15"),
@@ -765,8 +767,14 @@ def backlog_wording():
             continue
         part = m.group(0)
         if rel.endswith(".py"):
-            # Opus r10 3: drop the comment marks, so that a phrase may wrap across two comment lines.
-            part = re.sub(r"(?m)^[ \t]*# ?", "", part)
+            if all(re.match(r"[ \t]*#", ln) for ln in part.splitlines() if ln.strip()):
+                # Opus r10 3: a part made of comment lines is wording. Drop the comment marks, so that a phrase may wrap
+                # across two comment lines.
+                part = re.sub(r"(?m)^[ \t]*# ?", "", part)
+            else:
+                # Review of af78411 (Codex P1): in a part that holds code, only code counts. Drop the comment lines, so
+                # that commented-out code does not satisfy a pin.
+                part = re.sub(r"(?m)^[ \t]*#.*$", "", part)
         text = " ".join(part.split())
         if want not in text:
             problems.append("%s: %s lacks %r" % (finding, rel, want))

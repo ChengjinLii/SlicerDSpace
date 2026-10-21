@@ -404,7 +404,8 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     After the last check, `main()` also fails it when the checks that ran differ from the list it was given.
 17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4 and r10 1, 2, 4, 5)
     stay in place: in the part of a file that each row names, the fixed phrase is there and, where there is one, the
-    old phrase is not. In a `.py` part the `#` comment marks are removed before the test.
+    old phrase is not. In a `.py` part made of comment lines the `#` marks are removed before the test; from a `.py`
+    part that holds code the comment lines are removed, so commented-out code does not count.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
@@ -470,3 +471,7 @@ After code review (2026-10-21, README backlog r10 1–5): item 16 `spec_lists_ch
 ran differ from the list it was given; item 17 `backlog_wording` gains rows for r10 1, 2, 4 and 5 (the `re.split`
 call in `spec_lists_checks`, that comparison in `main()`, and the r10 4 and r10 5 wording) and removes the `#`
 comment marks in a `.py` part before the test.
+
+After code review of af78411 (2026-10-21, Codex P1): item 17 `backlog_wording` removes the comment lines from a `.py`
+part that holds code, so commented-out code does not satisfy a pin; in a part made of comment lines it still removes
+only the marks.

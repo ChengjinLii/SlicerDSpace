@@ -246,6 +246,30 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
 - The four new wording rows failed on the ebbeb2a wording before the fixes. SPEC §7.1 item 17 now lists the table's
   findings (r9 2–4 and r10 1, 2, 4, 5) instead of the three parts, and item 16 names the `main()` comparison.
 
+### Review of the r10 fix (commit af78411; Opus 0 blocking, Codex 1)
+
+- Codex P1 (Opus: P2), fixed in the fix round: in a code row, a pinned phrase inside a comment satisfied the pin.
+  With the comparison in `main()` commented out, the r10 2 row passed (17/0), so one common edit removed the r10 2
+  fix while the guard stayed green. I treated it as blocking for that reason (r9 1 needed two edits). Now a `.py`
+  part that holds code loses its comment lines before the test; a part made of comment lines still loses only the
+  marks. Committed guard: the comment in `spec_lists_checks` names the old `.split("\n\n")`; with the af78411
+  logic the r10 1 row fails on it. With the comparison commented out, deleted with the phrase left in a comment,
+  or the `re.split` line commented out, the af78411 script passes and the fixed script fails.
+
+Not fixed (non-blocking, from the Opus review):
+- r11 1 (P2): the r10 2 row slices all of `main()`, so it still passes when the comparison moves below the
+  `print("%d checks…")` line, where its FAIL is never printed. Fix idea: slice from `for f in later:` to
+  `failed = 0`.
+- r11 2 (P3): the r10 1 row bans only one spelling of the old split: `.split('\n\n')` after the `re.split` line
+  passes. Code pins accept dead code and other spellings; fix idea: record that as a limit, or ban both quote
+  styles with a regex.
+- r11 3 (P3): SPEC §7.1 item 16 says “after the last check”, but a check called after the comparison is neither
+  listed nor compared (as at ebbeb2a). Fix idea: run every check from one list and compare once.
+- r11 4 (P3): the comment in `backlog_wording` still says “README backlog r9 2-4: each wording fix”; the table now
+  also holds the r10 rows, two of them code lines.
+- Limit (not a finding): with the `later` loop deleted and the comparison commented out (two edits), the suite
+  passes with 16 results, because the rows run inside that loop.
+
 
 ## Image crop boxes as finally used
 
