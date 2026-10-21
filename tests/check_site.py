@@ -797,7 +797,10 @@ WORDING_FIXES = (
      "code inside a string still counts", "so commented-out code does not count"),
     ("r12 1", "SPEC.md", r"(?ms)^After code review of af78411 .*?(?=\n\n|\Z)",
      "code commented out with whole `#` lines", "so commented-out code does not satisfy a pin"),
-    ("r12 3", "README.md", r"(?ms)^- Codex P1 \(Opus: P2\), fixed in the fix round.*?(?=^(?! )|\Z)",
+    # Opus r14 4: anchored on the words of the af78411 bullet; the review records after it start the same way.
+    ("r12 3", "README.md",
+     r"(?ms)^- Codex P1 \(Opus: P2\), fixed in the fix round: in a code row, a pinned phrase inside a comment"
+     r".*?(?=^(?! )|\Z)",
      "and the old split put back with single quotes", None),
     ("r12 4", "tests/check_site.py", r"(?m)(?:^[ \t]*#.*\n)+(?=[ \t]*paras = re\.split)",
      r'The old .split("\n\n") did not split there', None),
@@ -813,6 +816,15 @@ WORDING_FIXES = (
      "Code pins accept dead code and other spellings", None),
     ("r13 3", "SPEC.md", S9_R11_R12, "`part = code_text(part)`", None),
     ("r13 3", "SPEC.md", S9_R11_R12, "`if sample != CODE_SAMPLE_TEXT:`", None),
+    # Opus r14 3: the sample keeps its trailing comment, so a whole-line remover still fails it.
+    ("r14 3", "tests/check_site.py", r"(?m)^CODE_SAMPLE = .*$", "x = 1 # a trailing comment", None),
+    ("r14 4", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     'if len(found) > 1: problems.append("%s: %s has %d parts that match', None),
+    ("r14 5", "SPEC.md", r"(?ms)^After code review of 8d0597f .*?(?=\n\n|\Z)",
+     "which the author found in the fix round", None),
+    ("r14 1", "README.md", r"(?ms)^- r11 2 \(P3\)\..*?(?=^(?! )|\Z)", "This holds for every code pin", None),
+    ("r14 6", "README.md", r"(?ms)^- For each of these (?:four edits|six runs).*?(?=^(?! )|\Z)",
+     "For each of these six runs", "these four edits"),
 )
 
 # Opus r12 1: a sample for the comment remover of a code part: a trailing comment and a comment line go, a # inside a
@@ -843,11 +855,15 @@ def backlog_wording():
     if sample != CODE_SAMPLE_TEXT:
         problems.append("the comment remover gives %r for its sample, not %r" % (sample, CODE_SAMPLE_TEXT))
     for finding, rel, where, want, banned in WORDING_FIXES:
-        m = re.search(where, read(os.path.join(ROOT, rel)))
-        if not m:
+        found = list(re.finditer(where, read(os.path.join(ROOT, rel))))
+        if not found:
             problems.append("%s: %s has no part that matches %r" % (finding, rel, where))
             continue
-        part = m.group(0)
+        # Opus r14 4: a row's part must be one part of the file, so that the row cannot test another part by chance.
+        if len(found) > 1:
+            problems.append("%s: %s has %d parts that match %r, not one" % (finding, rel, len(found), where))
+            continue
+        part = found[0].group(0)
         if rel.endswith(".py"):
             if all(re.match(r"[ \t]*#", ln) for ln in part.splitlines() if ln.strip()):
                 # Opus r10 3: a part made of comment lines is wording. Drop the comment marks, so that a phrase may wrap

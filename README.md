@@ -264,8 +264,11 @@ Not fixed (non-blocking, from the Opus review):
 - r11 2 (P3). **Fixed 2026-10-21** (user request): the r10 1 row now bans the old split with a regex in both quote
   styles (a row's banned phrase may be a string, a compiled regex or `None`). With `.split('\n\n')` added after the
   `re.split` line, the c9d46ec script passes and the new script fails.
-  Limit (README r13 2): Code pins accept dead code and other spellings. Six other spellings of the old split (for
-  example `.split( "\n\n" )` or `.split(sep="\n\n")`) and dead code (a block under `if False:`) still pass.
+  Limit (README r13 2, r14 1): Code pins accept dead code and other spellings. This holds for every code pin in
+  `WORDING_FIXES`, not only this ban. A pinned line still counts when it does not run (under `if False:`, or below a
+  `return` moved above it) and when a line added after it undoes it (for example `ran = checked`). A ban misses
+  other spellings of the old code: six other spellings of the old split pass, for example `.split( "\n\n" )` or
+  `.split(sep="\n\n")`; the old split under `if False:` still fails the ban, because a ban reads text.
 - r11 3 (P3). **Fixed 2026-10-21** (user request): a check called after the run-order comparison was neither listed
   nor compared. `main()` now sets `RUN["compared"]` after the comparison, and the `check()` wrapper fails a check
   that runs after that. With `menu_focus_wording()` called again after the comparison, the c9d46ec script passes
@@ -313,7 +316,8 @@ it is P2/P3.
   was also off).
 - Found in the fix round (not raised by a reviewer; present since af78411): with `ran = checked`, the comparison
   in `main()` was off in one edit. A row now pins `ran = [r[1] for r in results]`.
-- For each of these four edits the 8d0597f script passes and the fixed script fails.
+- For each of these six runs (`wrap_pass`, `wrap_noappend_late`, `sample_pass`, `iso2_sample_pass_wholeline`,
+  `sample_const` and `ran_is_checked`) the 8d0597f script passes and the fixed script fails.
 - Codex P1, reclassified P2 (Opus: P2): see r13 1. It does not remove a fix; it adds a check where the r11 3 guard
   does not reach, which is the class of r11 3 itself (P3). The committed tree is correct.
 
@@ -337,23 +341,23 @@ Not fixed (non-blocking):
 ### Re-review of the 8d0597f fix round (commit 2740bb2; Opus and Codex: 0 blocking)
 
 Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
-- r14 1 (P3): dead code or a swapped line keeps a pinned phrase while its action is off: `return` moved above the
-  append in `check()` (with a late check, 17/0), or `ran = [r[1] for r in results] and checked` (17/0). Both also
-  pass on 8d0597f. This is the class “Code pins accept dead code and other spellings”. Fix idea: let that limit
-  sentence cover every code pin.
-- r14 2 (P2/P3): false passes that need two edits: `ran = checked` added after the `ran` line and the `later` loop
-  skipped (16/0); `RUN["compared"] = False` added after the flag and a late check (18/0, the r13 1 class);
-  `sample = CODE_SAMPLE_TEXT` added after the sample line; `problems = []` added after the sample test and a
-  whole-line remover.
-- r14 3 (P2): `CODE_SAMPLE` is not pinned. With a sample that holds no comment and a whole-line remover (two edits),
-  the suite passes (17/0). Fix idea: a row on `(?m)^CODE_SAMPLE = .*$` that wants `x = 1  # a trailing comment`,
-  or record the limit.
-- r14 4 (P3, from the fix round): the r12 3 row's locator (`^- Codex P1 \(Opus: P2\), fixed in the fix round`) now
-  matches three bullets. `re.search` binds the first one (the af78411 bullet), so the row is correct today. Fix
-  idea: anchor it on words of the af78411 bullet.
-- r14 5 (P3, from the fix round): the 8d0597f §9 paragraph credits all its rows to “Codex P1”; the author found the
-  `ran` row in the fix round.
-- r14 6 (P3, from the fix round): the 8d0597f record says “these four edits”, but its bullets name six runs.
+- r14 1 (P3). **Fixed 2026-10-21** (user request): the limit sentence under r11 2 now covers every code pin (a
+  pinned line that does not run, or that a line added after it undoes, still counts). A row pins “This holds for
+  every code pin”; the 7d6b9ee README fails it. The same rewrite corrects the `if False:` example (r15 1).
+- r14 2 (P2/P3). Recorded as a limit, no code change: the r14 1 sentence names a line added after a pinned line that
+  undoes it (`ran = checked`, `sample = CODE_SAMPLE_TEXT`, `problems = []`); each case needs two edits.
+- r14 3 (P2). **Fixed 2026-10-21** (user request): a row on `(?m)^CODE_SAMPLE = .*$` wants
+  `x = 1 # a trailing comment` (after whitespace normalization). With a sample that holds no comment, the 7d6b9ee
+  script passes and the new script fails, also with a whole-line remover put back.
+- r14 4 (P3). **Fixed 2026-10-21** (user request): the r12 3 locator is anchored on the words of the af78411 bullet
+  (“in a code row, a pinned phrase inside a comment”). My addition: a row whose locator matches more than one part
+  of its file now fails (“has N parts that match”), and a row pins that test. With the old locator, the new script
+  fails (3 parts); with the af78411 bullet moved below the later records, the 7d6b9ee script fails (it binds a
+  later bullet) and the new script passes.
+- r14 5 (P3). **Fixed 2026-10-21** (user request): the 8d0597f §9 paragraph says that the author found the `ran`
+  row in the fix round (no reviewer raised it). A row pins it; the 7d6b9ee SPEC fails it.
+- r14 6 (P3). **Fixed 2026-10-21** (user request): the 8d0597f record says “these six runs” and names them. A row
+  pins it and bans “these four edits”; the 7d6b9ee README fails it.
 
 ### Review of the r13 fix (commit 5989f8b; Opus 2 blocking, Codex 0)
 
@@ -368,9 +372,9 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
   the count) the 5989f8b script passes and the fixed script fails.
 
 Not fixed (non-blocking, from the Opus review; Codex found nothing):
-- r15 1 (P3): the r13 2 limit sentence under r11 2 names “dead code (a block under `if False:`)”, but the r10 1 ban
-  is a text regex: the old split under `if False:` still fails it. Fix: drop that example, or say that the dead code
-  is a pinned line under `if False:`.
+- r15 1 (P3), closed by the r14 1 rewrite: the r13 2 limit sentence under r11 2 named “dead code (a block under
+  `if False:`)”, but the r10 1 ban is a text regex: the old split under `if False:` still fails it. The sentence now
+  says that a pinned line under `if False:` still counts, and that the old split under `if False:` fails the ban.
 - r15 2 (P3), closed by the B1 row: the summary flag moved above `RUN["compared"] = True` passed (stricter, not a
   false pass), but SPEC §7.1 item 16 (“the line above `failed = 0`”) no longer matched. The B1 row now fails it.
 

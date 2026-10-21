@@ -406,11 +406,11 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     the line above `failed = 0`) prints its FAIL and exits 1. A result added to `results` by hand, not through a
     check, is not covered.
 17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4, r10 1, 2, 4, 5, r11 3,
-    4, r12 1–4 and r13 1–3) stay in place: in the part of a file that each row names, the fixed phrase is there and,
-    where there is one, the old phrase is not (a string or a regex). In a `.py` part made of comment lines the `#`
-    marks are removed before the test; from a `.py` part that holds code every comment is removed (Python `tokenize`,
-    also a comment at the end of a line), so code commented out with `#` does not count; code inside a string still
-    counts. A built-in sample checks the comment remover.
+    4, r12 1–4, r13 1–3, r14 1 and r14 3–6) stay in place: in the part of a file that each row names (found exactly
+    once), the fixed phrase is there and, where there is one, the old phrase is not (a string or a regex). In a `.py`
+    part made of comment lines the `#` marks are removed before the test; from a `.py` part that holds code every
+    comment is removed (Python `tokenize`, also a comment at the end of a line), so code commented out with `#` does
+    not count; code inside a string still counts. A built-in sample checks the comment remover.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
@@ -490,7 +490,8 @@ the two narrowed SPEC phrases, the README r12 3 sentence and the guard comment i
 
 After code review of 8d0597f (2026-10-21, Codex P1): item 17 `backlog_wording` gains rows that pin the action of
 the late-check test in `check()`, the line that makes the comment-remover sample and the line that reports a
-mismatch, and the line in `main()` that collects the checks that ran.
+mismatch; it also gains a row for the line in `main()` that collects the checks that ran, which the author found in
+the fix round (no reviewer raised it).
 
 After code review (2026-10-21, README backlog r13 1–3): in item 16 `spec_lists_checks`, `main()` sets the run-order
 flag on the line above the comparison, and a check that runs once the summary has started prints its FAIL and
@@ -500,3 +501,8 @@ README backlog r11 1–4 and r12 1–4.
 
 After code review of 5989f8b (2026-10-21, Opus P1 B1–B2): item 17 `backlog_wording` pins the summary flag with
 its indent on the line above `failed = 0`, and the summary test in `check()` before the `compared` test.
+
+After code review (2026-10-21, README backlog r14 1–6): item 17 `backlog_wording` fails a row whose part is found
+more than once in its file, and the r12 3 row is anchored on the words of the af78411 bullet; rows pin the trailing
+comment in `CODE_SAMPLE`, that test of the part count, the note on the `ran` row in the 8d0597f paragraph above, the
+six runs in the README record of 8d0597f and the README limit sentence for every code pin.
