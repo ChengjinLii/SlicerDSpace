@@ -180,6 +180,19 @@ Not fixed (non-blocking, from the Opus review):
   `spec_lists_checks`”). §7.1 item 16 now states the rule. The rule is a scope change (a new rule in an existing
   check), not only a fix.
 
+### Review of the r7 fix (commit 06b6bb8; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus review; Codex found nothing):
+- r8 1 (P3): the item 16 rule for §9 passes when a post-v2 check name is in backticks anywhere in §9, also in a
+  sentence that does not record that item. With the 2026-10-21 line removed and both names put into the N18/N19
+  sentence, `spec_lists_checks` passed. Fix idea (a new rule, so a scope change): need ``item <n> `<name>` `` in §9,
+  with `<n>` equal to the §7.1 number.
+- r8 2 (P3): the new §9 line lists “README backlog r4 B2, r6 1–2 and r7 2” as its sources, but the “§4 only” scope
+  of item 15 came from the Codex P1 of the 90a6a03 review. Fix: add that source to the list.
+- Note (outside this diff): with the CSS rule `.film-play[hidden]{display:none}` removed, the play button stays
+  drawn over the playing film, and `startProof()` still passes, because it reads the `hidden` attribute. The proof
+  shows that the start handler ran; it does not check the CSS.
+
 
 ## Image crop boxes as finally used
 
