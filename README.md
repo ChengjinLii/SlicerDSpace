@@ -484,6 +484,17 @@ Not fixed (non-blocking, from the Opus re-review):
   `WORDING_FIXES`”) say more than the code, which compares the count (see r20 3 and r20 4). Suggested: “went
   through fewer or more rows than `WORDING_FIXES` holds”.
 
+### Re-review of the third round (commit 3d87fa2; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
+- r21 1 (P3, introduced by the third round): SPEC item 17 lists the findings that `WORDING_FIXES` holds, ending
+  “r17 1–5 and r19 1”; it does not name r20 1. No row pins the list.
+- r21 2 (P3, predates; a recorded limit: dead code): with `if False else None` added to the end of the FAIL line of
+  the count test, the append is dead code and every check stays green (17/0 on afca992 and 3d87fa2).
+- r21 3 (P3, information): the r20 1 row reads raw text, as the B1 and B2 rows do, so a trailing comment on the `if`
+  line, or a comment line below it, fails the row while the test still runs (a visible false FAIL, not a false
+  pass).
+
 
 ## Image crop boxes as finally used
 
