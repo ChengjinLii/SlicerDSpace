@@ -401,11 +401,14 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 16. `spec_lists_checks`: this list names every check the script runs, in run order, numbered 1..n. §9 records every
     check added after v2 (items 15 on) as ``item <n> `<name>` ``, with n its number in this list, and a §9
     paragraph that records item 15 cites the review that limited it to §4 (the Codex P1 of the 90a6a03 review).
-    After the last check, `main()` also fails it when the checks that ran differ from the list it was given.
-17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4 and r10 1, 2, 4, 5)
-    stay in place: in the part of a file that each row names, the fixed phrase is there and, where there is one, the
-    old phrase is not. In a `.py` part made of comment lines the `#` marks are removed before the test; from a `.py`
-    part that holds code the comment lines are removed, so commented-out code does not count.
+    After the last check, `main()` also fails it when the checks that ran differ from the list it was given; a check
+    that runs after that comparison fails.
+17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4, r10 1, 2, 4, 5, r11 3,
+    4 and r12 1–4) stay in place: in the part of a file that each row names, the fixed phrase is there and, where
+    there is one, the old phrase is not (a string or a regex). In a `.py` part made of comment lines the `#` marks
+    are removed before the test; from a `.py` part that holds code every comment is removed (Python `tokenize`, also
+    a comment at the end of a line), so code commented out with `#` does not count; code inside a string still
+    counts. A built-in sample checks the comment remover.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
@@ -473,5 +476,12 @@ call in `spec_lists_checks`, that comparison in `main()`, and the r10 4 and r10 
 comment marks in a `.py` part before the test.
 
 After code review of af78411 (2026-10-21, Codex P1): item 17 `backlog_wording` removes the comment lines from a `.py`
-part that holds code, so commented-out code does not satisfy a pin; in a part made of comment lines it still removes
-only the marks.
+part that holds code, so code commented out with whole `#` lines does not satisfy a pin; in a part made of comment
+lines it still removes only the marks.
+
+After code review (2026-10-21, README backlog r11 1–4 and r12 1–4): in item 16 `spec_lists_checks`, a check that
+runs after the run-order comparison fails; item 17 `backlog_wording` removes every comment from a `.py` part that
+holds code (`tokenize`), checks that remover on a built-in sample, bans the old split in both quote styles, slices
+`main()` only from the `later` loop to the count, and gains rows for the `results.append` line, the run-order flag,
+the `backlog_wording` comment, the two narrowed SPEC phrases, the README r12 3 sentence and the guard comment in
+`spec_lists_checks`.

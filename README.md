@@ -254,38 +254,47 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   part that holds code loses its comment lines before the test; a part made of comment lines still loses only the
   marks. Committed guard: the comment in `spec_lists_checks` names the old `.split("\n\n")`; with the af78411
   logic the r10 1 row fails on it. With the comparison commented out, deleted with the phrase left in a comment,
-  or the `re.split` line commented out, the af78411 script passes and the fixed script fails.
+  or the `re.split` line commented out and the old split put back with single quotes, the af78411 script passes and
+  the fixed script fails.
 
 Not fixed (non-blocking, from the Opus review):
-- r11 1 (P2): the r10 2 row slices all of `main()`, so it still passes when the comparison moves below the
-  `print("%d checks…")` line, where its FAIL is never printed. Fix idea: slice from `for f in later:` to
-  `failed = 0`.
-- r11 2 (P3): the r10 1 row bans only one spelling of the old split: `.split('\n\n')` after the `re.split` line
-  passes. Code pins accept dead code and other spellings; fix idea: record that as a limit, or ban both quote
-  styles with a regex.
-- r11 3 (P3): SPEC §7.1 item 16 says “after the last check”, but a check called after the comparison is neither
-  listed nor compared (as at ebbeb2a). Fix idea: run every check from one list and compare once.
-- r11 4 (P3): the comment in `backlog_wording` still says “README backlog r9 2-4: each wording fix”; the table now
-  also holds the r10 rows, two of them code lines.
+- r11 1 (P2). **Fixed 2026-10-21** (user request): the r10 2 row sliced all of `main()`, so it passed when the
+  comparison moved below the `print("%d checks…")` line. It now slices from `for f in later:` to `failed = 0`
+  (`MAIN_TAIL`). With the comparison moved below the count, the c9d46ec script passes and the new script fails.
+- r11 2 (P3). **Fixed 2026-10-21** (user request): the r10 1 row now bans the old split with a regex in both quote
+  styles (a row's banned phrase may be a string, a compiled regex or `None`). With `.split('\n\n')` added after the
+  `re.split` line, the c9d46ec script passes and the new script fails.
+- r11 3 (P3). **Fixed 2026-10-21** (user request): a check called after the run-order comparison was neither listed
+  nor compared. `main()` now sets `RUN["compared"]` after the comparison, and the `check()` wrapper fails a check
+  that runs after that. With `menu_focus_wording()` called again after the comparison, the c9d46ec script passes
+  (18/0) and the new script fails (“runs after the run-order comparison”). Two rows pin the flag and the wrapper test.
+  The `later` loop stays, because the r11 1 slice names it; so this is a flag, not the “one list” idea.
+- r11 4 (P3). **Fixed 2026-10-21** (user request): the comment in `backlog_wording` now speaks of each fix in
+  `WORDING_FIXES` (wording, or a code line that guards a fix), with no finding numbers. A row pins it.
 - Limit (not a finding): with the `later` loop deleted and the comparison commented out (two edits), the suite
   passes with 16 results, because the rows run inside that loop.
 
 ### Re-review of the r10 fix round (commit dfc17e5; Opus and Codex: 0 blocking)
 
-Not fixed (non-blocking, from the Opus re-review; Codex found nothing). Each item also passes on af78411, so the fix
-round did not cause it:
-- r12 1 (P2): a code part loses only whole `#` lines. A trailing comment and a `"""` block still count as code: with
-  the comparison deleted and the phrase left in a trailing comment, or the four comparison lines wrapped in `"""`,
-  the suite passes (17/0). SPEC §7.1 item 17 (“commented-out code does not count”) and the af78411 §9 paragraph
-  (“does not satisfy a pin”) say more than the code does. Fix ideas: remove `COMMENT` tokens with `tokenize`, and
-  narrow the two SPEC phrases, or record these cases as a limit (a `"""` block is dead code, as in r11 2).
-- r12 2 (P2): the r10 2 row pins the condition, not the action: with the `results.append(...)` body replaced by
-  `pass`, the suite passes (17/0). Fix idea: pin the append line too, or record it with r11 2.
-- r12 3 (P3): the review record of af78411 above says that the af78411 script passes with “the `re.split` line
-  commented out”. That is true only when the old split is also put back (with single quotes); with the line only
-  commented out, af78411 fails with a `NameError`.
-- r12 4 (P3): the committed guard comment in `spec_lists_checks` is not pinned; with that sentence deleted and the
-  af78411 logic put back (two edits), the suite passes. This is the same kind of guard as the r10 3 wrapped comment.
+Non-blocking items from the Opus re-review (Codex found nothing). Each item also passed on af78411, so the fix round
+did not cause it:
+- r12 1 (P2). **Fixed 2026-10-21** (user request): a code part lost only whole `#` lines. Now `code_text` blanks out
+  every `COMMENT` token (`tokenize`), also at the end of a line. With the comparison deleted and the phrase left in a
+  trailing comment, the c9d46ec script passes and the new script fails. A built-in sample (a trailing comment, a
+  comment line, a `#` inside a string) tests the remover: a whole-line remover and a cut-at-`#` remover both fail
+  it. Two rows pin the call `part = code_text(part)` and the sample test. SPEC §7.1 item 17 and the af78411 §9
+  paragraph now say what the code does (two rows). Limit: code in a string still counts, so the comparison wrapped
+  in `"""` still passes.
+- r12 2 (P2). **Fixed 2026-10-21** (user request): a row on `MAIN_TAIL` now also pins the
+  `results.append(("FAIL", "spec_lists_checks", …` line. With that body replaced by `pass`, the c9d46ec script passes
+  and the new script fails.
+- r12 3 (P3). **Fixed 2026-10-21** (user request): the review record of af78411 now says “the `re.split` line
+  commented out and the old split put back with single quotes”. A row pins it.
+- r12 4 (P3). **Fixed 2026-10-21** (user request): a row pins the guard comment above `paras = re.split` in
+  `spec_lists_checks`. With its second sentence deleted, the c9d46ec script passes and the new script fails.
+- Limit of this design (not a finding): a row cannot pin its own definition in `WORDING_FIXES` (a pin in the table
+  would match its own text), so changing a row back (for example the r10 1 regex back to a string, or `MAIN_TAIL`
+  back to all of `main()`) is not caught.
 
 
 ## Image crop boxes as finally used

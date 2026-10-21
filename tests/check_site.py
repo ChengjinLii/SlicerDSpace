@@ -7,6 +7,7 @@ Prints one PASS / FAIL / SKIP line per check. Exit code 1 on any FAIL.
 """
 import hashlib
 import html
+import io
 import json
 import os
 import re
@@ -14,6 +15,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import tokenize
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlsplit
 
@@ -212,11 +214,16 @@ def all_files(top=DOCS):
 
 # ---------------------------------------------------------------- results
 results = []
+# Opus r11 3: main() sets "compared" after the run-order comparison; a check that runs after it fails.
+RUN = {"compared": False}
 
 
 def check(name):
     def deco(fn):
         def run(*a, **k):
+            if RUN["compared"]:
+                results.append(("FAIL", name, "runs after the run-order comparison in main()"))
+                return
             try:
                 out = fn(*a, **k)
             except Exception as exc:  # a crashing check is a failing check
@@ -730,10 +737,13 @@ def spec_lists_checks(names):
     return fail_list(problems) if problems else None
 
 
+# Opus r11 1: the part of main() from the later loop to the count.
+MAIN_TAIL = r"(?ms)^    for f in later:.*?(?=^    failed = 0)"
+
 # Fixes from the README review backlog that only a text check can hold (wording, and code lines that guard a fix):
 # (finding, file, the part of the file the finding names as a regex, the phrase that must be there, the phrase that
-# must not be or None). In a .py part, a part made of comment lines loses its comment marks, and a part that holds
-# code loses its comment lines; then the part is whitespace-normalized.
+# must not be: a string, a compiled regex, or None). In a .py part, a part made of comment lines loses its comment
+# marks, and a part that holds code loses its comments (code_text); then the part is whitespace-normalized.
 WORDING_FIXES = (
     ("r9 2", "SPEC.md", r"(?ms)^16\. `spec_lists_checks`.*?(?=^(?! )|\Z)",
      "a §9 paragraph that records item 15", "the §9 paragraph that records item 15"),
@@ -741,10 +751,15 @@ WORDING_FIXES = (
      "only in passing, without recording the item, still passes", None),
     ("r9 4", "tests/check_site.py", r"(?m)(?:^#.*\n)+(?=V2_CHECKS = )",
      "item <n> `<name>`", "needs a line in SPEC §9"),
+    # Opus r11 2: the old split is banned in both quote styles.
     ("r10 1", "tests/check_site.py", r"(?ms)^def spec_lists_checks\(.*?(?=^\S)",
-     r're.split(r"\n[ \t]*\n"', r'.split("\n\n")'),
-    ("r10 2", "tests/check_site.py", r"(?ms)^def main\(.*?(?=^\S)",
-     "if ran != checked:", None),
+     r're.split(r"\n[ \t]*\n"', re.compile(r"""\.split\((["'])\\n\\n\1\)""")),
+    # Opus r11 1: only the lines from the later loop to the count, so a comparison moved below the count fails.
+    ("r10 2", "tests/check_site.py", MAIN_TAIL, "if ran != checked:", None),
+    ("r12 2", "tests/check_site.py", MAIN_TAIL,
+     'results.append(("FAIL", "spec_lists_checks", "the checks that ran', None),
+    ("r11 3", "tests/check_site.py", MAIN_TAIL, 'RUN["compared"] = True', None),
+    ("r11 3", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)", 'if RUN["compared"]:', None),
     ("r10 4", "tests/check_site.py", r"(?m)(?:^#.*\n)+(?=SECTION9_SOURCES = )",
      "a §9 paragraph that records it", "The §9 paragraph that"),
     ("r10 4", "README.md", r"(?ms)^- r8 2 \(P3\).*?(?=^(?! )|\Z)",
@@ -753,13 +768,48 @@ WORDING_FIXES = (
      "and, where there is one, the old phrase is not", "is there and the old phrase is not"),
     ("r10 5", "README.md", r"(?ms)^- Test for r9 2–4: .*?(?=^(?! )|\Z)",
      "the fixed phrase and, where there is one, the old phrase", "the fixed phrase and the old phrase"),
+    ("r11 4", "tests/check_site.py", r"(?m)(?<=def backlog_wording\(\):\n)(?:[ \t]*#.*\n)+",
+     "each fix in WORDING_FIXES", "each wording fix stays in place"),
+    ("r12 1", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
+     "code inside a string still counts", "so commented-out code does not count"),
+    ("r12 1", "SPEC.md", r"(?ms)^After code review of af78411 .*?(?=\n\n|\Z)",
+     "code commented out with whole `#` lines", "so commented-out code does not satisfy a pin"),
+    ("r12 3", "README.md", r"(?ms)^- Codex P1 \(Opus: P2\), fixed in the fix round.*?(?=^(?! )|\Z)",
+     "and the old split put back with single quotes", None),
+    ("r12 4", "tests/check_site.py", r"(?m)(?:^[ \t]*#.*\n)+(?=[ \t]*paras = re\.split)",
+     r'The old .split("\n\n") did not split there', None),
+    # Opus r12 1: the code rows use code_text, and the sample test stays.
+    ("r12 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)", "part = code_text(part)", None),
+    ("r12 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)", "if sample != CODE_SAMPLE_TEXT:", None),
 )
+
+# Opus r12 1: a sample for the comment remover of a code part: a trailing comment and a comment line go, a # inside a
+# string stays.
+CODE_SAMPLE = 'x = 1  # a trailing comment\n# a comment line\ny = "# not a comment"\n'
+CODE_SAMPLE_TEXT = 'x = 1 y = "# not a comment"'
+
+
+def code_text(part):
+    # Opus r12 1: blank out every COMMENT token (also at the end of a line). Code in a string still counts.
+    lines = io.StringIO(part).readlines()  # the same lines that tokenize reads
+    for tok in tokenize.generate_tokens(io.StringIO(part).readline):
+        if tok.type == tokenize.COMMENT:
+            (row, c0), (_, c1) = tok.start, tok.end
+            lines[row - 1] = lines[row - 1][:c0] + " " * (c1 - c0) + lines[row - 1][c1:]
+    return "".join(lines)
 
 
 @check("backlog_wording")
 def backlog_wording():
-    # README backlog r9 2-4: each wording fix stays in place, in the part of the file that the finding names.
+    # README review backlog: each fix in WORDING_FIXES (wording, or a code line that guards a fix) stays in place, in
+    # the part of the file that its row names.
     problems = []
+    try:
+        sample = " ".join(code_text(CODE_SAMPLE).split())
+    except (tokenize.TokenError, SyntaxError) as exc:
+        sample = "exception: %r" % (exc,)
+    if sample != CODE_SAMPLE_TEXT:
+        problems.append("the comment remover gives %r for its sample, not %r" % (sample, CODE_SAMPLE_TEXT))
     for finding, rel, where, want, banned in WORDING_FIXES:
         m = re.search(where, read(os.path.join(ROOT, rel)))
         if not m:
@@ -772,13 +822,19 @@ def backlog_wording():
                 # across two comment lines.
                 part = re.sub(r"(?m)^[ \t]*# ?", "", part)
             else:
-                # Review of af78411 (Codex P1): in a part that holds code, only code counts. Drop the comment lines, so
-                # that commented-out code does not satisfy a pin.
-                part = re.sub(r"(?m)^[ \t]*#.*$", "", part)
+                # Review of af78411 (Codex P1): in a part that holds code, only code counts. Opus r12 1: drop every
+                # comment, also one at the end of a line.
+                try:
+                    part = code_text(part)
+                except (tokenize.TokenError, SyntaxError) as exc:
+                    problems.append("%s: %s part does not tokenize: %r" % (finding, rel, exc))
+                    continue
         text = " ".join(part.split())
         if want not in text:
             problems.append("%s: %s lacks %r" % (finding, rel, want))
-        if banned and banned in text:
+        if isinstance(banned, re.Pattern) and banned.search(text):
+            problems.append("%s: %s still matches %r" % (finding, rel, banned.pattern))
+        elif isinstance(banned, str) and banned in text:
             problems.append("%s: %s still says %r" % (finding, rel, banned))
     return fail_list(problems) if problems else None
 
@@ -822,6 +878,7 @@ def main(argv):
     if ran != checked:
         results.append(("FAIL", "spec_lists_checks", "the checks that ran %s differ from the list it checked %s"
                         % (ran, checked)))
+    RUN["compared"] = True
 
     failed = 0
     for status, name, reason in results:
