@@ -399,8 +399,11 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     focus change to nothing does not close it”, and none keeps the old wording that hands that case to the click
     handlers.
 16. `spec_lists_checks`: this list names every check the script runs, in run order, numbered 1..n. §9 records every
-    check added after v2 (items 15 on) as ``item <n> `<name>` ``, with n its number in this list, and the §9
+    check added after v2 (items 15 on) as ``item <n> `<name>` ``, with n its number in this list, and a §9
     paragraph that records item 15 cites the review that limited it to §4 (the Codex P1 of the 90a6a03 review).
+17. `backlog_wording`: the wording fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4) stay in place:
+    in the part of the file each finding names (§7.1 item 16, the README r8 1 note, the comment above `V2_CHECKS`),
+    the fixed phrase is there and the old phrase is not.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
@@ -457,3 +460,7 @@ added after v2).
 After code review (2026-10-21, README backlog r8 1–2): item 16 `spec_lists_checks` now needs each check added after
 v2 recorded here as ``item <n> `<name>` ``, with n its §7.1 number, and the paragraph that records item 15 must cite
 the review that limited it to §4.
+
+After code review (2026-10-21, README backlog r9 1–4): item 16 `spec_lists_checks` splits this section into
+paragraphs also at lines that hold only spaces or tabs, and accepts the item-15 citation in any paragraph that
+records item 15; §7.1 gains item 17 `backlog_wording` (the wording fixes r9 2–4 stay in place).

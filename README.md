@@ -187,7 +187,8 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   backticks anywhere in §9, also in a sentence that does not record that item. §9 must now say ``item <n> `<name>` ``,
   with n the §7.1 number (a scope change; §7.1 item 16 and a new §9 line say so). The ca62e10 check passed and the
   new check fails on two SPEC copies: the Opus copy (the 2026-10-21 line removed, both names in the N18/N19
-  sentence) and the current SPEC with “item 15” changed to “item 14”.
+  sentence) and the current SPEC with “item 15” changed to “item 14”. Limit (r9 3): a sentence that uses the form
+  only in passing, without recording the item, still passes.
 - r8 2 (P3). **Fixed 2026-10-21** (user request): the §9 line listed “README backlog r4 B2, r6 1–2 and r7 2” as its
   sources, but the “§4 only” scope of item 15 came from the Codex P1 of the 90a6a03 review; the list now names it.
   Test: `spec_lists_checks` needs the §9 paragraph that records item 15 to cite that review (`SECTION9_SOURCES`).
@@ -199,18 +200,25 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
 ### Review of the r8 fix (commit 18827b4; Opus 0 blocking, Codex 1, reclassified P3)
 
 Not fixed (non-blocking):
-- r9 1 (Codex P1, Opus P3; reclassified P3): `spec_lists_checks` splits §9 on `\n\n`, so a blank line that holds
-  a space joins two paragraphs. With the citation moved to the r8 paragraph and a space on the blank line between,
-  the check passed. Why P3: the committed SPEC has no whitespace-only line, so the check passes for the right reason;
-  it fails on both real forms of r8 2 (the ca62e10 SPEC and the moved citation); a false pass needs two edits at once.
-  This differs from the Codex P1 of the 90a6a03 review, where the committed SPEC itself (item 15 quoting the phrase)
-  made the check unable to fail on a wrong §4. Fix: `re.split(r"\n[ \t]*\n", …)`.
-- r9 2 (Opus P3): the code accepts the citation from any §9 paragraph that records item 15; §7.1 item 16 says
-  “the §9 paragraph”. Fix: a wording choice in item 16, or none.
-- r9 3 (Opus P3): a sentence that uses the ``item <n> `<name>` `` form in passing, without recording the item, still
-  passes. This is the limit of a pinned-form text check; a stricter rule would be a scope change.
-- r9 4 (Opus P3, nit): the comment above `V2_CHECKS` (“A check added later needs a line in SPEC §9”) does not name
-  the ``item <n> `<name>` `` form.
+- r9 1 (Codex P1, Opus P3; reclassified P3). **Fixed 2026-10-21** (user request): `spec_lists_checks` split §9 on
+  `\n\n`, so a blank line that holds a space joined two paragraphs: with the citation moved to the r8 paragraph and a
+  space on the blank line between, the check passed. It now splits with `re.split(r"\n[ \t]*\n", …)`; on the same
+  copy of the current SPEC (a space or a tab) it fails, and with the old split restored it passes. Why P3: the
+  committed SPEC had no whitespace-only line, so the check passed for the right reason; it failed on both real forms
+  of r8 2 (the ca62e10 SPEC and the moved citation); a false pass needed two edits at once. This differs from the
+  Codex P1 of the 90a6a03 review, where the committed SPEC itself (item 15 quoting the phrase) made the check unable
+  to fail on a wrong §4.
+- r9 2 (Opus P3). **Fixed 2026-10-21** (user request): the code accepts the citation from any §9 paragraph that
+  records item 15; §7.1 item 16 said “the §9 paragraph” and now says “a §9 paragraph that records item 15”.
+- r9 3 (Opus P3). **Fixed 2026-10-21** (user request): a sentence that uses the ``item <n> `<name>` `` form in
+  passing, without recording the item, still passes. This is the limit of a pinned-form text check; the r8 1 note
+  now says so. The rule is not changed (a stricter rule would be a scope change).
+- r9 4 (Opus P3, nit). **Fixed 2026-10-21** (user request): the comment above `V2_CHECKS` did not name the
+  ``item <n> `<name>` `` form; it now does.
+- Test for r9 2–4: a new check, SPEC §7.1 item 17 `backlog_wording` (a scope change). Its `WORDING_FIXES` table
+  gives, for each finding, the part of the file it names (§7.1 item 16, the README r8 1 note, the comment above
+  `V2_CHECKS`), the fixed phrase and the old phrase. It failed on all three before the fixes; a copy that undoes one
+  fix fails on that finding only.
 - Accepted limits of the pinned-text citation check (not findings): a negated citation and a citation inside an
   HTML comment both pass.
 

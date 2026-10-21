@@ -229,6 +229,7 @@ def check(name):
             else:
                 results.append(("FAIL", name, out))
         run.__name__ = fn.__name__
+        run.check_name = name
         return run
     return deco
 
@@ -680,7 +681,8 @@ def menu_focus_wording():
     return fail_list(problems) if problems else None
 
 
-# The checks in SPEC v2 §7.1 (items 1-14). A check added later needs a line in SPEC §9.
+# The checks in SPEC v2 §7.1 (items 1-14). SPEC §9 must record each check added later as "item <n> `<name>`",
+# with n its §7.1 number (see spec_lists_checks).
 V2_CHECKS = ("html_basics", "local_refs", "external_urls", "film_bytes", "film_faststart", "film_probe",
              "transcript_matches_srt", "sizes", "images", "claims_required", "claims_banned", "no_local_paths",
              "links_safe", "fonts_licensed")
@@ -712,7 +714,8 @@ def spec_lists_checks(names):
         problems.append("SPEC.md has no §9 heading")
     else:
         e9 = spec.find("\n## ", s9 + 1)
-        paras = (spec[s9:] if e9 < 0 else spec[s9:e9]).split("\n\n")
+        # Opus r9 1: a line with only spaces or tabs also ends a paragraph, as in Markdown.
+        paras = re.split(r"\n[ \t]*\n", spec[s9:] if e9 < 0 else spec[s9:e9])
         for i, n in items:
             if n in V2_CHECKS:
                 continue
@@ -722,6 +725,36 @@ def spec_lists_checks(names):
                 problems.append("§9 does not record item %s `%s`" % (i, n))
             elif n in SECTION9_SOURCES and not any(SECTION9_SOURCES[n] in " ".join(p.split()) for p in mine):
                 problems.append("§9 paragraph for item %s `%s` does not cite the %s" % (i, n, SECTION9_SOURCES[n]))
+    return fail_list(problems) if problems else None
+
+
+# Wording fixes from the README review backlog that only a text check can hold: (finding, file, the part of the file
+# the finding names as a regex, the phrase that must be there, the phrase that must not be). The part is
+# whitespace-normalized before the test.
+WORDING_FIXES = (
+    ("r9 2", "SPEC.md", r"(?ms)^16\. `spec_lists_checks`.*?(?=^(?! )|\Z)",
+     "a §9 paragraph that records item 15", "the §9 paragraph that records item 15"),
+    ("r9 3", "README.md", r"(?ms)^- r8 1 \(P3\).*?(?=^(?! )|\Z)",
+     "only in passing, without recording the item, still passes", None),
+    ("r9 4", "tests/check_site.py", r"(?m)(?:^#.*\n)+(?=V2_CHECKS = )",
+     "item <n> `<name>`", "needs a line in SPEC §9"),
+)
+
+
+@check("backlog_wording")
+def backlog_wording():
+    # README backlog r9 2-4: each wording fix stays in place, in the part of the file that the finding names.
+    problems = []
+    for finding, rel, where, want, banned in WORDING_FIXES:
+        m = re.search(where, read(os.path.join(ROOT, rel)))
+        if not m:
+            problems.append("%s: %s has no part that matches %r" % (finding, rel, where))
+            continue
+        text = " ".join(m.group(0).split())
+        if want not in text:
+            problems.append("%s: %s lacks %r" % (finding, rel, want))
+        if banned and banned in text:
+            problems.append("%s: %s still says %r" % (finding, rel, banned))
     return fail_list(problems) if problems else None
 
 
@@ -753,7 +786,11 @@ def main(argv):
     links_safe(pages)
     fonts_licensed()
     menu_focus_wording()
-    spec_lists_checks([r[1] for r in results] + ["spec_lists_checks"])
+    # spec_lists_checks compares §7.1 with every check, so it also gets the names of the checks that run after it.
+    later = [backlog_wording]
+    spec_lists_checks([r[1] for r in results] + ["spec_lists_checks"] + [f.check_name for f in later])
+    for f in later:
+        f()
 
     failed = 0
     for status, name, reason in results:
