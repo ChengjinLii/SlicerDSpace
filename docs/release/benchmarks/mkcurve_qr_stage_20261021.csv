@@ -1,0 +1,4 @@
+subject_id,solver,reference_median_seconds,optimized_median_seconds,speed_ratio,time_reduction_percent,fitted_mask_voxels,grid_samples,map_count,corrected_valid_voxels,automatic_qc_passed,exact_output_parity
+100307,reference,1.8692701403051615,1.401724424213171,1.3335503812416178,25.01220695772003,64,200,51,62,False,True
+100206,reference,1.9815370962023735,1.3877671957015991,1.4278598761664691,29.96511655717865,64,203,51,61,False,True
+149741,reference,1.7781684380024672,1.3955968413501978,1.2741275885105492,21.51492448499631,64,203,51,64,True,True

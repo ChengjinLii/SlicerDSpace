@@ -25,6 +25,17 @@ class StageSlicerExtensionTest(unittest.TestCase):
                 self.assertFalse((module_dir / retired).exists(), retired)
             self.assertEqual(sorted(path.name for path in module_dir.glob("*.py")), ["SlicerDDSurfer.py"])
             self.assertTrue((module_dir / "tractography" / "saf_backend").is_dir())
+            for excluded in ("docs/site", "docs/website", "website", "Testing",
+                             "docs/release/PERFORMANCE_OPTIMIZATIONS.md",
+                             "docs/release/benchmarks/complete_models_20261020.json",
+                             "scripts/benchmark_complete_models.py"):
+                self.assertFalse((module_dir / excluded).exists(), excluded)
+            from shared.docs import DOC_PATHS
+            for guide in DOC_PATHS.values():
+                self.assertTrue((module_dir / guide).is_file(), str(guide))
+            self.assertTrue((module_dir / "licenses/DIPY.txt").is_file())
+            self.assertTrue((module_dir / "tractography/wmql_queries/AF_CST.qry").is_file())
+            self.assertTrue((module_dir / "scripts/wsl/WslCommandBridge.cs").is_file())
             self.assertFalse((module_dir / "tractography" / "slicer_dmri_reference").exists())
             self.assertIn("models", result["runtime_entries"])
             self.assertIn("tractography/slicer_dmri_reference", result["excluded_runtime_paths"])
@@ -48,6 +59,17 @@ class StageSlicerExtensionTest(unittest.TestCase):
             for domain in ("surface", "parcellation", "segmentation"):
                 self.assertFalse((module_dir / domain).exists())
                 self.assertTrue((module_dir / "anatomy" / domain / "__init__.py").is_file())
+
+    def test_restaging_without_clean_removes_retired_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = stage_extension(root, slicer_version="Slicer-5.10", clean=True, link_mode="copy")
+            module_dir = Path(str(result["module_dir"]))
+            stale = module_dir / "docs/release/PERFORMANCE_OPTIMIZATIONS.md"
+            stale.write_text("old installed report\n", encoding="utf-8")
+            stage_extension(root, slicer_version="Slicer-5.10", clean=False, link_mode="copy")
+            self.assertFalse(stale.exists())
+            self.assertTrue((module_dir / "docs/release/RELEASE_NOTES_v0.1.0.md").is_file())
 
 
 if __name__ == "__main__":

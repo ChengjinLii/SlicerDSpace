@@ -12,7 +12,65 @@ from math import factorial
 from pathlib import Path
 
 import numpy as np
+import scipy
 from scipy.linalg import lstsq
+from scipy.linalg.lapack import dgelsy, dgelsy_lwork
+
+
+# These SciPy families have paired wrapper/direct-driver regression evidence.
+# Unknown releases retain their public solver, not a guessed ABI/threshold.
+_DIRECT_GELSY = tuple(scipy.__version__.split('.')[:2]) in {('1', '13'), ('1', '17')}
+
+
+def _design_setup(design):
+    scale = np.linalg.norm(design, axis=0)
+    if np.any(scale == 0) or np.linalg.cond(design) > 1e15:
+        return None
+    scaled = design / scale
+    if np.linalg.matrix_rank(scaled) < 22:
+        return None
+    return scale, scaled
+
+
+@lru_cache(maxsize=4)
+def _cached_design_setup(shape, content):
+    result = _design_setup(np.frombuffer(content, dtype=np.float64).reshape(shape))
+    if result is not None:
+        for array in result:
+            array.setflags(write=False)
+    return result
+
+
+def _prepared_design(design):
+    design = np.asarray(design)
+    # Retain layout-dependent reduction order, and bound cache memory. The key
+    # contains values, not array identity, so an edited acquisition invalidates it.
+    if design.dtype == np.float64 and design.flags.c_contiguous and design.nbytes <= 1024 ** 2:
+        return _cached_design_setup(design.shape, design.tobytes())
+    return _design_setup(design)
+
+
+@lru_cache(maxsize=32)
+def _gelsy_workspace(rows, columns):
+    size, info = dgelsy_lwork(rows, columns, 1, np.finfo(np.float64).eps)
+    if info != 0:
+        raise ValueError('LAPACK gelsy workspace query failed')
+    return int(size)
+
+
+def _weighted_qr(matrix, observed):
+    """Same SciPy GELSY inputs/rcond/pivots; caller has checked finiteness."""
+    if (not _DIRECT_GELSY or matrix.dtype != np.float64 or observed.dtype != np.float64
+            or matrix.ndim != 2 or observed.ndim != 1 or matrix.shape[0] < matrix.shape[1]):
+        fit, _, rank, _ = lstsq(matrix, observed, lapack_driver='gelsy')
+        return fit, rank
+    rows, columns = matrix.shape
+    _, solution, _, rank, info = dgelsy(
+        matrix, observed, np.zeros((columns, 1), dtype=np.int32),
+        np.finfo(np.float64).eps, _gelsy_workspace(rows, columns), False, False)
+    if info != 0:
+        raise ValueError('LAPACK gelsy failed with info=' + str(info))
+    return solution[:columns], rank
 
 
 @lru_cache(maxsize=8)
@@ -71,12 +129,10 @@ def fit_wlls(signals, design, *, solver="reference"):
     if signals.ndim != 2 or signals.shape[1] != len(design):
         raise ValueError("MK-Curve signals must be voxels x measurements")
     output = np.full((len(signals), 22), np.nan)
-    scale = np.linalg.norm(design, axis=0)
-    if np.any(scale == 0) or np.linalg.cond(design) > 1e15:
+    prepared = _prepared_design(design)
+    if prepared is None:
         return output
-    scaled = design / scale
-    if np.linalg.matrix_rank(scaled) < 22:
-        return output
+    scale, scaled = prepared
     valid = np.isfinite(signals).all(axis=1)
     logs = np.log(np.maximum(signals[valid], np.finfo(float).eps))
     if not len(logs):
@@ -112,7 +168,7 @@ def fit_wlls(signals, design, *, solver="reference"):
             continue
         # Dividing all weights by a common factor leaves WLLS unchanged.
         weight = weight / weight.max()
-        fit, _, rank, _ = lstsq(scaled * weight[:, None], observed * weight, lapack_driver="gelsy")
+        fit, rank = _weighted_qr(scaled * weight[:, None], observed * weight)
         if rank == 22:
             output[index] = fit / scale
     return output

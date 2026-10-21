@@ -159,12 +159,12 @@ def signature(raw, options, executable, converter=None):
     )
 
 
-def current(raw, directory, options=None, executable=None):
+def current(raw, directory, options=None, executable=None, converter=None):
     try:
         products = paths(raw.subject_id, directory)
         record = json.loads(products["manifest"].read_text())
         if record["status"] != "completed" or record["signature"] != signature(
-            raw, options, resolve_executable(executable)
+            raw, options, resolve_executable(executable), resolve_executable(converter, name="DWIConvert")
         ):
             return False
         qc = json.loads(products["qc"].read_text())
@@ -484,22 +484,23 @@ def restore_lossless_payload(raw, probe, converted, dwi, mask):
     )
 
 
-def run_ukf(raw, directory, *, options=None, executable=None, force=False, log=None):
+def run_ukf(raw, directory, *, options=None, executable=None, converter=None, force=False, log=None):
     from shared.external_process import merged_startup_environment
     from shared.pipeline import build_cli_environment
 
     selected = parameters(options)
     binary = resolve_executable(executable)
+    converter = resolve_executable(converter, name="DWIConvert")
     products = paths(raw.subject_id, Path(directory).expanduser().resolve())
     products["manifest"].parent.mkdir(parents=True, exist_ok=True)
-    if not force and current(raw, directory, options, binary):
+    if not force and current(raw, directory, options, binary, converter):
         return dict(status="cached", outputs=products)
     started = time.monotonic()
     env = merged_startup_environment(build_cli_environment(str(binary)))
     schema, xml, probe_code = inspect_schema(binary, env)
     build_command(binary, "DWI.nrrd", "Mask.nrrd", "tracts.vtk", selected, schema)
     inputs = validate_inputs(raw)
-    before = signature(raw, options, binary)
+    before = signature(raw, options, binary, converter)
     record = dict(
         status="running",
         signature=before,
@@ -519,7 +520,7 @@ def run_ukf(raw, directory, *, options=None, executable=None, force=False, log=N
     save()
     products["schema"].write_text(xml, encoding="utf-8")
     try:
-        converter = resolve_executable(name="DWIConvert")
+        converter_env = merged_startup_environment(build_cli_environment(str(converter)))
         with tempfile.TemporaryDirectory(prefix=".ukf-", dir=products["manifest"].parent) as temporary:
             work = Path(temporary)
             dwi, mask, tracts = work / "DWI.nrrd", work / "Mask.nrrd", work / "tracts.vtk"
@@ -549,7 +550,8 @@ def run_ukf(raw, directory, *, options=None, executable=None, force=False, log=N
                         + ("Converting gradients with DWIConvert" if index == 0 else "Running official UKFTractography")
                     )
                 with log_path.open("wb") as stream:
-                    process = subprocess.Popen(cmd, stdout=stream, stderr=subprocess.STDOUT, env=env)
+                    process = subprocess.Popen(cmd, stdout=stream, stderr=subprocess.STDOUT,
+                                               env=converter_env if index == 0 else env)
                     try:
                         if process.wait():
                             raise RuntimeError("UKF stage failed; see " + str(log_path))
@@ -573,7 +575,7 @@ def run_ukf(raw, directory, *, options=None, executable=None, force=False, log=N
                 raise RuntimeError("UKF geometry/native-mask QC failed; see " + str(failed))
             export_trk(tracts, raw.dwi_path, work / "tracts.trk")
             qc["vtk_trk_verified_streamlines"] = verify_trk(tracts, work / "tracts.trk")
-            if signature(raw, options, binary) != before:
+            if signature(raw, options, binary, converter) != before:
                 raise RuntimeError("UKF inputs or executable changed during execution")
             shutil.move(tracts, products["tractogram"])
             shutil.move(work / "tracts.trk", products["tractogram_trk"])

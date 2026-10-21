@@ -1,0 +1,4 @@
+subject_id,fit_method,engine,mask_voxels,measurements,reference_median_seconds,optimized_median_seconds,speed_ratio,time_reduction_percent,repeats,exact_raw_parameters,exact_exported_maps_and_qc,automatic_qc_passed
+100307,NLS,serial,216,288,1.6265730801969767,0.675103347748518,2.409369003459437,58.49535714271359,3,True,True,True
+100206,NLS,serial,216,288,1.7458395920693874,0.6957556642591953,2.5092711159287036,60.14778978436968,3,True,True,True
+149741,NLS,serial,216,288,1.677402961999178,0.6810613013803959,2.4629250826604983,59.39787178098892,3,True,True,True

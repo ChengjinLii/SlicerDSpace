@@ -1,0 +1,66 @@
+{
+  "status": "passed",
+  "reviewed_on": "2026-10-21",
+  "reports": {
+    "freewater_wls_diagonal_20261021": "f084bb104a833454d66a15a8c116006695c603c59946e2d9ff0162ebfcff8c1d",
+    "freewater_wls_diagonal_slicer_20261021": "3fd2b1c335b22c8e1e1487a61e8bf63ede10f730d8f83ec1d230998c6cee12bd",
+    "wma_transform_20261021": "1436dfcf82ed8dbe36886719ad89bd38103a453955ec1466adc27605343bba35",
+    "freewater_nls_wlsinit_20261021": "cb687d71fc769bd3eb2fc47391a0aeaaf3441e67d7c04e553406913ed715f1e1"
+  },
+  "author_verification": {
+    "dipy_license_url": "https://raw.githubusercontent.com/dipy/dipy/1b0b3e2a0b0c8611287f4677f21356b704495665/LICENSE",
+    "dipy_license_sha256": "b3507d2424d4b01d04345193e02642f9f1af35dd96517a75e3bd815953dfae5f",
+    "dipy_wls_url": "https://raw.githubusercontent.com/dipy/dipy/1b0b3e2a0b0c8611287f4677f21356b704495665/dipy/reconst/fwdti.py",
+    "dipy_wls_source_sha256": "17a44218fbc8d8c46aacbdd6c23d4424ce8ece69df1552b06386a1c2e1b0661b",
+    "wma_url": "https://raw.githubusercontent.com/SlicerDMRI/whitematteranalysis/4532b911386d2d1bc7ebba63fdd13e65b1660623/whitematteranalysis/register_two_subjects.py",
+    "wma_source_sha256": "eb6cb9293df3fe3e2d783e096ea979ae279e94c7f3e9f335b3fc34818a93920f"
+  },
+  "tests": {
+    "total": 1214,
+    "passed": 1209,
+    "skipped": 5,
+    "failures": 0,
+    "runtime_seconds": 61.72,
+    "log": "ignore/validation/numerical_performance_20261021/full_tests_wls_transform.log"
+  },
+  "copied_native_install_tests": {
+    "status": "passed",
+    "tests_run": 53,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0,
+    "installed_code_sha256": {
+      "microstructure/freewater_dispatch.py": "8a10cfbfd86f144c91854e5b4f82ea483f2dee6678e3fc5d26512288cb1bebae",
+      "microstructure/freewater_wls.py": "6008ed4dae671be044965b055d15c4143453bc0b4cb97b70f9cd5292695e0afd",
+      "microstructure/mkcurve_tensor.py": "4f7650c5bb09bdf6d253b25d9dd31ba9dd5f2bb60ee770d618c21e1e92d4e78d",
+      "microstructure/pipeline.py": "1003813b4cf8734ba18be5aa909ba0365481ea071d05c17f29615d8341ef2f0e",
+      "tractography/wma_transform.py": "d8704d12656b28c8721924e5c5a8674b4af20480323d248c89ea74cc6de9df23",
+      "scripts/run_wma_registration.py": "7ff97d0356fccd81e1d1ff0d12159e51b1797d51b78abcc89b5e7c63c813e090"
+    },
+    "scope": "Native Slicer Python with isolated copied extension modules; not GUI/full SDK acceptance"
+  },
+  "native_hook": {
+    "status": "completed",
+    "actual_transform_calls": 30,
+    "scope": "Synthetic data, real author optimizer and staged CLI hook; not whole-WMA acceptance"
+  },
+  "rejected_candidates": [
+    {
+      "candidate": "batch eight moving fibers for WMA distances",
+      "exploratory_speed_ratio": 0.9551424317983782,
+      "enabled": false,
+      "reason": "Exact but slower; exploratory shared-host observation, not a full-stage benchmark"
+    },
+    {
+      "candidate": "reuse WMA distance buffers",
+      "exploratory_speed_ratio": 1.0345795708233652,
+      "enabled": false,
+      "reason": "Small variable benefit did not justify an objective replacement"
+    }
+  ],
+  "limitations": [
+    "WLS is complete ROI, not full-brain runtime",
+    "WMA transform/subset-optimizer measurements are not whole-WMA/74-tract timings",
+    "No anatomical accuracy gain, new estimator, extra thread or cross-platform speed guarantee"
+  ]
+}

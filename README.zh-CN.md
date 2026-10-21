@@ -44,12 +44,19 @@ Python 后端，不是重写整套 PNLpipeline。见[实现来源与验证边界
 
 ## 安装
 
-仓库保持私有，请使用已有访问权限的 checkout。以下是**源码 staging 安装**，
+**仅使用插件，无需下载网站源码和历史优化报告。** 插件安装包不包含这些材料；
+完整仓库仍保留它们，供审查和论文复现。需要源码安装但不需要完整资料时，见
+[下载方式与轻量检出](docs/setup/DOWNLOADS.zh-CN.md)。
+这不表示已有公开正式安装包或已上架官方 Catalog。
+
+仓库保持私有，请使用已有访问权限的 checkout。以下是**轻量源码 staging 安装**，
 不是经过官方 SDK/CPack 验收的扩展包：
 
 ```bash
-git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
+git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDDSurfer.git
 cd SlicerDDSurfer
+git show HEAD:scripts/extension_runtime/runtime_checkout.txt | git sparse-checkout set --no-cone --stdin
+git checkout
 python3 scripts/stage_slicer_extension.py \
   --install-root ~/SlicerDDSurfer-extension --link-mode copy --clean
 ```
@@ -169,7 +176,7 @@ CI 徽章跟踪 main 的 push 检查；
 - Extension Index JSON 是 **Tier 1 申请草稿**，不是官方已收录状态。
 - 已补齐的第三方源码许可证不等于完整授权清理；仓库公开和模型再分发审查仍是独立门禁。
 
-开发检查可运行 `make test-fast` 与
+开发检查需要完整 checkout，不适用于轻量安装目录。可运行 `make test-fast` 与
 `python3 scripts/audit_slicer_extension_metadata.py --json`。
 SDK 与独立干净安装验收详见[扩展准备状态](docs/release/EXTENSION_READINESS.zh-CN.md)。
 

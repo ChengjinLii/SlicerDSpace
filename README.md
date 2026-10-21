@@ -50,12 +50,20 @@ PNL pipeline. See [implementation provenance and verification limits](docs/archi
 
 ## Installation
 
+**Only using the plugin?** You do not need the website source or historical
+optimization reports. Runtime packages omit those materials; they stay in the
+complete repository for review and reproducibility. See
+[download options and lightweight source installation](docs/setup/DOWNLOADS.md).
+This does not imply an available public release or official Catalog listing.
+
 Use an authorized checkout while the repository is private. The following is
-a **source/staging installation**, not an official CPack release:
+a **lightweight source/staging installation**, not an official CPack release:
 
 ```bash
-git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
+git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDDSurfer.git
 cd SlicerDDSurfer
+git show HEAD:scripts/extension_runtime/runtime_checkout.txt | git sparse-checkout set --no-cone --stdin
+git checkout
 python3 scripts/stage_slicer_extension.py \
   --install-root ~/SlicerDDSurfer-extension --link-mode copy --clean
 ```
@@ -195,6 +203,7 @@ Current release boundaries:
 - The Extension Index JSON is a **Tier 1 proposal**, not acceptance by Slicer.
 - Public source access, third-party licensing clearance and asset redistribution review remain release gates.
 
+Development checks require a complete checkout, not the lightweight installation.
 Run `make test-fast` and
 `python3 scripts/audit_slicer_extension_metadata.py --json` for development
 checks. SDK builds and independent clean installation are described in

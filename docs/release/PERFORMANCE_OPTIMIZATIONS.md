@@ -2,16 +2,18 @@
 
 # Performance Optimizations
 
-**Reviewed 20 October 2026 · New direct original-author comparison**
+**Reviewed 21 October 2026 · Complete-model pairs and numerically equivalent optimizations**
 
 [Project](../../README.md) | [Documentation](../README.md) | [Runtimes](MODULE_RUNTIMES_20261017.md) | [Author-reference CSV](benchmarks/author_wma_optimizations_20261020.csv) | [JSON](benchmarks/author_wma_optimizations_20261020.json) | [中文](PERFORMANCE_OPTIMIZATIONS.zh-CN.md)
 
 </div>
 
-**Primary claims now require actually executing original-author code.** The new
-WMA implementation accelerates fresh length filtering/copying without using
-completed-stage cache hits. It preserves the scientific definition, not proposing
-a different estimator or claiming better anatomical accuracy.
+**Original-author comparisons execute author code; Python-port, threading and
+scheduling comparisons are labeled separately.** WMA bulk copying preserves
+the author's filtering/classification definition. New Free-water NLS dispatch
+executes the identical DIPY author bodies without changing initialization,
+solver or convergence. These optimize computation, not the scientific estimator,
+and do not claim greater anatomical accuracy.
 
 The earlier 10-11x regional-statistics and 1.42x MK-Curve observations compare
 against older plugin code, **not original author implementations**. They remain
@@ -30,11 +32,12 @@ JSON evidence records implementation hashes and immutable snapshots.
 
 ## Long Models And Independent Scheduling
 
-There are three different claims, not one new scientific algorithm:
+The following claims are distinct, not one new scientific algorithm:
 
 | Category | Implementation | Permitted claim |
 | --- | --- | --- |
 | Computational implementation | WMA bulk copying; DKI array-level derived metrics | Same estimator, less computational overhead, not extra threads or greater accuracy |
+| Further computational reduction | Default WLS without a dense diagonal; same WMA VTK transform through a bulk call | Same results, independent of threads; ROI/optimizer scopes are stated separately |
 | Parallel configuration | Original AMICO NODDI at 1/8 threads | Upstream multicore capability, not a novel plugin estimator |
 | Workflow scheduling | Concurrent FW/NODDI/DKI; no duplicate fresh FW fit when entering NODDI | Less route wall time, not faster single-model mathematics |
 
@@ -61,8 +64,9 @@ Full measurements are updated in the
 [CSV](benchmarks/complete_models_20261020.csv) and
 [incremental JSON](benchmarks/complete_models_20261020.json). **ROI measurements
 are not full-brain timings and cannot be applied to the historical 91.6 min.**
-A diagonal-weight WLS candidate was rejected because raw parameter agreement
-failed on extreme real voxels; it is not used by the pipeline. Instrumented
+A DKI diagonal-weight WLS candidate was rejected because raw parameter agreement
+failed on extreme real voxels; it is not used by the pipeline and is distinct
+from the validated Free-water WLS adaptation below. Instrumented
 14/4-second observations locate hotspots, not formal timing claims.
 
 **Advanced -> Concurrent microstructure models** accepts 1/2/3; the default is
@@ -94,13 +98,28 @@ independent cold outputs. All NDI, ODI, IsoVF, RMSE, NRMSE and validity-mask vox
 arrays and affines match exactly, and both automatic QC reports pass. This is
 native multicore benefit for this complete NODDI route, not a new algorithm or
 a whole-workflow/cross-hardware guarantee. One shared-host pair has no confidence
-interval. Complete optimized WMA is now running; its original reference and
-MK-Curve/DKI pairs follow. Actual UKF, complete atlas and author Python sources
-also have independent before/after hash auditing, not just the DWI.
-A completed side is not a paired speedup. The incremental JSON
-retains pending/failure states and only computes ratios after output equality.
-Local campaign: `ignore/validation/long_tasks_full_20261020_v2/campaign.json`.
-`scripts/summarize_complete_models.py --watch` updates summaries, not GitHub.
+interval. Two additional complete-model pairs have now finished:
+
+| Complete model | Reference | Optimized | Saved | Ratio | Comparison |
+| --- | ---: | ---: | ---: | ---: | --- |
+| WMA | 102.10 min | 74.22 min | 27.89 min | 1.38x | Original route versus bulk geometry/cache; all 74 bundle files byte-identical |
+| MK-Curve | 165.90 min | 153.53 min | 12.37 min | 1.08x | Python-port basis caching; every map, curve, coefficient and mask exact |
+
+Each is one pair on a shared Linux host, including preparation, computation,
+QC and export; neither has a confidence interval. UKF input, full atlas and
+author WMA sources have separate before/after hash auditing. The MK-Curve pair
+uses `batched`, one worker, chunks of 256 and a 2500 s/mm2 upper shell. It is
+**not a MATLAB runtime comparison and predates the new QR-dispatch optimization
+below**. Do not multiply ratios or add savings from different comparisons as
+whole-workflow evidence.
+
+The full-brain DKI pair remains incomplete. Saved progress stops at 710656 of
+740916 voxels with a stale `running` status; no corresponding benchmark process
+was present during the 21 October review. This is not a continuing run or a pass.
+Evidence: `ignore/validation/long_tasks_full_20261020_v2/` and the incremental
+[CSV](benchmarks/complete_models_20261020.csv)/[JSON](benchmarks/complete_models_20261020.json).
+Historical interrupted/failed states are retained, not overwritten as success.
+The summarizer does not push to GitHub.
 
 No matched complete SlicerDDSurfer end-to-end speedup percentage is available.
 New DKI phase times and workflow task intervals/fractions support further
@@ -119,6 +138,303 @@ Before pushing, an independent export of the staged changes excluded unrelated
 uncommitted work: **1085 tests, 1077 passed, eight skipped, no failures**. The
 native Slicer concurrency GUI check passed again (19.0 s). Logs are retained under
 `ignore/validation/push_performance_20261020/`.
+
+---
+
+## 21 October: Original Free-water NLS Dispatch
+
+This section records the first, dispatch-only implementation and measurements.
+The later default-WLS diagonal-free adaptation is reported separately below.
+Original records are retained, not overwritten or multiplied together. The
+first implementation snapshot is under
+`ignore/validation/numerical_performance_20261021/before_wls/`.
+
+Profiling real 64-voxel NLS fitting found about 3700 calls through DIPY's
+legacy positional-argument adapters. Repeated version/signature parsing cost
+more than evaluating the residual formula itself. The
+[implementation](../../microstructure/freewater_dispatch.py) uses DIPY's existing
+callable-fit interface to execute the **identical author function code objects**.
+A private namespace connects WLS initialization, NLS residuals and Jacobian
+without those compatibility adapters. No DIPY globals or other model instances
+are patched. Optimizer, objective, initialization, weights, defaults, termination,
+precision and QC remain unchanged.
+
+Only source-hash-matched DIPY **1.11.0/1.12.1 serial NLS** qualifies. Missing or
+changed author sources, other releases, custom models, WLS and joblib/dask/ray
+retain original dispatch. Progress, logs and `freewater_qc.json` retain the
+implementation, DIPY release and author-source hashes. No user setting,
+dependency, thread or GPU-policy change is introduced. **Default Free-water
+remains WLS and does not obtain the speedup below.**
+
+Three real native-grid 12-cubed ROIs retain every one of 1728 masked voxels
+and 288 measurements. Both routes use one BLAS/OMP thread, one warmup and three
+alternating repeats. Complete-stage timings include validation, DWI reading,
+author NLS, four public map/mask files, QC, source checks and export:
+
+| Subject | Author dispatch median | Optimized median | Ratio | Time reduction |
+| --- | ---: | ---: | ---: | ---: |
+| 100307 | 8.402 s | 4.056 s | 2.07x | 51.7% |
+| 100206 | 8.538 s | 4.026 s | 2.12x | 52.9% |
+| 149741 | 8.405 s | 4.033 s | 2.08x | 52.0% |
+
+Environment: Python 3.13/DIPY 1.11.0. All **13 raw fit parameters** match
+exactly, as do FWF, tissue FA/MD, validity masks, affines, dtypes, QC checks and
+statistics. All three automatic QC records pass; original invalid-tissue
+exclusions remain 238/681/313 voxels, not filled or relabeled valid.
+These are complete **ROI** stages, not full-brain/workflow timings. Do not apply
+the ratio to the historical 21.48 minutes or combine it with AMICO threading as
+a new-algorithm claim. The shared-host observations are not hardware guarantees.
+
+Independent pairs on the same three complete ROIs with Slicer's Python
+3.12.10/DIPY 1.12.1:
+
+| Subject | Author dispatch median | Optimized median | Ratio |
+| --- | ---: | ---: | ---: |
+| 100307 | 12.470 s | 5.175 s | 2.41x |
+| 100206 | 12.511 s | 5.412 s | 2.31x |
+| 149741 | 12.669 s | 5.328 s | 2.38x |
+
+Every within-environment raw parameter and public array remains exact, with
+identical QC and exclusions. Absolute differences between Python environments
+are not attributed to this optimization. All repeats are retained in the
+[Slicer JSON](benchmarks/freewater_dispatch_slicer_20261021.json)/
+[CSV](benchmarks/freewater_dispatch_slicer_20261021.csv).
+
+[JSON](benchmarks/freewater_dispatch_20261021.json)/
+[CSV](benchmarks/freewater_dispatch_20261021.csv) retain repeated times and input/
+source hashes. The [reusable benchmark](../../scripts/benchmark_freewater_dispatch.py)
+accepts canonical real input directories, crops without resampling and retains
+difficult voxels. Tests cover abnormal/low signals, optional losses, isolation
+and fallback; they also pass with Slicer's DIPY 1.12.1.
+
+---
+
+## Further Optimization: Default Free-water WLS
+
+The [adaptation](../../microstructure/freewater_wls.py) retains the author's
+initialization, three-step fraction-grid refinement, signal floor, pseudoinverse,
+tensor decomposition and return ordering. Only `W.T @ diag(sig**2)` becomes
+equivalent C-order column scaling, avoiding a 288-by-288 weight matrix per voxel.
+**No fit method or thread count is changed**: default WLS remains WLS. Serial
+NLS also uses this initialization.
+
+Only the previously qualified DIPY versions and author-function hashes enable
+the path. Unqualified dtypes, zero/nonfinite weights, nonfinite protocols and
+other releases retain original behavior; parallel engines are unchanged.
+The [DIPY notice](../../licenses/DIPY.txt) and
+[provenance](../../licenses/provenance.json) ship with the code and match the
+independently retrieved pinned upstream license bytes.
+
+Three native 12-cubed ROIs retain all 1728 voxels/288 measurements. Both routes
+use one thread, one warmup and three alternating repeats. Complete stages
+include checking, reading, fitting, QC, source checks and fresh exports:
+
+| Subject | Python 3.13 / DIPY 1.11.0, author -> optimized | Slicer Python / DIPY 1.12.1, author -> optimized |
+| --- | ---: | ---: |
+| 100307 | 2.140 -> 1.874 s, 1.14x | 2.802 -> 2.502 s, 1.12x |
+| 100206 | 2.142 -> 1.878 s, 1.14x | 2.810 -> 2.526 s, 1.11x |
+| 149741 | 2.154 -> 1.879 s, 1.15x | 2.828 -> 2.512 s, 1.13x |
+
+All 13 raw parameters, four public maps/masks, affines, dtypes and QC match
+exactly. All automatic QC records pass, retaining 234/672/303 tissue exclusions.
+Comparisons stay **within one method and environment**, not WLS versus NLS.
+Exploratory full 24-cubed raw-fit checks also matched across 41472 voxels, but
+do not replace the formal complete-stage timings.
+
+Records: [Python JSON](benchmarks/freewater_wls_diagonal_20261021.json)/
+[CSV](benchmarks/freewater_wls_diagonal_20261021.csv) and
+[Slicer JSON](benchmarks/freewater_wls_diagonal_slicer_20261021.json)/
+[CSV](benchmarks/freewater_wls_diagonal_slicer_20261021.csv).
+These complete ROI measurements are not full-brain/workflow timing and cannot
+be applied to the historical full Free-water duration.
+
+### Full-brain Default WLS Pair
+
+After the 05:10 resumption, a separate immutable campaign measured subject
+100307's **complete native grid, 740916 mask voxels and 288 measurements**,
+without cropping/downsampling or reducing iterations. Both variants are serial
+with one numerical thread:
+
+| Original DIPY WLS | Diagonal-free adapter | Saved | Time reduction | Ratio |
+| ---: | ---: | ---: | ---: | ---: |
+| 1219.249 s (20.32 min) | 1101.401 s (18.36 min) | 117.848 s (1.96 min) | 9.67% | 1.107x |
+
+Timings cover complete preparation, fitting, QC/export and identical
+raw-parameter sidecar recording in both variants. All 13 parameters at every
+voxel across 54 chunks, four maps/masks, affines and dtypes match exactly.
+QC decisions match and both automatic QC records pass: 623981 tissue voxels
+retained, 116935 excluded. Uninterpretable tissue is not relabeled valid.
+Input, snapshot and harness hashes remain unchanged.
+[Full-brain JSON](benchmarks/freewater_full_stage_20261021.json)/
+[CSV](benchmarks/freewater_full_stage_20261021.csv) retain raw times/products/QC.
+
+This is **one subject, one pair, optimized-first order on a shared Linux host**,
+not a 9.67% whole-workflow improvement. Do not multiply it by ROI/thread/other
+stage ratios. The tensor-helper candidate below was not enabled in this frozen
+version; there is no statistical-significance, platform or accuracy claim.
+
+---
+
+## Further Optimization: WMA Registration Points
+
+The [adapter](../../tractography/wma_transform.py) uses the same author-created
+`vtkTransform`, replacing point-by-point calls with `TransformPoints`. Float64,
+point/fiber order and output layout remain unchanged; objectives, sampling,
+COBYLA, convergence and classification are untouched. Only pinned-source hashes
+and tested VTK 9.5.2 enable it. Unsupported/nonfinite data and inputs beyond the
+64 MiB temporary budget retain original dispatch. Per-registration logs record
+calls, points, bypasses and times; normal/error exits restore the original hook.
+
+Author bytes match an independent upstream download. Both routes use one
+VTK/BLAS thread:
+
+| Subject | 1000-by-15-point transform, author -> optimized | Complete small optimizer median, author -> optimized | Optimizer ratio |
+| --- | ---: | ---: | ---: |
+| 100206 | 24.586 -> 0.322 ms | 0.387 -> 0.302 s | 1.28x |
+| 149741 | 24.831 -> 0.317 ms | 0.325 -> 0.256 s | 1.27x |
+| 877168 | 24.624 -> 0.296 ms | 0.405 -> 0.319 s | 1.27x |
+
+One warmup; five alternating transform repeats and three optimizer repeats.
+Fixed/moving fixtures contain 128/64 fibers of 15 points, sigma=20, Affine,
+identical steps and a `maxfun=300` **budget**; actual evaluations are 60/51/64.
+Real fixtures receive an explicit synthetic 20 mm R shift. Every objective
+trajectory, change and final transform matches; all three objectives improve,
+and sources/inputs remain hash-identical. No budget is reduced for one method.
+
+**This is a complete small optimizer, not full-brain registration, 74-tract WMA
+or anatomical acceptance.** The transform-only 76-83x must not replace the
+optimizer's 1.27-1.28x or multiply the earlier complete-WMA 1.38x. Historical
+CSD inputs do not gain a coverage-QC pass. Full repeats and trajectories are in
+[JSON](benchmarks/wma_transform_20261021.json)/[CSV](benchmarks/wma_transform_20261021.csv);
+the [benchmark](../../scripts/benchmark_wma_transform.py) executes author code.
+A separate synthetic real-CLI integration test on the copied installation
+enabled 30 bulk calls without bypass, not a real full-brain task. Exploratory
+distance batching was about 5% slower; buffer reuse gained only about 3% with
+variability. Neither is enabled; the objective/distance formula is unchanged.
+[Combined evidence](benchmarks/further_optimizations_20261021.json) retains author
+verification and candidate decisions.
+
+Combined NLS regression using the new WLS initialization also passed on three
+complete Slicer Python 6-cubed ROIs, 216 voxels each: all raw parameters, maps and
+QC match author NLS. See [record](benchmarks/freewater_nls_wlsinit_20261021.json).
+Do not compare their absolute timings to the earlier 12-cubed fixtures.
+
+---
+
+## 05:10 Follow-up: Parameterization And Candidates
+
+[Bulk FiberArray conversion](../../tractography/wma_fibers.py) replaces point-call
+loops with bounded array copying, retaining the author's index-based nearest
+neighbors, ties-to-even rounding, hemisphere calculation and VTK traversal
+state. It does not introduce arc-length interpolation or reduce samples.
+The owned registration process installs/restores the hook only for the pinned
+`fibers.py` and VTK 9.5.2. Verbose/custom/oversized cases retain the author path.
+**This is not installed in the 74-tract classification subprocess.**
+
+Each real subject contributes 20,000 fixed-seed lines from its million-line
+input, one warmup and five alternating repeats, one VTK/BLAS thread. Timings
+include conversion and hemisphere calculation, not source reading/sampling:
+
+| Subject | Author | Bulk | Saved | Conversion ratio |
+| --- | ---: | ---: | ---: | ---: |
+| 100206 | 0.587 s | 0.0128 s | 0.574 s | 45.84x |
+| 149741 | 0.568 s | 0.0115 s | 0.556 s | 49.55x |
+| 877168 | 0.587 s | 0.0135 s | 0.574 s | 43.54x |
+
+All coordinates and hemisphere state match at 2/3/10/15/30 points per line;
+source/code hashes are unchanged. Complete small author optimizer fixtures
+with explicit synthetic offsets retain their entire trajectories and final
+transforms. After replacing full-length temporary boolean index checks with
+min/max reductions, the entire table was remeasured: this small optimizer
+improves only **1.9%-4.4%** in time, versus 0.8%-1.9% in the retained first run.
+Shared-host variation is not hidden. The 43-50x conversion ratio is not
+whole-WMA acceleration and must not multiply prior full-model/transform ratios.
+[Original-author verification and repeats](benchmarks/wma_fibers_bounded_20261021.json),
+[CSV](benchmarks/wma_fibers_bounded_20261021.csv),
+[benchmark](../../scripts/benchmark_wma_fibers.py). Historical CSD sampling
+failures remain failed; this is not anatomical acceptance. The first
+[measurement](benchmarks/wma_fibers_20261021.json) is retained separately.
+
+Other tested/inspected candidates are not deployed benefits:
+
+| Candidate | Current evidence | Decision |
+| --- | --- | --- |
+| Free-water broadcast grid views | Exact raw parameters, 512 voxels per subject, only 3.3%-3.6% faster than the prior local adapter | Not enabled |
+| Direct original tensor-helper body | Same three subsets, exact raw parameters, 19.6%-20.7% faster than the prior local adapter | Promising candidate only; source guards, edge cases and complete stages still needed |
+| Binary WMA output | Pinned author `io.py` already selects binary VTK/VTP | Not a new plugin optimization |
+
+The Free-water candidate ratios are raw-fit subset comparisons against the
+prior local implementation, not original-author complete-model measurements.
+They were not enabled in the completed frozen full-brain comparison.
+[Candidate evidence](benchmarks/performance_candidates_20261021.json) includes
+58 passing copied-install native Slicer Python tests and the synthetic real-CLI
+fixture's one conversion/30 transform calls. Complete backend/distribution
+regression at this stage: **1226 tests, 1223 passed, three skipped, no failures**;
+latest log: `ignore/validation/runtime_distribution_20261021/full-tests-bounded-final.log`.
+
+---
+
+## 21 October: Repeated MK-Curve QR Calls
+
+This targets the default `reference` solver without adding threads. Profiling
+found about 13,000 least-squares wrapper calls per real 64-voxel, 200-b0 chunk.
+The [implementation](../../microstructure/mkcurve_tensor.py) retains the same
+LAPACK `DGELSY` pivoted QR, epsilon threshold, initial OLS, weights, rank decisions
+and floating-point precision. It caches protocol-only column scaling/rank checks
+and LAPACK workspace sizes, avoiding redundant checks and Python wrappers.
+No voxel fits are cached; no grid samples are removed; normal equations do not
+replace QR. Read-only design caches are content-keyed, limited to four entries,
+each with at most 1 MiB of input. SciPy 1.13/1.17 families have paired regression;
+other releases retain the public solver.
+
+Both paths use one BLAS/OMP thread, one warmup and three alternating repeats:
+
+| Scope | Environment | Time reduction across three subjects | Agreement |
+| --- | --- | ---: | --- |
+| Complete 64-voxel numeric chunk, default QR | Python 3.13 / SciPy 1.17.0 | 26.0%-28.7% | Raw coefficients, full curves, maps and decisions exact |
+| Same chunk and solver | Slicer Python 3.12 / SciPy 1.13.1 | 20.7%-21.0% | Same |
+| Additional gain for existing `batched` solver | Both environments | 4.8%-5.9% | Same; do not apply the default-QR ratio |
+
+A separate complete-stage test on three real native 24-cubed grids used
+**preselected sparse 64-voxel masks**, including preparation, all 200-203 b0
+samples, 51 maps, curves, coefficients, masks, QC and export:
+
+| Subject | Reference median | Optimized median | Ratio | Unchanged valid voxels |
+| --- | ---: | ---: | ---: | ---: |
+| 100307 | 1.869 s | 1.402 s | 1.33x | 62/64 |
+| 100206 | 1.982 s | 1.388 s | 1.43x | 61/64 |
+| 149741 | 1.778 s | 1.396 s | 1.27x | 64/64 |
+
+These are not whole-ROI/full-brain timings. Joint quantitative QC still excludes
+invalid voxels in the first two fixtures; exact performance parity does not turn
+them valid or replace anatomical review. Inputs/source hashes remain unchanged.
+Tests cover rank deficiency, extreme/nonfinite signals, array layout, cache
+invalidation and fallback. No new dependency or GPU-policy change is required.
+
+Records: [Python](benchmarks/mkcurve_qr_20261021.json),
+[Slicer Python](benchmarks/mkcurve_qr_slicer_20261021.json), and
+[complete-stage JSON](benchmarks/mkcurve_qr_stage_20261021.json)/
+[CSV](benchmarks/mkcurve_qr_stage_20261021.csv).
+The [reusable benchmark](../../scripts/benchmark_mkcurve_qr.py) accepts a frozen
+previous tensor source and real-signal NPZs. The frozen file hash matches
+`microstructure/mkcurve_tensor.py` at `main@6d753de`. Do not extrapolate these
+subset ratios to the previous 153.53-minute run or the entire workflow.
+
+### Regression And Copied Installation
+
+After integrating WLS and point transforms, the 21 October backend suite ran
+**1214 tests: 1209 passed, five explicitly
+skipped, no failures**. Log:
+`ignore/validation/numerical_performance_20261021/full_tests_wls_transform.log`.
+A separate native Slicer Python process from `/tmp` imported the isolated
+extension copy, verified source hashes/import locations and passed **53 numeric,
+parallel-chunk and wrapper tests**. Evidence: `staged_wls_transform.json`/`.log` in that
+directory. New modules/benchmarks are included by the runtime resource manifest;
+earlier 1203/28-test logs remain intact, not relabeled as this result.
+62 active Markdown documents passed local-link/style auditing.
+These are backend/installation-import regressions, not complete SDK, GUI,
+anatomical or three-platform scientific acceptance. The active user Slicer and
+MRI Agent sessions were not restarted or modified.
 
 ---
 
@@ -192,8 +508,9 @@ to repeat the comparison. The [JSON](benchmarks/author_wma_optimizations_2026102
 retains raw times, downloaded-source hashes, full geometry/sampling signatures
 and optimizer evidence; the [CSV](benchmarks/author_wma_optimizations_20261020.csv)
 summarizes five cases. Original local evidence is under
-`ignore/validation/wma_author_bulk_20261020/`. Complete 74-tract classification
-has not been rerun, so no proportional full-WMA acceleration is claimed.
+`ignore/validation/wma_author_bulk_20261020/`. Those substep experiments exclude
+complete 74-tract classification; the separate complete-model pair is reported
+above. The substep ratios must not be extrapolated to the whole model.
 
 This round's full backend regression ran **1110 tests: 1105 passed, five explicitly
 skipped, no failures**. Its final local log is `full_tests_final.log` in that
@@ -415,9 +732,14 @@ The new original-author comparisons are `three_subjects.json`, `full_inputs.json
 Next benchmarks should fix inputs, parameters, source versions, thread budgets,
 devices and cache state; repeat both implementations on multiple independent
 subjects while recording wall time, RSS/VRAM, output error and failures. Highest
-priorities are full WMA cache on/off, paired NODDI thread counts, complete FW
-I/O comparison and the author MK-Curve runtime. Linux evidence does not certify
-native Windows/macOS scientific performance.
+priorities are multisubject repetitions of the completed WMA/NODDI/default-WLS pairs,
+finishing the interrupted complete DKI pair, and full-brain pairs for the new
+Free-water NLS and default-QR MK-Curve changes. Default WLS now has one full-brain
+pair, but multisubject repeats and full-stage qualification of the helper
+candidate remain needed. Complete 74-tract WMA pairs for the new changes are
+still missing; small fixtures cannot predict minutes saved. Original MATLAB MK-Curve
+runtime is also unmeasured.
+Linux evidence does not certify native Windows/macOS scientific performance.
 
 **Original-author manuscript claim:** with identical inputs and parameters,
 equivalent bulk geometry copying accelerated the unmodified author's

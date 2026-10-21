@@ -859,7 +859,11 @@ def _ukf_run_options(selection):
         binary = resolve_executable()
     except (OSError, RuntimeError):
         binary = None  # Dependency Doctor supplies the actionable installation message.
-    return dict(ukf_parameters=options, ukf_executable=binary)
+    try:
+        converter = resolve_executable(name='DWIConvert')
+    except (OSError, RuntimeError):
+        converter = None
+    return dict(ukf_parameters=options, ukf_executable=binary, dwiconvert_executable=converter)
 
 
 def _append_ukf_args(args, kwargs):
@@ -867,6 +871,8 @@ def _append_ukf_args(args, kwargs):
         args.extend(('--ukf-parameters', json.dumps(kwargs.get('ukf_parameters', {}), sort_keys=True)))
         if kwargs.get('ukf_executable'):
             args.extend(('--ukf-executable', str(kwargs['ukf_executable'])))
+        if kwargs.get('dwiconvert_executable'):
+            args.extend(('--dwiconvert-executable', str(kwargs['dwiconvert_executable'])))
 
 
 def parse_manifest_line(line: str) -> Optional[str]:

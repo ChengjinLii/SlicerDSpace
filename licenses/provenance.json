@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "reviewed_date": "2026-10-12",
+  "reviewed_date": "2026-10-21",
   "scope": "Recorded source/data licenses including the native MK-Curve translation; not a blanket legal clearance or model-asset license",
   "records": [
     {
@@ -54,8 +54,17 @@
       "path": "licenses/WMA.txt",
       "sha256": "03fc5cd907e5c2004ce199d66318d32a08fa2de2b5b28bee184edda6307d0b86",
       "source": "https://github.com/SlicerDMRI/whitematteranalysis/blob/4532b911386d2d1bc7ebba63fdd13e65b1660623/License.txt",
-      "covers": ["tractography/wma_preprocessing.py"],
+      "covers": ["tractography/wma_preprocessing.py", "tractography/wma_transform.py", "tractography/wma_fibers.py"],
       "conditions": "Preserve the full Slicer/BWH agreement and attribution; clearly identify this modified bulk implementation, not an original upstream release. No model/atlas rights are inferred."
+    },
+    {
+      "id": "freewater_wls",
+      "license": "BSD-3-Clause",
+      "path": "licenses/DIPY.txt",
+      "sha256": "b3507d2424d4b01d04345193e02642f9f1af35dd96517a75e3bd815953dfae5f",
+      "source": "https://github.com/dipy/dipy/blob/1b0b3e2a0b0c8611287f4677f21356b704495665/LICENSE",
+      "covers": ["microstructure/freewater_wls.py"],
+      "conditions": "Preserve the DIPY copyright, BSD-3-Clause conditions and disclaimer. Identify the diagonal-free adaptation; no upstream endorsement or changed estimator is implied."
     },
     {
       "id": "mkcurve_dki",

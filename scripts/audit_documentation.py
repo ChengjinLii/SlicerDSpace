@@ -42,12 +42,25 @@ def active_docs(root):
     return paths
 
 
-def audit(root=ROOT):
+def audit(root=ROOT, *, reference_root=None):
     findings = []
-    paths = active_docs(root)
+    root = root.resolve()
+    expected = None
+    external_references = set()
+    if reference_root is not None:
+        from scripts.extension_runtime.runtime_resources import runtime_files
+        reference_root = reference_root.resolve()
+        expected = set(runtime_files(reference_root))
+        paths = [root / path.relative_to(reference_root) for path in active_docs(reference_root)
+                 if path.relative_to(reference_root).as_posix() in expected]
+    else:
+        paths = active_docs(root)
     for path in paths:
-        text = path.read_text(encoding="utf-8")
         relative = path.relative_to(root).as_posix()
+        if not path.is_file():
+            findings.append({"file": relative, "error": "Missing required document"})
+            continue
+        text = path.read_text(encoding="utf-8")
         if not text.startswith('<div align="center">') or "\n---\n" not in text:
             findings.append({"file": relative, "error": "Missing centered masthead or section divider"})
         filtered = []
@@ -73,12 +86,20 @@ def audit(root=ROOT):
                 continue
             destination = (path.parent / unquote(url.path)).resolve()
             if not destination.is_relative_to(root.resolve()) or not destination.exists():
+                if expected is not None and destination.is_relative_to(root):
+                    link_relative = destination.relative_to(root).as_posix()
+                    if link_relative not in expected and (reference_root / link_relative).exists():
+                        external_references.add(link_relative)
+                        continue
                 findings.append({"file": relative, "error": "Broken local link", "target": target})
         for obsolete in ("click `First-run setup wizard`", "click `Demo / Try with sample data`"):
             if obsolete.lower() in text.lower():
                 findings.append({"file": relative, "error": "Obsolete visible UI instruction", "text": obsolete})
     return {"status": "pass" if not findings else "fail", "documents_checked": len(paths),
-            "findings": findings, "scope": "Active local links/style/UI wording; no external URL availability or historical report rewriting"}
+            "findings": findings, "repository_only_references": sorted(external_references),
+            "scope": ("Runtime document contract against complete source; repository-only links require GitHub"
+                      if expected is not None else
+                      "Active local links/style/UI wording; no external URL availability or historical report rewriting")}
 
 
 def main(argv=None):

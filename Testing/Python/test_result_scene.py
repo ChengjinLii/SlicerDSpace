@@ -43,11 +43,38 @@ class ResultSelectionTest(unittest.TestCase):
                     'bundle_readable_count': 1, 'bundle_nonempty_count': 1,
                     'bundles': [{'query_name': 'af.left', 'streamline_count': 20}]}}))
             for name in ("bundles.wmql", "bundles.tractcloud"):
+                if name == 'bundles.tractcloud':
+                    from tractography.tractcloud import ADAPTER_REVISION, TRACTCLOUD_QC_VERSION
+                    qc.write_text(json.dumps({'status': 'completed', 'version': TRACTCLOUD_QC_VERSION,
+                        'automatic_qc_passed': True, 'executed': True, 'adapter_revision': ADAPTER_REVISION,
+                        'output_summary': {'bundle_files': [str(good)], 'bundle_count': 1,
+                            'bundle_readable_count': 1, 'bundle_nonempty_count': 1,
+                            'assigned_streamline_count': 20}}))
                 task = {"name": name, "status": "completed", "qc_path": str(qc), "outputs": {"output_dir": str(root)}}
                 candidates, _ = result_candidates({"tasks": [task]})
                 self.assertEqual([c["path"] for c in candidates], [str(good)])
                 task["status"] = "failed"
                 self.assertEqual(result_candidates({"tasks": [task]})[0], [])
+
+    def test_tractcloud_qc_failure_cannot_leak_explicit_task_outputs(self):
+        from tractography.tractcloud import ADAPTER_REVISION, TRACTCLOUD_QC_VERSION
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            bundle = root / 'AF.vtp'
+            bundle.touch()
+            qc_path = root / 'tractcloud_qc.json'
+            record = dict(status='completed', version=TRACTCLOUD_QC_VERSION, executed=True,
+                          adapter_revision=ADAPTER_REVISION, automatic_qc_passed=True,
+                          output_summary=dict(bundle_count=1, bundle_readable_count=1,
+                              bundle_nonempty_count=1, assigned_streamline_count=20, bundle_files=[str(bundle)]))
+            task = dict(name='bundles.tractcloud', status='completed', qc_path=str(qc_path),
+                        outputs={'bundle': str(bundle)})
+            for override in ({'automatic_qc_passed': False}, {'error': 'failed geometry'},
+                             {'checks': {'geometry': False}}, {'version': 3}, {'executed': False}):
+                with self.subTest(override=override):
+                    qc_path.write_text(json.dumps({**record, **override}))
+                    self.assertEqual(result_candidates({'tasks': [task]})[0], [])
+                    self.assertEqual(recorded_qc_summary({'tasks': [task]})['issues'], 1)
 
     def test_current_wma_only_uses_qc_declared_directory_and_count(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -91,6 +118,11 @@ class ResultSelectionTest(unittest.TestCase):
             summary = recorded_qc_summary({"tasks": [
                 {"status": "completed", "qc_path": str(path)}, {"status": "completed"}]})
             self.assertEqual(summary, {"passed": 0, "issues": 1, "unavailable": 1})
+
+    def test_sparse_sampling_is_reported_as_warning_not_an_all_clear(self):
+        from shared.result_scene import record_qc_state
+        self.assertEqual(record_qc_state(dict(status='completed', automatic_qc_passed=True,
+            sampling_warnings=['EC: 1 streamline'])), 'warning')
 
     def test_failed_execution_cannot_borrow_historical_passed_qc(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -14,6 +14,16 @@ prepare a public release or a manuscript-linked release.
 
 ## Release Scope
 
+User extension packages are distinct from source/DOI archives. Build extension
+resources through the shared runtime manifest: keep runtime, third-party
+licenses and user guides, but omit website source, historical optimization
+reports, raw benchmark JSON and timing scripts. Keep those records in the
+complete source/DOI release for audit and reproducibility. Explicit release
+documents and the three small module-runtime CSV references remain packaged.
+The [download guide](../setup/DOWNLOADS.md) distinguishes validated CPack
+packages, local staging packages and optional lightweight source checkouts.
+Do not label GitHub's automatic source archive as an installable extension.
+
 SlicerDDSurfer release artifacts are split into three classes:
 
 1. Source code and documentation in this repository.

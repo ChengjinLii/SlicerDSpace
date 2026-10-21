@@ -1,0 +1,146 @@
+{
+  "status": "passed",
+  "reviewed_on": "2026-10-21",
+  "records": [
+    {
+      "subject_id": "100307",
+      "solver": "reference",
+      "grid_samples": 200,
+      "reference_median_seconds": 1.8692701403051615,
+      "optimized_median_seconds": 1.401724424213171,
+      "speed_ratio": 1.3335503812416178,
+      "time_reduction_percent": 25.01220695772003,
+      "times_seconds": {
+        "reference": [
+          1.7842242196202278,
+          1.8692701403051615,
+          1.967929007485509
+        ],
+        "optimized": [
+          1.4157019034028053,
+          1.401724424213171,
+          1.3896142393350601
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "grid_shape": [
+        24,
+        24,
+        24
+      ],
+      "fitted_mask_voxels": 64,
+      "map_count": 51,
+      "corrected_valid_voxels": 62,
+      "automatic_qc_passed": false,
+      "exact_output_parity": true
+    },
+    {
+      "subject_id": "100206",
+      "solver": "reference",
+      "grid_samples": 203,
+      "reference_median_seconds": 1.9815370962023735,
+      "optimized_median_seconds": 1.3877671957015991,
+      "speed_ratio": 1.4278598761664691,
+      "time_reduction_percent": 29.96511655717865,
+      "times_seconds": {
+        "reference": [
+          1.9815370962023735,
+          1.8178595080971718,
+          1.9835048392415047
+        ],
+        "optimized": [
+          1.3827335722744465,
+          1.390016097575426,
+          1.3877671957015991
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "grid_shape": [
+        24,
+        24,
+        24
+      ],
+      "fitted_mask_voxels": 64,
+      "map_count": 51,
+      "corrected_valid_voxels": 61,
+      "automatic_qc_passed": false,
+      "exact_output_parity": true
+    },
+    {
+      "subject_id": "149741",
+      "solver": "reference",
+      "grid_samples": 203,
+      "reference_median_seconds": 1.7781684380024672,
+      "optimized_median_seconds": 1.3955968413501978,
+      "speed_ratio": 1.2741275885105492,
+      "time_reduction_percent": 21.51492448499631,
+      "times_seconds": {
+        "reference": [
+          1.775326356291771,
+          1.7781684380024672,
+          1.7925302181392908
+        ],
+        "optimized": [
+          1.5187327470630407,
+          1.3955968413501978,
+          1.388229999691248
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "grid_shape": [
+        24,
+        24,
+        24
+      ],
+      "fitted_mask_voxels": 64,
+      "map_count": 51,
+      "corrected_valid_voxels": 64,
+      "automatic_qc_passed": true,
+      "exact_output_parity": true
+    }
+  ],
+  "source_sha256": {
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/numerical_performance_20261021/mkcurve_tensor.before.py": "d4448d900366a26d3c77899f9419574ae69cbca37cc0666c3111e16f810b3516",
+    "/data/chengjin/SlicerDDSurfer/microstructure/mkcurve_tensor.py": "4f7650c5bb09bdf6d253b25d9dd31ba9dd5f2bb60ee770d618c21e1e92d4e78d",
+    "/data/chengjin/SlicerDDSurfer/microstructure/mkcurve.py": "668a27ee3546b71de7fb2d66feab8699d5e77f379c8b3861f3a8a6f175839395",
+    "/data/chengjin/SlicerDDSurfer/microstructure/mkcurve_inputs.py": "b8ae8c19d3c3bcda0507829d981ce1e193bf642647a6a9781ae9c43f4b020df4",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/numerical_performance_20261021/benchmark_stage.py": "1f43416e89d37c7c748053aeb5a406297e90081d002ae768c3b4adf11adb9b70",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100307/input/data.nii.gz": "0b3753d98c9e4d9e43f1981db15470bbbaa9754abfcacdc19354996cb46ac73c",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100307/input/bvals": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100307/input/bvecs": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/numerical_performance_20261021/complete_stage/100307/fixed_sparse_64_mask.nii.gz": "114dbded07de307ccde0c54df4cce14d115ea0cea33324e2c524ca0c4771a973",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100307/input/nodif_brain_mask.nii.gz": "b1bca25e0ad28d21f2acfca985ad6fccd2db0bbde3dad52ac16b30992ad4d5ff",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100206/input/data.nii.gz": "f5569951719d31e7a6f4798474a396d9e2ca9d75177e9963f5e50e509ac00a7b",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100206/input/bvals": "26bfc9904dc08251ea36ef831f35e4973a48046c7c62017caa27f0a0e7071eea",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100206/input/bvecs": "661a494c36f8570fb7e8a43a8937ef117767eb2ba635241c141c9faba217a3f1",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/numerical_performance_20261021/complete_stage/100206/fixed_sparse_64_mask.nii.gz": "b05c6caa1a334d3ac449be2e5726b69356fd5495f23edf85ecbc4b335a21abaa",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100206/input/nodif_brain_mask.nii.gz": "f6529fe2c9aac98584d4505b4afdfc8594ca5813b7883dd12c39049f3fb01ee9",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/149741/input/data.nii.gz": "55faa0e7dca292e548b18f96555ce2dbdd42db50af8d78f7e9e6dd7eea2335d9",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/149741/input/bvals": "aa3247a2cc39b80ac02286483dcc6fb612ab870fea153f1d8b87369c41bc7807",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/149741/input/bvecs": "770cc56c46ec51438938062a67aad644427c43e337118b05a81d8ac48b5a2102",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/numerical_performance_20261021/complete_stage/149741/fixed_sparse_64_mask.nii.gz": "770b5a8b45f6c83a04fc93f2256146ff9434f886a865446a9c3467e5bb76ee6c",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/149741/input/nodif_brain_mask.nii.gz": "16899364692f986445e825c26a979996353c46c5f87cadb43ef206df371edd1c"
+  },
+  "source_inputs_unchanged": true,
+  "comparison": "Frozen preceding Python port versus optimized QR implementation, same worker and thread counts",
+  "scope": "Complete preparation, fitting, full adaptive grid, all maps, curves, coefficients, masks, QC and export on native real 24^3 grids with preselected sparse 64-voxel masks",
+  "environment": {
+    "python": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:09:02) [GCC 11.2.0]",
+    "scipy": "1.17.0",
+    "numpy": "2.3.3",
+    "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+    "thread_env": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1"
+    }
+  },
+  "limitations": [
+    "Sparse masks are deliberately small numerical fixtures, not full-ROI/full-brain speedup evidence",
+    "Automatic QC outcomes are preserved, not forced to pass",
+    "Warm shared-host measurements; no whole-workflow or cross-platform speedup claim"
+  ]
+}

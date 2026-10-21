@@ -1,0 +1,24 @@
+# Optional source installation, not a development/reproducibility checkout.
+# Keep this selection compatible with runtime_resources.json.
+/*
+!/.github/
+!/Testing/
+!/website/
+!/docs/site/
+!/docs/website/
+!/docs/images/
+!/docs/release/*
+/docs/release/RELEASE.md
+/docs/release/RELEASE_CANDIDATE_VALIDATION.md
+/docs/release/RELEASE_NOTES_v0.1.0.md
+/docs/release/GITHUB_RELEASE_DRAFT_v0.1.0.md
+/docs/release/DOI_ARCHIVE_PREP.md
+/docs/release/benchmarks/
+!/docs/release/benchmarks/*
+/docs/release/benchmarks/module_runtimes_20261013.csv
+/docs/release/benchmarks/module_runtimes_20261015.csv
+/docs/release/benchmarks/module_runtimes_20261017.csv
+!/tractography/slicer_dmri_reference/
+!/scripts/benchmark_*.py
+!/scripts/audit_pages_site.py
+!/scripts/generate_protocol_benchmarks.py

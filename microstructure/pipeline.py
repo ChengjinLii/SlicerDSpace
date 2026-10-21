@@ -743,7 +743,7 @@ def _sanitize_free_water_scalars(
     return clean_fwf, clean_fa, clean_md, valid_tissue, invalid_count
 
 
-def _write_free_water_qc(config: MicrostructureConfig, paths: dict[str, Path]) -> dict[str, object]:
+def _write_free_water_qc(config: MicrostructureConfig, paths: dict[str, Path], *, fit_implementation=None) -> dict[str, object]:
     """Validate saved Free Water maps and persist a reusable scientific QC record."""
 
     mask_image, mask, arrays = _load_qc_maps(config, paths, FREE_WATER_KEYS, "free_water_qc")
@@ -819,6 +819,8 @@ def _write_free_water_qc(config: MicrostructureConfig, paths: dict[str, Path]) -
             "Tissue FA and MD are interpreted only where the tissue-validity mask is non-zero."
         ],
     }
+    if fit_implementation is not None:
+        payload['fit_implementation'] = fit_implementation
     return _finish_scalar_qc(paths, "free_water_qc", FREE_WATER_KEYS, payload)
 
 
@@ -902,6 +904,9 @@ def _compute_free_water_maps_impl(
     bvals, bvecs = _load_bvals_bvecs(raw)
     gtab = gradient_table(bvals, bvecs=bvecs, b0_threshold=50)
     fw_model = FreeWaterTensorModel(gtab, fit_method=fit_method)
+    from microstructure.freewater_dispatch import configure_freewater_dispatch
+    fit_implementation = configure_freewater_dispatch(fw_model, fit_method, engine)
+    _emit(f"[Microstructure] Free Water dispatch: {fit_implementation}", log)
 
     rounded_shells = np.unique(np.round(bvals / 100.0) * 100.0).astype(int).tolist()
     _emit(
@@ -943,6 +948,7 @@ def _compute_free_water_maps_impl(
         "stage": "freewater",
         "status": "running",
         "fit_method": fit_method,
+        "fit_implementation": fit_implementation,
         "chunk_size": chunk_size,
         "engine": engine,
         "n_jobs": n_jobs,
@@ -1057,7 +1063,7 @@ def _compute_free_water_maps_impl(
     _save_scalar_nifti(fw_tissue_fa_map, mask_img, paths["fw_tissue_fa"])
     _save_scalar_nifti(fw_tissue_md_map, mask_img, paths["fw_tissue_md"])
     _save_mask_nifti(fw_tissue_valid_mask, mask_img, paths["fw_tissue_valid_mask"])
-    _write_free_water_qc(config, paths)
+    _write_free_water_qc(config, paths, fit_implementation=fit_implementation)
     _write_progress(
         progress_path,
         {

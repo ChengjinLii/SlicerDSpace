@@ -77,7 +77,7 @@ def record_qc_state(record):
     if (status in {'fail', 'failed', 'partial_failed', 'error'}
             or record.get('automatic_qc_passed') is False or failed_check or record.get('error')):
         return 'failed'
-    if status == 'warning':
+    if status == 'warning' or record.get('sampling_warnings'):
         return 'warning'
     if record.get('automatic_qc_passed') is True:
         return 'passed'
@@ -125,7 +125,7 @@ def result_candidates(manifest, *, allow_bundle_directory_scan=True, include_pre
             continue
         if name.startswith("preprocessing.") and not include_preprocessing:
             continue
-        if name in {'bundles.wmql', 'bundles.wma'}:
+        if name in {'bundles.wmql', 'bundles.wma', 'bundles.tractcloud'}:
             value = task.get('qc_path') or (task.get('outputs') or {}).get('qc_path')
             try:
                 record = json.loads(Path(str(value)).read_text()) if value else {}

@@ -23,7 +23,7 @@ Keep only:
 - `SlicerDDSurfer.s4ext`: Slicer extension metadata.
 - `CMakeLists.txt`: extension packaging.
 - `README.md` and `README.zh-CN.md`: short user entry points.
-- `LICENSE`, `THIRD_PARTY_NOTICES.md`, `CITATION.cff`, `codemeta.json`,
+- `LICENSE.txt`, `THIRD_PARTY_NOTICES.md`, `CITATION.cff`, `codemeta.json`,
   `.zenodo.json`, `.gitattributes`, `.gitignore`: licensing and project metadata.
 - `Makefile`, `pyproject.toml`: development and test configuration.
 - `run_subject_pipeline.py`: stable CLI entry point documented for users.
@@ -112,6 +112,21 @@ installation directory.
 
 ## Developer Tools And Local Outputs
 
+### Distribution Boundary
+
+Repository contents and installed plugin contents are different. The shared
+runtime manifest packages processing code, licenses, user-facing guides and
+explicit release/reference files, not the entire documentation tree.
+Website source, dated performance/QC reports, benchmark JSON and timing scripts
+stay in the full source repository rather than the user installation.
+Three module-runtime CSV files are intentionally retained as small references.
+See [download scope](../setup/DOWNLOADS.md) for an optional sparse/partial source
+checkout. A normal `git clone` still includes tracked reports and website files;
+neither `.gitignore` nor package exclusions change that behavior.
+No historical evidence, commit history or contributor attribution is deleted.
+
+### Local Material
+
 - `scripts/`: command-line maintenance, installation, release and audit tools.
 - `scripts/dev/requirements-ci.txt`: pinned fast-test dependencies, separate
   from scientific runtime installation. Install with
@@ -166,7 +181,7 @@ Slicer extension compatibility. If the helper set grows further, split it into
 - `tractography/slicer_dmri_reference/` is reference material and should not be
   packaged as runtime extension code. Both CMake builds and local extension
   staging explicitly exclude it; `tractography/saf_backend/` remains packaged.
-- `parcellation/models/` and `anatomy/parcellation/data_loader/` are derived from
+- `anatomy/parcellation/models/` and `anatomy/parcellation/data_loader/` are derived from
   FastSurfer (Apache License 2.0; https://github.com/Deep-MI/FastSurfer).
 - `anatomy/parcellation/conversion/` is attributed in-repo to
   https://github.com/pnlbwh/conversion; its license is not recorded in this

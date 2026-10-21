@@ -15,12 +15,35 @@ The integrity check is not a legal opinion or a grant of model/template rights.
 
 ---
 
+## DIPY Free-water WLS Adaptation
+
+`microstructure/freewater_wls.py` is adapted from `dipy/reconst/fwdti.py::wls_iter`
+at [DIPY 1.11.0](https://github.com/dipy/dipy/blob/1b0b3e2a0b0c8611287f4677f21356b704495665/dipy/reconst/fwdti.py).
+It replaces the materialized diagonal-weight product with C-order column
+scaling while preserving the remaining fit operations. Only verified source
+versions use this path; unsupported inputs or releases retain author behavior.
+
+Copyright (c) 2008-2025, dipy developers. All rights reserved.
+The complete [DIPY BSD-3-Clause notice](licenses/DIPY.txt) ships in the runtime
+package. This is a modified integration, not an official DIPY release or an
+accuracy/clinical claim. Installed DIPY retains its own copyright and license.
+
+---
+
 ## WMA Registration Preprocessing
 
 `tractography/wma_preprocessing.py` is a modified bulk implementation of the
 attribute-free length filter in SlicerDMRI/whitematteranalysis, pinned at
 `4532b911386d2d1bc7ebba63fdd13e65b1660623`. The author length-estimation,
 threshold and float32 copy semantics are retained; this is not an upstream release.
+`tractography/wma_transform.py` adapts the same pinned author's registration
+point transformation into `vtkTransform.TransformPoints`, retaining double
+precision and point order. Source/VTK guards retain the author path otherwise;
+no registration objective or optimizer is replaced.
+`tractography/wma_fibers.py` adapts the same author's nearest-neighbor
+`FiberArray` conversion to bounded bulk copying, preserving ties-to-even point
+selection, hemisphere calculation and traversal state. The owned registration
+process alone installs this hook; unsupported sources/VTK retain original code.
 
 All or portions of this licensed product (such portions are the "Software")
 have been obtained under license from The Brigham and Women's Hospital, Inc.

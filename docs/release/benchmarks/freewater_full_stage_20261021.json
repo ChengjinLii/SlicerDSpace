@@ -1,0 +1,435 @@
+{
+  "status": "passed",
+  "reviewed_on": "2026-10-21",
+  "subject_id": "100307",
+  "scope": "Complete native-grid Free-water WLS module, not the entire workflow",
+  "reference_seconds": 1219.2491011526436,
+  "optimized_seconds": 1101.4007368460298,
+  "speed_ratio": 1.1069986249002195,
+  "seconds_saved": 117.8483643066138,
+  "elapsed_reduction_fraction": 0.0966565111224632,
+  "shape": [
+    145,
+    174,
+    145
+  ],
+  "mask_voxels": 740916,
+  "fit_method": "WLS",
+  "engine": "serial",
+  "order": [
+    "optimized",
+    "reference"
+  ],
+  "repeats": 1,
+  "threads_per_variant": 1,
+  "raw_parameters": {
+    "reference": {
+      "raw_chunks": 54,
+      "raw_voxels": 740916
+    },
+    "optimized": {
+      "raw_chunks": 54,
+      "raw_voxels": 740916
+    }
+  },
+  "exported_dtypes": {
+    "reference": {
+      "fwf": "float32",
+      "fw_tissue_fa": "float32",
+      "fw_tissue_md": "float32",
+      "fw_tissue_valid_mask": "uint8"
+    },
+    "optimized": {
+      "fwf": "float32",
+      "fw_tissue_fa": "float32",
+      "fw_tissue_md": "float32",
+      "fw_tissue_valid_mask": "uint8"
+    }
+  },
+  "exact_all_13_parameters": true,
+  "exact_maps_masks_affines": true,
+  "qc_equal": true,
+  "qc": {
+    "reference": {
+      "status": "completed",
+      "automatic_qc_passed": true,
+      "checks": {
+        "affine_matches_mask": true,
+        "all_values_finite": true,
+        "fwf_in_range": true,
+        "invalid_tissue_metrics_zero": true,
+        "maps_zero_outside_brain": true,
+        "nonempty_valid_tissue": true,
+        "shape_matches_mask": true,
+        "tissue_fa_in_range": true,
+        "tissue_md_in_range": true,
+        "valid_mask_binary": true,
+        "valid_mask_within_brain": true,
+        "valid_tissue_fraction_threshold": true
+      },
+      "validity": {
+        "brain_mask_voxels": 740916,
+        "excluded_tissue_voxels": 116935,
+        "valid_tissue_fraction": 0.8421750913733811,
+        "valid_tissue_voxels": 623981
+      },
+      "parameters": {
+        "max_free_water_fraction_for_tissue": 0.7,
+        "max_tissue_md_mm2_s": 0.003
+      },
+      "summary": {
+        "fwf_brain_mask": {
+          "count": 740916,
+          "max": 0.9990000128746033,
+          "min": 0.0,
+          "p50": 0.32199999690055847,
+          "p95": 0.8529999852180481,
+          "p99": 0.9599999785423279
+        },
+        "tissue_fa_valid": {
+          "count": 623981,
+          "max": 0.9924991130828857,
+          "min": 0.00949279684573412,
+          "p50": 0.25903722643852234,
+          "p95": 0.758833646774292,
+          "p99": 0.8723496198654175
+        },
+        "tissue_md_valid": {
+          "count": 623981,
+          "max": 0.0010693937074393034,
+          "min": 8.903837624529842e-06,
+          "p50": 0.0004526153497863561,
+          "p95": 0.0006149713299237192,
+          "p99": 0.0006569086690433323
+        }
+      },
+      "warnings": [
+        "Tissue FA and MD are interpreted only where the tissue-validity mask is non-zero."
+      ]
+    },
+    "optimized": {
+      "status": "completed",
+      "automatic_qc_passed": true,
+      "checks": {
+        "affine_matches_mask": true,
+        "all_values_finite": true,
+        "fwf_in_range": true,
+        "invalid_tissue_metrics_zero": true,
+        "maps_zero_outside_brain": true,
+        "nonempty_valid_tissue": true,
+        "shape_matches_mask": true,
+        "tissue_fa_in_range": true,
+        "tissue_md_in_range": true,
+        "valid_mask_binary": true,
+        "valid_mask_within_brain": true,
+        "valid_tissue_fraction_threshold": true
+      },
+      "validity": {
+        "brain_mask_voxels": 740916,
+        "excluded_tissue_voxels": 116935,
+        "valid_tissue_fraction": 0.8421750913733811,
+        "valid_tissue_voxels": 623981
+      },
+      "parameters": {
+        "max_free_water_fraction_for_tissue": 0.7,
+        "max_tissue_md_mm2_s": 0.003
+      },
+      "summary": {
+        "fwf_brain_mask": {
+          "count": 740916,
+          "max": 0.9990000128746033,
+          "min": 0.0,
+          "p50": 0.32199999690055847,
+          "p95": 0.8529999852180481,
+          "p99": 0.9599999785423279
+        },
+        "tissue_fa_valid": {
+          "count": 623981,
+          "max": 0.9924991130828857,
+          "min": 0.00949279684573412,
+          "p50": 0.25903722643852234,
+          "p95": 0.758833646774292,
+          "p99": 0.8723496198654175
+        },
+        "tissue_md_valid": {
+          "count": 623981,
+          "max": 0.0010693937074393034,
+          "min": 8.903837624529842e-06,
+          "p50": 0.0004526153497863561,
+          "p95": 0.0006149713299237192,
+          "p99": 0.0006569086690433323
+        }
+      },
+      "warnings": [
+        "Tissue FA and MD are interpreted only where the tissue-validity mask is non-zero."
+      ]
+    }
+  },
+  "products": [
+    {
+      "product": "fwf",
+      "exact": true
+    },
+    {
+      "product": "fw_tissue_fa",
+      "exact": true
+    },
+    {
+      "product": "fw_tissue_md",
+      "exact": true
+    },
+    {
+      "product": "fw_tissue_valid_mask",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0000",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0001",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0002",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0003",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0004",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0005",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0006",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0007",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0008",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0009",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0010",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0011",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0012",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0013",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0014",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0015",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0016",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0017",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0018",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0019",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0020",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0021",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0022",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0023",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0024",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0025",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0026",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0027",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0028",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0029",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0030",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0031",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0032",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0033",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0034",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0035",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0036",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0037",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0038",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0039",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0040",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0041",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0042",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0043",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0044",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0045",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0046",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0047",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0048",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0049",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0050",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0051",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0052",
+      "exact": true
+    },
+    {
+      "product": "raw_parameters_0053",
+      "exact": true
+    }
+  ],
+  "inputs_sha256": {
+    "dwi_path": "0c146b380d873cd6987c968fdf090875f89fd5795b0d6c72564a3acab737f07c",
+    "bval_path": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08",
+    "bvec_path": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71",
+    "mask_path": "d4f83d76459efe879bd41c2b555ea6ff6d2754258ca849cb12fa9c53f0ac9a06"
+  },
+  "frozen_code_sha256": {
+    "microstructure/pipeline.py": "1003813b4cf8734ba18be5aa909ba0365481ea071d05c17f29615d8341ef2f0e",
+    "microstructure/freewater_dispatch.py": "8a10cfbfd86f144c91854e5b4f82ea483f2dee6678e3fc5d26512288cb1bebae",
+    "microstructure/freewater_wls.py": "6008ed4dae671be044965b055d15c4143453bc0b4cb97b70f9cd5292695e0afd"
+  },
+  "benchmark_harness_sha256": "4098ad0a93040e087b193bebfb6dc4698232940ddc5fce56ac56d4df13f31251",
+  "snapshot_unchanged": true,
+  "harness_unchanged": true,
+  "source_campaign": "ignore/validation/full_freewater_20261021/campaign.json",
+  "source_campaign_sha256": "a4e545b19c9289cd36d0166f94f274ee52704ddaaf3a688bc72635a091071b3f",
+  "source_comparison_sha256": "169bb01554e2117feac5a5df6a2d413c5e5ddf7d443b56e608f824b0b79980ca",
+  "environment": {
+    "python": "3.12.10 (main, Nov 10 2025, 07:45:19) [GCC 14.2.1 20250110 (Red Hat 14.2.1-7)]",
+    "executable": "/data/chengjin/software/Slicer-5.10.0-linux-amd64/bin/python-real",
+    "numpy": "2.2.6",
+    "scipy": "1.13.1",
+    "dipy": "1.12.1",
+    "collection": "Post-measurement probe using the same native Python executable"
+  },
+  "interpretation": "Same original DIPY estimator versus diagonal-free column weighting, no extra threads",
+  "limitations": [
+    "One pair, fixed optimized-first order, shared Linux host; no confidence interval",
+    "Includes identical raw-parameter sidecar recording overhead in both timed stages",
+    "Not a whole SlicerDDSurfer route, MATLAB comparison or cross-platform benchmark",
+    "Direct tensor-helper and broadcast-view candidates were not enabled",
+    "Uninterpretable tissue voxels remain excluded; parity is not anatomical accuracy"
+  ]
+}

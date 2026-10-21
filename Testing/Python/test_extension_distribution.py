@@ -122,7 +122,7 @@ class ExtensionDistributionTest(unittest.TestCase):
             package_extension(Path(install["extension_root"]), archive)
             self.assertEqual(audit_package(archive, ROOT)["status"], "pass")
             module = Path(install["module_dir"])
-            self.assertEqual(audit_documentation(module)["status"], "pass")
+            self.assertEqual(audit_documentation(module, reference_root=ROOT)["status"], "pass")
             actual = sorted(path.relative_to(module).as_posix() for path in module.rglob("*") if path.is_file())
             self.assertEqual(actual, runtime_files(ROOT))
             (module / "tractography/wmql_queries/AF_CST.qry").unlink()
@@ -130,6 +130,15 @@ class ExtensionDistributionTest(unittest.TestCase):
             audit = audit_package(archive, ROOT)
             self.assertEqual(audit["status"], "fail")
             self.assertIn("tractography/wmql_queries/AF_CST.qry", audit["missing"])
+
+    def test_runtime_document_audit_does_not_hide_missing_user_guides(self):
+        with tempfile.TemporaryDirectory() as directory:
+            install = stage_extension(Path(directory), slicer_version="Slicer-5.10", clean=True, link_mode="copy")
+            module = Path(install["module_dir"])
+            (module / "docs/setup/QUICKSTART.md").unlink()
+            audit = audit_documentation(module, reference_root=ROOT)
+            self.assertEqual(audit["status"], "fail")
+            self.assertTrue(any(item["file"] == "docs/setup/QUICKSTART.md" for item in audit["findings"]))
 
     def test_tampered_and_unexpected_resources_fail(self):
         with tempfile.TemporaryDirectory() as directory:

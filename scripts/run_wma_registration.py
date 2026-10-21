@@ -16,6 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tractography.wma_registration import RegistrationPreprocessCache, registration_cache_support
 from tractography.wma_preprocessing import AuthorCompatibleLengthFilter
+from tractography.wma_transform import AuthorCompatibleFiberTransform, registration_transform_support
+from tractography.wma_fibers import AuthorCompatibleFiberArrayConverter, fiber_conversion_support
 
 
 def main(argv=None):
@@ -34,7 +36,13 @@ def main(argv=None):
               "implementation_sha256": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in (
                   Path(__file__), Path(__file__).resolve().parents[1] / 'tractography/wma_registration.py',
                   Path(__file__).resolve().parents[1] / 'tractography/wma_preprocessing.py')}}
+    record['implementation_sha256']['wma_transform.py'] = hashlib.sha256(
+        Path(__file__).resolve().parents[1].joinpath('tractography/wma_transform.py').read_bytes()).hexdigest()
+    record['implementation_sha256']['wma_fibers.py'] = hashlib.sha256(
+        Path(__file__).resolve().parents[1].joinpath('tractography/wma_fibers.py').read_bytes()).hexdigest()
     cache = original = filter_module = bulk_filter = None
+    transform_module = original_transform = bulk_transform = None
+    fiber_class = original_conversion = bulk_conversion = None
     previous_argv = sys.argv
     started = time.monotonic()
     try:
@@ -48,6 +56,18 @@ def main(argv=None):
             cache = RegistrationPreprocessCache(bulk_filter)
             filter_module.preprocess = cache
             record["enabled"] = True
+        record['transform_compatibility'] = registration_transform_support(package_dir)
+        if record['transform_compatibility']['supported']:
+            transform_module = wma.register_two_subjects
+            original_transform = transform_module.transform_fiber_array_numpy
+            bulk_transform = AuthorCompatibleFiberTransform(original_transform, transform_module.convert_transform_to_vtk)
+            transform_module.transform_fiber_array_numpy = bulk_transform
+        record['conversion_compatibility'] = fiber_conversion_support(package_dir)
+        if record['conversion_compatibility']['supported']:
+            fiber_class = wma.fibers.FiberArray
+            original_conversion = fiber_class.convert_from_polydata
+            bulk_conversion = AuthorCompatibleFiberArrayConverter(fiber_class)
+            fiber_class.convert_from_polydata = bulk_conversion.method
         sys.argv = [str(author), *author_args]
         runpy.run_path(str(author), run_name="__main__")
         record["status"] = "completed"
@@ -62,10 +82,18 @@ def main(argv=None):
         sys.argv = previous_argv
         if original is not None:
             filter_module.preprocess = original
+        if original_transform is not None:
+            transform_module.transform_fiber_array_numpy = original_transform
+        if original_conversion is not None:
+            fiber_class.convert_from_polydata = original_conversion
         if cache is not None:
             record["cache"] = cache.summary()
         if bulk_filter is not None:
             record["length_filter"] = bulk_filter.summary()
+        if bulk_transform is not None:
+            record['fiber_transform'] = bulk_transform.summary()
+        if bulk_conversion is not None:
+            record['fiber_array_conversion'] = bulk_conversion.summary()
         record["elapsed_seconds"] = time.monotonic() - started
         temporary = report_path.with_suffix(".tmp")
         temporary.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")

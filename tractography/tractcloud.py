@@ -27,6 +27,8 @@ from shared.product_staging import archive_run_records, new_product_staging, pub
 
 TRACTCLOUD_REPOSITORY = "https://github.com/SlicerDMRI/TractCloud"
 ADAPTER_REVISION = 'seeded-gpu-preferred-strict-runtime-20261013'
+TRACTCLOUD_QC_VERSION = 4
+MIN_BUNDLE_SAMPLING_SCREEN = 20  # Local sanity screen, not an author accuracy guarantee.
 VALID_TRACTCLOUD_DEVICES = {"auto", "cpu", "cuda"}
 TRACTCLOUD_COMPAT_BOOTSTRAP = (
     "import json, logging, os, random, runpy, sys; import numpy as np; import torch; "
@@ -331,6 +333,7 @@ def summarize_tractcloud_outputs(output_dir: Path) -> dict[str, Any]:
         "bundle_readable_count": len(readable_line_counts),
         "bundle_nonempty_count": sum(count > 0 for count in readable_line_counts.values()),
         "assigned_streamline_count": sum(readable_line_counts.values()),
+        "bundle_streamline_counts": line_counts,
         "empty_bundle_files": sorted(
             name for name, count in readable_line_counts.items() if count == 0
         ),
@@ -376,7 +379,7 @@ def run_tractcloud_parcellation(
 
     manifest = {
         "kind": "tractcloud_parcellation",
-        "version": 3,
+        "version": TRACTCLOUD_QC_VERSION,
         "adapter_revision": ADAPTER_REVISION,
         "name": "TractCloud registration-free tractography parcellation",
         "subject_id": config.subject_id,
@@ -464,14 +467,27 @@ def run_tractcloud_parcellation(
     elapsed_seconds = time.monotonic() - start_time
     qc = {
         "kind": "tractcloud_parcellation_qc",
-        "version": 3,
+        "version": TRACTCLOUD_QC_VERSION,
         "adapter_revision": ADAPTER_REVISION,
         "subject_id": config.subject_id,
         "status": "failed" if execution_error else ("completed" if config.execute else "planned"),
         "executed": bool(config.execute),
+        "automatic_qc_passed": bool(config.execute and execution_error is None),
+        "checks": {"decoded_nonempty_bundle_products": _tractcloud_output_contract_error(output_summary) is None},
         "return_code": return_code,
         "elapsed_seconds": elapsed_seconds,
         "human_review": "pending",
+        "quantification_eligible": False,
+        "sampling_screen": {
+            "minimum_streamlines": MIN_BUNDLE_SAMPLING_SCREEN,
+            "scope": "Local sampling sanity, separate from file/geometry QC and expert anatomical review",
+            "excluded_from_quantification": [name for name, count in
+                output_summary.get('bundle_streamline_counts', {}).items()
+                if count is None or count < MIN_BUNDLE_SAMPLING_SCREEN],
+        },
+        "sampling_warnings": [f'{name}: {count} streamlines; below the local {MIN_BUNDLE_SAMPLING_SCREEN}-track screen'
+            for name, count in output_summary.get('bundle_streamline_counts', {}).items()
+            if count is None or count < MIN_BUNDLE_SAMPLING_SCREEN],
         "scientific_scope": "Fresh decoded bundle products, not clinical or expert anatomical certification; seed-controlled upstream neighborhood sampling, not cross-platform bitwise equivalence.",
         "random_seed": config.random_seed,
         "repeatability_scope": "Python/NumPy/PyTorch seeds are fixed; identical hardware/configuration repetition is tested separately, not guaranteed across devices or library versions",

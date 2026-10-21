@@ -28,6 +28,7 @@ RUNTIME_ENTRIES = (
     "tractography",
     "connectome",
     "scripts",
+    "licenses",
 )
 EXCLUDED_RUNTIME_PATHS = {
     "tractography/slicer_dmri_reference",

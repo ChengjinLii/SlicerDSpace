@@ -115,11 +115,11 @@ class WMAPreprocessingTests(unittest.TestCase):
         self.assertEqual(fast.calls, 1)
         self.assertEqual(cache.hits, 1)
 
-    def test_runtime_includes_implementation_license_and_benchmark_tables(self):
+    def test_runtime_includes_implementation_license_not_benchmark_tables(self):
         from scripts.extension_runtime.runtime_resources import runtime_files
         selected = set(runtime_files(Path(__file__).resolve().parents[2]))
-        self.assertTrue({'tractography/wma_preprocessing.py', 'licenses/WMA.txt',
-                         'docs/release/benchmarks/compute_optimizations_20261020.csv'} <= selected)
+        self.assertTrue({'tractography/wma_preprocessing.py', 'licenses/WMA.txt'} <= selected)
+        self.assertNotIn('docs/release/benchmarks/compute_optimizations_20261020.csv', selected)
 
     def test_fast_filter_preserves_complete_random_state(self):
         previous = np.random.get_state()

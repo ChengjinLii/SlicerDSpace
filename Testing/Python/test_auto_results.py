@@ -90,8 +90,12 @@ class AutoResultsTest(unittest.TestCase):
 
     def test_numeric_bundles_use_generic_first_three_nonempty_recorded_files(self):
         files = [self.file(f"cluster_{index:03}.vtp") for index in range(5)]
-        qc = self.file("qc.json", json.dumps({"status": "completed", "output_summary": {
-            "bundle_files": files, "empty_bundle_files": [files[0]]}}))
+        from tractography.tractcloud import ADAPTER_REVISION, TRACTCLOUD_QC_VERSION
+        qc = self.file("qc.json", json.dumps({"status": "completed", "version": TRACTCLOUD_QC_VERSION,
+            "executed": True, "automatic_qc_passed": True, "adapter_revision": ADAPTER_REVISION,
+            "output_summary": {"bundle_files": files[1:], "bundle_count": 4,
+                "bundle_readable_count": 4, "bundle_nonempty_count": 4,
+                "assigned_streamline_count": 80}}))
         task = {"name": "bundles.tractcloud", "status": "completed", "qc_path": qc}
         selected, _, deferred = automatic_result_candidates({"tasks": [task]})
         self.assertEqual([item["path"] for item in selected], files[1:4])

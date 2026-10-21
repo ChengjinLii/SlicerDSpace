@@ -22,6 +22,8 @@ BSD-3-Clause 许可证。此前的 `LICENSE` 是同内容副本，并不是第�
 | FreeSurferColorLUT.txt | [MGH FreeSurfer 协议](../../licenses/FreeSurfer.txt)；[固定官方版本](https://github.com/freesurfer/freesurfer/blob/4f8728e5132e8d39a8f1bf3d24d15fed62f4fc9d/LICENSE.txt) | 按 Part B 保留条款和归属；LUT 标签与颜色不改；不代表模板或被试数据许可 |
 | DDSurfer 自有源码 | [MIT 原文](../../anatomy/surface/ddsurfer_backend/LICENSE.txt)；[上游加入许可证的提交](https://github.com/ChengjinLii/DDSurfer/blob/0c399ef8ff8c9931730cab6beaf5796ee61243ca/LICENSE) | 保留版权与许可；派生代码另遵守原许可证；不推断权重和模板许可 |
 | PyTorch3D 派生 mesh 工具 | [Meta BSD-3-Clause 原文](../../licenses/PyTorch3D.txt)；[上游声明](https://github.com/ChengjinLii/DDSurfer/blob/c3b2d40ead82b316f0adec900a23979f629da70b/utils/LICENSE.pytorch3d) | 保留 Meta 声明、条件与免责声明 |
+| Free-water WLS 计算适配 | [DIPY BSD-3-Clause 原文](../../licenses/DIPY.txt)；[固定上游版本](https://github.com/dipy/dipy/blob/1b0b3e2a0b0c8611287f4677f21356b704495665/LICENSE) | 保留版权和完整条款；无对角矩阵的 WLS 是修改实现，不是新模型或作者背书 |
+| WMA 批量筛选／点变换 | [WMA／Slicer BWH 协议](../../licenses/WMA.txt) | 保留完整协议及修改说明；不改变作者目标函数或优化器，不推断图谱许可 |
 
 FastSurfer 的 Apache-2.0 和 SAF 的 MIT 声明继续保留。
 MK-Curve 的 Python 移植算法保留 [BWH MK-Curve 协议](../../licenses/MK-Curve-LICENSE.txt)；

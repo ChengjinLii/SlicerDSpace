@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import time
 
@@ -30,6 +31,15 @@ def save(path, record):
     temporary = path.with_suffix('.tmp')
     temporary.write_text(json.dumps(record, indent=2)+'\n', encoding='utf-8')
     temporary.replace(path)
+
+
+def stage_benchmark_harness(output):
+    """Keep developer tooling outside the installable runtime snapshot."""
+    harness = output/'harness'
+    harness.mkdir()
+    target = harness/Path(__file__).name
+    shutil.copy2(Path(__file__), target)
+    return target
 
 
 def worker(args):
@@ -92,6 +102,33 @@ def worker(args):
         result=run_dki(config,log=print)
         files={key:str(path) for key,path in result.outputs.items() if key not in ('manifest','qc','progress')}
         qc=json.loads(result.qc_path.read_text())
+    elif args.stage == 'freewater':
+        from contextlib import nullcontext
+        from functools import wraps
+        from unittest.mock import patch
+        import numpy as np
+        from dipy.reconst import fwdti
+        from microstructure import freewater_dispatch, pipeline as p
+        config=p.MicrostructureConfig(raw.subject_id,raw,None,output,run_free_water=True,
+                                      free_water_fit_method='WLS',free_water_engine='serial')
+        paths=p._output_paths(raw.subject_id,output)
+        paths['fwf'].parent.mkdir(parents=True,exist_ok=True)
+        original_fit=fwdti.FreeWaterTensorModel.fit
+        raw_parameters={}
+        @wraps(original_fit)
+        def recorded_fit(model,*fit_args,**fit_kwargs):
+            fitted=original_fit(model,*fit_args,**fit_kwargs)
+            key=f'raw_parameters_{len(raw_parameters):04d}'
+            path=output/(key+'.npy')
+            np.save(path,fitted.model_params)
+            raw_parameters[key]=str(path)
+            return fitted
+        dispatch=patch.object(freewater_dispatch,'configure_freewater_dispatch',return_value={
+            'enabled':False,'implementation':'dipy_original_dispatch'}) if args.variant=='reference' else nullcontext()
+        with dispatch, patch.object(fwdti.FreeWaterTensorModel,'fit',recorded_fit):
+            p._compute_free_water_maps(config=config,paths=paths,log=print)
+        files={**{key:str(paths[key]) for key in p.FREE_WATER_KEYS},**raw_parameters}
+        qc=json.loads(paths['free_water_qc'].read_text())
     elif args.stage == 'wma':
         from tractography.wma import WMAOrgAtlasConfig,run_wma_org_atlas
         result=run_wma_org_atlas(WMAOrgAtlasConfig(raw.subject_id,Path(settings['wma_input']),
@@ -134,13 +171,20 @@ def compare(left,right,stage):
             exact=digest(paths[0])==digest(paths[1])
         records.append(dict(product=key,exact=exact))
     passed=bool(records) and all(row['exact'] for row in records)
+    qc_equal=None
+    if stage=='freewater':
+        keys=('status','automatic_qc_passed','checks','validity','parameters','summary','warnings')
+        qc_equal=all(left['qc'].get(key)==right['qc'].get(key) for key in keys)
+        passed=passed and qc_equal
     return dict(status='passed' if passed else 'failed',products=records,
         reference_seconds=left['runtime_seconds'],optimized_seconds=right['runtime_seconds'],
         speed_ratio=left['runtime_seconds']/right['runtime_seconds'] if passed else None,
         seconds_saved=left['runtime_seconds']-right['runtime_seconds'] if passed else None,
+        qc_equal=qc_equal,
         interpretation=('AMICO original thread capability, not a new algorithm' if stage=='noddi' else
                         'Original WMA versus verified-source bulk/cache' if stage=='wma' else
                         'Implementation comparison, not original MATLAB' if stage=='mkcurve' else
+                        'Original DIPY WLS versus verified diagonal-free WLS, same serial threads' if stage=='freewater' else
                         'Unchanged DIPY WLS with array-level metric evaluation'),
         limitations=['One pair on a shared Linux host; no confidence interval',
                      'Not whole-workflow or anatomical-accuracy acceptance'])
@@ -169,11 +213,14 @@ def main():
     args.output.mkdir(parents=True,exist_ok=False)
     install=stage_extension(args.output/'install',slicer_version='Slicer-5.10',clean=False,link_mode='copy')
     snapshot=Path(install['module_dir'])
+    harness=stage_benchmark_harness(args.output)
     stages=args.stages.split(',')
-    if any(stage not in ('noddi','wma','mkcurve','dki') for stage in stages):
+    if any(stage not in ('noddi','wma','mkcurve','dki','freewater') for stage in stages):
         raise ValueError('Unknown benchmark stage')
     settings={key:str(value) for key,value in vars(args).items() if value is not None}
     settings['snapshot']=str(snapshot)
+    settings['benchmark_harness']=str(harness)
+    settings['benchmark_harness_sha256']=digest(harness)
     settings['snapshot_hashes']={str(p.relative_to(snapshot)):digest(p) for p in snapshot.rglob('*') if p.is_file()}
     record=dict(kind='complete_model_paired_campaign',status='running',settings=settings,pairs=[],
                 scope='Fresh complete model calls, not an end-to-end workflow comparison')
@@ -189,7 +236,7 @@ def main():
                 record['current']=dict(stage=stage,variant=variant,status='running')
                 save(evidence,record)
                 with (folder/(variant+'.log')).open('wb') as stream:
-                    process=subprocess.run([sys.executable,str(snapshot/'scripts/benchmark_complete_models.py'),
+                    process=subprocess.run([sys.executable,str(harness),
                         '--settings',str(configuration),'--stage',stage,'--variant',variant],
                         stdout=stream,stderr=subprocess.STDOUT,env=os.environ.copy())
                 if process.returncode:
@@ -202,8 +249,10 @@ def main():
         except Exception as exc:
             record['pairs'].append(dict(stage=stage,status='failed',error=str(exc)))
         save(evidence,record)
-    record.update(status='passed' if all(p['status']=='passed' for p in record['pairs']) else 'failed',
-                  current=None,snapshot_unchanged=all(digest(snapshot/name)==value for name,value in settings['snapshot_hashes'].items()))
+    snapshot_unchanged=all(digest(snapshot/name)==value for name,value in settings['snapshot_hashes'].items())
+    harness_unchanged=digest(harness)==settings['benchmark_harness_sha256']
+    record.update(status='passed' if all(p['status']=='passed' for p in record['pairs']) and snapshot_unchanged and harness_unchanged else 'failed',
+                  current=None,snapshot_unchanged=snapshot_unchanged,harness_unchanged=harness_unchanged)
     save(evidence,record)
 
 

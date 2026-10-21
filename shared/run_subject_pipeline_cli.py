@@ -242,6 +242,7 @@ def _environment_config_from_args(
         synthstrip_python=args.synthstrip_python,
         tractography_backend=args.tractography_backend,
         ukf_executable=getattr(args, 'ukf_executable', None),
+        dwiconvert_executable=getattr(args, 'dwiconvert_executable', None),
         connectome_backend=args.connectome_backend,
         ddseg_device=args.ddseg_device,
         surface_device=args.surface_device,
@@ -493,6 +494,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help='JSON overrides of official UKF defaults; never applies CSD streamline budgets.')
     parser.add_argument('--ukf-executable', type=Path,
                         help='Optional installed UKFTractography CLI; GUI discovers the extension automatically.')
+    parser.add_argument('--dwiconvert-executable', type=Path,
+                        help='Optional official DWIConvert CLI; GUI forwards its discovered path automatically.')
     parser.add_argument(
         "--bundle-backend",
         default="wmql",
@@ -845,6 +848,7 @@ def main(argv: list[str] | None = None) -> int:
         bundle_backend=args.bundle_backend,
         ukf_parameters=json.loads(args.ukf_parameters),
         ukf_executable=args.ukf_executable,
+        dwiconvert_executable=args.dwiconvert_executable,
         execute=bool(args.execute),
         wmql_query_preset=args.wmql_query_preset,
         max_parallel_models=args.max_parallel_models,

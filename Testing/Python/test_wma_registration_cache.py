@@ -182,6 +182,52 @@ class CacheTests(unittest.TestCase):
             self.assertEqual(report['status'], 'completed')
             self.assertFalse(report['enabled'])
 
+    def test_transform_hook_restored_after_author_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            script = root/'author.py'
+            script.write_text('import whitematteranalysis as wma\n'
+                              'assert wma.register_two_subjects.transform_fiber_array_numpy.__wrapped__ is wma.original_transform\n'
+                              'raise SystemExit(7)\n')
+            def transform(*args, **kwargs):
+                return 'author'
+            module = types.SimpleNamespace(transform_fiber_array_numpy=transform, convert_transform_to_vtk=object())
+            wma = types.SimpleNamespace(__file__=str(root/'__init__.py'),
+                                        filter=types.SimpleNamespace(preprocess=preprocess),
+                                        register_two_subjects=module, original_transform=transform)
+            with mock.patch.dict(sys.modules, {'whitematteranalysis': wma}), mock.patch(
+                    'scripts.run_wma_registration.registration_transform_support', return_value={'supported': True}):
+                with self.assertRaises(SystemExit):
+                    main(['--author-script', str(script), '--report-dir', str(root)])
+            self.assertIs(module.transform_fiber_array_numpy, transform)
+            report = json.loads(next(root.glob('registration_cache_*.json')).read_text())
+            self.assertEqual(report['status'], 'failed')
+            self.assertIn('fiber_transform', report)
+
+    def test_fiber_converter_restored_after_author_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            script = root/'author.py'
+            script.write_text('import whitematteranalysis as wma\n'
+                              'assert wma.fibers.FiberArray.convert_from_polydata.__wrapped__ is wma.original\n'
+                              'raise SystemExit(7)\n')
+            class FiberArray:
+                def convert_from_polydata(self, source, points_per_fiber=None):
+                    return 'original'
+                def _calculate_line_indices(self, *args):
+                    return []
+            original = FiberArray.convert_from_polydata
+            wma = types.SimpleNamespace(__file__=str(root/'__init__.py'),
+                                        fibers=types.SimpleNamespace(FiberArray=FiberArray), original=original)
+            with mock.patch.dict(sys.modules, {'whitematteranalysis': wma}), mock.patch(
+                    'scripts.run_wma_registration.fiber_conversion_support', return_value={'supported': True}):
+                with self.assertRaises(SystemExit):
+                    main(['--author-script', str(script), '--report-dir', str(root)])
+            self.assertIs(FiberArray.convert_from_polydata, original)
+            report = json.loads(next(root.glob('registration_cache_*.json')).read_text())
+            self.assertEqual(report['status'], 'failed')
+            self.assertIn('fiber_array_conversion', report)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -142,6 +142,9 @@ exit 0
         self.assertEqual(qc["status"], "completed")
         self.assertEqual(qc["output_summary"]["bundle_count"], 1)
         self.assertEqual(qc["output_summary"]["assigned_streamline_count"], 3)
+        self.assertTrue(qc['automatic_qc_passed'])  # Decoded geometry only.
+        self.assertTrue(qc['sampling_warnings'])
+        self.assertFalse(qc['quantification_eligible'])
 
     def test_output_summary_reports_nonempty_bundle_streamlines(self) -> None:
         from tractography.tractcloud import summarize_tractcloud_outputs

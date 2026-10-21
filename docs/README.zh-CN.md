@@ -17,6 +17,7 @@
 
 | 指南 | 内容 |
 | --- | --- |
+| [下载范围](setup/DOWNLOADS.zh-CN.md) | 精简插件包、可选轻量源码与完整研究仓库的区别 |
 | [快速开始](setup/QUICKSTART.zh-CN.md) | 最小 DTI 工作流与合成安装测试 |
 | [能力与平台](setup/SUPPORT_MATRIX.zh-CN.md) | 按路线配置依赖 |
 | [结果检查](setup/GUI_RESULT_REVIEW.md) | 按运行加载结果、取消任务与 QC |
@@ -48,6 +49,9 @@
 ---
 
 ## 历史验证记录
+
+[10 月 21 日束工作流复核](release/BUNDLE_WORKFLOW_20261021.zh-CN.md)记录自动输入衔接、
+三被试 WMQL 重审、WMA 保存结果重审、TractCloud 实际重跑与采样警告，以及隔离场景验证。
 
 [10 月 16 日后续验证](release/QC_FOLLOWUP_20261016.zh-CN.md)记录已核实的 MK-Curve
 排除与逐指标覆盖率、新版 ACT／WMA 及 Linux SDK／CPack 检查，以及仍未通过的

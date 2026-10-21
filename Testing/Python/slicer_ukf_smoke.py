@@ -76,10 +76,12 @@ def run():
         args = []
         _append_ukf_args(args, {"tractography_backend": "ukf", **handoff})
         assert "--ukf-parameters" in args
+        if handoff['dwiconvert_executable'] is not None:
+            assert args[args.index('--dwiconvert-executable') + 1] == str(handoff['dwiconvert_executable'])
         destination = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
         owner._uiWidget.grab().save(str(destination / "ukf_advanced.png"))
         if handoff["ukf_executable"] is not None:
-            actual_cli_smoke(destination, handoff["ukf_executable"])
+            actual_cli_smoke(destination, handoff["ukf_executable"], handoff['dwiconvert_executable'])
         else:
             print("UKF_REAL_CLI_SKIPPED: optional extension not installed", flush=True)
         print("UKF_GUI_PASS", flush=True)
@@ -89,7 +91,7 @@ def run():
         slicer.app.exit(1)
 
 
-def actual_cli_smoke(directory, binary):
+def actual_cli_smoke(directory, binary, converter=None):
     import nibabel as nib
     import numpy as np
     from shared.pipeline import RawInputBundle
@@ -123,9 +125,9 @@ def actual_cli_smoke(directory, binary):
         mask_path=directory / "mask.nii.gz",
     )
     options = {"numThreads": 2}  # Bound test resources; scientific defaults otherwise unchanged.
-    result = run_ukf(raw, directory / "outputs", options=options, executable=binary, log=print)
+    result = run_ukf(raw, directory / "outputs", options=options, executable=binary, converter=converter, log=print)
     assert result["status"] == "completed"
-    assert current(raw, directory / "outputs", options, binary)
+    assert current(raw, directory / "outputs", options, binary, converter)
     qc = json.loads(paths("synthetic", directory / "outputs")["qc"].read_text())
     assert qc["automatic_qc_passed"] and qc["streamline_count"] > 0
     loaded = slicer.util.loadFiberBundle(str(paths("synthetic", directory / "outputs")["tractogram"]))

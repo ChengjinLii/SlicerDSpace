@@ -1,0 +1,211 @@
+{
+  "status": "passed",
+  "reviewed_on": "2026-10-21",
+  "records": [
+    {
+      "subject_id": "100307",
+      "fit_method": "NLS",
+      "engine": "serial",
+      "shape": [
+        6,
+        6,
+        6
+      ],
+      "mask_voxels": 216,
+      "measurements": 288,
+      "reference_median_seconds": 1.6265730801969767,
+      "optimized_median_seconds": 0.675103347748518,
+      "speed_ratio": 2.409369003459437,
+      "time_reduction_percent": 58.49535714271359,
+      "times_seconds": {
+        "reference": [
+          1.6302267126739025,
+          1.6085902024060488,
+          1.6265730801969767
+        ],
+        "optimized": [
+          0.6748497392982244,
+          0.675103347748518,
+          0.684261966496706
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_raw_parameters": true,
+      "exact_exported_maps_and_qc": true,
+      "dispatch": {
+        "enabled": true,
+        "implementation": "dipy_verified_serial_nls_diagonal_free_dispatch",
+        "dipy_version": "1.12.1",
+        "author_source_sha256": {
+          "nls_iter": "b25754feef042ba51106bdf6cc44d412f45a97505bb0d525be7f7390654bb019",
+          "wls_iter": "17a44218fbc8d8c46aacbdd6c23d4424ce8ece69df1552b06386a1c2e1b0661b",
+          "_nls_err_func": "05c48919624ad726525974facc306fdb144e09b69ebe7f4ca1cbaaa85dfbfeec",
+          "_nls_jacobian_func": "6a3d0ae7e06d38bb9e8d5aeb4b3c49d98426d5ea5311fdc64fae77c3f11f7b1c"
+        },
+        "reason": "Same author NLS/residual/Jacobian; diagonal-free WLS initialization; no argument compatibility adapters"
+      },
+      "automatic_qc_passed": true,
+      "validity": {
+        "brain_mask_voxels": 216,
+        "excluded_tissue_voxels": 16,
+        "valid_tissue_fraction": 0.9259259259259259,
+        "valid_tissue_voxels": 200
+      }
+    },
+    {
+      "subject_id": "100206",
+      "fit_method": "NLS",
+      "engine": "serial",
+      "shape": [
+        6,
+        6,
+        6
+      ],
+      "mask_voxels": 216,
+      "measurements": 288,
+      "reference_median_seconds": 1.7458395920693874,
+      "optimized_median_seconds": 0.6957556642591953,
+      "speed_ratio": 2.5092711159287036,
+      "time_reduction_percent": 60.14778978436968,
+      "times_seconds": {
+        "reference": [
+          1.7437567189335823,
+          1.7511412743479013,
+          1.7458395920693874
+        ],
+        "optimized": [
+          0.6955488044768572,
+          0.6957556642591953,
+          0.6971550825983286
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_raw_parameters": true,
+      "exact_exported_maps_and_qc": true,
+      "dispatch": {
+        "enabled": true,
+        "implementation": "dipy_verified_serial_nls_diagonal_free_dispatch",
+        "dipy_version": "1.12.1",
+        "author_source_sha256": {
+          "nls_iter": "b25754feef042ba51106bdf6cc44d412f45a97505bb0d525be7f7390654bb019",
+          "wls_iter": "17a44218fbc8d8c46aacbdd6c23d4424ce8ece69df1552b06386a1c2e1b0661b",
+          "_nls_err_func": "05c48919624ad726525974facc306fdb144e09b69ebe7f4ca1cbaaa85dfbfeec",
+          "_nls_jacobian_func": "6a3d0ae7e06d38bb9e8d5aeb4b3c49d98426d5ea5311fdc64fae77c3f11f7b1c"
+        },
+        "reason": "Same author NLS/residual/Jacobian; diagonal-free WLS initialization; no argument compatibility adapters"
+      },
+      "automatic_qc_passed": true,
+      "validity": {
+        "brain_mask_voxels": 216,
+        "excluded_tissue_voxels": 132,
+        "valid_tissue_fraction": 0.3888888888888889,
+        "valid_tissue_voxels": 84
+      }
+    },
+    {
+      "subject_id": "149741",
+      "fit_method": "NLS",
+      "engine": "serial",
+      "shape": [
+        6,
+        6,
+        6
+      ],
+      "mask_voxels": 216,
+      "measurements": 288,
+      "reference_median_seconds": 1.677402961999178,
+      "optimized_median_seconds": 0.6810613013803959,
+      "speed_ratio": 2.4629250826604983,
+      "time_reduction_percent": 59.39787178098892,
+      "times_seconds": {
+        "reference": [
+          1.7523083724081516,
+          1.6700460314750671,
+          1.677402961999178
+        ],
+        "optimized": [
+          0.685459416359663,
+          0.6810613013803959,
+          0.6810067165642977
+        ]
+      },
+      "repeats": 3,
+      "warmups_per_method": 1,
+      "exact_raw_parameters": true,
+      "exact_exported_maps_and_qc": true,
+      "dispatch": {
+        "enabled": true,
+        "implementation": "dipy_verified_serial_nls_diagonal_free_dispatch",
+        "dipy_version": "1.12.1",
+        "author_source_sha256": {
+          "nls_iter": "b25754feef042ba51106bdf6cc44d412f45a97505bb0d525be7f7390654bb019",
+          "wls_iter": "17a44218fbc8d8c46aacbdd6c23d4424ce8ece69df1552b06386a1c2e1b0661b",
+          "_nls_err_func": "05c48919624ad726525974facc306fdb144e09b69ebe7f4ca1cbaaa85dfbfeec",
+          "_nls_jacobian_func": "6a3d0ae7e06d38bb9e8d5aeb4b3c49d98426d5ea5311fdc64fae77c3f11f7b1c"
+        },
+        "reason": "Same author NLS/residual/Jacobian; diagonal-free WLS initialization; no argument compatibility adapters"
+      },
+      "automatic_qc_passed": true,
+      "validity": {
+        "brain_mask_voxels": 216,
+        "excluded_tissue_voxels": 69,
+        "valid_tissue_fraction": 0.6805555555555556,
+        "valid_tissue_voxels": 147
+      }
+    }
+  ],
+  "source_sha256": {
+    "/data/chengjin/SlicerDDSurfer/microstructure/pipeline.py": "1003813b4cf8734ba18be5aa909ba0365481ea071d05c17f29615d8341ef2f0e",
+    "/data/chengjin/SlicerDDSurfer/microstructure/freewater_dispatch.py": "8a10cfbfd86f144c91854e5b4f82ea483f2dee6678e3fc5d26512288cb1bebae",
+    "/data/chengjin/SlicerDDSurfer/microstructure/freewater_wls.py": "6008ed4dae671be044965b055d15c4143453bc0b4cb97b70f9cd5292695e0afd",
+    "/data/chengjin/SlicerDDSurfer/scripts/benchmark_freewater_dispatch.py": "11b893e7cf3d934b7babe38e2a45a8de4469db6a4d29149bf732d10ac51e8daf",
+    "/data/chengjin/software/Slicer-5.10.0-linux-amd64/lib/Python/lib/python3.12/site-packages/dipy/reconst/fwdti.py": "ecd0197ac1707a1c0defc70cd12885a3e04fc90921221b299ced66da3938c186",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100307/input/data.nii.gz": "0b3753d98c9e4d9e43f1981db15470bbbaa9754abfcacdc19354996cb46ac73c",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100307/input/bvals": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100307/input/bvecs": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100307/input/nodif_brain_mask.nii.gz": "b1bca25e0ad28d21f2acfca985ad6fccd2db0bbde3dad52ac16b30992ad4d5ff",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/100307/input/bvals": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/100307/input/data.nii.gz": "91cd7aeadfd968abb66ff89ec1ddec3d2ea4a8c4b39e9dc0fd6c4192eb2033db",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/100307/input/nodif_brain_mask.nii.gz": "7064bbd211df0902c0b543dcb219b95817aad63182a46dfa787b1cb9de0805f3",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/100307/input/bvecs": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100206/input/data.nii.gz": "f5569951719d31e7a6f4798474a396d9e2ca9d75177e9963f5e50e509ac00a7b",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100206/input/bvals": "26bfc9904dc08251ea36ef831f35e4973a48046c7c62017caa27f0a0e7071eea",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100206/input/bvecs": "661a494c36f8570fb7e8a43a8937ef117767eb2ba635241c141c9faba217a3f1",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/100206/input/nodif_brain_mask.nii.gz": "f6529fe2c9aac98584d4505b4afdfc8594ca5813b7883dd12c39049f3fb01ee9",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/100206/input/bvals": "26bfc9904dc08251ea36ef831f35e4973a48046c7c62017caa27f0a0e7071eea",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/100206/input/data.nii.gz": "505a437bc87506aff325c133e8f867a960a851eec43da7415ad2bb5f142f7f44",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/100206/input/nodif_brain_mask.nii.gz": "175e249608659ff32d0b7ec8e36eb37dc595fc66c02bba1af28e41d372cde9b7",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/100206/input/bvecs": "661a494c36f8570fb7e8a43a8937ef117767eb2ba635241c141c9faba217a3f1",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/149741/input/data.nii.gz": "55faa0e7dca292e548b18f96555ce2dbdd42db50af8d78f7e9e6dd7eea2335d9",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/149741/input/bvals": "aa3247a2cc39b80ac02286483dcc6fb612ab870fea153f1d8b87369c41bc7807",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/149741/input/bvecs": "770cc56c46ec51438938062a67aad644427c43e337118b05a81d8ac48b5a2102",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/149741/input/nodif_brain_mask.nii.gz": "16899364692f986445e825c26a979996353c46c5f87cadb43ef206df371edd1c",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/149741/input/bvals": "aa3247a2cc39b80ac02286483dcc6fb612ab870fea153f1d8b87369c41bc7807",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/149741/input/data.nii.gz": "9b56974903ed82c2c50761dd4a73f145e5f9646b6696510fd48bb8b9f018467d",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/149741/input/nodif_brain_mask.nii.gz": "03e606c64f9046d2210e834040673f7c56ed41b404358841719030673f82bb81",
+    "ignore/validation/numerical_performance_20261021/nls_wlsinit_regression/149741/input/bvecs": "770cc56c46ec51438938062a67aad644427c43e337118b05a81d8ac48b5a2102"
+  },
+  "source_inputs_unchanged": true,
+  "comparison": "Installed original DIPY NLS versus source-qualified diagonal-free WLS and dispatch optimization",
+  "scope": "Complete real native-grid ROI stage: input validation/reading, same estimator, all mask voxels, maps, QC and fresh exports; no resampling",
+  "environment": {
+    "python": "3.12.10 (main, Nov 10 2025, 07:45:19) [GCC 14.2.1 20250110 (Red Hat 14.2.1-7)]",
+    "executable": "/data/chengjin/software/Slicer-5.10.0-linux-amd64/bin/python-real",
+    "dipy": "1.12.1",
+    "numpy": "2.2.6",
+    "scipy": "1.13.1",
+    "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+    "thread_env": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1"
+    }
+  },
+  "limitations": [
+    "Shared host, warm process; ROI timings are not full-brain or whole-workflow speedups",
+    "Nonserial engines remain unchanged; WLS/NLS are reported separately",
+    "No solver, initialization, convergence, weighting, precision, voxel or QC-threshold changes"
+  ]
+}

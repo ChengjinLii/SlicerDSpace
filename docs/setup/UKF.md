@@ -115,6 +115,12 @@ alongside resolved defaults. No extra training or copying UKF source is required
 
 ## Verification
 
+The [21 October workflow review](../release/BUNDLE_WORKFLOW_20261021.md) adds
+explicit GUI-to-worker converter handoff, TractCloud QC/sampling warnings,
+automatic DTI-to-VTK export and decoded real-bundle checks. Historical failures,
+current automatic checks and human anatomical review remain separate; saved UKF
+results do not validate the latest default protocol end to end.
+
 The [2026-10-20 evidence summary](../release/benchmarks/ukf_integration_20261020.json)
 records 1,143 passed tests and five skips, including 23 UKF-specific contracts.
 Isolated Slicer 5.10 GUI and compact-layout checks passed. An actual author-source

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 
@@ -21,6 +22,8 @@ def runtime_files(root: Path) -> list[str]:
         if any(part in spec["excluded_components"] for part in Path(relative).parts):
             continue
         if any(relative == prefix or relative.startswith(prefix + "/") for prefix in spec["excluded_prefixes"]):
+            continue
+        if any(fnmatchcase(relative, pattern) for pattern in spec.get("excluded_globs", [])):
             continue
         if not path.is_file():
             raise FileNotFoundError(f"Required runtime resource is missing: {relative}")

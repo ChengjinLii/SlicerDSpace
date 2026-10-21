@@ -15,6 +15,9 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 
 ## User Guides
 
+Use the [download guide](setup/DOWNLOADS.md) to choose a runtime package,
+lightweight source checkout or complete development/research repository.
+
 | Guide | Purpose |
 | --- | --- |
 | [Quick Start](setup/QUICKSTART.md) | Minimal DTI workflow and synthetic installation check |
@@ -47,6 +50,10 @@ routes; dated reports preserve historical evidence, not universal guarantees.
 ---
 
 ## Validation Records
+
+[21 October bundle workflow review](release/BUNDLE_WORKFLOW_20261021.md)
+records automatic input handoff, three-subject WMQL re-auditing, saved WMA
+re-auditing, actual TractCloud runs and sampling warnings, and isolated scene tests.
 
 [16 October follow-up](release/QC_FOLLOWUP_20261016.md) records verified MK-Curve
 exclusion, per-metric regional coverage, completed ACT-v3/WMA and Linux SDK/CPack

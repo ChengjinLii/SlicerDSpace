@@ -100,6 +100,7 @@ class EnvironmentDoctorConfig:
     synthstrip_python: Optional[Path] = None
     tractography_backend: str = "csd_act"
     ukf_executable: Optional[Path] = None
+    dwiconvert_executable: Optional[Path] = None
     connectome_backend: str = "python"
     ddseg_device: str = "auto"
     surface_device: str = "auto"
@@ -1228,7 +1229,9 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 _python(specs, target=target, import_name=name, package=package)
             for name, group in (('UKFTractography', 'ukf'), ('DWIConvert', 'slicer-dmri')):
                 try:
-                    binary = resolve_executable(config.ukf_executable if name == 'UKFTractography' else None, name=name)
+                    binary = resolve_executable(
+                        config.ukf_executable if name == 'UKFTractography' else config.dwiconvert_executable,
+                        name=name)
                 except (OSError, RuntimeError):
                     binary = None
                 _command(specs, target=target, command=name, group=group,

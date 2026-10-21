@@ -16,7 +16,9 @@
 安装 **UKFTractography** 和 **SlicerDMRI**，重启 Slicer，再到
 **Advanced settings → Analysis parameters → Tractography backend** 选择 `ukf`。
 束分析选择 `wma` 后，自动执行 **UKF → WMA**，不必先手动运行 UKF 再导入。
-ORG 图谱及 WMA 后端仍需配置；已有流线文件可在 Advanced 中作为可选覆盖输入。
+ORG 图谱及 WMA 后端仍需配置；已有流线文件可在 Advanced 中作为可选覆盖输入，
+不是标准流程的必需步骤。GUI 同时发现 UKF 和 DWIConvert，并向后台显式传递两者
+的路径；不要求用户复制文件、手动运行转换器或在另一个模块先生成流线。
 
 插件调用已安装的作者 CLI，**不复制、不重写 UKF 算法**。缺少依赖则明确阻断，
 不静默换算法。UKF 本身不要求 DDSeg、DDParcel 或表面；WMQL 和连接组仍需脑区分区。
@@ -91,13 +93,17 @@ python scripts/run_subject_pipeline.py \
 WMA 的图谱与环境参数仍按原方式传入。GUI 自动发现 UKF 并向后台传递路径；
 独立命令行可指定 `--ukf-executable` 或 `SLICERDDSURFER_UKF_EXECUTABLE`。
 DWIConvert 自动从 Slicer 发现，完全独立的环境也可指定
-`SLICERDDSURFER_DWICONVERT_EXECUTABLE`。调整参数使用
+`--dwiconvert-executable` 或 `SLICERDDSURFER_DWICONVERT_EXECUTABLE`。调整参数使用
 `--ukf-parameters '{"seedsPerVoxel":2,"numThreads":8}'`，修改与默认值一起记录，
 无需训练或复制 UKF 源码。
 
 ---
 
 ## 验证范围
+
+[2026-10-21 工作流复核](../release/BUNDLE_WORKFLOW_20261021.zh-CN.md)补充
+转换器后台传递、TractCloud QC／采样警告、DTI 自动 VTK 导出以及真实束文件复核。
+旧失败、当前自动检查与人工解剖审核分别记录，不把历史 UKF 结果视为新版默认协议的完整验收。
 
 [2026-10-20 证据摘要](../release/benchmarks/ukf_integration_20261020.json)记录
 1,143 项测试通过、5 项跳过，其中包含 23 项 UKF 专项测试。

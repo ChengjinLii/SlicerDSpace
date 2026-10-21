@@ -30,6 +30,13 @@
     "scripts/wsl/configure_device.py",
     "scripts/wsl/run_command.py",
     "scripts/setup_managed_runtime.py",
+    "docs/README.md",
+    "docs/README.zh-CN.md",
+    "docs/release/RELEASE.md",
+    "docs/release/RELEASE_CANDIDATE_VALIDATION.md",
+    "docs/release/RELEASE_NOTES_v0.1.0.md",
+    "docs/release/GITHUB_RELEASE_DRAFT_v0.1.0.md",
+    "docs/release/DOI_ARCHIVE_PREP.md",
     "docs/release/benchmarks/module_runtimes_20261013.csv",
     "docs/release/benchmarks/module_runtimes_20261015.csv",
     "docs/release/benchmarks/module_runtimes_20261017.csv"
@@ -42,10 +49,17 @@
     {"root": "tractography", "patterns": ["*.py", "*.qry", "*.md", "requirements.txt"]},
     {"root": "connectome", "patterns": ["*.py"]},
     {"root": "scripts", "patterns": ["*.py", "*.sh", "*.ps1", "*.cs", "*.txt", "*.json", "*.cmake"]},
-    {"root": "docs", "patterns": ["*.md", "*.png", "*.json", "*.csv"]},
+    {"root": "docs/setup", "patterns": ["*.md"]},
+    {"root": "docs/assets", "patterns": ["*.md"]},
+    {"root": "docs/architecture", "patterns": ["*.md"]},
     {"root": "licenses", "patterns": ["*"]}
   ],
   "excluded_components": ["tests", "Testing", "third_party", "__pycache__", ".pytest_cache", ".mypy_cache", ".git"],
+  "excluded_globs": [
+    "scripts/benchmark_*.py",
+    "scripts/audit_pages_site.py",
+    "scripts/generate_protocol_benchmarks.py"
+  ],
   "excluded_prefixes": [
     "docs/site",
     "docs/website",

@@ -1,0 +1,234 @@
+{
+  "status": "passed",
+  "reviewed_on": "2026-10-21",
+  "resumed_at": "2026-10-21T05:10:18+08:00",
+  "scope": "Completed post-resumption candidate experiments; not the full-brain FW campaign",
+  "experiments": [
+    {
+      "candidate": "WMA nearest-neighbor bulk array conversion",
+      "deployment": "owned_registration_process",
+      "evidence": "docs/release/benchmarks/wma_fibers_bounded_20261021.json",
+      "evidence_sha256": "7e09c9d6ae6be3442abb6c472a4cbbf77db05ab6f93335e1501064890aae9529",
+      "ratios": [
+        45.83868344332,
+        49.55179097613901,
+        43.54029883567574
+      ],
+      "optimizer_ratios": [
+        1.0458980052472249,
+        1.0264042627777783,
+        1.0197302680724738
+      ],
+      "max_saved_seconds": 0.5738673582673073,
+      "optimizer_elapsed_reduction_fractions": [
+        0.04388382520757905,
+        0.025725012780363876,
+        0.01934851665212267
+      ],
+      "interpretation": "Conversion only, 20000 lines; see raw small-optimizer ratios, no full-WMA ratio"
+    },
+    {
+      "candidate": "Free-water grid broadcast views",
+      "deployment": "not_enabled",
+      "results": {
+        "scope": "512 raw-fit voxels per subject, no full-stage timing",
+        "records": [
+          {
+            "subject": "100307",
+            "exact": true,
+            "max_error": 0.0,
+            "times": {
+              "previous": [
+                0.454362653195858,
+                0.46754325553774834,
+                0.45613077841699123,
+                0.4537220597267151,
+                0.4555891677737236
+              ],
+              "views": [
+                0.43667275831103325,
+                0.4411167483776808,
+                0.4409543499350548,
+                0.4400567002594471,
+                0.4382067695260048
+              ]
+            },
+            "speed_ratio": 1.0352965140744794
+          },
+          {
+            "subject": "100206",
+            "exact": true,
+            "max_error": 0.0,
+            "times": {
+              "previous": [
+                0.4537257608026266,
+                0.4529459737241268,
+                0.4759022705256939,
+                0.454421928152442,
+                0.4566458370536566
+              ],
+              "views": [
+                0.4388870596885681,
+                0.44569352455437183,
+                0.4384940154850483,
+                0.43974705040454865,
+                0.44051497988402843
+              ]
+            },
+            "speed_ratio": 1.033371179486919
+          },
+          {
+            "subject": "149741",
+            "exact": true,
+            "max_error": 0.0,
+            "times": {
+              "previous": [
+                0.4576356038451195,
+                0.4547349773347378,
+                0.45317878015339375,
+                0.4535321779549122,
+                0.4537051487714052
+              ],
+              "views": [
+                0.4370476696640253,
+                0.43914155289530754,
+                0.43776361271739006,
+                0.43883336149156094,
+                0.433933787047863
+              ]
+            },
+            "speed_ratio": 1.036415854563743
+          }
+        ]
+      },
+      "reason": "Only approximately 3% raw-fit gain, insufficient full-stage evidence"
+    },
+    {
+      "candidate": "Free-water direct author tensor helper",
+      "deployment": "not_enabled",
+      "results": {
+        "scope": "512 raw-fit voxels per subject, not full-stage; candidate not enabled",
+        "records": [
+          {
+            "subject": "100307",
+            "exact": true,
+            "max_error": 0.0,
+            "times": {
+              "previous": [
+                0.4648252669721842,
+                0.46392096765339375,
+                0.4582637492567301,
+                0.4606389254331589,
+                0.475749334320426
+              ],
+              "direct_helpers": [
+                0.3888763412833214,
+                0.3842752557247877,
+                0.38635397143661976,
+                0.3811111319810152,
+                0.3824348412454128
+              ]
+            },
+            "speed_ratio": 1.2072621402030816
+          },
+          {
+            "subject": "100206",
+            "exact": true,
+            "max_error": 0.0,
+            "times": {
+              "previous": [
+                0.45824166014790535,
+                0.45967679657042027,
+                0.4604116901755333,
+                0.4616880249232054,
+                0.4703638181090355
+              ],
+              "direct_helpers": [
+                0.38039731979370117,
+                0.380817212164402,
+                0.38356464356184006,
+                0.3844802491366863,
+                0.38258334808051586
+              ]
+            },
+            "speed_ratio": 1.2034284620214004
+          },
+          {
+            "subject": "149741",
+            "exact": true,
+            "max_error": 0.0,
+            "times": {
+              "previous": [
+                0.4776907544583082,
+                0.45808242820203304,
+                0.45578243769705296,
+                0.4537090230733156,
+                0.45506732538342476
+              ],
+              "direct_helpers": [
+                0.3810114208608866,
+                0.37879160046577454,
+                0.3825533799827099,
+                0.3815487492829561,
+                0.37926371209323406
+              ]
+            },
+            "speed_ratio": 1.1962435054235985
+          }
+        ],
+        "helpers": {
+          "decompose_tensor": {
+            "wrapped": true,
+            "body_sha256": "0ba665aedbf052581ec566ee5de86fa72489b9b2cf214c996611f73af3e60957"
+          },
+          "from_lower_triangular": {
+            "wrapped": false,
+            "body_sha256": "c77c7188bbd90280114a786de9c43de99f5b5336fa70e9b36b8d8354e1a419e6"
+          }
+        }
+      },
+      "reason": "Promising approximately 20% raw-fit gain; needs guard, edge-case and complete-stage qualification"
+    },
+    {
+      "candidate": "Switch WMA output to binary VTK",
+      "deployment": "already_upstream_not_new",
+      "source": "third_party/whitematteranalysis/whitematteranalysis/io.py",
+      "sha256": "91f133a73be6ee9aa22bf5a8a639fe19b7539060a2fd23d26f04de1a3ad58a25",
+      "reason": "Pinned original WMA already selects binary VTK/VTP output; no new speed claim"
+    }
+  ],
+  "native_install_tests": {
+    "status": "passed",
+    "tests_run": 58,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0,
+    "installed_code_sha256": {
+      "microstructure/freewater_dispatch.py": "8a10cfbfd86f144c91854e5b4f82ea483f2dee6678e3fc5d26512288cb1bebae",
+      "microstructure/freewater_wls.py": "6008ed4dae671be044965b055d15c4143453bc0b4cb97b70f9cd5292695e0afd",
+      "microstructure/mkcurve_tensor.py": "4f7650c5bb09bdf6d253b25d9dd31ba9dd5f2bb60ee770d618c21e1e92d4e78d",
+      "microstructure/pipeline.py": "1003813b4cf8734ba18be5aa909ba0365481ea071d05c17f29615d8341ef2f0e",
+      "tractography/wma_transform.py": "d8704d12656b28c8721924e5c5a8674b4af20480323d248c89ea74cc6de9df23",
+      "tractography/wma_fibers.py": "0d4151c22633a81c8edcbfd2e0603cd761580455dc2f5bd0cf1f88f1e1d3f296",
+      "scripts/run_wma_registration.py": "0e1e5d661139b9e8723ecc84b1f0ecd163864eb815ccdb13530e663c7d8ab8d7"
+    },
+    "scope": "Native Slicer Python with isolated copied extension modules; not GUI/full SDK acceptance"
+  },
+  "native_cli_hook": {
+    "status": "completed",
+    "conversion_calls": 1,
+    "transform_calls": 30,
+    "scope": "Synthetic fixture, real author optimizer, installed CLI"
+  },
+  "evidence_sha256": {
+    "ignore/validation/numerical_performance_20261021/fw_views_exploration.log": "a065a2bfbb4b49614d7fde7c73e41d80ba4b203d71b228bab1abb9312dfee0cf",
+    "ignore/validation/numerical_performance_20261021/fw_tensor_dispatch_exploration.log": "d0c2253d498d7096a59fc361ab057a1ebee5a2c7db7db4f200763d154c6258ce",
+    "ignore/validation/numerical_performance_20261021/staged_bounded_smoke.json": "5ac4f596ef842fdb07bb4727ee238e3190f036314a88fa6f1d35bbcf5d600bc2"
+  },
+  "limitations": [
+    "No added threads, changed solver, reduced samples or softened QC for accepted comparisons",
+    "Views/helper candidates compare against the prior local diagonal-free adapter, not the original author",
+    "Candidate raw-fit ratios must not be multiplied by previous whole-stage/whole-model ratios",
+    "Old CSD/WMA sampling failures and human anatomical-review gates are unchanged"
+  ]
+}

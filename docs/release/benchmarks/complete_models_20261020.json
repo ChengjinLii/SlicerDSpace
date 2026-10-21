@@ -1,10 +1,10 @@
 {
   "kind": "complete_models_and_concurrency_evidence",
-  "updated_at": "2026-10-20T15:07:45.240517+00:00",
+  "updated_at": "2026-10-20T16:04:46.610868+00:00",
   "campaign_status": "running",
   "current_pair": {
-    "stage": "mkcurve",
-    "variant": "reference",
+    "stage": "dki",
+    "variant": "optimized",
     "status": "running"
   },
   "measurements": [
@@ -25,6 +25,15 @@
       "optimized_seconds": 4452.999639907852,
       "speed_ratio": 1.3757388141661084,
       "seconds_saved": 1673.164804181084
+    },
+    {
+      "stage": "mkcurve",
+      "scope": "complete_model",
+      "status": "passed",
+      "reference_seconds": 9953.985839683563,
+      "optimized_seconds": 9211.890267523006,
+      "speed_ratio": 1.0805584468126865,
+      "seconds_saved": 742.0955721605569
     },
     {
       "stage": "DKI 100307",
@@ -413,6 +422,241 @@
         "Not whole-workflow or anatomical-accuracy acceptance"
       ],
       "stage": "wma"
+    },
+    {
+      "status": "passed",
+      "products": [
+        {
+          "product": "zero_mk_b0",
+          "exact": true
+        },
+        {
+          "product": "max_mk_b0",
+          "exact": true
+        },
+        {
+          "product": "max_mk",
+          "exact": true
+        },
+        {
+          "product": "abnormal_mask",
+          "exact": true
+        },
+        {
+          "product": "unusual_mask",
+          "exact": true
+        },
+        {
+          "product": "curve_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_b0",
+          "exact": true
+        },
+        {
+          "product": "original_fa",
+          "exact": true
+        },
+        {
+          "product": "original_md",
+          "exact": true
+        },
+        {
+          "product": "original_ad",
+          "exact": true
+        },
+        {
+          "product": "original_rd",
+          "exact": true
+        },
+        {
+          "product": "original_mk",
+          "exact": true
+        },
+        {
+          "product": "original_ak",
+          "exact": true
+        },
+        {
+          "product": "original_rk",
+          "exact": true
+        },
+        {
+          "product": "original_e1",
+          "exact": true
+        },
+        {
+          "product": "original_e2",
+          "exact": true
+        },
+        {
+          "product": "original_e3",
+          "exact": true
+        },
+        {
+          "product": "original_nrmse",
+          "exact": true
+        },
+        {
+          "product": "original_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "original_fa_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "original_md_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "original_ad_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "original_rd_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "original_mk_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "original_ak_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "original_rk_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "original_e1_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "original_e2_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "original_e3_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_fa",
+          "exact": true
+        },
+        {
+          "product": "corrected_md",
+          "exact": true
+        },
+        {
+          "product": "corrected_ad",
+          "exact": true
+        },
+        {
+          "product": "corrected_rd",
+          "exact": true
+        },
+        {
+          "product": "corrected_mk",
+          "exact": true
+        },
+        {
+          "product": "corrected_ak",
+          "exact": true
+        },
+        {
+          "product": "corrected_rk",
+          "exact": true
+        },
+        {
+          "product": "corrected_e1",
+          "exact": true
+        },
+        {
+          "product": "corrected_e2",
+          "exact": true
+        },
+        {
+          "product": "corrected_e3",
+          "exact": true
+        },
+        {
+          "product": "corrected_nrmse",
+          "exact": true
+        },
+        {
+          "product": "corrected_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_fa_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_md_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_ad_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_rd_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_mk_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_ak_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_rk_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_e1_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_e2_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "corrected_e3_valid_mask",
+          "exact": true
+        },
+        {
+          "product": "curve",
+          "exact": true
+        },
+        {
+          "product": "grid",
+          "exact": true
+        },
+        {
+          "product": "original_coefficients",
+          "exact": true
+        },
+        {
+          "product": "corrected_coefficients",
+          "exact": true
+        }
+      ],
+      "reference_seconds": 9953.985839683563,
+      "optimized_seconds": 9211.890267523006,
+      "speed_ratio": 1.0805584468126865,
+      "seconds_saved": 742.0955721605569,
+      "interpretation": "Implementation comparison, not original MATLAB",
+      "limitations": [
+        "One pair on a shared Linux host; no confidence interval",
+        "Not whole-workflow or anatomical-accuracy acceptance"
+      ],
+      "stage": "mkcurve"
     }
   ],
   "wma_input_audit": {
@@ -454,6 +698,14 @@
       "inputs_unchanged": true,
       "evidence": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/wma/optimized/measurement.json",
       "sha256": "a1c6005c2fc4406281b4203964a8cf26eed5b7108c27bd60ffb3cba045172294"
+    },
+    {
+      "stage": "mkcurve",
+      "variant": "reference",
+      "seconds": 9953.985839683563,
+      "inputs_unchanged": true,
+      "evidence": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/mkcurve/reference/measurement.json",
+      "sha256": "dcef7c69d9aa5ff76aef950c5993963a2a66b14190b9b3bc7c3dcd46357ead34"
     },
     {
       "stage": "mkcurve",
@@ -805,7 +1057,7 @@
   "evidence": {
     "campaign": {
       "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/long_tasks_full_20261020_v2/campaign.json",
-      "sha256": "3928b2507c945f486d0787595107368ee6809f8529d7120ed9032dfc017fb2f4"
+      "sha256": "ce27b902915c26877c902d6bbb09d1d3f5f9222bbad325bd54d1c4c8016edff5"
     },
     "roi": {
       "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/dki_dense_stage_20261020/measurements.json",
