@@ -681,13 +681,14 @@ def menu_focus_wording():
     return fail_list(problems) if problems else None
 
 
-# The checks in SPEC v2 §7.1 (items 1-14). SPEC §9 must record each check added later as "item <n> `<name>`",
-# with n its §7.1 number (see spec_lists_checks).
+# The checks in SPEC v2 §7.1 (items 1-14). SPEC §9 must record each check added later as "item <n>
+# `<name>`", with n its §7.1 number (see spec_lists_checks). The phrase wraps across two comment lines on
+# purpose: backlog_wording must remove the comment marks to find it (README backlog r10 3).
 V2_CHECKS = ("html_basics", "local_refs", "external_urls", "film_bytes", "film_faststart", "film_probe",
              "transcript_matches_srt", "sizes", "images", "claims_required", "claims_banned", "no_local_paths",
              "links_safe", "fonts_licensed")
-# Opus r8 2: item 15 reads SPEC only in §4 because of the Codex P1 of the 90a6a03 review. The §9 paragraph that
-# records a check here must cite the review that set its scope.
+# Opus r8 2: item 15 reads SPEC only in §4 because of the Codex P1 of the 90a6a03 review. For a check here, a §9
+# paragraph that records it must cite the review that set its scope.
 SECTION9_SOURCES = {"menu_focus_wording": "Codex P1 of the 90a6a03 review"}
 
 
@@ -728,9 +729,9 @@ def spec_lists_checks(names):
     return fail_list(problems) if problems else None
 
 
-# Wording fixes from the README review backlog that only a text check can hold: (finding, file, the part of the file
-# the finding names as a regex, the phrase that must be there, the phrase that must not be). The part is
-# whitespace-normalized before the test.
+# Fixes from the README review backlog that only a text check can hold (wording, and code lines that guard a fix):
+# (finding, file, the part of the file the finding names as a regex, the phrase that must be there, the phrase that
+# must not be or None). In a .py part the comment marks are removed; then the part is whitespace-normalized.
 WORDING_FIXES = (
     ("r9 2", "SPEC.md", r"(?ms)^16\. `spec_lists_checks`.*?(?=^(?! )|\Z)",
      "a §9 paragraph that records item 15", "the §9 paragraph that records item 15"),
@@ -738,6 +739,18 @@ WORDING_FIXES = (
      "only in passing, without recording the item, still passes", None),
     ("r9 4", "tests/check_site.py", r"(?m)(?:^#.*\n)+(?=V2_CHECKS = )",
      "item <n> `<name>`", "needs a line in SPEC §9"),
+    ("r10 1", "tests/check_site.py", r"(?ms)^def spec_lists_checks\(.*?(?=^\S)",
+     r're.split(r"\n[ \t]*\n"', r'.split("\n\n")'),
+    ("r10 2", "tests/check_site.py", r"(?ms)^def main\(.*?(?=^\S)",
+     "if ran != checked:", None),
+    ("r10 4", "tests/check_site.py", r"(?m)(?:^#.*\n)+(?=SECTION9_SOURCES = )",
+     "a §9 paragraph that records it", "The §9 paragraph that"),
+    ("r10 4", "README.md", r"(?ms)^- r8 2 \(P3\).*?(?=^(?! )|\Z)",
+     "needs a §9 paragraph that records item 15", "needs the §9 paragraph that records item 15"),
+    ("r10 5", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
+     "and, where there is one, the old phrase is not", "is there and the old phrase is not"),
+    ("r10 5", "README.md", r"(?ms)^- Test for r9 2–4: .*?(?=^(?! )|\Z)",
+     "the fixed phrase and, where there is one, the old phrase", "the fixed phrase and the old phrase"),
 )
 
 
@@ -750,7 +763,11 @@ def backlog_wording():
         if not m:
             problems.append("%s: %s has no part that matches %r" % (finding, rel, where))
             continue
-        text = " ".join(m.group(0).split())
+        part = m.group(0)
+        if rel.endswith(".py"):
+            # Opus r10 3: drop the comment marks, so that a phrase may wrap across two comment lines.
+            part = re.sub(r"(?m)^[ \t]*# ?", "", part)
+        text = " ".join(part.split())
         if want not in text:
             problems.append("%s: %s lacks %r" % (finding, rel, want))
         if banned and banned in text:
@@ -788,9 +805,15 @@ def main(argv):
     menu_focus_wording()
     # spec_lists_checks compares §7.1 with every check, so it also gets the names of the checks that run after it.
     later = [backlog_wording]
-    spec_lists_checks([r[1] for r in results] + ["spec_lists_checks"] + [f.check_name for f in later])
+    checked = [r[1] for r in results] + ["spec_lists_checks"] + [f.check_name for f in later]
+    spec_lists_checks(checked)
     for f in later:
         f()
+    # Opus r10 2: spec_lists_checks took the names in `later` on trust. The checks that ran must be that list.
+    ran = [r[1] for r in results]
+    if ran != checked:
+        results.append(("FAIL", "spec_lists_checks", "the checks that ran %s differ from the list it checked %s"
+                        % (ran, checked)))
 
     failed = 0
     for status, name, reason in results:

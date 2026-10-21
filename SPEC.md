@@ -401,9 +401,10 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 16. `spec_lists_checks`: this list names every check the script runs, in run order, numbered 1..n. §9 records every
     check added after v2 (items 15 on) as ``item <n> `<name>` ``, with n its number in this list, and a §9
     paragraph that records item 15 cites the review that limited it to §4 (the Codex P1 of the 90a6a03 review).
-17. `backlog_wording`: the wording fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4) stay in place:
-    in the part of the file each finding names (§7.1 item 16, the README r8 1 note, the comment above `V2_CHECKS`),
-    the fixed phrase is there and the old phrase is not.
+    After the last check, `main()` also fails it when the checks that ran differ from the list it was given.
+17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4 and r10 1, 2, 4, 5)
+    stay in place: in the part of a file that each row names, the fixed phrase is there and, where there is one, the
+    old phrase is not. In a `.py` part the `#` comment marks are removed before the test.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
@@ -464,3 +465,8 @@ the review that limited it to §4.
 After code review (2026-10-21, README backlog r9 1–4): item 16 `spec_lists_checks` splits this section into
 paragraphs also at lines that hold only spaces or tabs, and accepts the item-15 citation in any paragraph that
 records item 15; §7.1 gains item 17 `backlog_wording` (the wording fixes r9 2–4 stay in place).
+
+After code review (2026-10-21, README backlog r10 1–5): item 16 `spec_lists_checks` also fails when the checks that
+ran differ from the list it was given; item 17 `backlog_wording` gains rows for r10 1, 2, 4 and 5 (the `re.split`
+call in `spec_lists_checks`, that comparison in `main()`, and the r10 4 and r10 5 wording) and removes the `#`
+comment marks in a `.py` part before the test.

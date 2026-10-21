@@ -191,7 +191,7 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   only in passing, without recording the item, still passes.
 - r8 2 (P3). **Fixed 2026-10-21** (user request): the §9 line listed “README backlog r4 B2, r6 1–2 and r7 2” as its
   sources, but the “§4 only” scope of item 15 came from the Codex P1 of the 90a6a03 review; the list now names it.
-  Test: `spec_lists_checks` needs the §9 paragraph that records item 15 to cite that review (`SECTION9_SOURCES`).
+  Test: `spec_lists_checks` needs a §9 paragraph that records item 15 to cite that review (`SECTION9_SOURCES`).
   It fails on the ca62e10 SPEC, and on a copy where the citation is in another §9 paragraph.
 - Note (outside this diff): with the CSS rule `.film-play[hidden]{display:none}` removed, the play button stays
   drawn over the playing film, and `startProof()` still passes, because it reads the `hidden` attribute. The proof
@@ -217,7 +217,7 @@ Not fixed (non-blocking):
   ``item <n> `<name>` `` form; it now does.
 - Test for r9 2–4: a new check, SPEC §7.1 item 17 `backlog_wording` (a scope change). Its `WORDING_FIXES` table
   gives, for each finding, the part of the file it names (§7.1 item 16, the README r8 1 note, the comment above
-  `V2_CHECKS`), the fixed phrase and the old phrase. It failed on all three before the fixes; a copy that undoes one
+  `V2_CHECKS`), the fixed phrase and, where there is one, the old phrase. It failed on all three before the fixes; a copy that undoes one
   fix fails on that finding only.
 - Accepted limits of the pinned-text citation check (not findings): a negated citation and a citation inside an
   HTML comment both pass.
@@ -225,21 +225,26 @@ Not fixed (non-blocking):
 ### Review of the r9 fix (commit 84c2ffd; Opus and Codex: 0 blocking)
 
 Not fixed (non-blocking, from the Opus review; Codex found nothing):
-- r10 1 (P2): no committed test guards the r9 1 fix. With `split("\n\n")` put back, every check passes on the
-  committed tree; the fail-before runs exist only as copies. This is the same convention as the other fixes that
-  make a check stronger (r5 1, r7 1, r8 1). Fix ideas: a fourth `WORDING_FIXES` row that pins the `re.split` call
-  in `spec_lists_checks`, or a fixture self-test (a new check, so a scope change).
-- r10 2 (P2): `spec_lists_checks` now trusts that the checks in `later` run. With the `for f in later: f()` loop
-  deleted, `spec_lists_checks` passes with 16 results while §7.1 lists 17. Before 84c2ffd every name came from
-  `results`. Fix: after the loop, compare the names in `results` with the list given to `spec_lists_checks`, and
-  add a FAIL if they differ.
-- r10 3 (P3): the r9 4 row keeps the `#` comment marks when it normalizes whitespace, so a phrase that wraps across
-  two comment lines gets a `#` in the middle: the old phrase wrapped passes, the new phrase wrapped fails. Fix:
-  remove `^[ \t]*# ?` from each line before the join.
-- r10 4 (P3): the comment above `SECTION9_SOURCES` and the r8 2 entry above still say “the §9 paragraph” where
-  the code accepts any recording paragraph (r9 2 named only §7.1 item 16).
-- r10 5 (P3): SPEC §7.1 item 17 and the r9 test entry above say that each row has an old phrase; the r9 3 row has
-  none. Fix: “and, where there is one, the old phrase”.
+- r10 1 (P2). **Fixed 2026-10-21** (user request): no committed test guarded the r9 1 fix; with `split("\n\n")` put
+  back, every check passed. A `WORDING_FIXES` row now pins the `re.split(r"\n[ \t]*\n"` call in the body of
+  `spec_lists_checks` and bans `.split("\n\n")` there. With the old split put back, the ebbeb2a script passes and the
+  new script fails (`r10 1: … lacks …; … still says …`).
+- r10 2 (P2). **Fixed 2026-10-21** (user request): `spec_lists_checks` trusted that the checks in `later` run. After
+  the loop, `main()` now compares the names in `results` with the list that `spec_lists_checks` checked and adds a
+  FAIL if they differ. With the loop deleted, the ebbeb2a script passes with 16 results and the new script fails
+  (“the checks that ran … differ from the list it checked …”). A `WORDING_FIXES` row pins the comparison
+  (`if ran != checked:`); with the comparison deleted, `backlog_wording` fails.
+- r10 3 (P3). **Fixed 2026-10-21** (user request): in a `.py` part, `backlog_wording` now removes `^[ \t]*# ?` from
+  each line before the join. Committed guard: the comment above `V2_CHECKS` now wraps the phrase
+  ``item <n> `<name>` `` across two comment lines on purpose; without the strip the r9 4 row fails on it, and the
+  ebbeb2a script fails on that comment too. With the old phrase wrapped across two comment lines, the ebbeb2a script
+  passes and the new script fails.
+- r10 4 (P3). **Fixed 2026-10-21** (user request): the comment above `SECTION9_SOURCES` and the r8 2 entry above
+  now say “a §9 paragraph”. Test: two `WORDING_FIXES` rows; each fails when its old text is put back.
+- r10 5 (P3). **Fixed 2026-10-21** (user request): SPEC §7.1 item 17 and the r9 test entry above now say “and,
+  where there is one, the old phrase”. Test: two `WORDING_FIXES` rows; each fails when its old text is put back.
+- The four new wording rows failed on the ebbeb2a wording before the fixes. SPEC §7.1 item 17 now lists the table's
+  findings (r9 2–4 and r10 1, 2, 4, 5) instead of the three parts, and item 16 names the `main()` comparison.
 
 
 ## Image crop boxes as finally used
