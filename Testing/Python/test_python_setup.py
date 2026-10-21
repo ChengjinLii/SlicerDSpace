@@ -54,6 +54,17 @@ class PythonSetupTests(unittest.TestCase):
         self.assertEqual(record["backend"], "python_subprocess_compatibility")
         self.assertEqual(len(calls), 1)
 
+    def test_native_api_keeps_vcs_sources_out_of_pep508_only_ensure(self):
+        native = SimpleNamespace(pip_ensure=Mock(), pip_install=Mock())
+        source = "git+https://github.com/demianw/tract_querier.git"
+        with patch.object(setup, "installed_versions", return_value={}), \
+                patch.object(setup.importlib, "import_module", return_value=native):
+            record = setup.install_requirements((source,))
+        native.pip_ensure.assert_not_called()
+        self.assertEqual(native.pip_install.call_args.args[0], [source])
+        self.assertFalse(native.pip_install.call_args.kwargs["show_progress"])
+        self.assertEqual(record["backend"], "slicer.packaging")
+
     def test_loaded_package_updates_require_restart(self):
         self.assertEqual(setup.restart_packages({"numpy": "1"}, {"numpy": "2"}, ("NumPy",)), ["numpy"])
         self.assertEqual(setup.restart_packages({"numpy": "1"}, {"numpy": "2"}, ("other",)), [])

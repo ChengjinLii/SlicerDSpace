@@ -30,7 +30,7 @@ Advanced settings. These are configuration labels, not scientific QC badges.
 
 | Check | Observed result | Boundary |
 | --- | --- | --- |
-| Python regression suite | 1,256 tests: 1,253 passed, 3 skipped | Host scientific environment; not three-platform execution |
+| Python regression suite | 1,257 tests: 1,254 passed, 3 skipped | Host scientific environment; not three-platform execution |
 | Slicer 5.10 GUI | Selected setup, independent FSL/PNL terms gates, algorithm labels, dependency paths and process-tree cancellation passed | Isolated settings and disposable container; selected dependency responses controlled; no live user sessions changed |
 | Managed PNL fresh environment | Official pinned source, three weights and template downloaded/verified; TensorFlow 2.15.1/Keras 2.15.0 and ANTs 2.3.0 installed | New prefix; existing Conda was used to create it, not a clean-machine Miniforge bootstrap test |
 | PNL model checks | Three-view deserialization and finite synthetic forwards passed on H100 CUDA | Does not establish anatomical accuracy |

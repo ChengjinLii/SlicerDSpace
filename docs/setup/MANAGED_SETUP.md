@@ -50,6 +50,8 @@ installation. PyTorch uses the official PyTorch extension helper. Conflicts fail
 visibly instead of upgrading Slicer's core stack. Changed loaded packages require
 a restart. The newer packaging API has contract tests; a newer Slicer binary
 has not been validated in this campaign.
+Bare VCS URLs and local projects use native `pip_install`, not the name-only
+`pip_ensure` parser; the same constraints and final import checks apply.
 
 ---
 

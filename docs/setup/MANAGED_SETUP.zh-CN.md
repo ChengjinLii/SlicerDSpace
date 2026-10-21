@@ -38,6 +38,8 @@ Python 安装检测 `slicer.packaging.pip_ensure` 是否存在；Slicer 5.10 没
 PyTorch 等核心版本，不为解决冲突而静默升级基础栈。PyTorch 使用官方扩展辅助器。
 已加载的包发生变更时，必须重启后再运行分析。
 新版 packaging API 当前通过契约测试验证，并非已实测更新版 Slicer 二进制。
+裸 VCS URL 和本地工程使用原生 `pip_install`，避免传入仅解析标准包名的
+`pip_ensure`；同样应用版本约束并在最后检查实际导入。
 
 ---
 

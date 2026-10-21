@@ -81,8 +81,20 @@ def install_requirements(requirements, *, protected=True, loaded=(), torch_minim
                 packaging = None
             if packaging is not None and callable(getattr(packaging, "pip_ensure", None)):
                 backend = "slicer.packaging"
-                packaging.pip_ensure(missing, constraints=str(constraints), prompt_install=False,
-                                     prompt_restart=False, skip_in_testing=False)
+                InvalidRequirement, Requirement, _ = _packaging_api()
+                named = True
+                for value in missing:
+                    try:
+                        named = named and not Requirement(value).url
+                    except InvalidRequirement:
+                        named = False
+                if named:
+                    packaging.pip_ensure(missing, constraints=str(constraints), prompt_install=False,
+                                         prompt_restart=False, skip_in_testing=False)
+                else:
+                    # pip_ensure parses names as PEP 508 requirements and cannot
+                    # accept bare VCS URLs/local projects used by WMQL adapters.
+                    packaging.pip_install(missing, constraints=str(constraints), show_progress=False)
             else:
                 backend = "python_subprocess_compatibility"
                 subprocess.run([sys.executable, "-m", "pip", "install", "--constraint", str(constraints),
