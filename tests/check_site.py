@@ -242,6 +242,7 @@ def check(name):
                 results.append(("FAIL", name, out))
         run.__name__ = fn.__name__
         run.check_name = name
+        run.fn = fn  # the check without the wrapper, for the self-test in main()
         return run
     return deco
 
@@ -793,7 +794,7 @@ WORDING_FIXES = (
      "and, where there is one, the old phrase is not", "is there and the old phrase is not"),
     ("r10 5", "README.md", r"(?ms)^- Test for r9 2–4: .*?(?=^(?! )|\Z)",
      "the fixed phrase and, where there is one, the old phrase", "the fixed phrase and the old phrase"),
-    ("r11 4", "tests/check_site.py", r"(?m)(?<=def backlog_wording\(\):\n)(?:[ \t]*#.*\n)+",
+    ("r11 4", "tests/check_site.py", r"(?m)(?<=def backlog_wording\(rows=WORDING_FIXES\):\n)(?:[ \t]*#.*\n)+",
      "each fix in WORDING_FIXES", "each wording fix stays in place"),
     ("r12 1", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
      "code inside a string still counts", "so commented-out code does not count"),
@@ -835,12 +836,33 @@ WORDING_FIXES = (
      "r15 1 (P3)", "r15 2 (P3)"),
     ("r16 3", "tests/check_site.py", r'(?m)(?:^[ \t]*#.*\n)+(?=    \("r13 1", "tests/check_site.py", MAIN_TAIL,\n)',
      "the run-order flag is on the line above the comparison.", "and the summary flag is in MAIN_TAIL"),
+    # Opus r17 5: the self-test call in main() and its FAIL.
+    ("r17 5", "tests/check_site.py", MAIN_TAIL,
+     'got = backlog_wording.fn(WORDING_SELF_TEST) or "" if not all(w in got for w in ("lacks", "still says",'
+     ' "still matches")): results.append(("FAIL", "backlog_wording",', None),
+    # Opus r17 2: the line that feeds the one-part rule, next to the test that uses it.
+    ("r17 2", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     "found = list(re.finditer(where, read(os.path.join(ROOT, rel)))) if not found:", None),
+    # Codex r17 1: MAIN_TAIL has one start; the one-part rule fails a second one.
+    ("r17 1", "tests/check_site.py", r"(?m)^    for f in later:$", "for f in later:", None),
+    ("r17 3", "README.md", r"(?ms)^- r11 2 \(P3\)\..*?(?=^(?! )|\Z)", "(for example `sample = CODE_SAMPLE_TEXT`",
+     "for example `ran = checked`"),
+    ("r17 4", "README.md", r"(?ms)^- r14 3 \(P2\)\..*?(?=^(?! )|\Z)", "the row reads the source text", None),
 )
 
 # Opus r12 1: a sample for the comment remover of a code part: a trailing comment and a comment line go, a # inside a
 # string stays.
 CODE_SAMPLE = 'x = 1  # a trailing comment\n# a comment line\ny = "# not a comment"\n'
 CODE_SAMPLE_TEXT = 'x = 1 y = "# not a comment"'
+
+# Opus r17 5: no row can guard the lines that report every row (the "lacks", "still says" and "still matches" lines,
+# and the return line), so main() runs backlog_wording on these rows, which must give all three problems.
+WORDING_SELF_TEST = (
+    ("self-test", "tests/check_site.py", r"(?m)^CODE_SAMPLE_TEXT = .*$", "a phrase that this line does not hold",
+     "CODE_SAMPLE_TEXT"),
+    ("self-test", "tests/check_site.py", r"(?m)^CODE_SAMPLE_TEXT = .*$", "CODE_SAMPLE_TEXT",
+     re.compile(r"SAMPLE_TEXT")),
+)
 
 
 def code_text(part):
@@ -854,7 +876,7 @@ def code_text(part):
 
 
 @check("backlog_wording")
-def backlog_wording():
+def backlog_wording(rows=WORDING_FIXES):
     # README review backlog: each fix in WORDING_FIXES (wording, or a code line that guards a fix) stays in place, in
     # the part of the file that its row names.
     problems = []
@@ -864,7 +886,7 @@ def backlog_wording():
         sample = "exception: %r" % (exc,)
     if sample != CODE_SAMPLE_TEXT:
         problems.append("the comment remover gives %r for its sample, not %r" % (sample, CODE_SAMPLE_TEXT))
-    for finding, rel, where, want, banned in WORDING_FIXES:
+    for finding, rel, where, want, banned in rows:
         found = list(re.finditer(where, read(os.path.join(ROOT, rel))))
         if not found:
             problems.append("%s: %s has no part that matches %r" % (finding, rel, where))
@@ -938,6 +960,10 @@ def main(argv):
     if ran != checked:
         results.append(("FAIL", "spec_lists_checks", "the checks that ran %s differ from the list it checked %s"
                         % (ran, checked)))
+    # Opus r17 5: backlog_wording must still report a missing phrase and a banned one (see WORDING_SELF_TEST).
+    got = backlog_wording.fn(WORDING_SELF_TEST) or ""
+    if not all(w in got for w in ("lacks", "still says", "still matches")):
+        results.append(("FAIL", "backlog_wording", "its self-test rows give %r, not the three problems" % got))
 
     # Opus r13 1: from here on a result is not counted, so a check that runs now prints its FAIL and exits 1.
     RUN["summary"] = True

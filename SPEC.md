@@ -406,11 +406,13 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     the line above `failed = 0`) prints its FAIL and exits 1. A result added to `results` by hand, not through a
     check, is not covered.
 17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4, r10 1, 2, 4, 5, r11 3,
-    4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1 and r16 3) stay in place: in the part of a file that each row
-    names (found exactly once), the fixed phrase is there and, where there is one, the old phrase is not (a string or
-    a regex). In a `.py` part made of comment lines the `#` marks are removed before the test; from a `.py` part that
-    holds code every comment is removed (Python `tokenize`, also a comment at the end of a line), so code commented
-    out with `#` does not count; code inside a string still counts. A built-in sample checks the comment remover.
+    4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3 and r17 1–5) stay in place: in the part of a file that
+    each row names (found exactly once), the fixed phrase is there and, where there is one, the old phrase is not (a
+    string or a regex). In a `.py` part made of comment lines the `#` marks are removed before the test; from a `.py`
+    part that holds code every comment is removed (Python `tokenize`, also a comment at the end of a line), so code
+    commented out with `#` does not count; code inside a string still counts. A built-in sample checks the comment
+    remover. `main()` also runs this check on built-in rows (`WORDING_SELF_TEST`) and fails it unless they give a
+    “lacks”, a “still says” and a “still matches” problem.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
@@ -511,3 +513,8 @@ After code review (2026-10-21, README backlog r15 2 and r16 1–4): item 17 `bac
 summary test in `check()` on the indent, so the `compared` test cannot move under it; rows pin the place of the
 README r15 2 entry (with the fixes of the 5989f8b review, not in its “Not fixed” list) and the shorter comment above
 the row for the order of the run-order flag.
+
+After code review (2026-10-21, README backlog r17 1–5): `main()` runs item 17 `backlog_wording` on the built-in rows
+of `WORDING_SELF_TEST` and fails it unless they give a “lacks”, a “still says” and a “still matches” problem (no row
+can guard the lines that report every row); rows pin that call, the line that collects the parts next to the test
+of the part count, the single start of `MAIN_TAIL`, and the README limit sentences under r11 2 and r14 3.

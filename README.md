@@ -266,7 +266,8 @@ Not fixed (non-blocking, from the Opus review):
   `re.split` line, the c9d46ec script passes and the new script fails.
   Limit (README r13 2, r14 1): Code pins accept dead code and other spellings. This holds for every code pin in
   `WORDING_FIXES`, not only this ban. A pinned line still counts when it does not run (under `if False:`, or below a
-  `return` moved above it) and when a line added after it undoes it (for example `ran = checked`). A ban misses
+  `return` moved above it) and when a line added after it undoes it (for example `sample = CODE_SAMPLE_TEXT` added
+  below the line that makes the sample). A ban misses
   other spellings of the old code: six other spellings of the old split pass, for example `.split( "\n\n" )` or
   `.split(sep="\n\n")`; the old split under `if False:` still fails the ban, because a ban reads text.
 - r11 3 (P3). **Fixed 2026-10-21** (user request): a check called after the run-order comparison was neither listed
@@ -345,10 +346,13 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
   pinned line that does not run, or that a line added after it undoes, still counts). A row pins “This holds for
   every code pin”; the 7d6b9ee README fails it. The same rewrite corrects the `if False:` example (r15 1).
 - r14 2 (P2/P3). Recorded as a limit, no code change: the r14 1 sentence names a line added after a pinned line that
-  undoes it (`ran = checked`, `sample = CODE_SAMPLE_TEXT`, `problems = []`); each case needs two edits.
+  undoes it (`sample = CODE_SAMPLE_TEXT`, `problems = []`); each case needs two edits. (`ran = checked` added after
+  the `ran` line now fails the r13 1 order row.)
 - r14 3 (P2). **Fixed 2026-10-21** (user request): a row on `(?m)^CODE_SAMPLE = .*$` wants
   `x = 1 # a trailing comment` (after whitespace normalization). With a sample that holds no comment, the 7d6b9ee
-  script passes and the new script fails, also with a whole-line remover put back.
+  script passes and the new script fails, also with a whole-line remover put back. Limit (README r17 4): the row
+  reads the source text, so `.replace('  # a trailing comment', '')` added to that line still passes (the “code in
+  a string” class).
 - r14 4 (P3). **Fixed 2026-10-21** (user request): the r12 3 locator is anchored on the words of the af78411 bullet
   (“in a code row, a pinned phrase inside a comment”). My addition: a row whose locator matches more than one part
   of its file now fails (“has N parts that match”), and a row pins that test. With the old locator, the new script
@@ -395,20 +399,25 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
 ### Review of the r14 fix (commit bca6f20; Opus and Codex: 0 blocking)
 
 Not fixed (non-blocking):
-- r17 1 (P2, Codex): the one-part rule uses `re.finditer`, which does not count overlapping matches. With a second
-  `for f in later:` loop added above the first one, `MAIN_TAIL` matches from either start, and all checks pass
-  (17/0); the part only grows, so no pin is lost. Opus notes that the comment-block locators (r9 4, r10 4, r12 4)
-  have overlapping starts, so a plain count of overlapping matches would fail them. Fix idea: reject a second
-  start anchor for `MAIN_TAIL`, or count distinct block starts.
-- r17 2 (P2, Opus): the line that feeds the one-part rule, `found = list(re.finditer(…))`, has no pin. With `[:1]`
-  added, or `re.search` put back, the count test never runs (17/0, the class “a pinned line that does not run”).
-  Fix idea: a row that wants `found = list(re.finditer(where, read(os.path.join(ROOT, rel)))) if not found:`.
-- r17 3 (P3, Opus): the r14 1 limit sentence gives `ran = checked` as a line that undoes a pinned line, but the
-  r13 1 order row catches that edit. Fix: use `sample = CODE_SAMPLE_TEXT` (added above the sample test, 17/0).
-- r17 4 (P3, Opus): the r14 3 row reads the source text of `CODE_SAMPLE`: with `.replace('  # a trailing comment',
-  '')` added to that line, the suite passes (the “code in a string” class).
-- r17 5 (outside this diff; since 84c2ffd): in `backlog_wording`, the line that adds a “lacks” problem and the
-  `return` line have no pin. With the append replaced by `pass`, every “wants” pin is off in one edit (17/0).
+- r17 1 (P2). **Fixed 2026-10-21** (user request): a row on `(?m)^    for f in later:$` wants that line, so the
+  one-part rule (my r14 4 addition, which this fix depends on) fails a second start of `MAIN_TAIL`. With the Codex
+  copy (a second `for f in later:` loop with `assert callable(f)` above the first), the old script passes and the
+  new script fails (2 parts).
+- r17 2 (P2). **Fixed 2026-10-21** (user request): a row wants the two adjacent lines
+  `found = list(re.finditer(where, read(os.path.join(ROOT, rel))))` and `if not found:`. With `[:1]` added, or with
+  `re.search` put back, the old script passes and the new script fails.
+- r17 3 (P3). **Fixed 2026-10-21** (user request): the limit sentence under r11 2 now gives
+  `sample = CODE_SAMPLE_TEXT` as the example; the r14 2 entry drops `ran = checked`. A row wants the new example and
+  bans the old one; the old README fails it.
+- r17 4 (P3). **Fixed 2026-10-21** (user request): the r14 3 entry has a limit sentence (the row reads the source
+  text). A row pins it; the old README fails it.
+- r17 5 (outside the bca6f20 diff; since 84c2ffd). **Fixed 2026-10-21** (user request), not with pins: the user asked
+  for pins on the “lacks” line and the `return` line, but a pin cannot guard them. Every row reports through those
+  lines, so with either line broken no pin can report, and no test copy can fail. My choice instead: `main()` runs
+  `backlog_wording` on two built-in rows (`WORDING_SELF_TEST`) and fails it unless they give a “lacks”, a “still
+  says” and a “still matches” problem; a row pins that call. With the “lacks”, “still says” or “still matches” line
+  replaced by `pass`, or the return line changed to `return None`, the old script passes and the new script fails.
+  Limit: an edit to the self-test call together with an edit to a reporting line (two edits) still passes.
 
 ### Review of the r15 2 / r16 fix (commit 59d7bf6; Opus and Codex: 0 blocking)
 
