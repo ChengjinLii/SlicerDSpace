@@ -65,16 +65,23 @@ CSS and an inline icon, and it links home with the absolute Pages address.
 
 Items from the spec review (SPEC §9) that were not taken. They do not block the site.
 
-- N2 (P2): SPEC v1 §3 said every crop must exclude the subtitle band, but the out-tracts and out-connectome boxes reach y = 1080. No cue is on screen at 43.0 s or 50.2 s, so the images are fine. SPEC v2 §3 rewords the rule.
+- N2 (P2). **Closed** (marked 2026-10-22): SPEC v1 §3 said every crop must exclude the subtitle band, but the
+  out-tracts and out-connectome boxes reach y = 1080. No cue is on screen at 43.0 s or 50.2 s, so the images are fine.
+  SPEC v2 §3 rewords the rule.
 - N12 (P3). **Fixed 2026-10-22** (user request): at 34.8 s the white→pial morph was at about 0.94; `out-surfaces.jpg`
   now comes from 35.4 s (the full pial mesh, before the glass fade at 35.6 s), same box, checked by eye (no subtitle,
   no cut-off brain). `images` pins the file by SHA-256; with the old file it fails.
 - N15 (P3). **Fixed 2026-10-22** (user request): SPEC §2 names the font sources (`P/film/fonts/`) and tools
   (fontTools 4.67.0 `pyftsubset`, brotli 1.2.0); §3 and the crop section below name Pillow 13.0.0 for the JPEGs. Rows
   pin both; the old SPEC fails them.
-- N16 (P3): an inline SVG with `xmlns="http://www.w3.org/2000/svg"` would fail the external-URL check. `check_site.py` now exempts namespace URIs.
-- N18 (P3): for DDSeg the QC that passed is the world-space QC (DDSeg-vs-DDParcel WM Dice 0.848). The Outputs note says “Automatic QC passed for the … DDSeg … stages”; the reviewer found that acceptable.
-- N19 (P3): CITATION.cff writes O'Donnell with an ASCII apostrophe in the DDSurfer entry; the page uses ’ (allowed by the SPEC typography rule).
+- N16 (P3). **Closed** (marked 2026-10-22): an inline SVG with `xmlns="http://www.w3.org/2000/svg"` would fail the
+  external-URL check. `check_site.py` exempts namespace URIs (`NAMESPACE_PREFIXES`).
+- N18 (P3). **No change** (marked 2026-10-22): for DDSeg the QC that passed is the world-space QC (DDSeg-vs-DDParcel
+  WM Dice 0.848). The Outputs note says “Automatic QC passed for the … DDSeg … stages”; the reviewer found that
+  acceptable.
+- N19 (P3). **Not on this branch** (marked 2026-10-22): `CITATION.cff` writes O'Donnell with an ASCII apostrophe in
+  the DDSurfer entry; the page uses ’ (allowed by the SPEC typography rule). `CITATION.cff` is on `main`, which this
+  branch does not change; fix it there if wanted.
 
 ### Code review, round 1 (commit 935a5d9; Opus and Codex)
 
@@ -141,7 +148,8 @@ Not fixed (non-blocking):
 ### Re-review of the fix round (commit 444d8db; Opus and Codex: 0 blocking)
 
 Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
-- r2 N1 (P3): the round-1 notes sat under “Image crop boxes”; they are now here, under “Review backlog”.
+- r2 N1 (P3). **Closed** (marked 2026-10-22): the round-1 notes sat under “Image crop boxes”; they are now here,
+  under “Review backlog”.
 - r2 N2 (P3). **Fixed 2026-10-22** (user request): the header width loop records `menuVisible === (w <= 1023)`.
   With the CSS fold moved to ≤ 1000 px, the 3ba7996 suite passes and the new one fails at 1023 px.
 - r2 N3 (P3). **Fixed 2026-10-22** (user request): SPEC §7.2 says “320×640 for overflow only” and names the other
