@@ -2,7 +2,7 @@
 
 # 性能优化与实测证据
 
-**2026-10-21 复核 · 整模块配对与保持数值一致的计算优化**
+**2026-10-22 复核 · 整模块配对与保持数值一致的计算优化**
 
 [项目](../../README.zh-CN.md) | [文档](../README.zh-CN.md) | [运行时间](MODULE_RUNTIMES_20261017.zh-CN.md) | [原作者对照 CSV](benchmarks/author_wma_optimizations_20261020.csv) | [JSON](benchmarks/author_wma_optimizations_20261020.json) | [English](PERFORMANCE_OPTIMIZATIONS.md)
 
@@ -379,6 +379,45 @@ SciPy 1.13／1.17 系列完成同环境回归；其他版本保留公共求解�
 新模块和基准脚本已确认纳入 runtime 资源，62 份活动文档的本地链接／风格检查通过。
 这些是后端与打包导入回归，不是完整 SDK、全部 GUI、人工解剖或三平台科学验收。
 未重启或修改用户正在使用的 Slicer／MRI Agent。
+
+---
+
+## 10 月 22 日：原版张量辅助函数调用消冗
+
+此前尚未启用的候选，现已补齐源码摘要门禁、独立模型实例、边界测试及完整阶段配对。
+[实现](../../microstructure/freewater_dispatch.py) 仅通过实例私有代理直接调用原版
+`decompose_tensor` 和 `from_lower_triangular` 函数体，省去重复的关键字参数／签名兼容检查。
+不修改特征值分解、排序／截断、求解器、初始化、参数网格或 QC，也不修改安装的 DIPY 全局对象。
+仅 DIPY 1.11.0／1.12.1 且辅助函数源码 SHA256 匹配时启用；不匹配则保留公开辅助函数。
+
+安装的 1.11.0 `dti.py` 与独立获取的官方文件字节完全一致。
+下面直接执行原作者 WLS 作为对照，不是插件旧版；双方均为单数值线程、一次预热、三次交替重复。
+每个原生 12×12×12 ROI 保留全部 1728 个掩膜体素、288 次测量：
+
+| 被试 | Python 3.13／DIPY 1.11，原版 → 优化 | Slicer Python／DIPY 1.12，原版 → 优化 |
+| --- | ---: | ---: |
+| 100307 | 2.146 → 1.812 s，1.185 倍 | 2.809 → 2.351 s，1.195 倍 |
+| 100206 | 2.129 → 1.770 s，1.203 倍 | 2.821 → 2.372 s，1.189 倍 |
+| 149741 | 2.109 → 1.788 s，1.179 倍 | 2.805 → 2.348 s，1.195 倍 |
+
+13 个原始拟合参数、四个导出图／掩膜、仿射、dtype、QC 均完全一致。
+自动 QC 通过，同时保留原有 234／672／303 个不可解释组织体素排除。
+**ROI 完整阶段耗时降低 15.2%–16.9%**，包含读取、拟合和导出，不仅是辅助函数调用。
+这些收益包含无对角矩阵 WLS 与辅助函数消冗，不能再乘到前一节的倍数上。
+
+三个原生 6×6×6 NLS 完整阶段也保持参数、图和 QC 完全一致：
+1.170 → 0.501 s、1.139 → 0.513 s、1.131 → 0.523 s。
+对照仍是原作者 NLS，不是上轮优化 NLS；无效组织数保持 16／132／69。
+不与历史 12×12×12 ROI 的绝对时间混比，不将默认 WLS 改成 NLS 来声称提速。
+
+证据：[WLS JSON](benchmarks/freewater_tensor_helpers_20261022.json)／
+[CSV](benchmarks/freewater_tensor_helpers_20261022.csv)、
+[Slicer WLS JSON](benchmarks/freewater_tensor_helpers_slicer_20261022.json)／
+[CSV](benchmarks/freewater_tensor_helpers_slicer_20261022.csv)、
+[NLS JSON](benchmarks/freewater_tensor_helpers_nls_20261022.json)。
+上述为共享主机上的完整 ROI 阶段，不是全脑或整条 workflow 的提速率。
+独立全脑配对在 `ignore/validation/full_freewater_tensor_20261022/` 使用不可变代码／工具快照和全新输出；
+运行中不填写全脑加速率。未修改线程数、GPU 策略、采样、精度或 QC 门槛。
 
 ---
 

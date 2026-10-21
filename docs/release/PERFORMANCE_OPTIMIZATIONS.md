@@ -2,7 +2,7 @@
 
 # Performance Optimizations
 
-**Reviewed 21 October 2026 · Complete-model pairs and numerically equivalent optimizations**
+**Reviewed 22 October 2026 · Complete-model pairs and numerically equivalent optimizations**
 
 [Project](../../README.md) | [Documentation](../README.md) | [Runtimes](MODULE_RUNTIMES_20261017.md) | [Author-reference CSV](benchmarks/author_wma_optimizations_20261020.csv) | [JSON](benchmarks/author_wma_optimizations_20261020.json) | [中文](PERFORMANCE_OPTIMIZATIONS.zh-CN.md)
 
@@ -435,6 +435,54 @@ earlier 1203/28-test logs remain intact, not relabeled as this result.
 These are backend/installation-import regressions, not complete SDK, GUI,
 anatomical or three-platform scientific acceptance. The active user Slicer and
 MRI Agent sessions were not restarted or modified.
+
+---
+
+## 22 October: Original Tensor-Helper Dispatch
+
+The earlier undeployed tensor-helper candidate now has source guards, isolated
+instances, edge-case regression and complete-stage comparisons. The
+[dispatcher](../../microstructure/freewater_dispatch.py) calls the exact original
+`decompose_tensor` and `from_lower_triangular` bodies through a private proxy.
+It removes only repeated keyword/signature compatibility checks in WLS tensor
+decomposition (also used to initialize NLS). LAPACK eigendecomposition, eigenvalue
+ordering/clipping, solver, initialization, grid and QC are unchanged. Installed
+DIPY globals are not patched. Versions 1.11.0/1.12.1 and helper-source hashes must
+match; otherwise the public helpers remain in use.
+
+The installed 1.11.0 `dti.py` matches an independently downloaded upstream file
+byte for byte. Both paths below use one numerical thread and the original
+author WLS as reference, not an older plugin. Three alternating repeats and one
+warmup retain all 1728 mask voxels and 288 measurements per native 12-cubed ROI:
+
+| Subject | Python 3.13/DIPY 1.11, author -> optimized | Slicer Python/DIPY 1.12, author -> optimized |
+| --- | ---: | ---: |
+| 100307 | 2.146 -> 1.812 s, 1.185x | 2.809 -> 2.351 s, 1.195x |
+| 100206 | 2.129 -> 1.770 s, 1.203x | 2.821 -> 2.372 s, 1.189x |
+| 149741 | 2.109 -> 1.788 s, 1.179x | 2.805 -> 2.348 s, 1.195x |
+
+All 13 raw parameters, four exported maps/masks, affines, dtypes and QC match
+exactly. Automatic QC passes while retaining the same 234/672/303 excluded
+tissue voxels. These **15.2%-16.9% ROI time reductions** include checking, reading,
+fitting and export, not just helper calls. They combine diagonal-free WLS and
+helper dispatch; they are not an additional multiplier on earlier reports.
+
+Three complete 6-cubed NLS stages also retain exact raw parameters/maps/QC:
+1.170 -> 0.501 s, 1.139 -> 0.513 s and 1.131 -> 0.523 s. These ratios compare
+against original author NLS, not the previous optimized NLS. Invalid-tissue
+counts remain 16/132/69. Do not compare these smaller ROIs' absolute times with
+the historical 12-cubed NLS tests or switch default WLS to NLS to claim a benefit.
+
+Evidence: [WLS JSON](benchmarks/freewater_tensor_helpers_20261022.json)/
+[CSV](benchmarks/freewater_tensor_helpers_20261022.csv),
+[Slicer WLS JSON](benchmarks/freewater_tensor_helpers_slicer_20261022.json)/
+[CSV](benchmarks/freewater_tensor_helpers_slicer_20261022.csv), and
+[NLS JSON](benchmarks/freewater_tensor_helpers_nls_20261022.json).
+These are shared-host complete ROI stages; independent full-brain measurement
+uses `ignore/validation/full_freewater_tensor_20261022/`, with new immutable
+code/harness snapshots and fresh outputs. A running full-brain pair is not yet
+a measured whole-brain improvement. No estimator, thread count, GPU policy,
+sampling, precision or QC threshold is changed.
 
 ---
 

@@ -1817,6 +1817,15 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
     raw = _resolve_raw_inputs(subject_root)
     analysis_inputs = _resolve_analysis_inputs(subject_root, config.subject_id, output_root)
     raw_missing = _missing_file_labels(raw)
+    from shared.dicom_input import is_dicom_root, converter_path
+    dicom_pending = bool(raw_missing and is_dicom_root(subject_root))
+    dicom_error = None
+    if dicom_pending:
+        try:
+            converter_path(config.dwiconvert_executable)
+        except FileNotFoundError as exc:
+            dicom_error = str(exc)
+        raw_missing = ["mask"]
     mask_can_be_generated = raw_missing == ["mask"] and mask_backend["available"] and config.brain_mask_backend != "provided"
     if mask_can_be_generated:
         raw_missing = []
@@ -2028,6 +2037,9 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         return False
 
     for target in targets:
+        if dicom_error:
+            add(target, "blocked", dicom_error, "environment", inputs=raw, provides=False)
+            continue
         if target in preflight_blocked_targets and not target_completed(target):
             add(
                 target,
@@ -4691,6 +4703,12 @@ def run_subject_products(
     """Run products while preserving a failed manifest if any stage raises."""
 
     try:
+        if config.execute:
+            if not config.subject_id.strip() or config.select_streamlines <= 0:
+                raise ValueError("subject_id is required and select_streamlines must be positive")
+            _normalize_targets(config)
+            from shared.dicom_input import prepare_dicom_root
+            prepare_dicom_root(config.subject_root, config.subject_id, dwiconvert=config.dwiconvert_executable, log=log)
         from shared.algorithm_selection import algorithms
         if len(algorithms(config.tractography_backend)) > 1:
             from shared.multi_tracking import run

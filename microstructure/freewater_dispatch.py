@@ -6,7 +6,7 @@ object and uses that same WLS initialization. No DIPY globals are patched.
 
 import hashlib
 import inspect
-from types import FunctionType
+from types import FunctionType, SimpleNamespace
 
 
 _SOURCE_SHA256 = {
@@ -15,6 +15,30 @@ _SOURCE_SHA256 = {
     '_nls_err_func': '05c48919624ad726525974facc306fdb144e09b69ebe7f4ca1cbaaa85dfbfeec',
     '_nls_jacobian_func': '6a3d0ae7e06d38bb9e8d5aeb4b3c49d98426d5ea5311fdc64fae77c3f11f7b1c',
 }
+
+_TENSOR_SHA256 = {
+    'decompose_tensor': '0ba665aedbf052581ec566ee5de86fa72489b9b2cf214c996611f73af3e60957',
+    'from_lower_triangular': 'c77c7188bbd90280114a786de9c43de99f5b5336fa70e9b36b8d8354e1a419e6',
+}
+
+
+def _tensor_dispatch(wls_iter, fwdti):
+    """Bypass only source-verified keyword adapters in an instance-private proxy."""
+    try:
+        bodies = {name: inspect.unwrap(getattr(fwdti, name)) for name in _TENSOR_SHA256}
+        hashes = {name: hashlib.sha256(inspect.getsource(body).encode('utf-8')).hexdigest()
+                  for name, body in bodies.items()}
+    except (OSError, TypeError, ValueError, AttributeError):
+        return wls_iter, {'tensor_helpers_enabled': False, 'tensor_helper_reason': 'Source unavailable'}
+    if hashes != _TENSOR_SHA256:
+        return wls_iter, {'tensor_helpers_enabled': False, 'tensor_helper_reason': 'Source mismatch',
+                          'tensor_helper_source_sha256': hashes}
+    namespace = dict(wls_iter.__globals__)
+    namespace['fwdti'] = SimpleNamespace(**{**vars(fwdti), **bodies})
+    direct = FunctionType(wls_iter.__code__, namespace, wls_iter.__name__, wls_iter.__defaults__, wls_iter.__closure__)
+    direct.__kwdefaults__ = dict(wls_iter.__kwdefaults__ or {})
+    return direct, {'tensor_helpers_enabled': True, 'tensor_helper_source_sha256': hashes,
+                    'tensor_helper_scope': 'WLS tensor decomposition, including NLS initialization only'}
 
 
 def configure_freewater_dispatch(model, method, engine):
@@ -40,10 +64,12 @@ def configure_freewater_dispatch(model, method, engine):
     if hashes != _SOURCE_SHA256:
         return {**record, 'reason': 'Author source mismatch; retain original dispatch'}
     from microstructure.freewater_wls import wls_iter
+    wls_iter, tensor_record = _tensor_dispatch(wls_iter, fwdti)
+    record.update(tensor_record)
     if method == 'WLS':
         model.fit_method = wls_iter
         return {**record, 'enabled': True, 'implementation': 'dipy_verified_serial_wls_diagonal_free',
-                'reason': 'Identical author WLS after C-order column scaling instead of a dense diagonal product'}
+                'reason': 'Identical author WLS, diagonal-free column scaling and source-qualified tensor-helper dispatch'}
     body = bodies['nls_iter']
     namespace = dict(body.__globals__)
     namespace.update({name: value for name, value in bodies.items() if name != 'nls_iter'})

@@ -201,6 +201,10 @@ def inspect_subject_directory(base_path: Path, subject_id: str) -> dict[str, Any
             "subject_dir": subject_dir,
         }
 
+    from shared.dicom_input import is_dicom_root
+    if is_dicom_root(expanded):
+        return {"mode": "dicom", "subject_root": expanded, "subject_dir": expanded}
+
     return {
         "mode": "missing",
         "subject_root": None,

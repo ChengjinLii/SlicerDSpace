@@ -22,6 +22,9 @@ at [DIPY 1.11.0](https://github.com/dipy/dipy/blob/1b0b3e2a0b0c8611287f4677f2135
 It replaces the materialized diagonal-weight product with C-order column
 scaling while preserving the remaining fit operations. Only verified source
 versions use this path; unsupported inputs or releases retain author behavior.
+The instance-private dispatcher also invokes source-verified tensor helper
+bodies directly, bypassing only redundant keyword-compatibility adapters.
+It does not modify installed DIPY modules or replace tensor eigendecomposition.
 
 Copyright (c) 2008-2025, dipy developers. All rights reserved.
 The complete [DIPY BSD-3-Clause notice](licenses/DIPY.txt) ships in the runtime

@@ -13,6 +13,28 @@ from microstructure.freewater_dispatch import configure_freewater_dispatch
 
 
 class FreeWaterDispatchTests(unittest.TestCase):
+    def test_direct_tensor_helpers_are_source_guarded_and_instance_private(self):
+        author, first, signals = self.case('WLS')
+        _, second, _ = self.case('WLS')
+        original = fwdti.decompose_tensor
+        for model in (first, second):
+            record = configure_freewater_dispatch(model, 'WLS', 'serial')
+            self.assertTrue(record['tensor_helpers_enabled'])
+            proxy = model.fit_method.__globals__['fwdti']
+            self.assertIs(proxy.decompose_tensor, inspect.unwrap(original))
+            np.testing.assert_array_equal(model.fit(signals).model_params, author.fit(signals).model_params)
+        self.assertIsNot(first.fit_method.__globals__['fwdti'], second.fit_method.__globals__['fwdti'])
+        self.assertIs(fwdti.decompose_tensor, original)
+
+    def test_unqualified_tensor_source_retains_original_helpers(self):
+        author, model, signals = self.case('WLS')
+        with patch('microstructure.freewater_dispatch._TENSOR_SHA256', {'decompose_tensor': 'unqualified'}):
+            record = configure_freewater_dispatch(model, 'WLS', 'serial')
+        self.assertTrue(record['enabled'])
+        self.assertFalse(record['tensor_helpers_enabled'])
+        self.assertIs(model.fit_method.__globals__['fwdti'], fwdti)
+        np.testing.assert_array_equal(model.fit(signals).model_params, author.fit(signals).model_params)
+
     def case(self, method='NLS', **kwargs):
         rng = np.random.default_rng(42)
         bvals = np.r_[np.zeros(6), np.full(30, 1000.), np.full(30, 2000.)]

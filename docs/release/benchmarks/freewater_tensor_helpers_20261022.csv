@@ -1,0 +1,4 @@
+subject_id,fit_method,engine,mask_voxels,measurements,reference_median_seconds,optimized_median_seconds,speed_ratio,time_reduction_percent,repeats,exact_raw_parameters,exact_exported_maps_and_qc,automatic_qc_passed
+100307,WLS,serial,1728,288,2.146416639909148,1.8118547163903713,1.18465162824164,15.586998222905034,3,True,True,True
+100206,WLS,serial,1728,288,2.1294427923858166,1.7696124222129583,1.20333851958548,16.897865087500485,3,True,True,True
+149741,WLS,serial,1728,288,2.109111586585641,1.788371305912733,1.1793477001182433,15.20736421500305,3,True,True,True

@@ -1639,6 +1639,9 @@ class SharedWidgetMixin:
         raw_inputs_known = input_dir is not None and all(
             (input_dir / name).is_file() for name in ("data.nii.gz", "bvals", "bvecs")
         )
+        if not raw_inputs_known and subject_root_text:
+            from shared.dicom_input import is_dicom_root
+            raw_inputs_known = is_dicom_root(Path(subject_root_text).expanduser())
         mask_targets = {
             "preprocessing", "segmentation", "parcellation", "surface", "microstructure",
             "microstructure_freewater", "microstructure_noddi", "microstructure_dki", "tractography", "saf",
