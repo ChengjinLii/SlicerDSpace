@@ -44,7 +44,7 @@ silently installed. See the [capability and platform matrix](docs/setup/SUPPORT_
 Large weights, templates and inference atlases are managed separately from code.
 The selected-environment preparation downloads only required resource groups,
 verifies SHA256 and saves their paths; existing and offline resources are reused.
-See [resource layout, licensing and private-mirror limits](docs/assets/EXTERNAL_RESOURCES.md).
+See [resource layout, licensing and download policy](docs/assets/EXTERNAL_RESOURCES.md).
 
 **Implementation origins.** DDSeg is a MATLAB-to-Python/PyTorch reimplementation;
 SAF and MK-Curve are unofficial Python ports of author MATLAB methods. PNL CNN

@@ -97,7 +97,10 @@ class OptionalAssetsTests(unittest.TestCase):
     def test_private_mirror_fails_before_partial_public_download_or_path_changes(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(setup_optional_assets, "download_asset_plan") as download:
             root = Path(tmp) / "absent"
-            with self.assertRaisesRegex(PermissionError, "mirror is private"):
+            catalog = load_manifest(setup_optional_assets.MANIFEST)
+            catalog["asset_sources"]["optional_models_mirror"]["access"] = "authorized-private"
+            with patch.object(setup_optional_assets, "load_manifest", return_value=catalog), \
+                    self.assertRaisesRegex(PermissionError, "mirror is private"):
                 setup_optional_assets.prepare(["wma"], asset_root=root, execute=True, accept_terms=True)
             self.assertFalse(root.exists())
             download.assert_not_called()

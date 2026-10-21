@@ -38,7 +38,7 @@ MRtrix3、FSL、FreeSurfer 和高级白质束后端均为按需配置，不会�
 
 大型权重、模板和推理图谱与代码分开管理。“准备所选分析环境”仅下载当前路线需要的资源，
 校验 SHA256 后自动保存路径，复用已有文件，也支持离线资源。
-见[资源目录、授权与私有镜像限制](docs/assets/EXTERNAL_RESOURCES.zh-CN.md)。
+见[资源目录、授权与下载策略](docs/assets/EXTERNAL_RESOURCES.zh-CN.md)。
 
 **实现来源。** DDSeg 为 MATLAB 到 Python/PyTorch 的改写；SAF、MK-Curve
 为原作者 MATLAB 算法的非官方 Python 移植。PNL CNN 掩膜调用已有的官方

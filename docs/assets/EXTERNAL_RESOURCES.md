@@ -46,8 +46,9 @@ and redistribution policies. It does not overwrite the core catalog.
 The optional mirror has its own JSON/TSV with 14 approved-subset files, including
 the pinned SHA256 index of all 849 extracted ORG files.
 The resource commit `11167a5` has been pushed, including eight LFS binary objects.
-The new mirror remains planned while an independent remote-byte readback is
-performed; this upload does not make the private repository publicly accessible.
+The mirror URL is pinned to that commit. The code repository remains private;
+the separately hosted resource repository was already public when checked.
+No repository visibility was changed by this work.
 
 ```bash
 python3 scripts/download_model_assets.py \
@@ -103,10 +104,12 @@ selected core and missing optional profiles without network access. Weights do
 not install Python packages or external tools. WMA/TractCloud source-runtime
 blockers remain visible rather than being marked ready after downloading data.
 
-Both repositories remain private. Anonymous GitHub mirror downloads are not
-available until an authorized public distribution endpoint is provided. Use
-an authorized, materialized Git LFS checkout or an offline import in the meantime;
-official URLs remain available for ORG, SynthStrip, IIT and PNL runtime acquisition.
+The public resource mirror supports anonymous downloads; users do not need Git
+or Git LFS for Slicer's URL downloader. Anonymous TractCloud acquisition in a
+clean resource root passed all four file size/SHA256 checks. Official URLs remain
+available for ORG, SynthStrip, IIT and PNL runtime acquisition. A future private
+mirror must declare `access: authorized-private`: preparation then fails before
+partial downloads and directs users to an authorized checkout or offline import.
 
 Local evidence is under `ignore/validation/external_resources_20261021/`.
 Byte-preserving migration is not new validation of human scientific QC.
@@ -119,4 +122,17 @@ regression: 1,287 tests, 1,284 passed and three skipped. Independent Slicer
 environment/setup GUI tests and package resource audit passed. A second GUI
 test exercised the actual optional-resource worker and automatic path saving
 without network access. A real loopback HTTP download test verified first
-acquisition and network-free reuse. Remote readback is recorded separately.
+acquisition and network-free reuse. Anonymous mirror acquisition also passed;
+the independent full remote readback passed all 14 sizes/SHA256 values from a
+fresh GitHub checkout of `11167a5`, with no LFS pointers left in selected files.
+Evidence: `ignore/validation/external_resources_20261021/remote-verified.lock.json`.
+
+Network access is still a prerequisite: a public URL is not a guarantee that a
+firewall or isolated container can reach it. The downloader respects standard
+proxy environment settings and retains resumable partial files. Timeouts remain
+failures, not ready states; offline import is the network-independent option.
+An isolated bridge-network attempt with Slicer's Python timed out and was retained
+as a failure. The same Slicer 5.10 Python worker passed anonymous acquisition of
+all four TractCloud files using a reachable host network and the existing standard
+proxy environment, without disabling TLS verification. No proxy address is coded
+into the extension. Evidence: `ignore/validation/slicer_anonymous_resources_20261021/`.

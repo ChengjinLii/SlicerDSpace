@@ -50,8 +50,8 @@ ORG 压缩包与 [Zenodo 固定记录](https://zenodo.org/records/2648292) 的�
 官方来源、许可及分发策略；不与 core 的历史 `asset_mirror_manifest.json` 混写。
 本次准备了独立的 `optional_assets_mirror_manifest.json` 和 TSV，包含 14 个可镜像文件，
 包括固定 SHA256 的 ORG 解压文件索引。
-资源提交 `11167a5` 已推送，包含 8 个 LFS 二进制对象；独立远端回读完成前，新增镜像源保持 planned。
-上传不会把私有仓库变成匿名可访问的下载地址。
+资源提交 `11167a5` 已推送，包含 8 个 LFS 二进制对象，下载 URL 固定到该提交。
+核对 GitHub 时，代码仓库仍为私有，独立资源仓库已是公开状态；本轮没有更改任何仓库的可见性。
 
 ```bash
 python3 scripts/download_model_assets.py \
@@ -94,9 +94,11 @@ python3 scripts/setup_optional_assets.py --profiles tractcloud wma \
 离线可通过以上命令只导入选定资源并解压图谱；GUI 的“使用离线模型资源”校验所选 core 及缺失的可选分组，
 不联网。下载权重不会安装 Python 库或外部程序，WMA/TractCloud 的源码/运行环境缺项仍保留为缺项。
 
-两个仓库继续保持私有，匿名用户暂时无法下载 GitHub 私有镜像。
-目前可使用获授权的完整 Git LFS 副本或离线导入；ORG、SynthStrip、IIT 以及 PNL 运行环境安装仍保留官方来源。
-公开可访问的资源发布地址需后续单独安排，不会擅自公开仓库。
+公开资源镜像支持匿名下载，GUI 的 URL 下载不要求用户安装 Git 或 Git LFS。
+已在干净目录中匿名下载 TractCloud 四个推理资源，文件大小及 SHA256 全部通过。
+ORG、SynthStrip、IIT 以及 PNL 运行环境安装仍保留官方来源。
+如果将来使用私有镜像，须标记 `access: authorized-private`，准备流程将提前说明权限要求，
+不会先下载一部分再因权限失败；可改用获授权的完整 Git LFS 副本或离线导入。
 
 本地迁移证据：`ignore/validation/external_resources_20261021/import.json` 和各 profile 的 lockfile。
 迁移验证的是字节一致和安装资源完整性，不代表重新验收所有人体算法结果的 QC。
@@ -106,5 +108,13 @@ python3 scripts/setup_optional_assets.py --profiles tractcloud wma \
 当前 Slicer 的 PNL、WMA、TractCloud 资源路径已保存到统一目录，所选默认环境检查 0 项缺失。
 Python 回归共 1,287 项，1,284 通过、3 跳过；独立 Slicer 环境检查与依赖准备 GUI 测试通过。
 另一次真实 GUI 测试验证了可选资源后台 worker 和成功后的自动保存路径，测试容器禁用网络。
-本地 HTTP 实际下载测试验证首次获取与再次复用不联网。安装包资源审计未发现缺失或不匹配；
-远端回读另记，不把私有镜像宣称为匿名可用。
+本地 HTTP 实际下载测试验证首次获取与再次复用不联网；公开镜像的真实匿名获取也通过。
+安装包资源审计未发现缺失或不匹配；从 GitHub 全新检出 `11167a5` 后，14 个远端文件的
+大小与 SHA256 全部通过，不是 LFS 指针空壳。
+记录：`ignore/validation/external_resources_20261021/remote-verified.lock.json`。
+
+公开 URL 仍需网络可达，不保证防火墙或隔离容器能直连。下载器遵循标准代理环境变量，保留可续传文件；
+超时仍是失败，不会转成 ready。离线导入是不依赖联网的替代方式。
+Slicer Python 的首次隔离桥接网络尝试超时，保留为失败；同一个 Slicer 5.10 worker 在可达的
+host 网络与已有标准代理环境下匿名获取 TractCloud 四文件通过，没有禁用 TLS 校验，插件没有写死代理地址。
+记录：`ignore/validation/slicer_anonymous_resources_20261021/`。

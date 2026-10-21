@@ -6,10 +6,10 @@
   "asset_sources": {
     "optional_models_mirror": {
       "kind": "url-template",
-      "status": "planned",
-      "access": "authorized-private",
-      "public": false,
-      "description": "Enable only after a verified upload; this catalog is not proof of remote availability.",
+      "status": "active",
+      "access": "public",
+      "public": true,
+      "description": "Public resource mirror pinned to the uploaded resource commit; every downloaded file requires size and SHA256 verification.",
       "url_template": "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/11167a58aaced67a69b3e0bc45656aea2abc1c8d/{path_urlencoded}"
     }
   },
