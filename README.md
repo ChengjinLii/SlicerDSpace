@@ -327,6 +327,27 @@ Not fixed (non-blocking):
 - r13 3 (P3): the r11/r12 §9 paragraph does not name the two r12 1 code rows (`part = code_text(part)` and the
   sample test).
 
+### Re-review of the 8d0597f fix round (commit 2740bb2; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
+- r14 1 (P3): dead code or a swapped line keeps a pinned phrase while its action is off: `return` moved above the
+  append in `check()` (with a late check, 17/0), or `ran = [r[1] for r in results] and checked` (17/0). Both also
+  pass on 8d0597f. This is the class “Code pins accept dead code and other spellings”. Fix idea: let that limit
+  sentence cover every code pin.
+- r14 2 (P2/P3): false passes that need two edits: `ran = checked` added after the `ran` line and the `later` loop
+  skipped (16/0); `RUN["compared"] = False` added after the flag and a late check (18/0, the r13 1 class);
+  `sample = CODE_SAMPLE_TEXT` added after the sample line; `problems = []` added after the sample test and a
+  whole-line remover.
+- r14 3 (P2): `CODE_SAMPLE` is not pinned. With a sample that holds no comment and a whole-line remover (two edits),
+  the suite passes (17/0). Fix idea: a row on `(?m)^CODE_SAMPLE = .*$` that wants `x = 1  # a trailing comment`,
+  or record the limit.
+- r14 4 (P3, from the fix round): the r12 3 row's locator (`^- Codex P1 \(Opus: P2\), fixed in the fix round`) now
+  matches three bullets. `re.search` binds the first one (the af78411 bullet), so the row is correct today. Fix
+  idea: anchor it on words of the af78411 bullet.
+- r14 5 (P3, from the fix round): the 8d0597f §9 paragraph credits all its rows to “Codex P1”; the author found the
+  `ran` row in the fix round.
+- r14 6 (P3, from the fix round): the 8d0597f record says “these four edits”, but its bullets name six runs.
+
 
 ## Image crop boxes as finally used
 
