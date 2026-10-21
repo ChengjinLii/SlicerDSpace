@@ -522,4 +522,6 @@ of the part count, the single start of `MAIN_TAIL`, and the README limit sentenc
 
 After code review of 49681a8 (2026-10-21, Codex P1 and Opus P1 B1, README backlog r19 1): `main()` fails item 17
 `backlog_wording` when its normal call did not go through every row of `WORDING_FIXES` (the default `rows` value or
-the call could select fewer rows, and the self-test passes its own rows); rows pin the row count and its test.
+the call could select fewer rows, and the self-test passes its own rows); rows pin the row count and its test. After
+the re-review of afca992 (Opus P1 B1, README backlog r20 1), a row also pins the indent of that test, so it cannot
+move into the `if ran != checked:` block.

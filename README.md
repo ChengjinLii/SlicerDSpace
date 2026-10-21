@@ -458,6 +458,32 @@ Not fixed (non-blocking, from the Opus review):
 - r19 5 (P3): the r17 3 entry says that the r14 2 entry “drops `ran = checked`”, but r14 2 still names it in a
   parenthetical; no row holds the r14 2 change.
 
+### Re-review of the r17 fix round (commit afca992; Opus 1 blocking, Codex 0 blocking)
+
+- r20 1: Opus B1 (P1, introduced by the fix round), fixed in the third round. With the three lines of the count test
+  indented one level, into the `if ran != checked:` block, the test ran only when the run-order comparison had
+  failed. The r19 1 row looks for the text anywhere in `MAIN_TAIL`, so every check stayed green (17/0), also
+  together with `rows=WORDING_FIXES[:1]`. This is the 5989f8b B1 case again. Fix: a row on
+  `(?m)^    if WORDING_RUN\["rows"\] != len\(WORDING_FIXES\):\n` followed by the FAIL line at 8 spaces. With the
+  re-indent, the afca992 script passes and the new script fails. Limit: the re-indent together with an edit that
+  selects fewer rows (two edits, for example `rows=WORDING_FIXES[:1]`) still passes (17/0), because the r20 1 row
+  is then one of the rows that do not run. This was the last round the stop rule allows for this review.
+
+Not fixed (non-blocking, from the Opus re-review):
+- r20 2 (P2, predates; from 49681a8): the same re-indent works on the r17 5 self-test lines (into the `if ran !=
+  checked:` block on 49681a8, into the count test on afca992), 17/0. Fix: an indent-anchored row on
+  `    got = backlog_wording.fn(WORDING_SELF_TEST) or ""` followed by `    if not all(`.
+- r20 3 (P3, a recorded limit: a line added): a `continue` added after the counter (for example for README rows)
+  skips rows, but the count stays at 44 (17/0; the same skip passes on 49681a8 and 6a8cc16). The counter counts
+  entries into the loop body, not rows that reach the `want` test.
+- r20 4 (P3, not a common edit): `rows=WORDING_FIXES[:1] * len(WORDING_FIXES)` passes (17/0); the count is right,
+  but row 1 runs 44 times. The test compares the count, not which rows ran.
+- r20 5 (P3, a row's own definition): `WORDING_FIXES = WORDING_FIXES[:1]` above the `def` passes on afca992 and
+  49681a8 (17/0). The same line after the `def` now fails (44 of the 1 rows); on 6a8cc16 it passed.
+- r20 6 (P3, wording): SPEC item 17 and the 49681a8 §9 paragraph (“did not go through every row of
+  `WORDING_FIXES`”) say more than the code, which compares the count (see r20 3 and r20 4). Suggested: “went
+  through fewer or more rows than `WORDING_FIXES` holds”.
+
 
 ## Image crop boxes as finally used
 

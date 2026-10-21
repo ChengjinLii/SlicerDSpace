@@ -854,6 +854,12 @@ WORDING_FIXES = (
      'WORDING_RUN["rows"] = 0 for finding, rel, where, want, banned in rows: WORDING_RUN["rows"] += 1', None),
     ("r19 1", "tests/check_site.py", MAIN_TAIL,
      'if WORDING_RUN["rows"] != len(WORDING_FIXES): results.append(("FAIL", "backlog_wording",', None),
+    # Re-review of afca992 (Opus P1 B1; README r20 1): the count test keeps the indent of main()'s body, so it
+    # cannot move into the "if ran != checked:" block above it.
+    ("r20 1", "tests/check_site.py",
+     r'(?m)^    if WORDING_RUN\["rows"\] != len\(WORDING_FIXES\):\n'
+     r'(?=        results\.append\(\("FAIL", "backlog_wording",)',
+     'if WORDING_RUN["rows"] != len(WORDING_FIXES):', None),
 )
 
 # Opus r12 1: a sample for the comment remover of a code part: a trailing comment and a comment line go, a # inside a
