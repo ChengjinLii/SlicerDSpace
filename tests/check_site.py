@@ -214,13 +214,18 @@ def all_files(top=DOCS):
 
 # ---------------------------------------------------------------- results
 results = []
-# Opus r11 3: main() sets "compared" after the run-order comparison; a check that runs after it fails.
-RUN = {"compared": False}
+# Opus r11 3, r13 1: main() sets "compared" on the line above the run-order comparison; a check that runs after that
+# fails. It sets "summary" on the line above the summary; a check that runs after that is not counted, so it prints its
+# FAIL and exits 1.
+RUN = {"compared": False, "summary": False}
 
 
 def check(name):
     def deco(fn):
         def run(*a, **k):
+            if RUN["summary"]:
+                print("FAIL %s - runs after the summary of main() started" % name)
+                sys.exit(1)
             if RUN["compared"]:
                 results.append(("FAIL", name, "runs after the run-order comparison in main()"))
                 return
@@ -739,6 +744,7 @@ def spec_lists_checks(names):
 
 # Opus r11 1: the part of main() from the later loop to the count.
 MAIN_TAIL = r"(?ms)^    for f in later:.*?(?=^    failed = 0)"
+S9_R11_R12 = r"(?ms)^After code review \(2026-10-21, README backlog r11 1–4 and r12 1–4\).*?(?=\n\n|\Z)"
 
 # Fixes from the README review backlog that only a text check can hold (wording, and code lines that guard a fix):
 # (finding, file, the part of the file the finding names as a regex, the phrase that must be there, the phrase that
@@ -759,12 +765,20 @@ WORDING_FIXES = (
     ("r12 2", "tests/check_site.py", MAIN_TAIL,
      'results.append(("FAIL", "spec_lists_checks", "the checks that ran', None),
     ("r11 3", "tests/check_site.py", MAIN_TAIL, 'RUN["compared"] = True', None),
+    # Opus r13 1: the run-order flag is on the line above the comparison, and the summary flag is in MAIN_TAIL (above
+    # failed = 0).
+    ("r13 1", "tests/check_site.py", MAIN_TAIL,
+     'RUN["compared"] = True ran = [r[1] for r in results] if ran != checked:', None),
+    ("r13 1", "tests/check_site.py", MAIN_TAIL, 'RUN["summary"] = True', None),
     # Found in the fix round of the 8d0597f review: "ran = checked" would switch off the comparison in one edit.
     ("r10 2", "tests/check_site.py", MAIN_TAIL, "ran = [r[1] for r in results]", None),
     ("r11 3", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)", 'if RUN["compared"]:', None),
     # Review of 8d0597f (Codex P1): pin the action too, not only the condition.
     ("r11 3", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)",
      'results.append(("FAIL", name, "runs after the run-order comparison', None),
+    # Opus r13 1: a check that runs after the summary started prints its FAIL and exits 1.
+    ("r13 1", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)",
+     'if RUN["summary"]: print("FAIL %s - runs after the summary of main() started" % name) sys.exit(1)', None),
     ("r10 4", "tests/check_site.py", r"(?m)(?:^#.*\n)+(?=SECTION9_SOURCES = )",
      "a §9 paragraph that records it", "The §9 paragraph that"),
     ("r10 4", "README.md", r"(?ms)^- r8 2 \(P3\).*?(?=^(?! )|\Z)",
@@ -791,6 +805,10 @@ WORDING_FIXES = (
      'sample = " ".join(code_text(CODE_SAMPLE).split())', None),
     ("r12 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
      'problems.append("the comment remover gives', None),
+    ("r13 2", "README.md", r"(?ms)^- r11 2 \(P3\)\..*?(?=^(?! )|\Z)",
+     "Code pins accept dead code and other spellings", None),
+    ("r13 3", "SPEC.md", S9_R11_R12, "`part = code_text(part)`", None),
+    ("r13 3", "SPEC.md", S9_R11_R12, "`if sample != CODE_SAMPLE_TEXT:`", None),
 )
 
 # Opus r12 1: a sample for the comment remover of a code part: a trailing comment and a comment line go, a # inside a
@@ -884,12 +902,15 @@ def main(argv):
     for f in later:
         f()
     # Opus r10 2: spec_lists_checks took the names in `later` on trust. The checks that ran must be that list.
+    # Opus r13 1: the flag goes up on the line above the comparison, so no check can run between the two.
+    RUN["compared"] = True
     ran = [r[1] for r in results]
     if ran != checked:
         results.append(("FAIL", "spec_lists_checks", "the checks that ran %s differ from the list it checked %s"
                         % (ran, checked)))
-    RUN["compared"] = True
 
+    # Opus r13 1: from here on a result is not counted, so a check that runs now prints its FAIL and exits 1.
+    RUN["summary"] = True
     failed = 0
     for status, name, reason in results:
         if status == "PASS":

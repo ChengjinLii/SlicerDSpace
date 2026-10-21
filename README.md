@@ -264,11 +264,14 @@ Not fixed (non-blocking, from the Opus review):
 - r11 2 (P3). **Fixed 2026-10-21** (user request): the r10 1 row now bans the old split with a regex in both quote
   styles (a row's banned phrase may be a string, a compiled regex or `None`). With `.split('\n\n')` added after the
   `re.split` line, the c9d46ec script passes and the new script fails.
+  Limit (README r13 2): Code pins accept dead code and other spellings. Six other spellings of the old split (for
+  example `.split( "\n\n" )` or `.split(sep="\n\n")`) and dead code (a block under `if False:`) still pass.
 - r11 3 (P3). **Fixed 2026-10-21** (user request): a check called after the run-order comparison was neither listed
   nor compared. `main()` now sets `RUN["compared"]` after the comparison, and the `check()` wrapper fails a check
   that runs after that. With `menu_focus_wording()` called again after the comparison, the c9d46ec script passes
   (18/0) and the new script fails (“runs after the run-order comparison”). Two rows pin the flag and the wrapper test.
   The `later` loop stays, because the r11 1 slice names it; so this is a flag, not the “one list” idea.
+  (r13 1 later moved the flag to the line above the comparison and added the summary flag.)
 - r11 4 (P3). **Fixed 2026-10-21** (user request): the comment in `backlog_wording` now speaks of each fix in
   `WORDING_FIXES` (wording, or a code line that guards a fix), with no finding numbers. A row pins it.
 - Limit (not a finding): with the `later` loop deleted and the comparison commented out (two edits), the suite
@@ -315,17 +318,21 @@ it is P2/P3.
   does not reach, which is the class of r11 3 itself (P3). The committed tree is correct.
 
 Not fixed (non-blocking):
-- r13 1 (P2): the r11 3 flag misses a late check in three places: between the comparison and the flag line, after
-  the flag line moved into the `if` block, and after the summary loop (its FAIL is added after the count, so the
-  run exits 0). A result appended by hand, not through `check()`, is not covered either. SPEC §7.1 item 16 and
-  the r11 3 entry above (“a check that runs after that comparison fails”) say more than the code does. Fix ideas:
-  set the flag above `ran = …`; let a late check print and exit non-zero (or raise); or narrow the two sentences.
-- r13 2 (P3): the r11 2 regex bans two spellings of the old split; six other spellings (for example
-  `.split( "\n\n" )` or `.split(sep="\n\n")`) and dead code (`if False:`) still pass. The old r11 2 entry said
-  “Code pins accept dead code and other spellings”; the Fixed entry dropped that sentence. Fix: put the limit
-  sentence back.
-- r13 3 (P3): the r11/r12 §9 paragraph does not name the two r12 1 code rows (`part = code_text(part)` and the
-  sample test).
+- r13 1 (P2). **Fixed 2026-10-21** (user request): the r11 3 flag missed a late check in three places. Now `main()`
+  sets `RUN["compared"]` on the line above `ran = …`, and sets `RUN["summary"]` on the line above `failed = 0`
+  (my choice of place: the user asked for “after the summary”, and from that line on a result is not counted, so
+  the gap between the summary loop and the count is covered too). A check that runs after the summary flag prints
+  its FAIL and exits 1. Runs (bc7b1fa script → new script): a check between the comparison and the old flag line,
+  18/0 → 18/1; a check between the summary loop and the count, 18/0 exit 0 → FAIL and exit 1; a check after the
+  count, 17/0 exit 0 → FAIL printed after the count and exit 1. Rows pin the order `RUN["compared"] = True` →
+  `ran = …` → `if ran != checked:`, the summary flag inside `MAIN_TAIL`, and the print and `sys.exit(1)` in
+  `check()`; the flag moved into the `if` block or back below the comparison, the summary flag deleted or moved
+  below `failed = 0`, and the exit branch replaced by `pass` or without `sys.exit(1)` each fail. SPEC §7.1 item 16
+  now says this. Limit: a result added to `results` by hand, not through a check, is not covered.
+- r13 2 (P3). **Fixed 2026-10-21** (user request): the r11 2 entry has its limit sentence back (“Code pins accept
+  dead code and other spellings”), with the six spellings and `if False:`. A row pins it; the bc7b1fa README fails.
+- r13 3 (P3). **Fixed 2026-10-21** (user request): the r11/r12 §9 paragraph now names `part = code_text(part)` and
+  `if sample != CODE_SAMPLE_TEXT:`. Two rows pin them; the bc7b1fa SPEC fails both.
 
 ### Re-review of the 8d0597f fix round (commit 2740bb2; Opus and Codex: 0 blocking)
 
