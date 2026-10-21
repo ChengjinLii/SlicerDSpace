@@ -22,7 +22,7 @@ external-tool requirements and explicitly unavailable features.
 Download and install 3D Slicer from <https://www.slicer.org/>.
 
 Install the module following the project README, open SlicerDDSurfer, then use
-**Advanced settings > Environment and models**. No automatic wizard is shown.
+**Environment and installation**. No automatic wizard is shown.
 
 ---
 

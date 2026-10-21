@@ -551,12 +551,13 @@ def _url_candidates_for_asset(
     allow_planned_sources: bool,
 ) -> list[tuple[str, str]]:
     relative = str(record["path"])
+    upstream_only = record.get("redistribution") == "upstream-only"
     candidates: list[tuple[str, str]] = []
-    for base_url in base_urls:
+    for base_url in (() if upstream_only else base_urls):
         clean_base = base_url.rstrip("/")
         if clean_base:
             candidates.append(("base-url", clean_base + "/" + urllib.parse.quote(relative, safe="/")))
-    for key in ("urls", "mirrors"):
+    for key in (("urls",) if upstream_only else ("urls", "mirrors")):
         values = record.get(key, [])
         if isinstance(values, str):
             values = [values]
@@ -565,6 +566,8 @@ def _url_candidates_for_asset(
                 text = str(value or "").strip()
                 if text:
                     candidates.append((key.rstrip("s"), _format_url_template(text, relative=relative, record=record)))
+    if upstream_only:
+        return candidates
     for source_id, template in _source_url_templates(
         manifest,
         source_ids,
@@ -830,6 +833,10 @@ def download_asset_plan(
 ) -> None:
     if source not in {"auto", "git-lfs", "url"}:
         raise ValueError(f"Unsupported download source: {source}")
+    if any(record.get("redistribution") == "upstream-only" for record in plan.asset_records.values()):
+        if source == "git-lfs":
+            raise RuntimeError("Upstream-only resources cannot be acquired from Git LFS mirrors")
+        source = "url"
     if source in {"auto", "git-lfs"}:
         try:
             download_asset_plan_from_git_lfs(repo_root, plan)

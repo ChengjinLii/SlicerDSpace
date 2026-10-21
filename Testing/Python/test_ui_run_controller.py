@@ -135,6 +135,13 @@ class UIRunControllerTest(unittest.TestCase):
         self.assertEqual(active_bundle_backend_sections("wma"), {"wma"})
         self.assertEqual(active_bundle_backend_sections("tractcloud"), {"tractcloud"})
         self.assertEqual(active_bundle_backend_sections("all"), {"wma", "tractcloud"})
+        self.assertEqual(active_bundle_backend_sections("wmql,tractcloud"), {"tractcloud"})
+
+    def test_multi_tracking_count_control_explains_ukf_independence(self):
+        state = streamline_control_state('csd_act,ukf')
+        self.assertTrue(state.enabled)
+        self.assertIn('seeds-per-voxel', state.tooltip)
+        self.assertFalse(streamline_control_state('ukf,dti_det').enabled)
 
     def test_task_keys_for_running_line_maps_orchestrator_messages(self) -> None:
         self.assertEqual(
@@ -437,6 +444,22 @@ class UIRunControllerTest(unittest.TestCase):
             self.assertEqual(args[args.index("--arrange-inputs") + 1], "symlink")
             self.assertNotIn("--print-manifest-only", args)
             self.assertNotIn("--wma-input-tractography", args)
+
+    def test_multi_selection_reaches_single_and_batch_workers_with_ukf_options(self):
+        root = Path('/tmp/algorithms')
+        options = self._common_run_kwargs(root)
+        options.update(tractography_backend='csd_act,ukf', bundle_backend='wmql,tractcloud',
+                       ukf_parameters={'seedsPerVoxel': 3}, ukf_executable=root / 'UKFTractography',
+                       dwiconvert_executable=root / 'DWIConvert')
+        commands = [build_background_cli_args(options, {}, repo_root=root),
+                    build_batch_background_cli_args(options, {}, repo_root=root, batch_root=root / 'batch',
+                                                    batch_size=1, arrange_inputs='copy')]
+        for command in commands:
+            self.assertEqual(command[command.index('--tractography-backend') + 1], 'csd_act,ukf')
+            self.assertEqual(command[command.index('--bundle-backend') + 1], 'wmql,tractcloud')
+            self.assertIn('"seedsPerVoxel": 3', command[command.index('--ukf-parameters') + 1])
+            self.assertEqual(command[command.index('--ukf-executable') + 1], str(root / 'UKFTractography'))
+            self.assertEqual(command[command.index('--dwiconvert-executable') + 1], str(root / 'DWIConvert'))
 
     def test_extract_background_manifest_path_uses_explicit_or_latest_existing_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

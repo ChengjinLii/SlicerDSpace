@@ -11,6 +11,15 @@ from shared import managed_pnl as pnl, managed_runtimes as runtime
 
 
 class ManagedPnlTests(unittest.TestCase):
+    def test_shared_verified_models_skip_model_and_template_downloads(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with patch("shared.optional_assets.verified_resource_directory", return_value=root / "shared"), \
+                    patch.object(pnl, "verified_download", side_effect=lambda name, cache: cache / name) as download, \
+                    patch.object(pnl, "extract_regular_files"), patch.object(runtime, "_run"):
+                pnl.provision_assets(root / "runtime", root / "cache", asset_root=root / "assets")
+            self.assertEqual([call.args[0] for call in download.call_args_list], ["pnl-source.tar.gz", "conversion.tar.gz"])
+
     def archive(self, root, name, kind=None):
         file = root / "fixture.tar.gz"
         with tarfile.open(file, "w:gz") as stream:

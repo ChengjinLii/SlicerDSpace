@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import qt
 import slicer
+import time
+
+START = 0
+HEARTBEATS = []
+TIMER = None
 
 
 def _module_widget():
@@ -15,14 +20,43 @@ def _module_widget():
 
 
 def _run() -> None:
+    global START, TIMER
     try:
         slicer.util.selectModule("SlicerDDSurfer")
         widget = _module_widget()
+        widget.ui.environmentCollapsibleButton.collapsed = False
+        START = time.monotonic()
+        TIMER = qt.QTimer()
+        TIMER.setInterval(100)
+        TIMER.timeout.connect(lambda: HEARTBEATS.append(time.monotonic()))
+        TIMER.start()
         widget.ui.validateButton.click()
-        qt.QTimer.singleShot(9000, _check)
+        assert time.monotonic() - START < 1, 'Check blocked the Qt thread'
+        qt.QTimer.singleShot(100, _poll)
     except Exception as exc:
         print(f"SLICERDDSURFER_ENV_CLICK_ERROR={exc}", flush=True)
         slicer.app.exit(2)
+
+
+def _poll():
+    widget = _module_widget()
+    if getattr(widget, '_setupJob', None):
+        if time.monotonic() - START > 100:
+            print('ENV_CHECK_TIMEOUT', flush=True)
+            slicer.app.exit(2)
+            return
+        qt.QTimer.singleShot(100, _poll)
+        return
+    TIMER.stop()
+    assert len(HEARTBEATS) >= 2, 'Qt heartbeat did not run during the check'
+    assert max(b - a for a, b in zip(HEARTBEATS, HEARTBEATS[1:])) < 2, 'Qt heartbeat stalled'
+    assert getattr(widget, '_environmentDialog', None) is None, 'Check unexpectedly opened a details dialog'
+    assert widget._environmentMoreOptions.collapsed
+    widget._environmentMoreOptions.collapsed = False
+    widget._environmentDetailsButton.click()
+    print('ENV_CHECK_HEARTBEATS=' + str(len(HEARTBEATS)), flush=True)
+    print('ENV_CHECK_ELAPSED=' + str(time.monotonic() - START), flush=True)
+    _check()
 
 
 def _check() -> None:

@@ -53,8 +53,14 @@ class SurfaceWidgetMixin:
         self._checkCanApply()
 
     def _onInputDirectoryChanged(self, newPath: str) -> None:
-        if not self._update_parameter_node("inputDirectory", newPath or ""):
+        if not self._parameterNode:
             return
+        from shared.ui_input_defaults import subject_folder_defaults
+        node = self._parameterNode
+        root, subject = subject_folder_defaults(newPath, node.subjectId, batch=bool(getattr(node, "batchMode", False)))
+        with slicer.util.NodeModify(node):
+            self._update_parameter_node("inputDirectory", root)
+            self._update_parameter_node("subjectId", subject)
         self._checkCanApply()
 
     def _onPredictModeChanged(self, newText: str) -> None:

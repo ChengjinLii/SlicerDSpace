@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import time
 import traceback
+import tempfile
 
 import nibabel as nib
 import numpy as np
@@ -19,8 +20,7 @@ STATE = {"phase": "start", "ticks": 0, "started": time.monotonic()}
 def fixture():
     from shared.region_analysis import write_json, sha256
 
-    folder = ROOT / "subject"
-    folder.mkdir()
+    folder = Path(tempfile.mkdtemp(prefix="subject-", dir=ROOT))
     (folder / "input").mkdir()
     affine = np.diag([2.0, 2.0, 2.0, 1.0])
     atlas = np.zeros((7, 5, 5), dtype=np.int32)
@@ -118,6 +118,7 @@ def tick():
             panel = slicer.util.findChild(window, "PanelDockWidget")
             panel.setFixedWidth(440)
             owner._advancedSettingsPanel.collapsed = False
+            owner._advancedCategorySelector.setCurrentIndex(3)
             widgets["panel"].collapsed = False
             widgets["inspect"].click()
             assert owner._setupJob is not None and owner._pipelineActive

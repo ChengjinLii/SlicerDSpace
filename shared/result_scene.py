@@ -35,6 +35,7 @@ def tract_file_coordinate_system(path):
 
 def bundle_outputs(task, *, allow_directory_scan=True):
     """Resolve bundles from the successful task's own QC, not shared folders."""
+    task = dict(task, name=str(task.get("name", "")).split("@", 1)[0])
     if task.get("name") not in {"bundles.wmql", "bundles.wma", "bundles.tractcloud"}:
         return {}
     path = task.get("qc_path") or (task.get("outputs") or {}).get("qc_path")
@@ -125,7 +126,7 @@ def result_candidates(manifest, *, allow_bundle_directory_scan=True, include_pre
             continue
         if name.startswith("preprocessing.") and not include_preprocessing:
             continue
-        if name in {'bundles.wmql', 'bundles.wma', 'bundles.tractcloud'}:
+        if name.split('@', 1)[0] in {'bundles.wmql', 'bundles.wma', 'bundles.tractcloud'}:
             value = task.get('qc_path') or (task.get('outputs') or {}).get('qc_path')
             try:
                 record = json.loads(Path(str(value)).read_text()) if value else {}

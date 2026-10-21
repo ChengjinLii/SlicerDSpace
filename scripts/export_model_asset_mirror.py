@@ -24,6 +24,8 @@ from download_model_assets import (
 
 
 def _copy_asset(source: Path, target: Path, *, mode: str) -> None:
+    if source.absolute() == target.absolute():
+        return
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists() or target.is_symlink():
         target.unlink()
@@ -46,9 +48,16 @@ def export_asset_mirror(
     manifest_path: Path,
     mode: str,
     dry_run: bool = False,
+    index_prefix: str = "asset_mirror",
 ) -> dict[str, Any]:
+    if not index_prefix or any(char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for char in index_prefix):
+        raise ValueError("Index prefix must be a simple filename stem")
     manifest = load_manifest(manifest_path)
     plan = resolve_asset_plan(manifest, profile)
+    restricted = [path for path in plan.required_paths
+                  if plan.asset_records.get(path, {}).get("redistribution") in {"upstream-only", "prohibited", "pending"}]
+    if restricted:
+        raise RuntimeError("Mirror export blocked by redistribution policy: " + ", ".join(restricted))
     verification = verify_asset_plan(repo_root, plan)
     if not verification["ok"]:
         raise RuntimeError(
@@ -92,13 +101,13 @@ def export_asset_mirror(
     }
     if not dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
-        (output_dir / "asset_mirror_manifest.json").write_text(
+        (output_dir / f"{index_prefix}_manifest.json").write_text(
             json.dumps(exported_manifest, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         tsv_lines = ["path\tsize_bytes\tsha256"]
         tsv_lines.extend(f"{item['path']}\t{item['size_bytes']}\t{item['sha256']}" for item in records)
-        (output_dir / "asset_mirror_index.tsv").write_text("\n".join(tsv_lines) + "\n", encoding="utf-8")
+        (output_dir / f"{index_prefix}_index.tsv").write_text("\n".join(tsv_lines) + "\n", encoding="utf-8")
     return exported_manifest
 
 
@@ -115,6 +124,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-dir", type=Path, required=True, help="Destination mirror directory.")
     parser.add_argument("--mode", choices=("copy", "hardlink", "symlink"), default="copy", help="Export mode. Defaults to copy.")
     parser.add_argument("--dry-run", action="store_true", help="Verify and print the export plan without writing files.")
+    parser.add_argument("--index-prefix", default="asset_mirror", help="Separate catalog stem, e.g. optional_assets_mirror; preserves the existing core index.")
     return parser
 
 
@@ -128,6 +138,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest_path=args.manifest.expanduser().resolve(),
             mode=args.mode,
             dry_run=bool(args.dry_run),
+            index_prefix=args.index_prefix,
         )
         print(json.dumps(manifest, indent=2, sort_keys=True))
         return 0

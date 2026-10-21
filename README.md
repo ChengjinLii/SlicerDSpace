@@ -41,6 +41,11 @@ Install dependencies **for the selected route**, not for every possible product.
 MRtrix3, FSL, FreeSurfer and advanced bundle backends are optional and are not
 silently installed. See the [capability and platform matrix](docs/setup/SUPPORT_MATRIX.md).
 
+Large weights, templates and inference atlases are managed separately from code.
+The selected-environment preparation downloads only required resource groups,
+verifies SHA256 and saves their paths; existing and offline resources are reused.
+See [resource layout, licensing and private-mirror limits](docs/assets/EXTERNAL_RESOURCES.md).
+
 **Implementation origins.** DDSeg is a MATLAB-to-Python/PyTorch reimplementation;
 SAF and MK-Curve are unofficial Python ports of author MATLAB methods. PNL CNN
 masking invokes the author's existing Python backend, not a rewritten entire
@@ -77,7 +82,7 @@ Install **SlicerDMRI** and **PyTorch** from Slicer's Extension Manager for route
 that need them. Updating the source requires restaging and restarting.
 
 Model files live outside the code checkout. Choose a writable model-assets
-directory in **Advanced settings > Environment and models**. Download only the
+directory in the separate **Environment and installation** section. Download only the
 required profile after reviewing [asset terms](docs/assets/MODEL_ASSET_TERMS.md):
 
 ```bash
@@ -98,16 +103,18 @@ See [model setup](docs/assets/MODEL_ASSETS.md) and
 
 1. Select **SlicerDDSurfer** from the module selector. Choose English or Chinese in the header.
 2. Enter **Subject ID**, **Subject root** and, optionally, a separate **Output directory**.
-3. Select only the products you intend to run.
-4. Open **Advanced settings > Environment and models > Prepare selected analysis environment**. Confirm dependencies and terms; restart if requested, then prepare again to continue. See [managed setup and offline models](docs/setup/MANAGED_SETUP.md).
+3. Select only the products you intend to run. Use **Select…** beside Microstructure, Tractography or Bundles to choose one or several algorithms.
+4. Open **Environment and installation > Prepare selected analysis environment**. Confirm dependencies and terms; restart if requested, then prepare again to continue. See [managed setup and offline models](docs/setup/MANAGED_SETUP.md).
 5. Click **Run SlicerDDSurfer**. Missing inputs appear in red; review the log and correct them before retrying.
-6. Key results from successful stages automatically appear in the current scene. Use **Advanced settings > Results and QC** to inspect QC, reload, replace or clear this run's nodes.
+6. Key results from successful stages automatically appear in the current scene. Use the separate **Results and QC** section to inspect QC, reload, replace or clear this run's nodes.
 
 There is no visible Beginner section or automatic first-run wizard in the
-default interface. Input conversion is under **Advanced settings > Input import /
-conversion**; ordinary prepared inputs do not need conversion again.
+default interface. Advanced settings shows one category at a time:
+**Preprocessing & mask**, **Model parameters**, **Run & performance**, or
+**Regions & input import**. Input conversion is in the last category; ordinary
+prepared inputs do not need conversion again. Installation is separate from these parameters.
 
-**Advanced settings > Regional analysis (optional)** lets you select DDParcel
+**Advanced settings > Regions & input import > Regional analysis (optional)** lets you select DDParcel
 regions and reuse completed maps, full tractograms and connectivity matrices for
 regional statistics, ROI streamline selection and local connectivity. It does
 not refit models or alter the default workflow. See [regional analysis](docs/setup/REGIONAL_ANALYSIS.md).
@@ -128,22 +135,27 @@ measurements. Corrected gradients must accompany motion-corrected DWI.
 An existing input mask is retained. When a mask must be generated, the default
 is the **PNL diffusion CNN masking** backend, not the entire PNL preprocessing
 pipeline. On Linux x86_64, preparation can install its separate Python/model/ANTs
-runtime; existing runtimes remain configurable under Advanced.
+runtime; existing runtimes remain configurable in Environment and installation.
 SynthStrip, MRtrix and supplied-mask alternatives are selectable in
-**Advanced settings > Analysis parameters**. A missing backend is reported,
+**Advanced settings > Preprocessing & mask**. A missing backend is reported,
 never silently replaced. See [brain-mask setup](docs/setup/brain_mask_gui_config.md).
 
 Microstructure runs **DTI only by default**. Enable Free-water, NODDI or DKI
-independently under Advanced. DKI checks baseline measurements, nonzero shells,
+independently with **Select…** beside Microstructure. DTI remains required preparation.
+DKI checks baseline measurements, nonzero shells,
 gradient directions and design rank before fitting. **MK-Curve** uses a bundled
 Python port of the author's algorithm, distinct from standard DIPY WLS/OLS.
 MATLAB is only an optional reference backend. See [microstructure routes](docs/setup/MICROSTRUCTURE.md).
 Automatic tractography display uses a capped VTK preview, preserving the full
 TCK/TRK source; a preview is not the analysis tractogram.
-Tractography defaults to CSD/ACT. An optional **UKFTractography** backend invokes
-the installed official Slicer extension and can feed WMA automatically. Its
+Tractography defaults to CSD/ACT. Select **UKFTractography** beside Tractography to invoke
+the installed official Slicer extension, which can feed WMA automatically. Its
 author-default parameters are editable only under Advanced; no UKF source is
 vendored and no CSD streamline budget is applied to UKF. See [UKF setup and defaults](docs/setup/UKF.md).
+Tracking methods can be multi-selected. They run sequentially in separate
+`<run>__<backend>` variants, reusing the shared anatomical/microstructure stages.
+Selected bundle methods and connectomes run for each tracking variant, without
+combining streamlines or relaxing QC. Multiple methods increase runtime and disk use.
 WMQL defaults to `ddparcel_act`: the existing DDParcel AF endpoint candidates
 combined with the author's CST crossing/exclusion rules. This is an explicitly
 adapted protocol, not unchanged official AF/CST. The full `author` and strict
@@ -214,7 +226,7 @@ checks. SDK builds and independent clean installation are described in
 
 ## Support
 
-Use **Advanced settings > Environment and models** to collect diagnostics.
+Use **Advanced settings > Copy diagnostic report** to collect diagnostics.
 When reporting an issue, include the Slicer version, OS, selected route,
 failure message and redacted log. Remove patient identifiers and private paths.
 Reports remain local unless you choose to share them; dependency and model

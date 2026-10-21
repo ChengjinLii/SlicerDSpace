@@ -36,6 +36,10 @@ SlicerDDSurfer 在一个 Slicer 模块中组织扩散 MRI 解剖重建、微结�
 MRtrix3、FSL、FreeSurfer 和高级白质束后端均为按需配置，不会静默安装。
 详见[能力与平台矩阵](docs/setup/SUPPORT_MATRIX.zh-CN.md)。
 
+大型权重、模板和推理图谱与代码分开管理。“准备所选分析环境”仅下载当前路线需要的资源，
+校验 SHA256 后自动保存路径，复用已有文件，也支持离线资源。
+见[资源目录、授权与私有镜像限制](docs/assets/EXTERNAL_RESOURCES.zh-CN.md)。
+
 **实现来源。** DDSeg 为 MATLAB 到 Python/PyTorch 的改写；SAF、MK-Curve
 为原作者 MATLAB 算法的非官方 Python 移植。PNL CNN 掩膜调用已有的官方
 Python 后端，不是重写整套 PNLpipeline。见[实现来源与验证边界](docs/architecture/IMPLEMENTATION_PROVENANCE.zh-CN.md)。
@@ -68,7 +72,7 @@ python3 scripts/stage_slicer_extension.py \
 本地 GUI 验证使用 Slicer 5.10。更新代码后需重新 staging 并重启。
 
 按路线从 Extension Manager 安装 **SlicerDMRI** 和 **PyTorch**。
-模型与代码分开存放，在 **高级设置 > 环境与模型** 中设置可写的资源目录。
+模型与代码分开存放，在独立的 **环境与安装** 区域设置可写的资源目录。
 先阅读[资源使用与再分发状态](docs/assets/MODEL_ASSET_TERMS.md)，再下载所需 profile：
 
 ```bash
@@ -87,16 +91,19 @@ python3 scripts/download_model_assets.py --profile surface \
 
 1. 在模块选择器打开 **SlicerDDSurfer**，在标题栏选择中文或英文。
 2. 填写 **Subject ID**、**Subject root**，可另选 **Output directory**。
-3. 仅勾选本次需要的分析产品。
-4. 展开 **高级设置 > 环境与模型 > 准备所选分析环境**，确认依赖及许可；按提示重启后再次准备，已有安装会复用。详见[自动配置与离线模型](docs/setup/MANAGED_SETUP.zh-CN.md)。
+3. 仅勾选本次需要的分析产品。微结构、纤维追踪和束分析旁的 **选择…** 支持勾选一种或多种算法。
+4. 展开 **环境与安装 > 准备所选分析环境**，确认依赖及许可；按提示重启后再次准备，已有安装会复用。详见[自动配置与离线模型](docs/setup/MANAGED_SETUP.zh-CN.md)。
 5. 点击 **Run SlicerDDSurfer**。输入不全会显示红色提示，按日志修正后重试。
-6. 成功阶段的关键结果会自动进入当前场景；在 **高级设置 > 结果与 QC** 检查 QC，并按需复用、替换或清除本次加载。
+6. 成功阶段的关键结果会自动进入当前场景；在独立的 **结果与 QC** 区域检查 QC，并按需复用、替换或清除本次加载。
 
 默认界面不显示 Beginner 区，也不自动弹出首次向导。
-DICOM/NRRD 等格式转换位于 **高级设置 > 输入导入 / 转换**；
+DICOM/NRRD 等格式转换位于 **高级设置 > 脑区与输入导入 > 输入导入 / 转换**；
 已经准备好的输入无需重复转换。
 
-**高级设置 > 脑区分析（可选）** 可按名称或 ID 选择 DDParcel 脑区，复用已完成的
+高级设置每次仅显示一个分类：**预处理与掩膜、模型参数、运行与性能、脑区与输入导入**。
+环境安装与上述算法参数分开。
+
+**高级设置 > 脑区与输入导入 > 脑区分析（可选）** 可按名称或 ID 选择 DDParcel 脑区，复用已完成的
 参数图、完整流线和连接矩阵，计算区域统计、筛选相关流线、导出局部连接。
 默认不运行，不重新拟合模型。详见[脑区分析指南](docs/setup/REGIONAL_ANALYSIS.zh-CN.md)。
 
@@ -112,18 +119,20 @@ sub-01/
 DWI 与掩膜须在同一体素网格，梯度数量须与 DWI 测量一致。
 运动校正后的 DWI 必须配套旋转更新后的梯度。
 已有输入掩膜会保留；需要生成掩膜时，默认采用 **PNL diffusion CNN**，
-不是执行整套 PNL 预处理。Linux x86_64 可通过上述入口自动准备独立 Python、模型与 ANTs；高级设置仍可配置已有环境，
-也可在 **分析参数** 中改选 SynthStrip、MRtrix 或仅使用已有掩膜。
+不是执行整套 PNL 预处理。Linux x86_64 可通过上述入口自动准备独立 Python、模型与 ANTs；环境与安装中仍可配置已有环境，
+也可在 **高级设置 > 预处理与掩膜** 中改选 SynthStrip、MRtrix 或仅使用已有掩膜。
 依赖不足会明确提示，不会静默换算法。详见[掩膜设置](docs/setup/brain_mask_gui_config.md)。
 
-微结构**默认仅运行 DTI**，FW、NODDI、DKI 在高级设置分别启用。
+微结构**默认仅运行 DTI**，FW、NODDI、DKI 通过该行的 **选择…** 独立启用；DTI 保留为基础步骤。
 DKI 在拟合前检查 b0、非零壳层、梯度方向和设计矩阵秩。
 **MK-Curve** 使用内置的作者算法 Python 移植版，不需要 MATLAB；与 DIPY WLS/OLS 是不同路线。
 MATLAB 仅保留为可选对照后端，不能把普通 MK 图称为 MK-Curve。详见[微结构说明](docs/setup/MICROSTRUCTURE.zh-CN.md)。
 自动显示流线时生成限量 VTK 预览，原始 TCK/TRK 不变；预览不用于定量分析。
-追踪默认 CSD/ACT；可在高级设置选择 **UKFTractography**，自动调用已安装的
+追踪默认 CSD/ACT；可在该行的选择框勾选 **UKFTractography**，自动调用已安装的
 官方扩展并将流线传给 WMA，不复制 UKF 源码。参数采用作者默认值并可展开修改；
 UKF 不套用 CSD 目标流线数。详见 [UKF 接入与默认参数](docs/setup/UKF.zh-CN.md)。
+多种追踪方法顺序运行，结果以 `<run>__<backend>` 分别保存；共用的解剖与微结构阶段只执行一次。
+所选束方法与连接组按每种追踪结果分别计算，不混合流线、不放宽 QC；多选会增加耗时与磁盘占用。
 [最小 DTI 教程](docs/setup/QUICKSTART.zh-CN.md)包含明确标识的合成安装测试；
 合成数据不是人体科研示例。
 
@@ -184,7 +193,7 @@ SDK 与独立干净安装验收详见[扩展准备状态](docs/release/EXTENSION
 
 ## 支持
 
-在高级设置的环境区收集诊断信息。提交问题时提供 Slicer 版本、操作系统、
+在高级设置中点击“复制诊断报告”收集信息。提交问题时提供 Slicer 版本、操作系统、
 所选路线、失败信息和脱敏日志，删除被试标识及私人路径。
 报告默认保留本地，依赖与模型下载需要网络访问。
 

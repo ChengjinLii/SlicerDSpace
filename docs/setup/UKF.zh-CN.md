@@ -14,8 +14,9 @@
 
 默认追踪仍为 **MRtrix CSD/ACT/SIFT2**。需要 UKF 时，在 Extension Manager
 安装 **UKFTractography** 和 **SlicerDMRI**，重启 Slicer，再到
-**Advanced settings → Analysis parameters → Tractography backend** 选择 `ukf`。
-束分析选择 `wma` 后，自动执行 **UKF → WMA**，不必先手动运行 UKF 再导入。
+点击 Tractography 旁的 **选择…** 勾选 `UKF`。
+束分析旁同样选择 `WMA` 后，自动执行 **UKF → WMA**，不必先手动运行 UKF 再导入。
+UKF 参数位于 **高级设置 > 模型参数**。如同时选择其他追踪算法，各自生成独立的运行结果。
 ORG 图谱及 WMA 后端仍需配置；已有流线文件可在 Advanced 中作为可选覆盖输入，
 不是标准流程的必需步骤。GUI 同时发现 UKF 和 DWIConvert，并向后台显式传递两者
 的路径；不要求用户复制文件、手动运行转换器或在另一个模块先生成流线。

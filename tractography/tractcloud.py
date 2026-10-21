@@ -16,7 +16,7 @@ import shutil
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -92,6 +92,7 @@ class TractCloudConfig:
     create_mrb: bool = False
     execute: bool = False
     random_seed: int = 0
+    model_assets_dir: Optional[Path] = None
 
 
 def model_input_signature(data_dir: Optional[Path]) -> dict[str, object]:
@@ -366,6 +367,11 @@ def run_tractcloud_parcellation(
 ) -> TractCloudResult:
     """Prepare or execute TractCloud parcellation for one tractogram."""
 
+    if config.data_dir is None:
+        from shared.optional_assets import resolve_tractcloud_data_directory
+        shared_data = resolve_tractcloud_data_directory(asset_root=config.model_assets_dir)
+        if shared_data is not None:
+            config = replace(config, data_dir=shared_data)
     validate_tractcloud_inputs(config)
     backend_status = inspect_tractcloud_backend(config.python_executable, config.tractcloud_root)
     command = build_tractcloud_command(config)

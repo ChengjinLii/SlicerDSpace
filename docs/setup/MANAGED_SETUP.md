@@ -10,10 +10,13 @@
 
 ## Inside Slicer
 
-Select your analyses, then open **Advanced settings > Environment and models**
+Select your analyses, then open the separate **Environment and installation** section
 and choose **Prepare selected analysis environment**. Review the plan and
 approve downloads and applicable licenses. The dependency report uses the same
-entry. It prepares required selected items, not every optional backend:
+entry. Checks and final verification run in cancellable background processes.
+An already-ready environment skips confirmation and installation. Offline import,
+repair and manual paths live under Environment > More options, not Advanced
+algorithm settings. It prepares required selected items, not every optional backend:
 
 1. Slicer's Extension Manager installs missing SlicerDMRI/PyTorch extensions; UKFTractography is requested only for a selected UKF route.
 2. If an extension was installed or enabled, save your work and restart Slicer. Click Prepare again to continue; extensions are not reinstalled.
@@ -70,7 +73,13 @@ previous path. Preserve the documented directory layout when transferring
 resources. This imports models, not a portable Conda environment. Protected
 model downloads may still require source authorization; setup does not bypass it.
 
-Advanced external-path fields remain available for existing installations, offline
+Optional PNL models/templates, TractCloud inference references, SynthStrip weights
+and WMA ORG atlases use the shared resource layout. Selected preparation acquires
+missing profiles, verifies SHA256 and safely extracts ORG before saving paths.
+It does not install the WMA/TractCloud/FreeSurfer executable backends merely by
+downloading their data. See [optional resources and offline import](../assets/EXTERNAL_RESOURCES.md).
+
+External-path fields in Environment and installation remain available for existing installations, offline
 environments and administrator-managed clusters. Managed setup is opt-in and does
 not silently replace an explicitly configured environment while an analysis runs.
 User-local defaults live alongside model assets under `SlicerDDSurfer/runtimes`.
@@ -87,7 +96,8 @@ User-local defaults live alongside model assets under `SlicerDDSurfer/runtimes`.
 | DDSurfer / DDSeg / DDParcel assets | Existing background download with profile-specific selection and default directory |
 | Python scientific packages | Selected interpreter, protected Slicer core packages, native packaging API when available; official PyTorch helper |
 | PNL diffusion CNN | Linux x86_64; pinned official source, v0.3 three-view weights, IIT b0 template, Python 3.11, TensorFlow 2.15.1/Keras 2 and ANTs 2.3.0 in a separate prefix |
-| Full FreeSurfer, WMA/WMQL/TractCloud external resources | Not all provisioned by this installer; configured adapters and missing-item guidance remain |
+| WMA / TractCloud / SynthStrip non-code resources | Selected optional profile download/import, checksums, ORG extraction and automatic path saving; private-mirror authorization still applies |
+| Full FreeSurfer, WMA/WMQL/TractCloud executable backends | Not all provisioned by this installer; configured adapters and missing-item guidance remain |
 | Windows/macOS managed MRtrix/FSL/PNL setup | Not implemented/accepted; existing platform setup and Advanced paths remain |
 
 Installation verification checks command availability, selected package versions,

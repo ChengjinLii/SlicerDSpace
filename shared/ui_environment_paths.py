@@ -30,27 +30,50 @@ def install_environment_dependency_path_controls(owner: Any, environment_layout:
     owner._environmentPathLanguageWidgets = {}
     owner._environmentPathStatusSources = {}
 
-    from shared.ui_selected_setup import prepare_selected_environment, use_offline_assets
+    from shared.ui_selected_setup import use_offline_assets
+    from shared.ui_environment_check import request_prepare_environment, start_environment_check
     setup_button = qt.QPushButton("Prepare selected analysis environment")
     setup_button.setObjectName("managedRuntimeSetupButton")
-    setup_button.connect("clicked()", lambda: prepare_selected_environment(owner))
+    setup_button.connect("clicked()", lambda: request_prepare_environment(owner))
     register_ui_language_binding(owner, setup_button, "text", "managed_runtime_setup")
     register_ui_language_binding(owner, setup_button, "tooltip", "managed_runtime_setup_tooltip")
     owner._managedRuntimeSetupButton = setup_button
     environment_layout.addWidget(setup_button)
+    import ctk
+    more = ctk.ctkCollapsibleButton()
+    more.setObjectName("environmentMoreOptions")
+    more.collapsed = True
+    register_ui_language_binding(owner, more, "text", "environment_more_options")
+    more_layout = qt.QVBoxLayout(more)
+    more_layout.setContentsMargins(8, 8, 8, 8)
+    owner._environmentMoreOptions = more
+    details_button = qt.QPushButton("View dependency details")
+    details_button.setObjectName("environmentDetailsButton")
+
+    def show_details():
+        report = owner._cached_environment_result(owner._environment_check_signature(owner._environment_check_kwargs()))
+        if report is not None:
+            owner._show_environment_results_dialog(report)
+        else:
+            start_environment_check(owner, owner._show_environment_results_dialog)
+
+    details_button.connect("clicked()", show_details)
+    register_ui_language_binding(owner, details_button, "text", "environment_details")
+    owner._environmentDetailsButton = details_button
+    more_layout.addWidget(details_button)
     offline_button = qt.QPushButton("Use offline model resources")
     offline_button.setObjectName("offlineModelResourcesButton")
     offline_button.connect("clicked()", lambda: use_offline_assets(owner))
     register_ui_language_binding(owner, offline_button, "text", "offline_model_resources")
     owner._offlineModelResourcesButton = offline_button
-    environment_layout.addWidget(offline_button)
+    more_layout.addWidget(offline_button)
     repair_button = qt.QPushButton("Repair selected managed tools")
     repair_button.setObjectName("repairManagedToolsButton")
-    repair_button.connect("clicked()", lambda: prepare_selected_environment(owner, repair=True))
+    repair_button.connect("clicked()", lambda: request_prepare_environment(owner, repair=True))
     register_ui_language_binding(owner, repair_button, "text", "repair_managed_tools")
     register_ui_language_binding(owner, repair_button, "tooltip", "repair_managed_tools_tooltip")
     owner._repairManagedToolsButton = repair_button
-    environment_layout.addWidget(repair_button)
+    more_layout.addWidget(repair_button)
 
     python_target_label = qt.QLabel(owner._python_install_target_text())
     python_target_label.setObjectName("environmentPythonTargetLabel")
@@ -86,14 +109,9 @@ def install_environment_dependency_path_controls(owner: Any, environment_layout:
 
     add_dependency_config_buttons(owner, form_layout)
 
-    try:
-        insert_index = max(0, environment_layout.count() - 1)
-        environment_layout.insertWidget(insert_index, python_target_label)
-        insert_index += 1
-        environment_layout.insertWidget(insert_index, group_box)
-    except Exception:
-        environment_layout.addWidget(python_target_label)
-        environment_layout.addWidget(group_box)
+    more_layout.addWidget(python_target_label)
+    more_layout.addWidget(group_box)
+    environment_layout.addWidget(more)
 
 
 def _build_environment_group(owner: Any):

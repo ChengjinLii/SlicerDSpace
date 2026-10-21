@@ -47,7 +47,7 @@
 
 ## 高级设置与记录
 
-“高级设置 > 分析参数”中选择掩膜的 `auto/cuda/cpu`；“高级设置 > 环境与模型”
+“高级设置 > 预处理与掩膜”中选择掩膜的 `auto/cuda/cpu`；“高级设置 > 运行与性能”
 中选择 DDSeg、DDParcel、DDSurfer、TractCloud 共用的 PyTorch 设备。选择持久化，
 不会覆盖用户已保存的明确 CPU 偏好。CLI 对应 `--brain-mask-device`、
 `--ddseg-device`、`--surface-device`、`--tractcloud-device`。
@@ -67,7 +67,7 @@ DDSurfer 的固定上游快照保持不变；插件预先生成并明确传入�
 [PNL 官方说明](https://github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segmentation)
 要求匹配的 TensorFlow/CUDA，提示旧 GPU 环境存在问题。
 [SynthStrip](https://surfer.nmr.mgh.harvard.edu/docs/synthstrip/) 在本适配器中
-默认使用 FreeSurfer 自带 Python。新 GPU 可在“高级设置 > 环境与模型 > 外部运行路径”
+默认使用 FreeSurfer 自带 Python。新 GPU 可在“环境与安装 > 外部运行路径”
 设置 `synthstrip_python`，选择装有兼容 CUDA PyTorch、surfa、NumPy 的独立 Python，
 仍使用同一官方脚本和权重。已知未经验证的旧 CUDA/新 GPU 组合会提前阻止运行，
 不会悄悄改用 CPU。

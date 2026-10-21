@@ -273,8 +273,14 @@ def streamline_control_state(tractography_backend: str) -> StreamlineControlStat
     """Return label, enabled state and tooltip for streamline-count controls."""
 
     backend = (tractography_backend or "csd_act").strip() or "csd_act"
-    uses_act_streamlines = backend in {"csd_act", "saf"}
-    if backend == "csd_act":
+    from shared.algorithm_selection import algorithms
+    uses_act_streamlines = bool(set(algorithms(backend)) & {"csd_act", "saf"})
+    if len(algorithms(backend)) > 1:
+        description = (
+            "Requested streamlines for selected MRtrix CSD/ACT or SAF variants only. "
+            "UKF uses its own seeds-per-voxel setting; DTI deterministic tracking ignores this count."
+        )
+    elif backend == "csd_act":
         description = (
             "Number of streamlines requested from MRtrix CSD/ACT. "
             "One million is recommended for analysis-scale bundle and connectome coverage."
@@ -303,9 +309,11 @@ def active_bundle_backend_sections(bundle_backend: str) -> set[str]:
 
     backend = (bundle_backend or "wmql").strip().lower() or "wmql"
     active_sections: set[str] = set()
-    if backend in {"wma", "all"}:
+    from shared.algorithm_selection import algorithms, BUNDLES
+    selected = algorithms(backend, BUNDLES, "wmql")
+    if "wma" in selected:
         active_sections.add("wma")
-    if backend in {"tractcloud", "all"}:
+    if "tractcloud" in selected:
         active_sections.add("tractcloud")
     return active_sections
 
@@ -850,7 +858,8 @@ _BATCH_MANIFEST_LINE_PREFIX = "[Batch] manifest:"
 
 
 def _ukf_run_options(selection):
-    if selection.tractography_backend != 'ukf':
+    from shared.algorithm_selection import contains_tracking
+    if not contains_tracking(selection.tractography_backend, 'ukf'):
         return {}
     from tractography.ukf import parameters, resolve_executable
     from dataclasses import asdict
@@ -867,7 +876,8 @@ def _ukf_run_options(selection):
 
 
 def _append_ukf_args(args, kwargs):
-    if kwargs.get('tractography_backend') == 'ukf':
+    from shared.algorithm_selection import contains_tracking
+    if contains_tracking(kwargs.get('tractography_backend'), 'ukf'):
         args.extend(('--ukf-parameters', json.dumps(kwargs.get('ukf_parameters', {}), sort_keys=True)))
         if kwargs.get('ukf_executable'):
             args.extend(('--ukf-executable', str(kwargs['ukf_executable'])))

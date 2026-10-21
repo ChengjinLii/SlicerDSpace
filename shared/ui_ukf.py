@@ -76,10 +76,16 @@ def refresh_ukf_controls(owner, backend):
         owner.ui.parametersCollapsibleButton.layout().insertWidget(1, group)
         owner._ukfControls, owner._ukfLabels = controls, labels
         owner._ukfGroup, owner._ukfNote, owner._ukfReset = group, note, reset
+        if hasattr(owner, '_fitAdvancedPage'):
+            group.toggled.connect(lambda *_: qt.QTimer.singleShot(0, owner._fitAdvancedPage))
 
-    owner._ukfGroup.visible = backend == "ukf" and bool(
+    from shared.algorithm_selection import contains_tracking
+    owner._ukfGroup.visible = contains_tracking(backend, "ukf") and bool(
         node and (node.targetTractography or node.targetBundles or node.targetConnectome)
     )
+    if hasattr(owner, '_advancedCategoryStack') and owner._ukfGroup.parent() != owner._advancedCategoryStack.widget(1):
+        owner.ui.parametersLayout.removeWidget(owner._ukfGroup)
+        owner._advancedCategoryStack.widget(1).layout().addWidget(owner._ukfGroup)
     zh = getattr(owner, "_onboardingLanguage", "en").startswith("zh")
     owner._ukfGroup.title = "UKF 参数 · 作者默认值" if zh else "UKF parameters · author defaults"
     owner._ukfReset.text = "恢复作者默认值" if zh else "Restore author defaults"

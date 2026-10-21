@@ -76,6 +76,18 @@ QPushButton:hover:!disabled {
   background: #EEF2F5;
   border: 1px solid #9BAEBB;
 }
+QToolButton#microstructureAlgorithmSelectButton,
+QToolButton#tractographyAlgorithmSelectButton,
+QToolButton#bundlesAlgorithmSelectButton {
+  color: #335B70;
+  background: #FFFFFF;
+  border: 1px solid #CCD5DC;
+  border-radius: 3px;
+  padding: 2px 8px;
+  min-height: 18px;
+}
+QToolButton:hover { border-color: #476E83; }
+QStackedWidget#advancedCategoryStack { background: transparent; border: none; }
 QPushButton:disabled {
   color: #8A98A3;
   background: #F2F4F6;

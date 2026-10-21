@@ -36,6 +36,7 @@ class BrainMaskConfig:
     freesurfer_home: Optional[Path] = None
     b0_threshold: float = 50.0
     threads: int = 4
+    model_assets_dir: Optional[Path] = None
 
 
 def brain_mask_config_from_options(options) -> BrainMaskConfig:
@@ -43,7 +44,7 @@ def brain_mask_config_from_options(options) -> BrainMaskConfig:
         backend=getattr(options, "brain_mask_backend", "pnl_cnn"),
         brain_mask_device=getattr(options, "brain_mask_device", "auto"),
         **{name: getattr(options, name, None) for name in (
-            "pnl_mask_python", "pnl_mask_script", "pnl_mask_model_dir", "pnl_mask_ants_bin_dir", "synthstrip_python")},
+            "pnl_mask_python", "pnl_mask_script", "pnl_mask_model_dir", "pnl_mask_ants_bin_dir", "synthstrip_python", "model_assets_dir")},
         mrtrix_bin_dir=getattr(options, "mrtrix_bin_dir", None) or getattr(options, "preprocessing_mrtrix_bin_dir", None),
         freesurfer_home=getattr(options, "postprocess_freesurfer_home", None),
         b0_threshold=getattr(options, "b0_threshold", 50.0),
@@ -103,6 +104,9 @@ def inspect_brain_mask_backend(config: BrainMaskConfig | None = None, *, system:
         python = _path(config.pnl_mask_python, "SLICERDDSURFER_PNL_MASK_PYTHON", resolve=False)
         script = _path(config.pnl_mask_script, "SLICERDDSURFER_PNL_MASK_SCRIPT")
         models = _path(config.pnl_mask_model_dir, "SLICERDDSURFER_PNL_MASK_MODEL_DIR")
+        if models is None:
+            from shared.optional_assets import verified_resource_directory
+            models = verified_resource_directory("pnl-cnn", asset_root=config.model_assets_dir)
         ants = _path(config.pnl_mask_ants_bin_dir, "ANTSPATH")
         for name, path in (("pnl_mask_python", python), ("pnl_mask_script", script)):
             if path is None or not path.is_file():
@@ -153,8 +157,15 @@ def inspect_brain_mask_backend(config: BrainMaskConfig | None = None, *, system:
             resources.append(executable)
             home = home or executable.parent.parent
             model = home / "models/synthstrip.1.pt"
+            if not model.is_file():
+                from shared.optional_assets import verified_resource_directory
+                shared = verified_resource_directory("synthstrip", asset_root=config.model_assets_dir)
+                if shared:
+                    model = shared / "synthstrip.1.pt"
             if model.is_file():
                 resources.append(model)
+                if model != home / "models/synthstrip.1.pt":
+                    tools["synthstrip_model"] = str(model)
             else:
                 missing.append("FreeSurfer models/synthstrip.1.pt")
             tools["freesurfer_home"] = str(home)
@@ -327,6 +338,8 @@ def generate_brain_mask(dwi_path: Path, bval_path: Path, bvec_path: Path, output
             env_extra["FREESURFER_HOME"] = tools["freesurfer_home"]
             prepend.append(Path(tools["mri_synthstrip"]).parent)
             command = [tools["mri_synthstrip"], "-i", str(baseline), "-m", str(candidate)]
+            if "synthstrip_model" in tools:
+                command.extend(("--model", tools["synthstrip_model"]))
             if "synthstrip_python" in tools:
                 device_record = work / "synthstrip_device.json"
                 command = [tools["synthstrip_python"], str(Path(__file__).with_name("synthstrip_mask_runner.py")),

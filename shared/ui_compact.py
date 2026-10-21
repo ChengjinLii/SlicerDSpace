@@ -10,6 +10,7 @@ def compact_algorithm_labels(node: Any) -> dict[str, str]:
 
     from shared.ui_run_controller import microstructure_optional_stage_flags
     from shared.user_config import RUN_DEFAULTS
+    from shared.algorithm_selection import algorithms, BUNDLES, LABELS
 
     freewater, noddi, dki = microstructure_optional_stage_flags(
         getattr(node, "orchestrationMicrostructureStages", ""),
@@ -35,11 +36,11 @@ def compact_algorithm_labels(node: Any) -> dict[str, str]:
         "targetTractographyCheckBox": {
             "csd_act": "MRtrix3 CSD / ACT", "ukf": "UKF",
             "dti_det": "DTI deterministic", "saf": "CSD + SAF",
-        }.get(tractography, tractography),
+        }.get(tractography, " + ".join(LABELS[name] for name in algorithms(tractography))),
         "targetBundlesCheckBox": {
             "wmql": "WMQL", "wma": "WMA", "tractcloud": "TractCloud",
             "all": "WMQL + WMA + TractCloud",
-        }.get(bundles, bundles),
+        }.get(bundles, " + ".join(LABELS[name] for name in algorithms(bundles, BUNDLES, "wmql"))),
     }
 
 
@@ -55,8 +56,19 @@ def refresh_compact_algorithms(owner: Any, language: str | None = None) -> None:
     for name, algorithms in compact_algorithm_labels(getattr(owner, "_parameterNode", None)).items():
         control = getattr(ui, name, None)
         if control is not None:
-            control.setText(onboarding_text(language, "compact_algorithm_selection").format(algorithms=algorithms))
+            text = onboarding_text(language, "compact_algorithm_selection").format(algorithms=algorithms)
+            summary = getattr(owner, "_algorithmSummaryLabels", {}).get(name)
+            if summary is None:
+                control.setText(text)
+            else:
+                control.setText("")
+                control.setAccessibleName(text)
             control.setToolTip(onboarding_text(language, "compact_algorithm_tooltip").format(algorithms=algorithms))
+            if summary is not None:
+                summary.setText(algorithms)
+                summary.setToolTip(control.toolTip)
+    from shared.ui_algorithm_picker import refresh_picker_language
+    refresh_picker_language(owner)
 
 
 def install_compact_layout(owner: Any) -> None:
@@ -108,7 +120,7 @@ def install_compact_layout(owner: Any) -> None:
     advanced_layout.addWidget(prepare_inputs)
     prepare_inputs.show()
     prepare_inputs.collapsed = True
-    for name in ("parametersCollapsibleButton", "environmentCollapsibleButton", "resultsCollapsibleButton"):
+    for name in ("parametersCollapsibleButton", "resultsCollapsibleButton"):
         section = getattr(ui, name)
         layout.removeWidget(section)
         advanced_layout.addWidget(section)
@@ -122,6 +134,13 @@ def install_compact_layout(owner: Any) -> None:
     advanced_layout.addLayout(utilities)
     layout.insertWidget(layout.indexOf(ui.logCollapsibleButton), advanced)
     owner._advancedSettingsPanel = advanced
+    # Dependency preparation is an independent, first-class setup section.
+    environment = ui.environmentCollapsibleButton
+    layout.removeWidget(environment)
+    layout.insertWidget(layout.indexOf(advanced) + 1, environment)
+    environment.collapsed = True
+    from shared.ui_algorithm_picker import install_algorithm_pickers
+    install_algorithm_pickers(owner)
 
     layout.removeWidget(ui.statusFrame)
     ui.statusLayout.setContentsMargins(0, 0, 0, 0)
@@ -141,6 +160,7 @@ def install_compact_layout(owner: Any) -> None:
     for form in (ui.configurationFormLayout, ui.targetProductsFormLayout):
         form.setVerticalSpacing(2)
         form.setHorizontalSpacing(10)
+    ui.targetProductsFormLayout.setVerticalSpacing(4)
     owner._runStateLabel.hide()
     owner._runStatusHintLabel.hide()
     owner._runProgressBar.hide()
@@ -201,3 +221,5 @@ def apply_compact_language(owner: Any, language: str) -> None:
     }.items():
         getattr(owner.ui, name).setText(onboarding_text(language, key))
     refresh_compact_algorithms(owner, language)
+    from shared.ui_advanced_layout import apply_advanced_language
+    apply_advanced_language(owner)

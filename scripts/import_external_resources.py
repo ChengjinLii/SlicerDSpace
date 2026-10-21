@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""Import explicitly selected resources with pinned hashes; never remove originals.
+
+This is a maintainer/offline acquisition tool, not an installer for Python,
+executables, source trees, subject data or arbitrary filesystem contents.
+"""
+
+import argparse
+import hashlib
+import json
+from pathlib import Path, PurePosixPath
+import shutil
+import stat
+import sys
+import tempfile
+import zipfile
+
+ROOT = Path(__file__).resolve().parents[1]
+MANIFEST = ROOT / 'models/external_assets_manifest.json'
+
+
+def digest(path):
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def import_file(source, destination, expected):
+    if source.is_symlink() or not source.is_file():
+        raise ValueError('A regular, explicitly provided source is required: ' + str(source))
+    if source.stat().st_size != expected['size_bytes'] or digest(source) != expected['sha256']:
+        raise ValueError('Source checksum mismatch: ' + str(source))
+    if any(path.is_symlink() for path in (destination, *destination.parents)):
+        raise ValueError('Refusing a symlink destination: ' + str(destination))
+    if destination.exists():
+        if destination.is_file() and digest(destination) == expected['sha256']:
+            return 'reused'
+        raise FileExistsError('Refusing to overwrite a different resource: ' + str(destination))
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='.resource-import-', dir=destination.parent) as temporary:
+        staged = Path(temporary) / destination.name
+        shutil.copyfile(source, staged)
+        if digest(staged) != expected['sha256']:
+            raise RuntimeError('Resource changed while copying: ' + str(source))
+        staged.replace(destination)
+    return 'imported'
+
+
+def extract_org(archive, destination):
+    """Extract only the pinned atlas root; omit macOS resource-fork metadata."""
+    root_name = archive.stem
+    records = []
+    with zipfile.ZipFile(archive) as zipped:
+        entries = zipped.infolist()
+        if len(entries) > 10000 or sum(item.file_size for item in entries) > 4 * 1024**3:
+            raise ValueError('ORG archive exceeds extraction limits')
+        for item in entries:
+            path = PurePosixPath(item.filename)
+            if (path.is_absolute() or '..' in path.parts or '\\' in item.filename
+                    or ':' in item.filename or stat.S_ISLNK(item.external_attr >> 16)):
+                raise ValueError('Unsafe ORG archive member: ' + item.filename)
+            if not path.parts or path.parts[0] == '__MACOSX' or any(part.startswith('._') for part in path.parts) or item.is_dir():
+                continue
+            if path.parts[0] != root_name:
+                raise ValueError('Unexpected ORG archive root: ' + item.filename)
+            target = destination.joinpath(*path.parts)
+            if any(part.is_symlink() for part in (target, *target.parents)):
+                raise ValueError('Refusing symlink extraction target')
+            with zipped.open(item) as stream:
+                expected = hashlib.file_digest(stream, 'sha256').hexdigest()
+            if not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with tempfile.TemporaryDirectory(prefix='.org-import-', dir=target.parent) as temporary:
+                    staged = Path(temporary) / target.name
+                    with zipped.open(item) as stream, staged.open('wb') as output:
+                        shutil.copyfileobj(stream, output)
+                    if digest(staged) != expected:
+                        raise RuntimeError('Extracted ORG checksum mismatch')
+                    staged.replace(target)
+            elif digest(target) != expected:
+                raise FileExistsError('Existing ORG file differs: ' + str(target))
+            records.append({'path': path.as_posix(), 'sha256': expected, 'size_bytes': item.file_size})
+    return records
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--asset-root', type=Path, required=True)
+    parser.add_argument('--pnl-prefix', type=Path)
+    parser.add_argument('--tractcloud-data', type=Path)
+    parser.add_argument('--tractcloud-license', type=Path)
+    parser.add_argument('--synthstrip-model', type=Path)
+    parser.add_argument('--wma-downloads', type=Path)
+    parser.add_argument('--wma-license', type=Path)
+    parser.add_argument('--execute', action='store_true', help='Copy verified resources; otherwise print a plan only')
+    parser.add_argument('--report', type=Path)
+    args = parser.parse_args()
+    root = args.asset_root.expanduser().absolute()
+    manifest = json.loads(MANIFEST.read_text())
+    mapping = {}
+    for relative in manifest['asset_records']:
+        source = None
+        if args.pnl_prefix and relative.startswith('brain_mask/pnl_cnn/'):
+            source = args.pnl_prefix / ('pnl-source/LICENSE' if relative.endswith('/LICENSE.txt') else 'pnl-models/' + Path(relative).name)
+        elif args.tractcloud_data and relative.startswith('bundles/tractcloud/'):
+            source = args.tractcloud_license if relative.endswith('/LICENSE.txt') else args.tractcloud_data / relative.removeprefix('bundles/tractcloud/')
+        elif args.synthstrip_model and relative == 'brain_mask/synthstrip/synthstrip.1.pt':
+            source = args.synthstrip_model
+        elif args.wma_downloads and relative.startswith('bundles/wma/'):
+            source = args.wma_license if relative.endswith('/LICENSE.txt') else args.wma_downloads / Path(relative).name
+        if source is not None:
+            mapping[relative] = source
+    if args.tractcloud_data and not args.tractcloud_license or args.wma_downloads and not args.wma_license:
+        parser.error('A complete upstream license is required for TractCloud and WMA imports')
+    record = {'kind': 'slicerdsurfer_optional_resource_import', 'execute': args.execute,
+              'source_files_retained': True, 'records': [], 'scope': 'Byte-preserving resource organization, not scientific QC or completed remote upload'}
+    for relative, source in mapping.items():
+        expected = manifest['asset_records'][relative]
+        state = import_file(source.expanduser(), root / relative, expected) if args.execute else 'planned'
+        record['records'].append({'path': relative, 'sha256': expected['sha256'], 'size_bytes': expected['size_bytes'],
+                                  'status': state, 'redistribution': expected['redistribution']})
+        print(state + ': ' + relative, flush=True)
+    if args.execute and args.wma_downloads:
+        files = []
+        for relative in mapping:
+            if relative.startswith('bundles/wma/archives/'):
+                files.extend(extract_org(root / relative, root / 'bundles/wma'))
+        lock = root / 'bundles/wma/extracted_resource_index.json'
+        if lock.is_symlink():
+            raise ValueError('Refusing a symlink resource index')
+        lock.write_text(json.dumps({'kind': 'org_archive_extraction_index', 'files': files}, indent=2) + '\n')
+        record['org_extracted_files'] = len(files)
+    if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(json.dumps(record, indent=2) + '\n')
+    print(json.dumps(record, indent=2))
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError, zipfile.BadZipFile) as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(2)

@@ -65,6 +65,29 @@ def _text(owner, english, chinese):
     return chinese if str(getattr(owner, "_onboardingLanguage", "en")).startswith("zh") else english
 
 
+def extension_states(manager, modules):
+    """Use exposed APIs and actual capabilities, not enabled == loaded.
+
+    Slicer 5.10's C++ isExtensionLoaded method is not exposed to PythonQt.
+    An enabled extension may still need restart before its modules exist.
+    """
+    import importlib.util
+    installed, loaded = [], []
+    for name, module in (("SlicerDMRI", "dwitodtiestimation"), ("PyTorch", "pytorchutils"),
+                         ("UKFTractography", "ukftractography")):
+        available = hasattr(modules, module)
+        if name == 'PyTorch' and not available:
+            try:
+                available = importlib.util.find_spec('PyTorchUtils') is not None
+            except (ImportError, ValueError):
+                available = False
+        if available:
+            loaded.append(name)
+        if available or (manager is not None and manager.isExtensionInstalled(name)):
+            installed.append(name)
+    return installed, loaded
+
+
 def _confirm(owner, plan):
     import qt
     import slicer
@@ -82,7 +105,7 @@ def _confirm(owner, plan):
     if plan.get("repair"):
         parts.append(_text(owner, "Repair will reinstall selected plugin-managed tools. Existing administrator environments are not changed.",
                            "修复将重新安装所选的插件受管工具，不修改管理员或自行配置的环境。"))
-    for key in ("extensions", "restart_extensions", "python_packages", "asset_profiles", "managed_profiles", "unsupported_profiles"):
+    for key in ("extensions", "restart_extensions", "python_packages", "asset_profiles", "optional_asset_profiles", "managed_profiles", "unsupported_profiles"):
         if plan[key]:
             parts.append(key.replace("_", " ") + ": " + ", ".join(plan[key]))
     if plan["manual_items"]:
@@ -91,10 +114,20 @@ def _confirm(owner, plan):
     if plan["pnl_terms_required"]:
         parts.append(_text(owner, "PNL source, model and template permissions are separate; download/hash verification is not a license grant.",
                            "PNL 源码、模型与模板的权限须分别核对；下载及哈希验证不代表获得授权。"))
+    if plan["optional_asset_profiles"]:
+        from scripts.download_model_assets import _format_bytes
+        parts.append(_text(owner, "Selected optional resources (full profile size): ", "所选可选资源（完整分组大小）：") +
+                     _format_bytes(plan["optional_asset_size_bytes"]))
+        parts.extend(plan["optional_asset_terms"])
     label = qt.QLabel("\n\n".join(parts))
     label.wordWrap = True
     layout.addWidget(label)
     approvals = []
+    if plan["optional_asset_profiles"]:
+        check = qt.QCheckBox(_text(owner, "I have reviewed the resource terms above; my use complies.",
+                                  "我已阅读以上资源许可，且本次使用符合许可。"))
+        approvals.append(check)
+        layout.addWidget(check)
     for required, url, caption in (
         (plan["fsl_license_required"], FSL_TERMS_URL, "FSL"),
         (plan["pnl_terms_required"], PNL_TERMS_URL, "PNL source, models and IIT template"),
@@ -140,13 +173,7 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
     if result is None:
         return False
     manager = slicer.app.extensionsManagerModel()
-    installed = [name for name in ("SlicerDMRI", "PyTorch", "UKFTractography")
-                 if manager and manager.isExtensionInstalled(name)]
-    loaded = [name for name in installed if manager.isExtensionLoaded(name)]
-    for name, module in (("SlicerDMRI", "dwitodtiestimation"), ("UKFTractography", "ukftractography")):
-        if hasattr(slicer.modules, module):
-            installed.append(name)
-            loaded.append(name)
+    installed, loaded = extension_states(manager, slicer.modules)
     targets = set(result.targets)
     gpu = cuda_candidate()
     candidates = list(selected_profiles(owner._parameterNode, gpu))
@@ -155,13 +182,17 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
         candidates.append("pnl_cnn")
     config = owner._environment_dependency_path_kwargs()
     existing = configured_profiles(config, candidates) if candidates else ()
+    from shared.algorithm_selection import contains_tracking
     plan = build_setup_plan(result, installed_extensions=installed, loaded_extensions=loaded,
         need_dti=bool(targets & {"segmentation", "parcellation", "surface", "microstructure", "tractography"}),
         need_torch=bool(targets & {"segmentation", "parcellation", "surface"}),
-        need_ukf="tractography" in targets and owner._tractography_backend_text() == "ukf",
+        need_ukf="tractography" in targets and contains_tracking(owner._tractography_backend_text(), "ukf"),
         brain_mask_backend=getattr(owner._parameterNode, "brainMaskBackend", "pnl_cnn"), gpu_available=gpu,
         existing_managed_profiles=existing, repair=repair)
-    if not _confirm(owner, plan):
+    pending_actions = any(plan[key] for key in (
+        "extensions", "restart_extensions", "python_packages", "asset_profiles", "optional_asset_profiles",
+        "managed_profiles", "unsupported_profiles", "manual_items"))
+    if pending_actions and not _confirm(owner, plan):
         return False
     owner._selectedSetupActive = True
     folder = default_user_config_path().parent / "setup-history" / datetime.now().strftime("%Y%m%d-%H%M%S-%f")
@@ -210,12 +241,17 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
             owner._setStatus("warning", _text(owner, "Preparation stopped; inspect setup logs.", "环境准备已停止，请查看安装日志。"))
             return
         owner._selectedSetupActive = False
-        try:
-            current = owner._run_environment_dependency_check()
-        except Exception as exc:
-            write_json(folder / "result.json", {"status": "failed", "error": str(exc)})
-            owner._setStatus("warning", str(exc))
+        if not pending_actions:
+            record_readiness(result)
             return
+        from shared.ui_environment_check import start_environment_check
+        def check_failed(state, details):
+            write_json(folder / "result.json", {"status": state, "details": details})
+        if not start_environment_check(owner, record_readiness, on_failure=check_failed):
+            write_json(folder / "result.json", {"status": "blocked", "details": "Final environment check could not start"})
+
+    def record_readiness(current):
+        owner._latestEnvironmentReportDir = folder
         pending = bool(getattr(owner, "_setupRestartRequired", False))
         state = "restart_required" if pending else "ready" if current and current.blocker_count == 0 else "blocked"
         write_json(folder / "result.json", {"status": state, "blockers": current.blocker_count if current else None,
@@ -247,6 +283,9 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
             args.append("--accept-fsl-license")
         if plan["pnl_terms_required"]:
             args.append("--accept-pnl-terms")
+        asset_root = config.get("model_assets_dir")
+        if asset_root:
+            args.extend(("--asset-root", str(asset_root)))
         conda = owner._environment_dependency_path_kwargs().get("conda_executable")
         if conda:
             args.extend(("--conda", str(conda)))
@@ -262,14 +301,53 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
         start_setup_job(owner, _text(owner, "Prepare external tools", "准备外部计算工具"),
                         [(owner._slicer_launcher_program(), args, {})], done)
 
+    def optional_setup():
+        if not plan["optional_asset_profiles"]:
+            managed_setup()
+            return
+        from shared.ui_setup_jobs import start_setup_job
+        from scripts.setup_optional_assets import PATH_SETTINGS
+        from shared.model_assets import configured_model_assets_root
+        root = configured_model_assets_root(config.get("model_assets_dir"))
+        receipt = folder / "optional-resources-result.json"
+        script = Path(__file__).resolve().parents[1] / "scripts/setup_optional_assets.py"
+        args = ["--launch", "PythonSlicer", "-u", str(script), "--profiles", *plan["optional_asset_profiles"],
+                "--asset-root", str(root), "--execute", "--accept-terms", "--result", str(receipt)]
+
+        def done(status, details, _log):
+            if status != "completed":
+                finish(status, details)
+                return
+            try:
+                record = json.loads(receipt.read_text())
+                if (record.get("kind") != "slicerdsurfer_optional_asset_setup" or record.get("status") != "completed"
+                        or record.get("profiles") != plan["optional_asset_profiles"] or record.get("root") != str(root)):
+                    raise ValueError("Optional resource preparation receipt is incomplete")
+                settings = record["external_dependencies"]
+                allowed = {"model_assets_dir", *(PATH_SETTINGS[name] for name in plan["optional_asset_profiles"] if name in PATH_SETTINGS)}
+                if set(settings) != allowed or any(not Path(value).is_dir() for value in settings.values()):
+                    raise ValueError("Prepared resource paths are unavailable")
+                for key, value in settings.items():
+                    owner._save_environment_path_setting(key, value)
+                    edit = (getattr(owner, "_environmentPathLineEdits", {}) or {}).get(key)
+                    if edit is not None:
+                        edit.setText(value)
+            except Exception as exc:
+                finish("failed", str(exc))
+                return
+            managed_setup()
+
+        start_setup_job(owner, _text(owner, "Prepare selected resources", "准备所选资源"),
+                        [(owner._slicer_launcher_program(), args, {})], done)
+
     def model_setup(ok=True):
         if not ok:
             finish("failed", "Python setup did not complete")
         elif plan["asset_profiles"]:
             owner._install_model_assets_from_environment_dialog(profile=tuple(plan["asset_profiles"]),
-                on_complete=lambda success, message: managed_setup() if success else finish("failed", message))
+                on_complete=lambda success, message: optional_setup() if success else finish("failed", message))
         else:
-            managed_setup()
+            optional_setup()
 
     try:
         if plan["python_packages"]:
@@ -296,12 +374,21 @@ def use_offline_assets(owner):
         return False
     node = owner._parameterNode
     profiles = [name for name, target in (("surface", "targetSurface"), ("segmentation", "targetSegmentation"),
-                                         ("parcellation", "targetParcellation")) if getattr(node, target, False)] or ["core"]
+                                         ("parcellation", "targetParcellation")) if getattr(node, target, False)]
+    report = getattr(owner, "_lastEnvironmentResult", None)
+    from shared.optional_assets import missing_optional_profiles
+    optional = missing_optional_profiles(report, getattr(node, "brainMaskBackend", "pnl_cnn")) if report else []
+    if not profiles and not optional:
+        slicer.util.infoDisplay(_text(owner, "Check the selected environment first to identify required resources.",
+                                     "请先检查所选环境，确认需要的离线资源。"))
+        return False
     receipt = default_user_config_path().parent / ("offline-assets-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ".json")
     receipt.parent.mkdir(parents=True, exist_ok=True)
     script = Path(__file__).resolve().parents[1] / "scripts/verify_offline_assets.py"
     args = ["--launch", "PythonSlicer", "-u", str(script), "--root", str(selected), "--profiles", *profiles,
             "--result", str(receipt)]
+    if optional:
+        args.extend(("--optional-profiles", *optional))
 
     def done(status, details, log):
         try:

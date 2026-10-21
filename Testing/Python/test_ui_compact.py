@@ -33,8 +33,8 @@ class CompactUiTest(unittest.TestCase):
                                 _advancedSettingsHintLabel=Text(),
                                 _onboardingWidgets={"language_combo": Text()},
                                 _prepareInputWidgets={"panel": Text()})
-        for language, advanced, run, log in (("en", "Advanced settings (algorithms)", "Run SlicerDDSurfer", "Log"),
-                                           ("zh", "高级设置（算法与参数）", "运行 SlicerDDSurfer", "日志")):
+        for language, advanced, run, log in (("en", "Advanced settings", "Run SlicerDDSurfer", "Log"),
+                                           ("zh", "高级设置", "运行 SlicerDDSurfer", "日志")):
             apply_compact_language(owner, language)
             self.assertEqual(owner._advancedSettingsPanel.text, advanced)
             self.assertEqual(ui.runSelectedButton.text, run)
@@ -45,7 +45,7 @@ class CompactUiTest(unittest.TestCase):
             self.assertEqual(node.orchestrationSelectStreamlines, 1000000)
             self.assertEqual(ui.targetMicrostructureCheckBox.text,
                              "Selected: DTI" if language == "en" else "当前：DTI")
-            self.assertIn("Analysis parameters" if language == "en" else "分析参数",
+            self.assertIn("Select" if language == "en" else "选择",
                           owner._advancedSettingsHintLabel.text)
             self.assertEqual(owner._advancedSettingsHintLabel.text, owner._advancedSettingsPanel.tooltip)
 
@@ -102,11 +102,11 @@ class CompactUiTest(unittest.TestCase):
                 self.assertEqual(ui.targetTractographyCheckBox.text, "Selected: " + label)
                 self.assertEqual(ui.targetBundlesCheckBox.text, "Selected: " + bundle_label)
                 self.assertEqual(ui.targetMicrostructureCheckBox.text, "Selected: DTI + NODDI")
-                self.assertIn("Advanced settings > Analysis parameters", ui.targetBundlesCheckBox.tooltip)
+                self.assertIn("Use Select", ui.targetBundlesCheckBox.tooltip)
                 owner._onboardingLanguage = "zh"
                 refresh_compact_algorithms(owner)
                 self.assertEqual(ui.targetTractographyCheckBox.text, "当前：" + label)
-                self.assertIn("高级设置 > 分析参数", ui.targetBundlesCheckBox.tooltip)
+                self.assertIn("选择", ui.targetBundlesCheckBox.tooltip)
                 owner._onboardingLanguage = "en"
                 self.assertEqual(vars(node), before)
                 self.assertTrue(all(not control.checked and control.enabled for control in vars(ui).values()))

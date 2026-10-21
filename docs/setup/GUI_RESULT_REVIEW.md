@@ -51,7 +51,7 @@ presenting unrelated historical results as current results.
 
 ### Choosing a run
 
-Open **Advanced settings > Results and QC**. The **Run** list shows every run found under the output
+Open the separate **Results and QC** section. The **Run** list shows every run found under the output
 directory (or `<subject root>/outputs`), the subject root, the batch root and
 any folder added earlier with **Browse…**, newest first, as
 `time · subject · run name · status`. GUI, command-line and batch runs all
@@ -103,7 +103,7 @@ acceptance testing.
 ## Distortion correction (MRtrix3/FSL route)
 
 With **Preprocessing** checked under **2. Products** and **Preprocessing route**
-set to `mrtrix_fsl` under **Advanced settings > Analysis parameters**, the
+set to `mrtrix_fsl` under **Advanced settings > Preprocessing & mask**, the
 **Distortion correction (topup)** group shows three fields. They set the same
 options as the command line:
 

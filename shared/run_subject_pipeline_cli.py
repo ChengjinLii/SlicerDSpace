@@ -487,8 +487,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tractography-backend",
         default="csd_act",
-        choices=("csd_act", "ukf", "dti_det", "saf"),
-        help="Tractography backend. saf expands tractography to CSD/FOD plus SAF surface filtering.",
+        help="One or comma-separated tracking backends: csd_act, ukf, dti_det, saf. Multiple choices use isolated run variants.",
     )
     parser.add_argument('--ukf-parameters', default='{}',
                         help='JSON overrides of official UKF defaults; never applies CSD streamline budgets.')

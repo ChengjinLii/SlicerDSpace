@@ -12,7 +12,7 @@
 
 ## Select Regions
 
-Open **Advanced settings > Regional analysis (optional)**. This section is
+Open **Advanced settings > Regions & input import > Regional analysis (optional)**. This section is
 collapsed by default and does not change the products or methods in the main run.
 
 1. Choose **Use latest run**, or browse to a single-subject `*_orchestration_manifest.json`.

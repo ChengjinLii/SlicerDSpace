@@ -82,6 +82,26 @@ def _logged_manifest(result):
     return None
 
 
+def _tracking_children(record):
+    paths = []
+    for child in record.get('child_runs', []):
+        if not isinstance(child, dict) or not child.get('manifest_path') or child.get('status') == 'planned':
+            continue
+        candidate = Path(str(child['manifest_path'])).expanduser()
+        if not candidate.is_absolute():
+            continue
+        child_record = _read_record(candidate)
+        try:
+            started = datetime.fromisoformat(child['started_at']).timestamp()
+        except (KeyError, TypeError, ValueError):
+            continue
+        if (child_record.get('execute') is not False and isinstance(child_record.get('tasks'), list)
+                and _fresh_record(candidate, child_record, started)
+                and (not record.get('subject_id') or child_record.get('subject_id') == record['subject_id'])):
+            paths.append(candidate.resolve())
+    return tuple(dict.fromkeys(paths))
+
+
 def automatic_manifest_paths(manifest_path: Path, *, not_before: float | None = None) -> tuple[Path, ...]:
     """Resolve only this run or actually recorded batch children, without scans.
 
@@ -92,6 +112,8 @@ def automatic_manifest_paths(manifest_path: Path, *, not_before: float | None = 
     record = _read_record(path)
     if not record or record.get("execute") is False or not _fresh_record(path, record, not_before):
         return ()
+    if record.get('tractography_backends') and isinstance(record.get('child_runs'), list):
+        return _tracking_children(record)
     if record.get("kind") != "slicerdsurfer_batch_run":
         if isinstance(record.get("tasks"), list):
             return (path,)
@@ -125,7 +147,9 @@ def automatic_manifest_paths(manifest_path: Path, *, not_before: float | None = 
             or (result.get("subject_id") and child_record.get("subject_id") != result["subject_id"])
         ):
             continue
-        if child not in paths:
+        if child_record.get('tractography_backends') and isinstance(child_record.get('child_runs'), list):
+            paths.extend(path for path in _tracking_children(child_record) if path not in paths)
+        elif child not in paths:
             paths.append(child)
     return tuple(paths)
 

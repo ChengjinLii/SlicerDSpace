@@ -10,7 +10,7 @@ import platform
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
@@ -86,6 +86,7 @@ class EnvironmentDoctorConfig:
     output_dir: Optional[Path] = None
     python_executable: Optional[Path] = None
     python_path_entries: tuple[Path, ...] = ()
+    loaded_slicer_modules: Optional[tuple[str, ...]] = None
     python_environment: Optional[str] = None
     conda_executable: Optional[Path] = None
     platform_name: Optional[str] = None
@@ -1015,6 +1016,14 @@ def resolve_config_python_executable(config: EnvironmentDoctorConfig) -> Path:
 
 
 def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencySpec, ...]:
+    from shared.algorithm_selection import algorithms
+    tracking = algorithms(config.tractography_backend)
+    if len(tracking) > 1:
+        combined = {}
+        for backend in tracking:
+            for spec in build_dependency_specs(replace(config, tractography_backend=backend)):
+                _put(combined, spec)
+        return tuple(combined.values())
     targets = _clean_targets(config.targets)
     specs: dict[str, DependencySpec] = {}
     repo_root = _resource_root(config)
@@ -1366,6 +1375,10 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     "WMA_ATLAS_DIR",
                 )
             if wma_atlas_dir is None:
+                from shared.optional_assets import resolve_wma_atlas_directory
+                wma_atlas_dir = resolve_wma_atlas_directory(asset_root=config.model_assets_dir)
+                wma_atlas_dir_source = "verified shared resource directory"
+            if wma_atlas_dir is None:
                 wma_atlas_dir, _ = _first_existing_path(_common_wma_atlas_dirs(platform_name), kind="dir")
                 if wma_atlas_dir is not None:
                     wma_atlas_dir_source = "common path"
@@ -1544,6 +1557,10 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     "SLICERDDSURFER_TRACTCLOUD_DATA_DIR",
                     "TRACTCLOUD_DATA_DIR",
                 )
+            if tractcloud_data_dir is None:
+                from shared.optional_assets import verified_resource_directory
+                tractcloud_data_dir = verified_resource_directory("tractcloud", asset_root=config.model_assets_dir)
+                tractcloud_data_dir_source = "verified shared resource directory"
             if tractcloud_data_dir is not None:
                 _path(
                     specs,
@@ -1555,6 +1572,14 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     group="tractcloud",
                     discovery_source=tractcloud_data_dir_source,
                 )
+                for relative in ("TrainedModel/best_tract_f1_model.pth", "TrainedModel/cli_args.txt",
+                                 "TrainData_800clu800ol/HCP_mass_center.npy"):
+                    _path(specs, target=target, key="tractcloud_data:" + relative,
+                          label="TractCloud " + relative, path=tractcloud_data_dir / relative,
+                          path_kind="file", group="tractcloud", discovery_source=tractcloud_data_dir_source)
+            else:
+                _setting(specs, target=target, key="tractcloud_data_dir", label="TractCloud inference resources",
+                         group="tractcloud", notes="Prepare the selected environment to download verified inference resources, or configure an existing TractCloud data directory.")
 
     return tuple(
         sorted(
@@ -1965,6 +1990,18 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
     checked_python = checked_python_path.as_posix()
     specs = build_dependency_specs(config)
     statuses = tuple(_check_spec(spec, platform_name) for spec in specs)
+    if config.loaded_slicer_modules is not None:
+        native_targets = tuple(dict.fromkeys(target for spec in specs if spec.key == 'python:slicer.util'
+                                             for target in spec.targets))
+        if native_targets:
+            available = 'dwitodtiestimation' in config.loaded_slicer_modules
+            statuses += (DependencyStatus(
+                key='slicer_module:dwitodtiestimation', kind='setting', label='SlicerDMRI DWIToDTIEstimation module',
+                status='available' if available else 'missing', required=True, targets=native_targets,
+                details={'loaded_modules': list(config.loaded_slicer_modules), 'check': 'actual current Slicer session'},
+                install_group='slicer-dmri',
+                install_hint='' if available else 'Install or enable SlicerDMRI in Extension Manager, then restart Slicer. Importing slicer.util alone does not load its CLI modules.',
+            ),)
     if "microstructure_dki" in targets and config.dki_fit_method.upper().startswith("MKCURVE"):
         matlab_reference = config.dki_fit_method.upper() == "MKCURVE_MATLAB"
         if matlab_reference:
@@ -1990,7 +2027,7 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
                 key="brain_mask_backend", kind="setting", label="Selected brain-mask backend",
                 status="available" if masking["available"] and config.brain_mask_backend != "provided" else "missing",
                 required=True, targets=mask_targets, details=masking,
-                install_hint="Configure Advanced > Environment and models, provide a native mask, or select another backend explicitly.",
+                install_hint="Use Environment and installation to prepare the selected backend, provide a native mask, or select another backend explicitly in Advanced settings > Preprocessing & mask.",
                 install_group="brain_mask"),)
     status_by_key = {item.key: item for item in statuses}
 

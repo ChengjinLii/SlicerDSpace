@@ -25,6 +25,7 @@ from shared.environment import EnvironmentDoctorConfig, run_environment_doctor, 
 from shared.external_process import text_subprocess_kwargs
 from shared.dependency_config import add_dependency_config_arguments, apply_dependency_config, write_dependency_config
 from shared.python_environment import resolve_python_executable
+from shared.algorithm_selection import choice_value
 
 
 DEFAULT_TARGETS = (
@@ -217,7 +218,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Return exit code 2 when required dependencies are still missing after planning/installation.",
     )
     parser.add_argument("--preprocessing-backend", default="dipy", choices=("dipy", "mrtrix_fsl"))
-    parser.add_argument("--tractography-backend", default="csd_act", choices=("csd_act", "ukf", "dti_det", "saf"))
+    parser.add_argument("--tractography-backend", default="csd_act", type=choice_value,
+                        help="One or comma-separated tracking methods: csd_act, ukf, dti_det, saf.")
     parser.add_argument("--connectome-backend", default="python", choices=("python", "mrtrix"))
     parser.add_argument("--ddseg-device", default="auto", help="Requested DDSeg torch device. auto uses cuda:0 when available, otherwise cpu.")
     parser.add_argument("--surface-device", default="auto", help="Requested DDSurfer torch device. auto uses cuda:0 when available, otherwise cpu.")

@@ -13,6 +13,7 @@ from slicer.ScriptedLoadableModule import (
 )
 from slicer.parameterNodeWrapper import Choice, WithinRange, parameterNodeWrapper
 from slicer.util import VTKObservationMixin
+from shared.algorithm_selection import TRACKING, BUNDLES, selection_choices
 
 from connectome.module_logic import ConnectomeLogicMixin
 from microstructure.module_logic import MicrostructureLogicMixin
@@ -105,9 +106,9 @@ class SlicerDDSurferParameterNode:
     preprocessingReadoutTime: float = 0.0
     preprocessingReversePhaseB0: str = ""
     orchestrationRunName: str = "Test1"
-    orchestrationTractographyBackend: Annotated[str, Choice(["csd_act", "ukf", "dti_det", "saf"])] = "csd_act"
+    orchestrationTractographyBackend: Annotated[str, Choice(selection_choices(TRACKING))] = "csd_act"
     ukfParameters: str = "{}"
-    orchestrationBundleBackend: Annotated[str, Choice(["wmql", "wma", "tractcloud", "all"])] = "wmql"
+    orchestrationBundleBackend: Annotated[str, Choice([*selection_choices(BUNDLES), "all"]) ] = "wmql"
     orchestrationWmqlPreset: Annotated[str, Choice(["ddparcel_act", "author", "published_endpoints"])] = "ddparcel_act"
     maxParallelModels: Annotated[int, WithinRange(1, 3)] = 1
     wmaInputTractography: str = ""

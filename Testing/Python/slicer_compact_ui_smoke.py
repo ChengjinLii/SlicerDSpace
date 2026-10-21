@@ -24,9 +24,9 @@ def check():
         prepare = owner._prepareInputWidgets["panel"]
         assert advanced.isAncestorOf(prepare) and prepare.collapsed
         assert not ui.configurationCollapsibleButton.isAncestorOf(prepare)
-        for name in ("parametersCollapsibleButton", "environmentCollapsibleButton", "resultsCollapsibleButton"):
+        for name in ("environmentCollapsibleButton", "resultsCollapsibleButton"):
             section = getattr(ui, name)
-            assert advanced.isAncestorOf(section) and section.collapsed, name
+            assert not advanced.isAncestorOf(section) and section.collapsed, name
         assert ui.headerFrame.isAncestorOf(owner._onboardingWidgets["language_combo"])
         assert not owner._onboardingWidgets["language_combo"].isHidden()
 
@@ -95,6 +95,7 @@ def check():
         owner._environment_doctor_result_for_run = doctor
 
         advanced.collapsed = False
+        owner._advancedCategorySelector.setCurrentIndex(3)
         prepare.collapsed = False
         slicer.app.processEvents()
         slicer.app.processEvents()
@@ -105,9 +106,9 @@ def check():
         assert owner._prepareInputWidgets["preview_button"].visible
         assert owner._prepareInputWidgets["prepare_button"].visible
         prepare.collapsed = True
-        ui.parametersCollapsibleButton.collapsed = False
+        owner._advancedCategorySelector.setCurrentIndex(1)
         slicer.app.processEvents()
-        assert ui.orchestrationTractographyBackendComboBox.visible
+        assert not ui.orchestrationTractographyBackendComboBox.visible
         combo = ui.orchestrationTractographyBackendComboBox
         original = str(combo.currentText)
         index = combo.findText("dti_det")
@@ -122,7 +123,7 @@ def check():
         ui.orchestrationSelectStreamlinesSpinBox.setValue(original_count)
         ui.parametersCollapsibleButton.collapsed = True
         panel.setFixedWidth(440)
-        for name in ("parametersCollapsibleButton", "environmentCollapsibleButton", "resultsCollapsibleButton"):
+        for name in ("environmentCollapsibleButton", "resultsCollapsibleButton"):
             section = getattr(ui, name)
             section.collapsed = False
             slicer.app.processEvents()
@@ -151,7 +152,7 @@ def check():
         (ROOT / "layout_height.json").write_text(json.dumps({"height": owner._uiWidget.height,
             "minimum_height": owner._uiWidget.minimumSizeHint.height(),
             "size_hint": owner._uiWidget.sizeHint.height()}, indent=2))
-        assert owner._uiWidget.height < 700, owner._uiWidget.height
+        assert owner._uiWidget.height < 800, owner._uiWidget.height
         assert not window.isMaximized() and not window.isFullScreen()
         assert window.width == 1280 and window.height == 900, (window.width, window.height)
         window.grab().save(str(ROOT / "compact_window.png"))

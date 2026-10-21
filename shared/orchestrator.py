@@ -519,6 +519,15 @@ def normalize_orchestrator_targets(
 ) -> tuple[str, ...]:
     """Expand product-level targets according to selected backend parameters."""
 
+    from shared.algorithm_selection import algorithms
+    tracking = algorithms(tractography_backend)
+    if len(tracking) > 1:
+        expanded = {target for backend in tracking for target in normalize_orchestrator_targets(
+            targets, tractography_backend=backend, bundle_backend=bundle_backend,
+            microstructure_run_free_water=microstructure_run_free_water,
+            microstructure_run_noddi=microstructure_run_noddi, microstructure_run_dki=microstructure_run_dki)}
+        return tuple(target for target in TARGET_ORDER if target in expanded)
+
     requested = tuple(dict.fromkeys(target.strip().lower() for target in targets if target.strip()))
     bundle_backends = _normalize_bundle_backends(bundle_backend)
     expanded: list[str] = []
@@ -1743,8 +1752,29 @@ def _validate_tractography_settings(config: ProductOrchestratorConfig) -> None:
         raise ValueError("ddseg_min_wm_dice must be within [0, 1].")
 
 
+def _with_shared_bundle_resources(config):
+    from shared.optional_assets import resolve_wma_atlas_directory, resolve_tractcloud_data_directory
+    if config.wma_atlas_dir is None and ("wma" in config.targets or
+            "bundles" in config.targets and "wma" in _normalize_bundle_backends(config.bundle_backend)):
+        atlas = resolve_wma_atlas_directory(asset_root=config.model_assets_dir)
+        if atlas is not None:
+            config = replace(config, wma_atlas_dir=atlas)
+    if config.tractcloud_data_dir is None and ("tractcloud" in config.targets or
+            "bundles" in config.targets and "tractcloud" in _normalize_bundle_backends(config.bundle_backend)):
+        data = resolve_tractcloud_data_directory(asset_root=config.model_assets_dir)
+        if data is not None:
+            config = replace(config, tractcloud_data_dir=data)
+    return config
+
+
 def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = True) -> RunPlanResult:
     """Build a target-level run plan without executing product algorithms."""
+
+    config = _with_shared_bundle_resources(config)
+    from shared.algorithm_selection import algorithms
+    if len(algorithms(config.tractography_backend)) > 1:
+        from shared.multi_tracking import plan
+        return plan(config, write=write)
 
     if not config.subject_id.strip():
         raise ValueError("subject_id is required.")
@@ -2969,6 +2999,7 @@ def _run_subject_products_impl(
 ) -> ProductOrchestratorResult:
     """Run or plan selected products from a shared subject root."""
 
+    config = _with_shared_bundle_resources(config)
     if not config.subject_id.strip():
         raise ValueError("subject_id is required.")
     if config.select_streamlines <= 0:
@@ -4273,6 +4304,7 @@ def _run_subject_products_impl(
                         tractcloud_root=config.tractcloud_root,
                         python_executable=config.tractcloud_python_executable,
                         data_dir=config.tractcloud_data_dir,
+                        model_assets_dir=config.model_assets_dir,
                         device=tractcloud_device,
                         batch_size=config.tractcloud_batch_size,
                         random_seed=config.tractcloud_random_seed,
@@ -4659,6 +4691,10 @@ def run_subject_products(
     """Run products while preserving a failed manifest if any stage raises."""
 
     try:
+        from shared.algorithm_selection import algorithms
+        if len(algorithms(config.tractography_backend)) > 1:
+            from shared.multi_tracking import run
+            return run(config, log=log)
         return _run_subject_products_impl(config, log=log)
     except Exception as exc:
         _mark_orchestration_failed(config, exc)

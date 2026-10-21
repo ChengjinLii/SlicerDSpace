@@ -8,7 +8,7 @@
 
 ---
 
-The selector is only in **Advanced settings > Analysis parameters > Brain
+The selector is only in **Advanced settings > Preprocessing & mask > Brain
 masking**, not in the main Inputs or Products sections.
 
 | Display | Saved/CLI value |
@@ -31,7 +31,7 @@ GPU runtime errors are reported, not silently retried on CPU. MRtrix dwi2mask
 is CPU-only; the selector does not invent a GPU implementation for it.
 See [GPU execution policy](GPU_EXECUTION.md).
 
-On Linux x86_64, **Advanced settings > Environment and models > Prepare selected
+On Linux x86_64, **Environment and installation > Prepare selected
 analysis environment** can install the pinned author-compatible PNL runtime,
 weights and template after terms confirmation, then fill all four paths.
 This is the official PNL Python masking backend, not a rewrite of PNLpipeline.
@@ -84,7 +84,7 @@ new process. Its report and screenshots are written under `--report`.
 
 ## 中文
 
-脑掩膜选择器仅位于“高级设置 > 分析参数 > 脑掩膜方法”，默认显示
+脑掩膜选择器仅位于“高级设置 > 预处理与掩膜 > 脑掩膜方法”，默认显示
 `PNL CNN (dMRI)`。可选 SynthStrip、MRtrix dwi2mask 或“仅使用提供的掩膜”。
 已有的用户掩膜会被尊重；依赖或掩膜缺失时明确报错，不会自动换用其他后端。
 选择默认方法不代表 PNL 模型或运行环境已安装。
@@ -94,7 +94,7 @@ Python 中可见的第一个 CUDA GPU；`cuda` 要求 GPU 可用，`cpu` 显式�
 选择会持久化并传给单被试、批处理和预处理流程。GPU 报错不会静默改用 CPU。
 MRtrix dwi2mask 本身仅支持 CPU。详见[GPU 策略](GPU_EXECUTION.zh-CN.md)。
 
-Linux x86_64 可点击“高级设置 > 环境与模型 > 准备所选分析环境”，确认条款后自动准备
+Linux x86_64 可点击“环境与安装 > 准备所选分析环境”，确认条款后自动准备
 固定版本的官方 PNL Python 环境、权重与模板，校验后填写路径；并非重写 PNLpipeline。
 修复、验证和平台限制见[自动配置](MANAGED_SETUP.zh-CN.md)。
 已有环境仍可在“外部运行路径”配置用户自己的 PNL Python

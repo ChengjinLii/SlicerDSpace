@@ -30,15 +30,19 @@ def run():
         slicer.app.processEvents()
 
         def expect(control, text):
-            assert control.text == text, (control.objectName, control.text, text)
+            actual = control.accessibleName if control.objectName in widget._algorithmSummaryLabels else control.text
+            assert actual == text, (control.objectName, actual, text)
+            if control.objectName in widget._algorithmSummaryLabels:
+                assert control.text == ''
+                assert widget._algorithmSummaryLabels[control.objectName].text == text.split(': ', 1)[-1].removeprefix('当前：')
             checks.append(text)
 
         expect(ui.targetMicrostructureCheckBox, "Selected: DTI")
         expect(ui.targetTractographyCheckBox, "Selected: MRtrix3 CSD / ACT")
         expect(ui.targetBundlesCheckBox, "Selected: WMQL")
         assert widget._advancedSettingsPanel.collapsed
-        assert "algorithms" in widget._advancedSettingsPanel.text
-        assert "multiple models" in widget._advancedSettingsHintLabel.text
+        assert "Advanced settings" in widget._advancedSettingsPanel.text
+        assert "Select" in widget._advancedSettingsHintLabel.text
         slicer.util.mainWindow().resize(1100, 780)
         slicer.app.processEvents()
         widget._uiWidget.grab().save(str(output / "default_algorithms.png"))
@@ -72,7 +76,7 @@ def run():
         language.setCurrentIndex(language.findData("zh"))
         slicer.app.processEvents()
         expect(ui.targetBundlesCheckBox, "当前：WMQL + WMA + TractCloud")
-        assert "分析参数" in widget._advancedSettingsHintLabel.text
+        assert "选择" in widget._advancedSettingsHintLabel.text
         node.orchestrationTractographyBackend = "ukf"
         slicer.app.processEvents()
         expect(ui.targetTractographyCheckBox, "当前：UKF")

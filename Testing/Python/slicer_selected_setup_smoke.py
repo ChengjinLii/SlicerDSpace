@@ -19,6 +19,14 @@ def run():
         slicer.util.selectModule("SlicerDDSurfer")
         owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
         import shared.ui_selected_setup as setup
+        installed, loaded = setup.extension_states(slicer.app.extensionsManagerModel(), slicer.modules)
+        assert set(loaded) <= set(installed)
+        class ExposedManagerOnly:
+            def isExtensionInstalled(self, name):
+                return True
+        _, fallback_loaded = setup.extension_states(ExposedManagerOnly(), slicer.modules)
+        assert ('SlicerDMRI' in fallback_loaded) == hasattr(slicer.modules, 'dwitodtiestimation')
+        records.append('actual_slicer_extension_api_and_strict_510_fallback')
         from shared.selected_setup import build_setup_plan
         language = owner._onboardingWidgets["language_combo"]
         language.setCurrentIndex(language.findData("en"))
@@ -84,7 +92,18 @@ def run():
         assert results and json.loads(results[-1].read_text())["status"] == "completed"
         assert json.loads((Path(owner._latestEnvironmentReportDir) / "result.json").read_text())["status"] == "ready"
         records.append("real_cancellable_python_worker_and_final_recheck")
+        optional_missing = SimpleNamespace(key="tractcloud_data_dir", kind="setting", status="missing", required=True,
+            label="TractCloud inference resources", targets=("validation",), install_group="tractcloud", install_hint="Prepare", details={})
+        optional_report = SimpleNamespace(statuses=(optional_missing,), targets=("validation",), blocker_count=1)
+        assert setup.prepare_selected_environment(owner, optional_report)
+        wait()
+        resource_receipt = json.loads((Path(owner._latestEnvironmentReportDir) / "optional-resources-result.json").read_text())
+        assert resource_receipt["status"] == "completed" and resource_receipt["profiles"] == ["tractcloud"], resource_receipt
+        assert Path(owner._read_environment_path_setting("tractcloud_data_dir")).is_dir()
+        assert json.loads((Path(owner._latestEnvironmentReportDir) / "result.json").read_text())["status"] == "ready"
+        records.append("real_optional_resource_worker_reuses_verified_files_and_saves_paths_without_network")
         before = owner._read_environment_path_setting("model_assets_dir")
+        owner._parameterNode.targetSegmentation = True
         empty = root / "empty-offline-directory"
         empty.mkdir(exist_ok=True)
         originals.append((qt.QFileDialog, "getExistingDirectory", qt.QFileDialog.getExistingDirectory))

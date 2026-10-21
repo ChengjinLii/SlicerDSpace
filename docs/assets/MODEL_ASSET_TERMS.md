@@ -37,6 +37,14 @@ archive contents.
 | DDSeg tissue-segmentation weights | `segmentation`, `core` | Checked by the manifest when `--profile core` is verified. | Requires redistribution-term confirmation and citation of the peer-reviewed DDSeg method paper. |
 | DDParcel parcellation weights | `parcellation`, `core` | Checked by the manifest when `--profile core` is verified. | Requires redistribution-term confirmation and citation of the peer-reviewed DDParcel method paper. |
 | Conversion test NIfTI fixtures | `test-fixtures`, `all` | Checked only when the fixture profile is selected. | Requires confirming that the local license covers modified fixtures and DOI/archive use. |
+| PNL CNN weights and architecture | External catalog: `pnl-cnn-weights` | Fixed v0.3 SHA256; unmodified files and full upstream agreement. | Follow PNL/BWH notice and attribution terms; does not cover IIT data. |
+| IIT b0 template | External catalog: `pnl-cnn`, upstream-only | Hash-verified for local authorized use. | **No electronic mirror without express written IIT permission.** Ignored by Git and blocked by the mirror exporter. |
+| TractCloud minimal inference resources | External catalog: `tractcloud` | Matches the saved v1.0.0 distribution bytes; no subject datasets. | Preserve the original Slicer/BWH agreement and upstream citations. |
+| ORG registration/clustering atlases | External catalog: `wma` | Fixed official ZIPs; size/MD5 match the Zenodo record, SHA256 pinned. | CC BY 4.0 per doi:10.5281/zenodo.2648292; retain attribution and original upstream agreement. |
+| SynthStrip main model v1 | External catalog: `synthstrip` | Matches author's v1 download SHA256. | Author's CC BY 4.0 option; preserve attribution and license link. Does not cover the rest of FreeSurfer. |
+
+Optional-resource layout, official sources and migration boundaries are recorded
+in [Non-Code Runtime Resources](EXTERNAL_RESOURCES.md).
 
 ---
 

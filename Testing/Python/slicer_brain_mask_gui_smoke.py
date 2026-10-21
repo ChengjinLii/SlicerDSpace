@@ -57,12 +57,13 @@ def verify_gui(owner):
     require(advanced.collapsed, "Advanced initially collapsed")
     require(ui.parametersCollapsibleButton.collapsed, "Analysis parameters initially collapsed")
     require(advanced.isAncestorOf(combo), "Selector under Advanced")
-    require(ui.parametersCollapsibleButton.isAncestorOf(combo), "Selector under Analysis parameters")
+    require(owner._advancedCategoryStack.widget(0).isAncestorOf(combo), "Selector under preprocessing category")
     for section in (ui.configurationCollapsibleButton, ui.targetsCollapsibleButton):
         require(not section.isAncestorOf(combo), "Selector absent from " + section.objectName)
     require(not combo.isVisible(), "Selector hidden on main UI")
     setup = owner._managedRuntimeSetupButton
-    require(advanced.isAncestorOf(setup), "Managed setup under Advanced")
+    require(ui.environmentCollapsibleButton.isAncestorOf(setup), "Managed setup under independent environment section")
+    require(not advanced.isAncestorOf(setup), "Managed setup separate from Advanced")
     require(not setup.isVisible(), "Managed setup absent from compact main UI")
     require(tuple(str(combo.itemData(index)) for index in range(combo.count)) == BACKENDS,
             "Four canonical item-data values")
@@ -70,10 +71,10 @@ def verify_gui(owner):
     for name in ("pnl_mask_python", "pnl_mask_script", "pnl_mask_model_dir", "pnl_mask_ants_bin_dir"):
         row = owner._environmentPathLineEdits[name]
         require(owner._environmentAdvancedPathsWidget.isAncestorOf(row), name + " under external paths")
-        require(advanced.isAncestorOf(row), name + " under Advanced")
+        require(ui.environmentCollapsibleButton.isAncestorOf(row), name + " under environment section")
         require(not row.isVisible(), name + " hidden on main UI")
     advanced.collapsed = False
-    ui.parametersCollapsibleButton.collapsed = False
+    owner._advancedCategorySelector.setCurrentIndex(0)
     slicer.app.processEvents()
     slicer.app.processEvents()
     require(combo.isVisible(), "Selector visible when Analysis parameters is expanded")

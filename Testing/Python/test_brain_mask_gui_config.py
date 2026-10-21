@@ -110,7 +110,8 @@ class BrainMaskGuiConfigTest(unittest.TestCase):
         for name in ("configurationCollapsibleButton", "targetsCollapsibleButton"):
             self.assertIsNone(root.find(f".//widget[@name='{name}']//widget[@name='brainMaskBackendComboBox']"))
         layout = (ROOT / "shared/ui_compact.py").read_text(encoding="utf-8")
-        self.assertIn('"parametersCollapsibleButton", "environmentCollapsibleButton"', layout)
+        self.assertIn('"parametersCollapsibleButton", "resultsCollapsibleButton"', layout)
+        self.assertIn('layout.insertWidget(layout.indexOf(advanced) + 1, environment)', layout)
         self.assertIn('"parametersCollapsibleButton": "compact_parameters"', layout)
 
     def test_user_config_roundtrip_preserves_each_backend_and_external_paths(self):

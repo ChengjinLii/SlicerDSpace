@@ -1,0 +1,164 @@
+{
+  "kind": "slicerdsurfer_model_asset_manifest",
+  "version": 1,
+  "default_profile": "mirrorable-inference",
+  "default_asset_source_ids": ["optional_models_mirror"],
+  "asset_sources": {
+    "optional_models_mirror": {
+      "kind": "url-template",
+      "status": "planned",
+      "access": "authorized-private",
+      "public": false,
+      "description": "Enable only after a verified upload; this catalog is not proof of remote availability.",
+      "url_template": "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/11167a58aaced67a69b3e0bc45656aea2abc1c8d/{path_urlencoded}"
+    }
+  },
+  "asset_records": {
+    "bundles/wma/extracted_resource_index.json": {
+      "sha256": "b9b506e9b61628e84be4791b4532c8c88be7c3f335ba1d0f481c124a8752cada",
+      "size_bytes": 149489,
+      "redistribution": "with-notice",
+      "note": "SHA256 index derived from the two pinned official archives; used to verify all 849 extracted runtime files."
+    },
+    "brain_mask/pnl_cnn/CompNetBasicModel.json": {
+      "sha256": "989fd5a64d9307268441c3525d59b31d59c20db864f0262ef53ad53ec495bdae",
+      "size_bytes": 96841,
+      "upstream": "https://github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segmentation/releases/tag/v0.3",
+      "redistribution": "with-notice"
+    },
+    "brain_mask/pnl_cnn/weights-axial-improvement-08.h5": {
+      "sha256": "e11d3c410769c68844109a86eed40ebedc655ea03c14f6f54f4f13749c5ead18",
+      "size_bytes": 75337792,
+      "upstream": "https://github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segmentation/releases/tag/v0.3",
+      "redistribution": "with-notice"
+    },
+    "brain_mask/pnl_cnn/weights-coronal-improvement-08.h5": {
+      "sha256": "248dcf90752d4e0a2e22a136c5f0ca6d3c9cb9b628d131ce869d9ef6cbea702c",
+      "size_bytes": 75337792,
+      "upstream": "https://github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segmentation/releases/tag/v0.3",
+      "redistribution": "with-notice"
+    },
+    "brain_mask/pnl_cnn/weights-sagittal-improvement-09.h5": {
+      "sha256": "27aaafddac65617e0653c4da4fd0c650529fcc8150b4efd6b66135070ebc01bc",
+      "size_bytes": 75337792,
+      "upstream": "https://github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segmentation/releases/tag/v0.3",
+      "redistribution": "with-notice"
+    },
+    "brain_mask/pnl_cnn/LICENSE.txt": {
+      "sha256": "5525714ad257e12031974b608a7ee428f14ae28791c7ccbc0866271b24008d45",
+      "size_bytes": 11038,
+      "redistribution": "with-notice"
+    },
+    "brain_mask/pnl_cnn/IITmean_b0_256.nii.gz": {
+      "sha256": "2bb1a7bbe448702033a515e76164df6472828422ecef5cb4f996d91ec126dead",
+      "size_bytes": 7830929,
+      "urls": ["https://www.nitrc.org/frs/download.php/11290/IITmean_b0_256.nii.gz"],
+      "source_ids": ["iit_upstream_only"],
+      "redistribution": "upstream-only",
+      "license_url": "https://www.nitrc.org/projects/iit/",
+      "reason": "IIT terms prohibit posting on websites or other electronic media without express written permission. Local authorized acquisition is not mirror permission."
+    },
+    "bundles/tractcloud/TrainedModel/best_tract_f1_model.pth": {
+      "sha256": "93b01cf532ff4e1739754866bb9d7b71c5f5dffc9e8e6d4cf95ac8c6a0431d6a",
+      "size_bytes": 8876702,
+      "upstream": "https://github.com/SlicerDMRI/TractCloud/releases/tag/v1.0.0",
+      "redistribution": "with-notice"
+    },
+    "bundles/tractcloud/TrainedModel/cli_args.txt": {
+      "sha256": "fd521ca95673fb440a84c14078e287f42214975be60b7ff523e6b0df90480fda",
+      "size_bytes": 1082,
+      "upstream": "https://github.com/SlicerDMRI/TractCloud/releases/tag/v1.0.0",
+      "redistribution": "with-notice"
+    },
+    "bundles/tractcloud/TrainData_800clu800ol/HCP_mass_center.npy": {
+      "sha256": "62cbbae3dcf1c8d3792af3453c338bbce6fceed4705810a10e23b75b8d4b0fa9",
+      "size_bytes": 308,
+      "upstream": "https://github.com/SlicerDMRI/TractCloud/releases/tag/v1.0.0",
+      "redistribution": "with-notice",
+      "note": "Unmodified 308-byte inference reference, not the HCP training/test dataset."
+    },
+    "bundles/tractcloud/LICENSE.txt": {
+      "sha256": "36b11d65aa04ba6633bc2401fd70fcd2707e796e6c4e2f179b62877f8d21589d",
+      "size_bytes": 10510,
+      "redistribution": "with-notice"
+    },
+    "bundles/wma/archives/ORG-800FC-100HCP.zip": {
+      "sha256": "8ab81aed998ff417f91284a33a3c9233afaaeb314caa32d520f6123c2fd9e741",
+      "size_bytes": 622973397,
+      "urls": ["https://zenodo.org/records/2648292/files/ORG-800FC-100HCP.zip?download=1"],
+      "upstream_md5": "f80e8059d73142fcdfcad6e3c2610b12",
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://zenodo.org/records/2648292",
+      "attribution": "Fan Zhang, Ye Wu, Isaiah Norton, Laura Rigolo, Yogesh Rathi, Nikos Makris, Lauren O'Donnell. ORG Fiber Clustering White Matter Atlas, doi:10.5281/zenodo.2648292. Unmodified."
+    },
+    "bundles/wma/archives/ORG-RegAtlas-100HCP.zip": {
+      "sha256": "c2b024980999b925ea896c49183995bfc97aeed8cbb648946dcbfa9e3ea6a5f1",
+      "size_bytes": 1181764875,
+      "urls": ["https://zenodo.org/records/2648292/files/ORG-RegAtlas-100HCP.zip?download=1"],
+      "upstream_md5": "436394cefe4b6ab6ffec71393cad297d",
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://zenodo.org/records/2648292",
+      "attribution": "Fan Zhang, Ye Wu, Isaiah Norton, Laura Rigolo, Yogesh Rathi, Nikos Makris, Lauren O'Donnell. ORG Fiber Clustering White Matter Atlas, doi:10.5281/zenodo.2648292. Unmodified."
+    },
+    "bundles/wma/LICENSE.txt": {
+      "sha256": "a889bd80409a5128d8146474e0eabdb29f7c9a1402415f589e364cfb55109662",
+      "size_bytes": 10512,
+      "redistribution": "with-notice"
+    },
+    "brain_mask/synthstrip/synthstrip.1.pt": {
+      "sha256": "37417f802196186441aae3e7f385d94f8a98c64a88acaeaa2723af995c653e33",
+      "size_bytes": 30851709,
+      "urls": ["https://surfer.nmr.mgh.harvard.edu/docs/synthstrip/requirements/synthstrip.1.pt"],
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "attribution": "Andrew Hoopes, Jocelyn S. Mora, Adrian V. Dalca, Bruce Fischl, Malte Hoffmann. SynthStrip, NeuroImage 260:119474 (2022). Main model version 1, unmodified.",
+      "terms_url": "https://surfer.nmr.mgh.harvard.edu/docs/synthstrip/"
+    }
+  },
+  "profiles": {
+    "pnl-cnn-weights": {
+      "required_paths": [
+        "brain_mask/pnl_cnn/CompNetBasicModel.json",
+        "brain_mask/pnl_cnn/weights-axial-improvement-08.h5",
+        "brain_mask/pnl_cnn/weights-coronal-improvement-08.h5",
+        "brain_mask/pnl_cnn/weights-sagittal-improvement-09.h5",
+        "brain_mask/pnl_cnn/LICENSE.txt"
+      ],
+      "terms_notice": ["Preserve the complete PNL/BWH agreement and attribution. This profile deliberately excludes the third-party IIT template."]
+    },
+    "pnl-cnn": {
+      "directory": "brain_mask/pnl_cnn",
+      "include_profiles": ["pnl-cnn-weights"],
+      "required_paths": ["brain_mask/pnl_cnn/IITmean_b0_256.nii.gz"],
+      "terms_notice": ["Includes an upstream-only IIT template for local verification/acquisition. Mirror export is prohibited without separate written permission."]
+    },
+    "tractcloud": {
+      "directory": "bundles/tractcloud",
+      "required_paths": [
+        "bundles/tractcloud/TrainedModel/best_tract_f1_model.pth",
+        "bundles/tractcloud/TrainedModel/cli_args.txt",
+        "bundles/tractcloud/TrainData_800clu800ol/HCP_mass_center.npy",
+        "bundles/tractcloud/LICENSE.txt"
+      ],
+      "terms_notice": ["Unmodified inference subset only. Preserve the complete Slicer/BWH agreement and cite TractCloud and its ORG reference atlas. No raw subject or training/test data included."]
+    },
+    "synthstrip": {
+      "directory": "brain_mask/synthstrip",
+      "required_paths": ["brain_mask/synthstrip/synthstrip.1.pt"],
+      "terms_notice": ["Unmodified model by Andrew Hoopes, Jocelyn S. Mora, Adrian V. Dalca, Bruce Fischl and Malte Hoffmann, NeuroImage 260:119474 (2022). Distributed under the author's CC BY 4.0 option: https://creativecommons.org/licenses/by/4.0/. Weights alone do not install the SynthStrip runtime."]
+    },
+    "wma": {
+      "description": "Pinned official ORG distribution archives. Extract with validated paths before WMA use; not part of the default core download.",
+      "directory": "bundles/wma",
+      "required_paths": ["bundles/wma/archives/ORG-800FC-100HCP.zip", "bundles/wma/archives/ORG-RegAtlas-100HCP.zip", "bundles/wma/LICENSE.txt", "bundles/wma/extracted_resource_index.json"],
+      "terms_notice": ["ORG atlas, doi:10.5281/zenodo.2648292, unmodified. CC BY 4.0 per the pinned Zenodo record; preserve attribution, citation and the upstream Slicer agreement. No subject-level DWI data."]
+    },
+    "mirrorable-inference": {
+      "include_profiles": ["pnl-cnn-weights", "tractcloud", "synthstrip", "wma"],
+      "terms_notice": ["An allowlist of inference resources, not every dependency. Not proof of completed GitHub upload or universal licensing clearance."]
+    }
+  }
+}

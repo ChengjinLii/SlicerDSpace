@@ -2,6 +2,7 @@
 
 
 def bundle_record_error(product, record):
+    product = str(product).split('@', 1)[0]
     if product not in {'bundles.wmql', 'bundles.wma', 'bundles.tractcloud'}:
         return None
     if not isinstance(record, dict):

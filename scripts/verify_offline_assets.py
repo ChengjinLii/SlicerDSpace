@@ -9,11 +9,15 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
-def verify_offline_assets(root, profiles):
+def verify_offline_assets(root, profiles, optional_profiles=()):
     from scripts.download_model_assets import load_manifest, resolve_asset_plan, verify_asset_plan
     manifest = load_manifest(Path(__file__).resolve().parents[1] / "models/assets_manifest.json")
     checks = {profile: verify_asset_plan(root, resolve_asset_plan(manifest, profile), check_hashes=True)
               for profile in profiles}
+    if optional_profiles:
+        from shared.optional_assets import verified_resource_directory
+        checks.update({"optional:" + profile: {"ok": verified_resource_directory(profile, asset_root=root) is not None}
+                       for profile in optional_profiles})
     return {"kind": "slicerdsurfer_offline_assets", "status": "completed" if checks and all(
             record["ok"] for record in checks.values()) else "failed", "root": str(root.resolve()), "checks": checks,
             "scope": "Trusted bundled manifest checksum validation; no downloads or scientific QC"}
@@ -23,11 +27,12 @@ def main():
     from shared.managed_runtimes import write_json
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=Path)
-    parser.add_argument("--profiles", required=True, nargs="+")
+    parser.add_argument("--profiles", nargs="*", default=[])
+    parser.add_argument("--optional-profiles", nargs="*", default=[])
     parser.add_argument("--result", required=True, type=Path)
     args = parser.parse_args()
     try:
-        result = verify_offline_assets(args.root, args.profiles)
+        result = verify_offline_assets(args.root, args.profiles, args.optional_profiles)
     except Exception as exc:
         result = {"kind": "slicerdsurfer_offline_assets", "status": "failed", "error": str(exc)}
     write_json(args.result, result)

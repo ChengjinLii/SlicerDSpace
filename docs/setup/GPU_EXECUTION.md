@@ -49,8 +49,8 @@ inference. Do not remove these necessary operations when searching for `.cpu()`.
 
 ## Controls And Provenance
 
-**Advanced > Analysis parameters** has the persisted `auto/cuda/cpu` mask
-selector. **Advanced > Environment and models** has the unified PyTorch choice
+**Advanced settings > Preprocessing & mask** has the persisted `auto/cuda/cpu` mask
+selector. **Advanced settings > Run & performance** has the unified PyTorch choice
 for DDSeg, DDParcel, DDSurfer and TractCloud. Existing explicit choices are
 respected; the defaults do not overwrite a user's saved CPU preference.
 
@@ -82,7 +82,7 @@ Current [PNL instructions](https://github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segm
 recommend a compatible TensorFlow/CUDA environment and warn about old GPU builds.
 [SynthStrip](https://surfer.nmr.mgh.harvard.edu/docs/synthstrip/) uses FreeSurfer's
 own interpreter by default. For newer GPUs, set optional `synthstrip_python`
-under **Advanced > Environment and models > External Runtime Paths** to a
+under **Environment and installation > External Runtime Paths** to a
 compatible independent Python with PyTorch, surfa and NumPy. The same official
 FreeSurfer script/weights are used. Known unvalidated old-CUDA/new-GPU combinations
 are blocked before model processing; they do not silently select CPU.

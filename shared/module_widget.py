@@ -419,6 +419,8 @@ class SharedWidgetMixin:
         install_compact_layout(self)
         from shared.ui_regions import install_region_panel
         install_region_panel(self)
+        from shared.ui_advanced_layout import install_advanced_categories
+        install_advanced_categories(self)
         self._apply_slicerddsurfer_ui_style()
         self._configure_log_widget()
         self._refresh_advanced_run_settings()
@@ -596,11 +598,12 @@ class SharedWidgetMixin:
                 node.brainMaskDevice = str(defaults.get("brain_mask_device") or "auto")
                 node.device = str(defaults.get("surface_device") or "auto")
                 node.ddsegDevice = str(defaults.get("ddseg_device") or "auto")
-                node.orchestrationTractographyBackend = str(
+                from shared.algorithm_selection import choice_value, BUNDLES
+                node.orchestrationTractographyBackend = choice_value(
                     defaults.get("tractography_backend") or node.orchestrationTractographyBackend or "csd_act"
                 )
-                node.orchestrationBundleBackend = str(
-                    defaults.get("bundle_backend") or node.orchestrationBundleBackend or "wmql"
+                node.orchestrationBundleBackend = choice_value(
+                    defaults.get("bundle_backend") or node.orchestrationBundleBackend or "wmql", BUNDLES, "wmql"
                 )
                 stages = defaults.get("microstructure_stages") or ["dti"]
                 node.orchestrationMicrostructureStages = ",".join(canonical_microstructure_stages(stages))
@@ -2052,6 +2055,8 @@ class SharedWidgetMixin:
         streamline_label.toolTip = control_state.tooltip
         streamline_spinbox.toolTip = control_state.tooltip
         self._refresh_bundle_backend_highlight()
+        from shared.ui_advanced_layout import refresh_advanced_categories
+        refresh_advanced_categories(self)
 
     def _refresh_bundle_backend_highlight(self, *, bundle_backend: Optional[str] = None) -> None:
         active_sections = active_bundle_backend_sections(bundle_backend or self._bundle_backend_text())
@@ -2059,7 +2064,8 @@ class SharedWidgetMixin:
         for name in ("wmqlQueryPresetLabel", "wmqlQueryPresetComboBox"):
             control = getattr(self.ui, name, None)
             if control is not None:
-                control.visible = bool(node and node.targetBundles and (bundle_backend or self._bundle_backend_text()) in {"wmql", "all"})
+                from shared.algorithm_selection import algorithms, BUNDLES
+                control.visible = bool(node and node.targetBundles and "wmql" in algorithms(bundle_backend or self._bundle_backend_text(), BUNDLES, "wmql"))
 
         wma_input_widgets = (
             getattr(self.ui, "wmaInputTractographyLabel", None),
@@ -2900,6 +2906,10 @@ class SharedWidgetMixin:
             external_paths=external_paths,
         )
         doctor_signature = self._environment_check_signature(doctor_kwargs)
+        if self._cached_environment_result(doctor_signature) is None:
+            from shared.ui_environment_check import start_environment_check
+            start_environment_check(self, lambda _report: self._onRunSelectedClicked())
+            return
         doctor_result = self._environment_doctor_result_for_run(doctor_kwargs, doctor_signature)
         if doctor_result is None:
             return
@@ -2909,6 +2919,13 @@ class SharedWidgetMixin:
                 return
 
         preflight_blockers = preflight_blockers_for_targets(doctor_result, selected_targets)
+        if preflight_blockers:
+            self.ui.environmentCollapsibleButton.collapsed = False
+            self._update_environment_result_label(doctor_result)
+            self._update_environment_status(doctor_result)
+            self.appendLog("Selected analysis needs dependencies. Use Environment > Prepare selected analysis environment.")
+            self._show_environment_results_dialog(doctor_result)
+            return
         common_run_kwargs = build_single_subject_run_kwargs(
             selection,
             external_paths,
@@ -2941,9 +2958,12 @@ class SharedWidgetMixin:
         self._startBackgroundPipeline(common_run_kwargs, external_paths, selected)
 
     def _show_topup_error(self, validation: TopupValidation) -> None:
-        section = getattr(self.ui, "parametersCollapsibleButton", None)
+        section = getattr(self, "_advancedSettingsPanel", None)
         if section is not None:
             section.collapsed = False
+        selector = getattr(self, "_advancedCategorySelector", None)
+        if selector is not None:
+            selector.setCurrentIndex(0)
         group = getattr(self.ui, "topupCollapsibleGroupBox", None)
         if group is not None:
             try:
@@ -2956,7 +2976,7 @@ class SharedWidgetMixin:
             what="The run was not started because a topup setting is invalid.",
             why="\n".join(validation.errors),
             next_step=(
-                "Open 3. Route and parameters > Distortion correction (topup) and correct the highlighted field, "
+                "Open Advanced settings > Preprocessing & mask > Distortion correction (topup), "
                 "or switch Preprocessing route to dipy if you do not need MRtrix3/FSL correction."
             ),
             auto_fix="Not available; nothing was written.",
@@ -3008,14 +3028,8 @@ class SharedWidgetMixin:
 
     def _onValidateClicked(self):
         self._save_common_user_settings()
-        result = self._run_environment_dependency_check()
-        if result is None:
-            return None
-        self._update_environment_result_label(result)
-        self._update_environment_path_status_labels(result)
-        self._show_environment_results_dialog(result)
-        self._update_environment_status(result)
-        return result
+        from shared.ui_environment_check import start_environment_check
+        return start_environment_check(self)
 
     def _run_environment_dependency_check(self):
         node = self._parameterNode
@@ -3332,6 +3346,8 @@ class SharedWidgetMixin:
 
     def _setPipelineActive(self, active: bool, *, preserve_status: bool = False) -> None:
         self._pipelineActive = active
+        for button in getattr(self, '_algorithmButtons', {}).values():
+            button.enabled = not active
         self._refresh_run_button_state()
         if active:
             if hasattr(self.ui, "applyButton"):

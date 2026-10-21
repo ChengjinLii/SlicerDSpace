@@ -18,7 +18,7 @@ Download 3D Slicer from <https://www.slicer.org/> or use the Slicer build
 provided by your lab/HPC module system.
 
 Install the module using the source/staging instructions in the project README.
-Open **Advanced settings > Environment and models** to configure the selected
+Open **Environment and installation** to configure the selected
 route; the default compact interface has no automatic first-run wizard.
 
 ---

@@ -189,6 +189,25 @@ class AutoResultsTest(unittest.TestCase):
                                     "results": [{"subject_id": "s", "stdout_log": log}]}))
         self.assertEqual(auto_manifest_paths(batch), ())
 
+    def test_multi_tracking_loads_only_started_fresh_matching_children(self):
+        def child(name, timestamp, **options):
+            return self.file(name + '.json', json.dumps({'execute': True, 'tasks': [],
+                'subject_id': 's', 'started_at': timestamp, **options}))
+        timestamp = '2026-10-21T12:00:00+00:00'
+        current = child('current', timestamp)
+        old = child('old', '2020-01-01T00:00:00+00:00')
+        planned = child('planned', timestamp)
+        other = child('other', timestamp, subject_id='different')
+        os.utime(old, (2_000_000_000, 2_000_000_000))
+        parent = Path(self.file('multi.json', json.dumps({'subject_id': 's', 'execute': True,
+            'tractography_backends': ['csd_act', 'ukf'], 'tasks': [], 'child_runs': [
+                {'manifest_path': path, 'started_at': timestamp, 'status': status}
+                for path, status in ((current, 'running'), (old, 'running'), (planned, 'planned'), (other, 'running'))]})))
+        self.assertEqual(auto_manifest_paths(parent), (Path(current),))
+        batch = Path(self.file('multi_batch.json', json.dumps({'kind': 'slicerdsurfer_batch_run',
+            'execute': True, 'results': [{'subject_id': 's', 'manifest_path': str(parent)}]})))
+        self.assertEqual(auto_manifest_paths(batch), (Path(current),))
+
 
 if __name__ == "__main__":
     unittest.main()

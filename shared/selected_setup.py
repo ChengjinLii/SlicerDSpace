@@ -32,15 +32,25 @@ def build_setup_plan(result, *, installed_extensions=(), loaded_extensions=None,
     packages = tuple(dict.fromkeys((item.details or {}).get("install_requirement") or (item.details or {}).get("package")
                                   for item in missing if item.kind == "python" and
                                   ((item.details or {}).get("install_requirement") or (item.details or {}).get("package"))))
+    from shared.optional_assets import missing_optional_profiles
+    from scripts.setup_optional_assets import prepare
+    optional = missing_optional_profiles(result, brain_mask_backend)
+    optional_plan = prepare(optional) if optional else {}
+    handled_keys = {item.key for item in missing if
+                    ("wma" in optional and item.key.startswith("wma_org_atlas")) or
+                    ("tractcloud" in optional and (item.key == "tractcloud_data_dir" or item.key.startswith("tractcloud_data:")))}
     return {"kind": "slicerdsurfer_selected_setup_plan", "extensions": list(dict.fromkeys(
                 name for name in required_extensions if name not in installed)),
             "restart_extensions": list(dict.fromkeys(name for name in required_extensions
                 if loaded_extensions is not None and name in installed and name not in loaded_extensions)),
             "python_packages": list(packages), "asset_profiles": list(assets),
+            "optional_asset_profiles": optional,
+            "optional_asset_size_bytes": optional_plan.get("size_bytes", 0),
+            "optional_asset_terms": optional_plan.get("terms", []),
             "managed_profiles": managed if platforms_ok else [],
             "unsupported_profiles": managed if not platforms_ok else [],
             "manual_items": [{"key": item.key, "label": item.label, "hint": item.install_hint}
-                             for item in missing if item.install_group not in covered],
+                             for item in missing if item.install_group not in covered and item.key not in handled_keys],
             "fsl_license_required": any(name.startswith("fsl_") for name in managed) and platforms_ok,
             "pnl_terms_required": "pnl_cnn" in managed and platforms_ok,
             "repair": bool(repair),

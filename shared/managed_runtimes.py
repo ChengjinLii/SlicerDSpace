@@ -65,7 +65,8 @@ def cuda_candidate():
 def selected_profiles(node, gpu_available):
     """Only provision external tools used by the current GUI selections."""
     preproc = bool(getattr(node, "targetPreprocessing", False)) and getattr(node, "preprocessingBackend", "dipy") == "mrtrix_fsl"
-    tracts = bool(getattr(node, "targetTractography", False)) and getattr(node, "orchestrationTractographyBackend", "dti_det") in {"csd_act", "saf"}
+    from shared.algorithm_selection import algorithms
+    tracts = bool(getattr(node, "targetTractography", False)) and bool(set(algorithms(getattr(node, "orchestrationTractographyBackend", "dti_det"))) & {"csd_act", "saf"})
     conn = bool(getattr(node, "targetConnectome", False)) and getattr(node, "connectomeBackend", "python") == "mrtrix"
     mask = getattr(node, "brainMaskBackend", "provided") == "mrtrix"
     result = ["mrtrix"] if preproc or tracts or conn or mask else []
@@ -216,7 +217,7 @@ def configured_profiles(config, candidates, root=None):
     return tuple(dict.fromkeys(selected))
 
 
-def provision(profiles, *, root=None, conda=None, accept_fsl_license=False, accept_pnl_terms=False, repair=False):
+def provision(profiles, *, root=None, conda=None, accept_fsl_license=False, accept_pnl_terms=False, repair=False, asset_root=None):
     plan = install_plan(profiles, root)
     if not plan["platform_supported"]:
         raise RuntimeError("Managed MRtrix/FSL/PNL setup currently supports Linux x86_64 only")
@@ -241,7 +242,7 @@ def provision(profiles, *, root=None, conda=None, accept_fsl_license=False, acce
                 record = verify_prefix(profile, prefix)
                 if profile == "pnl_cnn":
                     from shared.managed_pnl import verify_assets
-                    record.update(verify_assets(prefix))
+                    record.update(verify_assets(prefix, asset_root=asset_root))
                     if record["pnl_resource_sha256"] != old.get("pnl_resource_sha256"):
                         raise RuntimeError("PNL resources changed; inspect them before reuse")
                 if record["command_sha256"] != old.get("command_sha256"):
@@ -266,11 +267,11 @@ def provision(profiles, *, root=None, conda=None, accept_fsl_license=False, acce
                 _run([*command, *spec["packages"]])
                 if profile == "pnl_cnn":
                     from shared.managed_pnl import provision_assets
-                    provision_assets(prefix, base / "downloads", repair=repair)
+                    provision_assets(prefix, base / "downloads", repair=repair, asset_root=asset_root)
                 record = verify_prefix(profile, prefix)
                 if profile == "pnl_cnn":
                     from shared.managed_pnl import verify_assets
-                    record.update(verify_assets(prefix))
+                    record.update(verify_assets(prefix, asset_root=asset_root))
                 locked = subprocess.run([manager, "list", "--explicit", "-p", str(prefix)],
                                         capture_output=True, text=True, check=True,
                                         env=external_python_environment())

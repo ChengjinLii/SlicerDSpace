@@ -109,14 +109,31 @@ def extract_regular_files(archive, destination):
                 shutil.copyfileobj(data, output)
 
 
-def provision_assets(prefix, cache, *, repair=False):
+def provision_assets(prefix, cache, *, repair=False, asset_root=None):
     from shared.managed_runtimes import _run
-    archives = {name: verified_download(name, cache) for name in ASSETS}
+    from shared.model_assets import configured_model_assets_root
+    from shared.optional_assets import MANIFEST, verified_resource_directory
+    from scripts.import_external_resources import import_file
+    import json
+    import tempfile
+    archives = {name: verified_download(name, cache) for name in ("pnl-source.tar.gz", "conversion.tar.gz")}
     extract_regular_files(archives["pnl-source.tar.gz"], prefix / "pnl-source")
-    extract_regular_files(archives["pnl-models.tar.gz"], prefix / "pnl-models")
-    if (prefix / "pnl-models/IITmean_b0_256.nii.gz").is_symlink():
-        raise ValueError("PNL template destination cannot be a symlink")
-    shutil.copy2(archives["IITmean_b0_256.nii.gz"], prefix / "pnl-models/IITmean_b0_256.nii.gz")
+    if verified_resource_directory("pnl-cnn", asset_root=asset_root) is None:
+        root = configured_model_assets_root(asset_root)
+        records = json.loads(MANIFEST.read_text())["asset_records"]
+        # Use the author's public archive for first acquisition, and the
+        # shared verified files thereafter. IIT is never sourced from a mirror.
+        with tempfile.TemporaryDirectory(prefix="pnl-model-import-", dir=cache) as temporary:
+            staging = Path(temporary)
+            extract_regular_files(verified_download("pnl-models.tar.gz", cache), staging)
+            template = verified_download("IITmean_b0_256.nii.gz", cache)
+            for relative, record in records.items():
+                if not relative.startswith("brain_mask/pnl_cnn/"):
+                    continue
+                name = Path(relative).name
+                source = prefix / "pnl-source/LICENSE" if name == "LICENSE.txt" else (
+                    template if name == "IITmean_b0_256.nii.gz" else staging / name)
+                import_file(source, root / relative, record)
     # TensorFlow 2.15/Keras 2 matches the reviewed author architecture. CUDA
     # libraries are user-local wheels; NVIDIA drivers are never installed.
     _run([str(prefix / "bin/python"), "-m", "pip", "install", *(["--force-reinstall"] if repair else []), "tensorflow[and-cuda]==2.15.1",
@@ -124,10 +141,13 @@ def provision_assets(prefix, cache, *, repair=False):
           str(archives["conversion.tar.gz"])])
 
 
-def verify_assets(prefix):
+def verify_assets(prefix, *, asset_root=None):
     from shared.managed_runtimes import file_hash
+    from shared.optional_assets import verified_resource_directory
     source = prefix / "pnl-source"
-    models = prefix / "pnl-models"
+    # Keep existing prefix-local receipts and manually configured installs valid.
+    models = (prefix / "pnl-models") if (prefix / "pnl-models").is_dir() else (
+        verified_resource_directory("pnl-cnn", asset_root=asset_root) or prefix / "pnl-models")
     required = [source / "pipeline/dwi_masking.py", source / "LICENSE",
                 models / "CompNetBasicModel.json", models / "IITmean_b0_256.nii.gz"]
     for view in ("axial", "coronal", "sagittal"):
@@ -138,7 +158,8 @@ def verify_assets(prefix):
     if any(not path.is_file() or path.is_symlink() for path in required):
         raise RuntimeError("PNL runtime resources are incomplete")
     for relative, expected in RESOURCE_HASHES.items():
-        if file_hash(prefix / relative) != expected:
+        path = models / Path(relative).name if relative.startswith("pnl-models/") else prefix / relative
+        if file_hash(path) != expected:
             raise RuntimeError("PNL resource checksum changed: " + relative)
     probe = Path(__file__).with_name("pnl_runtime_probe.py")
     subprocess.run([str(prefix / "bin/python"), str(probe), str(models)], check=True,
@@ -146,5 +167,6 @@ def verify_assets(prefix):
     return {"external_dependencies": {"pnl_mask_python": str(prefix / "bin/python"),
             "pnl_mask_script": str(required[0]), "pnl_mask_model_dir": str(models),
             "pnl_mask_ants_bin_dir": str(prefix / "bin")},
-            "pnl_resource_sha256": {str(path.relative_to(prefix)): file_hash(path) for path in required},
+            "pnl_resource_sha256": {relative: file_hash(models / Path(relative).name if relative.startswith("pnl-models/") else prefix / relative)
+                                    for relative in RESOURCE_HASHES},
             "pnl_source_commit": PNL_COMMIT, "conversion_source_commit": CONVERSION_COMMIT}

@@ -8,7 +8,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 from shared.selected_setup import build_setup_plan
-from shared.ui_selected_setup import prepare_selected_environment
+from shared.ui_selected_setup import extension_states, prepare_selected_environment
+from shared.environment import DependencySpec, EnvironmentDoctorConfig, run_environment_doctor
 
 
 def item(key, group="python", kind="python", targets=("validation",), package="numpy>=1", required=True):
@@ -23,6 +24,34 @@ def result(*items, targets=("validation",), blockers=None):
 
 
 class SelectedSetupTests(unittest.TestCase):
+    def test_importable_slicer_is_not_proof_that_native_dti_module_is_loaded(self):
+        spec = DependencySpec(key='python:slicer.util', kind='python', label='slicer.util', required=True,
+                              targets=('microstructure',))
+        checked = SimpleNamespace(key=spec.key, kind='python', label=spec.label, status='available', required=True,
+                                  targets=spec.targets, details={}, install_group='slicer-runtime', install_hint='')
+        with patch('shared.environment.build_dependency_specs', return_value=(spec,)), \
+                patch('shared.environment._check_spec', return_value=checked):
+            config = EnvironmentDoctorConfig(targets=('microstructure',), repo_root=Path('.'), loaded_slicer_modules=())
+            report = run_environment_doctor(config)
+            self.assertEqual(report.blocker_count, 1)
+            self.assertEqual(report.statuses[-1].key, 'slicer_module:dwitodtiestimation')
+            from dataclasses import replace
+            report = run_environment_doctor(replace(config, loaded_slicer_modules=('dwitodtiestimation',)))
+            self.assertEqual(report.blocker_count, 0)
+    def test_slicer_510_installed_is_not_loaded_and_nonexposed_api_is_not_called(self):
+        manager = Mock(spec=('isExtensionInstalled', 'isExtensionEnabled'))
+        manager.isExtensionInstalled.side_effect = lambda name: name in ('SlicerDMRI', 'PyTorch')
+        manager.isExtensionEnabled.return_value = True
+        with patch('importlib.util.find_spec', return_value=None):
+            installed, loaded = extension_states(manager, SimpleNamespace())
+        self.assertEqual(installed, ['SlicerDMRI', 'PyTorch'])
+        self.assertEqual(loaded, [])
+        plan = build_setup_plan(result(), need_dti=True, installed_extensions=installed, loaded_extensions=loaded)
+        self.assertEqual(plan['restart_extensions'], ['SlicerDMRI'])
+        with patch('importlib.util.find_spec', return_value=object()):
+            _, loaded = extension_states(manager, SimpleNamespace(dwitodtiestimation=object()))
+        self.assertEqual(loaded, ['SlicerDMRI', 'PyTorch'])
+
     def test_empty_or_ready_routes_do_not_install_unselected_backends(self):
         plan = build_setup_plan(result(), installed_extensions=("SlicerDMRI", "PyTorch"), need_dti=True,
                                 system="Linux", machine="x86_64")
@@ -89,6 +118,7 @@ class SelectedSetupTests(unittest.TestCase):
         owner._install_model_assets_from_environment_dialog.side_effect = lambda profile, on_complete: on_complete(True, "verified")
         context, _ = self.run_preparation(owner, initial)
         with tempfile.TemporaryDirectory() as temp, context, patch("shared.ui_selected_setup._confirm", return_value=True), \
+                patch("shared.ui_environment_check.start_environment_check", side_effect=lambda widget, callback, **kwargs: callback(owner._run_environment_dependency_check()) or True), \
                 patch("shared.user_config.default_user_config_path", return_value=Path(temp) / "config.json"):
             self.assertTrue(prepare_selected_environment(owner, initial))
             receipt = next(Path(temp).glob("setup-history/*/result.json"))
@@ -96,6 +126,20 @@ class SelectedSetupTests(unittest.TestCase):
         owner._install_model_assets_from_environment_dialog.assert_called_once()
         self.assertFalse(owner._selectedSetupActive)
         owner._run_environment_dependency_check.assert_called_once()
+
+    def test_ready_environment_skips_confirmation_installation_and_redundant_check(self):
+        report = result()
+        owner = self.owner(report)
+        context, manager = self.run_preparation(owner, report)
+        with tempfile.TemporaryDirectory() as temp, context, patch("shared.ui_selected_setup._confirm") as confirm, \
+                patch("shared.user_config.default_user_config_path", return_value=Path(temp) / "config.json"):
+            self.assertTrue(prepare_selected_environment(owner, report))
+            receipt = next(Path(temp).glob("setup-history/*/result.json"))
+            self.assertEqual(json.loads(receipt.read_text())["status"], "ready")
+            confirm.assert_not_called()
+        manager.installExtensionFromServer.assert_not_called()
+        owner._run_environment_dependency_check.assert_not_called()
+        owner._install_python_packages_from_environment_dialog.assert_not_called()
 
     def test_failure_stops_the_chain_and_releases_preparation_lock(self):
         initial = result(item("numpy"))
