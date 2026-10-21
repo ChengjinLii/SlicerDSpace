@@ -296,6 +296,37 @@ did not cause it:
   would match its own text), so changing a row back (for example the r10 1 regex back to a string, or `MAIN_TAIL`
   back to all of `main()`) is not caught.
 
+### Review of the r11/r12 fix (commit 8d0597f; Opus 0 blocking, Codex 3)
+
+Rule used for severity (as in the af78411 review): an item is blocking when one common edit removes a fix while
+every check stays green; when a false pass needs two edits, or the edit adds code where a guard does not reach,
+it is P2/P3.
+- Codex P1 (Opus: P2), fixed in the fix round: the r11 3 rows pinned `if RUN["compared"]:` but not its FAIL
+  append; with the append replaced by `pass` (or by a bare `return`, plus a late check), all checks passed. A row
+  now pins the append.
+- Codex P1 (Opus: P2), fixed in the fix round: the sample-test rows pinned the condition but not the action; with
+  the `problems.append` replaced by `pass`, all checks passed (also with a whole-line remover put back). Rows now pin
+  the `problems.append` line and the line that makes the sample (with `sample = CODE_SAMPLE_TEXT`, the sample test
+  was also off).
+- Found in the fix round (not raised by a reviewer; present since af78411): with `ran = checked`, the comparison
+  in `main()` was off in one edit. A row now pins `ran = [r[1] for r in results]`.
+- For each of these four edits the 8d0597f script passes and the fixed script fails.
+- Codex P1, reclassified P2 (Opus: P2): see r13 1. It does not remove a fix; it adds a check where the r11 3 guard
+  does not reach, which is the class of r11 3 itself (P3). The committed tree is correct.
+
+Not fixed (non-blocking):
+- r13 1 (P2): the r11 3 flag misses a late check in three places: between the comparison and the flag line, after
+  the flag line moved into the `if` block, and after the summary loop (its FAIL is added after the count, so the
+  run exits 0). A result appended by hand, not through `check()`, is not covered either. SPEC §7.1 item 16 and
+  the r11 3 entry above (“a check that runs after that comparison fails”) say more than the code does. Fix ideas:
+  set the flag above `ran = …`; let a late check print and exit non-zero (or raise); or narrow the two sentences.
+- r13 2 (P3): the r11 2 regex bans two spellings of the old split; six other spellings (for example
+  `.split( "\n\n" )` or `.split(sep="\n\n")`) and dead code (`if False:`) still pass. The old r11 2 entry said
+  “Code pins accept dead code and other spellings”; the Fixed entry dropped that sentence. Fix: put the limit
+  sentence back.
+- r13 3 (P3): the r11/r12 §9 paragraph does not name the two r12 1 code rows (`part = code_text(part)` and the
+  sample test).
+
 
 ## Image crop boxes as finally used
 

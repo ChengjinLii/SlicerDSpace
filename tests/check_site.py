@@ -759,7 +759,12 @@ WORDING_FIXES = (
     ("r12 2", "tests/check_site.py", MAIN_TAIL,
      'results.append(("FAIL", "spec_lists_checks", "the checks that ran', None),
     ("r11 3", "tests/check_site.py", MAIN_TAIL, 'RUN["compared"] = True', None),
+    # Found in the fix round of the 8d0597f review: "ran = checked" would switch off the comparison in one edit.
+    ("r10 2", "tests/check_site.py", MAIN_TAIL, "ran = [r[1] for r in results]", None),
     ("r11 3", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)", 'if RUN["compared"]:', None),
+    # Review of 8d0597f (Codex P1): pin the action too, not only the condition.
+    ("r11 3", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)",
+     'results.append(("FAIL", name, "runs after the run-order comparison', None),
     ("r10 4", "tests/check_site.py", r"(?m)(?:^#.*\n)+(?=SECTION9_SOURCES = )",
      "a §9 paragraph that records it", "The §9 paragraph that"),
     ("r10 4", "README.md", r"(?ms)^- r8 2 \(P3\).*?(?=^(?! )|\Z)",
@@ -781,6 +786,11 @@ WORDING_FIXES = (
     # Opus r12 1: the code rows use code_text, and the sample test stays.
     ("r12 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)", "part = code_text(part)", None),
     ("r12 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)", "if sample != CODE_SAMPLE_TEXT:", None),
+    # Review of 8d0597f (Codex P1): pin how the sample is made and how a mismatch is reported.
+    ("r12 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     'sample = " ".join(code_text(CODE_SAMPLE).split())', None),
+    ("r12 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     'problems.append("the comment remover gives', None),
 )
 
 # Opus r12 1: a sample for the comment remover of a code part: a trailing comment and a comment line go, a # inside a

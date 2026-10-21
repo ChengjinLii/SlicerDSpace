@@ -485,3 +485,7 @@ holds code (`tokenize`), checks that remover on a built-in sample, bans the old 
 `main()` only from the `later` loop to the count, and gains rows for the `results.append` line, the run-order flag,
 the `backlog_wording` comment, the two narrowed SPEC phrases, the README r12 3 sentence and the guard comment in
 `spec_lists_checks`.
+
+After code review of 8d0597f (2026-10-21, Codex P1): item 17 `backlog_wording` gains rows that pin the action of
+the late-check test in `check()`, the line that makes the comment-remover sample and the line that reports a
+mismatch, and the line in `main()` that collects the checks that ran.
