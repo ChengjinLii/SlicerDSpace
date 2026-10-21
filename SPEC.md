@@ -44,12 +44,20 @@ docs/media/SlicerDDSurfer_promo_1080p.mp4   copy of P/out/SlicerDDSurfer_promo_1
 docs/media/SlicerDDSurfer.en.srt            copy of P/out/SlicerDDSurfer.en.srt
 ```
 
+Fonts (README N15, N5): `.woff2` subsets of `P/film/fonts/` (Inter-var.ttf with its opsz and wght axes,
+InterTight-var.ttf with its wght axis, IBMPlexMono-Regular.ttf and IBMPlexMono-Medium.ttf), made with fontTools 4.67.0
+(`pyftsubset`, brotli 1.2.0). Each subset maps U+0020–007E, U+00A0–00FF and the punctuation, arrows (U+2190–2193),
+minus (U+2212) and ≈ (U+2248) that the font has. SIL OFL 1.1 §3 bars the Reserved Font Name “Plex” from a modified
+version, so the two IBM Plex Mono subsets carry the family name “DDS Mono” (name IDs 1, 3, 4 and 6; the other tables
+are unchanged) and `site.css` loads them as “DDS Mono”. The file names keep `IBMPlexMono`.
+
 ## 3. Images (all from the delivered film or cover; no new renders)
 
 Frames come from `P/out/SlicerDDSurfer_promo_1080p.mp4` with `ffmpeg -ss <t> -i <film> -frames:v 1`. Crop boxes are
 `x0,y0,x1,y1` in the 1920×1080 frame. A crop taken while a subtitle cue is on screen ends at y ≤ 945 (subtitle text
 starts near y = 950; two-line cues reach y ≈ 1040). Frames at 43.0, 50.2 and 56.8 s show no cue. Check each output by eye; adjust a box by up to 60 px if a brain or label is cut, and record the final
-boxes in `README.md`. JPEG quality 82, progressive, sRGB.
+boxes in `README.md`. JPEG quality 82, progressive, sRGB, written with Pillow 13.0.0 (`Image.save(quality=82,
+progressive=True, optimize=True)`; crops are resized with LANCZOS).
 
 | File | t (s) | Crop box | Output size | Shows |
 |---|---|---|---|---|
@@ -58,7 +66,7 @@ boxes in `README.md`. JPEG quality 82, progressive, sRGB.
 | out-dec.jpg | 22.8 | 815,155,1855,935 | 1200×900 | DEC map on three planes |
 | out-tissue.jpg | 27.0 | 725,150,1765,930 | 1200×900 | DDSeg tissue labels |
 | out-regions.jpg | 30.6 | 700,150,1740,930 | 1200×900 | DDParcel regions |
-| out-surfaces.jpg | 34.8 | 665,155,1705,935 | 1200×900 | DDSurfer pial surface |
+| out-surfaces.jpg | 35.4 | 665,155,1705,935 | 1200×900 | DDSurfer pial surface |
 | out-tracts.jpg | 43.0 | 470,0,1910,1080 | 1200×900 | tractography |
 | out-connectome.jpg | 50.2 | 585,140,1838,1080 | 1200×900 | connectome nodes/edges and matrix |
 | slicer.jpg | 56.8 | full frame | 1920×1080 | real 3D Slicer screenshot from the film (cue 11 ends at 56.5 s; the fade to the end card starts at 56.9 s) |
@@ -340,8 +348,9 @@ Three columns, then a bottom line.
   `https://doi.org/10.1162/imag_a_00060`). “Run: SlicerDDSurfer a48fc95, started from the command line, with 3D Slicer
   5.12.4, SlicerDMRI and PyTorch on macOS (x86_64 build under Rosetta, CPU only). This run is outside the Linux
   validation and needed local run-time workarounds that are not in the repository.” “Made with lemo-opuscar (MIT) and
-  three.js (MIT). Voice: Kokoro TTS (Apache-2.0). Fonts: Inter, Inter Tight, IBM Plex Mono (SIL OFL 1.1). Music and
-  sound: original, synthesized in code.” (link “lemo-opuscar” → `https://github.com/lemomo-ai/lemo-opuscar`)
+  three.js (MIT). Voice: Kokoro TTS (Apache-2.0). Fonts: Inter, Inter Tight, IBM Plex Mono (SIL OFL 1.1; the site’s
+  IBM Plex Mono subset is renamed “DDS Mono”, as the licence asks of modified fonts). Music and sound: original,
+  synthesized in code.” (link “lemo-opuscar” → `https://github.com/lemomo-ai/lemo-opuscar`)
   [F5 MAKING_OF:73-74, 144-145, 168; P/runtime/STATUS.md]
 - Bottom line (small): “Static site: no cookies, no trackers, no third-party requests.” and “Back to top” `#top`.
 
@@ -378,9 +387,10 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 7. `transcript_matches_srt`: the transcript list equals the 12 cue texts of `docs/media/SlicerDDSurfer.en.srt`, in order.
 8. `sizes`: no file in `docs/` is over 50 MB; `docs/` is under 100 MB in total.
 9. `images`: every `<img>` has non-empty `alt`, integer `width` and `height`; each image file's pixel size matches its
-   attributes' aspect ratio within 2% (PNG/JPEG header parse, stdlib only).
-    In checks 10 and 11, “visible text” means the text content of both pages plus every `alt`, `aria-label`,
-    `title` attribute, `<title>`, `<meta name="description">`/`og:*` content, and the string literals in `site.js`.
+   attributes' aspect ratio within 2% (PNG/JPEG header parse, stdlib only). In checks 10 and 11, “visible text” means
+   the text content of both pages plus every `alt`, `aria-label`, `title` attribute, `<title>`, `<meta
+   name="description">`/`og:*` content, and the string literals in `site.js`. The files in `docs/assets/img/` are
+   exactly those in the script's `IMAGE_SHA256` (name and SHA-256).
 10. `claims_required`: the visible text contains each of: “at analysis time”, “Private pre-release”, “not a clinical
     assessment”, “not certified” (case-insensitive), “24,000 of 130,780”, “not installed silently”, “in preparation”, “display subset”, “not acceptance by Slicer”,
     “not run for the film”, “No expert has reviewed”, “SNR is higher than a typical single scan”, “workarounds that are
@@ -394,7 +404,8 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     once, inside “Install SlicerDMRI and PyTorch from Slicer’s Extension Manager.”
 12. `no_local_paths`: no file in `docs/` contains `/Volumes/`, `/Users/`, `/private/tmp`, `file://`.
 13. `links_safe`: every `target="_blank"` link has `rel` containing `noopener`.
-14. `fonts_licensed`: every `.woff2` in `docs/assets/fonts/` has its OFL text next to it.
+14. `fonts_licensed`: every `.woff2` in `docs/assets/fonts/` has its OFL text next to it. The `.woff2` files are
+    exactly those in `FONT_SHA256`, and no `@font-face` in `site.css` names a family with “Plex” (README N5).
 15. `menu_focus_wording`: the `site.js` focusout comment, the README “Opus N3” note and this spec (§4) each say “a
     focus change to nothing does not close it”, and none keeps the old wording that hands that case to the click
     handlers.
@@ -539,3 +550,9 @@ After code review (2026-10-22, README backlog r20 2, r20 6 and r21 1): in item 1
 self-test in `main()` at the indent of the function body; item 17 and the 49681a8 paragraph say “went through fewer or
 more rows than `WORDING_FIXES` holds”, which is what the count test checks; item 17 names r20 1. README records r20 3–5
 and r21 2 as limits of the row-count test (user choice, 2026-10-22).
+
+After code review (2026-10-22, README backlog N12, N15 and Opus N5): `out-surfaces.jpg` comes from 35.4 s (the full
+pial mesh; 34.8 s showed the morph at about 0.94); §2 names the font sources and tools and §3 the JPEG tool; the IBM
+Plex Mono subsets are renamed “DDS Mono” and the footer says so. Item 9 `images` and item 14 `fonts_licensed` now
+also pin the image and font files by SHA-256, and item 14 fails an `@font-face` family with “Plex”. README records
+Opus N4 (`slicer.jpg` path fields) as no change (user choice).

@@ -15,14 +15,14 @@
   font-display: swap;
 }
 @font-face {
-  font-family: "IBM Plex Mono";
+  font-family: "DDS Mono";
   src: url("../fonts/IBMPlexMono-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "IBM Plex Mono";
+  font-family: "DDS Mono";
   src: url("../fonts/IBMPlexMono-Medium.woff2") format("woff2");
   font-weight: 500;
   font-style: normal;
@@ -50,7 +50,7 @@
   --tri: linear-gradient(90deg, var(--red), var(--green), var(--blue));
   --f-head: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --f-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --f-mono: "DDS Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: dark;
 }
 

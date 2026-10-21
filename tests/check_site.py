@@ -551,6 +551,44 @@ def image_size(path, is_bytes=False):
     raise ValueError("not a PNG or JPEG")
 
 
+# README N12 and N5: the image and font files are the recorded ones, so a re-made or swapped file is a deliberate
+# change (update the hash here and the record in README).
+IMAGE_SHA256 = {
+    "icon-180.png": "3c8fc86e295be2e74d3e5e9e010cf6fa5570f0f0c8fed0ed8f49a44a4cba96c9",
+    "icon-64.png": "889e9aa69a5c869fb245bfe1fa678da28644592a5923937868be914919bc7818",
+    "idea.jpg": "a60f802c79c255a6e877453b964da68a20fe0258c3e8140866488b65a589a2ee",
+    "out-connectome.jpg": "cb7b206fc7e40aea19b655b44e5f91b7f72acc66c8e7990c3ab78cef1c1e1922",
+    "out-dec.jpg": "7b573b50a6565922bbec30c45d26ce704567daf98513b9f3da105c3593cc3455",
+    "out-regions.jpg": "23f4792c09ba4fa675a93cfa9206967c6cefcfdc3df3c496a31f5e6049c7a395",
+    "out-surfaces.jpg": "27b14e8d2c2e0dc203b8a8b16dd75e5b837ef4db3eb1b7d02ab32892019c6f6f",
+    "out-tissue.jpg": "4aa00a9091114ade8212d0872c2f892621e978d5cd31d37fd12d9cf9b2f6a3d8",
+    "out-tracts.jpg": "252bb7d56b6e4bd7da2192d9ad2954410189ee6e4ced9f80e417ebcfecd6f20e",
+    "poster.jpg": "dea6cbd0b367e14e96f6ff8a3fad8affce3a09e1f9ea0e6b09bd2f17585a2364",
+    "slicer.jpg": "cf8665ab28a533cc422b4acf33d52712edecf17271402095585c7a15d27c9051",
+    "social.jpg": "efee53a920236153eb30de5c3289578f1bbb8d6e5a5c6e15c637a28aa36f2e9b",
+}
+FONT_SHA256 = {
+    "IBMPlexMono-Medium.woff2": "8ce89898741b25f36a0648c4b9f0fdc8d37666349a65fef0eda486ebbc1dab4c",
+    "IBMPlexMono-Regular.woff2": "61d88ee98544e257ae5063a3f61624238cc37094524aaf2191798d96dff00020",
+    "Inter.woff2": "c9ab42b9c70be181e6cefb0a148647f5ad0d501e70703ef94d3b955a61d91f9c",
+    "InterTight.woff2": "c5c50d01290f1fdeab74337afe6ad555a4560248a96bbc13c56fb0fb025e1cbe",
+}
+
+
+def pinned_files(d, names, table):
+    problems = []
+    for n in sorted(set(names) | set(table)):
+        p = os.path.join(d, n)
+        if n not in table:
+            problems.append("%s is not recorded" % os.path.relpath(p, ROOT))
+        elif not os.path.isfile(p):
+            problems.append("%s is recorded but missing" % os.path.relpath(p, ROOT))
+        elif sha256(p) != table[n]:
+            problems.append("%s has SHA-256 %s, not the recorded %s" % (os.path.relpath(p, ROOT), sha256(p)[:12],
+                                                                        table[n][:12]))
+    return problems
+
+
 @check("images")
 def images(pages):
     problems = []
@@ -581,6 +619,8 @@ def images(pages):
                 iw, ih = image_size(target)
             if abs((iw / ih) / (w / h) - 1) > 0.02:
                 problems.append("%s:%s %s file %dx%d vs attributes %dx%d" % (rel, line, src, iw, ih, w, h))
+    idir = os.path.join(DOCS, "assets", "img")
+    problems += pinned_files(idir, [n for n in os.listdir(idir) if not n.startswith(".")], IMAGE_SHA256)
     return fail_list(problems) if problems else None
 
 
@@ -659,6 +699,12 @@ def fonts_licensed():
         family = n[:-len(".woff2")].split("-")[0]
         if not os.path.isfile(os.path.join(fdir, "OFL-%s.txt" % family)):
             problems.append("%s has no OFL-%s.txt" % (n, family))
+    problems += pinned_files(fdir, woffs, FONT_SHA256)
+    # README N5: SIL OFL 1.1 bars the Reserved Font Name "Plex" from a modified version (our subset).
+    css = read(os.path.join(DOCS, "assets", "css", "site.css"))
+    for m in re.finditer(r"@font-face\s*\{[^}]*?font-family:\s*([^;]+);", css):
+        if "plex" in m.group(1).lower():
+            problems.append("site.css @font-face family %s keeps the Reserved Font Name Plex" % m.group(1).strip())
     return fail_list(problems) if problems else None
 
 
@@ -879,6 +925,12 @@ WORDING_FIXES = (
      r'(?m)^    try:\n        got = backlog_wording\.fn\(WORDING_SELF_TEST\) or ""\n    except Exception as exc:.*\n'
      r'        got = .*\n(?=    if not all\(w in got)',
      'try: got = backlog_wording.fn(WORDING_SELF_TEST) or "" except Exception as exc:', None),
+    # README N12, N15 and N5: the records of the re-made surfaces image, the tools and the renamed subset.
+    ("N12", "SPEC.md", r"(?m)^\| out-surfaces\.jpg \| [0-9].*$", "| out-surfaces.jpg | 35.4 |", "| 34.8 |"),
+    ("N12", "README.md", r"(?m)^\| out-surfaces\.jpg \|.*$", "| out-surfaces.jpg | 35.4 |", "| 34.8 |"),
+    ("N15", "SPEC.md", r"(?ms)^## 3\. Images.*?(?=^\| File)", "written with Pillow 13.0.0", None),
+    ("N15", "SPEC.md", r"(?ms)^Fonts \(README N15, N5\):.*?(?=\n\n)", "fontTools 4.67.0", None),
+    ("N5", "docs/index.html", r"(?m)^.*Fonts: Inter, Inter Tight, IBM Plex Mono.*$", "renamed “DDS Mono”", None),
     ("r20 6", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
      "went through fewer or more rows than `WORDING_FIXES` holds", "did not go through every row of `WORDING_FIXES`"),
     ("r20 6", "SPEC.md", r"(?ms)^After code review of 49681a8 .*?(?=\n\n|\Z)",

@@ -63,8 +63,12 @@ CSS and an inline icon, and it links home with the absolute Pages address.
 Items from the spec review (SPEC §9) that were not taken. They do not block the site.
 
 - N2 (P2): SPEC v1 §3 said every crop must exclude the subtitle band, but the out-tracts and out-connectome boxes reach y = 1080. No cue is on screen at 43.0 s or 50.2 s, so the images are fine. SPEC v2 §3 rewords the rule.
-- N12 (P3): at 34.8 s the white→pial morph is at about 0.94. At 35.4 s the full pial mesh shows, before the glass fade starts at 35.6 s.
-- N15 (P3): SPEC §2/§3 do not name the font source or the JPEG tool (ffmpeg's mjpeg encoder alone cannot make progressive JPEG at quality 82).
+- N12 (P3). **Fixed 2026-10-22** (user request): at 34.8 s the white→pial morph was at about 0.94; `out-surfaces.jpg`
+  now comes from 35.4 s (the full pial mesh, before the glass fade at 35.6 s), same box, checked by eye (no subtitle,
+  no cut-off brain). `images` pins the file by SHA-256; with the old file it fails.
+- N15 (P3). **Fixed 2026-10-22** (user request): SPEC §2 names the font sources (`P/film/fonts/`) and tools
+  (fontTools 4.67.0 `pyftsubset`, brotli 1.2.0); §3 and the crop section below name Pillow 13.0.0 for the JPEGs. Rows
+  pin both; the old SPEC fails them.
 - N16 (P3): an inline SVG with `xmlns="http://www.w3.org/2000/svg"` would fail the external-URL check. `check_site.py` now exempts namespace URIs.
 - N18 (P3): for DDSeg the QC that passed is the world-space QC (DDSeg-vs-DDParcel WM Dice 0.848). The Outputs note says “Automatic QC passed for the … DDSeg … stages”; the reviewer found that acceptable.
 - N19 (P3): CITATION.cff writes O'Donnell with an ASCII apostrophe in the DDSurfer entry; the page uses ’ (allowed by the SPEC typography rule).
@@ -98,9 +102,17 @@ Not fixed (non-blocking):
   nav and the Menu button (a focus change to nothing does not close it). `browser_check.mjs` tabs out
   of the open menu at 390 px and needs it closed (failed on bd002dd: still open), and checks that Shift+Tab back to the
   Menu button keeps it open.
-- Opus N4 (P3): `slicer.jpg` shows path fragments from the film frame ("fer-promo/runtime/subjects/sub-01").
-- Opus N5 (P3): the IBM Plex Mono subset keeps the name "IBM Plex Mono", while the OFL text names the Reserved Font
-  Name "Plex". Option: use IBM's published Latin-1 subset files.
+- Opus N4 (P3). **No change** (user choice, 2026-10-22): `slicer.jpg` shows two path fields (“…fer-promo/runtime/
+  subjects/sub-01”). Every frame of the film's Slicer segment (52–56.8 s) shows them, and the brain spans about
+  y = 95–500, so no single crop removes the fields and keeps both the brain and the module panel. The embedded film
+  shows the same frame, so an edit to the still would not remove the paths from the page. They are the film's local
+  run folder names, not private data.
+- Opus N5 (P3). **Fixed 2026-10-22** (user request): the two IBM Plex Mono subsets now carry the family name
+  “DDS Mono” (name IDs 1, 3, 4 and 6; fontTools shows every other table unchanged and 291 glyphs in each), as SIL OFL
+  1.1 §3 asks of a modified version. `site.css` loads them as “DDS Mono”, and the footer says so. `fonts_licensed`
+  pins the `.woff2` files by SHA-256 and fails an `@font-face` family with “Plex”; with the old fonts or the old
+  `site.css` it fails. The file names keep `IBMPlexMono`; `404.html` names “IBM Plex Mono” only as a local font and
+  loads no file.
 - Opus N6 (P3): `check_site.py` accepts any §6 URL in `<link rel="canonical">` and does not limit where the Pages URLs
   and the `.git` URL may appear.
 - Opus N7 (P3): on the 404 page, `browser_check.mjs` ignores console errors that contain "404", so a missing asset
@@ -501,7 +513,7 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
 ## Image crop boxes as finally used
 
 Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the
-1920×1080 frame. JPEG quality 82, progressive, sRGB. Every output was checked by eye: no subtitle text, no cut-off
+1920×1080 frame. JPEG quality 82, progressive, sRGB, written with Pillow 13.0.0. Every output was checked by eye: no subtitle text, no cut-off
 brain, no cut-off label.
 
 | File | t (s) | Crop box | Output size | Change from SPEC v2 §3 |
@@ -511,7 +523,7 @@ brain, no cut-off label.
 | out-dec.jpg | 22.8 | 815,155,1855,935 | 1200×900 | none |
 | out-tissue.jpg | 27.0 | 725,150,1765,930 | 1200×900 | none |
 | out-regions.jpg | 30.6 | 700,150,1740,930 | 1200×900 | none |
-| out-surfaces.jpg | 34.8 | 665,155,1705,935 | 1200×900 | none |
+| out-surfaces.jpg | 35.4 | 665,155,1705,935 | 1200×900 | 35.4 s, not 34.8 s (README N12): the full pial mesh |
 | out-tracts.jpg | 43.0 | 470,0,1910,1080 | 1200×900 | none |
 | out-connectome.jpg | 50.2 | 585,140,1838,1080 | 1200×900 | none |
 | slicer.jpg | 56.8 | full frame | 1920×1080 | none (SPEC v2 uses 56.8 s: cue 11 ends at 56.5 s, the fade starts at 56.9 s) |
