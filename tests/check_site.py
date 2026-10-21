@@ -765,8 +765,7 @@ WORDING_FIXES = (
     ("r12 2", "tests/check_site.py", MAIN_TAIL,
      'results.append(("FAIL", "spec_lists_checks", "the checks that ran', None),
     ("r11 3", "tests/check_site.py", MAIN_TAIL, 'RUN["compared"] = True', None),
-    # Opus r13 1: the run-order flag is on the line above the comparison, and the summary flag is in MAIN_TAIL (above
-    # failed = 0).
+    # Opus r13 1: the run-order flag is on the line above the comparison.
     ("r13 1", "tests/check_site.py", MAIN_TAIL,
      'RUN["compared"] = True ran = [r[1] for r in results] if ran != checked:', None),
     # Review of 5989f8b (Opus P1 B1): the summary flag keeps its indent and stays on the line above failed = 0.
@@ -779,8 +778,11 @@ WORDING_FIXES = (
     ("r11 3", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)",
      'results.append(("FAIL", name, "runs after the run-order comparison', None),
     # Opus r13 1: a check that runs after the summary started prints its FAIL and exits 1. Review of 5989f8b (Opus P1
-    # B2): that test comes before the "compared" test, which would catch the check first.
-    ("r13 1", "tests/check_site.py", r"(?ms)^def check\(.*?(?=^\S)",
+    # B2): that test comes before the "compared" test, which would catch the check first. Opus r16 1: the locator
+    # keeps the indent, so the "compared" test cannot move under the summary test, after sys.exit(1).
+    ("r16 1", "tests/check_site.py",
+     r'(?m)^            if RUN\["summary"\]:\n                print\(.*\n                sys\.exit\(1\)\n'
+     r'            if RUN\["compared"\]:\n',
      'if RUN["summary"]: print("FAIL %s - runs after the summary of main() started" % name) sys.exit(1)'
      ' if RUN["compared"]:', None),
     ("r10 4", "tests/check_site.py", r"(?m)(?:^#.*\n)+(?=SECTION9_SOURCES = )",
@@ -825,6 +827,14 @@ WORDING_FIXES = (
     ("r14 1", "README.md", r"(?ms)^- r11 2 \(P3\)\..*?(?=^(?! )|\Z)", "This holds for every code pin", None),
     ("r14 6", "README.md", r"(?ms)^- For each of these (?:four edits|six runs).*?(?=^(?! )|\Z)",
      "For each of these six runs", "these four edits"),
+    # Opus r16 2: r15 2 was closed in the fix round, so it sits with B1 and B2, not in the "Not fixed" list.
+    ("r15 2", "README.md", r"(?ms)^### Review of the r13 fix \(commit 5989f8b.*?(?=^Not fixed)",
+     "r15 2 (P3), closed by the B1 row", None),
+    ("r15 2", "README.md",
+     r"(?ms)^Not fixed \(non-blocking, from the Opus review; Codex found nothing\):\n- r15 1 .*?(?=^### |\Z)",
+     "r15 1 (P3)", "r15 2 (P3)"),
+    ("r16 3", "tests/check_site.py", r'(?m)(?:^[ \t]*#.*\n)+(?=    \("r13 1", "tests/check_site.py", MAIN_TAIL,\n)',
+     "the run-order flag is on the line above the comparison.", "and the summary flag is in MAIN_TAIL"),
 )
 
 # Opus r12 1: a sample for the comment remover of a code part: a trailing comment and a comment line go, a # inside a
