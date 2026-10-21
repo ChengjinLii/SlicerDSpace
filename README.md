@@ -393,8 +393,9 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
   not in its “Not fixed” list. Two rows want it there and ban it from that list; the old README fails both.
 - r16 3 (P3). **Fixed 2026-10-21** (user request): the comment above the r13 1 order row now says only that the
   run-order flag is on the line above the comparison. A row pins it and bans the old clause.
-- r16 4 (information): no change. The B1 and B2 rows read raw text, so a trailing comment or a blank line there
-  fails them (a visible false FAIL, not a false pass).
+- r16 4 (information): no change. The B1 and B2 rows read raw text, so a trailing comment on a pinned line other
+  than the print line, or a blank line there, fails them (a visible false FAIL, not a false pass). A trailing comment
+  on the print line of the B2 part passes: `print\(.*\n` matches it, and `code_text` removes the comment.
 
 ### Review of the r14 fix (commit bca6f20; Opus and Codex: 0 blocking)
 
@@ -407,8 +408,8 @@ Not fixed (non-blocking):
   `found = list(re.finditer(where, read(os.path.join(ROOT, rel))))` and `if not found:`. With `[:1]` added, or with
   `re.search` put back, the old script passes and the new script fails.
 - r17 3 (P3). **Fixed 2026-10-21** (user request): the limit sentence under r11 2 now gives
-  `sample = CODE_SAMPLE_TEXT` as the example; the r14 2 entry drops `ran = checked`. A row wants the new example and
-  bans the old one; the old README fails it.
+  `sample = CODE_SAMPLE_TEXT` as the example; the r14 2 entry no longer lists `ran = checked` as an example and notes
+  that it now fails the r13 1 order row. A row wants the new example and bans the old one; the old README fails it.
 - r17 4 (P3). **Fixed 2026-10-21** (user request): the r14 3 entry has a limit sentence (the row reads the source
   text). A row pins it; the old README fails it.
 - r17 5 (outside the bca6f20 diff; since 84c2ffd). **Fixed 2026-10-21** (user request), not with pins: the user asked
@@ -417,22 +418,22 @@ Not fixed (non-blocking):
   `backlog_wording` on two built-in rows (`WORDING_SELF_TEST`) and fails it unless they give a “lacks”, a “still
   says” and a “still matches” problem; a row pins that call. With the “lacks”, “still says” or “still matches” line
   replaced by `pass`, or the return line changed to `return None`, the old script passes and the new script fails.
-  Limit: an edit to the self-test call together with an edit to a reporting line (two edits) still passes.
+  Limit: an edit to the self-test call together with an edit to the “lacks” line or the return line (two edits)
+  still passes.
 
 ### Review of the r15 2 / r16 fix (commit 59d7bf6; Opus and Codex: 0 blocking)
 
 Not fixed (non-blocking, from the Opus review; Codex found nothing):
-- r18 1 (P3): the r16 4 sentence says that a trailing comment fails the B1 and B2 rows. On the print line of the B2
-  part it does not (`print\(.*\n` matches it, and `code_text` removes the comment): 17/0, not a false pass. Fix:
-  say “a trailing comment on a pinned line other than the print line”.
-- r18 2 (P3, new in 59d7bf6): the r16 1 locator searches the whole file, not only `check()`. With the nest edit and
-  a copy of the four lines in a module string (two edits, code in a string), the suite passes. Fix idea: the
-  lookbehind `(?<=^        def run\(\*a, \*\*k\):\n)` in front of the locator.
-- r18 3 (P3, a recorded limit; also before 59d7bf6): `if RUN["compared"]: return` added above the summary test,
-  with a late check, passes on the old and the new script (a line added that undoes a pinned one). The r18 2
-  lookbehind would close it too.
-- r18 4 (P3, other spellings): the r16 3 ban misses an added comment line “The summary flag is in MAIN_TAIL (above
-  failed = 0).” (17/0). Fix idea: ban “summary flag is in MAIN_TAIL”.
+- r18 1 (P3). **Fixed 2026-10-22** (user request): the r16 4 sentence now names the print line as the exception. A
+  row pins “a trailing comment on a pinned line other than the print line”; the old README fails it.
+- r18 2 (P3). **Fixed 2026-10-22** (user request): the B2 (r16 1) locator now starts with the lookbehind
+  `(?<=^        def run\(\*a, \*\*k\):\n)`, so the four lines count only right below `def run`. With the nest edit
+  and a copy of the four lines in a module string (the Opus copy), the old script passes and the new script fails.
+- r18 3 (P3). Closed by the r18 2 lookbehind: with `if RUN["compared"]: return` added above the summary test and
+  a late check (the Opus copy), the old script passes and the new script fails.
+- r18 4 (P3). **Fixed 2026-10-22** (user request): the r16 3 ban is now “summary flag is in MAIN_TAIL”. With the
+  added comment line “The summary flag is in MAIN_TAIL (above failed = 0).” (the Opus copy), the old script passes
+  and the new script fails.
 
 ### Review of the r17 fix (commit 49681a8; Opus 1 blocking, Codex 1 blocking)
 
@@ -447,16 +448,19 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
   fixed script fails.
 
 Not fixed (non-blocking, from the Opus review):
-- r19 2 (P2): the r17 1 locator `(?m)^    for f in later:$` ends with `$`, but `MAIN_TAIL` does not. A second
-  start in another spelling (`for f in later: pass`, or with a trailing comment) passes (17/0). README r17 1 and
-  the r17 §9 paragraph (“the single start of `MAIN_TAIL`”) claim too much. Fix: remove the `$`.
-- r19 3 (P3): the r17 5 limit sentence (“an edit to the self-test call together with an edit to a reporting line”)
-  is broader than the runs: with a ban line broken and the self-test deleted, the r17 5 row still fails through the
-  intact “lacks” line. Fix: say “together with an edit to the “lacks” line or the return line”.
-- r19 4 (P3): the self-test call is not wrapped. If it raises, `main()` stops with a traceback before any result
-  line (exit 1, so the failure is still visible). Fix: a try/except that adds a FAIL line.
-- r19 5 (P3): the r17 3 entry says that the r14 2 entry “drops `ran = checked`”, but r14 2 still names it in a
-  parenthetical; no row holds the r14 2 change.
+- r19 2 (P2). **Fixed 2026-10-22** (user request): the r17 1 locator is `(?m)^    for f in later:` (no `$`, as in
+  `MAIN_TAIL`). With `for f in later: pass`, or a second loop line with a trailing comment, added above the loop (the
+  Opus copies), the old script passes and the new script fails (2 parts).
+- r19 3 (P3). **Fixed 2026-10-22** (user request): the r17 5 limit sentence now says “together with an edit to the
+  “lacks” line or the return line”. A row wants it and bans the old phrase; the old README fails it.
+- r19 4 (P3). **Fixed 2026-10-22** (user request): the self-test call is in a try; a crash gives
+  `exception: …`, which fails the test of the three words, so the run prints a FAIL line and the count. With the
+  “lacks” line's format broken (the Opus copy), the old script stops with a traceback before any result line, and
+  the new script prints every result and the FAIL line. A row pins the try and the call right above the test.
+- r19 5 (P3). **Fixed 2026-10-22** (user request): the r17 3 entry now says that the r14 2 entry no longer lists
+  `ran = checked` as an example and notes that it now fails the r13 1 order row, which is what r14 2 says. A row
+  pins the r17 3 wording (want and ban); the old README fails it. A row pins the r14 2 example list; the old README
+  already passes it, and `ran = checked` put back into the list fails it.
 
 ### Re-review of the r17 fix round (commit afca992; Opus 1 blocking, Codex 0 blocking)
 
@@ -470,30 +474,28 @@ Not fixed (non-blocking, from the Opus review):
   is then one of the rows that do not run. This was the last round the stop rule allows for this review.
 
 Not fixed (non-blocking, from the Opus re-review):
-- r20 2 (P2, predates; from 49681a8): the same re-indent works on the r17 5 self-test lines (into the `if ran !=
-  checked:` block on 49681a8, into the count test on afca992), 17/0. Fix: an indent-anchored row on
-  `    got = backlog_wording.fn(WORDING_SELF_TEST) or ""` followed by `    if not all(`.
-- r20 3 (P3, a recorded limit: a line added): a `continue` added after the counter (for example for README rows)
-  skips rows, but the count stays at 44 (17/0; the same skip passes on 49681a8 and 6a8cc16). The counter counts
-  entries into the loop body, not rows that reach the `want` test.
-- r20 4 (P3, not a common edit): `rows=WORDING_FIXES[:1] * len(WORDING_FIXES)` passes (17/0); the count is right,
-  but row 1 runs 44 times. The test compares the count, not which rows ran.
-- r20 5 (P3, a row's own definition): `WORDING_FIXES = WORDING_FIXES[:1]` above the `def` passes on afca992 and
-  49681a8 (17/0). The same line after the `def` now fails (44 of the 1 rows); on 6a8cc16 it passed.
-- r20 6 (P3, wording): SPEC item 17 and the 49681a8 §9 paragraph (“did not go through every row of
-  `WORDING_FIXES`”) say more than the code, which compares the count (see r20 3 and r20 4). Suggested: “went
-  through fewer or more rows than `WORDING_FIXES` holds”.
+- r20 2 (P2). **Fixed 2026-10-22** (user request): a row wants the self-test (`try:`, the call, the `except` line
+  and the fallback) at the indent of `main()`'s body, right above `if not all(w in got`. With the self-test lines
+  indented one level, into the count test (the Opus copy), the f3b0bd6 script passes and the new script fails.
+- r20 3 (P3). **Recorded as a limit** (user choice, 2026-10-22): a `continue` added after the counter skips rows
+  while the count stays at the table length (a line added). The counter counts entries into the loop body, not rows
+  that reach the `want` test.
+- r20 4 (P3). **Recorded as a limit** (user choice, 2026-10-22): `rows=WORDING_FIXES[:1] * len(WORDING_FIXES)`
+  passes, because the test compares the count, not which rows ran (not a common edit).
+- r20 5 (P3). **Recorded as a limit** (user choice, 2026-10-22): `WORDING_FIXES = WORDING_FIXES[:1]` above the
+  `def` passes (a row's own definition). The same line after the `def` fails.
+- r20 6 (P3). **Fixed 2026-10-22** (user request): SPEC item 17 and the 49681a8 §9 paragraph now say “went through
+  fewer or more rows than `WORDING_FIXES` holds”. Two rows want it and ban the old phrase; the f3b0bd6 SPEC fails
+  both.
 
 ### Re-review of the third round (commit 3d87fa2; Opus and Codex: 0 blocking)
 
 Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
-- r21 1 (P3, introduced by the third round): SPEC item 17 lists the findings that `WORDING_FIXES` holds, ending
-  “r17 1–5 and r19 1”; it does not name r20 1. No row pins the list.
-- r21 2 (P3, predates; a recorded limit: dead code): with `if False else None` added to the end of the FAIL line of
-  the count test, the append is dead code and every check stays green (17/0 on afca992 and 3d87fa2).
-- r21 3 (P3, information): the r20 1 row reads raw text, as the B1 and B2 rows do, so a trailing comment on the `if`
-  line, or a comment line below it, fails the row while the test still runs (a visible false FAIL, not a false
-  pass).
+- r21 1 (P3). **Fixed 2026-10-22** (user request): SPEC item 17 names r20 1 (and the rows this batch adds).
+- r21 2 (P3). **Recorded as a limit** (dead code, user choice 2026-10-22): with `if False else None` added to the
+  end of the FAIL line of the count test, the append is dead code and every check stays green.
+- r21 3 (information): no change. The r20 1 row reads raw text, so a trailing comment on the `if` line, or a
+  comment line below it, fails the row while the test still runs (a visible false FAIL, not a false pass).
 
 
 ## Image crop boxes as finally used

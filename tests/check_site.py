@@ -780,9 +780,11 @@ WORDING_FIXES = (
      'results.append(("FAIL", name, "runs after the run-order comparison', None),
     # Opus r13 1: a check that runs after the summary started prints its FAIL and exits 1. Review of 5989f8b (Opus P1
     # B2): that test comes before the "compared" test, which would catch the check first. Opus r16 1: the locator
-    # keeps the indent, so the "compared" test cannot move under the summary test, after sys.exit(1).
+    # keeps the indent, so the "compared" test cannot move under the summary test, after sys.exit(1). Opus r18 2: and
+    # it starts right below def run, so a copy elsewhere, or a line added above the test, does not count.
     ("r16 1", "tests/check_site.py",
-     r'(?m)^            if RUN\["summary"\]:\n                print\(.*\n                sys\.exit\(1\)\n'
+     r'(?m)(?<=^        def run\(\*a, \*\*k\):\n)'
+     r'            if RUN\["summary"\]:\n                print\(.*\n                sys\.exit\(1\)\n'
      r'            if RUN\["compared"\]:\n',
      'if RUN["summary"]: print("FAIL %s - runs after the summary of main() started" % name) sys.exit(1)'
      ' if RUN["compared"]:', None),
@@ -835,16 +837,20 @@ WORDING_FIXES = (
      r"(?ms)^Not fixed \(non-blocking, from the Opus review; Codex found nothing\):\n- r15 1 .*?(?=^### |\Z)",
      "r15 1 (P3)", "r15 2 (P3)"),
     ("r16 3", "tests/check_site.py", r'(?m)(?:^[ \t]*#.*\n)+(?=    \("r13 1", "tests/check_site.py", MAIN_TAIL,\n)',
-     "the run-order flag is on the line above the comparison.", "and the summary flag is in MAIN_TAIL"),
-    # Opus r17 5: the self-test call in main() and its FAIL.
+     "the run-order flag is on the line above the comparison.", "summary flag is in MAIN_TAIL"),
+    # Opus r17 5: the self-test call in main() and its FAIL. Opus r19 4: the call is in a try, right above the test.
     ("r17 5", "tests/check_site.py", MAIN_TAIL,
-     'got = backlog_wording.fn(WORDING_SELF_TEST) or "" if not all(w in got for w in ("lacks", "still says",'
-     ' "still matches")): results.append(("FAIL", "backlog_wording",', None),
+     'if not all(w in got for w in ("lacks", "still says", "still matches")):'
+     ' results.append(("FAIL", "backlog_wording",', None),
+    ("r19 4", "tests/check_site.py", MAIN_TAIL,
+     'try: got = backlog_wording.fn(WORDING_SELF_TEST) or "" except Exception as exc: got = "exception: %r" % (exc,)'
+     ' if not all(', None),
     # Opus r17 2: the line that feeds the one-part rule, next to the test that uses it.
     ("r17 2", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
      "found = list(re.finditer(where, read(os.path.join(ROOT, rel)))) if not found:", None),
     # Codex r17 1: MAIN_TAIL has one start; the one-part rule fails a second one.
-    ("r17 1", "tests/check_site.py", r"(?m)^    for f in later:$", "for f in later:", None),
+    # Opus r19 2: no $, as in MAIN_TAIL, so "for f in later: pass" is a second start too.
+    ("r17 1", "tests/check_site.py", r"(?m)^    for f in later:", "for f in later:", None),
     ("r17 3", "README.md", r"(?ms)^- r11 2 \(P3\)\..*?(?=^(?! )|\Z)", "(for example `sample = CODE_SAMPLE_TEXT`",
      "for example `ran = checked`"),
     ("r17 4", "README.md", r"(?ms)^- r14 3 \(P2\)\..*?(?=^(?! )|\Z)", "the row reads the source text", None),
@@ -860,6 +866,23 @@ WORDING_FIXES = (
      r'(?m)^    if WORDING_RUN\["rows"\] != len\(WORDING_FIXES\):\n'
      r'(?=        results\.append\(\("FAIL", "backlog_wording",)',
      'if WORDING_RUN["rows"] != len(WORDING_FIXES):', None),
+    ("r18 1", "README.md", r"(?ms)^- r16 4 \(information\): no change.*?(?=^(?! )|\Z)",
+     "a trailing comment on a pinned line other than the print line", None),
+    ("r19 3", "README.md", r"(?ms)^- r17 5 \(outside the bca6f20 diff; since 84c2ffd\)\..*?(?=^(?! )|\Z)",
+     "together with an edit to the “lacks” line or the return line", "together with an edit to a reporting line"),
+    ("r19 5", "README.md", r"(?ms)^- r17 3 \(P3\)\. \*\*Fixed.*?(?=^(?! )|\Z)",
+     "no longer lists `ran = checked` as an example", "drops `ran = checked`"),
+    ("r19 5", "README.md", r"(?ms)^- r14 2 \(P2/P3\)\. Recorded.*?(?=^(?! )|\Z)",
+     "(`sample = CODE_SAMPLE_TEXT`, `problems = []`)", "(`ran = checked`, `sample"),
+    # Opus r20 2: the self-test keeps the indent of main()'s body, so it cannot move into the count test above it.
+    ("r20 2", "tests/check_site.py",
+     r'(?m)^    try:\n        got = backlog_wording\.fn\(WORDING_SELF_TEST\) or ""\n    except Exception as exc:.*\n'
+     r'        got = .*\n(?=    if not all\(w in got)',
+     'try: got = backlog_wording.fn(WORDING_SELF_TEST) or "" except Exception as exc:', None),
+    ("r20 6", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
+     "went through fewer or more rows than `WORDING_FIXES` holds", "did not go through every row of `WORDING_FIXES`"),
+    ("r20 6", "SPEC.md", r"(?ms)^After code review of 49681a8 .*?(?=\n\n|\Z)",
+     "went through fewer or more rows than `WORDING_FIXES` holds", "did not go through every row of `WORDING_FIXES`"),
 )
 
 # Opus r12 1: a sample for the comment remover of a code part: a trailing comment and a comment line go, a # inside a
@@ -983,7 +1006,10 @@ def main(argv):
         results.append(("FAIL", "backlog_wording", "its normal call went through %d of the %d rows"
                         % (WORDING_RUN["rows"], len(WORDING_FIXES))))
     # Opus r17 5: backlog_wording must still report a missing phrase and a banned one (see WORDING_SELF_TEST).
-    got = backlog_wording.fn(WORDING_SELF_TEST) or ""
+    try:
+        got = backlog_wording.fn(WORDING_SELF_TEST) or ""
+    except Exception as exc:  # Opus r19 4: a crash here is a FAIL line, not a lost report
+        got = "exception: %r" % (exc,)
     if not all(w in got for w in ("lacks", "still says", "still matches")):
         results.append(("FAIL", "backlog_wording", "its self-test rows give %r, not the three problems" % got))
 

@@ -406,14 +406,15 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     the line above `failed = 0`) prints its FAIL and exits 1. A result added to `results` by hand, not through a
     check, is not covered.
 17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4, r10 1, 2, 4, 5, r11 3,
-    4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 1–5 and r19 1) stay in place: in the part of a file
-    that each row names (found exactly once), the fixed phrase is there and, where there is one, the old phrase is not
-    (a string or a regex). In a `.py` part made of comment lines the `#` marks are removed before the test; from a
-    `.py` part that holds code every comment is removed (Python `tokenize`, also a comment at the end of a line), so
-    code commented out with `#` does not count; code inside a string still counts. A built-in sample checks the
-    comment remover. `main()` also runs this check on built-in rows (`WORDING_SELF_TEST`) and fails it unless they
-    give a “lacks”, a “still says” and a “still matches” problem. It also fails it when the normal call did not go
-    through every row of `WORDING_FIXES`.
+    4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20
+    6 and r21 1) stay in place: in the part of a file that each row names (found exactly once), the fixed phrase is
+    there and, where there is one, the old phrase is not (a string or a regex). In a `.py` part made of comment lines
+    the `#` marks are removed before the test; from a `.py` part that holds code every comment is removed (Python
+    `tokenize`, also a comment at the end of a line), so code commented out with `#` does not count; code inside a
+    string still counts. A built-in sample checks the comment remover. `main()` also runs this check on built-in rows
+    (`WORDING_SELF_TEST`) and fails it unless they give a “lacks”, a “still says” and a “still matches” problem (a
+    crash there is a FAIL too). It also fails it when the normal call went through fewer or more rows than
+    `WORDING_FIXES` holds.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
@@ -521,7 +522,20 @@ can guard the lines that report every row); rows pin that call, the line that co
 of the part count, the single start of `MAIN_TAIL`, and the README limit sentences under r11 2 and r14 3.
 
 After code review of 49681a8 (2026-10-21, Codex P1 and Opus P1 B1, README backlog r19 1): `main()` fails item 17
-`backlog_wording` when its normal call did not go through every row of `WORDING_FIXES` (the default `rows` value or
-the call could select fewer rows, and the self-test passes its own rows); rows pin the row count and its test. After
-the re-review of afca992 (Opus P1 B1, README backlog r20 1), a row also pins the indent of that test, so it cannot
-move into the `if ran != checked:` block.
+`backlog_wording` when its normal call went through fewer or more rows than `WORDING_FIXES` holds (the default `rows`
+value or the call could select fewer rows, and the self-test passes its own rows); rows pin the row count and its
+test. After the re-review of afca992 (Opus P1 B1, README backlog r20 1), a row also pins the indent of that test, so
+it cannot move into the `if ran != checked:` block.
+
+After code review (2026-10-22, README backlog r18 1–4): the row for the summary test in `check()` (item 17
+`backlog_wording`) must start right below `def run`, which also closes r18 3; the r16 3 ban is “summary flag is in
+MAIN_TAIL”; a row pins the narrowed README r16 4 sentence.
+
+After code review (2026-10-22, README backlog r19 2–5): in item 17 `backlog_wording`, the self-test call in `main()`
+is in a `try`, so a crash in it gives a FAIL line; the row for the single start of `MAIN_TAIL` has no `$`; rows pin
+the try, the README r17 5 limit sentence, and the r17 3 and r14 2 entries on `ran = checked`.
+
+After code review (2026-10-22, README backlog r20 2, r20 6 and r21 1): in item 17 `backlog_wording`, a row pins the
+self-test in `main()` at the indent of the function body; item 17 and the 49681a8 paragraph say “went through fewer or
+more rows than `WORDING_FIXES` holds”, which is what the count test checks; item 17 names r20 1. README records r20 3–5
+and r21 2 as limits of the row-count test (user choice, 2026-10-22).
