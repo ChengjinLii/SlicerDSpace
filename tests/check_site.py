@@ -684,6 +684,9 @@ def menu_focus_wording():
 V2_CHECKS = ("html_basics", "local_refs", "external_urls", "film_bytes", "film_faststart", "film_probe",
              "transcript_matches_srt", "sizes", "images", "claims_required", "claims_banned", "no_local_paths",
              "links_safe", "fonts_licensed")
+# Opus r8 2: item 15 reads SPEC only in §4 because of the Codex P1 of the 90a6a03 review. The §9 paragraph that
+# records a check here must cite the review that set its scope.
+SECTION9_SOURCES = {"menu_focus_wording": "Codex P1 of the 90a6a03 review"}
 
 
 @check("spec_lists_checks")
@@ -702,16 +705,23 @@ def spec_lists_checks(names):
         problems.append("§7.1 numbering is not 1..%d" % len(items))
     if listed != names:
         problems.append("§7.1 lists %s; the script runs %s" % (listed, names))
-    # Opus r7 2: §9 had no line for items 15 and 16. Every check added after the v2 list must be named in §9.
+    # Opus r7 2: §9 had no line for items 15 and 16. Every check added after the v2 list must be recorded in §9.
+    # Opus r8 1: a name in backticks anywhere in §9 passed; §9 must say "item <n> `<name>`", n its §7.1 number.
     s9 = spec.find("\n## 9. ")
     if s9 < 0:
         problems.append("SPEC.md has no §9 heading")
     else:
         e9 = spec.find("\n## ", s9 + 1)
-        section9 = spec[s9:] if e9 < 0 else spec[s9:e9]
-        for n in listed:
-            if n not in V2_CHECKS and "`%s`" % n not in section9:
-                problems.append("§9 does not name `%s`" % n)
+        paras = (spec[s9:] if e9 < 0 else spec[s9:e9]).split("\n\n")
+        for i, n in items:
+            if n in V2_CHECKS:
+                continue
+            entry = r"\bitem\s+%s\s+`%s`" % (i, n)
+            mine = [p for p in paras if re.search(entry, p)]
+            if not mine:
+                problems.append("§9 does not record item %s `%s`" % (i, n))
+            elif n in SECTION9_SOURCES and not any(SECTION9_SOURCES[n] in " ".join(p.split()) for p in mine):
+                problems.append("§9 paragraph for item %s `%s` does not cite the %s" % (i, n, SECTION9_SOURCES[n]))
     return fail_list(problems) if problems else None
 
 
