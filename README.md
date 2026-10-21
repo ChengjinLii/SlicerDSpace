@@ -434,6 +434,30 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
 - r18 4 (P3, other spellings): the r16 3 ban misses an added comment line “The summary flag is in MAIN_TAIL (above
   failed = 0).” (17/0). Fix idea: ban “summary flag is in MAIN_TAIL”.
 
+### Review of the r17 fix (commit 49681a8; Opus 1 blocking, Codex 1 blocking)
+
+- r19 1: Codex P1 and Opus B1 (P1), fixed in the fix round. The new `rows` parameter let one edit select fewer rows
+  while every check stayed green: the default changed to `rows=WORDING_FIXES[:1]`, `rows=()` or
+  `rows=WORDING_FIXES[-1:]`, or the call changed to `f(())` (17/0). The self-test passes its own rows, so it never
+  reached those lines. I first rated the Codex item P2, because `[:1]` on the loop line also passed on 6a8cc16. The
+  Opus evidence shows that the call `f(())` is new in this diff (6a8cc16 raised a TypeError), so it is blocking.
+  Fix: `backlog_wording` counts the rows that its loop goes through (`WORDING_RUN["rows"]`), and `main()` fails it
+  when the normal call went through fewer rows than `WORDING_FIXES` holds (the check runs before the self-test
+  call). Two rows pin the counter and the check. For each of the four edits the 49681a8 script passes and the
+  fixed script fails.
+
+Not fixed (non-blocking, from the Opus review):
+- r19 2 (P2): the r17 1 locator `(?m)^    for f in later:$` ends with `$`, but `MAIN_TAIL` does not. A second
+  start in another spelling (`for f in later: pass`, or with a trailing comment) passes (17/0). README r17 1 and
+  the r17 §9 paragraph (“the single start of `MAIN_TAIL`”) claim too much. Fix: remove the `$`.
+- r19 3 (P3): the r17 5 limit sentence (“an edit to the self-test call together with an edit to a reporting line”)
+  is broader than the runs: with a ban line broken and the self-test deleted, the r17 5 row still fails through the
+  intact “lacks” line. Fix: say “together with an edit to the “lacks” line or the return line”.
+- r19 4 (P3): the self-test call is not wrapped. If it raises, `main()` stops with a traceback before any result
+  line (exit 1, so the failure is still visible). Fix: a try/except that adds a FAIL line.
+- r19 5 (P3): the r17 3 entry says that the r14 2 entry “drops `ran = checked`”, but r14 2 still names it in a
+  parenthetical; no row holds the r14 2 change.
+
 
 ## Image crop boxes as finally used
 

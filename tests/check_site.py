@@ -848,6 +848,12 @@ WORDING_FIXES = (
     ("r17 3", "README.md", r"(?ms)^- r11 2 \(P3\)\..*?(?=^(?! )|\Z)", "(for example `sample = CODE_SAMPLE_TEXT`",
      "for example `ran = checked`"),
     ("r17 4", "README.md", r"(?ms)^- r14 3 \(P2\)\..*?(?=^(?! )|\Z)", "the row reads the source text", None),
+    # Review of 49681a8 (Codex P1, Opus P1 B1; README r19 1): the normal call goes through every row of
+    # WORDING_FIXES, and main() checks the count.
+    ("r19 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     'WORDING_RUN["rows"] = 0 for finding, rel, where, want, banned in rows: WORDING_RUN["rows"] += 1', None),
+    ("r19 1", "tests/check_site.py", MAIN_TAIL,
+     'if WORDING_RUN["rows"] != len(WORDING_FIXES): results.append(("FAIL", "backlog_wording",', None),
 )
 
 # Opus r12 1: a sample for the comment remover of a code part: a trailing comment and a comment line go, a # inside a
@@ -863,6 +869,9 @@ WORDING_SELF_TEST = (
     ("self-test", "tests/check_site.py", r"(?m)^CODE_SAMPLE_TEXT = .*$", "CODE_SAMPLE_TEXT",
      re.compile(r"SAMPLE_TEXT")),
 )
+# Review of 49681a8 (README r19 1): the rows that the last backlog_wording call went through; main() compares it
+# with WORDING_FIXES.
+WORDING_RUN = {"rows": 0}
 
 
 def code_text(part):
@@ -886,7 +895,9 @@ def backlog_wording(rows=WORDING_FIXES):
         sample = "exception: %r" % (exc,)
     if sample != CODE_SAMPLE_TEXT:
         problems.append("the comment remover gives %r for its sample, not %r" % (sample, CODE_SAMPLE_TEXT))
+    WORDING_RUN["rows"] = 0
     for finding, rel, where, want, banned in rows:
+        WORDING_RUN["rows"] += 1
         found = list(re.finditer(where, read(os.path.join(ROOT, rel))))
         if not found:
             problems.append("%s: %s has no part that matches %r" % (finding, rel, where))
@@ -960,6 +971,11 @@ def main(argv):
     if ran != checked:
         results.append(("FAIL", "spec_lists_checks", "the checks that ran %s differ from the list it checked %s"
                         % (ran, checked)))
+    # Review of 49681a8 (README r19 1): the normal call went through the whole table (the self-test call below passes
+    # its own rows).
+    if WORDING_RUN["rows"] != len(WORDING_FIXES):
+        results.append(("FAIL", "backlog_wording", "its normal call went through %d of the %d rows"
+                        % (WORDING_RUN["rows"], len(WORDING_FIXES))))
     # Opus r17 5: backlog_wording must still report a missing phrase and a banned one (see WORDING_SELF_TEST).
     got = backlog_wording.fn(WORDING_SELF_TEST) or ""
     if not all(w in got for w in ("lacks", "still says", "still matches")):
