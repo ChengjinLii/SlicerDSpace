@@ -2797,7 +2797,11 @@ class SharedWidgetMixin:
         return None
 
     def _onRunSelectedClicked(self) -> None:
-        if not self._parameterNode or not self.logic or self._pipelineActive:
+        if (not self._parameterNode or not self.logic or self._pipelineActive
+                or getattr(self, "_selectedSetupActive", False)):
+            return
+        if getattr(self, "_setupRestartRequired", False):
+            self._setStatus("warning", onboarding_text(getattr(self, "_onboardingLanguage", "en"), "setup_restart_required"))
             return
         # Validate before saving settings, checking dependencies or starting a job.
         batch_mode = bool(getattr(self._parameterNode, "batchMode", False))
@@ -3104,48 +3108,8 @@ class SharedWidgetMixin:
         if result is None:
             slicer.util.infoDisplay("Run the environment check first.", parent=self.parent)
             return
-        model_missing = self._missing_model_resource_items(result)
-        from shared.managed_runtimes import cuda_candidate, supported_platform
-        managed_groups = {getattr(item, "install_group", "") for item in self._missing_environment_items(result)}
-        managed = tuple((["mrtrix"] if "mrtrix" in managed_groups else []) +
-                        (["fsl_cuda" if cuda_candidate() else "fsl_cpu"] if "fsl" in managed_groups else []))
-
-        def external_setup():
-            if managed and supported_platform():
-                from shared.ui_managed_runtimes import install_selected_runtimes
-                install_selected_runtimes(self, managed)
-
-        def model_setup(ok=True):
-            if not ok:
-                return
-            if model_missing:
-                from shared.ui_managed_runtimes import asset_profiles_for_items
-                self._install_model_assets_from_environment_dialog(
-                    profile=asset_profiles_for_items(model_missing), on_complete=lambda success, message: external_setup() if success else None)
-            else:
-                external_setup()
-
-        if result.missing_python_packages:
-            self._install_python_packages_from_environment_dialog(
-                tuple(result.missing_python_packages),
-                on_complete=model_setup,
-            )
-        else:
-            model_setup()
-        external_missing = [
-            item
-            for item in self._missing_environment_items(result)
-            if (item.kind != "python" or not (item.details or {}).get("package"))
-            and (item.install_group if hasattr(item, "install_group") else "") != "model-resources"
-            and not (supported_platform() and getattr(item, "install_group", "") in {"mrtrix", "fsl"})
-        ]
-        if external_missing:
-            slicer.util.infoDisplay(
-                "Some selected backends do not yet support managed installation. Use their dependency rows "
-                "to configure an existing installation or review setup instructions. MRtrix/FSL can be configured automatically on Linux x86_64.",
-                windowTitle="External tool setup",
-                parent=self.parent,
-            )
+        from shared.ui_selected_setup import prepare_selected_environment
+        prepare_selected_environment(self, result)
 
     def _onInstallEnvironmentItemClicked(self, item) -> None:
         group = str(getattr(item, "install_group", "") or "")
@@ -3177,36 +3141,27 @@ class SharedWidgetMixin:
 
     def _install_python_packages_from_environment_dialog(self, packages: tuple[str, ...], on_complete=None) -> None:
         from shared.ui_setup_jobs import start_setup_job
+        from shared.ui_selected_setup import python_setup_commands
         packages = tuple(dict.fromkeys(p.strip() for p in packages if p.strip()))
         if not packages:
             return
-        if any(p == "torch" or p.startswith(("torch>", "torch=", "torch<")) for p in packages):
-            slicer.util.infoDisplay(
-                "Install or update PyTorch through the Slicer PyTorch extension, then check dependencies again. "
-                "This avoids replacing Slicer's torch runtime with an incompatible build.", parent=self.parent)
-            return
-        commands = []
-        for package in packages:
-            environment = {}
-            requirement = package
-            result = getattr(self, "_lastEnvironmentResult", None)
-            details = next((item.details for item in getattr(result, "statuses", ())
-                            if item.kind == "python" and package in {
-                                item.details.get("package"), item.details.get("install_requirement")}), {})
-            requirement = details.get("install_requirement") or requirement
-            program, prefix = self._setup_python_command(details.get("python_executable"))
-            if requirement == "git+https://github.com/demianw/tract_querier.git":
-                root = self._environment_dependency_path_kwargs().get("tract_querier_root")
-                if root and (Path(root) / "pyproject.toml").is_file():
-                    requirement = str(root)
-                    environment["SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TRACT_QUERIER"] = "0+local"
-            commands.append((program, [*prefix, "-u", "-m", "pip", "install", "--", requirement], environment))
+        commands, receipts = python_setup_commands(self, packages)
 
         def done(status, details, log_path):
+            if status == "completed":
+                for receipt in receipts:
+                    try:
+                        record = json.loads(receipt.read_text())
+                    except (OSError, ValueError):
+                        record = {}
+                    if record.get("status") != "completed":
+                        status = "failed"
+                    if record.get("restart_required"):
+                        self._setupRestartRequired = True
             self._save_python_install_status(packages, status, str(log_path))
             self._lastEnvironmentResult = None
             self._lastEnvironmentSignature = None
-            self._setStatus("warning" if status != "completed" else "ready",
+            self._setStatus("warning" if status != "completed" or getattr(self, "_setupRestartRequired", False) else "ready",
                             "Setup " + status + "; check dependencies before running")
             if status == "failed":
                 self._show_actionable_error(

@@ -30,14 +30,27 @@ def install_environment_dependency_path_controls(owner: Any, environment_layout:
     owner._environmentPathLanguageWidgets = {}
     owner._environmentPathStatusSources = {}
 
-    from shared.ui_managed_runtimes import install_selected_runtimes
-    setup_button = qt.QPushButton("Set up selected external tools")
+    from shared.ui_selected_setup import prepare_selected_environment, use_offline_assets
+    setup_button = qt.QPushButton("Prepare selected analysis environment")
     setup_button.setObjectName("managedRuntimeSetupButton")
-    setup_button.connect("clicked()", lambda: install_selected_runtimes(owner))
+    setup_button.connect("clicked()", lambda: prepare_selected_environment(owner))
     register_ui_language_binding(owner, setup_button, "text", "managed_runtime_setup")
     register_ui_language_binding(owner, setup_button, "tooltip", "managed_runtime_setup_tooltip")
     owner._managedRuntimeSetupButton = setup_button
     environment_layout.addWidget(setup_button)
+    offline_button = qt.QPushButton("Use offline model resources")
+    offline_button.setObjectName("offlineModelResourcesButton")
+    offline_button.connect("clicked()", lambda: use_offline_assets(owner))
+    register_ui_language_binding(owner, offline_button, "text", "offline_model_resources")
+    owner._offlineModelResourcesButton = offline_button
+    environment_layout.addWidget(offline_button)
+    repair_button = qt.QPushButton("Repair selected managed tools")
+    repair_button.setObjectName("repairManagedToolsButton")
+    repair_button.connect("clicked()", lambda: prepare_selected_environment(owner, repair=True))
+    register_ui_language_binding(owner, repair_button, "text", "repair_managed_tools")
+    register_ui_language_binding(owner, repair_button, "tooltip", "repair_managed_tools_tooltip")
+    owner._repairManagedToolsButton = repair_button
+    environment_layout.addWidget(repair_button)
 
     python_target_label = qt.QLabel(owner._python_install_target_text())
     python_target_label.setObjectName("environmentPythonTargetLabel")

@@ -5,8 +5,9 @@ from pathlib import Path
 from types import SimpleNamespace
 import unittest
 
-from shared.ui_compact import apply_compact_language
+from shared.ui_compact import apply_compact_language, compact_algorithm_labels, refresh_compact_algorithms
 from shared.ui_onboarding import translated_ui_message
+from shared.user_config import RUN_DEFAULTS
 
 
 class Text:
@@ -29,10 +30,11 @@ class CompactUiTest(unittest.TestCase):
         ui.targetSurfaceCheckBox.checked = True
         node = SimpleNamespace(orchestrationSelectStreamlines=1000000)
         owner = SimpleNamespace(ui=ui, _advancedSettingsPanel=Text(), _parameterNode=node,
+                                _advancedSettingsHintLabel=Text(),
                                 _onboardingWidgets={"language_combo": Text()},
                                 _prepareInputWidgets={"panel": Text()})
-        for language, advanced, run, log in (("en", "Advanced settings", "Run SlicerDDSurfer", "Log"),
-                                           ("zh", "高级设置", "运行 SlicerDDSurfer", "日志")):
+        for language, advanced, run, log in (("en", "Advanced settings (algorithms)", "Run SlicerDDSurfer", "Log"),
+                                           ("zh", "高级设置（算法与参数）", "运行 SlicerDDSurfer", "日志")):
             apply_compact_language(owner, language)
             self.assertEqual(owner._advancedSettingsPanel.text, advanced)
             self.assertEqual(ui.runSelectedButton.text, run)
@@ -41,6 +43,73 @@ class CompactUiTest(unittest.TestCase):
             self.assertIn("import" if language == "en" else "导入", owner._prepareInputWidgets["panel"].text)
             self.assertTrue(ui.targetSurfaceCheckBox.checked)
             self.assertEqual(node.orchestrationSelectStreamlines, 1000000)
+            self.assertEqual(ui.targetMicrostructureCheckBox.text,
+                             "Selected: DTI" if language == "en" else "当前：DTI")
+            self.assertIn("Analysis parameters" if language == "en" else "分析参数",
+                          owner._advancedSettingsHintLabel.text)
+            self.assertEqual(owner._advancedSettingsHintLabel.text, owner._advancedSettingsPanel.tooltip)
+
+    def test_default_algorithms_match_run_defaults(self):
+        node = SimpleNamespace(
+            orchestrationMicrostructureStages=",".join(RUN_DEFAULTS["microstructure_stages"]),
+            orchestrationTractographyBackend=RUN_DEFAULTS["tractography_backend"],
+            orchestrationBundleBackend=RUN_DEFAULTS["bundle_backend"],
+        )
+        expected = {"targetMicrostructureCheckBox": "DTI",
+                    "targetTractographyCheckBox": "MRtrix3 CSD / ACT",
+                    "targetBundlesCheckBox": "WMQL"}
+        self.assertEqual(compact_algorithm_labels(node), expected)
+        self.assertEqual(compact_algorithm_labels(None), expected)
+
+    def test_optional_models_and_dki_method_are_independent(self):
+        for flags in range(8):
+            stages = ["dti"] + [stage for bit, stage in enumerate(("freewater", "noddi", "dki"))
+                                if flags & (1 << bit)]
+            for method, dki in (("WLS", "DKI (WLS)"), ("OLS", "DKI (OLS)"),
+                                ("MKCURVE", "MK-Curve"), ("MKCURVE_MATLAB", "MK-Curve (MATLAB)")):
+                with self.subTest(stages=stages, method=method):
+                    node = SimpleNamespace(orchestrationMicrostructureStages=",".join(reversed(stages)),
+                                           orchestrationDkiFitMethod=method,
+                                           orchestrationRunFreeWater="freewater" not in stages,
+                                           orchestrationRunNoddi="noddi" not in stages)
+                    expected = ["DTI"]
+                    expected.extend(label for stage, label in (("freewater", "FW"), ("noddi", "NODDI"), ("dki", dki))
+                                    if stage in stages)
+                    self.assertEqual(compact_algorithm_labels(node)["targetMicrostructureCheckBox"],
+                                     " + ".join(expected))
+        node = SimpleNamespace(orchestrationMicrostructureStages="", orchestrationRunFreeWater=True,
+                               orchestrationRunNoddi=True, orchestrationRunDki=True)
+        self.assertEqual(compact_algorithm_labels(node)["targetMicrostructureCheckBox"],
+                         "DTI + FW + NODDI + DKI (WLS)")
+
+    def test_backend_changes_update_labels_without_mutating_state(self):
+        names = ("targetMicrostructureCheckBox", "targetTractographyCheckBox", "targetBundlesCheckBox")
+        ui = SimpleNamespace(**{name: Text() for name in names})
+        for control in vars(ui).values():
+            control.checked = False
+            control.enabled = True
+        node = SimpleNamespace(orchestrationMicrostructureStages="dti,noddi",
+                               orchestrationTractographyBackend="ukf", orchestrationBundleBackend="wma")
+        owner = SimpleNamespace(ui=ui, _parameterNode=node, _onboardingLanguage="en")
+        for backend, label in (("csd_act", "MRtrix3 CSD / ACT"), ("ukf", "UKF"),
+                               ("dti_det", "DTI deterministic"), ("saf", "CSD + SAF")):
+            for bundle, bundle_label in (("wmql", "WMQL"), ("wma", "WMA"), ("tractcloud", "TractCloud"),
+                                         ("all", "WMQL + WMA + TractCloud")):
+                node.orchestrationTractographyBackend = backend
+                node.orchestrationBundleBackend = bundle
+                before = vars(node).copy()
+                refresh_compact_algorithms(owner)
+                self.assertEqual(ui.targetTractographyCheckBox.text, "Selected: " + label)
+                self.assertEqual(ui.targetBundlesCheckBox.text, "Selected: " + bundle_label)
+                self.assertEqual(ui.targetMicrostructureCheckBox.text, "Selected: DTI + NODDI")
+                self.assertIn("Advanced settings > Analysis parameters", ui.targetBundlesCheckBox.tooltip)
+                owner._onboardingLanguage = "zh"
+                refresh_compact_algorithms(owner)
+                self.assertEqual(ui.targetTractographyCheckBox.text, "当前：" + label)
+                self.assertIn("高级设置 > 分析参数", ui.targetBundlesCheckBox.tooltip)
+                owner._onboardingLanguage = "en"
+                self.assertEqual(vars(node), before)
+                self.assertTrue(all(not control.checked and control.enabled for control in vars(ui).values()))
 
     def test_pending_input_status_switches_both_directions(self):
         english = "Waiting: Subject ID; Subject directory"

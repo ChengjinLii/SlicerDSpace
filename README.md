@@ -99,7 +99,7 @@ See [model setup](docs/assets/MODEL_ASSETS.md) and
 1. Select **SlicerDDSurfer** from the module selector. Choose English or Chinese in the header.
 2. Enter **Subject ID**, **Subject root** and, optionally, a separate **Output directory**.
 3. Select only the products you intend to run.
-4. Open **Advanced settings** to configure analysis routes, dependencies and models. Check the environment before processing.
+4. Open **Advanced settings > Environment and models > Prepare selected analysis environment**. Confirm dependencies and terms; restart if requested, then prepare again to continue. See [managed setup and offline models](docs/setup/MANAGED_SETUP.md).
 5. Click **Run SlicerDDSurfer**. Missing inputs appear in red; review the log and correct them before retrying.
 6. Key results from successful stages automatically appear in the current scene. Use **Advanced settings > Results and QC** to inspect QC, reload, replace or clear this run's nodes.
 
@@ -127,7 +127,8 @@ DWI and mask must share a voxel grid. Gradient files must match the DWI
 measurements. Corrected gradients must accompany motion-corrected DWI.
 An existing input mask is retained. When a mask must be generated, the default
 is the **PNL diffusion CNN masking** backend, not the entire PNL preprocessing
-pipeline. Configure its separate Python/model/ANTs runtime under Advanced;
+pipeline. On Linux x86_64, preparation can install its separate Python/model/ANTs
+runtime; existing runtimes remain configurable under Advanced.
 SynthStrip, MRtrix and supplied-mask alternatives are selectable in
 **Advanced settings > Analysis parameters**. A missing backend is reported,
 never silently replaced. See [brain-mask setup](docs/setup/brain_mask_gui_config.md).

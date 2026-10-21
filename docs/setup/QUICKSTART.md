@@ -21,8 +21,20 @@ conversion is under **Advanced settings > Input import / conversion**; preview
 before writing. Install SlicerDMRI for Slicer-based DTI preparation.
 
 Check the runtime under **Advanced settings > Environment and models**.
+Choose **Prepare selected analysis environment**, confirm downloads and terms,
+and restart when requested. Click Prepare again after restart to continue.
+Use **Use offline model resources** for a predownloaded model directory, or
+**Repair selected managed tools** for a damaged plugin-managed runtime.
+See [managed setup](MANAGED_SETUP.md) for coverage and platform limits.
 MRtrix3, FSL and FreeSurfer are not needed just to try a DTI-only route.
 Missing dependencies are reported, not silently replaced by a different method.
+
+The Microstructure, Tractography and Bundles rows show the current algorithm
+selection: **DTI**, **MRtrix3 CSD / ACT** and **WMQL** by default. These labels
+update when settings change; they describe the configuration, not completed or
+QC-approved results. Open **Advanced settings > Analysis parameters** to choose
+one or more microstructure models, one tracking backend, and one or all bundle
+methods.
 
 ---
 

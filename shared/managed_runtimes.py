@@ -21,6 +21,10 @@ MINIFORGE_URL = "https://github.com/conda-forge/miniforge/releases/download/26.7
 MINIFORGE_SHA256 = "281b0ac7d550802efc81af633225a5e6116d29ae72f3ab4eae7168c3931a4c05"
 FSL_TERMS_URL = "https://fsl.fmrib.ox.ac.uk/fsl/docs/license.html"
 PROFILES = {
+    "pnl_cnn": {"directory": "pnl-cnn-tf2.15.1", "packages": ("python=3.11", "pip=24.3.1", "ants=2.3.0"),
+                "channels": ("pnlbwh", "conda-forge"),
+                "commands": ("python", "antsRegistrationSyNQuick.sh", "antsRegistration", "antsApplyTransforms", "ImageMath"),
+                "settings": ()},
     "mrtrix": {"directory": "mrtrix-3.0.8", "packages": ("mrtrix3=3.0.8=h07fc403_0", "python=3.12", "libclang13=22.1.6", "libclang-cpp22.1=22.1.6"),
                "channels": ("https://conda.anaconda.org/mrtrix3", "conda-forge"), "commands": ("mrconvert", "dwi2mask", "dwifslpreproc", "tckgen"),
                "settings": ("mrtrix_bin_dir", "preprocessing_mrtrix_bin_dir")},
@@ -81,6 +85,7 @@ def install_plan(profiles, root=None):
             "platform_supported": supported_platform(), "profiles": list(selected),
             "prefixes": {name: str(base / PROFILES[name]["directory"]) for name in selected},
             "fsl_license_required": any(name.startswith("fsl_") for name in selected),
+            "pnl_terms_required": "pnl_cnn" in selected,
             "fsl_terms_url": FSL_TERMS_URL, "changes_slicer_python": False,
             "changes_shell_or_driver": False, "bootstrap_url": MINIFORGE_URL,
             "bootstrap_sha256": MINIFORGE_SHA256}
@@ -192,12 +197,34 @@ def ensure_conda(root, explicit=None):
     return str(executable)
 
 
-def provision(profiles, *, root=None, conda=None, accept_fsl_license=False):
+def configured_profiles(config, candidates, root=None):
+    """Recognize plugin-owned paths, not arbitrary administrator environments."""
+    base = (root or runtime_root()).expanduser().resolve()
+    selected = []
+    for name in candidates:
+        spec = PROFILES[name]
+        keys = spec["settings"] if name != "pnl_cnn" else ("pnl_mask_python",)
+        prefix = base / spec["directory"]
+        if not (base / (spec["directory"] + ".json")).is_file():
+            continue
+        for key in keys:
+            expected = prefix / "bin/python" if key == "pnl_mask_python" else prefix / "bin"
+            value = config.get(key)
+            if value and Path(value).expanduser().absolute() == expected:
+                selected.append(name)
+                break
+    return tuple(dict.fromkeys(selected))
+
+
+def provision(profiles, *, root=None, conda=None, accept_fsl_license=False, accept_pnl_terms=False, repair=False):
     plan = install_plan(profiles, root)
     if not plan["platform_supported"]:
-        raise RuntimeError("Managed MRtrix/FSL setup currently supports Linux x86_64 only")
+        raise RuntimeError("Managed MRtrix/FSL/PNL setup currently supports Linux x86_64 only")
     if plan["fsl_license_required"] and not accept_fsl_license:
         raise PermissionError("Read and explicitly accept the FSL license before installing: " + FSL_TERMS_URL)
+    if "pnl_cnn" in profiles and not accept_pnl_terms:
+        from shared.managed_pnl import PNL_TERMS_URL
+        raise PermissionError("Review the PNL source/model/template terms before installing: " + PNL_TERMS_URL)
     base = Path(plan["root"])
     settings, records = {}, {}
     with setup_lock(base):
@@ -210,8 +237,13 @@ def provision(profiles, *, root=None, conda=None, accept_fsl_license=False):
             old = json.loads(receipt_path.read_text()) if receipt_path.is_file() else {}
             if prefix.exists() and (old.get("kind") != "slicerdsurfer_managed_runtime" or old.get("profile") != profile):
                 raise RuntimeError("Refusing to modify an unmanaged environment: " + str(prefix))
-            if old.get("status") == "ready":
+            if old.get("status") == "ready" and not repair:
                 record = verify_prefix(profile, prefix)
+                if profile == "pnl_cnn":
+                    from shared.managed_pnl import verify_assets
+                    record.update(verify_assets(prefix))
+                    if record["pnl_resource_sha256"] != old.get("pnl_resource_sha256"):
+                        raise RuntimeError("PNL resources changed; inspect them before reuse")
                 if record["command_sha256"] != old.get("command_sha256"):
                     raise RuntimeError("Installed runtime checksum changed; inspect it before reuse")
                 print("[Runtime setup] Reusing verified " + profile, flush=True)
@@ -219,19 +251,35 @@ def provision(profiles, *, root=None, conda=None, accept_fsl_license=False):
                 manager = manager or ensure_conda(base, conda)
                 pending = {"kind": "slicerdsurfer_managed_runtime", "profile": profile,
                            "status": "installing", "prefix": str(prefix),
-                           "fsl_license_accepted": bool(accept_fsl_license), "plan": plan}
+                           "fsl_license_accepted": bool(accept_fsl_license),
+                           "pnl_terms_accepted": bool(accept_pnl_terms), "repair": bool(repair), "plan": plan}
+                if old.get("status") == "ready":
+                    write_json(base / (spec["directory"] + f".before-repair-{time.time_ns()}.json"), old)
                 write_json(receipt_path, pending)
                 action = "install" if (prefix / "conda-meta" / "history").is_file() else "create"
                 command = [manager, action, "-y", "--solver", "libmamba", "--override-channels",
                            "--strict-channel-priority", "-p", str(prefix)]
                 for channel in spec["channels"]:
                     command.extend(["-c", channel])
+                if repair and action == "install":
+                    command.append("--force-reinstall")
                 _run([*command, *spec["packages"]])
+                if profile == "pnl_cnn":
+                    from shared.managed_pnl import provision_assets
+                    provision_assets(prefix, base / "downloads", repair=repair)
                 record = verify_prefix(profile, prefix)
+                if profile == "pnl_cnn":
+                    from shared.managed_pnl import verify_assets
+                    record.update(verify_assets(prefix))
                 locked = subprocess.run([manager, "list", "--explicit", "-p", str(prefix)],
                                         capture_output=True, text=True, check=True,
                                         env=external_python_environment())
                 (base / (spec["directory"] + ".explicit.txt")).write_text(locked.stdout)
+                if profile == "pnl_cnn":
+                    pip_lock = subprocess.run([str(prefix / "bin/python"), "-m", "pip", "freeze", "--all"],
+                                              capture_output=True, text=True, check=True,
+                                              env=external_python_environment())
+                    (base / (spec["directory"] + ".pip-freeze.txt")).write_text(pip_lock.stdout)
                 write_json(receipt_path, dict(pending, **record, status="ready", completed_at=time.time()))
             settings.update(record["external_dependencies"])
             records[profile] = str(receipt_path)

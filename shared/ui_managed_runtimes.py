@@ -113,11 +113,14 @@ def apply_runtime_result(owner, result):
     """Save only settings from a successful, verified setup receipt."""
     if result.get("kind") != "slicerdsurfer_runtime_setup" or result.get("status") != "completed":
         raise ValueError("Only a completed managed runtime setup can update paths")
-    allowed = {"mrtrix_bin_dir", "preprocessing_mrtrix_bin_dir", "preprocessing_fsl_bin_dir"}
+    file_settings = {"pnl_mask_python", "pnl_mask_script"}
+    allowed = {"mrtrix_bin_dir", "preprocessing_mrtrix_bin_dir", "preprocessing_fsl_bin_dir",
+               "pnl_mask_python", "pnl_mask_script", "pnl_mask_model_dir", "pnl_mask_ants_bin_dir"}
     settings = result.get("external_dependencies", {})
     if not settings or set(settings) - allowed:
         raise ValueError("Unexpected managed runtime settings")
-    if any(not Path(value).is_dir() for value in settings.values()):
+    if any(not (Path(value).is_file() if key in file_settings else Path(value).is_dir())
+           for key, value in settings.items()):
         raise ValueError("Managed runtime paths are unavailable")
     for key, value in settings.items():
         owner._save_environment_path_setting(key, str(value))

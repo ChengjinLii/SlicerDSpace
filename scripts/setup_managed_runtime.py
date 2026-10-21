@@ -18,12 +18,15 @@ def main(argv=None):
     parser.add_argument("--root", type=Path)
     parser.add_argument("--conda", type=Path)
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--repair", action="store_true", help="Reinstall selected plugin-owned runtimes; never modify an unmanaged prefix")
     parser.add_argument("--accept-fsl-license", action="store_true")
+    parser.add_argument("--accept-pnl-terms", action="store_true")
     parser.add_argument("--result", type=Path)
     args = parser.parse_args(argv)
     try:
         result = provision(args.profiles, root=args.root, conda=args.conda,
-                           accept_fsl_license=args.accept_fsl_license) if args.execute else install_plan(args.profiles, args.root)
+                           accept_fsl_license=args.accept_fsl_license,
+                           accept_pnl_terms=args.accept_pnl_terms, repair=args.repair) if args.execute else install_plan(args.profiles, args.root)
     except Exception as exc:
         result = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}
     if args.result:

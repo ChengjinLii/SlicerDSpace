@@ -87,6 +87,35 @@ class ManagedRuntimeTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "checksum changed"):
                     runtime.provision(("mrtrix",), root=root)
 
+    def test_repair_reinstalls_owned_prefix_and_preserves_previous_receipt(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(runtime, "supported_platform", return_value=True), \
+                patch.object(runtime, "setup_lock", return_value=nullcontext()), \
+                patch.object(runtime, "ensure_conda", return_value="conda"), patch.object(runtime, "_run") as run, \
+                patch.object(runtime.subprocess, "run", return_value=SimpleNamespace(stdout="lock")):
+            root = Path(temp)
+            prefix = root / runtime.PROFILES["mrtrix"]["directory"]
+            (prefix / "conda-meta").mkdir(parents=True)
+            (prefix / "conda-meta/history").write_text("owned fixture")
+            old = {"kind": "slicerdsurfer_managed_runtime", "profile": "mrtrix", "status": "ready"}
+            receipt = root / (prefix.name + ".json")
+            receipt.write_text(json.dumps(old))
+            record = {"external_dependencies": {"mrtrix_bin_dir": str(prefix / "bin")}, "command_sha256": {}}
+            with patch.object(runtime, "verify_prefix", return_value=record):
+                runtime.provision(("mrtrix",), root=root, repair=True)
+            self.assertIn("--force-reinstall", run.call_args.args[0])
+            self.assertEqual(json.loads(next(root.glob("*.before-repair-*.json")).read_text()), old)
+            self.assertTrue(json.loads(receipt.read_text())["repair"])
+
+    def test_configured_profiles_never_adopt_unmanaged_environments(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            prefix = root / runtime.PROFILES["mrtrix"]["directory"]
+            config = {"mrtrix_bin_dir": str(prefix / "bin")}
+            self.assertEqual(runtime.configured_profiles(config, ("mrtrix",), root), ())
+            (root / (prefix.name + ".json")).write_text("{}")
+            self.assertEqual(runtime.configured_profiles(config, ("mrtrix",), root), ("mrtrix",))
+            self.assertEqual(runtime.configured_profiles({"mrtrix_bin_dir": "/other/bin"}, ("mrtrix",), root), ())
+
     def test_gui_does_not_apply_failed_partial_or_unknown_settings(self):
         owner = Mock()
         for result in ({"status": "failed"}, {"kind": "slicerdsurfer_runtime_setup", "status": "completed", "external_dependencies": {"python_executable": "/wrong"}}):

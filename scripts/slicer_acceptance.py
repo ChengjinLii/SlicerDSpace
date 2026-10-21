@@ -22,7 +22,7 @@ SMOKES = (
     "extension_manager_install",
     "wmql_protocol",
 )
-AVAILABLE = (*SMOKES, "real_tasks", "input_preparation", "shutdown", "batch", "setup_tree", "model_assets", "results", "preprocessing_cache", "compact_ui", "saf_product", "bundle_products", "parallel_models", "ukf", "regions")
+AVAILABLE = (*SMOKES, "real_tasks", "input_preparation", "shutdown", "batch", "setup_tree", "model_assets", "results", "preprocessing_cache", "compact_ui", "saf_product", "bundle_products", "parallel_models", "ukf", "regions", "algorithm_labels", "selected_setup")
 
 
 def private_slicer_home(slicer, destination):

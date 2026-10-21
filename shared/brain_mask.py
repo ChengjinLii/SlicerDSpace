@@ -335,6 +335,9 @@ def generate_brain_mask(dwi_path: Path, bval_path: Path, bvec_path: Path, output
         else:
             command = [tools["dwi2mask"], str(paths[0]), str(candidate), "-fslgrad", str(paths[2]), str(paths[1]), "-force"]
         env = external_python_environment(env_extra, path_prepend=prepend)
+        if config.backend == "pnl_cnn":
+            from shared.managed_pnl import pnl_python_environment
+            env = pnl_python_environment(tools["pnl_mask_python"], env_extra, path_prepend=prepend)
         phase_started = time.monotonic()
         tail = _run(command, env, log)
         phase_seconds["external_process"] = time.monotonic() - phase_started

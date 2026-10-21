@@ -560,7 +560,8 @@ def environment_dialog_state(result: Any, *, python_install_target: str) -> Envi
         detail_text="\n".join(environment_detail_lines(result)),
         missing_items=missing_items,
         can_install_python=bool(result.missing_python_packages) or has_model_resources or any(
-            getattr(item, "install_group", "") in {"mrtrix", "fsl"} for item in missing_items),
+            item.required and getattr(item, "install_group", "") in {"mrtrix", "fsl", "brain_mask", "slicer-runtime", "slicer-dmri", "ukf"}
+            for item in missing_items),
         has_manual_setup_notes=any(
             item.status == "missing"
             and (item.kind != "python" or not (item.details or {}).get("package"))
@@ -568,7 +569,7 @@ def environment_dialog_state(result: Any, *, python_install_target: str) -> Envi
         ),
         python_install_tooltip=(
             python_install_target
-            + " Python packages are installed into Slicer Python. Model assets are downloaded to the selected asset root. "
-            "External tools and licenses are never installed silently."
+            + " Prepare only required selected items after confirmation; Python packages use their selected interpreter. "
+            "Supported external tools use isolated runtimes; licenses require approval and some extensions require a restart."
         ),
     )

@@ -83,7 +83,7 @@ def show_environment_results_dialog(
     layout.addWidget(summary_label)
 
     button_row = qt.QHBoxLayout()
-    install_all_button = qt.QPushButton("Install/download auto items")
+    install_all_button = qt.QPushButton("Prepare selected environment")
     install_all_button.setObjectName("environmentInstallAllButton")
     install_all_button.toolTip = state.python_install_tooltip
     install_all_button.enabled = state.can_install_python

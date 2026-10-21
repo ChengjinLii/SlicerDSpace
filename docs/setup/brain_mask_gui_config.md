@@ -31,8 +31,12 @@ GPU runtime errors are reported, not silently retried on CPU. MRtrix dwi2mask
 is CPU-only; the selector does not invent a GPU implementation for it.
 See [GPU execution policy](GPU_EXECUTION.md).
 
-Configure the external PNL paths in **Advanced settings > Environment and
-models > External Runtime Paths**:
+On Linux x86_64, **Advanced settings > Environment and models > Prepare selected
+analysis environment** can install the pinned author-compatible PNL runtime,
+weights and template after terms confirmation, then fill all four paths.
+This is the official PNL Python masking backend, not a rewrite of PNLpipeline.
+See [managed setup](MANAGED_SETUP.md) for repair, verification and platform limits.
+For an existing environment, configure **External Runtime Paths**:
 
 | Setting | Browse Mode |
 | --- | --- |
@@ -90,7 +94,10 @@ Python 中可见的第一个 CUDA GPU；`cuda` 要求 GPU 可用，`cpu` 显式�
 选择会持久化并传给单被试、批处理和预处理流程。GPU 报错不会静默改用 CPU。
 MRtrix dwi2mask 本身仅支持 CPU。详见[GPU 策略](GPU_EXECUTION.zh-CN.md)。
 
-在“高级设置 > 环境与模型 > 外部运行路径”配置用户自己的 PNL Python
+Linux x86_64 可点击“高级设置 > 环境与模型 > 准备所选分析环境”，确认条款后自动准备
+固定版本的官方 PNL Python 环境、权重与模板，校验后填写路径；并非重写 PNLpipeline。
+修复、验证和平台限制见[自动配置](MANAGED_SETUP.zh-CN.md)。
+已有环境仍可在“外部运行路径”配置用户自己的 PNL Python
 可执行文件、官方 `dwi_masking.py`、模型目录及 ANTs bin 目录。SynthStrip
 共用 FreeSurfer 主目录。选择和路径会写入共享用户 JSON，供 GUI 与 CLI
 复用；上述运行时测试隔离用户设置，并通过两次启动检查持久化。

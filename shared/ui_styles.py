@@ -30,7 +30,8 @@ QGroupBox#externalBackendsGroup {
 QLabel#subtitleLabel, QLabel#environmentHintLabel,
 QLabel#environmentResultLabel, QLabel#externalSectionDescriptionLabel,
 QLabel#externalSubsectionDescriptionLabel, QLabel#advancedRunSectionLabel,
-QLabel#runDetailsLabel, QLabel#runMessageLabel, QLabel#runStageLabel {
+QLabel#runDetailsLabel, QLabel#runMessageLabel, QLabel#runStageLabel,
+QLabel#advancedSettingsHintLabel {
   color: #63727D;
   background: transparent;
   border: none;

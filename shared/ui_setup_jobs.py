@@ -52,7 +52,10 @@ class SetupJob:
         program, args, environment = self.commands[self.index]
         env = qt.QProcessEnvironment.systemEnvironment()
         for key, value in environment.items():
-            env.insert(key, str(value))
+            if value is None:
+                env.remove(key)
+            else:
+                env.insert(key, str(value))
         env.insert("PYTHONUNBUFFERED", "1")
         self.process.setProcessEnvironment(env)
         program, args, self.grouped = grouped_launch_command(program, args)

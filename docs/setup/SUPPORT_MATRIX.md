@@ -59,7 +59,7 @@ inherit Linux QC or timings.
 | DDSeg/DDParcel/DDSurfer native reconstruction | Recorded data/routes and matching models | Native PyTorch/SlicerDMRI candidate with usable mask | Native CPU candidate with usable mask and matching models |
 | DIPY preprocessing, FW, NODDI | Scoped inputs measured | Native Python candidate; compatible DIPY/AMICO | Native Python candidate; architecture-compatible packages |
 | DKI/Python MK-Curve | Small real ROIs only; full-brain timing missing | Native numerical candidate; eligible multi-shell data | Native numerical candidate; eligible multi-shell data |
-| PNL CNN mask | External TensorFlow/Keras/ANTs route measured | **Unavailable in native Windows GUI**; supply a mask or explicitly select MRtrix/WSL | POSIX/ANTs/TensorFlow required; CPU only in this launcher, unmeasured here |
+| PNL CNN mask | External TensorFlow/Keras/ANTs route measured; Linux x86_64 managed setup and CUDA forward/mask checks | **Unavailable in native Windows GUI**; supply a mask or explicitly select MRtrix/WSL | POSIX/ANTs/TensorFlow required; no CUDA, Metal unimplemented; unmeasured here |
 | Full FreeSurfer SynthStrip environment | CPU/CUDA measured | **Not native Windows in this wrapper**; full Linux/WSL environment needed | FreeSurfer/Python CPU candidate, unmeasured here |
 | FreeSurfer-style surface postprocessing | Linux route recorded | WSL/Linux required; bridge end-to-end acceptance pending | macOS FreeSurfer candidate; shell/CLI acceptance pending |
 | MRtrix/FSL preprocessing | CPU/CUDA recorded | WSL 2 bridges; device policy runs in actual WSL Python | Native CPU MRtrix/FSL candidate; **no CUDA eddy** |
@@ -69,7 +69,7 @@ inherit Linux QC or timings.
 | WMA | 149741 scoped pass; old 100307 coverage failures remain excluded | WSL author shell/Slicer reverse bridge; acceptance pending | Author shell/display/Slicer CLI requirements; acceptance pending |
 | TractCloud | Seeded CUDA/repeat checks on recorded inputs | WSL device-selected CPU/CUDA; native Python not certified | External Python CPU candidate; MPS not implemented |
 | Python connectome/ROI statistics/VTK previews | Scoped tests recorded | Native candidate given valid input products | Native candidate given valid input products |
-| Managed MRtrix/FSL setup button | **Linux x86_64 only** | Separate Windows/WSL installer | **Unavailable**; detect/configure existing tools instead |
+| Managed MRtrix/FSL/PNL setup | **Linux x86_64 only** | Separate Windows/WSL installer, not equivalent PNL acceptance | **Unavailable**; detect/configure existing tools instead |
 
 ---
 

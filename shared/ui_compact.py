@@ -5,6 +5,60 @@ from __future__ import annotations
 from typing import Any
 
 
+def compact_algorithm_labels(node: Any) -> dict[str, str]:
+    """Describe the configured algorithms, not execution or QC status."""
+
+    from shared.ui_run_controller import microstructure_optional_stage_flags
+    from shared.user_config import RUN_DEFAULTS
+
+    freewater, noddi, dki = microstructure_optional_stage_flags(
+        getattr(node, "orchestrationMicrostructureStages", ""),
+        legacy_freewater=bool(getattr(node, "orchestrationRunFreeWater", False)),
+        legacy_noddi=bool(getattr(node, "orchestrationRunNoddi", False)),
+        legacy_dki=bool(getattr(node, "orchestrationRunDki", False)),
+    )
+    models = ["DTI"]
+    if freewater:
+        models.append("FW")
+    if noddi:
+        models.append("NODDI")
+    if dki:
+        method = (getattr(node, "orchestrationDkiFitMethod", "") or RUN_DEFAULTS["dki_fit_method"]).upper()
+        models.append({"MKCURVE": "MK-Curve", "MKCURVE_MATLAB": "MK-Curve (MATLAB)"}
+                      .get(method, f"DKI ({method})"))
+    tractography = (getattr(node, "orchestrationTractographyBackend", "")
+                    or RUN_DEFAULTS["tractography_backend"]).strip().lower()
+    bundles = (getattr(node, "orchestrationBundleBackend", "")
+               or RUN_DEFAULTS["bundle_backend"]).strip().lower()
+    return {
+        "targetMicrostructureCheckBox": " + ".join(models),
+        "targetTractographyCheckBox": {
+            "csd_act": "MRtrix3 CSD / ACT", "ukf": "UKF",
+            "dti_det": "DTI deterministic", "saf": "CSD + SAF",
+        }.get(tractography, tractography),
+        "targetBundlesCheckBox": {
+            "wmql": "WMQL", "wma": "WMA", "tractcloud": "TractCloud",
+            "all": "WMQL + WMA + TractCloud",
+        }.get(bundles, bundles),
+    }
+
+
+def refresh_compact_algorithms(owner: Any, language: str | None = None) -> None:
+    """Refresh the three product rows after parameter or language changes."""
+
+    from shared.ui_onboarding import onboarding_text
+
+    ui = getattr(owner, "ui", None)
+    if ui is None:
+        return
+    language = language or getattr(owner, "_onboardingLanguage", "en")
+    for name, algorithms in compact_algorithm_labels(getattr(owner, "_parameterNode", None)).items():
+        control = getattr(ui, name, None)
+        if control is not None:
+            control.setText(onboarding_text(language, "compact_algorithm_selection").format(algorithms=algorithms))
+            control.setToolTip(onboarding_text(language, "compact_algorithm_tooltip").format(algorithms=algorithms))
+
+
 def install_compact_layout(owner: Any) -> None:
     """Move secondary controls, not their state or signals, into Advanced."""
 
@@ -42,6 +96,11 @@ def install_compact_layout(owner: Any) -> None:
     advanced_layout = qt.QVBoxLayout(advanced)
     advanced_layout.setContentsMargins(8, 8, 8, 8)
     advanced_layout.setSpacing(8)
+    advanced_hint = qt.QLabel(advanced)
+    advanced_hint.setObjectName("advancedSettingsHintLabel")
+    advanced_hint.setWordWrap(True)
+    advanced_layout.addWidget(advanced_hint)
+    owner._advancedSettingsHintLabel = advanced_hint
     prepare_inputs = owner._prepareInputWidgets["panel"]
     # CTK's old parent keeps a visibility event filter after reparenting.
     prepare_inputs.removeEventFilter(ui.configurationCollapsibleButton)
@@ -113,6 +172,10 @@ def apply_compact_language(owner: Any, language: str) -> None:
     from shared.ui_onboarding import onboarding_text
 
     owner._advancedSettingsPanel.setText(onboarding_text(language, "compact_advanced"))
+    owner._advancedSettingsPanel.setToolTip(onboarding_text(language, "compact_advanced_hint"))
+    advanced_hint = getattr(owner, "_advancedSettingsHintLabel", None)
+    if advanced_hint is not None:
+        advanced_hint.setText(onboarding_text(language, "compact_advanced_hint"))
     owner.ui.headlineLabel.setText("SlicerDDSurfer")
     owner._onboardingWidgets["language_combo"].setToolTip(onboarding_text(language, "language"))
     prepare_inputs = (getattr(owner, "_prepareInputWidgets", {}) or {}).get("panel")
@@ -137,3 +200,4 @@ def apply_compact_language(owner: Any, language: str) -> None:
         "targetConnectomeCheckBox": "compact_connectome",
     }.items():
         getattr(owner.ui, name).setText(onboarding_text(language, key))
+    refresh_compact_algorithms(owner, language)

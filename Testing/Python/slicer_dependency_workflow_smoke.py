@@ -12,6 +12,7 @@ import shutil
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from unittest.mock import patch
 
 import qt
 import slicer
@@ -184,10 +185,11 @@ def _run() -> None:
         )
 
         widget._lastEnvironmentResult = FakeEnvironmentResult(statuses=(model_item, external_item))
-        widget._onInstallAllEnvironmentItemsClicked()
-        wait_for_job()
-        bulk_asset_file = MODEL_ROOT / "segmentation" / "weights" / "dti_axial.pt"
-        bulk_external_notice = any("not installed silently" in message for message in info_messages)
+        # The combined entry is covered end-to-end in selected_setup. This
+        # fixture checks dispatch without authorizing a real MRtrix install.
+        with patch("shared.ui_selected_setup.prepare_selected_environment") as prepare:
+            widget._onInstallAllEnvironmentItemsClicked()
+            bulk_selected_dispatch = prepare.call_args.args == (widget, widget._lastEnvironmentResult)
 
         widget._onInstallEnvironmentItemClicked(model_item)
         wait_for_job()
@@ -198,7 +200,8 @@ def _run() -> None:
         model_line_text = model_line_edit.text if model_line_edit else ""
         model_asset_file = MODEL_ROOT / "segmentation" / "weights" / "dti_axial.pt"
 
-        widget._onInstallEnvironmentItemClicked(external_item)
+        with patch("shared.managed_runtimes.supported_platform", return_value=False):
+            widget._onInstallEnvironmentItemClicked(external_item)
         slicer.app.processEvents()
         mrtrix_saved = str(
             slicer.app.userSettings().value(widget._environment_settings_key("mrtrix_bin_dir"), "")
@@ -226,15 +229,13 @@ def _run() -> None:
         print(f"SLICERDDSURFER_DEP_MRTRIX_LINE_EDIT={mrtrix_line_text}", flush=True)
         print(f"SLICERDDSURFER_DEP_RESTORED_MODEL={restored_model}", flush=True)
         print(f"SLICERDDSURFER_DEP_RESTORED_MRTRIX={restored_mrtrix}", flush=True)
-        print(f"SLICERDDSURFER_DEP_BULK_MODEL_ASSET_FILE={bulk_asset_file.is_file()}", flush=True)
-        print(f"SLICERDDSURFER_DEP_BULK_EXTERNAL_NOTICE={bulk_external_notice}", flush=True)
+        print(f"SLICERDDSURFER_DEP_SELECTED_SETUP_DISPATCH={bulk_selected_dispatch}", flush=True)
         print(f"SLICERDDSURFER_DEP_JSON_MODEL={json_model}", flush=True)
         print(f"SLICERDDSURFER_DEP_JSON_MRTRIX={json_mrtrix}", flush=True)
         print(f"SLICERDDSURFER_DEP_JSON_CLEAR_READY={json_clear_ready}", flush=True)
 
         ok = (
-            bulk_asset_file.is_file()
-            and bulk_external_notice
+            bulk_selected_dispatch
             and model_saved == MODEL_ROOT.as_posix()
             and model_line_text == MODEL_ROOT.as_posix()
             and model_asset_file.is_file()

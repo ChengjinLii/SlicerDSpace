@@ -25,7 +25,7 @@ lightweight source checkout or complete development/research repository.
 | [Result review](setup/GUI_RESULT_REVIEW.md) | Run-scoped loading, cancellation and QC |
 | [Brain masking](setup/brain_mask_gui_config.md) | PNL CNN default, explicit alternatives and external runtime |
 | [GPU execution](setup/GPU_EXECUTION.md) | GPU-preferred neural inference, explicit CPU choices and CPU-only route boundaries |
-| [Managed setup](setup/MANAGED_SETUP.md) | Selected MRtrix/FSL installation, automatic paths and default model directories |
+| [Managed setup](setup/MANAGED_SETUP.md) | Selected extensions, Python/models, isolated MRtrix/FSL/PNL, repair and offline resources |
 | [Microstructure](setup/MICROSTRUCTURE.md) | DTI default, independent FW/NODDI/DKI and original MK-Curve boundary |
 | [UKF tractography](setup/UKF.md) | Optional author extension, defaults, lossless input and automatic WMA handoff |
 | [Regional analysis](setup/REGIONAL_ANALYSIS.md) | Optional Advanced region selection, scalar statistics, ROI streamlines and unchanged-weight subgraphs |
@@ -50,6 +50,10 @@ lightweight source checkout or complete development/research repository.
 ---
 
 ## Validation Records
+
+[Selected dependency preparation](release/DEPENDENCY_SETUP_20261021.md) records
+native setup/cancellation checks, an isolated PNL GPU installation and mask run,
+offline verification, and remaining platform/clean-machine boundaries.
 
 [21 October bundle workflow review](release/BUNDLE_WORKFLOW_20261021.md)
 records automatic input handoff, three-subject WMQL re-auditing, saved WMA

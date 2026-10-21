@@ -141,3 +141,6 @@ def sync_parameter_node_to_ui(widget) -> None:
     widget._sync_checkbox(getattr(ui, "targetTractographyCheckBox", None), bool(node.targetTractography))
     widget._sync_checkbox(getattr(ui, "targetBundlesCheckBox", None), bool(node.targetBundles))
     widget._sync_checkbox(getattr(ui, "targetConnectomeCheckBox", None), bool(node.targetConnectome))
+    from shared.ui_compact import refresh_compact_algorithms
+
+    refresh_compact_algorithms(widget)

@@ -55,7 +55,7 @@ WSL 是 Linux 后端，不是 Windows 原生计算；Windows/macOS 不继承 Lin
 | DDSeg/DDParcel/DDSurfer 原生重建 | 指定数据/路线已测，需匹配模型 | 原生 PyTorch/SlicerDMRI 候选，需可用掩膜 | 原生 CPU 候选，需可用掩膜及匹配模型 |
 | DIPY 预处理、FW、NODDI | 指定输入已测 | 原生 Python 候选，需兼容 DIPY/AMICO | 原生 Python 候选，需匹配架构的包 |
 | DKI/Python MK-Curve | 仅真实小 ROI 已测，全脑时间缺失 | 原生数值候选，需适用的多壳数据 | 原生数值候选，需适用的多壳数据 |
-| PNL CNN 掩膜 | TensorFlow/Keras/ANTs 外部路线已测 | **Windows 原生 GUI 不支持**；提供掩膜或明确选择 MRtrix/WSL | 需 POSIX/ANTs/TensorFlow；当前启动器只用 CPU，未实测 |
+| PNL CNN 掩膜 | 外部路线已测；Linux x86_64 自动配置与 CUDA 前向/掩膜检查 | **Windows 原生 GUI 不支持**；提供掩膜或明确选择 MRtrix/WSL | 需 POSIX/ANTs/TensorFlow；无 CUDA，Metal 未实现，未实测 |
 | 完整 FreeSurfer SynthStrip 环境 | CPU/CUDA 已测 | **当前封装不支持原生 Windows**，需完整 Linux/WSL 环境 | FreeSurfer/Python CPU 候选，未实测 |
 | FreeSurfer 风格表面后处理 | 有 Linux 记录 | 需 WSL/Linux，桥接全流程待验收 | macOS FreeSurfer 候选，shell/CLI 待验收 |
 | MRtrix/FSL 预处理 | CPU、CUDA 有记录 | WSL 2 桥接；设备策略在实际 WSL Python 内运行 | 原生 CPU MRtrix/FSL 候选；**不能使用 CUDA eddy** |
@@ -65,7 +65,7 @@ WSL 是 Linux 后端，不是 Windows 原生计算；Windows/macOS 不继承 Lin
 | WMA | 149741 限定范围通过；旧 100307 覆盖失败仍排除 | WSL 作者 shell/Slicer 反向桥接，待验收 | 作者 shell/display/Slicer CLI 前提，待验收 |
 | TractCloud | 指定输入的固定种子 CUDA/重复检查通过 | WSL 按设备选 CPU/CUDA；原生 Python 未认证 | 外部 Python CPU 候选，未实现 MPS |
 | Python 连接组/ROI 统计/VTK 预览 | 有限定范围实测 | 有效输入产品下的原生候选 | 有效输入产品下的原生候选 |
-| 插件内 MRtrix/FSL 自动配置按钮 | **仅 Linux x86_64** | 独立 Windows/WSL 安装器 | **暂不支持**；可以发现/配置已有工具 |
+| 插件内 MRtrix/FSL/PNL 自动配置 | **仅 Linux x86_64** | 独立 Windows/WSL 安装器，不代表 PNL 已验收 | **暂不支持**；可以发现/配置已有工具 |
 
 ---
 

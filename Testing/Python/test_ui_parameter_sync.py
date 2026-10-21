@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from shared.ui_parameter_sync import sync_parameter_node_to_ui
 
@@ -102,7 +103,9 @@ class UIParameterSyncTest(unittest.TestCase):
         widget = Widget()
         widget._parameterNode = node
         widget.ui = ui
-        sync_parameter_node_to_ui(widget)
+        with patch("shared.ui_compact.refresh_compact_algorithms") as refresh_algorithms:
+            sync_parameter_node_to_ui(widget)
+        refresh_algorithms.assert_called_once_with(widget)
 
         self.assertIn(("path", "", ui.inputDirectoryPath, "/data/sub-01"), calls)
         self.assertIn(("path", "", ui.outputDirectoryPath, "/data/out"), calls)

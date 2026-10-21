@@ -10,27 +10,46 @@
 
 ## Inside Slicer
 
-Select your analyses, then open **Advanced > Environment and models** and choose
-**Set up selected external tools**. The installer prepares only the selected
-MRtrix/FSL routes and fills their paths automatically after verification. Missing
-MRtrix/FSL rows in the dependency report also offer **Install and configure**.
-The report's combined install action sequences missing Python packages, required
-model profiles and supported external tools; it is not an installation of every
-optional backend.
+Select your analyses, then open **Advanced settings > Environment and models**
+and choose **Prepare selected analysis environment**. Review the plan and
+approve downloads and applicable licenses. The dependency report uses the same
+entry. It prepares required selected items, not every optional backend:
+
+1. Slicer's Extension Manager installs missing SlicerDMRI/PyTorch extensions; UKFTractography is requested only for a selected UKF route.
+2. If an extension was installed or enabled, save your work and restart Slicer. Click Prepare again to continue; extensions are not reinstalled.
+3. A background worker installs missing Python packages into their selected interpreter, downloads selected anatomical model profiles, and prepares supported isolated tools.
+4. Paths are saved only after successful verification. A fresh environment check decides whether the workflow is ready, blocked or awaiting restart.
 
 No terminal, administrator account, shell activation or manual executable-path
 selection is needed for these managed routes. If Conda is unavailable, a pinned
 Miniforge bootstrap is downloaded from conda-forge's official GitHub release and
 SHA256-verified before execution. Installation happens in a user-local directory,
-not in Slicer's Python or the system CUDA installation. FSL requires explicit
-license confirmation; GPU eddy is selected by default when NVIDIA tools are
-detected, with a CPU installation option. Actual GPU usability is checked when
+not in Slicer's Python or the system CUDA installation. FSL and PNL
+source/model/template terms require explicit confirmation. GPU eddy is selected
+by default when NVIDIA tools are detected; the CUDA profile also retains the CPU
+executable. Analysis device preferences remain editable under Advanced.
+Actual GPU usability is checked when
 running the selected backend, not certified by package installation.
 
 Setup runs in a background process with a Cancel control and an install log.
 Cancellation/failed verification does not replace configured paths. Successfully
 installed packages and partial downloads may remain for retry. A verified,
 unchanged managed runtime is reused without reinstalling it.
+
+**Repair selected managed tools** explicitly reinstalls selected plugin-owned
+external runtimes and rechecks them. It preserves the preceding ready receipt,
+refuses unowned prefixes, and does not repair arbitrary existing environments.
+Retry ordinary preparation after an interrupted download/install; use Repair
+when a completed managed installation is damaged. Cancellation does not roll
+back installed packages. Open install logs to inspect the failed phase.
+
+Python installation feature-detects `slicer.packaging.pip_ensure`. Slicer 5.10,
+which lacks that module, uses a cancellable Python subprocess. Existing Slicer
+NumPy/SciPy/VTK/SimpleITK/PyTorch versions are constrained during ordinary pip
+installation. PyTorch uses the official PyTorch extension helper. Conflicts fail
+visibly instead of upgrading Slicer's core stack. Changed loaded packages require
+a restart. The newer packaging API has contract tests; a newer Slicer binary
+has not been validated in this campaign.
 
 ---
 
@@ -41,6 +60,13 @@ it no longer requires a folder picker. A missing-model row downloads that produc
 profile rather than all three anatomical products. The explicit core download
 action still downloads the core profile. Checksums are verified before the asset
 path is saved. Authorization and model quality are separate from checksums.
+
+**Use offline model resources** selects an existing asset directory and verifies
+selected profiles against the bundled trusted SHA256 manifest in a background
+worker. It neither downloads nor executes the files; failed checks preserve the
+previous path. Preserve the documented directory layout when transferring
+resources. This imports models, not a portable Conda environment. Protected
+model downloads may still require source authorization; setup does not bypass it.
 
 Advanced external-path fields remain available for existing installations, offline
 environments and administrator-managed clusters. Managed setup is opt-in and does
@@ -57,12 +83,18 @@ User-local defaults live alongside model assets under `SlicerDDSurfer/runtimes`.
 | FSL eddy 2602.0 / topup 2203.5 | Linux x86_64, official FSL channel; explicit license approval |
 | CUDA eddy 2602.0 | Optional FSL profile; NVIDIA driver required; no full CUDA Toolkit installation |
 | DDSurfer / DDSeg / DDParcel assets | Existing background download with profile-specific selection and default directory |
-| Python scientific packages | Existing dependency installer; PyTorch remains managed by the Slicer PyTorch extension |
-| PNL CNN, full FreeSurfer, WMA/WMQL/TractCloud resources | Not yet fully provisioned by this managed installer; current configured adapters remain available |
-| Windows/macOS managed MRtrix/FSL setup | Not yet implemented/accepted; existing platform setup and Advanced paths remain |
+| Python scientific packages | Selected interpreter, protected Slicer core packages, native packaging API when available; official PyTorch helper |
+| PNL diffusion CNN | Linux x86_64; pinned official source, v0.3 three-view weights, IIT b0 template, Python 3.11, TensorFlow 2.15.1/Keras 2 and ANTs 2.3.0 in a separate prefix |
+| Full FreeSurfer, WMA/WMQL/TractCloud external resources | Not all provisioned by this installer; configured adapters and missing-item guidance remain |
+| Windows/macOS managed MRtrix/FSL/PNL setup | Not implemented/accepted; existing platform setup and Advanced paths remain |
 
 Installation verification checks command availability, selected package versions,
 ELF libraries and executable hashes, and saves an explicit environment lockfile.
+PNL also verifies pinned source/model/template hashes before deserialization,
+checks finite synthetic forward outputs for all three views, and saves a pip
+package inventory. Its CUDA wheel libraries and tools are exposed only to its
+subprocess, not global PATH/LD_LIBRARY_PATH or the driver. Visible CUDA is
+preferred where usable; a pinned framework may need first-use kernel compilation.
 It does not establish scientific correctness or replace real clean-install,
 SDK/package and platform acceptance. See the dated
 [GPU verification](../release/GPU_POLICY_20261013.md).
@@ -72,7 +104,8 @@ SDK/package and platform acceptance. See the dated
 ## Maintainer Interface
 
 `scripts/setup_managed_runtime.py` plans by default; `--execute` performs setup.
-FSL profiles additionally require `--accept-fsl-license`. `--root` and
+FSL requires `--accept-fsl-license`; PNL requires `--accept-pnl-terms`.
+`--repair` explicitly reinstalls owned selected prefixes. `--root` and
 `SLICERDDSURFER_RUNTIME_ROOT` support isolated test environments. The worker returns
 verified settings; the GUI applies them only after successful completion.
 It never modifies the user's shell, GPU driver or an unmanaged Conda prefix.

@@ -88,7 +88,7 @@ python3 scripts/download_model_assets.py --profile surface \
 1. 在模块选择器打开 **SlicerDDSurfer**，在标题栏选择中文或英文。
 2. 填写 **Subject ID**、**Subject root**，可另选 **Output directory**。
 3. 仅勾选本次需要的分析产品。
-4. 展开 **高级设置**，设置分析路线、依赖和模型；运行前检查环境。
+4. 展开 **高级设置 > 环境与模型 > 准备所选分析环境**，确认依赖及许可；按提示重启后再次准备，已有安装会复用。详见[自动配置与离线模型](docs/setup/MANAGED_SETUP.zh-CN.md)。
 5. 点击 **Run SlicerDDSurfer**。输入不全会显示红色提示，按日志修正后重试。
 6. 成功阶段的关键结果会自动进入当前场景；在 **高级设置 > 结果与 QC** 检查 QC，并按需复用、替换或清除本次加载。
 
@@ -112,7 +112,7 @@ sub-01/
 DWI 与掩膜须在同一体素网格，梯度数量须与 DWI 测量一致。
 运动校正后的 DWI 必须配套旋转更新后的梯度。
 已有输入掩膜会保留；需要生成掩膜时，默认采用 **PNL diffusion CNN**，
-不是执行整套 PNL 预处理。在高级设置配置独立 Python、模型与 ANTs 环境，
+不是执行整套 PNL 预处理。Linux x86_64 可通过上述入口自动准备独立 Python、模型与 ANTs；高级设置仍可配置已有环境，
 也可在 **分析参数** 中改选 SynthStrip、MRtrix 或仅使用已有掩膜。
 依赖不足会明确提示，不会静默换算法。详见[掩膜设置](docs/setup/brain_mask_gui_config.md)。
 

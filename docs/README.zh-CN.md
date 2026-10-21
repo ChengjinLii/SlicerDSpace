@@ -23,7 +23,7 @@
 | [结果检查](setup/GUI_RESULT_REVIEW.md) | 按运行加载结果、取消任务与 QC |
 | [脑掩膜](setup/brain_mask_gui_config.md) | 默认 PNL CNN、替代后端及外部运行环境 |
 | [GPU 策略](setup/GPU_EXECUTION.zh-CN.md) | 神经网络优先 GPU、明确 CPU 选择与 CPU-only 路线边界 |
-| [插件内自动配置](setup/MANAGED_SETUP.zh-CN.md) | 按需安装 MRtrix/FSL、自动填写路径、默认模型目录 |
+| [插件内自动配置](setup/MANAGED_SETUP.zh-CN.md) | 所选扩展、Python/模型、隔离 MRtrix/FSL/PNL、修复与离线资源 |
 | [微结构分析](setup/MICROSTRUCTURE.zh-CN.md) | DTI 默认、独立 FW/NODDI/DKI 与原作者 MK-Curve 边界 |
 | [UKF 纤维追踪](setup/UKF.zh-CN.md) | 可选作者扩展、默认参数、无损输入及自动 WMA 衔接 |
 | [脑区分析](setup/REGIONAL_ANALYSIS.zh-CN.md) | 高级设置中按需选择脑区，进行参数统计、流线筛选和原权重连接分析 |
@@ -49,6 +49,9 @@
 ---
 
 ## 历史验证记录
+
+[所选依赖准备验证](release/DEPENDENCY_SETUP_20261021.zh-CN.md)记录原生安装/取消检查、
+PNL 新隔离环境 GPU 掩膜、离线资源校验，以及平台和空白机器验收边界。
 
 [10 月 21 日束工作流复核](release/BUNDLE_WORKFLOW_20261021.zh-CN.md)记录自动输入衔接、
 三被试 WMQL 重审、WMA 保存结果重审、TractCloud 实际重跑与采样警告，以及隔离场景验证。
