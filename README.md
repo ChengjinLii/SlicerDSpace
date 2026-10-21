@@ -410,6 +410,21 @@ Not fixed (non-blocking):
 - r17 5 (outside this diff; since 84c2ffd): in `backlog_wording`, the line that adds a “lacks” problem and the
   `return` line have no pin. With the append replaced by `pass`, every “wants” pin is off in one edit (17/0).
 
+### Review of the r15 2 / r16 fix (commit 59d7bf6; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking, from the Opus review; Codex found nothing):
+- r18 1 (P3): the r16 4 sentence says that a trailing comment fails the B1 and B2 rows. On the print line of the B2
+  part it does not (`print\(.*\n` matches it, and `code_text` removes the comment): 17/0, not a false pass. Fix:
+  say “a trailing comment on a pinned line other than the print line”.
+- r18 2 (P3, new in 59d7bf6): the r16 1 locator searches the whole file, not only `check()`. With the nest edit and
+  a copy of the four lines in a module string (two edits, code in a string), the suite passes. Fix idea: the
+  lookbehind `(?<=^        def run\(\*a, \*\*k\):\n)` in front of the locator.
+- r18 3 (P3, a recorded limit; also before 59d7bf6): `if RUN["compared"]: return` added above the summary test,
+  with a late check, passes on the old and the new script (a line added that undoes a pinned one). The r18 2
+  lookbehind would close it too.
+- r18 4 (P3, other spellings): the r16 3 ban misses an added comment line “The summary flag is in MAIN_TAIL (above
+  failed = 0).” (17/0). Fix idea: ban “summary flag is in MAIN_TAIL”.
+
 
 ## Image crop boxes as finally used
 
