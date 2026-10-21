@@ -390,6 +390,24 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
 - r16 4 (information): the B1 locator reads raw text, so a trailing comment on the flag line or a blank line
   before `failed = 0` fails it (a visible false FAIL, not a false pass).
 
+### Review of the r14 fix (commit bca6f20; Opus and Codex: 0 blocking)
+
+Not fixed (non-blocking):
+- r17 1 (P2, Codex): the one-part rule uses `re.finditer`, which does not count overlapping matches. With a second
+  `for f in later:` loop added above the first one, `MAIN_TAIL` matches from either start, and all checks pass
+  (17/0); the part only grows, so no pin is lost. Opus notes that the comment-block locators (r9 4, r10 4, r12 4)
+  have overlapping starts, so a plain count of overlapping matches would fail them. Fix idea: reject a second
+  start anchor for `MAIN_TAIL`, or count distinct block starts.
+- r17 2 (P2, Opus): the line that feeds the one-part rule, `found = list(re.finditer(…))`, has no pin. With `[:1]`
+  added, or `re.search` put back, the count test never runs (17/0, the class “a pinned line that does not run”).
+  Fix idea: a row that wants `found = list(re.finditer(where, read(os.path.join(ROOT, rel)))) if not found:`.
+- r17 3 (P3, Opus): the r14 1 limit sentence gives `ran = checked` as a line that undoes a pinned line, but the
+  r13 1 order row catches that edit. Fix: use `sample = CODE_SAMPLE_TEXT` (added above the sample test, 17/0).
+- r17 4 (P3, Opus): the r14 3 row reads the source text of `CODE_SAMPLE`: with `.replace('  # a trailing comment',
+  '')` added to that line, the suite passes (the “code in a string” class).
+- r17 5 (outside this diff; since 84c2ffd): in `backlog_wording`, the line that adds a “lacks” problem and the
+  `return` line have no pin. With the append replaced by `pass`, every “wants” pin is off in one edit (17/0).
+
 
 ## Image crop boxes as finally used
 
