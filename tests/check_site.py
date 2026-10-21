@@ -48,6 +48,15 @@ ALLOWED_URLS = {
     "https://chengjinlii.github.io/SlicerDDSurfer/",
     "https://chengjinlii.github.io/SlicerDDSurfer/assets/img/social.jpg",
 }
+PAGES_URL = "https://chengjinlii.github.io/SlicerDDSurfer/"
+# Opus r1 N6: these URLs may appear only in the places named here (page, tag, attribute, extra test).
+PLACED_URLS = {
+    PAGES_URL: [("index.html", "link", "href", ("rel", "canonical")),
+                ("index.html", "meta", "content", ("property", "og:url")),
+                ("404.html", "a", "href", None)],
+    PAGES_URL + "assets/img/social.jpg": [("index.html", "meta", "content", ("property", "og:image"))],
+    REPO + ".git": [],  # only in text, right after "git clone "
+}
 
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
         "meta", "source", "track", "wbr"}
@@ -325,6 +334,9 @@ def local_refs(pages):
                 for part in a["srcset"].split(","):
                     if part.strip():
                         refs.append(("srcset", part.strip().split()[0], line))
+            # Codex r1 B2: CSS url() in a style attribute counts like one in a <style> block.
+            for m in CSS_URL.finditer(a.get("style", "")):
+                refs.append(("style-url", m.group(2), line))
         for block in p.style_blocks:
             for m in CSS_URL.finditer(block):
                 refs.append(("css-url", m.group(2), 0))
@@ -339,6 +351,11 @@ def local_refs(pages):
             inside = os.path.commonpath([DOCS, target]) == DOCS
             if not inside or not os.path.isfile(target):
                 problems.append("%s:%s %s=%r does not resolve to a file in docs/" % (rel, line, attr, ref))
+            # Codex r1 B5: a fragment after a page's file name must name an id in that page.
+            elif urlsplit(ref).fragment and target.endswith(".html"):
+                if unquote(urlsplit(ref).fragment) not in parse(target)[0].ids:
+                    problems.append("%s:%s %s=%r has no matching id in %s" % (rel, line, attr, ref,
+                                                                           os.path.relpath(target, ROOT)))
     for css in (f for f in all_files() if f.endswith(".css")):
         text = read(css)
         for m in CSS_URL.finditer(text):
@@ -346,8 +363,9 @@ def local_refs(pages):
             if not ref or is_absolute(ref) or ref.startswith("#"):
                 continue
             target = resolve_local(css, ref)
-            if not os.path.isfile(target):
-                problems.append("%s url(%r) missing" % (os.path.relpath(css, ROOT), ref))
+            inside = os.path.commonpath([DOCS, target]) == DOCS  # Codex r1 B4: inside docs/ too
+            if not inside or not os.path.isfile(target):
+                problems.append("%s url(%r) does not resolve to a file in docs/" % (os.path.relpath(css, ROOT), ref))
     return fail_list(problems) if problems else None
 
 
@@ -376,19 +394,47 @@ def external_urls(pages):
                 problems.append("%s: URL not in the allowed set: %s" % (rel, url))
         for m in re.finditer(r"(?<![:\w])//[a-zA-Z0-9.-]+\.[a-z]{2,}/", text):
             problems.append("%s: protocol-relative URL %s" % (rel, m.group(0)))
+        # Opus r1 N6: the Pages URLs and the .git URL only where PLACED_URLS allows them.
+        found = {}
+        for m in re.finditer(r"https?://[^\s\"'<>)`\\]+", text):
+            url = m.group(0).rstrip(".,;:")
+            if url in PLACED_URLS:
+                found[url] = found.get(url, 0) + 1
+        page = dict(pages).get(path)
+        for url, n in found.items():
+            allowed = 0 if PLACED_URLS[url] else len(re.findall(r"git clone " + re.escape(url) + r"(?![^\s<])", text))
+            for pname, ptag, pattr, pcond in PLACED_URLS[url]:
+                if page is None or os.path.basename(path) != pname:
+                    continue
+                allowed += sum(1 for tag, a, line in page.tags if tag == ptag and a.get(pattr) == url
+                               and (pcond is None or a.get(pcond[0]) == pcond[1]))
+            if n > allowed:
+                problems.append("%s: %s appears %d times, %d of them in an allowed place" % (rel, url, n, allowed))
     # Resource-loading tags and CSS must stay on this host.
     for path, p in pages:
         rel = os.path.relpath(path, ROOT)
         for tag, a, line in p.tags:
             if tag in ("link", "script", "img", "source", "video"):
                 for attr in ("href", "src", "poster", "srcset"):
-                    v = a.get(attr, "")
-                    if v and is_absolute(v):
-                        if v.startswith("data:"):
-                            continue
-                        if tag == "link" and a.get("rel") == "canonical" and v in ALLOWED_URLS:
-                            continue
-                        problems.append("%s:%s <%s %s=%r> points to another host" % (rel, line, tag, attr, v))
+                    # Codex r1 B3: each srcset candidate is its own URL.
+                    vals = [c.split()[0] for c in a.get(attr, "").split(",") if c.strip()] if attr == "srcset" \
+                        else [a.get(attr, "")]
+                    for v in vals:
+                        if v and is_absolute(v):
+                            if v.startswith("data:"):
+                                continue
+                            # Opus r1 N6: the canonical link names the Pages root, not any allowed URL.
+                            if tag == "link" and a.get("rel") == "canonical" and v == PAGES_URL:
+                                continue
+                            problems.append("%s:%s <%s %s=%r> points to another host" % (rel, line, tag, attr, v))
+        # Codex r1 B2: CSS in <style> blocks and style attributes stays on this host too.
+        for css in list(p.style_blocks) + [a["style"] for tag, a, line in p.tags if "style" in a]:
+            for m in CSS_URL.finditer(css):
+                if is_absolute(m.group(2)) and not m.group(2).startswith("data:"):
+                    problems.append("%s: inline CSS url(%s) is absolute" % (rel, m.group(2)))
+            for m in CSS_IMPORT.finditer(css):
+                if is_absolute(m.group(1)):
+                    problems.append("%s: inline CSS @import %s is absolute" % (rel, m.group(1)))
     for f in all_files():
         if f.endswith(".css"):
             text = read(f)
@@ -637,7 +683,9 @@ BANNED = [r"T1w?-free", r"T1-weighted-free", r"fully automatic", r"no registrati
           r"(?<!not )(available )?(in|from|through) the (official )?Extensions? (Manager|Catalog)",
           # Opus code review r1 B1: the SlicerDDSurfer-models repository is public
           # (R/docs/release/VALIDATION_20260816.md:36), so the page must not call it private.
-          r"model[- ]asset\w* repositor(y|ies)\b[^.]{0,40}\bprivate"]
+          r"model[- ]asset\w* repositor(y|ies)\b[^.]{0,40}\bprivate",
+          # Opus r2 N5: and the reverse order ("private model-asset repository").
+          r"\bprivate\b[^.]{0,40}\bmodel[- ]asset\w* repositor(y|ies)\b"]
 EXT_MANAGER_SENTENCE = "Install SlicerDMRI and PyTorch from Slicer\u2019s Extension Manager."
 
 

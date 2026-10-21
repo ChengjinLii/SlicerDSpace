@@ -82,10 +82,12 @@ Fixed in the fix round (each with a check that fails on 935a5d9 and passes after
   `browser_check.mjs` checks brand, nav links, chip and Menu button for overlap at 861, 900, 1023, 1024 and 1100 px.
 
 Not fixed (non-blocking):
-- Codex B2–B5, reclassified from P1 to P2: each is a form that `check_site.py` would miss, and none occurs on the site,
-  so the site stays correct. B2: CSS `url()` in inline `<style>` blocks and `style` attributes is not host-checked.
-  B3: `srcset` is host-checked as one URL, not per candidate. B4: CSS `url()` targets are not checked to stay inside
-  `docs/`. B5: fragments on filename links (`index.html#x`) are not checked.
+- Codex B2–B5, reclassified from P1 to P2: each was a form that `check_site.py` would miss, and none occurs on the
+  site. **Fixed 2026-10-22** (user request): B2: `external_urls` host-checks CSS `url()` and `@import` in `<style>`
+  blocks and `style` attributes, and `local_refs` resolves `url()` in `style` attributes. B3: each `srcset` candidate is
+  host-checked. B4: a CSS file's `url()` must resolve inside `docs/`. B5: a fragment after a page's file name
+  (`index.html#x`) must name an `id` in that page. For each, a copy of `docs/` with the form added passes the 49806c6
+  script and fails the new one.
 - Opus N1 (P2). **Fixed 2026-10-20** (user request): `site.js` now sets the `js` class itself (the inline script is
   gone) and first marks the sections already on screen as shown. `browser_check.mjs` blocks `site.js` at 1440 and
   390 px and needs all sections and the 8 nav links visible; it failed on 5b09bc2 (8 sections hidden; 0 links at 390 px).
@@ -113,8 +115,11 @@ Not fixed (non-blocking):
   pins the `.woff2` files by SHA-256 and fails an `@font-face` family with “Plex”; with the old fonts or the old
   `site.css` it fails. The file names keep `IBMPlexMono`; `404.html` names “IBM Plex Mono” only as a local font and
   loads no file.
-- Opus N6 (P3): `check_site.py` accepts any §6 URL in `<link rel="canonical">` and does not limit where the Pages URLs
-  and the `.git` URL may appear.
+- Opus N6 (P3). **Fixed 2026-10-22** (user request): the canonical link must be the Pages root URL, and the Pages
+  URLs and the `.git` URL may appear only in the places `PLACED_URLS` names (the canonical link, `og:url` and
+  `og:image` of `index.html`, the home links of `404.html`, and right after `git clone `). A canonical link to the
+  social image, a Pages link in the page body and the `.git` URL in a paragraph each pass the 49806c6 script and fail
+  the new one.
 - Opus N7 (P3): on the 404 page, `browser_check.mjs` ignores console errors that contain "404", so a missing asset
   there would pass.
 - Opus N8 (P3): the no-JS block collects failed requests but does not check them; it runs only at 1440 px.
@@ -132,7 +137,8 @@ Not fixed (non-blocking, from the Opus re-review; Codex found nothing):
 - r2 N3 (P3): SPEC §7.2 should say “320×640 for overflow only”, as the code runs it.
 - r2 N4 (P3): SPEC §4 should say that the status chip folds with the links at ≤ 1023 px (the hero status line still
   shows “Private pre-release”).
-- r2 N5 (P3): the model-asset banned pattern does not catch the reverse order (“private model-asset repository”).
+- r2 N5 (P3). **Fixed 2026-10-22** (user request): `claims_banned` also bans the reverse order (“private
+  model-asset repository”). A copy with that sentence passes the 49806c6 script and fails the new one.
 
 ### Review of the N1 fix round and of N2/N3 (commits cce86e2 and ceedd6f; Opus and Codex: 0 blocking)
 

@@ -375,11 +375,15 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 
 1. `html_basics`: `docs/index.html` and `docs/404.html` parse; doctype, `lang="en"`, `<title>`, viewport,
    description; exactly one `<h1>` in index; heading levels never skip (h2 → h4); every `id` is unique.
-2. `local_refs`: every local `href`, `src`, `poster`, `srcset` and CSS `url()` resolves to a file inside `docs/`;
-   every `#fragment` link resolves to an `id` in the page.
+2. `local_refs`: every local `href`, `src`, `poster`, `srcset` candidate and CSS `url()` (in `.css` files, `<style>`
+   blocks and `style` attributes) resolves to a file inside `docs/`; every `#fragment` link resolves to an `id` in the
+   page, and a fragment after a page's file name (`index.html#x`) to an `id` in that page.
 3. `external_urls`: every absolute URL in `docs/` (HTML, CSS, JS) is in the §6 set; `<link>`, `<script>`, `<img>`,
    `<source>`, `<video>` and CSS `url()`/`@import` never point to another host, except `<link rel="canonical">` with
-   the §6 Pages URL. Inline SVG carries no `xmlns` (or namespace URIs are exempt).
+   the Pages root URL; this also holds for each `srcset` candidate and for CSS in `<style>` blocks and `style`
+   attributes. The Pages URLs appear only in the canonical link, `og:url` and `og:image` of `index.html` and the home
+   links of `404.html`; the `.git` URL only right after `git clone `. Inline SVG carries no `xmlns` (or namespace URIs
+   are exempt).
 4. `film_bytes`: `docs/media/SlicerDDSurfer_promo_1080p.mp4` is 41,070,370 bytes and, when `--film` is given, equal in
    SHA-256 to that file.
 5. `film_faststart`: top-level MP4 boxes: `ftyp` first, `moov` before `mdat` (pure Python box scan).
@@ -397,11 +401,12 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     not in the repository”, “must share one voxel grid”.
 11. `claims_banned`: the visible text matches none of (case-insensitive): `T1w?-free`, `T1-weighted-free`, `fully
     automatic`, `no registration`, `no preprocessing`, `U-shaped`, `\bthe first\b`, `\bthe only\b`, `clinical-grade`,
-    `diagnos`, `FDA`, `available now`, `open[- ]source`, `\bfaster\b`, `\baccura(te|cy)\b`,
-    `state[- ]of[- ]the[- ]art`, `cross-platform`, `(install|get|download)\w*\s+(SlicerDDSurfer|it)\b.{0,40}Extensions?
+    `diagnos`, `FDA`, `available now`, `open[- ]source`, `\bfaster\b`, `\baccura(te|cy)\b`, `state[- ]of[- ]the[-
+    ]art`, `cross-platform`, `(install|get|download)\w*\s+(SlicerDDSurfer|it)\b.{0,40}Extensions?
     (Manager|Catalog|Index)`, `(?<!not )(available )?(in|from|through) the (official )?Extensions? (Manager|Catalog)`
-    (the allowed copy “not in the official Extensions Catalog” must pass). Also: `Extension Manager` occurs exactly
-    once, inside “Install SlicerDMRI and PyTorch from Slicer’s Extension Manager.”
+    (the allowed copy “not in the official Extensions Catalog” must pass), and a model-asset repository called private
+    in either word order. Also: `Extension Manager` occurs exactly once, inside “Install SlicerDMRI and PyTorch from
+    Slicer’s Extension Manager.”
 12. `no_local_paths`: no file in `docs/` contains `/Volumes/`, `/Users/`, `/private/tmp`, `file://`.
 13. `links_safe`: every `target="_blank"` link has `rel` containing `noopener`.
 14. `fonts_licensed`: every `.woff2` in `docs/assets/fonts/` has its OFL text next to it. The `.woff2` files are
@@ -556,3 +561,9 @@ pial mesh; 34.8 s showed the morph at about 0.94); §2 names the font sources an
 Plex Mono subsets are renamed “DDS Mono” and the footer says so. Item 9 `images` and item 14 `fonts_licensed` now
 also pin the image and font files by SHA-256, and item 14 fails an `@font-face` family with “Plex”. README records
 Opus N4 (`slicer.jpg` path fields) as no change (user choice).
+
+After code review (2026-10-22, README backlog Codex r1 B2–B5, Opus N6 and r2 N5): item 2 `local_refs` also reads CSS
+`url()` in `style` attributes, needs a CSS file's `url()` to stay inside `docs/`, and checks a fragment after a page's
+file name; item 3 `external_urls` checks each `srcset` candidate and inline CSS, accepts only the Pages root as the
+canonical link, and limits where the Pages URLs and the `.git` URL appear; item 11 `claims_banned` also bans
+“private model-asset repository”.
