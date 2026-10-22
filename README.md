@@ -666,6 +666,21 @@ as Pages for the `href` and CSS cases and for `%5C`). The review is closed. Non-
 - r26 2 (P3, Opus; from 134f246). **Fixed 2026-10-23** (user request): the comment says that `url("%2Fassets/...")` in
   a `.css` file “would pass here and break on Pages”. A row pins it; with the 416a91b comment, the script fails r26 2.
 
+### Review of the r26 1–2 fixes (526e0ff; Opus 0 blocking, Codex 0 blocking)
+
+Codex and Opus each ran the six test runs on Python 3.9–3.15 with LF and CRLF (84 runs each, all as expected). Opus
+also checked that the regex ban and a string ban test the same normalized text, that the shared locator finds one
+part, and ran 18 changed copies: every false pass is in a recorded limit. The review is closed. Non-blocking items:
+- r27 1 (P3, Opus; the locator dates from 134f246; recorded limit “a line added that undoes a pinned one”): the part
+  is only the 12-space comment lines right above the ban, so an old claim as a trailing comment on the `if` line, as a
+  16-space comment above the block, or inside the `if` body passes; a blank line inside the block shrinks the part
+  without a FAIL (no fix is lost: the want phrase is on its second line). Fix if wanted: a second row on the `if` line
+  and the line after it, with the same regex ban.
+- r27 2 (P3, Opus; recorded limit “a row's own definition”): deleting the r26 2 row leaves every check green, and SPEC
+  item 17 still names r26 2, since the r23 1 row checks the SPEC text, not the table's labels.
+- r27 3 (P3, Opus; wording, optional): “in a .css file would pass here and break on Pages” holds for a `.css` file
+  below the `docs/` root (every one now); for one at the root the break is not measured.
+
 ## Image crop boxes as finally used
 
 Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the
