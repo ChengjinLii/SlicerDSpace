@@ -653,6 +653,19 @@ Non-blocking items:
   (“Failed to load resource: the server responded with a status of 404 (Not Found)”, once, at the page URL). Other
   wording gives a visible FAIL, not a false pass. Fix: record the Chrome version next to the regex.
 
+### Review of the r25 1 fix (134f246; Opus 0 blocking, Codex 0 blocking)
+
+Codex ran the static suite and the r25 1 copies on Python 3.9–3.15 with LF and CRLF. Opus ran them on 3.9.6 and
+3.12–3.15 with LF and CRLF (75 runs, all as expected), checked that the comment row finds one part made of comment
+lines, re-checked the Pages facts with read-only requests, and replayed the test server's path handling (same results
+as Pages for the `href` and CSS cases and for `%5C`). The review is closed. Non-blocking items:
+- r26 1 (P3, Opus; from 134f246; recorded limit “a line added after it undoes it”): the comment row bans only “breaks
+  the link on Pages” and the README row only “the browser suite cannot see this”, so the second old claim added back
+  as an extra comment line passes. Fix: ban `breaks the link on Pages|cannot see this` in the comment row.
+- r26 2 (P3, Opus; from 134f246): the comment says that `url("%2Fassets/...")` “passed here and broke on Pages”; no
+  such reference was ever in `docs/` and the site is not on Pages yet, so it should read “would pass here and break on
+  Pages” (true for a `.css` file below the `docs/` root, as every one is now).
+
 ## Image crop boxes as finally used
 
 Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the
