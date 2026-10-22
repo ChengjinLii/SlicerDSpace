@@ -164,6 +164,9 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
     from shared.managed_runtimes import configured_profiles, cuda_candidate, selected_profiles, write_json
     from shared.selected_setup import build_setup_plan
     from shared.user_config import default_user_config_path
+    from shared.setup_resume import pending_setup
+
+    pending_before = pending_setup()
 
     if (getattr(owner, "_setupJob", None) or getattr(owner, "_pipelineActive", False)
             or getattr(owner, "_selectedSetupActive", False)):
@@ -200,6 +203,13 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
         folder.mkdir(parents=True, exist_ok=True)
         owner._latestEnvironmentReportDir = folder
         write_json(folder / "plan.json", plan)
+        save_choices = getattr(owner, '_save_common_user_settings', None)
+        if callable(save_choices):
+            save_choices()
+        if pending_actions:
+            from shared.setup_resume import remember_setup, refresh_setup_button
+            remember_setup(folder.name)
+            refresh_setup_button(owner)
     except OSError as exc:
         owner._selectedSetupActive = False
         owner._setStatus("warning", str(exc))
@@ -254,6 +264,10 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
         owner._latestEnvironmentReportDir = folder
         pending = bool(getattr(owner, "_setupRestartRequired", False))
         state = "restart_required" if pending else "ready" if current and current.blocker_count == 0 else "blocked"
+        if state == "ready":
+            from shared.setup_resume import complete_setup, refresh_setup_button
+            complete_setup(folder.name if pending_actions else (pending_before or {}).get("request"))
+            refresh_setup_button(owner)
         write_json(folder / "result.json", {"status": state, "blockers": current.blocker_count if current else None,
                                             "scope": "Environment readiness only; not scientific QC"})
         if current:

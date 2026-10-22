@@ -27,6 +27,22 @@ installation instructions and are not part of the public deployment.
 
 ---
 
+## Performance Subpage
+
+The overview links to `performance.html` through a closed disclosure and a footer
+link. Existing navigation, film and contributor history are retained. The subpage
+separates equivalent implementation changes, native threads, workflow scheduling
+and Python-port controls. Each record states its reference, measurement scope,
+output-equivalence checks and limitations; no whole-workflow benefit is claimed.
+
+`python3 scripts/build_performance_site.py` exports selected benchmark records and
+renders their tables. `--check` verifies source hashes and detects stale HTML/JSON.
+Only the curated `assets/data/performance.json` is public. Raw runtime snapshots,
+private filesystem paths, subject data and internal reports are not copied into
+the site. The new files and generator are excluded from the extension runtime.
+
+---
+
 ## Publishing
 
 The `Website` workflow validates the site and publishes **only `docs/site/`**

@@ -33,12 +33,14 @@ const MIME = {
   '.png': 'image/png',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
 };
 
 // ---------------------------------------------------------------- server
 function serve() {
   const server = http.createServer((req, res) => {
     let urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    if (urlPath.startsWith('/SlicerDDSurfer/')) urlPath = urlPath.slice('/SlicerDDSurfer'.length);
     if (urlPath.endsWith('/')) urlPath += 'index.html';
     const file = path.resolve(DOCS, '.' + urlPath);
     if (!file.startsWith(DOCS + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
@@ -334,6 +336,44 @@ async function run404AndNoJs(browser, origin) {
   await c2.close();
 }
 
+async function runPerformance(browser, origin, width, noJs = false) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: !noJs });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(String(error)));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('requestfailed', (request) => errors.push(request.url()));
+  page.on('request', (request) => { if (new URL(request.url()).origin !== origin) errors.push('External request: ' + request.url()); });
+  page.on('response', (response) => { if (response.status() >= 400) errors.push('HTTP ' + response.status() + ': ' + response.url()); });
+  await page.goto(origin + '/SlicerDDSurfer/performance.html', { waitUntil: 'load' });
+  await page.evaluate(() => document.fonts.ready);
+  const prefix = `performance ${width}px${noJs ? ' no JS' : ''}`;
+  record(await page.locator('.perf-table tbody tr').count() === 7, prefix + ': seven scoped records');
+  record(await page.locator('.perf-method[open]').count() === 0, prefix + ': method details initially collapsed');
+  record(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), prefix + ': no page overflow');
+  if (!noJs) {
+    await page.locator('[data-perf-filter="parallel,workflow"]').click();
+    record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 2, prefix + ': thread/schedule filter');
+    await page.locator('[data-perf-filter="port"]').click();
+    record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 1, prefix + ': port filter');
+    await page.locator('[data-perf-filter="all"]').click();
+    await page.locator('.perf-table a[href="#method-freewater"]').click();
+    record(await page.locator('#method-freewater').getAttribute('open') !== null, prefix + ': measurement link opens method');
+    await page.locator('#method-freewater summary').focus();
+    await page.keyboard.press('Enter');
+    record(await page.locator('#method-freewater').getAttribute('open') === null, prefix + ': keyboard collapse');
+    const response = await context.request.get(origin + '/SlicerDDSurfer/assets/data/performance.json');
+    const evidence = await response.json();
+    record(response.ok() && evidence.records.length === 7 && !JSON.stringify(evidence).includes('/data/chengjin/'), prefix + ': sanitized evidence download');
+  } else {
+    record(await page.locator('.perf-filters').isHidden(), prefix + ': no nonfunctional filter controls');
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: path.join(OUT, `performance-${width}${noJs ? '-nojs' : ''}.png`), fullPage: true });
+  record(errors.length === 0, prefix + ': no errors or foreign requests', errors.join('; '));
+  await context.close();
+}
+
 // ---------------------------------------------------------------- main
 const server = await serve();
 const origin = `http://127.0.0.1:${server.address().port}`;
@@ -373,6 +413,8 @@ try {
     await ctx.close();
   }
   await run404AndNoJs(browser, origin);
+  for (const width of [1440, 390, 320]) await runPerformance(browser, origin, width);
+  await runPerformance(browser, origin, 390, true);
 } catch (err) {
   record(false, 'browser run', String(err && err.stack || err));
 } finally {

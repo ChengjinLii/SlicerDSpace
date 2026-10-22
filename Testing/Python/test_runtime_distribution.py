@@ -22,6 +22,9 @@ OMITTED = (
     "docs/release/PERFORMANCE_OPTIMIZATIONS.md",
     "docs/release/benchmarks/complete_models_20261020.json",
     "scripts/benchmark_complete_models.py",
+    "scripts/build_performance_site.py",
+    "docs/site/performance.html",
+    "docs/site/assets/data/performance.json",
     "scripts/benchmark_future_candidate.py",
 )
 

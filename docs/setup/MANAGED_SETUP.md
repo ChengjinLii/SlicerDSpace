@@ -113,6 +113,18 @@ SDK/package and platform acceptance. See the dated
 
 ---
 
+## Continue After Restart
+
+An unfinished, explicitly confirmed setup is remembered across Slicer restarts.
+The existing preparation button becomes **Continue preparing selected analysis
+environment**. Clicking it rechecks current selections and requests any needed
+confirmation again; it does not replay stored commands, reuse a license approval
+as permission for a different plan, or automatically run scientific analysis.
+Verified resources and environments are reused. The pending marker is cleared
+only after the final readiness check succeeds.
+
+---
+
 ## Maintainer Interface
 
 `scripts/setup_managed_runtime.py` plans by default; `--execute` performs setup.

@@ -91,6 +91,8 @@ class SelectedSetupTests(unittest.TestCase):
         owner._setupJob = owner._pipelineActive = owner._selectedSetupActive = owner._setupRestartRequired = False
         owner._parameterNode = SimpleNamespace(brainMaskBackend="provided")
         owner._onboardingLanguage = "en"
+        owner._managedRuntimeSetupButton = None
+        owner._uiLanguageBindings = []
         owner._run_environment_dependency_check.return_value = report
         owner._tractography_backend_text.return_value = "csd_act"
         return owner
@@ -140,6 +142,18 @@ class SelectedSetupTests(unittest.TestCase):
         manager.installExtensionFromServer.assert_not_called()
         owner._run_environment_dependency_check.assert_not_called()
         owner._install_python_packages_from_environment_dialog.assert_not_called()
+
+    def test_completed_restart_preparation_clears_previous_pending_request(self):
+        from shared.setup_resume import remember_setup, pending_setup
+        report = result()
+        owner = self.owner(report)
+        context, manager = self.run_preparation(owner, report)
+        with tempfile.TemporaryDirectory() as temp, context, \
+                patch('shared.user_config.default_user_config_path', return_value=Path(temp) / 'config.json'):
+            remember_setup('before-restart')
+            self.assertTrue(prepare_selected_environment(owner, report))
+            self.assertIsNone(pending_setup())
+        manager.installExtensionFromServer.assert_not_called()
 
     def test_failure_stops_the_chain_and_releases_preparation_lock(self):
         initial = result(item("numpy"))

@@ -33,6 +33,18 @@ def run():
         assert owner._managedRuntimeSetupButton.text == "Prepare selected analysis environment"
         assert owner._offlineModelResourcesButton.text == "Use offline model resources"
         records.append("unified_and_offline_buttons")
+        from shared.setup_resume import remember_setup, complete_setup, refresh_setup_button, pending_setup
+        remember_setup('synthetic-restart-request')
+        refresh_setup_button(owner)
+        assert pending_setup()['request'] == 'synthetic-restart-request'
+        assert 'Continue' in owner._managedRuntimeSetupButton.text
+        language.setCurrentIndex(language.findData('zh'))
+        assert owner._managedRuntimeSetupButton.text == '继续准备所选分析环境'
+        complete_setup('synthetic-restart-request')
+        refresh_setup_button(owner)
+        language.setCurrentIndex(language.findData('en'))
+        assert owner._managedRuntimeSetupButton.text == 'Prepare selected analysis environment'
+        records.append('persistent_pending_setup_caption_without_automatic_execution')
         with slicer.util.NodeModify(owner._parameterNode):
             for field in ("targetPreprocessing", "targetSurface", "targetSurfacePostprocess", "targetSegmentation",
                           "targetParcellation", "targetMicrostructure", "targetTractography", "targetBundles", "targetConnectome"):

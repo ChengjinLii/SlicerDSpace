@@ -59,7 +59,7 @@
   /* ---------- Current section in the nav ---------- */
   function initScrollSpy() {
     if (!('IntersectionObserver' in window)) { return; }
-    var links = Array.prototype.slice.call(document.querySelectorAll('.site-nav li a'));
+    var links = Array.prototype.slice.call(document.querySelectorAll('.site-nav li a[href^="#"]'));
     var map = {};
     links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
     var visible = {};

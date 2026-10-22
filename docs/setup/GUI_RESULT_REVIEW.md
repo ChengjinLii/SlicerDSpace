@@ -100,6 +100,22 @@ acceptance testing.
 
 ---
 
+## Editable Tissue Review
+
+After DDSeg labels have loaded, right-click its stage row in **Results** and
+choose **Edit tissue copy in Segment Editor**. The native Segmentation node
+contains separate white-matter, gray-matter and CSF segments on the original
+grid. Reopening preserves edits; replacing or clearing automatic results does
+not remove this manual copy. Save the revision separately with Slicer's normal
+Save dialog. It does not overwrite model output, change QC to passed or silently
+replace the inputs to regional statistics or downstream analysis.
+
+Scene bundles (`.mrb`) can retain loaded volumes, tables and editable copies even
+after the original files move. Source paths are provenance, not a promise that
+the original processing files or environment are included in the bundle.
+
+---
+
 ## Distortion correction (MRtrix3/FSL route)
 
 With **Preprocessing** checked under **2. Products** and **Preprocessing route**

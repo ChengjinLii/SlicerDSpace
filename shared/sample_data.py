@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import os
+import re
 import shutil
+import tempfile
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -73,16 +77,37 @@ def sample_data_registry_payload(entries: tuple[SampleDataEntry, ...]) -> dict[s
 
 
 def fetch_sample_source(entry: SampleDataEntry, destination: Path, *, overwrite: bool = False) -> Path:
-    """Fetch or copy a sample source into a destination path."""
+    """Verify a staged sample before publishing it; preserve existing data on failure."""
 
-    destination = destination.expanduser().resolve()
+    destination = destination.expanduser().absolute()
+    if destination.is_symlink():
+        raise ValueError("Sample destination must not be a symbolic link")
     if destination.exists() and not overwrite:
         raise FileExistsError(f"Refusing to overwrite existing sample destination: {destination}")
+    expected = (entry.sha256 or "").lower()
+    if expected and not re.fullmatch(r"[0-9a-f]{64}", expected):
+        raise ValueError("Invalid sample SHA256")
+    if entry.source_type == "url" and not expected:
+        raise ValueError("Remote sample data requires an explicit SHA256")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if entry.source_type == "local":
-        shutil.copy2(Path(entry.source).expanduser().resolve(), destination)
-    elif entry.source_type == "url":
-        urllib.request.urlretrieve(entry.source, destination)
-    else:
-        raise ValueError(f"Unsupported sample source_type: {entry.source_type}")
+    with tempfile.TemporaryDirectory(prefix=".sdds-sample-", dir=destination.parent) as temporary:
+        staged = Path(temporary) / "download"
+        if entry.source_type == "local":
+            shutil.copyfile(Path(entry.source).expanduser().resolve(), staged)
+        elif entry.source_type == "url":
+            with urllib.request.urlopen(entry.source, timeout=30) as response, staged.open("wb") as stream:
+                shutil.copyfileobj(response, stream, length=1024 * 1024)
+        else:
+            raise ValueError(f"Unsupported sample source_type: {entry.source_type}")
+        digest = hashlib.sha256()
+        with staged.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(block)
+        if expected and digest.hexdigest() != expected:
+            raise ValueError("Sample SHA256 mismatch; no destination file was published")
+        if overwrite:
+            os.replace(staged, destination)
+        else:
+            # A second downloader must not replace a destination created meanwhile.
+            os.link(staged, destination)
     return destination

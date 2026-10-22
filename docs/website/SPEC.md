@@ -1,5 +1,16 @@
 # SlicerDDSurfer project site: spec v2
 
+Integration addendum, 22 October 2026: the historical one-page design below is
+retained for the overview. An approved `performance.html` subpage now presents
+selected measured evidence, reached through a closed homepage disclosure and
+footer link. It reuses the existing design and local fonts; no extra runtime
+service is required. `assets/data/performance.json` is the only allowlisted
+public data export. Tables are generated from verified benchmark records;
+methods are collapsed by default. Full-module/ROI/substage scopes and
+implementation/thread/scheduling/Python-port categories must stay distinct.
+The independent measurements do not change the film's claims or provenance.
+See [README.md](README.md#performance-subpage) for current generation and checks.
+
 Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
 below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`.
 

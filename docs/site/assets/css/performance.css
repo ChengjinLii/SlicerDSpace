@@ -1,0 +1,83 @@
+/* Scoped editorial layout; uses the existing project type and color tokens. */
+.perf-hero { padding: clamp(48px, 8vw, 108px) 0 36px; border-bottom: 1px solid var(--line); }
+.perf-breadcrumb { color: var(--muted); font-size: 13px; margin-bottom: 42px; }
+.perf-breadcrumb a { color: var(--muted); }
+.perf-hero h1 { font-size: clamp(52px, 7vw, 100px); max-width: 950px; letter-spacing: -.045em; }
+.perf-hero h1 span { color: #adc0d2; }
+.perf-hero .lead { max-width: 740px; margin: 26px 0 32px; }
+.perf-intro-line { display: flex; flex-wrap: wrap; gap: 12px 36px; color: var(--muted); font-size: 13px; }
+.perf-intro-line p { margin: 0; }
+.perf-disclaimer { max-width: 850px; color: var(--muted); font-size: 14px; margin: 22px 0 0; }
+.perf-section { padding: clamp(45px, 6vw, 80px) 0; }
+.perf-section-heading { display: grid; grid-template-columns: 1.3fr 1fr; gap: 30px; align-items: end; margin-bottom: 34px; }
+.perf-section-heading h2 { font-size: clamp(30px, 4vw, 49px); }
+.perf-section-heading > p { color: var(--muted); max-width: 390px; margin: 0; font-size: 15px; }
+.perf-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 24px; }
+.perf-filters[hidden], [data-category][hidden], .perf-chart-grid[hidden] { display: none; }
+.perf-filters button { font: 500 12px var(--f-body); border: 1px solid var(--line-2); color: var(--muted); background: transparent; padding: 9px 12px; border-radius: 5px; cursor: pointer; }
+.perf-filters button[aria-pressed="true"] { background: #adc0d2; color: #101720; border-color: #adc0d2; }
+#perf-count { margin-left: auto; font-size: 12px; color: var(--muted); }
+.perf-chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 40px; }
+.perf-chart { margin: 0; padding: clamp(20px, 3vw, 30px); border: 1px solid var(--line-2); border-radius: 8px; background: var(--bg-2); min-width: 0; }
+.perf-chart figcaption { margin: 0 0 26px; }
+.perf-chart h3 { margin-top: 12px; font-size: 23px; }
+.perf-kind { display: inline-block; font: 400 10px/1.5 var(--f-mono); color: #b6cce4; text-transform: uppercase; letter-spacing: .035em; }
+.perf-kind.parallel { color: #ddbc88; }
+.perf-kind.workflow { color: #97c6b3; }
+.perf-kind.port { color: #c4b9a9; }
+.perf-bar-row { display: grid; grid-template-columns: 75px minmax(20px, 1fr) 83px; align-items: center; gap: 12px; margin: 13px 0; font-size: 12px; }
+.perf-bar-row > span { color: var(--muted); }
+.perf-bar-row strong { text-align: right; font: 400 12px var(--f-mono); white-space: nowrap; }
+.perf-track { height: 18px; }
+.perf-bar { display: block; width: var(--extent); height: 100%; background: #91adc7; border-radius: 2px; }
+.perf-bar.reference { background: #424e5e; }
+.perf-chart-note { margin: 24px 0 0; color: var(--muted); font-size: 12px; }
+.perf-table-wrap { overflow-x: auto; width: 100%; border-top: 1px solid var(--line-2); }
+.perf-table { width: 100%; border-collapse: collapse; min-width: 760px; font-size: 14px; }
+.perf-table caption { caption-side: bottom; text-align: left; font-size: 12px; color: var(--muted); padding: 16px 0; }
+.perf-table th, .perf-table td { text-align: left; padding: 20px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.perf-table thead th { font: 400 10px var(--f-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding-top: 17px; padding-bottom: 17px; }
+.perf-table th:first-child, .perf-table td:first-child { padding-left: 0; }
+.perf-table tbody th { font-weight: 500; max-width: 260px; }
+.perf-table td:nth-child(n+3) { font-family: var(--f-mono); font-size: 12px; white-space: nowrap; }
+.perf-table small { display: block; font: 400 11px/1.5 var(--f-body); color: var(--muted); margin-top: 5px; }
+.perf-methods { margin-top: 50px; }
+.perf-methods > h3 { font-size: 26px; margin-bottom: 10px; }
+.perf-methods > p { font-size: 14px; margin-bottom: 26px; }
+.perf-method { border-top: 1px solid var(--line-2); scroll-margin-top: 90px; }
+.perf-method:last-child { border-bottom: 1px solid var(--line-2); }
+.perf-method summary { display: flex; gap: 15px; align-items: center; cursor: pointer; list-style: none; padding: 21px 0; font-size: 16px; }
+.perf-method summary::-webkit-details-marker { display: none; }
+.perf-method summary::after { content: "+"; font: 400 20px var(--f-mono); color: var(--muted); }
+.perf-method[open] summary::after { content: "-"; }
+.perf-scope { margin-left: auto; color: var(--muted); font-size: 11px; text-align: right; }
+.perf-method-body { max-width: 900px; padding: 0 0 25px; }
+.perf-method-body dl { display: grid; grid-template-columns: 135px minmax(0, 1fr); gap: 16px 25px; font-size: 14px; margin: 0; }
+.perf-method-body dt { color: var(--muted); }
+.perf-method-body dd { margin: 0; }
+.perf-principles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; }
+.perf-principles h3 { margin: 15px 0; }
+.perf-principles p { color: var(--muted); font-size: 14px; margin: 0; }
+.perf-limits { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 7vw, 95px); }
+.perf-limits h2 { margin-bottom: 25px; font-size: clamp(30px, 4vw, 49px); }
+.perf-limits > div > p { color: var(--muted); font-size: 15px; }
+.perf-limits .small { margin-top: 24px; font-size: 12px; }
+.perf-open-items { list-style: none; padding: 0; margin: 0; }
+.perf-open-items li { padding: 20px 0; border-top: 1px solid var(--line-2); font-size: 14px; }
+.perf-open-items strong { display: block; font-weight: 500; margin-bottom: 7px; }
+.perf-open-items span { color: var(--muted); }
+@media (max-width: 900px) {
+  .perf-section-heading, .perf-limits { grid-template-columns: 1fr; }
+  .perf-section-heading > p { max-width: 650px; }
+  .perf-principles { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 650px) {
+  .perf-chart-grid { grid-template-columns: 1fr; }
+  .perf-principles { grid-template-columns: 1fr; gap: 30px; }
+  .perf-bar-row { gap: 8px; grid-template-columns: 68px minmax(16px, 1fr) 77px; }
+  .perf-method-body dl { grid-template-columns: 1fr; gap: 5px; }
+  .perf-method-body dd { margin-bottom: 16px; }
+  .perf-method summary { font-size: 14px; }
+  .perf-scope { max-width: 90px; }
+  #perf-count { margin-left: 0; width: 100%; }
+}

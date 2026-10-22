@@ -329,6 +329,21 @@ def install_results_panel(owner: Any) -> None:
     except Exception:
         pass
     table.cellDoubleClicked.connect(owner._on_run_status_table_double_clicked)
+    table.setContextMenuPolicy(qt.Qt.CustomContextMenu)
+
+    def result_menu(position):
+        index = table.indexAt(position)
+        target = table.item(index.row(), 0) if index.isValid() else None
+        if target is None or not target.text().startswith("segmentation."):
+            return
+        caption = ("编辑组织分割副本" if str(getattr(owner, "_onboardingLanguage", "en")).startswith("zh")
+                   else "Edit tissue copy in Segment Editor")
+        menu = qt.QMenu(table)
+        action = menu.addAction(caption)
+        action.connect("triggered()", lambda: owner._manage_result_scene("edit_tissue"))
+        menu.exec_(table.viewport().mapToGlobal(position))
+
+    table.customContextMenuRequested.connect(result_menu)
     layout.addWidget(table)
 
     scene_grid = qt.QGridLayout()

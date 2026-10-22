@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def audit(root=ROOT):
     site = root / "docs/site"
-    allowed_top = {".nojekyll", "index.html", "404.html"}
+    required = {".nojekyll", "index.html", "404.html"}
+    allowed_top = required | {"performance.html", "assets/data/performance.json"}
     allowed_extensions = {
         "assets/css": {".css"},
         "assets/js": {".js"},
@@ -34,7 +35,7 @@ def audit(root=ROOT):
             problems.append("Unexpected public file: " + relative)
         files.append(relative)
         total += path.stat().st_size
-    for name in allowed_top:
+    for name in required:
         if name not in files:
             problems.append("Missing public entry: " + name)
     return dict(

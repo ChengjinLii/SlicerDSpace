@@ -16,7 +16,7 @@ class PagesPublicationTest(unittest.TestCase):
     def test_current_public_site_passes_allowlist(self):
         result = audit(ROOT)
         self.assertEqual(result["status"], "pass", result)
-        self.assertEqual(result["file_count"], 26)
+        self.assertEqual(result["file_count"], 30)
 
     def test_private_documents_and_symlinks_are_not_publishable(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -31,6 +31,11 @@ class PagesPublicationTest(unittest.TestCase):
             (site / "internal.json").write_text("{}")
             self.assertEqual(audit(root)["status"], "fail")
             (site / "internal.json").unlink()
+            data = site / 'assets/data'
+            data.mkdir(parents=True)
+            (data / 'private.json').write_text('{}')
+            self.assertEqual(audit(root)['status'], 'fail')
+            (data / 'private.json').unlink()
             (site / "leak.txt").symlink_to(private)
             self.assertEqual(audit(root)["status"], "fail")
 

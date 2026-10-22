@@ -75,6 +75,19 @@ def run():
         slicer.mrmlScene.Clear(0)
         assert slicer.util.loadScene(str(scene_file))
         assert len(logic.loadKeyResultsFromManifest(manifest)["reused"]) == 2
+        relocated = ROOT / "relocated"
+        relocated.mkdir()
+        import shutil
+        shutil.copy2(scene_file, relocated / "portable.mrb")
+        image.rename(ROOT / "fa.original-moved")
+        table.rename(ROOT / "metrics.original-moved")
+        slicer.mrmlScene.Clear(0)
+        assert slicer.util.loadScene(str(relocated / "portable.mrb"))
+        restored = owned_nodes(slicer, str(manifest))
+        assert len(restored) == 2
+        volume = next(node for node in restored if node.IsA("vtkMRMLScalarVolumeNode"))
+        np.testing.assert_array_equal(slicer.util.arrayFromVolume(volume), np.ones((4, 5, 6)))
+        assert next(node for node in restored if node.IsA("vtkMRMLTableNode")).GetTable().GetNumberOfRows() == 2
         assert logic.clearResultsFromManifest(manifest) == 2
         print("GUI_SCENE_OWNERSHIP=True", flush=True)
         STATE["beats"] = 0

@@ -1797,6 +1797,8 @@ class SharedWidgetMixin:
 
     def enter(self) -> None:
         self.initializeParameterNode()
+        from shared.setup_resume import refresh_setup_button
+        refresh_setup_button(self)
         # Runs may have been produced from the command line or another session.
         self._refresh_run_history()
 
@@ -2617,6 +2619,24 @@ class SharedWidgetMixin:
             return
         if mode in {"replace", "clear"} and not slicer.util.confirmYesNoDisplay(
                 "Remove scene nodes loaded for this run? Source files will be kept.", parent=self.parent):
+            return
+        if mode == "edit_tissue":
+            from shared.result_scene import owned_nodes
+            from shared.segmentation_review import editable_tissue_copy
+            sources = [node for node in owned_nodes(slicer, str(Path(manifest).resolve()))
+                       if node.IsA("vtkMRMLLabelMapVolumeNode") and
+                       str(node.GetAttribute("SlicerDDSurfer.Product") or "").startswith("segmentation.")]
+            if not sources:
+                slicer.util.infoDisplay("Load this run's DDSeg tissue labels first.", parent=self.parent)
+                return
+            try:
+                copy = editable_tissue_copy(slicer, sources[-1])
+                slicer.util.selectModule("SegmentEditor")
+                editor = slicer.modules.segmenteditor.widgetRepresentation().self().editor
+                editor.setSegmentationNode(copy)
+                self.appendLog("[Review] Opened a separate tissue edit copy; original files and QC are unchanged.")
+            except Exception as exc:
+                slicer.util.errorDisplay(str(exc), parent=self.parent)
             return
         if mode == "clear":
             count = self.logic.clearResultsFromManifest(Path(manifest))

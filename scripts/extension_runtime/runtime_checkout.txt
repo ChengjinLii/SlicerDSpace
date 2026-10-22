@@ -21,4 +21,5 @@
 !/tractography/slicer_dmri_reference/
 !/scripts/benchmark_*.py
 !/scripts/audit_pages_site.py
+!/scripts/build_performance_site.py
 !/scripts/generate_protocol_benchmarks.py

@@ -271,7 +271,7 @@
           <li>Open SlicerDDSurfer from the module selector and choose English or Chinese.</li>
           <li>Enter the Subject ID, the subject root and, if you like, a separate output directory.</li>
           <li>Tick only the products you need.</li>
-          <li>In Advanced settings, set routes, dependencies and models, and check the environment.</li>
+          <li>Choose algorithms beside each product. Use Environment to prepare dependencies; Advanced settings contains detailed analysis parameters.</li>
           <li>Click Run SlicerDDSurfer. Missing inputs turn red; the log says what to correct.</li>
           <li>Key results from successful stages load into the scene. Review QC, reload, replace or clear them in Advanced settings › Results and QC.</li>
         </ol>
@@ -323,6 +323,11 @@
       <p><a class="link-arrow" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/architecture/IMPLEMENTATION_PROVENANCE.md" target="_blank" rel="noopener">Implementation provenance and verification limits</a></p>
     </div>
     <p class="panel callout callout-warn">A completed run is not a clinical assessment or proof of scientific correctness.</p>
+    <details class="transcript" id="performance-notes">
+      <summary>Performance &amp; implementation notes</summary>
+      <p>Measured changes, output-equivalence checks and the limits of each benchmark. Full-model calls, regional tests and native multithreading are reported separately.</p>
+      <p><a href="performance.html">Explore the performance evidence</a></p>
+    </details>
   </div>
 </section>
 
@@ -425,6 +430,7 @@ python3 scripts/stage_slicer_extension.py \
       <div class="foot-col">
         <p class="foot-brand"><img src="assets/img/icon-64.png" alt="SlicerDDSurfer icon" width="28" height="28" loading="lazy"><span>SlicerDDSurfer</span></p>
         <p>Diffusion MRI workflows in 3D Slicer.</p>
+        <p><a href="performance.html">Performance evidence</a></p>
         <p>© 2026 Chengjin Li and the SlicerDDSurfer contributors.</p>
       </div>
       <div class="foot-col">

@@ -38,6 +38,8 @@ def install_environment_dependency_path_controls(owner: Any, environment_layout:
     register_ui_language_binding(owner, setup_button, "text", "managed_runtime_setup")
     register_ui_language_binding(owner, setup_button, "tooltip", "managed_runtime_setup_tooltip")
     owner._managedRuntimeSetupButton = setup_button
+    from shared.setup_resume import refresh_setup_button
+    refresh_setup_button(owner)
     environment_layout.addWidget(setup_button)
     import ctk
     more = ctk.ctkCollapsibleButton()

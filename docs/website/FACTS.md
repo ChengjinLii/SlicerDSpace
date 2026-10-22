@@ -329,3 +329,19 @@ Gaps / claims the sources do NOT support:
 19. Authors and affiliation. One author, Chengjin Li. No lab or affiliation in the files read. Co-authors appear only on the method papers.
 20. Asset licences. Weights, templates and fixtures: redistribution unconfirmed (MODEL_ASSET_TERMS.md:21-26). Do not offer asset downloads on the site. The cover and window screenshots are derived outputs of CC0 data (DATA_LICENSES.md:192-195), but no licence is stated for the images themselves, and window.png shows local paths.
 21. Software DOI: none exists in the files read. No Zenodo record is recorded.
+
+## 13. Integration addendum: measured performance (22 October 2026)
+
+The observations above remain the historical film/site source review. The new
+`performance.html` subpage is based on separate, subsequently checked benchmark
+records, not film timings. Its seven public records are selected from
+`freewater_tensor_helpers_full_20261022.json`, `complete_models_20261020.json` and
+`author_wma_optimizations_20261020.json` under `docs/release/benchmarks/`.
+`scripts/build_performance_site.py --check` verifies the source hashes and
+rendered data. Only the curated public summary is deployed.
+
+Full-module, ROI, substage, multithreading and Python-port references must remain
+distinct. Output equivalence is not an assertion that scientific QC or expert
+anatomical review has passed. WMA small-bundle sampling and invalid model voxels
+are not hidden. No whole-workflow, original-MATLAB-port speedup or improved
+scientific validity is claimed. Repository visibility and film bytes are unchanged.
