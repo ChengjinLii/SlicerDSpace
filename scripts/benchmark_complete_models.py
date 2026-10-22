@@ -7,6 +7,8 @@ changes an existing subject's outputs. A running pair is not a speedup result.
 
 import argparse
 import hashlib
+from importlib.metadata import PackageNotFoundError, version
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -31,6 +33,78 @@ def save(path, record):
     temporary = path.with_suffix('.tmp')
     temporary.write_text(json.dumps(record, indent=2)+'\n', encoding='utf-8')
     temporary.replace(path)
+
+
+def numerical_environment():
+    packages = {}
+    for name in ('dipy', 'scipy', 'numpy', 'nibabel', 'dmri-amico'):
+        try:
+            packages[name] = version(name)
+        except PackageNotFoundError:
+            packages[name] = None
+    return dict(python=sys.version, packages=packages,
+                scope='Python benchmark worker; not a version probe of external Slicer/WSL children')
+
+
+def export_freewater_campaign(campaign_path, output):
+    """Recheck a completed immutable pair before exporting publication evidence."""
+    if output.exists():
+        raise FileExistsError('Refusing to replace measured evidence')
+    campaign = json.loads(campaign_path.read_text())
+    settings = campaign['settings']
+    if campaign['status'] != 'passed' or not campaign['snapshot_unchanged'] or not campaign['harness_unchanged']:
+        raise ValueError('Campaign is incomplete or changed')
+    snapshot = Path(settings['snapshot'])
+    if any(digest(snapshot / name) != value for name, value in settings['snapshot_hashes'].items()):
+        raise ValueError('Frozen source changed after measurement')
+    if digest(settings['benchmark_harness']) != settings['benchmark_harness_sha256']:
+        raise ValueError('Frozen harness changed after measurement')
+    root = campaign_path.parent / 'freewater'
+    measurements = {name: json.loads((root / name / 'measurement.json').read_text())
+                    for name in ('reference', 'optimized')}
+    for measurement in measurements.values():
+        if not measurement['inputs_unchanged']:
+            raise ValueError('Inputs changed during measurement')
+        for name, value in measurement['inputs_sha256'].items():
+            path = Path(settings['source']) / {'dwi_path': 'data.nii.gz', 'bval_path': 'bvals',
+                'bvec_path': 'bvecs', 'mask_path': 'nodif_brain_mask.nii.gz'}[name]
+            if digest(path) != value:
+                raise ValueError('Source input changed after measurement')
+    reference, optimized = (measurements[name] for name in ('reference', 'optimized'))
+    if reference['environment'] != optimized['environment']:
+        raise ValueError('Backend environments differ')
+    paired = compare(reference, optimized, 'freewater')
+    if paired['status'] != 'passed' or not paired['qc_equal']:
+        raise ValueError('Raw parameters/maps/QC did not match')
+    raw = [row for row in paired['products'] if row['product'].startswith('raw_parameters_')]
+    if not raw or not all(row['exact'] for row in raw):
+        raise ValueError('Raw parameter evidence missing')
+    qc = optimized['qc']
+    before, after = reference['runtime_seconds'], optimized['runtime_seconds']
+    import numpy as np
+    record = dict(subject_id=settings['subject_id'], fit_method='WLS', engine='serial',
+        mask_voxels=qc['validity']['brain_mask_voxels'],
+        measurements=int(np.loadtxt(Path(settings['source']) / 'bvals').size),
+        reference_seconds=before, optimized_seconds=after, seconds_saved=before-after,
+        speed_ratio=before/after, time_reduction_percent=100*(1-after/before),
+        pairs=1, threads_per_variant=1, order=['optimized', 'reference'],
+        exact_raw_parameters=True, exact_exported_maps_and_qc=True,
+        automatic_qc_passed=qc['automatic_qc_passed'], validity=qc['validity'])
+    result = dict(status='passed', reviewed_on=datetime.now(timezone.utc).date().isoformat(),
+        records=[record], products=paired['products'], inputs_unchanged=True,
+        snapshot_unchanged=True, harness_unchanged=True, qc_equal=True,
+        qc={key: qc[key] for key in ('status', 'automatic_qc_passed', 'checks', 'validity', 'parameters', 'summary', 'warnings')},
+        environment={**optimized['environment']['packages'], 'python': optimized['environment']['python']},
+        campaign_sha256=digest(campaign_path), harness_sha256=digest(settings['benchmark_harness']),
+        source_inputs_sha256=optimized['inputs_sha256'],
+        runtime_snapshot_sha256=settings['snapshot_hashes'],
+        scope='Complete native full-brain FW pair, not the whole workflow',
+        limitations=['One shared-host pair; optimized first; caches not flushed',
+                     'Each timed call includes the same raw parameter export',
+                     'Within-environment equivalence, not cross-release equivalence or anatomical review'])
+    output.parent.mkdir(parents=True, exist_ok=True)
+    save(output, result)
+    return result
 
 
 def stage_benchmark_harness(output):
@@ -147,7 +221,7 @@ def worker(args):
         raise RuntimeError('Benchmark inputs changed')
     save(output/'measurement.json',dict(status='completed',stage=args.stage,variant=args.variant,
         runtime_seconds=elapsed,inputs_sha256=before,inputs_unchanged=unchanged,files=files,
-        qc=qc,threads=os.environ.get('OMP_NUM_THREADS'),
+        qc=qc,threads=os.environ.get('OMP_NUM_THREADS'), environment=numerical_environment(),
         scope='Complete model call including preparation, fitting, QC and output; not whole SlicerDDSurfer'))
 
 
@@ -163,10 +237,11 @@ def compare(left,right,stage):
             images=[nib.load(path) for path in paths]
             arrays=[np.asanyarray(image.dataobj) for image in images]
             exact=bool(np.array_equal(images[0].affine,images[1].affine)
+                       and images[0].header.get_data_dtype()==images[1].header.get_data_dtype()
                        and np.array_equal(*arrays,equal_nan=True))
         elif paths[0].suffix=='.npy':
             arrays=[np.load(path,mmap_mode='r') for path in paths]
-            exact=arrays[0].shape==arrays[1].shape and all(np.array_equal(arrays[0][start:start+1024],arrays[1][start:start+1024],equal_nan=True) for start in range(0,len(arrays[0]),1024))
+            exact=arrays[0].dtype==arrays[1].dtype and arrays[0].shape==arrays[1].shape and all(np.array_equal(arrays[0][start:start+1024],arrays[1][start:start+1024],equal_nan=True) for start in range(0,len(arrays[0]),1024))
         else:
             exact=digest(paths[0])==digest(paths[1])
         records.append(dict(product=key,exact=exact))
@@ -203,7 +278,10 @@ def main():
     parser.add_argument('--settings',type=Path)
     parser.add_argument('--stage')
     parser.add_argument('--variant')
+    parser.add_argument('--export-freewater', type=Path, help='Recheck a completed campaign and write --output JSON')
     args=parser.parse_args()
+    if args.export_freewater:
+        return export_freewater_campaign(args.export_freewater, args.output)
     if args.settings:
         return worker(args)
     from scripts.stage_slicer_extension import stage_extension

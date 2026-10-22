@@ -11,6 +11,10 @@ from Testing.Python.test_microstructure_dki import synthetic_case
 
 
 class MKCurveQROptimizationTests(unittest.TestCase):
+    def test_latest_qualified_release_enables_direct_driver(self):
+        if tensor.scipy.__version__ == '1.18.1':
+            self.assertTrue(tensor._DIRECT_GELSY)
+
     def setUp(self):
         tensor._cached_design_setup.cache_clear()
         tensor._gelsy_workspace.cache_clear()

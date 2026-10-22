@@ -30,23 +30,97 @@ JSON evidence records implementation hashes and immutable snapshots.
 
 ---
 
+## Upstream Freshness Audit
+
+Checked against official GitHub/PyPI metadata on **22 October 2026**, not just
+the locally installed packages. "Latest stable release" and "current default
+branch" are different references. The [machine-readable audit](benchmarks/upstream_freshness_verified_20261022.json)
+records both, retrieval time, immutable revisions and relevant source hashes.
+
+| Component | Current official reference | Verification and permitted claim |
+| --- | --- | --- |
+| WMA | `master@4532b911386d` (newer than release v0.4.2) | Measured author commit is still current HEAD; independently fetched filter, registration and license bytes match. The measured bulk/cache gains are not against an obsolete checkout. |
+| DIPY Free-water | Stable 1.12.1; `master@afa75ecd30df` | WLS/NLS and tensor-helper definitions match the qualified hashes in stable and HEAD. The earlier 1.11.0 headline is historical; the current full-brain 1.12.1 pair independently verifies a 15.87% reduction. |
+| DIPY DKI | Stable 1.12.1 | Upstream already supports array-level metrics. Our per-voxel-to-array comparison is **plugin integration of existing upstream functionality**, not an improvement over DIPY's best native usage. |
+| AMICO | Stable 2.1.1 | Both original timed runs' saved configurations record 2.1.1, inspected without unpickling code. The 1/8-thread benefit is already an upstream feature, not our algorithm. |
+| MK-Curve | `master@9a213e1a5850` | MATLAB author reference is still current HEAD. All Python-port comparisons remain port-only, never Python versus current MATLAB runtime. |
+| SciPy / MK-Curve QR | Stable 1.18.1 | Upstream rewrote `lstsq` with native batching. We do not claim to invent that functionality. Fresh paired tests against its current public `gelsy` path still show benefit from protocol/design/workspace reuse in the Python port. |
+
+Latest-stack checks use an **isolated Python 3.13 / DIPY 1.12.1 / SciPy 1.18.1**
+environment; the user's Slicer and other shared environments are not upgraded in
+place. Three alternating complete 12-cubed FW ROI pairs give **1.188-1.195x**,
+with all 13 parameters, exported maps and QC exact within each pair. Three real
+64-voxel MK-Curve chunks give **1.492-1.682x** for default QR and **1.036-1.068x**
+for the existing batched solver; every coefficient, curve, map and decision is
+exact. These are not full-brain ratios. Records:
+[FW](benchmarks/freewater_latest_stable_roi_20261022.json),
+[MK-Curve](benchmarks/mkcurve_qr_scipy1181_20261022.json).
+
+The three current-stack 24-cubed DKI repeats also retain exact arrays/QC counts,
+with **3.213-3.235x** relative to the prior per-voxel integration. This remains an
+integration benefit from DIPY's existing array API, not a new DIPY speed record:
+[DKI integration evidence](benchmarks/dki_latest_stable_integration_20261022.json).
+
+The new **complete full-brain stable-release pair** retains all 740916 mask
+voxels and 288 measurements with one thread in each path:
+
+| DIPY 1.12.1 / SciPy 1.18.1 | Original author WLS | Equivalent optimized WLS | Saved | Reduction |
+| --- | ---: | ---: | ---: | ---: |
+| Subject 100307, complete model | 914.162 s / 15.24 min | 769.129 s / 12.82 min | 145.032 s / 2.42 min | 15.87% / 1.189x |
+
+All 13 raw parameters in 54 chunks, four output maps/masks and automatic QC
+match. The same 623981 tissue voxels remain valid and 116935 remain excluded.
+Both automatic QC reports pass; manual anatomical review is still separate.
+This replaces the website's old-DIPY headline, **not historical measurements**.
+The environment, immutable snapshot/harness and source-input hashes are saved in
+[current full-brain evidence](benchmarks/freewater_latest_stable_full_20261022.json).
+One shared-host pair, optimized first, caches not flushed, raw-parameter export
+included in both calls; no confidence interval or whole-workflow claim.
+
+Numerical parity is **within a fixed environment**, not between library releases.
+Do not interpret differences caused by upgrading dependencies as an optimization
+benefit. SciPy 1.18.1 is explicitly qualified for the direct QR path; unqualified
+versions keep public dispatch. A separate current-numerics CI job tests the latest
+stable backend pair. Historical Python 3.10 WSL pins remain a compatibility stack,
+not a latest-version claim; AMICO is updated to 2.1.1 there. Blindly upgrading that
+shared WMA/pandas stack or Slicer's core SciPy is not part of this validation.
+
+Recheck with `scripts/audit_performance_upstreams.py --output <new-report.json>`;
+add both timed AMICO `--amico-config` files to verify their historical versions.
+The script does not install or run downloaded upstream code. HEAD inspection
+does not certify a development-branch installation or future upstream versions.
+
+Final software verification: **1316 tests, 1313 passed and three skipped** in
+each of the original and current-stable isolated environments. A newly created
+CI-only Python 3.13 environment with DIPY 1.12.1, SciPy 1.18.1, NumPy 2.4.6 and
+nibabel 5.4.2 passed all **25** dedicated numerical tests. The website passed
+**95** desktop/mobile/interaction checks. Logs stay under `/tmp` with the
+`slicerdds-upstream-` / `slicerdds-current-` prefixes and raw numerical evidence
+under `ignore/validation/upstream_current_20261022/`. These are software and
+paired-numerical checks, not complete new cross-platform scientific acceptance.
+
+---
+
 ## Long Models And Independent Scheduling
 
 The following claims are distinct, not one new scientific algorithm:
 
 | Category | Implementation | Permitted claim |
 | --- | --- | --- |
-| Computational implementation | WMA bulk copying; DKI array-level derived metrics | Same estimator, less computational overhead, not extra threads or greater accuracy |
+| Computational implementation | WMA bulk copying | Same estimator, less computational overhead, not extra threads or greater accuracy |
+| Upstream capability integration | DIPY's existing array-level derived metrics | Less overhead than the plugin's previous per-voxel integration, not faster than native DIPY array usage |
 | Further computational reduction | Default WLS without a dense diagonal; same WMA VTK transform through a bulk call | Same results, independent of threads; ROI/optimizer scopes are stated separately |
 | Parallel configuration | Original AMICO NODDI at 1/8 threads | Upstream multicore capability, not a novel plugin estimator |
 | Workflow scheduling | Concurrent FW/NODDI/DKI; no duplicate fresh FW fit when entering NODDI | Less route wall time, not faster single-model mathematics |
 
-Profiling located substantial per-voxel Python-wrapper overhead in derived DKI
-metrics. The [implementation](../../microstructure/dki.py) retains DIPY WLS/OLS,
+Profiling located substantial per-voxel Python-wrapper overhead in the plugin's
+previous derived-DKI integration. The [implementation](../../microstructure/dki.py) retains DIPY WLS/OLS,
 SVD, parameters, S0 and validity rules; existing array-capable author metrics
 operate on `DiffusionKurtosisFit` rather than thousands of single-voxel wrappers.
 This follows [DIPY source](https://docs.dipy.org/stable/_modules/dipy/reconst/dki.html),
-not normal-equation substitution, smoothing or downsampling. Versions 1.11/1.12
+not normal-equation substitution, smoothing or downsampling. This array capability
+already exists upstream; the timing reference is the plugin's prior integration,
+not a deliberately slower older DIPY release. Versions 1.11/1.12
 are regression-tested; other versions retain per-voxel evaluation.
 
 Three HCP subjects each had three alternating fresh complete-stage repeats on

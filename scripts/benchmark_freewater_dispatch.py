@@ -6,6 +6,7 @@ alternate fresh output directories. This is ROI evidence, not full-brain timing.
 
 import argparse
 from contextlib import nullcontext
+from datetime import datetime, timezone
 import csv
 import hashlib
 import json
@@ -132,7 +133,7 @@ def main():
         records.append(record)
         print(json.dumps(record), flush=True)
     assert all(sha(path) == digest for path, digest in hashes.items()), 'Source/input changed during benchmark'
-    report = dict(status='passed', reviewed_on='2026-10-21', records=records,
+    report = dict(status='passed', reviewed_on=datetime.now(timezone.utc).date().isoformat(), records=records,
                   source_sha256=hashes, source_inputs_unchanged=True,
                   comparison='Installed original DIPY '+args.fit_method+' versus source-qualified diagonal-free WLS and dispatch optimization',
                   scope='Complete real native-grid ROI stage: input validation/reading, same estimator, all mask voxels, maps, QC and fresh exports; no resampling',

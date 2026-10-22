@@ -1,0 +1,148 @@
+{
+  "status": "passed",
+  "scope": "Complete WLS DKI stage on fixed real native-grid ROIs, not full brain",
+  "implementation": "Unchanged DIPY WLS and metrics; array-level evaluation only",
+  "environment": {
+    "python": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:09:02) [GCC 11.2.0]",
+    "numpy": "2.3.3",
+    "dipy": "1.12.1",
+    "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35"
+  },
+  "implementation_sha256": {
+    "microstructure/dki.py": "de9b134e63ae4f4a71506a1435b3d4f53f60c4f34d38e68060320baf69027af7",
+    "scripts/benchmark_dki_dense_metrics.py": "9a8f3419b2bd3e9f17a6b51de09cbdc2ff13c49898c30434453b53175a6578f9"
+  },
+  "repeats": 3,
+  "roi_side": 24,
+  "cases": [
+    {
+      "subject": "100307",
+      "source": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/100307/input",
+      "source_sha256": {
+        "data.nii.gz": "0c146b380d873cd6987c968fdf090875f89fd5795b0d6c72564a3acab737f07c",
+        "bvals": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08",
+        "bvecs": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71",
+        "nodif_brain_mask.nii.gz": "d4f83d76459efe879bd41c2b555ea6ff6d2754258ca849cb12fa9c53f0ac9a06"
+      },
+      "source_unchanged": true,
+      "start_ijk": [
+        60,
+        77,
+        48
+      ],
+      "stop_ijk": [
+        84,
+        101,
+        72
+      ],
+      "mask_voxels": 13824,
+      "fitted_voxels": 13817,
+      "valid_voxels": 13122,
+      "all_output_arrays_exact": true,
+      "raw_seconds": {
+        "reference": [
+          37.23804513737559,
+          37.10728321224451,
+          36.96493124216795
+        ],
+        "optimized": [
+          11.474966295063496,
+          11.385153565555811,
+          11.469408877193928
+        ]
+      },
+      "median_seconds": {
+        "reference": 37.10728321224451,
+        "optimized": 11.469408877193928
+      },
+      "speed_ratio": 3.2353265638676114,
+      "seconds_saved": 25.637874335050583
+    },
+    {
+      "subject": "100206",
+      "source": "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/100206/input",
+      "source_sha256": {
+        "data.nii.gz": "551bd2b7866187674162e2525a8fccf370d2e15a5878eb7520744cfd33f6d03d",
+        "bvals": "26bfc9904dc08251ea36ef831f35e4973a48046c7c62017caa27f0a0e7071eea",
+        "bvecs": "661a494c36f8570fb7e8a43a8937ef117767eb2ba635241c141c9faba217a3f1",
+        "nodif_brain_mask.nii.gz": "14d0b0f107ee17184313e2cee3213d2a72731a51294f4c35b3c31bef87c7f1ea"
+      },
+      "source_unchanged": true,
+      "start_ijk": [
+        59,
+        74,
+        49
+      ],
+      "stop_ijk": [
+        83,
+        98,
+        73
+      ],
+      "mask_voxels": 13824,
+      "fitted_voxels": 13819,
+      "valid_voxels": 12394,
+      "all_output_arrays_exact": true,
+      "raw_seconds": {
+        "reference": [
+          36.635589024052024,
+          36.99937576055527,
+          36.91999897919595
+        ],
+        "optimized": [
+          11.489439141005278,
+          11.543226793408394,
+          11.436663638800383
+        ]
+      },
+      "median_seconds": {
+        "reference": 36.91999897919595,
+        "optimized": 11.489439141005278
+      },
+      "speed_ratio": 3.2133856601781527,
+      "seconds_saved": 25.430559838190675
+    },
+    {
+      "subject": "149741",
+      "source": "/data/chengjin/SlicerDDSurfer/ignore/validation/cohort_onepass_20261017/subjects/149741/input",
+      "source_sha256": {
+        "data.nii.gz": "14da8fd6d5a0929c05f95b92c4b36fc56ea48d7398018f1874dcd6bbe0f0a6bd",
+        "bvals": "aa3247a2cc39b80ac02286483dcc6fb612ab870fea153f1d8b87369c41bc7807",
+        "bvecs": "770cc56c46ec51438938062a67aad644427c43e337118b05a81d8ac48b5a2102",
+        "nodif_brain_mask.nii.gz": "98f8cf9fef47528b31f18c8313b9d2a6c6cf4cfa20fd045d101b017a026c280c"
+      },
+      "source_unchanged": true,
+      "start_ijk": [
+        60,
+        76,
+        53
+      ],
+      "stop_ijk": [
+        84,
+        100,
+        77
+      ],
+      "mask_voxels": 13824,
+      "fitted_voxels": 13822,
+      "valid_voxels": 12732,
+      "all_output_arrays_exact": true,
+      "raw_seconds": {
+        "reference": [
+          37.02484513446689,
+          36.87668884545565,
+          36.88219387456775
+        ],
+        "optimized": [
+          11.467844719067216,
+          11.399911731481552,
+          11.481766922399402
+        ]
+      },
+      "median_seconds": {
+        "reference": 36.88219387456775,
+        "optimized": 11.467844719067216
+      },
+      "speed_ratio": 3.2161399790533363,
+      "seconds_saved": 25.41434915550053
+    }
+  ]
+}

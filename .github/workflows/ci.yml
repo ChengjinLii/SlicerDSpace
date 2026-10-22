@@ -6,6 +6,25 @@ on:
   pull_request:
 
 jobs:
+  current-numerics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install current stable numerical backends
+        run: python -m pip install dipy==1.12.1 scipy==1.18.1 numpy==2.4.6 nibabel==5.4.2
+      - name: Verify current stable optimization parity and fallbacks
+        env:
+          OPENBLAS_NUM_THREADS: "1"
+          OMP_NUM_THREADS: "1"
+          PYTHONPATH: Testing/Python
+        run: |
+          python -m unittest Testing.Python.test_freewater_dispatch Testing.Python.test_freewater_wls_optimization Testing.Python.test_mkcurve_qr_optimization Testing.Python.test_dki_dense_metrics -v
+
   distribution-contract:
     strategy:
       fail-fast: false

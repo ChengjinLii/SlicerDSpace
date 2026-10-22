@@ -6,6 +6,7 @@ Fix BLAS thread counts before launching both interpreters for comparable runs.
 
 import argparse
 import csv
+from datetime import datetime, timezone
 import hashlib
 import importlib.util
 import json
@@ -86,7 +87,7 @@ def main():
             records.append(record)
             print(json.dumps(record), flush=True)
     assert all(sha(path) == digest for path, digest in hashes.items()), 'Source/input changed during measurement'
-    report = dict(status='passed', reviewed_on='2026-10-21', records=records, source_sha256=hashes,
+    report = dict(status='passed', reviewed_on=datetime.now(timezone.utc).date().isoformat(), records=records, source_sha256=hashes,
                   source_inputs_unchanged=True,
                   scope='All WLLS, full synthetic-b0 grid, correction, raw coefficients, maps, masks and residuals for saved real-signal chunks; excludes file preparation/export',
                   comparison='Same preceding Python solver implementation; not original MATLAB runtime or a new scientific model',

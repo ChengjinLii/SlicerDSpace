@@ -364,6 +364,8 @@ async function runPerformance(browser, origin, width, noJs = false) {
     record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 2, prefix + ': thread/schedule filter');
     await page.locator('[data-perf-filter="port"]').click();
     record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 1, prefix + ': port filter');
+    await page.locator('[data-perf-filter="integration"]').click();
+    record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 1 && await page.locator('.perf-table a[href="#method-dki"]').isVisible(), prefix + ': existing upstream capability is separate');
     await page.locator('[data-perf-filter="all"]').click();
     await page.locator('.perf-table a[href="#method-freewater"]').click();
     await page.waitForFunction(() => document.getElementById('method-freewater').open);

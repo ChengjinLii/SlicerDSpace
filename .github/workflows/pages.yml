@@ -10,6 +10,9 @@ on:
       - scripts/build_performance_site.py
       - docs/release/benchmarks/complete_models_20261020.json
       - docs/release/benchmarks/freewater_tensor_helpers_full_20261022.json
+      - docs/release/benchmarks/*latest_stable*.json
+      - docs/release/benchmarks/mkcurve_qr_scipy1181_20261022.json
+      - docs/release/benchmarks/upstream_freshness_verified_20261022.json
       - docs/release/benchmarks/author_wma_optimizations_20261020.json
       - .github/workflows/pages.yml
   pull_request:
@@ -20,6 +23,9 @@ on:
       - scripts/build_performance_site.py
       - docs/release/benchmarks/complete_models_20261020.json
       - docs/release/benchmarks/freewater_tensor_helpers_full_20261022.json
+      - docs/release/benchmarks/*latest_stable*.json
+      - docs/release/benchmarks/mkcurve_qr_scipy1181_20261022.json
+      - docs/release/benchmarks/upstream_freshness_verified_20261022.json
       - docs/release/benchmarks/author_wma_optimizations_20261020.json
       - .github/workflows/pages.yml
   workflow_dispatch:

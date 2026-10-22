@@ -24,6 +24,9 @@ class PerformanceSiteTests(unittest.TestCase):
             self.assertTrue(row['scope'] and row['baseline'] and row['limitation'])
         self.assertEqual(next(row for row in evidence['records'] if row['id'] == 'noddi')['category'], 'parallel')
         self.assertEqual(next(row for row in evidence['records'] if row['id'] == 'mkcurve')['category'], 'port')
+        self.assertEqual(next(row for row in evidence['records'] if row['id'] == 'dki')['category'], 'integration')
+        self.assertTrue(all(row['upstream_reference'] for row in evidence['records']))
+        self.assertEqual(evidence['upstream_review']['stable_versions']['dipy'], '1.12.1')
         serialized = json.dumps(evidence)
         for private in ('/data/', '/home/', '/Users/', '/Volumes/', 'snapshot_hashes', 'source_path'):
             self.assertNotIn(private, serialized)
@@ -33,9 +36,9 @@ class PerformanceSiteTests(unittest.TestCase):
     def test_unverified_full_brain_result_is_not_publishable(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp)
-            for name in ('freewater_tensor_helpers_full_20261022.json', 'complete_models_20261020.json'):
+            for name in ('freewater_latest_stable_full_20261022.json', 'complete_models_20261020.json'):
                 shutil.copy2(ROOT / 'docs/release/benchmarks' / name, folder / name)
-            file = folder / 'freewater_tensor_helpers_full_20261022.json'
+            file = folder / 'freewater_latest_stable_full_20261022.json'
             record = json.loads(file.read_text())
             record['qc_equal'] = False
             file.write_text(json.dumps(record))

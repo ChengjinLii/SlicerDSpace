@@ -124,7 +124,7 @@ class WindowsWslInstallerContractTest(unittest.TestCase):
             "dipy==1.11.0",
             "scikit-learn==1.6.1",
             "vtk==9.3.1",
-            "dmri-amico==2.1.0",
+            "dmri-amico==2.1.1",
             "editables==0.5",
         ):
             self.assertIn(requirement, requirements)

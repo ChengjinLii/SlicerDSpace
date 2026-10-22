@@ -9,7 +9,7 @@ import unittest
 import nibabel as nib
 import numpy as np
 
-from scripts.benchmark_complete_models import compare, worker
+from scripts.benchmark_complete_models import compare, digest, export_freewater_campaign, worker
 
 
 class CompleteFreewaterBenchmarkTest(unittest.TestCase):
@@ -47,8 +47,44 @@ class CompleteFreewaterBenchmarkTest(unittest.TestCase):
                 self.assertEqual(comparison['status'],'passed')
                 self.assertTrue(comparison['qc_equal'])
                 self.assertTrue(all(row['exact'] for row in comparison['products']))
+                frozen = root / 'frozen'
+                frozen.mkdir()
+                (frozen / 'implementation.txt').write_text('Fixture implementation')
+                harness = root / 'harness.py'
+                harness.write_text('# Fixture harness')
+                campaign = root / 'campaign.json'
+                campaign.write_text(json.dumps(dict(status='passed', snapshot_unchanged=True,
+                    harness_unchanged=True, settings=dict(source=str(source), subject_id='fixture',
+                    snapshot=str(frozen), snapshot_hashes={'implementation.txt': digest(frozen / 'implementation.txt')},
+                    benchmark_harness=str(harness), benchmark_harness_sha256=digest(harness)))))
+                stage = root / 'freewater'
+                stage.mkdir()
+                for variant in ('reference', 'optimized'):
+                    (root / variant).rename(stage / variant)
+                    # Measurement products intentionally keep their real source paths.
+                    measurement = json.loads((stage / variant / 'measurement.json').read_text())
+                    measurement['files'] = {key: str(stage / variant / Path(path).relative_to(root / variant))
+                                            for key, path in measurement['files'].items()}
+                    (stage / variant / 'measurement.json').write_text(json.dumps(measurement))
+                exported = export_freewater_campaign(campaign, root / 'export.json')
+                self.assertTrue(exported['records'][0]['exact_raw_parameters'])
+                with self.assertRaises(FileExistsError):
+                    export_freewater_campaign(campaign, root / 'export.json')
+                (frozen / 'implementation.txt').write_text('Changed after measurement')
+                with self.assertRaisesRegex(ValueError, 'Frozen source changed'):
+                    export_freewater_campaign(campaign, root / 'must-not-export.json')
         finally:
             sys.path[:] = previous_path
+
+    def test_numerically_equal_but_different_dtype_is_not_exact_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            left, right = root / 'left.npy', root / 'right.npy'
+            np.save(left, np.ones((2, 13), np.float32))
+            np.save(right, np.ones((2, 13), np.float64))
+            variants = [dict(files={'raw_parameters_0000': str(path)}, runtime_seconds=1., qc={})
+                        for path in (left, right)]
+            self.assertEqual(compare(*variants, 'freewater')['status'], 'failed')
 
 
 if __name__ == '__main__':

@@ -1,19 +1,31 @@
 {
   "kind": "slicerddsurfer_public_performance_evidence",
-  "version": 1,
+  "version": 2,
   "reviewed_on": "2026-10-22",
   "sources": [
     {
-      "file": "freewater_tensor_helpers_full_20261022.json",
-      "sha256": "3d63e94c0bf8fc8ffe8eedc3f971ea2be7517b5430b60b4624e25f6b3f93ece2"
+      "file": "freewater_latest_stable_full_20261022.json",
+      "sha256": "731c9611d5bc92f27ac65cc67d3ad7b1e5a560224961749ba754f0b1194f49b1"
     },
     {
       "file": "complete_models_20261020.json",
       "sha256": "347ace4803bb070ad48e5c9a1b51702ce82d7e0cb37f8849d29940f9f51f6c98"
     },
     {
+      "file": "mkcurve_qr_scipy1181_20261022.json",
+      "sha256": "e4b11207509cd39278ce3d12d9c4336d1912584cb6a3d5dac4ffeeccfbef6bab"
+    },
+    {
+      "file": "dki_latest_stable_integration_20261022.json",
+      "sha256": "d906ebffdc9d5136969403a1be1925233b40fecd3f679f7ba896a6db3cdb5847"
+    },
+    {
       "file": "author_wma_optimizations_20261020.json",
       "sha256": "edef21040341eda6e614d73f9c5e972cdcf4cfb35d169c0de2efb59a642b8e34"
+    },
+    {
+      "file": "upstream_freshness_verified_20261022.json",
+      "sha256": "b96025854ddd3ae724e2b10d42b63819708d40144aee39f2504344b96a477cb4"
     }
   ],
   "records": [
@@ -23,16 +35,17 @@
       "category": "implementation",
       "scope": "Full brain",
       "evidence_date": "2026-10-22",
-      "reference_seconds": 918.1576756183058,
-      "optimized_seconds": 785.6480152755976,
-      "speed_ratio": 1.168662884353148,
-      "seconds_saved": 132.50966034270823,
-      "reduction_percent": 14.432124662408729,
+      "reference_seconds": 914.1616970524192,
+      "optimized_seconds": 769.1294777877629,
+      "speed_ratio": 1.1885667152971573,
+      "seconds_saved": 145.0322192646563,
+      "reduction_percent": 15.865050978649787,
       "method": "Diagonal-free weight multiplication and source-qualified direct tensor-helper calls remove repeated allocation and compatibility checks.",
       "baseline": "Original installed DIPY WLS, not an earlier plugin. One numerical thread in both paths.",
       "unchanged": "All 13 raw fit parameters, four maps/masks, affines, dtypes and automatic QC match. The same 116935 voxels remain excluded.",
       "limitation": "One subject, one pair on a shared Linux host; optimized first. OS caches were not flushed. Both calls include raw-parameter evidence export.",
-      "sample": "740916 mask voxels; 288 measurements; automatic QC passes, anatomical review pending."
+      "sample": "740916 mask voxels; 288 measurements; automatic QC passes, anatomical review pending.",
+      "upstream_reference": "Measured DIPY 1.12.1; latest stable at review: 1.12.1. Current stable-release full-brain pair."
     },
     {
       "id": "wma",
@@ -49,7 +62,8 @@
       "baseline": "Original-author processing versus equivalent bulk/cache implementation, with identical UKF input and atlas.",
       "unchanged": "All 74 anatomical-tract output files are byte-identical; source inputs and author code are unchanged.",
       "limitation": "One full-module pair on a shared Linux host. Matching files do not certify small-bundle sampling or anatomical validity. Later transform optimizations are not measured by this pair.",
-      "sample": "Full registration and 74-tract output; no streamline downsampling introduced for timing."
+      "sample": "Full registration and 74-tract output; no streamline downsampling introduced for timing.",
+      "upstream_reference": "Author commit 4532b911386d: matches current HEAD and measured source bytes."
     },
     {
       "id": "noddi",
@@ -66,61 +80,108 @@
       "baseline": "The same author implementation and model settings. This is a thread-configuration comparison, not a new algorithm.",
       "unchanged": "NDI, ODI, IsoVF, RMSE, NRMSE and the tissue-validity mask match voxelwise, including affines.",
       "limitation": "One shared-host pair. Hardware-specific multithreading benefit; not a universal speed or whole-workflow guarantee.",
-      "sample": "Original 740916-voxel brain mask; fresh output directories."
+      "sample": "Original 740916-voxel brain mask; fresh output directories.",
+      "upstream_reference": "AMICO 2.1.1 verified in both timed configurations; latest stable at review. Threads are already upstream functionality."
     },
     {
       "id": "mkcurve",
-      "title": "MK-Curve Python port",
+      "title": "MK-Curve QR / Python port",
       "category": "port",
-      "scope": "Full brain",
-      "evidence_date": "2026-10-20",
-      "reference_seconds": 9953.985839683563,
-      "optimized_seconds": 9211.890267523006,
-      "speed_ratio": 1.0805584468126865,
-      "seconds_saved": 742.0955721605569,
-      "reduction_percent": 7.455260476683057,
-      "method": "Reuse fixed tensor bases and integration terms instead of reconstructing them for each block.",
-      "baseline": "Earlier Python-port computation versus fixed-basis reuse. NOT original MATLAB versus Python.",
-      "unchanged": "All 55 compared maps, curves, coefficients and masks match. Invalid voxels remain excluded.",
-      "limitation": "One shared-host pair, batched solver, one worker, 256-voxel chunks, maximum shell 2500 s/mm2. It does not measure the later default-QR optimization or certify fit validity.",
-      "sample": "Full-brain port comparison; not a MATLAB runtime benchmark."
+      "scope": "64-voxel numeric chunk",
+      "evidence_date": "2026-10-22",
+      "reference_seconds": 1.7286031488329172,
+      "optimized_seconds": 1.0942252911627293,
+      "speed_ratio": 1.579750680955377,
+      "seconds_saved": 0.634377857670188,
+      "reduction_percent": 36.698872040033834,
+      "method": "Reuse protocol/design checks and LAPACK workspace sizes while keeping the same pivoted QR and full b0 grid.",
+      "baseline": "Current SciPy 1.18.1 public gelsy solver versus qualified direct-driver/cache use in the same Python port. NOT original MATLAB versus Python.",
+      "unchanged": "Raw coefficients, full curves, every map and validity decision match in all three subjects; both reference and batched solvers checked.",
+      "limitation": "Table shows subject 100206 default-QR medians, three alternating repeats after warmup. Numeric chunks exclude input preparation and file export; not whole ROI or full brain. SciPy already supplies native batching.",
+      "sample": "Three real 64-voxel chunks; 181 measurements; complete 200-201 point b0 grids; one numerical thread.",
+      "solver_results": [
+        {
+          "subject": "100206",
+          "solver": "reference",
+          "reference_seconds": 1.7286031488329172,
+          "optimized_seconds": 1.0942252911627293,
+          "speed_ratio": 1.579750680955377
+        },
+        {
+          "subject": "100206",
+          "solver": "batched",
+          "reference_seconds": 1.2144449763000011,
+          "optimized_seconds": 1.1723844073712826,
+          "speed_ratio": 1.0358760903542095
+        },
+        {
+          "subject": "149741",
+          "solver": "reference",
+          "reference_seconds": 1.7260190229862928,
+          "optimized_seconds": 1.1565999872982502,
+          "speed_ratio": 1.4923214957127677
+        },
+        {
+          "subject": "149741",
+          "solver": "batched",
+          "reference_seconds": 1.211475282907486,
+          "optimized_seconds": 1.1419922858476639,
+          "speed_ratio": 1.0608436658643863
+        },
+        {
+          "subject": "877168",
+          "solver": "reference",
+          "reference_seconds": 1.8337209187448025,
+          "optimized_seconds": 1.0899391807615757,
+          "speed_ratio": 1.6824066435188818
+        },
+        {
+          "subject": "877168",
+          "solver": "batched",
+          "reference_seconds": 1.2162496391683817,
+          "optimized_seconds": 1.1388405803591013,
+          "speed_ratio": 1.067971812863282
+        }
+      ],
+      "upstream_reference": "Current MATLAB reference 9a213e1a5850; measured on current stable SciPy 1.18.1. This port-only comparison does not claim to outperform MATLAB or invent upstream native batching."
     },
     {
       "id": "dki",
       "title": "DKI WLS metrics",
-      "category": "implementation",
+      "category": "integration",
       "scope": "Native 24-cubed ROI",
-      "evidence_date": "2026-10-20",
-      "reference_seconds": 54.50919272378087,
-      "optimized_seconds": 16.94772887416184,
-      "speed_ratio": 3.216312529455464,
-      "seconds_saved": 37.56146384961903,
-      "reduction_percent": 68.90849409558764,
+      "evidence_date": "2026-10-22",
+      "reference_seconds": 37.10728321224451,
+      "optimized_seconds": 11.469408877193928,
+      "speed_ratio": 3.2353265638676114,
+      "seconds_saved": 25.637874335050583,
+      "reduction_percent": 69.09121906987441,
       "method": "Evaluate the author's existing array-capable kurtosis metrics once per block, avoiding repeated per-voxel result wrappers.",
-      "baseline": "Unchanged DIPY WLS fit and metrics; only result evaluation is reorganized.",
+      "baseline": "Previous plugin per-voxel integration versus existing DIPY array usage. No improvement over the author's native vectorized API is claimed.",
       "unchanged": "All exported voxel arrays and affines match in three subjects, with three alternating repeats each.",
-      "limitation": "Table shows subject 100307 medians. Across all three subjects the ratio is 3.20-3.24x. No completed full-brain DKI pair is available; do not apply this ratio to historical whole-brain timings.",
-      "sample": "Three subjects; three repeats per path; native-grid ROI, no resampling.",
+      "limitation": "Table shows subject 100307 medians. This adopts existing native DIPY functionality, not a new upstream algorithm improvement. No completed full-brain DKI pair; do not scale ROI times to whole brain.",
+      "sample": "Three subjects; three repeats per path; native-grid ROI, no resampling; DIPY 1.12.1 with SciPy 1.18.1.",
       "subject_results": [
         {
           "subject": "100307",
-          "reference_seconds": 54.50919272378087,
-          "optimized_seconds": 16.94772887416184,
-          "speed_ratio": 3.216312529455464
+          "reference_seconds": 37.10728321224451,
+          "optimized_seconds": 11.469408877193928,
+          "speed_ratio": 3.2353265638676114
         },
         {
           "subject": "100206",
-          "reference_seconds": 54.506174113601446,
-          "optimized_seconds": 17.038492055609822,
-          "speed_ratio": 3.1990022318703732
+          "reference_seconds": 36.91999897919595,
+          "optimized_seconds": 11.489439141005278,
+          "speed_ratio": 3.2133856601781527
         },
         {
           "subject": "149741",
-          "reference_seconds": 54.33011369034648,
-          "optimized_seconds": 16.79381899908185,
-          "speed_ratio": 3.2351255955132547
+          "reference_seconds": 36.88219387456775,
+          "optimized_seconds": 11.467844719067216,
+          "speed_ratio": 3.2161399790533363
         }
-      ]
+      ],
+      "upstream_reference": "DIPY 1.12.1 is current stable at review. Array metrics already exist upstream; this is plugin integration, not an author-algorithm speedup."
     },
     {
       "id": "scheduling",
@@ -137,7 +198,8 @@
       "baseline": "The same model computations, serial scheduling versus two concurrent workers.",
       "unchanged": "All exported scalar and mask arrays match. Process startup is included.",
       "limitation": "One ROI pair. This reduces schedule wall time, not the cost of an individual scientific model. Default model concurrency remains one; memory/CPU budgets may prevent overlap.",
-      "sample": "Two independent models; CPU/memory-constrained scheduling; not full-brain timing."
+      "sample": "Two independent models; CPU/memory-constrained scheduling; not full-brain timing.",
+      "upstream_reference": "Historical plugin scheduler comparison, not a latest-upstream algorithm performance claim."
     },
     {
       "id": "wma-filter",
@@ -154,9 +216,19 @@
       "baseline": "Unmodified author filter on the full 1989106-streamline registration atlas.",
       "unchanged": "Output coordinates/topology and fixed-seed samples match exactly.",
       "limitation": "One full-atlas substage pair, not complete WMA. The large local ratio must not be multiplied by or added to the full WMA result.",
-      "sample": "Full registration-atlas length-filter substage only."
+      "sample": "Full registration-atlas length-filter substage only.",
+      "upstream_reference": "Same immutable current WMA source audit as the full-module record."
     }
   ],
+  "upstream_review": {
+    "checked_at_utc": "2026-10-22T05:08:30.420733+00:00",
+    "stable_versions": {
+      "dipy": "1.12.1",
+      "scipy": "1.18.1",
+      "amico": "2.1.1"
+    },
+    "policy": "Latest release and default-branch source identity are checked separately; source review is not a development-branch benchmark."
+  },
   "policy": "Output equivalence is not anatomical or clinical validation. No whole-workflow speedup has been established.",
   "pending": [
     "Repeated multi-subject full-module pairs",

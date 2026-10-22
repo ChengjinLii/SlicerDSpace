@@ -19,7 +19,8 @@ from scipy.linalg.lapack import dgelsy, dgelsy_lwork
 
 # These SciPy families have paired wrapper/direct-driver regression evidence.
 # Unknown releases retain their public solver, not a guessed ABI/threshold.
-_DIRECT_GELSY = tuple(scipy.__version__.split('.')[:2]) in {('1', '13'), ('1', '17')}
+_DIRECT_GELSY = (tuple(scipy.__version__.split('.')[:2]) in {('1', '13'), ('1', '17')}
+                 or scipy.__version__ == '1.18.1')
 
 
 def _design_setup(design):

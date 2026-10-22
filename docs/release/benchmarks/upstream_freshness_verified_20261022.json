@@ -1,0 +1,250 @@
+{
+  "kind": "performance_upstream_freshness_audit",
+  "schema_version": 1,
+  "checked_at_utc": "2026-10-22T05:08:30.420733+00:00",
+  "repositories": {
+    "dipy/dipy": {
+      "repository": "dipy/dipy",
+      "url": "https://github.com/dipy/dipy",
+      "default_branch": "master",
+      "head_sha": "afa75ecd30df62846e93d536a82e6556d82df650",
+      "head_date": "2026-10-20T05:03:07Z",
+      "latest_release": {
+        "tag": "1.12.1",
+        "published_at": "2026-04-23T15:14:03Z",
+        "url": "https://github.com/dipy/dipy/releases/tag/1.12.1"
+      },
+      "pypi": {
+        "package": "dipy",
+        "version": "1.12.1",
+        "published_at": "2026-04-23T15:06:39.786375Z",
+        "requires_python": ">=3.11",
+        "url": "https://pypi.org/project/dipy/1.12.1/"
+      },
+      "sources": {
+        "1.11.0": [
+          {
+            "url": "https://raw.githubusercontent.com/dipy/dipy/1.11.0/dipy/reconst/fwdti.py",
+            "revision": "1.11.0",
+            "path": "dipy/reconst/fwdti.py",
+            "sha256": "ecd0197ac1707a1c0defc70cd12885a3e04fc90921221b299ced66da3938c186",
+            "functions_sha256": {
+              "wls_iter": "17a44218fbc8d8c46aacbdd6c23d4424ce8ece69df1552b06386a1c2e1b0661b",
+              "_nls_err_func": "05c48919624ad726525974facc306fdb144e09b69ebe7f4ca1cbaaa85dfbfeec",
+              "_nls_jacobian_func": "6a3d0ae7e06d38bb9e8d5aeb4b3c49d98426d5ea5311fdc64fae77c3f11f7b1c",
+              "nls_iter": "b25754feef042ba51106bdf6cc44d412f45a97505bb0d525be7f7390654bb019"
+            }
+          },
+          {
+            "url": "https://raw.githubusercontent.com/dipy/dipy/1.11.0/dipy/reconst/dti.py",
+            "revision": "1.11.0",
+            "path": "dipy/reconst/dti.py",
+            "sha256": "1a8fdc01560518d5591ee72ed1d3da813545e9d4f24c01a361359c075373b63a",
+            "functions_sha256": {
+              "from_lower_triangular": "c77c7188bbd90280114a786de9c43de99f5b5336fa70e9b36b8d8354e1a419e6",
+              "decompose_tensor": "0ba665aedbf052581ec566ee5de86fa72489b9b2cf214c996611f73af3e60957"
+            }
+          },
+          {
+            "url": "https://raw.githubusercontent.com/dipy/dipy/1.11.0/dipy/reconst/dki.py",
+            "revision": "1.11.0",
+            "path": "dipy/reconst/dki.py",
+            "sha256": "67dde1f53ffd544ad29fff8ff972b4ed406c003f43f8a4d2a8f28fdecf25facd",
+            "functions_sha256": {
+              "DiffusionKurtosisFit": "52f4add8276b2f24c19dcf72fdabe4e523abd4759759785d2ef19ada3a2265bc"
+            }
+          }
+        ],
+        "1.12.1": [
+          {
+            "url": "https://raw.githubusercontent.com/dipy/dipy/1.12.1/dipy/reconst/fwdti.py",
+            "revision": "1.12.1",
+            "path": "dipy/reconst/fwdti.py",
+            "sha256": "ecd0197ac1707a1c0defc70cd12885a3e04fc90921221b299ced66da3938c186",
+            "functions_sha256": {
+              "wls_iter": "17a44218fbc8d8c46aacbdd6c23d4424ce8ece69df1552b06386a1c2e1b0661b",
+              "_nls_err_func": "05c48919624ad726525974facc306fdb144e09b69ebe7f4ca1cbaaa85dfbfeec",
+              "_nls_jacobian_func": "6a3d0ae7e06d38bb9e8d5aeb4b3c49d98426d5ea5311fdc64fae77c3f11f7b1c",
+              "nls_iter": "b25754feef042ba51106bdf6cc44d412f45a97505bb0d525be7f7390654bb019"
+            }
+          },
+          {
+            "url": "https://raw.githubusercontent.com/dipy/dipy/1.12.1/dipy/reconst/dti.py",
+            "revision": "1.12.1",
+            "path": "dipy/reconst/dti.py",
+            "sha256": "81bb92df47e9147ec81230c1d41c27010a728b23378e21efbe6064d2594257a6",
+            "functions_sha256": {
+              "from_lower_triangular": "c77c7188bbd90280114a786de9c43de99f5b5336fa70e9b36b8d8354e1a419e6",
+              "decompose_tensor": "0ba665aedbf052581ec566ee5de86fa72489b9b2cf214c996611f73af3e60957"
+            }
+          },
+          {
+            "url": "https://raw.githubusercontent.com/dipy/dipy/1.12.1/dipy/reconst/dki.py",
+            "revision": "1.12.1",
+            "path": "dipy/reconst/dki.py",
+            "sha256": "6478ab2453c57ac4c90e537604c791be91af7a69290bb95ae29351eed1dbbc2f",
+            "functions_sha256": {
+              "DiffusionKurtosisFit": "e6a7de9f57ad83ab8ed2839fd082db091d09124f4cf07e4fcf8c6681afba0ea3"
+            }
+          }
+        ],
+        "afa75ecd30df62846e93d536a82e6556d82df650": [
+          {
+            "url": "https://raw.githubusercontent.com/dipy/dipy/afa75ecd30df62846e93d536a82e6556d82df650/dipy/reconst/fwdti.py",
+            "revision": "afa75ecd30df62846e93d536a82e6556d82df650",
+            "path": "dipy/reconst/fwdti.py",
+            "sha256": "18a89c7ddd73fca0236c6dc85fbe0d570df00ba465fcae0e5eee08eeb9814e08",
+            "functions_sha256": {
+              "wls_iter": "17a44218fbc8d8c46aacbdd6c23d4424ce8ece69df1552b06386a1c2e1b0661b",
+              "_nls_err_func": "05c48919624ad726525974facc306fdb144e09b69ebe7f4ca1cbaaa85dfbfeec",
+              "_nls_jacobian_func": "6a3d0ae7e06d38bb9e8d5aeb4b3c49d98426d5ea5311fdc64fae77c3f11f7b1c",
+              "nls_iter": "b25754feef042ba51106bdf6cc44d412f45a97505bb0d525be7f7390654bb019"
+            }
+          },
+          {
+            "url": "https://raw.githubusercontent.com/dipy/dipy/afa75ecd30df62846e93d536a82e6556d82df650/dipy/reconst/dti.py",
+            "revision": "afa75ecd30df62846e93d536a82e6556d82df650",
+            "path": "dipy/reconst/dti.py",
+            "sha256": "303e246d75e8ef9352b636b1d990a2f3f42f93b8d4ad6ce999a8d6cd421e2b52",
+            "functions_sha256": {
+              "from_lower_triangular": "c77c7188bbd90280114a786de9c43de99f5b5336fa70e9b36b8d8354e1a419e6",
+              "decompose_tensor": "0ba665aedbf052581ec566ee5de86fa72489b9b2cf214c996611f73af3e60957"
+            }
+          },
+          {
+            "url": "https://raw.githubusercontent.com/dipy/dipy/afa75ecd30df62846e93d536a82e6556d82df650/dipy/reconst/dki.py",
+            "revision": "afa75ecd30df62846e93d536a82e6556d82df650",
+            "path": "dipy/reconst/dki.py",
+            "sha256": "8bd0e663c5e2c204ba2afa8da493c4705113136f326690bc0a173c9b2cfcd7fd",
+            "functions_sha256": {
+              "DiffusionKurtosisFit": "e6a7de9f57ad83ab8ed2839fd082db091d09124f4cf07e4fcf8c6681afba0ea3"
+            }
+          }
+        ]
+      },
+      "relevant_stable_and_head_definitions_equal": true,
+      "interpretation": "Exact definition identity includes decorators, not imported dependency implementations. Main-branch source inspection is not a main-branch runtime benchmark."
+    },
+    "SlicerDMRI/whitematteranalysis": {
+      "repository": "SlicerDMRI/whitematteranalysis",
+      "url": "https://github.com/SlicerDMRI/whitematteranalysis",
+      "default_branch": "master",
+      "head_sha": "4532b911386d2d1bc7ebba63fdd13e65b1660623",
+      "head_date": "2025-06-13T23:18:10Z",
+      "latest_release": {
+        "tag": "v0.4.2",
+        "published_at": "2024-07-06T19:02:39Z",
+        "url": "https://github.com/SlicerDMRI/whitematteranalysis/releases/tag/v0.4.2"
+      },
+      "measured_reference_sha": "4532b911386d2d1bc7ebba63fdd13e65b1660623",
+      "measured_reference_is_current_head": true,
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/SlicerDMRI/whitematteranalysis/4532b911386d2d1bc7ebba63fdd13e65b1660623/whitematteranalysis/filter.py",
+          "revision": "4532b911386d2d1bc7ebba63fdd13e65b1660623",
+          "path": "whitematteranalysis/filter.py",
+          "sha256": "725f733c0c4396dccc563a314f3037cf3782c59dc4935819e224ef41ac08c4bb",
+          "equals_measured_source": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/SlicerDMRI/whitematteranalysis/4532b911386d2d1bc7ebba63fdd13e65b1660623/whitematteranalysis/congeal_to_atlas.py",
+          "revision": "4532b911386d2d1bc7ebba63fdd13e65b1660623",
+          "path": "whitematteranalysis/congeal_to_atlas.py",
+          "sha256": "0ae1682aa09f1b9d2ff6a2984255e0e59920babfcd1a216c8ee1744c64882822",
+          "equals_measured_source": true
+        },
+        {
+          "url": "https://raw.githubusercontent.com/SlicerDMRI/whitematteranalysis/4532b911386d2d1bc7ebba63fdd13e65b1660623/License.txt",
+          "revision": "4532b911386d2d1bc7ebba63fdd13e65b1660623",
+          "path": "License.txt",
+          "sha256": "03fc5cd907e5c2004ce199d66318d32a08fa2de2b5b28bee184edda6307d0b86",
+          "equals_measured_source": true
+        }
+      ]
+    },
+    "daducci/AMICO": {
+      "repository": "daducci/AMICO",
+      "url": "https://github.com/daducci/AMICO",
+      "default_branch": "master",
+      "head_sha": "a0c510e61445c6fc643ab5ac015ca67084cd05c4",
+      "head_date": "2025-12-17T12:14:20Z",
+      "latest_release": {
+        "tag": "v2.1.1",
+        "published_at": "2025-12-19T11:14:40Z",
+        "url": "https://github.com/daducci/AMICO/releases/tag/v2.1.1"
+      },
+      "pypi": {
+        "package": "dmri-amico",
+        "version": "2.1.1",
+        "published_at": "2025-12-19T11:15:23.465710Z",
+        "requires_python": ">=3.6",
+        "url": "https://pypi.org/project/dmri-amico/2.1.1/"
+      },
+      "measured_configurations": [
+        {
+          "version": "2.1.1",
+          "filename": "config.pickle",
+          "sha256": "4eb58d7c288024343d37fa287b19f48c250bd05abd546e6782b31f4e47012fcc"
+        },
+        {
+          "version": "2.1.1",
+          "filename": "config.pickle",
+          "sha256": "61bd253d4540afaaba657b18c8e8ee64224a3b65c2e56a5cfa0ec4094a80124f"
+        }
+      ],
+      "measured_versions_match_latest_stable": true
+    },
+    "zhangfanmark/MK-Curve": {
+      "repository": "zhangfanmark/MK-Curve",
+      "url": "https://github.com/zhangfanmark/MK-Curve",
+      "default_branch": "master",
+      "head_sha": "9a213e1a5850fe50c998793f31ed852df00242f8",
+      "head_date": "2020-10-26T20:25:56Z",
+      "latest_release": null,
+      "python_port_author_reference_sha": "9a213e1a5850fe50c998793f31ed852df00242f8",
+      "author_reference_is_current_head": true,
+      "interpretation": "Current MATLAB author reference; timings compare Python-port implementations, not MATLAB."
+    },
+    "scipy/scipy": {
+      "repository": "scipy/scipy",
+      "url": "https://github.com/scipy/scipy",
+      "default_branch": "main",
+      "head_sha": "3f3cfc31741d63a5f4c6c44841640a9fa1304eb2",
+      "head_date": "2026-10-21T21:23:37Z",
+      "latest_release": {
+        "tag": "v1.18.1",
+        "published_at": "2026-08-21T23:52:53Z",
+        "url": "https://github.com/scipy/scipy/releases/tag/v1.18.1"
+      },
+      "pypi": {
+        "package": "scipy",
+        "version": "1.18.1",
+        "published_at": "2026-08-21T23:23:44.522812Z",
+        "requires_python": ">=3.12",
+        "url": "https://pypi.org/project/scipy/1.18.1/"
+      },
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/scipy/scipy/v1.17.0/scipy/linalg/_basic.py",
+          "revision": "v1.17.0",
+          "path": "scipy/linalg/_basic.py",
+          "sha256": "05ca5289ae653016b77138d9abb4028bcc56abb379d59ddd8ecb2e3c3a002362",
+          "functions_sha256": {
+            "lstsq": "0ad3d627bdd743b80cf4aa9af6583439d946a882a57e37a007926782d9f03e6a"
+          }
+        },
+        {
+          "url": "https://raw.githubusercontent.com/scipy/scipy/v1.18.1/scipy/linalg/_basic.py",
+          "revision": "v1.18.1",
+          "path": "scipy/linalg/_basic.py",
+          "sha256": "2f1fd4a6f90744695655b2c63c5a22f4e3379944e5b7bb5a7589151860d2cd7b",
+          "functions_sha256": {
+            "lstsq": "f4282a7da4ca30616e5a7dc839200fcedba2d6f4d1d5ac43258924c1e82c90cd"
+          }
+        }
+      ],
+      "lstsq_definition_equal_to_1_17_0": false
+    }
+  },
+  "policy": "Version/source freshness is separate from numerical parity, scientific QC and paired timing."
+}
