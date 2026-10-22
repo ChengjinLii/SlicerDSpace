@@ -24,6 +24,10 @@ def run():
         assert not owner._advancedSettingsPanel.isAncestorOf(owner.ui.resultsCollapsibleButton)
         assert owner._advancedCategorySelector.count == 4
         checks.append('three_pickers_and_independent_environment')
+        for button in owner._algorithmButtons.values():
+            assert button.text == '...' and button.width == 28 and button.height == 22
+            assert 'Select' in button.accessibleName and 'multiple allowed' in button.toolTip
+        checks.append('compact_ellipsis_buttons_with_accessible_actions')
         def choose(family, values=None, cancel=False):
             def interact():
                 for dialog in qt.QApplication.topLevelWidgets():
@@ -99,7 +103,8 @@ def run():
                 group.collapsed = True
         checks.append('four_compact_parameter_categories')
         combo.setCurrentIndex(combo.findData('zh'))
-        assert all(button.text == '选择…' for button in owner._algorithmButtons.values())
+        assert all(button.text == '...' and button.width == 28 and '选择' in button.accessibleName
+                   and '可多选' in button.toolTip for button in owner._algorithmButtons.values())
         assert owner.ui.environmentCollapsibleButton.text == '环境与安装'
         checks.append('chinese_picker_and_setup_labels')
         record = {'status': 'passed', 'checks': checks}

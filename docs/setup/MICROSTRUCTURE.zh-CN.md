@@ -11,7 +11,7 @@
 ## 选择模型
 
 主界面勾选 Microstructure 后，**默认仅运行 DTI**。
-点击 Microstructure 旁的“选择…”，分别启用 FW、NODDI、DKI，不要求逐级同时开启。
+点击 Microstructure 旁的 **...**，分别启用 FW、NODDI、DKI，不要求逐级同时开启。
 DTI 为基础步骤；DKI 拟合方法在“高级设置 > 模型参数”调整。
 
 | 模型 | 主要结果 | 实现 |

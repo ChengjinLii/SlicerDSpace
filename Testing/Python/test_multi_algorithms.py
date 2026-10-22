@@ -12,11 +12,33 @@ from shared.algorithm_selection import algorithms, BUNDLES, choice_value, select
 from shared.environment import EnvironmentDoctorConfig, build_dependency_specs
 from shared.orchestrator import ProductOrchestratorConfig, ProductOrchestratorResult, RunPlanItem, RunPlanResult
 from shared.multi_tracking import variants, run, plan
-from shared.ui_algorithm_picker import set_algorithms
+from shared.ui_algorithm_picker import set_algorithms, refresh_picker_language, FAMILIES
 from shared.bundle_qc import bundle_record_error
 
 
 class MultiAlgorithmTests(unittest.TestCase):
+    def test_compact_picker_keeps_accessible_translated_action_and_selection(self):
+        buttons = {family: SimpleNamespace() for family in FAMILIES}
+        for button in buttons.values():
+            button.setAccessibleName = lambda text, button=button: setattr(button, 'accessibleName', text)
+        node = SimpleNamespace(orchestrationMicrostructureStages='dti,noddi',
+                               orchestrationTractographyBackend='csd_act,ukf',
+                               orchestrationBundleBackend='wmql,wma')
+        owner = SimpleNamespace(_algorithmButtons=buttons, _parameterNode=node)
+        before = vars(node).copy()
+        for language in ('en', 'zh'):
+            owner._onboardingLanguage = language
+            refresh_picker_language(owner)
+            self.assertEqual(len({button.accessibleName for button in buttons.values()}), 3)
+            for button in buttons.values():
+                self.assertEqual(button.text, '...')
+                self.assertIn('选择' if language == 'zh' else 'Select', button.accessibleName)
+                self.assertIn('可多选' if language == 'zh' else 'multiple allowed', button.toolTip)
+            self.assertIn('NODDI', buttons['microstructure'].toolTip)
+            self.assertIn('UKF', buttons['tractography'].toolTip)
+            self.assertIn('WMA', buttons['bundles'].toolTip)
+            self.assertEqual(vars(node), before)
+
     def test_exact_subsets_and_invalid_values(self):
         self.assertEqual(algorithms("ukf,csd_act,ukf"), ("ukf", "csd_act"))
         self.assertEqual(algorithms("wmql,tractcloud", BUNDLES, "wmql"), ("wmql", "tractcloud"))

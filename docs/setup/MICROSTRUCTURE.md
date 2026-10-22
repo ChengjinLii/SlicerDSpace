@@ -11,7 +11,7 @@
 ## Select A Route
 
 Select Microstructure in Products. **DTI is the only default model**. Click
-**Select…** beside Microstructure to enable FW, NODDI and DKI independently;
+**...** beside Microstructure to enable FW, NODDI and DKI independently;
 choosing DKI does not imply enabling FW or NODDI. DTI remains required preparation.
 Choose the DKI fitting method in **Advanced settings > Model parameters**.
 

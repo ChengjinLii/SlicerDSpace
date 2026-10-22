@@ -102,11 +102,11 @@ class CompactUiTest(unittest.TestCase):
                 self.assertEqual(ui.targetTractographyCheckBox.text, "Selected: " + label)
                 self.assertEqual(ui.targetBundlesCheckBox.text, "Selected: " + bundle_label)
                 self.assertEqual(ui.targetMicrostructureCheckBox.text, "Selected: DTI + NODDI")
-                self.assertIn("Use Select", ui.targetBundlesCheckBox.tooltip)
+                self.assertIn("Use the ... button", ui.targetBundlesCheckBox.tooltip)
                 owner._onboardingLanguage = "zh"
                 refresh_compact_algorithms(owner)
                 self.assertEqual(ui.targetTractographyCheckBox.text, "当前：" + label)
-                self.assertIn("选择", ui.targetBundlesCheckBox.tooltip)
+                self.assertIn("... 按钮", ui.targetBundlesCheckBox.tooltip)
                 owner._onboardingLanguage = "en"
                 self.assertEqual(vars(node), before)
                 self.assertTrue(all(not control.checked and control.enabled for control in vars(ui).values()))

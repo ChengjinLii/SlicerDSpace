@@ -83,7 +83,7 @@ QToolButton#bundlesAlgorithmSelectButton {
   background: #FFFFFF;
   border: 1px solid #CCD5DC;
   border-radius: 3px;
-  padding: 2px 8px;
+  padding: 0;
   min-height: 18px;
 }
 QToolButton:hover { border-color: #476E83; }

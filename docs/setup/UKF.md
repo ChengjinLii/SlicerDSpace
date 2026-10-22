@@ -14,8 +14,8 @@
 
 The default tractography route remains **MRtrix CSD/ACT/SIFT2**. To use UKF,
 install **UKFTractography** and **SlicerDMRI** through Extension Manager,
-restart Slicer, and click **Select…** beside Tractography to choose **UKF**.
-Click **Select…** beside Bundles to choose **WMA** for automatic
+restart Slicer, and click **...** beside Tractography to choose **UKF**.
+Click **...** beside Bundles to choose **WMA** for automatic
 UKF → WMA processing. The ORG atlas and WMA runtime remain separate dependencies.
 UKF parameters are under **Advanced settings > Model parameters**. If other
 tracking methods are selected too, each produces a separate run variant.

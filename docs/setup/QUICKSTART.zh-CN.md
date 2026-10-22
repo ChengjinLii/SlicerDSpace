@@ -31,7 +31,7 @@ FreeSurfer。依赖不足会报告阻碍，不会悄悄换成另一种科学算�
 
 主界面的 Microstructure、Tractography 和 Bundles 三行显示当前算法，默认分别为
 **DTI**、**MRtrix3 CSD / ACT** 和 **WMQL**。修改设置后提示会同步更新；这是运行
-配置，不表示结果已完成或 QC 已通过。点击每行旁的 **选择…**，可勾选一种或多种算法。
+配置，不表示结果已完成或 QC 已通过。点击每行旁的 **...**，可勾选一种或多种算法。
 DTI 为基础步骤；FW、NODDI、DKI 可分别勾选。高级设置分四类，每次只显示当前类别参数，
 环境安装独立于高级设置。
 
@@ -46,7 +46,7 @@ DTI 为基础步骤；FW、NODDI、DKI 可分别勾选。高级设置分四类�
 1. 选择 Subject root；空白的被试 ID 自动取目录名，已有自定义 ID 不被覆盖。
    误选规范目录的 `input/` 子目录会自动回到其被试根目录。Output directory 留空时使用被试下的 `outputs/`。
 2. 只勾选 **Microstructure**，取消其他产品及预处理。
-3. 点击 Microstructure 旁的 **选择…**，仅保留 DTI。
+3. 点击 Microstructure 旁的 **...**，仅保留 DTI。
 4. 点击 **Run SlicerDDSurfer**，查看日志。必要的环境检查在后台自动完成；
    缺少依赖会停止提交并展开环境区，准备好后再运行，不会静默遗漏勾选产品。
 5. 成功阶段的 FA/MD 自动加载；在独立的 **结果与 QC** 区域检查报告，或用 **Load / reuse** 再次加载而不堆积重复节点。

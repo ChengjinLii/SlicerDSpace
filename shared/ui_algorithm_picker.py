@@ -113,7 +113,7 @@ def install_algorithm_pickers(owner):
         owner._algorithmSummaryLabels[name] = summary
         button = qt.QToolButton()
         button.objectName = family + "AlgorithmSelectButton"
-        button.setFixedHeight(22)
+        button.setFixedSize(28, 22)
         button.clicked.connect(lambda _checked=False, family=family: choose_algorithms(owner, family))
         layout.addWidget(button, 0, qt.Qt.AlignTop)
         form.setWidget(row, role, container)
@@ -125,5 +125,10 @@ def refresh_picker_language(owner):
     zh = getattr(owner, "_onboardingLanguage", "en").startswith("zh")
     for family, button in getattr(owner, "_algorithmButtons", {}).items():
         selected = selected_algorithms(getattr(owner, "_parameterNode", None), family)
-        button.text = "选择…" if zh else "Select…"
-        button.toolTip = ("可多选：" if zh else "Multiple selection: ") + ", ".join(LABELS[value] for value in selected)
+        name = {"microstructure": ("微结构分析", "microstructure"),
+                "tractography": ("纤维追踪", "tractography"),
+                "bundles": ("纤维束分析", "bundle analysis")}[family][0 if zh else 1]
+        action = "选择" + name + "算法" if zh else "Select " + name + " algorithms"
+        button.text = "..."
+        button.setAccessibleName(action)
+        button.toolTip = action + ("（可多选）。当前：" if zh else " (multiple allowed). Current: ") + ", ".join(LABELS[value] for value in selected)

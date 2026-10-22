@@ -36,7 +36,7 @@ Missing dependencies are reported, not silently replaced by a different method.
 The Microstructure, Tractography and Bundles rows show the current algorithm
 selection: **DTI**, **MRtrix3 CSD / ACT** and **WMQL** by default. These labels
 update when settings change; they describe the configuration, not completed or
-QC-approved results. Click **Select…** beside each of these three products to
+QC-approved results. Click **...** beside each of these three products to
 choose one or several methods. DTI remains required preparation; FW, NODDI and
 DKI are independent options. Advanced settings uses four categories, showing
 only the selected category's parameters. Environment installation is separate.
@@ -54,7 +54,7 @@ dependency checks and QC gates still apply. More methods require more time and d
    an existing custom ID is preserved. Selecting its canonical `input/` directory
    resolves to the subject root. An empty output directory uses `<subject>/outputs/`.
 2. Select **Microstructure** and uncheck all other products, including preprocessing.
-3. Click **Select…** beside Microstructure and retain only DTI.
+3. Click **...** beside Microstructure and retain only DTI.
 4. Click **Run SlicerDDSurfer** and inspect the log. Necessary preflight checks
    run in the background. Missing dependencies stop submission and open the
    Environment section; prepare them and retry rather than silently omitting products.
