@@ -599,9 +599,13 @@ film request in the test server, not with a Playwright route, and logged `naviga
 `play()`: the 9a09b96 check had the page active at the attempt (“played” 3 of 3), the 7576da9 check did not
 (`NotAllowedError` 3 of 3, also with a 25 s hold). The review is closed. Non-blocking items:
 - r24 1 (P3, Opus; predates; “other spellings”). **Fixed 2026-10-22** (user request): `local_refs` fails a local
-  reference whose path holds `%2F` or `%5C` (any case), in HTML and in CSS. With `href="%2Findex.html"`,
-  `href="assets%2Fimg%2Fposter.jpg"` or `url("%2Fassets%2Fimg%2Fposter.jpg")`, the 14ff0aa script passes and the new
-  one fails. Limit: the test server decodes the path, so the browser suite cannot see this. Since this ban comes
+  reference whose path holds `%2F` or `%5C` (any case), in HTML and in CSS; a plain slash is the only spelling the
+  site needs. With `href="%2Findex.html"`, `href="assets%2Fimg%2Fposter.jpg"` or
+  `url("%2Fassets%2Fimg%2Fposter.jpg")`, the 14ff0aa script passes and the new one fails. Reason, corrected under r25
+  1 (measured by Opus on a GitHub Pages project site): Pages decodes `%2F` and serves the file, and gives 404 for
+  `%5C`; a `%2F` path stays below the folder of the file that refers to it. So the two `href` cases would work on
+  Pages, but the CSS case breaks there (it resolves under `assets/css/`), and the 14ff0aa script passed it because it
+  read the leading `%2F` as the `docs/` root. The test server decodes the path as Pages does. Since this ban comes
   first, a `%2F..%2F` reference no longer reaches the `normpath` line of r22 1; the r22 1 row is now that line's only
   guard.
 - r24 2 (P3, Opus; predates; “other spellings”). **Fixed 2026-10-22** (user request): the `@font-face` test takes
@@ -628,16 +632,16 @@ the static suite on 3.9.6 and 3.13–3.15 with LF and CRLF, the browser suite (6
 copies, and its own r24 4 probe: with an 8 s timer the page still had sticky activation after one `page.evaluate()`
 (“played” 2 of 2) and none without it (`NotAllowedError`), so the r24 4 comment holds. The review is closed.
 Non-blocking items:
-- r25 1 (P2, Opus; from 3dc2c4a): **the r24 1 reason is wrong for `%2F`.** Opus measured a GitHub Pages project site
-  (google.github.io/styleguide) with curl and Chrome 155: Pages decodes `%2F` and serves the file
-  (`assets%2Fcss%2Fstyle.css` and `%2Fpyguide.html` give 200 with the same SHA-256 as the plain paths), returns 404
-  for `%5C`, and resolves a decoded leading `/` below a subfolder against that folder. So `href="%2Findex.html"` and
-  `href="assets%2Fimg%2Fposter.jpg"` in `docs/index.html` would work on Pages, and the test server, which decodes the
-  path the same way, sees what Pages sees. The case the ban really closes is `url("%2Fassets%2Fimg%2Fposter.jpg")` in
-  `site.css`: on Pages it resolves under `assets/css/` and breaks, while the 14ff0aa script unquoted first and read
-  the leading `/` as `docs/`. The comment in `local_refs` and the r24 1 “Limit” sentence state the opposite and should
-  be reworded to these facts; whether a `%2F` that works on Pages stays banned (a plain slash is the only spelling the
-  site needs) is the author's decision.
+- r25 1 (P2, Opus; from 3dc2c4a). **Fixed 2026-10-22** (user choice: reword, keep the ban). The r24 1 reason was wrong
+  for `%2F`. Opus measured a GitHub Pages project site (google.github.io/styleguide) with curl and Chrome 155: Pages
+  decodes `%2F` and serves the file (`assets%2Fcss%2Fstyle.css` and `%2Fpyguide.html` give 200 with the same SHA-256
+  as the plain paths), returns 404 for `%5C`, and resolves a decoded leading `/` below a subfolder against that
+  folder. So `href="%2Findex.html"` and `href="assets%2Fimg%2Fposter.jpg"` in `docs/index.html` would work on Pages,
+  and the test server, which decodes the path the same way, sees what Pages sees. The case the ban really closes is
+  `url("%2Fassets%2Fimg%2Fposter.jpg")` in `site.css`: on Pages it resolves under `assets/css/` and breaks, while the
+  14ff0aa script unquoted first and read the leading `/` as `docs/`. The comment in `local_refs` and the r24 1 entry
+  now state these facts, and the ban stays, since a plain slash is the only spelling the site needs. Rows pin both;
+  with the f1396e8 comment or entry, the script fails r25 1.
 - r25 2 (P2, Opus; the same pattern as r22 2, r22 5 and r22 6): no committed check holds the r24 1–3 code; removing
   `re.I`, either ban, or the 404 changes leaves both suites green on the committed `docs/`. As before, the fixes are
   held by the test copies, and rows pin only lines that a copy cannot reach (r10 2, r11 3, r22 1). Fix if wanted: one

@@ -343,8 +343,10 @@ def local_refs(pages):
         for attr, ref, line in refs:
             if not ref or is_absolute(ref):
                 continue
-            # README r24 1: a browser keeps "%2F" or "%5C" inside one path segment, so an encoded slash breaks the
-            # link on Pages (the test server decodes it, so the browser suite cannot see this).
+            # README r24 1, r25 1: no encoded slash in a local path; a plain slash is the only spelling the site needs.
+            # Measured on a GitHub Pages project site: Pages decodes %2F and serves the file, and gives 404 for %5C;
+            # a %2F path stays below the folder of the file that refers to it. This script once read a leading %2F as
+            # the docs/ root, so url("%2Fassets/...") in a .css file passed here and broke on Pages.
             if re.search(r"%(2f|5c)", urlsplit(ref).path, re.I):
                 problems.append("%s:%s %s=%r has an encoded slash in its path" % (rel, line, attr, ref))
                 continue
@@ -1020,8 +1022,13 @@ WORDING_FIXES = (
     # README r23 1: item 17 names every finding of this table, first to last.
     ("r23 1", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
      'r9 2–4, r10 1, 2, 4, 5, r11 3, 4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 '
-     '1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20 6, r21 1, r22 1, r22 3, r23 1, r24 4, N5, '
-     'N10, N12, N15, r2 N3, r2 N4 and r4 B4', None),
+     '1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20 6, r21 1, r22 1, r22 3, r23 1, r24 4, r25 '
+     '1, N5, N10, N12, N15, r2 N3, r2 N4 and r4 B4', None),
+    # README r25 1: the reason for the encoded-slash ban, as Opus measured it on GitHub Pages (the ban stays).
+    ("r25 1", "tests/check_site.py", r'(?m)(?:^            #.*\n)+(?=            if re\.search\(r"%\(2f\|5c\)")',
+     "Pages decodes %2F and serves the file", "breaks the link on Pages"),
+    ("r25 1", "README.md", r"(?ms)^- r24 1 \(P3, Opus;.*?(?=^(?! )|\Z)", "Pages decodes `%2F` and serves the file",
+     "the browser suite cannot see this"),
     # README r24 4: the click-test comment says what the click test does not show (measured).
     ("r24 4", "tests/browser_check.mjs", r"(?m)^  // Opus r1 N9: with sound.*\n(?:  //.*\n)*",
      "does not show that the click alone allows the play", "the click is the user gesture"),

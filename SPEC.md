@@ -427,14 +427,14 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     check, is not covered.
 17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4, r10 1, 2, 4, 5, r11 3,
     4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20
-    6, r21 1, r22 1, r22 3, r23 1, r24 4, N5, N10, N12, N15, r2 N3, r2 N4 and r4 B4) stay in place: in the part of a
-    file that each row names (found exactly once), the fixed phrase is there and, where there is one, the old phrase
-    is not (a string or a regex). In a `.py` part made of comment lines the `#` marks are removed before the test;
-    from a `.py` part that holds code every comment is removed (Python `tokenize`, also a comment at the end of a
-    line), so code commented out with `#` does not count; code inside a string still counts. A built-in sample checks
-    the comment remover. `main()` also runs this check on built-in rows (`WORDING_SELF_TEST`) and fails it unless they
-    give a “lacks”, a “still says” and a “still matches” problem (a crash there is a FAIL too). It also fails it when
-    the normal call went through fewer or more rows than `WORDING_FIXES` holds.
+    6, r21 1, r22 1, r22 3, r23 1, r24 4, r25 1, N5, N10, N12, N15, r2 N3, r2 N4 and r4 B4) stay in place: in the part
+    of a file that each row names (found exactly once), the fixed phrase is there and, where there is one, the old
+    phrase is not (a string or a regex). In a `.py` part made of comment lines the `#` marks are removed before the
+    test; from a `.py` part that holds code every comment is removed (Python `tokenize`, also a comment at the end of
+    a line), so code commented out with `#` does not count; code inside a string still counts. A built-in sample
+    checks the comment remover. `main()` also runs this check on built-in rows (`WORDING_SELF_TEST`) and fails it
+    unless they give a “lacks”, a “still says” and a “still matches” problem (a crash there is a FAIL too). It also
+    fails it when the normal call went through fewer or more rows than `WORDING_FIXES` holds.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
@@ -599,3 +599,6 @@ After code review (2026-10-22, README backlog r24 1–4): item 2 `local_refs` fa
 item 14 `fonts_licensed` finds `@font-face` in any letter case; item 17 `backlog_wording` gains a row for r24 4 (the
 comment on the click test in `browser_check.mjs`); §7.2 lets the 404 page at the missing path log its own 404 status
 only once, and fails any other response ≥ 400 at its URL.
+
+After code review (2026-10-22, README backlog r25 1): no rule changes; item 17 `backlog_wording` gains rows for r25 1
+(the corrected reason for the encoded-slash ban of item 2, in the `local_refs` comment and the README r24 1 entry).
