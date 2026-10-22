@@ -19,6 +19,11 @@ def _cmake_executable() -> str | None:
 
 
 class CMakeExtensionConfigTest(unittest.TestCase):
+    def test_sdk_prerequisites_are_requested_before_project(self):
+        content = (REPO_ROOT / 'CMakeLists.txt').read_text(encoding='utf-8')
+        self.assertLess(content.index('find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)'),
+                        content.index('project(SlicerDDSurfer)'))
+
     def test_extension_configures_with_slicer_cmake_contract(self) -> None:
         cmake = _cmake_executable()
         if not cmake:

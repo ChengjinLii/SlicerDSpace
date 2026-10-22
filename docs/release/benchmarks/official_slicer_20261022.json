@@ -1,0 +1,160 @@
+{
+  "kind": "official_slicer_development_validation",
+  "date": "2026-10-22",
+  "scope": "Linux x86_64, Slicer 5.10.0 native integration and package checks, not scientific or catalog certification",
+  "base_commit": "7808a0c8391de12d6d9c2976d353744db487b3a5",
+  "tested_working_tree_patch_sha256": "e79525a289ab35a9089841ab2105aa82de0f683a363926d2143e96b63e23e280",
+  "tested_files_sha256": {
+    "CMakeLists.txt": "6c064a06049e06acee53084b8c2bdf320f11179697543f0422eac5accdf3f91c",
+    "SlicerDDSurfer.py": "22cf61b8e382ceabbc9ce987b7ddc62611ed9c290fb4ef65431188af5e6e92c9",
+    "scripts/slicer_acceptance.py": "fb6605b5d1bb08ab34f329f3ad467c14e179285d9a673dcbd8881f39631eb017",
+    "Testing/Python/slicer_extension_manager_install_smoke.py": "ac02faa3f0dbf2320477a79b6e5606f034c375c087eb7723bb859ff696113d13",
+    "Testing/Python/test_environment_doctor.py": "ff7c0fd4b539d2596ad498268b12bf9bf6e2ab98966441facceb2dda984fbd3b",
+    "Testing/Python/test_surface_postprocess_qc.py": "3647dbbf4e6f1cfebebd76800924d05a33847cff772d6e44013fd495e3d9fc24",
+    "Testing/Python/test_wma_registration_cache.py": "23660e1309019e5ae854bba1a22c402c9815ce9fb65b0f1ce0b76d4cb12bdf57",
+    "Testing/Python/test_cmake_extension_config.py": "ff7e30e870b077dae7906b2809df9dbbce7be6d074f096c4b020e73992bde285",
+    "Testing/Python/test_slicer_acceptance_arguments.py": "607be7f67f781d524c91ea9c7b1f5760658004e3613fac0ab1f179063fe8af3f",
+    "tractography/wma_fibers.py": "1c9db5e9b87f19d2d403e056f62317bdecd1e84ecd901a928273cebc50cfdffc",
+    ".github/workflows/ci.yml": "59611dca66d47992406100e19622b4c0082570ca010eece10ce4d5732db18679"
+  },
+  "slicer": {
+    "version": "5.10.0",
+    "source_commit": "a2b6d082be04274a849884fbb1e85634a9df90fb",
+    "sdk_config_sha256": "aedafb79bf4f00a9603a69403bd81f4d3cc738e0decdb5e4190af760e0bb6244",
+    "sdk_local_numeric_revision": "3838",
+    "installed_binary_revision": "34045",
+    "installed_binary_commit": "a2b6d08",
+    "note": "Same source commit; local numeric SDK revision differs. Local-file Extension Manager test supplies target metadata; no server/catalog install was tested."
+  },
+  "sdk": {
+    "status": "pass",
+    "steps": [
+      {
+        "name": "configure",
+        "returncode": 0,
+        "seconds": 3.2183784190565348
+      },
+      {
+        "name": "build",
+        "returncode": 0,
+        "seconds": 0.7652128152549267
+      },
+      {
+        "name": "ctest",
+        "returncode": 0,
+        "seconds": 143.64509576000273
+      },
+      {
+        "name": "cpack",
+        "returncode": 0,
+        "seconds": 1.1766416728496552
+      }
+    ],
+    "ctest_entries": 161,
+    "native_generic_cases": 12,
+    "native_module_loader_cases": 4,
+    "native_parameter_contracts": 3,
+    "backend_test_files": 159,
+    "backend_cases": 1320,
+    "backend_skipped": 3,
+    "backend_passed": 1317,
+    "skips": [
+      "One opt-in real-subject DDSeg world-QC test",
+      "Two PowerShell-dependent installer tests"
+    ],
+    "resources": 469,
+    "archive_filename": "3838-linux-amd64-SlicerDDSurfer-git7808a0c-2026-10-22.tar.gz",
+    "archive_sha256": "19bd4d3ec41335c6bf31d1f73f7107b8bc4c2144ee093c202805f1b497826517"
+  },
+  "cpack_install": {
+    "status": "PASS",
+    "seconds": 14.038994636386633,
+    "archive_origin": "supplied_package",
+    "archive_sha256": "19bd4d3ec41335c6bf31d1f73f7107b8bc4c2144ee093c202805f1b497826517",
+    "developer_module_paths": false,
+    "settings_isolated": true,
+    "installed_imports_ready": true,
+    "runtime_resources_ready": true,
+    "self_tests_preserve_scene_node_count": true
+  },
+  "project_gui_smokes": [
+    {
+      "name": "extension_install",
+      "status": "PASS",
+      "seconds": 49.245920622721314,
+      "script_sha256": "d316f1415e3bbb1b12dc94b6ba07eb840a0060afaf4eb8b7215320039911e984",
+      "settings_isolated": true
+    },
+    {
+      "name": "compact_ui",
+      "status": "PASS",
+      "seconds": 16.239795284345746,
+      "script_sha256": "552d7398aec84153155d12f623f172abe48193cd3aaaacd3a9f89cf3f2d1e1d4",
+      "settings_isolated": true
+    },
+    {
+      "name": "gui_operations",
+      "status": "PASS",
+      "seconds": 20.896545361727476,
+      "script_sha256": "6c47a0f700d1b61aa4daf365f8b15c8eb0728a98a579fc17d80161e71463b85d",
+      "settings_isolated": true
+    },
+    {
+      "name": "algorithm_picker",
+      "status": "PASS",
+      "seconds": 16.18949698098004,
+      "script_sha256": "86a0a5aaeda57e0c85914d794c292ee83a61ac12df39d1110072744b2c78e575",
+      "settings_isolated": true
+    },
+    {
+      "name": "environment_async",
+      "status": "PASS",
+      "seconds": 24.656178383156657,
+      "script_sha256": "ca758be717dffa0d22dfaa9f4dbf07ef49f3f832a2dced8a4dea16fcb2e27354",
+      "settings_isolated": true
+    },
+    {
+      "name": "cancel_background",
+      "status": "PASS",
+      "seconds": 19.148003052920103,
+      "script_sha256": "9c9524f9a32657609174c90161cf9b59eab2d063c1e9c1bf3e2b2f3af75c2aa9",
+      "settings_isolated": true
+    },
+    {
+      "name": "shutdown",
+      "status": "PASS",
+      "seconds": 31.26891590282321,
+      "script_sha256": "93a328b6aa9a96e4016deb2b0c0a518bf63ae57e34c255fac299574cf512217b",
+      "settings_isolated": true
+    }
+  ],
+  "fixes": [
+    "Native parameter validators and private-scene XML round trip are tested",
+    "Accept external CPack archive without substituting staging archive",
+    "Reject unverified WMA source before importing optional VTK",
+    "FreeSurfer discovery fixture excludes installed host copies and PATH",
+    "Synthetic FreeSurfer fixture has a deterministic creation stamp",
+    "Configure SDK platform prerequisites before project()",
+    "Fresh-process WMA regression added to CI"
+  ],
+  "warnings": [
+    "SDK cannot import optional SlicerDMRI/PyTorch CMake package configurations; no scientific extension execution is claimed",
+    "Upstream SDK/CTK CMake CMP0148 and CMP0177 developer warnings remain",
+    "GenericTest disables CLI modules and has no main window; upstream CropVolume/toolbar warnings retained"
+  ],
+  "not_validated": [
+    "Native Windows/macOS SDK, installer and scientific runs",
+    "Slicer versions other than 5.10.0",
+    "Blank-machine all-backend installation and full scientific workflow",
+    "Human anatomical review",
+    "Public catalog/server acceptance, public URLs, GitHub topic, patent and asset-redistribution review",
+    "Remote GitHub Actions status after local changes"
+  ],
+  "private_evidence_root": "ignore/validation/official_slicer_20261022",
+  "official_references": [
+    "https://slicer.readthedocs.io/en/latest/developer_guide/extensions.html",
+    "https://slicer.readthedocs.io/en/latest/developer_guide/modules/selftests.html",
+    "https://slicer.readthedocs.io/en/latest/developer_guide/parameter_nodes/overview.html",
+    "https://github.com/Slicer/ExtensionsIndex/blob/main/.github/PULL_REQUEST_TEMPLATE.md"
+  ]
+}

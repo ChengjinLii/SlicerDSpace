@@ -15,9 +15,12 @@ AUTHOR_SHA256 = '5f1164336b32c01e3d5372bdebb7a4ba5a6cde92b589228c162242eaacdee82
 
 
 def fiber_conversion_support(package_dir: Path) -> dict:
-    import vtk
     path = package_dir / 'fibers.py'
     digest = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+    if digest != AUTHOR_SHA256:
+        return dict(supported=False, source_sha256=digest, vtk_version=None,
+                    reason='unverified source; original conversion retained')
+    import vtk
     version = vtk.vtkVersion.GetVTKVersion()
     supported = digest == AUTHOR_SHA256 and version == '9.5.2'
     return dict(supported=supported, source_sha256=digest, vtk_version=version,

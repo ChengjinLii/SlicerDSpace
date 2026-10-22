@@ -8,7 +8,8 @@
 
 </div>
 
-最新记录见[2026-10-16 复核](QC_FOLLOWUP_20261016.zh-CN.md)，
+最新官方集成实测见[2026-10-22 验收](OFFICIAL_SLICER_VALIDATION_20261022.zh-CN.md)，
+科学流程等历史记录见[2026-10-16 复核](QC_FOLLOWUP_20261016.zh-CN.md)，
 历史记录见[2026-10-12 复核](DISTRIBUTION_VALIDATION_20261012.md)，
 前一轮见[2026-10-11 分发验证](DISTRIBUTION_VALIDATION_20261011.md)。
 分别列出已通过的本地检查和各轮尚未完成的验收。

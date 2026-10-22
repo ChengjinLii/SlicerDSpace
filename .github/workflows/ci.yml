@@ -66,6 +66,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r scripts/dev/requirements-ci.txt
 
+      - name: Verify WMA dispatch in a fresh Python process
+        run: python -m unittest discover -s Testing/Python -p test_wma_registration_cache.py -v
+
       - name: Run fast unit tests
         run: make test-fast
 

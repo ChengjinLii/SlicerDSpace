@@ -447,12 +447,19 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             os.environ.pop("FREESURFER_HOME", None)
             os.environ.pop("SLICERDDSURFER_FREESURFER_HOME", None)
             try:
-                result = run_environment_doctor(
-                    EnvironmentDoctorConfig(
-                        targets=("surface_postprocess",),
-                        repo_root=REPO_ROOT,
+                # Verify local discovery independently of /opt or PATH on this host.
+                self.assertIn(freesurfer_home, _common_freesurfer_homes())
+                from shutil import which
+                def fixture_which(command, *args, **kwargs):
+                    return None if command in {'recon-all', 'mri_surf2surf'} else which(command, *args, **kwargs)
+                with mock.patch('shared.environment._common_freesurfer_homes', return_value=(freesurfer_home,)), \
+                        mock.patch('shared.environment.shutil.which', side_effect=fixture_which):
+                    result = run_environment_doctor(
+                        EnvironmentDoctorConfig(
+                            targets=("surface_postprocess",),
+                            repo_root=REPO_ROOT,
+                        )
                     )
-                )
             finally:
                 if old_home is None:
                     os.environ.pop("HOME", None)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 import runpy
 import shutil
 from pathlib import Path
@@ -70,6 +71,7 @@ def _run() -> None:
         top_level_python = []
         runtime_resources_ready = False
         installed_imports_ready = False
+        self_tests_passed = False
         if installed_module:
             top_level_python = sorted(path.name for path in installed_module.parent.glob("*.py"))
             root = installed_module.parent.resolve()
@@ -92,6 +94,11 @@ def _run() -> None:
                 and Path(license_audit.__file__).resolve().is_relative_to(root)
                 and license_audit.audit(root)["status"] == "pass"
             )
+            if loaded and installed_imports_ready:
+                # Exercise the official Self Tests registration on the installed package.
+                nodes_before = slicer.mrmlScene.GetNumberOfNodes()
+                slicer.selfTests['SlicerDDSurfer'](msec=0)
+                self_tests_passed = slicer.mrmlScene.GetNumberOfNodes() == nodes_before
 
         print(f"SLICERDDSURFER_EXTMGR_ARCHIVE_ROOTED={archive_rooted}", flush=True)
         print(f"SLICERDDSURFER_EXTMGR_ARCHIVE_CLEAN={archive_clean}", flush=True)
@@ -104,6 +111,7 @@ def _run() -> None:
         print(f"SLICERDDSURFER_EXTMGR_TOP_LEVEL_PY={top_level_python}", flush=True)
         print(f"SLICERDDSURFER_EXTMGR_RUNTIME_RESOURCES_READY={runtime_resources_ready}", flush=True)
         print(f"SLICERDDSURFER_EXTMGR_INSTALLED_IMPORTS_READY={installed_imports_ready}", flush=True)
+        print(f"SLICERDDSURFER_EXTMGR_SELF_TESTS_PASSED={self_tests_passed}", flush=True)
         ready = (
             archive_rooted
             and archive_clean
@@ -116,7 +124,17 @@ def _run() -> None:
             and top_level_python == ["SlicerDDSurfer.py"]
             and runtime_resources_ready
             and installed_imports_ready
+            and self_tests_passed
         )
+        (TEMP_ROOT / 'installation.json').write_text(json.dumps({
+            'passed': ready, 'archive': str(archive_path),
+            'installed_module': str(installed_module), 'module_loaded': loaded,
+            'installed_imports_ready': installed_imports_ready,
+            'runtime_resources_ready': runtime_resources_ready,
+            'self_tests_passed': self_tests_passed,
+            'slicer_version': str(slicer.app.applicationVersion),
+            'slicer_revision': str(slicer.app.repositoryRevision),
+        }, indent=2) + '\n')
         slicer.app.exit(0 if ready else 2)
     except Exception as exc:
         print(f"SLICERDDSURFER_EXTMGR_ERROR={exc}", flush=True)

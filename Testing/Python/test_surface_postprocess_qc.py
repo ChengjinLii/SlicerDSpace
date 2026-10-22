@@ -19,7 +19,8 @@ def write_postprocess_fixture(output):
     mesh = trimesh.creation.icosphere(subdivisions=1)
     for hemi in ("lh", "rh"):
         for kind in ("white", "pial", "inflated", "sphere", "sphere.reg"):
-            nib.freesurfer.write_geometry(output / "surf" / f"{hemi}.{kind}", mesh.vertices, mesh.faces)
+            nib.freesurfer.write_geometry(output / "surf" / f"{hemi}.{kind}", mesh.vertices, mesh.faces,
+                                         create_stamp='SlicerDDSurfer synthetic test fixture')
         for kind in ("thickness", "curv", "sulc", "area"):
             nib.freesurfer.write_morph_data(output / "surf" / f"{hemi}.{kind}", np.ones(len(mesh.vertices), dtype=np.float32))
         for atlas in ("aparc", "aparc.a2009s"):

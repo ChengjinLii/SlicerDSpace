@@ -80,15 +80,23 @@ def run(args):
                     "--link-mode", "copy"], check=True)
     extension = report / "install/SlicerDDSurfer"
     module = extension / "lib/Slicer-5.10/qt-scripted-modules"
-    archive = report / "packages/SlicerDDSurfer.tar.gz"
-    subprocess.run([sys.executable, str(ROOT / "scripts/package_slicer_extension.py"),
-                    "--extension-root", str(extension), "--output", str(archive)], check=True)
+    archive = getattr(args, 'extension_archive', None)
+    if archive is None:
+        archive = report / "packages/SlicerDDSurfer.tar.gz"
+        subprocess.run([sys.executable, str(ROOT / "scripts/package_slicer_extension.py"),
+                        "--extension-root", str(extension), "--output", str(archive)], check=True)
+        archive_origin = 'staging_helper'
+    else:
+        archive = archive.resolve()
+        archive_origin = 'supplied_package'
     subprocess.run([sys.executable, str(ROOT / "scripts/audit_extension_package.py"),
                     str(archive), "--source-root", str(ROOT),
                     "--report", str(report / "package_resource_audit.json")], check=True)
     result = {"kind": "slicer_gui_acceptance", "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
               "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "working_tree_patch_sha256": hashlib.sha256(subprocess.check_output(["git", "diff"], cwd=ROOT)).hexdigest(),
+              "extension_archive": str(archive), "archive_origin": archive_origin,
+              "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
               "tests": []}
     for name in args.tests:
         script = ROOT / "Testing/Python" / f"slicer_{name}_smoke.py"
@@ -191,6 +199,8 @@ def main():
     parser.add_argument("--assets", required=True, type=Path)
     parser.add_argument("--subject", required=True, type=Path)
     parser.add_argument("--additional-module-paths", nargs="*", default=[], type=Path)
+    parser.add_argument('--extension-archive', type=Path,
+                        help='Existing CPack package to install in extension_manager_install; other tests use the staged copy')
     parser.add_argument("--tests", nargs="+", choices=AVAILABLE, default=list(SMOKES))
     parser.add_argument("--tasks-config", type=Path)
     parser.add_argument("--dicom-fixture", type=Path)
@@ -200,6 +210,8 @@ def main():
     args = parser.parse_args()
     if not args.assets.is_dir():
         parser.error('--assets must be an existing model-assets directory')
+    if args.extension_archive is not None and not args.extension_archive.is_file():
+        parser.error('--extension-archive must name an existing package')
     if {'real_tasks', 'bundle_products'}.intersection(args.tests) and args.tasks_config is None:
         parser.error('real_tasks / bundle_products require --tasks-config')
     if args.tasks_config is not None and not args.tasks_config.is_file():

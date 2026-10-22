@@ -202,6 +202,8 @@ class SlicerDDSurferTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         self.test_native_parameter_defaults()
+        self.test_native_parameter_validation()
+        self.test_native_scene_round_trip()
 
     def test_native_parameter_defaults(self):
         raw = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScriptedModuleNode')
@@ -218,3 +220,57 @@ class SlicerDDSurferTest(ScriptedLoadableModuleTest):
             self.assertIsInstance(SlicerDDSurferLogic(), ScriptedLoadableModuleLogic)
         finally:
             slicer.mrmlScene.RemoveNode(raw)
+
+    def test_native_parameter_validation(self):
+        scene = slicer.vtkMRMLScene()
+        raw = scene.AddNewNodeByClass('vtkMRMLScriptedModuleNode')
+        parameters = SlicerDDSurferParameterNode(raw)
+        for name, invalid in (
+            ('brainMaskBackend', 'unsupported'),
+            ('orchestrationTractographyBackend', 'unsupported'),
+            ('orchestrationBundleBackend', 'unsupported'),
+            ('orchestrationMicrostructureStages', 'unsupported'),
+            ('maxParallelModels', 0),
+            ('maxParallelModels', 4),
+        ):
+            with self.subTest(parameter=name, value=invalid):
+                before = getattr(parameters, name)
+                with self.assertRaises(ValueError):
+                    setattr(parameters, name, invalid)
+                self.assertEqual(getattr(parameters, name), before)
+        for boundary in (1, 3):
+            parameters.maxParallelModels = boundary
+            self.assertEqual(parameters.maxParallelModels, boundary)
+
+    def test_native_scene_round_trip(self):
+        # Use private scenes so Self Tests never clear the user's loaded results.
+        scene = slicer.vtkMRMLScene()
+        raw = scene.AddNewNodeByClass('vtkMRMLScriptedModuleNode', 'DDSurferRoundTrip')
+        parameters = SlicerDDSurferParameterNode(raw)
+        expected = {
+            'subjectId': 'native-round-trip',
+            'inputDirectory': '/example/subject with spaces',
+            'brainMaskBackend': 'provided',
+            'brainMaskDevice': 'auto',
+            'orchestrationMicrostructureStages': 'dti,freewater,noddi,dki',
+            'orchestrationRunFreeWater': True,
+            'orchestrationRunNoddi': True,
+            'orchestrationRunDki': True,
+            'maxParallelModels': 3,
+            'preprocessingReadoutTime': 0.032,
+            'ukfParameters': '{"numTensor": 2}',
+        }
+        for name, value in expected.items():
+            setattr(parameters, name, value)
+        scene.SetSaveToXMLString(1)
+        self.assertTrue(scene.Commit())
+        restored_scene = slicer.vtkMRMLScene()
+        restored_scene.SetLoadFromXMLString(1)
+        restored_scene.SetSceneXMLString(scene.GetSceneXMLString())
+        self.assertTrue(restored_scene.Import())
+        restored_raw = restored_scene.GetFirstNodeByName('DDSurferRoundTrip')
+        self.assertIsNotNone(restored_raw)
+        restored = SlicerDDSurferParameterNode(restored_raw)
+        for name, value in expected.items():
+            with self.subTest(parameter=name):
+                self.assertEqual(getattr(restored, name), value)

@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.20.6...3.22.6 FATAL_ERROR)
 
+# Inherit the SDK's macOS architecture/sysroot before project() enables compilers.
+find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)
 project(SlicerDDSurfer)
 
 #-----------------------------------------------------------------------------

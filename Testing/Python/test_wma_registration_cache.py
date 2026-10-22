@@ -125,6 +125,20 @@ class CacheTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertFalse(registration_cache_support(Path(tmp))['supported'])
 
+    def test_unverified_conversion_does_not_import_optional_vtk(self):
+        from tractography.wma_fibers import fiber_conversion_support
+        import builtins
+        original_import = builtins.__import__
+        def guarded_import(name, *args, **kwargs):
+            if name == 'vtk' or name.startswith('vtkmodules'):
+                raise AssertionError('Unverified author source must not load VTK')
+            return original_import(name, *args, **kwargs)
+        with tempfile.TemporaryDirectory() as tmp, mock.patch('builtins.__import__', side_effect=guarded_import):
+            record = fiber_conversion_support(Path(tmp))
+        self.assertFalse(record['supported'])
+        self.assertIsNone(record['source_sha256'])
+        self.assertIsNone(record['vtk_version'])
+
     def test_vtk_child_point_modification_invalidates(self):
         try:
             import vtk
