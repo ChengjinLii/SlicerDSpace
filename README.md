@@ -659,12 +659,12 @@ Codex ran the static suite and the r25 1 copies on Python 3.9–3.15 with LF and
 3.12–3.15 with LF and CRLF (75 runs, all as expected), checked that the comment row finds one part made of comment
 lines, re-checked the Pages facts with read-only requests, and replayed the test server's path handling (same results
 as Pages for the `href` and CSS cases and for `%5C`). The review is closed. Non-blocking items:
-- r26 1 (P3, Opus; from 134f246; recorded limit “a line added after it undoes it”): the comment row bans only “breaks
-  the link on Pages” and the README row only “the browser suite cannot see this”, so the second old claim added back
-  as an extra comment line passes. Fix: ban `breaks the link on Pages|cannot see this` in the comment row.
-- r26 2 (P3, Opus; from 134f246): the comment says that `url("%2Fassets/...")` “passed here and broke on Pages”; no
-  such reference was ever in `docs/` and the site is not on Pages yet, so it should read “would pass here and break on
-  Pages” (true for a `.css` file below the `docs/` root, as every one is now).
+- r26 1 (P3, Opus; from 134f246; recorded limit “a line added after it undoes it”). **Fixed 2026-10-23** (user
+  request): the r25 1 comment row bans `re.compile(r"breaks the link on Pages|cannot see this")`. With the line `#
+  (the test server decodes it, so the browser suite cannot see this)` added to the comment, the 416a91b script passes
+  and the new one fails r25 1 (“still matches”).
+- r26 2 (P3, Opus; from 134f246). **Fixed 2026-10-23** (user request): the comment says that `url("%2Fassets/...")` in
+  a `.css` file “would pass here and break on Pages”. A row pins it; with the 416a91b comment, the script fails r26 2.
 
 ## Image crop boxes as finally used
 
