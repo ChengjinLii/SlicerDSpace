@@ -346,7 +346,8 @@ def local_refs(pages):
             # README r24 1, r25 1: no encoded slash in a local path; a plain slash is the only spelling the site needs.
             # Measured on a GitHub Pages project site: Pages decodes %2F and serves the file, and gives 404 for %5C;
             # a %2F path stays below the folder of the file that refers to it. This script once read a leading %2F as
-            # the docs/ root, so url("%2Fassets/...") in a .css file would pass here and break on Pages.
+            # the docs/ root, so url("%2Fassets/...") in a .css file below the docs/ root would pass here and break on
+            # Pages.
             if re.search(r"%(2f|5c)", urlsplit(ref).path, re.I):
                 problems.append("%s:%s %s=%r has an encoded slash in its path" % (rel, line, attr, ref))
                 continue
@@ -865,10 +866,21 @@ def spec_lists_checks(names):
 MAIN_TAIL = r"(?ms)^    for f in later:.*?(?=^    failed = 0)"
 S9_R11_R12 = r"(?ms)^After code review \(2026-10-21, README backlog r11 1–4 and r12 1–4\).*?(?=\n\n|\Z)"
 
+class AlsoInComments:
+    # README r27 1: a ban (a string or a compiled regex) that is also tested on the part as written, so that the old
+    # phrase cannot come back in a comment of a part that holds code (code_text removes those comments).
+    def __init__(self, banned):
+        self.banned = banned
+
+    def __repr__(self):
+        return "AlsoInComments(%r)" % (self.banned,)
+
+
 # Fixes from the README review backlog that only a text check can hold (wording, and code lines that guard a fix):
-# (finding, file, the part of the file the finding names as a regex, the phrase that must be there, the phrase that
-# must not be: a string, a compiled regex, or None). In a .py part, a part made of comment lines loses its comment
-# marks, and a part that holds code loses its comments (code_text); then the part is whitespace-normalized.
+# (findings, file, the part of the file the findings name as a regex, the phrase that must be there, the phrase that
+# must not be: a string, a compiled regex, AlsoInComments(a string or a compiled regex), or None). In a .py part, a
+# part made of comment lines loses its comment marks, and a part that holds code loses its comments (code_text); then
+# the part is whitespace-normalized. The labels name exactly the findings that SPEC §7.1 item 17 lists (README r27 2).
 WORDING_FIXES = (
     ("r9 2", "SPEC.md", r"(?ms)^16\. `spec_lists_checks`.*?(?=^(?! )|\Z)",
      "a §9 paragraph that records item 15", "the §9 paragraph that records item 15"),
@@ -900,7 +912,7 @@ WORDING_FIXES = (
     # B2): that test comes before the "compared" test, which would catch the check first. Opus r16 1: the locator
     # keeps the indent, so the "compared" test cannot move under the summary test, after sys.exit(1). Opus r18 2: and
     # it starts right below def run, so a copy elsewhere, or a line added above the test, does not count.
-    ("r16 1", "tests/check_site.py",
+    ("r16 1, r18 2", "tests/check_site.py",
      r'(?m)(?<=^        def run\(\*a, \*\*k\):\n)'
      r'            if RUN\["summary"\]:\n                print\(.*\n                sys\.exit\(1\)\n'
      r'            if RUN\["compared"\]:\n',
@@ -954,7 +966,8 @@ WORDING_FIXES = (
     ("r15 2", "README.md",
      r"(?ms)^Not fixed \(non-blocking, from the Opus review; Codex found nothing\):\n- r15 1 .*?(?=^### |\Z)",
      "r15 1 (P3)", "r15 2 (P3)"),
-    ("r16 3", "tests/check_site.py", r'(?m)(?:^[ \t]*#.*\n)+(?=    \("r13 1", "tests/check_site.py", MAIN_TAIL,\n)',
+    ("r16 3, r18 4", "tests/check_site.py",
+     r'(?m)(?:^[ \t]*#.*\n)+(?=    \("r13 1", "tests/check_site.py", MAIN_TAIL,\n)',
      "the run-order flag is on the line above the comparison.", "summary flag is in MAIN_TAIL"),
     # Opus r17 5: the self-test call in main() and its FAIL. Opus r19 4: the call is in a try, right above the test.
     ("r17 5", "tests/check_site.py", MAIN_TAIL,
@@ -968,7 +981,7 @@ WORDING_FIXES = (
      "found = list(re.finditer(where, read(os.path.join(ROOT, rel)))) if not found:", None),
     # Codex r17 1: MAIN_TAIL has one start; the one-part rule fails a second one.
     # Opus r19 2: no $, as in MAIN_TAIL, so "for f in later: pass" is a second start too.
-    ("r17 1", "tests/check_site.py", r"(?m)^    for f in later:", "for f in later:", None),
+    ("r17 1, r19 2", "tests/check_site.py", r"(?m)^    for f in later:", "for f in later:", None),
     ("r17 3", "README.md", r"(?ms)^- r11 2 \(P3\)\..*?(?=^(?! )|\Z)", "(for example `sample = CODE_SAMPLE_TEXT`",
      "for example `ran = checked`"),
     ("r17 4", "README.md", r"(?ms)^- r14 3 \(P2\)\..*?(?=^(?! )|\Z)", "the row reads the source text", None),
@@ -1020,17 +1033,31 @@ WORDING_FIXES = (
     ("r22 3", "README.md", r"(?ms)^- r4 A1 \(P3\).*?(?=^(?! )|\Z)", "fails at 1440×900 and 390×844",
      "fails at every size"),
     # README r23 1: item 17 names every finding of this table, first to last.
-    ("r23 1", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
-     'r9 2–4, r10 1, 2, 4, 5, r11 3, 4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 '
-     '1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20 6, r21 1, r22 1, r22 3, r23 1, r24 4, r25 '
-     '1, r26 1, r26 2, N5, N10, N12, N15, r2 N3, r2 N4 and r4 B4', None),
+    # README r27 2: the item 17 list is compared with the row labels (label_problems), not held as one phrase.
+    ("r23 1, r27 2", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     "problems += label_problems()", None),
     # README r25 1: the reason for the encoded-slash ban, as Opus measured it on GitHub Pages (the ban stays).
     # README r26 1: the comment row bans both old claims, not only the first.
-    ("r25 1", "tests/check_site.py", r'(?m)(?:^            #.*\n)+(?=            if re\.search\(r"%\(2f\|5c\)")',
+    ("r25 1, r26 1", "tests/check_site.py", r'(?m)(?:^            #.*\n)+(?=            if re\.search\(r"%\(2f\|5c\)")',
      "Pages decodes %2F and serves the file", re.compile(r"breaks the link on Pages|cannot see this")),
     # README r26 2: no such reference was ever in docs/, so the comment says what would happen.
     ("r26 2", "tests/check_site.py", r'(?m)(?:^            #.*\n)+(?=            if re\.search\(r"%\(2f\|5c\)")',
      "would pass here and break on Pages", "passed here and broke on Pages"),
+    # README r27 3: the measured break holds for a .css file below the docs/ root.
+    ("r27 3", "tests/check_site.py", r'(?m)(?:^            #.*\n)+(?=            if re\.search\(r"%\(2f\|5c\)")',
+     "in a .css file below the docs/ root", "in a .css file would pass"),
+    # README r27 1: the ban line and the line after it, so that the old claims cannot come back in a comment there.
+    ("r27 1", "tests/check_site.py",
+     r'(?m)^            if re\.search\(r"%\(2f\|5c\)", urlsplit\(ref\)\.path, re\.I\):.*\n'
+     r'                problems\.append\("%s:%s %s=%r has an encoded slash.*\n',
+     'if re.search(r"%(2f|5c)", urlsplit(ref).path, re.I): problems.append("%s:%s %s=%r has an encoded slash',
+     AlsoInComments(re.compile(r"breaks the link on Pages|cannot see this"))),
+    ("r27 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)", "part = raw = found[0].group(0)", None),
+    ("r27 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     r'if isinstance(banned, AlsoInComments): banned, text = banned.banned, " ".join((text + "\n" + raw).split())',
+     None),
+    ("r27 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     "if banned is not None and not isinstance(banned, (str, re.Pattern)):", None),
     ("r25 1", "README.md", r"(?ms)^- r24 1 \(P3, Opus;.*?(?=^(?! )|\Z)", "Pages decodes `%2F` and serves the file",
      "the browser suite cannot see this"),
     # README r24 4: the click-test comment says what the click test does not show (measured).
@@ -1070,6 +1097,38 @@ def code_text(part):
     return "".join(lines)
 
 
+def finding_names(text):
+    # README r27 2: the findings that a row label or the SPEC item 17 list names, for example "r12 1–4",
+    # "r10 1, 2, 4" (a bare number belongs to the round before it), "N5" or "r2 N3 and r4 B4".
+    names, prefix = set(), None
+    for tok in re.split(r",\s*|\s+and\s+", " ".join(text.split())):
+        m = re.fullmatch(r"(?:(r\d+) )?([A-Z]?)(\d+)(?:–(\d+))?", tok)
+        if not m:
+            names.add(tok)  # not a finding name; the comparison shows it
+            continue
+        run, letter, first, last = m.groups()
+        if run:
+            prefix = run
+        elif not letter:
+            run = prefix
+        for n in range(int(first), int(last or first) + 1):
+            names.add(" ".join(x for x in (run, letter + str(n)) if x))
+    return names
+
+
+def label_problems():
+    # README r23 1, r27 2: SPEC §7.1 item 17 names exactly the findings that the labels of WORDING_FIXES name, in any
+    # order.
+    m = re.search(r"(?ms)^17\.\s+`backlog_wording`:.*?\(README\s+backlog\s+(.*?)\)\s+stay\s+in\s+place",
+                  read(os.path.join(ROOT, "SPEC.md")))
+    if not m:
+        return ["SPEC.md item 17 has no list of findings"]
+    listed = finding_names(m.group(1))
+    labels = set().union(*(finding_names(row[0]) for row in WORDING_FIXES))
+    return (["SPEC.md item 17 does not name %s, which a row label names" % n for n in sorted(labels - listed)]
+            + ["SPEC.md item 17 names %s, which no row label names" % n for n in sorted(listed - labels)])
+
+
 @check("backlog_wording")
 def backlog_wording(rows=WORDING_FIXES):
     # README review backlog: each fix in WORDING_FIXES (wording, or a code line that guards a fix) stays in place, in
@@ -1092,7 +1151,7 @@ def backlog_wording(rows=WORDING_FIXES):
         if len(found) > 1:
             problems.append("%s: %s has %d parts that match %r, not one" % (finding, rel, len(found), where))
             continue
-        part = found[0].group(0)
+        part = raw = found[0].group(0)  # README r27 1: raw keeps the comments of the part
         if rel.endswith(".py"):
             if all(re.match(r"[ \t]*#", ln) for ln in part.splitlines() if ln.strip()):
                 # Opus r10 3: a part made of comment lines is wording. Drop the comment marks, so that a phrase may wrap
@@ -1109,10 +1168,16 @@ def backlog_wording(rows=WORDING_FIXES):
         text = " ".join(part.split())
         if want not in text:
             problems.append("%s: %s lacks %r" % (finding, rel, want))
+        # README r27 1: this ban also reads the part as written, with its comments.
+        if isinstance(banned, AlsoInComments):
+            banned, text = banned.banned, " ".join((text + "\n" + raw).split())
+        if banned is not None and not isinstance(banned, (str, re.Pattern)):
+            problems.append("%s: %s has a ban of unknown kind %r" % (finding, rel, banned))
         if isinstance(banned, re.Pattern) and banned.search(text):
             problems.append("%s: %s still matches %r" % (finding, rel, banned.pattern))
         elif isinstance(banned, str) and banned in text:
             problems.append("%s: %s still says %r" % (finding, rel, banned))
+    problems += label_problems()
     return fail_list(problems) if problems else None
 
 

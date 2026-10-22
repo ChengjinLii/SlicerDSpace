@@ -671,15 +671,30 @@ as Pages for the `href` and CSS cases and for `%5C`). The review is closed. Non-
 Codex and Opus each ran the six test runs on Python 3.9–3.15 with LF and CRLF (84 runs each, all as expected). Opus
 also checked that the regex ban and a string ban test the same normalized text, that the shared locator finds one
 part, and ran 18 changed copies: every false pass is in a recorded limit. The review is closed. Non-blocking items:
-- r27 1 (P3, Opus; the locator dates from 134f246; recorded limit “a line added that undoes a pinned one”): the part
-  is only the 12-space comment lines right above the ban, so an old claim as a trailing comment on the `if` line, as a
-  16-space comment above the block, or inside the `if` body passes; a blank line inside the block shrinks the part
-  without a FAIL (no fix is lost: the want phrase is on its second line). Fix if wanted: a second row on the `if` line
-  and the line after it, with the same regex ban.
-- r27 2 (P3, Opus; recorded limit “a row's own definition”): deleting the r26 2 row leaves every check green, and SPEC
-  item 17 still names r26 2, since the r23 1 row checks the SPEC text, not the table's labels.
-- r27 3 (P3, Opus; wording, optional): “in a .css file would pass here and break on Pages” holds for a `.css` file
-  below the `docs/` root (every one now); for one at the root the break is not measured.
+- r27 1 (P3, Opus; the locator dates from 134f246; recorded limit “a line added that undoes a pinned one”). **Fixed
+  2026-10-23** (user request; new rule): a second row holds the `if` line of the HTML encoded-slash ban and the line
+  after it, with the same regex ban. As a plain ban that row could not fail: the comment remover takes every comment out
+  of a part that holds code before the test, so with the claim as a trailing comment on the `if` line it passes. New
+  rule (SPEC item 17): a ban marked `AlsoInComments` is also tested on the part as written, with its comments, and a ban
+  of another kind is a FAIL. Three rows pin the new code in `backlog_wording`. Not used: a rule that every ban reads
+  comments, since the `spec_lists_checks` comment quotes the r10 1 ban on purpose (the af78411 guard). The row's fixed
+  phrase is the `if` line and the start of its `problems.append`, so it also holds the HTML ban line, one of the r25 2
+  lines (r25 2 stays open for the rest). With the claim as a trailing comment on the `if` line or on the line after it,
+  the 2b0af82 script passes and the new one fails r27 1 (“still matches”); with it as a comment line inside the `if`
+  body, the new one fails r27 1 (“no part”). With the two unwrap lines deleted, the row fails (“a ban of unknown kind”).
+  Limits: a 16-space comment line above the comment block still passes, and a blank line inside the block still shrinks
+  the r25 1 part without a FAIL.
+- r27 2 (P3, Opus; recorded limit “a row's own definition”). **Fixed 2026-10-23** (user request; new rule):
+  `backlog_wording` compares the findings that the row labels name with the SPEC item 17 list, both ways
+  (`label_problems`), and the r23 1 row that held the whole list as one phrase is gone. A label names two findings when
+  a later fix changed that row: `r16 1, r18 2`, `r16 3, r18 4`, `r17 1, r19 2` and `r25 1, r26 1` (the four names that
+  had no row of their own). A row labelled `r23 1, r27 2` pins the call. With the r26 2 row deleted, or a row labelled
+  `r99 1` added, the 2b0af82 script passes and the new one fails; with `r26 2` taken out of item 17, both fail; with two
+  names swapped in item 17, the 2b0af82 script fails (a false FAIL, now gone) and the new one passes. Limit: deleting a
+  row whose findings another row also names (for example one of the six r12 1 rows) still passes.
+- r27 3 (P3, Opus; wording). **Fixed 2026-10-23** (user request): the comment says that `url("%2Fassets/...")` “in a
+  .css file below the docs/ root would pass here and break on Pages”. A row pins it; with the 2b0af82 wording, the new
+  script fails r27 3 (“lacks” and “still says”), and the r26 2 row still passes.
 
 ## Image crop boxes as finally used
 
