@@ -129,16 +129,26 @@ def append_log(owner: Any, text: str) -> None:
 
     if hasattr(owner.ui, "logPlainTextEdit"):
         log_widget = owner.ui.logPlainTextEdit
-        for line in str(text).splitlines() or [""]:
-            try:
-                # Colour errors, warnings and stage transitions (see ui_run_state).
-                log_widget.appendHtml(log_line_html(line))
-            except Exception:
-                log_widget.appendPlainText(line)
+        scrollbar = log_widget.verticalScrollBar()
+        position = scrollbar.value
+        following = position >= scrollbar.maximum - 1
+        lines = str(text).splitlines() or [""]
+        try:
+            if all(lines):
+                # Empty HTML paragraphs collapse in Qt; batch only nonempty lines.
+                log_widget.appendHtml(''.join('<p style="margin:0">' + log_line_html(line) + '</p>' for line in lines))
+            else:
+                for line in lines:
+                    log_widget.appendHtml(log_line_html(line))
+        except Exception:
+            log_widget.appendPlainText('\n'.join(lines))
         owner._logAppendCount = int(getattr(owner, "_logAppendCount", 0) or 0) + 1
         if owner._logAppendCount % 100 == 0:
             owner._trim_log_widget(owner.ui.logPlainTextEdit)
-        owner.ui.logPlainTextEdit.ensureCursorVisible()
+        if following:
+            log_widget.ensureCursorVisible()
+        else:
+            scrollbar.setValue(position)
     if text.startswith("[Orchestrator] Running "):
         owner._set_run_progress_message(text.replace("[Orchestrator] ", "", 1))
     now = monotonic()

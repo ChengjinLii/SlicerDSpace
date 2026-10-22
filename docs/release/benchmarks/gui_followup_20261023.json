@@ -1,0 +1,184 @@
+{
+  "kind": "slicerdsurfer_gui_followup",
+  "date": "2026-10-23",
+  "base_commit": "c4ceba3867d2df7c4c883246289af633036f3598",
+  "working_tree_patch_sha256": "9d09f68e143fb5fb0fb611b03d54694d048651ccdeb0cec5582e9e08aadff7b8",
+  "source_sha256": {
+    "SlicerDDSurfer.py": "0001198b5052e094c1e8b31d1ccd1762ec950cabe9e70993765c626eed69b152",
+    "shared/module_widget.py": "32c482905ce5068f59947465bda9c857becbf56ca30333ee972a992ad8c451f1",
+    "shared/ui_settings.py": "66e3ff7e57b600034e6b2aaafebbaa89da8566cc8fe8b88c0a17d0b59f8db9f0",
+    "shared/ui_status_log.py": "522cb521567337e1eb2f54b3bfb437af297d41a82d543bf013fc4a92bc4b6b89",
+    "shared/ui_environment_check.py": "2e10cae32319b5c3b1b270d5e58a2d539e298c733a9bdbfd3a3e84319091a42d",
+    "shared/ui_workflow_text.py": "75cdb0b0000f9aec47b8c5dae61b48ddf1167c299ebe6b472fe1297897e76ca4",
+    "anatomy/surface/module_widget.py": "71b38ef42c21cb334f7f1fc400d6741411feb44f8588a1b7cf6f183707851576",
+    "scripts/slicer_acceptance.py": "9982d8a9f81656e71d867976b9a08562fc7375c9effaff76fec0dcfb491bb702",
+    "Testing/Python/slicer_gui_state_smoke.py": "fead696f868c08bdd0a63479ec5c293a04ad1a55825a7d70040618f1179ea778",
+    "Testing/Python/slicer_log_batch_smoke.py": "000ff4aab86a5307a1a5a804ccb09157ab598e82c6182e175d7ab909517b83f5",
+    "Testing/Python/slicer_compact_ui_smoke.py": "3b307a68c1f861c3f6c10ea1d0e358739dadc988c45f8773fc9dff3902599b4e",
+    "Testing/Python/test_environment_check.py": "5820a19dbe55422449697c43683fbca6c6a839b1138a42725a8c2fd9e1f5f61d",
+    "Testing/Python/test_ui_settings_status_log.py": "47410ce711d5f54703245115246a771f2198eb2f432dea8bd6da7dcc0379b4aa",
+    "Testing/Python/test_ui_compact.py": "4d5e7f6f5b0c93a2c77018c39f67f553115a45356e40fc05a2640f34b26cdbc1"
+  },
+  "baseline": {
+    "status": "failed",
+    "checks": {
+      "module_return_preserves_unsaved_scene_parameters": false,
+      "loaded_scene_wins_over_global_recent_settings": false,
+      "incoming_logs_preserve_reader_scroll_position": false,
+      "live_tail_still_follows_when_already_at_bottom": true,
+      "ready_environment_does_not_claim_inputs_are_ready": false
+    },
+    "scope": "Real Slicer GUI and synthetic scene; no scientific accuracy claim"
+  },
+  "verified_state": {
+    "status": "passed",
+    "checks": {
+      "module_return_preserves_unsaved_scene_parameters": true,
+      "loaded_scene_wins_over_global_recent_settings": true,
+      "incoming_logs_preserve_reader_scroll_position": true,
+      "live_tail_still_follows_when_already_at_bottom": true,
+      "ready_environment_does_not_claim_inputs_are_ready": true
+    },
+    "scope": "Real Slicer GUI and synthetic scene; no scientific accuracy claim"
+  },
+  "gui_scenarios": [
+    {
+      "name": "log_batch",
+      "status": "PASS",
+      "seconds": 16.794342320412397,
+      "script_sha256": "000ff4aab86a5307a1a5a804ccb09157ab598e82c6182e175d7ab909517b83f5",
+      "settings_isolated": true
+    },
+    {
+      "name": "gui_state",
+      "status": "PASS",
+      "seconds": 16.13955284282565,
+      "script_sha256": "fead696f868c08bdd0a63479ec5c293a04ad1a55825a7d70040618f1179ea778",
+      "settings_isolated": true
+    },
+    {
+      "name": "compact_ui",
+      "status": "PASS",
+      "seconds": 16.44314679130912,
+      "script_sha256": "3b307a68c1f861c3f6c10ea1d0e358739dadc988c45f8773fc9dff3902599b4e",
+      "settings_isolated": true
+    },
+    {
+      "name": "extension_manager_install",
+      "status": "PASS",
+      "seconds": 14.341003397479653,
+      "script_sha256": "ac02faa3f0dbf2320477a79b6e5606f034c375c087eb7723bb859ff696113d13",
+      "settings_isolated": true
+    },
+    {
+      "name": "gui_operations",
+      "status": "PASS",
+      "seconds": 20.497980125248432,
+      "script_sha256": "6c47a0f700d1b61aa4daf365f8b15c8eb0728a98a579fc17d80161e71463b85d",
+      "settings_isolated": true
+    },
+    {
+      "name": "algorithm_picker",
+      "status": "PASS",
+      "seconds": 16.389435727149248,
+      "script_sha256": "78accf94ed0f48dfc179438b5dbca19562238b6bb5effc39de61f287bce6679c",
+      "settings_isolated": true
+    },
+    {
+      "name": "environment_async",
+      "status": "PASS",
+      "seconds": 24.65546252205968,
+      "script_sha256": "ca758be717dffa0d22dfaa9f4dbf07ef49f3f832a2dced8a4dea16fcb2e27354",
+      "settings_isolated": true
+    }
+  ],
+  "log_insertion_benchmark": {
+    "status": "passed",
+    "rows": [
+      {
+        "lines": 500,
+        "original_seconds": [
+          0.028149062767624855,
+          0.028069354593753815,
+          0.028009871020913124,
+          0.027949567884206772,
+          0.02845580317080021,
+          0.027979541569948196,
+          0.02819179929792881
+        ],
+        "batched_seconds": [
+          0.008952859789133072,
+          0.009011117741465569,
+          0.008917028084397316,
+          0.00902152992784977,
+          0.00892382487654686,
+          0.009145539253950119,
+          0.00900266133248806
+        ],
+        "original_median": 0.028069354593753815,
+        "batched_median": 0.00900266133248806,
+        "speedup": 3.1178952042169406,
+        "plaintext_sha256": "00c8cc9ced891171fcc1cae36be5a53ce4734f444f4dec88a02156e398759c0d",
+        "plaintext_and_block_count_exact": true,
+        "original_insertions": 500,
+        "batched_insertions": 1
+      },
+      {
+        "lines": 2000,
+        "original_seconds": [
+          0.11501651629805565,
+          0.11714868247509003,
+          0.12272132560610771,
+          0.1153055913746357,
+          0.11471863090991974,
+          0.11441634222865105,
+          0.11458499729633331
+        ],
+        "batched_seconds": [
+          0.03517467901110649,
+          0.0361722894012928,
+          0.035681815817952156,
+          0.035876404494047165,
+          0.03524123132228851,
+          0.03522259555757046,
+          0.035293132066726685
+        ],
+        "original_median": 0.11501651629805565,
+        "batched_median": 0.035293132066726685,
+        "speedup": 3.258892298949285,
+        "plaintext_sha256": "183d98fe1274425acbb726cc15f732b25addc8e62ee302461a5033446ea72369",
+        "plaintext_and_block_count_exact": true,
+        "original_insertions": 2000,
+        "batched_insertions": 1
+      }
+    ],
+    "edge_case_plaintext_exact": true,
+    "reference_sha256": "30039be90be34eb86976975cbf756fe62b5d615e4e44d609847ad76c68a77414",
+    "scope": "Qt log insertion only, hidden widgets, processEvents excluded equally; not algorithm or workflow speedup"
+  },
+  "regression": {
+    "discovered": 1326,
+    "passed": 1321,
+    "skipped": 5,
+    "failed": 0,
+    "seconds": 66.334,
+    "log_sha256": "b14f2ba47b75bf49b5ffefcf9b1969659c0ef343065ba33fadff017db9c282a9"
+  },
+  "installed_self_tests_passed": true,
+  "archive_origin": "staging_helper",
+  "archive_sha256": "e5556721a7e9a0e3ece39c14ff15eb783fddf1599bd4ecce407f2db1ea3493cf",
+  "resource_count": 469,
+  "slicer_version": "5.10.0",
+  "slicer_source_commit": "a2b6d08",
+  "network": "disabled during GUI testing",
+  "scope": "GUI correctness and local Qt log insertion, not an author-algorithm optimization or MRI workflow speedup",
+  "private_evidence": "ignore/validation/gui_followup_20261023/complete",
+  "not_validated": [
+    "Native Windows/macOS GUI",
+    "Blank-machine setup",
+    "Real-network downloads",
+    "Full scientific workflow or anatomical QC",
+    "New CPack SDK build; this campaign used staged-copy package installation",
+    "GitHub Actions for this working tree"
+  ]
+}

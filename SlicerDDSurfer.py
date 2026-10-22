@@ -194,7 +194,10 @@ class SlicerDDSurferLogic(
         self._initialize_shared_logic_state()
 
     def getParameterNode(self) -> SlicerDDSurferParameterNode:
-        return SlicerDDSurferParameterNode(super().getParameterNode())
+        from shared.ui_settings import mark_new_parameter_node
+        raw = super().getParameterNode()
+        mark_new_parameter_node(raw)
+        return SlicerDDSurferParameterNode(raw)
 
 
 class SlicerDDSurferTest(ScriptedLoadableModuleTest):
@@ -204,6 +207,29 @@ class SlicerDDSurferTest(ScriptedLoadableModuleTest):
         self.test_native_parameter_defaults()
         self.test_native_parameter_validation()
         self.test_native_scene_round_trip()
+        self.test_native_user_defaults_do_not_replace_scene_values()
+
+    def test_native_user_defaults_do_not_replace_scene_values(self):
+        from shared.ui_settings import mark_new_parameter_node, consume_user_defaults_request
+        scene = slicer.vtkMRMLScene()
+        raw = scene.AddNewNodeByClass('vtkMRMLScriptedModuleNode')
+        mark_new_parameter_node(raw)
+        wrapped = SlicerDDSurferParameterNode(raw)
+        self.assertTrue(consume_user_defaults_request(wrapped))
+        wrapped.subjectId = 'preserve-scene'
+        mark_new_parameter_node(raw)
+        self.assertFalse(consume_user_defaults_request(wrapped))
+        legacy = scene.AddNewNodeByClass('vtkMRMLScriptedModuleNode')
+        legacy.SetParameter('subjectId', 'legacy-scene')
+        mark_new_parameter_node(legacy)
+        self.assertFalse(consume_user_defaults_request(SlicerDDSurferParameterNode(legacy)))
+        self.assertEqual(wrapped.subjectId, 'preserve-scene')
+        pending = scene.AddNewNodeByClass('vtkMRMLScriptedModuleNode')
+        mark_new_parameter_node(pending)
+        configured = SlicerDDSurferParameterNode(pending)
+        configured.subjectId = 'configured-before-gui'
+        self.assertFalse(consume_user_defaults_request(configured))
+        self.assertEqual(configured.subjectId, 'configured-before-gui')
 
     def test_native_parameter_defaults(self):
         raw = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLScriptedModuleNode')

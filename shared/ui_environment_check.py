@@ -19,6 +19,14 @@ def start_environment_check(owner, on_complete=None, *, on_failure=None):
     options = owner._environment_check_kwargs()
     signature = owner._environment_check_signature(options)
     folder = owner._environment_report_dir_from_kwargs(options)
+    if folder is None:
+        message = _text(owner, 'Cannot write the check report; choose a writable output directory.',
+                        '无法写入检查报告，请选择可写的输出目录。')
+        owner._setStatus('error', message)
+        owner.appendLog('[Check] ' + message)
+        if on_failure:
+            on_failure('failed', message)
+        return False
     stem = 'check-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f')
     request, result_path = folder / (stem + '-request.json'), folder / (stem + '-result.json')
     modules = tuple(name for name in ('dwitodtiestimation', 'dwiconvert', 'ukftractography') if hasattr(slicer.modules, name))

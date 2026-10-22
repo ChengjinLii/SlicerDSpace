@@ -1,0 +1,73 @@
+{
+  "kind": "gui_input_inspection_followup",
+  "date": "2026-10-23",
+  "base_commit": "c4ceba3",
+  "platform": "Linux, Slicer 5.10.0, isolated Docker/Xvfb, network disabled",
+  "scope": "GUI input layout reuse only; no scientific algorithm, conversion or end-to-end speedup claim",
+  "cache": {
+    "ttl_seconds": 1.0,
+    "maximum_entries_per_widget": 1,
+    "cacheable_modes": ["dicom", "missing"],
+    "manual_validation_and_run_force_refresh": true,
+    "worker_inspection_unchanged": true
+  },
+  "checks": {
+    "algorithm_edits_reuse_input_layout": true,
+    "dicom_still_requires_missing_brain_mask": true,
+    "run_rechecks_nested_dicom_change_before_setup": true,
+    "parent_subject_mask_found": true,
+    "removed_mask_requires_generator_immediately": true,
+    "removed_raw_input_rejected_without_ttl_wait": true
+  },
+  "initial_header_probes": 129,
+  "additional_probes_during_20_edits": 0,
+  "measurements": [
+    {
+      "mode": "dicom",
+      "calls_per_batch": 20,
+      "uncached_seconds": [0.11958183348178864, 0.11947895959019661, 0.12126784026622772, 0.11975632794201374, 0.11969511769711971, 0.12147637270390987, 0.11940979212522507],
+      "gui_seconds": [0.009402958676218987, 0.009398600086569786, 0.009373661130666733, 0.009407803416252136, 0.009489824995398521, 0.00941929966211319, 0.009417105466127396],
+      "uncached_median_seconds": 0.11969511769711971,
+      "gui_median_seconds": 0.009407803416252136,
+      "speedup": 12.72296118457837,
+      "layout_results_exact": true
+    },
+    {
+      "mode": "subject_root",
+      "calls_per_batch": 20,
+      "uncached_seconds": [0.002271398901939392, 0.002305343747138977, 0.0022737160325050354, 0.0022922400385141373, 0.0022887401282787323, 0.002274762839078903, 0.0022685937583446503],
+      "gui_seconds": [0.0025780480355024338, 0.0025525949895381927, 0.0025821682065725327, 0.002595067024230957, 0.0025847405195236206, 0.0025562141090631485, 0.00258052721619606],
+      "uncached_median_seconds": 0.002274762839078903,
+      "gui_median_seconds": 0.00258052721619606,
+      "speedup": 0.8815108884734483,
+      "layout_results_exact": true,
+      "interpretation": "No raw-layout speedup; approximately 15 microseconds overhead per call"
+    }
+  ],
+  "measurement_protocol": "Seven post-warm-up repetitions, alternating order, same process, synthetic fixtures; each GUI batch includes its first uncached inspection",
+  "source_sha256": {
+    "shared/pipeline.py": "25bb073af54dd831066da829f1a7f129e6315ae73e8fd8e522a3f6924d8eb3bc",
+    "shared/ui_input_inspection.py": "8cad744b14a33a4c92e8dc1c31bcefbf5f494603b20b3e5eec6a8314ae1c64e1",
+    "shared/module_widget.py": "9f95a856a74938e10da3d5763d419bda5a26877f96ee390305cce7a337125abc",
+    "anatomy/surface/module_widget.py": "62902ddaa1a1b6d8cf68f710516c7e481ce220c6f63cd8d378affd011c39883f",
+    "Testing/Python/slicer_input_inspection_smoke.py": "b7be96a62b90316564c5f30dfb3fe8718666e3078b79cee32f0339af1045f3ef",
+    "Testing/Python/test_ui_input_inspection.py": "ba6308ad6522f2629a8b713834b083cb0ee6c2dc52484ea15aaaf447ea5b35f7"
+  },
+  "validation": {
+    "gui_tests_passed": ["input_inspection", "gui_state", "compact_ui", "extension_manager_install", "gui_operations", "algorithm_picker", "environment_async"],
+    "all_private_settings_checks_passed": true,
+    "python_discovered": 1336,
+    "python_passed": 1331,
+    "python_skipped": 5,
+    "python_failed": 0,
+    "python_seconds": 68.502,
+    "python_log_sha256": "d4ebd90621107dc85a4fa5954fdfae979573689c3c6c6f5f209db2750644a141",
+    "archive_origin": "staging_helper, not SDK/CPack",
+    "runtime_files_matched": 470,
+    "archive_sha256": "bb8bd3638c7908131dbb34a7de423ca2c34a6843dbdca468662e1f292b594e92",
+    "acceptance_json_sha256": "2edda97831ce7a3d56b0823e12cc387d298315b9456ae91cf071932aed134a63",
+    "raw_input_record_sha256": "6363ac5616845cb7434ffd584a551773b30b4d37d656d29f46a38d9d3a0a16ee"
+  },
+  "local_artifacts": "ignore/validation/gui_inputs_20261023/",
+  "limits": ["Cold directory scans remain synchronous", "No new Windows/macOS GUI validation", "No anatomical accuracy claim", "Existing interactive Slicer sessions not restarted"]
+}

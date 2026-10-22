@@ -2,7 +2,10 @@
 
 from pathlib import Path
 import tempfile
+import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from shared.environment import DependencyStatus, EnvironmentDoctorResult, TargetEnvironmentStatus
 from shared.environment_check import check_config, config_from_dict, result_from_dict
@@ -10,6 +13,22 @@ from shared.ui_input_defaults import subject_folder_defaults
 
 
 class EnvironmentCheckTests(unittest.TestCase):
+    def test_unavailable_report_directory_is_inline_error_without_worker(self):
+        from shared.ui_environment_check import start_environment_check
+        states, failures = [], []
+        owner = SimpleNamespace(_pipelineActive=False,
+            _update_environment_result_label=lambda *args: None,
+            _environment_check_kwargs=lambda: {}, _environment_check_signature=lambda options: (),
+            _environment_report_dir_from_kwargs=lambda options: None,
+            _setStatus=lambda *args: states.append(args), appendLog=lambda message: None)
+        with patch.dict(sys.modules, {'slicer': SimpleNamespace()}), \
+                patch('shared.ui_setup_jobs.start_setup_job') as start:
+            self.assertFalse(start_environment_check(owner, on_failure=lambda *args: failures.append(args)))
+        start.assert_not_called()
+        self.assertEqual(states[-1][0], 'error')
+        self.assertEqual(failures[-1][0], 'failed')
+        self.assertIn('writable output directory', states[-1][1])
+
     def test_selected_options_survive_serialization_without_subject_argument_leaks(self):
         import json
         values = check_config({'targets': ('validation', 'microstructure_noddi'), 'subject_root': Path('/subject'),

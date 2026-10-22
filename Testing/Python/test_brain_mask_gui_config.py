@@ -29,6 +29,7 @@ from shared.ui_run_controller import (
     build_single_subject_run_kwargs,
 )
 from shared.ui_settings import common_user_setting_specs
+from shared.ui_input_inspection import inspect_input_directory
 from shared.ui_workflow_text import BRAIN_MASK_BACKEND_TEXT_KEYS
 from shared.user_config import (
     apply_user_config_to_args,
@@ -273,14 +274,15 @@ class BrainMaskGuiConfigTest(unittest.TestCase):
                         self.assertEqual(args[args.index(flag) + 1], str(path))
 
     def test_doctor_requires_mask_generator_for_preprocessing_and_known_missing_masks(self):
-        doctor_kwargs = widget_method("_environment_check_kwargs", sys=SimpleNamespace(path=[]))
+        doctor_kwargs = widget_method("_environment_check_kwargs", sys=SimpleNamespace(path=[]),
+                                      inspect_input_directory=inspect_input_directory)
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             input_dir = root / "input"
             input_dir.mkdir()
             for name in ("data.nii.gz", "bvals", "bvecs"):
                 (input_dir / name).touch()
-            node = SimpleNamespace(inputDirectory=str(root), outputDirectory="", brainMaskBackend="pnl_cnn",
+            node = SimpleNamespace(subjectId="subject", inputDirectory=str(root), outputDirectory="", brainMaskBackend="pnl_cnn",
                                    targetPreprocessing=False, preprocessingBackend="dipy",
                                    connectomeBackend="python", ddsegDevice="cpu", device="cpu")
             owner = SimpleNamespace(_parameterNode=node, _selected_environment_targets=lambda: ("microstructure",),
@@ -312,6 +314,25 @@ class BrainMaskGuiConfigTest(unittest.TestCase):
             (input_dir / "nodif_brain_mask.nii.gz").unlink()
             owner._selected_environment_targets = lambda: ("validation",)
             self.assertFalse(doctor_kwargs(owner, external_paths=paths)["brain_mask_required"])
+
+    def test_doctor_resolves_existing_mask_in_subject_below_parent(self):
+        doctor_kwargs = widget_method("_environment_check_kwargs", sys=SimpleNamespace(path=[]),
+                                      inspect_input_directory=inspect_input_directory)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            folder = root / "subject/input"
+            folder.mkdir(parents=True)
+            for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
+                (folder / name).touch()
+            node = SimpleNamespace(subjectId="subject", inputDirectory=str(root), outputDirectory="",
+                brainMaskBackend="pnl_cnn", targetPreprocessing=False, preprocessingBackend="dipy",
+                connectomeBackend="python", ddsegDevice="auto", device="auto")
+            owner = SimpleNamespace(_parameterNode=node, _selected_environment_targets=lambda: ("microstructure",),
+                _tractography_backend_text=lambda: "dti_det", _microstructure_stage_flags=lambda: (False, False),
+                _microstructure_dki_enabled=lambda: False)
+            self.assertFalse(doctor_kwargs(owner, external_paths={})["brain_mask_required"])
+            (folder / "nodif_brain_mask.nii.gz").unlink()
+            self.assertTrue(doctor_kwargs(owner, external_paths={})["brain_mask_required"])
 
 
 if __name__ == "__main__":

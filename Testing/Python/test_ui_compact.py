@@ -45,8 +45,7 @@ class CompactUiTest(unittest.TestCase):
             self.assertEqual(node.orchestrationSelectStreamlines, 1000000)
             self.assertEqual(ui.targetMicrostructureCheckBox.text,
                              "Selected: DTI" if language == "en" else "当前：DTI")
-            self.assertIn("Select" if language == "en" else "选择",
-                          owner._advancedSettingsHintLabel.text)
+            self.assertIn("...", owner._advancedSettingsHintLabel.text)
             self.assertEqual(owner._advancedSettingsHintLabel.text, owner._advancedSettingsPanel.tooltip)
 
     def test_default_algorithms_match_run_defaults(self):
@@ -125,7 +124,7 @@ class CompactUiTest(unittest.TestCase):
         exec(compile(ast.Module(body=[method], type_ignores=[]), str(path), "exec"), namespace)
         updates = []
         statuses = []
-        owner = SimpleNamespace(_evaluateInputs=lambda: (False, ["Subject ID", "Subject directory"]),
+        owner = SimpleNamespace(_evaluateInputs=lambda **kwargs: (False, ["Subject ID", "Subject directory"]),
             _pipelineActive=False, _parameterNode=None, _lastStatusMessage="pending",
             ui=SimpleNamespace(subjectIdLineEdit="id", inputDirectoryPath="input", outputDirectoryPath="output"),
             _setStatus=lambda *args: statuses.append(args), appendLog=lambda *args: None,
@@ -141,9 +140,10 @@ class CompactUiTest(unittest.TestCase):
         self.assertEqual(statuses[-1][0], "error")
         self.assertFalse(validate(owner))
         self.assertEqual(statuses[-1][0], "error")
-        owner._evaluateInputs = lambda: (True, [])
+        owner._evaluateInputs = lambda **kwargs: (True, [])
         self.assertTrue(validate(owner))
-        self.assertEqual(statuses[-1][0], "ready")
+        self.assertEqual(statuses[-1][0], "waiting")
+        self.assertIn("Dependencies are checked", statuses[-1][1])
         self.assertFalse(owner._inputValidationAttempted)
 
     def test_invalid_run_click_returns_before_setup_or_launch(self):

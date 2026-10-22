@@ -8,7 +8,7 @@ from typing import List, Optional
 
 import slicer
 
-from shared import inspect_subject_directory
+from shared.ui_input_inspection import inspect_input_directory
 
 LOGGER = logging.getLogger(__name__)
 
@@ -176,7 +176,7 @@ class SurfaceWidgetMixin:
             finally:
                 self._setPipelineActive(False)
 
-    def _evaluateInputs(self) -> tuple[bool, List[str]]:
+    def _evaluateInputs(self, *, refresh: bool = False) -> tuple[bool, List[str]]:
         node = self._parameterNode
         if not node:
             return False, ["Parameter node unavailable"]
@@ -198,7 +198,7 @@ class SurfaceWidgetMixin:
             missing.append("Subject directory")
             return False, missing
 
-        inspected = inspect_subject_directory(candidate, subject_id) if subject_id else {"mode": "missing"}
+        inspected = inspect_input_directory(self, candidate, subject_id, refresh=refresh) if subject_id else {"mode": "missing"}
         mode = inspected.get("mode")
         if mode == "missing":
             missing.append("Subject input layout")
@@ -223,8 +223,8 @@ class SurfaceWidgetMixin:
         return (len(missing) == 0), missing
 
     def validateInputs(self, manual: bool = False, *, update_status: bool = True) -> bool:
-        ok, missing = self._evaluateInputs()
-        status_message = "Ready to run." if ok else self._summarise_missing(missing)
+        ok, missing = self._evaluateInputs(refresh=manual)
+        status_message = "Input layout found. Dependencies are checked when you run." if ok else self._summarise_missing(missing)
         if manual:
             self._inputValidationAttempted = True
         if ok:
@@ -233,7 +233,7 @@ class SurfaceWidgetMixin:
 
         if not self._pipelineActive:
             if update_status:
-                self._setStatus("ready" if ok else ("error" if show_errors else "waiting"), status_message)
+                self._setStatus("error" if show_errors else "waiting", status_message)
             if hasattr(self.ui, "applyButton"):
                 tooltip = "Run the SlicerDDSurfer pipeline" if ok else "Waiting: " + ", ".join(missing)
                 self.ui.applyButton.setToolTip(tooltip)

@@ -78,7 +78,7 @@ class SlicerUiLayoutContractTest(unittest.TestCase):
         namespace = {}
         exec(compile(ast.Module(body=[method], type_ignores=[]), str(source), "exec"), namespace)
         updates = []
-        owner = SimpleNamespace(_evaluateInputs=lambda: (True, []), _pipelineActive=False,
+        owner = SimpleNamespace(_evaluateInputs=lambda **kwargs: (True, []), _pipelineActive=False,
                                 _parameterNode=None, ui=SimpleNamespace(validateButton=SimpleNamespace(enabled=False)),
                                 _lastStatusMessage="Pipeline cancelled", _summarise_missing=lambda missing: "Waiting",
                                 _setStatus=lambda *args: updates.append(args), _setWidgetError=lambda *args: None)

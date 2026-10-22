@@ -91,7 +91,8 @@ def check():
             node.subjectId = "100307"
             node.inputDirectory = os.environ["SLICERDDSURFER_SMOKE_SUBJECT_ROOT"]
         assert owner.validateInputs()
-        assert "#2E7D32" in ui.statusLabel.styleSheet
+        assert "#63727D" in ui.statusLabel.styleSheet
+        assert "点击运行时将检查依赖" in ui.statusLabel.text
         owner._environment_doctor_result_for_run = doctor
 
         advanced.collapsed = False

@@ -14,6 +14,7 @@ explicitly chooses otherwise. No Index PR, visibility change or package upload
 is performed by the build tools.
 
 Executed local checks and their limits are recorded in the
+[23 October GUI follow-up](GUI_RESPONSIVENESS_20261023.md),
 [22 October official integration validation](OFFICIAL_SLICER_VALIDATION_20261022.md),
 [16 October follow-up](QC_FOLLOWUP_20261016.md),
 [12 October follow-up](DISTRIBUTION_VALIDATION_20261012.md) and

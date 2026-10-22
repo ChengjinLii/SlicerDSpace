@@ -4,6 +4,25 @@ from __future__ import annotations
 
 from typing import Any
 
+SETTINGS_STATE_ATTRIBUTE = 'SlicerDDSurfer.UserDefaultsState'
+
+
+def mark_new_parameter_node(raw: Any) -> None:
+    """Only an empty, newly created/reset MRML node may inherit user defaults."""
+    if not raw.GetParameterNames():
+        raw.SetAttribute(SETTINGS_STATE_ATTRIBUTE, 'pending')
+
+
+def consume_user_defaults_request(node: Any) -> bool:
+    """Consume the one-time request without overwriting existing/loaded scenes."""
+    raw = node.parameterNode
+    if raw.GetAttribute(SETTINGS_STATE_ATTRIBUTE) != 'pending':
+        return False
+    raw.SetAttribute(SETTINGS_STATE_ATTRIBUTE, 'applied')
+    # A client may configure/save the node before the GUI first opens.
+    return all(node.getValue(name) == node.default(name).value
+               for name in getattr(node, 'allParameters', ()))
+
 
 COMMON_USER_SETTING_SPECS: tuple[tuple[str, type], ...] = (
     ("subjectId", str),

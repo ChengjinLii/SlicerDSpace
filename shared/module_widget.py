@@ -68,6 +68,7 @@ from shared.ui_run_history import (
 )
 from shared.ui_run_state import run_button_state, run_state_from_manifest_status
 from shared.ui_output_loading import qbytearray_to_text
+from shared.ui_input_inspection import inspect_input_directory
 from shared.ui_parameter_sync import sync_parameter_node_to_ui
 from shared.ui_workflow_text import BRAIN_MASK_BACKEND_TEXT_KEYS
 from shared.ui_run_controller import (
@@ -108,7 +109,7 @@ from shared.ui_run_controller import (
     validate_batch_run_options,
     validate_single_subject_inputs,
 )
-from shared.ui_settings import coerce_user_setting_value, common_user_setting_specs
+from shared.ui_settings import coerce_user_setting_value, common_user_setting_specs, consume_user_defaults_request
 from shared.ui_status_log import (
     append_log,
     apply_widget_styles,
@@ -570,6 +571,8 @@ class SharedWidgetMixin:
                         settings.remove(self._environment_settings_key(dependency_id))
         except Exception as exc:
             self.appendLog(f"[Settings] Shared user config could not be restored: {exc}")
+        if not consume_user_defaults_request(node):
+            return
         with slicer.util.NodeModify(node):
             for attribute, value_type in self._common_user_setting_specs():
                 key = self._user_settings_key(attribute)
@@ -1635,13 +1638,10 @@ class SharedWidgetMixin:
         output_root_text = (output_root_text or (node.outputDirectory or "")).strip()
         targets = self._selected_environment_targets()
         mask_backend = (getattr(node, "brainMaskBackend", "pnl_cnn") or "pnl_cnn").strip()
-        input_dir = Path(subject_root_text).expanduser() / "input" if subject_root_text else None
-        raw_inputs_known = input_dir is not None and all(
-            (input_dir / name).is_file() for name in ("data.nii.gz", "bvals", "bvecs")
-        )
-        if not raw_inputs_known and subject_root_text:
-            from shared.dicom_input import is_dicom_root
-            raw_inputs_known = is_dicom_root(Path(subject_root_text).expanduser())
+        inspected = inspect_input_directory(self, subject_root_text, node.subjectId.strip()) if subject_root_text else {}
+        raw_inputs_known = inspected.get("mode") in {"subject_root", "dicom"}
+        input_root = inspected.get("subject_root") or subject_root_text
+        input_dir = Path(input_root).expanduser() / "input" if input_root else None
         mask_targets = {
             "preprocessing", "segmentation", "parcellation", "surface", "microstructure",
             "microstructure_freewater", "microstructure_noddi", "microstructure_dki", "tractography", "saf",
@@ -1804,9 +1804,11 @@ class SharedWidgetMixin:
 
     def exit(self) -> None:
         if self._parameterNode:
-            self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
+            if self._parameterNodeGuiTag is not None:
+                self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
             self._parameterNodeGuiTag = None
-            self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
+            if self.hasObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply):
+                self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
 
     def onSceneStartClose(self, caller, event) -> None:
         self.setParameterNode(None)
@@ -1918,13 +1920,16 @@ class SharedWidgetMixin:
 
     def setParameterNode(self, inputParameterNode) -> None:
         if self._parameterNode:
-            self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
-            self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
+            if self._parameterNodeGuiTag is not None:
+                self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
+            if self.hasObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply):
+                self.removeObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
         self._parameterNode = inputParameterNode
+        self._parameterNodeGuiTag = None
         if self._parameterNode:
+            self._restore_common_user_settings_to_node()
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
             self.addObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
-            self._restore_common_user_settings_to_node()
             self._checkCanApply()
 
     def _sync_path_widget(self, widget, desired: str) -> None:
@@ -3095,7 +3100,14 @@ class SharedWidgetMixin:
         if result.blocker_count:
             self._setStatus("error", f"Environment: {result.blocker_count} missing required item(s)")
         else:
-            self._setStatus("ready", "Environment ready")
+            ok, missing = self._evaluateInputs()
+            if not ok:
+                kind = "error" if getattr(self, '_inputValidationAttempted', False) else "waiting"
+                self._setStatus(kind, self._summarise_missing(missing))
+            elif not self._selected_workflows():
+                self._setStatus("waiting", self._summarise_missing(["Target products"]))
+            else:
+                self._setStatus("ready", "Environment ready")
 
     def _missing_environment_items(self, result) -> list:
         return environment_missing_items(result)
