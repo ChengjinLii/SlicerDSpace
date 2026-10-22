@@ -252,7 +252,10 @@ async function runViewport(browser, origin, name, width, height, opts) {
   await page.screenshot({ path: path.join(OUT, `fold-${width}.png`) });
 
   // 5. play button starts playback
-  // Opus r1 N9: with sound, under Chrome's own autoplay policy (the click is the user gesture).
+  // Opus r1 N9: with sound, under Chrome's own autoplay policy. README r24 4: the page.evaluate() calls before the
+  // click already give the page a lasting user gesture (measured: a play() with sound from a timer runs after one
+  // evaluate() and is refused without it), so this test does not show that the click alone allows the play;
+  // runAutoplayPolicy checks the policy.
   await page.locator('#film').scrollIntoViewIfNeeded();
   await page.locator('.film-play').click();
   const t0 = await page.evaluate(() => document.getElementById('film-video').currentTime);
@@ -351,11 +354,17 @@ async function run404AndNoJs(browser, origin) {
     const errs = [], bad = [];
     // README r22 5: only the 404 status of the page itself, and only at the missing path, may log an error. An error
     // from an inline script, or an uncaught one (pageerror), fails at both paths.
-    const expected = (m) => status === 404 && m.location().url === docUrl && /status of 404/.test(m.text());
+    // README r24 3: Chrome's own message for the page, once; a second one (for example from fetch(location.href))
+    // fails, and so does a response >= 400 at the page URL that is not the page itself.
+    let exempted = 0;
+    const expected = (m) => status === 404 && m.location().url === docUrl
+      && /^Failed to load resource: the server responded with a status of 404\b/.test(m.text()) && exempted++ === 0;
     p2.on('console', (m) => { if (m.type() === 'error' && !expected(m)) errs.push(m.text() + ' @ ' + m.location().url); });
     p2.on('pageerror', (e) => errs.push('pageerror: ' + e.message));
     p2.on('requestfailed', (r) => bad.push(`${r.url()} (${r.failure()?.errorText || ''})`));
-    p2.on('response', (r) => { if (r.status() >= 400 && r.url() !== docUrl) bad.push(`${r.url()} (HTTP ${r.status()})`); });
+    p2.on('response', (r) => {
+      if (r.status() >= 400 && !(r.url() === docUrl && r.request().isNavigationRequest())) bad.push(`${r.url()} (HTTP ${r.status()})`);
+    });
     const resp = await p2.goto(docUrl, { waitUntil: 'load' });
     await p2.waitForTimeout(300);
     const sw = await p2.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);

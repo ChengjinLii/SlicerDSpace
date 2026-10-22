@@ -343,6 +343,11 @@ def local_refs(pages):
         for attr, ref, line in refs:
             if not ref or is_absolute(ref):
                 continue
+            # README r24 1: a browser keeps "%2F" or "%5C" inside one path segment, so an encoded slash breaks the
+            # link on Pages (the test server decodes it, so the browser suite cannot see this).
+            if re.search(r"%(2f|5c)", urlsplit(ref).path, re.I):
+                problems.append("%s:%s %s=%r has an encoded slash in its path" % (rel, line, attr, ref))
+                continue
             # README r22 2: the site is served under /SlicerDDSurfer/, so a reference that starts with "/" breaks.
             if urlsplit(ref).path.startswith("/"):
                 problems.append("%s:%s %s=%r is root-relative (on the project site it leaves /SlicerDDSurfer/)"
@@ -366,6 +371,9 @@ def local_refs(pages):
         for m in CSS_URL.finditer(text):
             ref = m.group(2)
             if not ref or is_absolute(ref) or ref.startswith("#"):
+                continue
+            if re.search(r"%(2f|5c)", urlsplit(ref).path, re.I):  # README r24 1
+                problems.append("%s url(%r) has an encoded slash in its path" % (os.path.relpath(css, ROOT), ref))
                 continue
             if urlsplit(ref).path.startswith("/"):  # README r22 2
                 problems.append("%s url(%r) is root-relative (on the project site it leaves /SlicerDDSurfer/)"
@@ -763,7 +771,7 @@ def fonts_licensed():
     for page in (INDEX, PAGE404):
         sheets += [(os.path.relpath(page, ROOT) + " <style>", b) for b in parse(page)[0].style_blocks]
     for where, css in sheets:
-        for m in re.finditer(r"@font-face\s*\{[^}]*?font-family:\s*([^;]+);", css):
+        for m in re.finditer(r"@font-face\s*\{[^}]*?font-family:\s*([^;]+);", css, re.I):  # README r24 2: any case
             if "plex" in m.group(1).lower():
                 problems.append("%s @font-face family %s keeps the Reserved Font Name Plex"
                                 % (where, m.group(1).strip()))
@@ -1012,8 +1020,11 @@ WORDING_FIXES = (
     # README r23 1: item 17 names every finding of this table, first to last.
     ("r23 1", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
      'r9 2–4, r10 1, 2, 4, 5, r11 3, 4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 '
-     '1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20 6, r21 1, r22 1, r22 3, r23 1, N5, N10, '
-     'N12, N15, r2 N3, r2 N4 and r4 B4', None),
+     '1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20 6, r21 1, r22 1, r22 3, r23 1, r24 4, N5, '
+     'N10, N12, N15, r2 N3, r2 N4 and r4 B4', None),
+    # README r24 4: the click-test comment says what the click test does not show (measured).
+    ("r24 4", "tests/browser_check.mjs", r"(?m)^  // Opus r1 N9: with sound.*\n(?:  //.*\n)*",
+     "does not show that the click alone allows the play", "the click is the user gesture"),
     ("r20 6", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
      "went through fewer or more rows than `WORDING_FIXES` holds", "did not go through every row of `WORDING_FIXES`"),
     ("r20 6", "SPEC.md", r"(?ms)^After code review of 49681a8 .*?(?=\n\n|\Z)",

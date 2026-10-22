@@ -378,9 +378,9 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
    description; exactly one `<h1>` in index; heading levels never skip (h2 → h4); every `id` is unique.
 2. `local_refs`: every local `href`, `src`, `poster`, `srcset` candidate and CSS `url()` (in `.css` files, `<style>`
    blocks and `style` attributes) is relative, not root-relative (a path that starts with `/` would leave
-   `/SlicerDDSurfer/` on the project site), and resolves to a file inside `docs/` (with `..` resolved); every
-   `#fragment` link resolves to an `id` in the page, and a fragment after a page's file name (`index.html#x`) to an
-   `id` in that page.
+   `/SlicerDDSurfer/` on the project site), has no encoded slash (`%2F`, `%5C`) in its path, and resolves to a file
+   inside `docs/` (with `..` resolved); every `#fragment` link resolves to an `id` in the page, and a fragment after a
+   page's file name (`index.html#x`) to an `id` in that page.
 3. `external_urls`: every absolute URL in `docs/` (HTML, CSS, JS) is in the §6 set; `<link>`, `<script>`, `<img>`,
    `<source>`, `<video>` and CSS `url()`/`@import` never point to another host, except `<link rel="canonical">` with
    the Pages root URL; this also holds for each `srcset` candidate and for CSS in `<style>` blocks and `style`
@@ -413,8 +413,8 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 12. `no_local_paths`: no file in `docs/` contains `/Volumes/`, `/Users/`, `/private/tmp`, `file://`.
 13. `links_safe`: every `target="_blank"` link has `rel` containing `noopener`.
 14. `fonts_licensed`: every `.woff2` in `docs/assets/fonts/` has its OFL text next to it. The `.woff2` files are
-    exactly those in `FONT_SHA256`, and no `@font-face` in a `.css` file in `docs/` or in a `<style>` block of either
-    page names a family with “Plex” (README N5, r22 6).
+    exactly those in `FONT_SHA256`, and no `@font-face` (in any letter case) in a `.css` file in `docs/` or in a
+    `<style>` block of either page names a family with “Plex” (README N5, r22 6).
 15. `menu_focus_wording`: the `site.js` focusout comment, the README “Opus N3” note and this spec (§4) each say “a
     focus change to nothing does not close it”, and none keeps the old wording that hands that case to the click
     handlers.
@@ -427,12 +427,12 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     check, is not covered.
 17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4, r10 1, 2, 4, 5, r11 3,
     4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20
-    6, r21 1, r22 1, r22 3, r23 1, N5, N10, N12, N15, r2 N3, r2 N4 and r4 B4) stay in place: in the part of a file
-    that each row names (found exactly once), the fixed phrase is there and, where there is one, the old phrase is not
-    (a string or a regex). In a `.py` part made of comment lines the `#` marks are removed before the test; from a
-    `.py` part that holds code every comment is removed (Python `tokenize`, also a comment at the end of a line), so
-    code commented out with `#` does not count; code inside a string still counts. A built-in sample checks the
-    comment remover. `main()` also runs this check on built-in rows (`WORDING_SELF_TEST`) and fails it unless they
+    6, r21 1, r22 1, r22 3, r23 1, r24 4, N5, N10, N12, N15, r2 N3, r2 N4 and r4 B4) stay in place: in the part of a
+    file that each row names (found exactly once), the fixed phrase is there and, where there is one, the old phrase
+    is not (a string or a regex). In a `.py` part made of comment lines the `#` marks are removed before the test;
+    from a `.py` part that holds code every comment is removed (Python `tokenize`, also a comment at the end of a
+    line), so code commented out with `#` does not count; code inside a string still counts. A built-in sample checks
+    the comment remover. `main()` also runs this check on built-in rows (`WORDING_SELF_TEST`) and fails it unless they
     give a “lacks”, a “still says” and a “still matches” problem (a crash there is a FAIL too). It also fails it when
     the normal call went through fewer or more rows than `WORDING_FIXES` holds.
 
@@ -443,9 +443,9 @@ Serves `docs/` from a local HTTP server with Range support (to match GitHub Page
 flag), and checks at 1440×900 and 390×844 (and 320×640 for overflow only; 861, 900, 1023, 1024 and 1100 px wide for
 header fit, no overlap of brand, nav links, chip and Menu button, and the Menu button shown up to 1023 px and hidden
 from 1024 px; the no-JS page at 1440×900 and 390×844, with no failed load; the 404 page at `/404.html` (no console
-error) and at a missing path (only the page's own 404 status), with no page error at either; the first-screen sections
-at 1440×900, 390×844 and 375×667, measured in the no-JS layout as `site.js` does; and a `play()` with sound that no
-user gesture starts must be refused, within a 30 s wait):
+error) and at a missing path (only the page's own 404 status, once, and no other response ≥ 400 at its URL), with no
+page error at either; the first-screen sections at 1440×900, 390×844 and 375×667, measured in the no-JS layout as
+`site.js` does; and a `play()` with sound that no user gesture starts must be refused, within a 30 s wait):
 
 1. no console error; no failed request, except `net::ERR_ABORTED` on `media/*.mp4` (Chrome cancels and re-issues
    byte-range requests for video); no response with status ≥ 400; no request to another host;
@@ -594,3 +594,8 @@ blocks of both pages; item 17 `backlog_wording` gains rows for r22 1 (the `normp
 list in item 17); §7.2 needs the click test to play not muted at a volume above 0, lets the 404 page log only its own
 404 status and only at the missing path, fails a page error there, and takes the autoplay result from a console
 message (a Playwright wait counts as a user gesture), waiting up to 30 s.
+
+After code review (2026-10-22, README backlog r24 1–4): item 2 `local_refs` fails an encoded slash in a local path;
+item 14 `fonts_licensed` finds `@font-face` in any letter case; item 17 `backlog_wording` gains a row for r24 4 (the
+comment on the click test in `browser_check.mjs`); §7.2 lets the 404 page at the missing path log its own 404 status
+only once, and fails any other response ≥ 400 at its URL.

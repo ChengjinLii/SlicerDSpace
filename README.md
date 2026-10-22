@@ -598,15 +598,28 @@ Both reviewers ran the static suite on Python 3.9.6 and 3.15.0 and on CRLF copie
 film request in the test server, not with a Playwright route, and logged `navigator.userActivation` before the
 `play()`: the 9a09b96 check had the page active at the attempt (“played” 3 of 3), the 7576da9 check did not
 (`NotAllowedError` 3 of 3, also with a 25 s hold). The review is closed. Non-blocking items:
-- r24 1 (P3, Opus; predates; “other spellings”): `resolve_local` unquotes before the root-relative test, so
-  `href="%2Findex.html"` passes both scripts and the test server; on Pages it is probably a broken link.
-- r24 2 (P3, Opus; predates; “other spellings”): the `@font-face` regex in `fonts_licensed` is case-sensitive, so
-  `@FONT-FACE{font-family:"IBM Plex Sans";…}` passes. Fix: `re.I`.
-- r24 3 (P3, Opus): at the missing path `expected()` keys only on the page URL and “status of 404”, so an inline
-  `console.error` with that text, or a 404 from `fetch(location.href)`, is dropped (the `response` filter also skips
-  the page URL; that predates). Both need a contrived edit.
-- r24 4 (P3, Opus; predates; comment only): `browser_check.mjs` says “the click is the user gesture”; by r22 7 the
-  `page.evaluate` calls before it already give the page sticky activation (inferred, not measured in that run).
+- r24 1 (P3, Opus; predates; “other spellings”). **Fixed 2026-10-22** (user request): `local_refs` fails a local
+  reference whose path holds `%2F` or `%5C` (any case), in HTML and in CSS. With `href="%2Findex.html"`,
+  `href="assets%2Fimg%2Fposter.jpg"` or `url("%2Fassets%2Fimg%2Fposter.jpg")`, the 14ff0aa script passes and the new
+  one fails. Limit: the test server decodes the path, so the browser suite cannot see this. Since this ban comes
+  first, a `%2F..%2F` reference no longer reaches the `normpath` line of r22 1; the r22 1 row is now that line's only
+  guard.
+- r24 2 (P3, Opus; predates; “other spellings”). **Fixed 2026-10-22** (user request): the `@font-face` test takes
+  `re.I`. With `@FONT-FACE{FONT-FAMILY:"IBM Plex Sans";…}` in a `<style>` block of `index.html`, the 14ff0aa script
+  passes and the new one fails.
+- r24 3 (P3, Opus). **Fixed 2026-10-22** (user request): at the missing path only Chrome's own message for the page
+  (“Failed to load resource: the server responded with a status of 404”) is exempt, and only once; a response ≥ 400 at
+  the page URL fails unless it is the navigation itself. Two copies of `404.html` run a script only away from
+  `/404.html` (at `/404.html` the 14ff0aa suite already fails any console error, so the copies would not show the old
+  gap there): one logs that exact message, one calls `fetch(location.href)`. The 14ff0aa suite passes both copies at
+  both paths. The new one fails both at the missing path: the logged message as a second exempt message, the fetch
+  both as a second message and as a response ≥ 400 that is not the page itself.
+- r24 4 (P3, Opus; predates; comment only). **Fixed 2026-10-22** (user request): a probe measured it. A `play()` with
+  sound from a timer 2 s after load is refused (`NotAllowedError`, 2 of 2) when the test makes no call into the page,
+  and runs (“played”, 2 of 2) after one `page.evaluate()`, which also sets `navigator.userActivation.hasBeenActive`.
+  The comment on the click test now says that the earlier `page.evaluate()` calls already give the page a lasting user
+  gesture, so the test does not show that the click alone allows the play, and that `runAutoplayPolicy` checks the
+  policy. A row pins it; with the 14ff0aa comment, the script fails r24 4.
 
 ## Image crop boxes as finally used
 
