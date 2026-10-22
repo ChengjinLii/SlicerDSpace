@@ -352,6 +352,14 @@ async function runPerformance(browser, origin, width, noJs = false) {
   record(await page.locator('.perf-method[open]').count() === 0, prefix + ': method details initially collapsed');
   record(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), prefix + ': no page overflow');
   if (!noJs) {
+    const menu = page.locator('#menu-btn');
+    record(await menu.isVisible() === (width < 1024), prefix + ': responsive menu matches overview');
+    if (width < 1024) {
+      await menu.click();
+      record(await menu.getAttribute('aria-expanded') === 'true' && await page.locator('#site-nav a[href="index.html"]').isVisible(), prefix + ': mobile navigation opens');
+      await page.keyboard.press('Escape');
+      record(await menu.getAttribute('aria-expanded') === 'false' && await menu.evaluate((element) => element === document.activeElement), prefix + ': Escape closes navigation and restores focus');
+    }
     await page.locator('[data-perf-filter="parallel,workflow"]').click();
     record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 2, prefix + ': thread/schedule filter');
     await page.locator('[data-perf-filter="port"]').click();
@@ -371,6 +379,7 @@ async function runPerformance(browser, origin, width, noJs = false) {
     const evidence = await response.json();
     record(response.ok() && evidence.records.length === 7 && !JSON.stringify(evidence).includes('/data/chengjin/'), prefix + ': sanitized evidence download');
   } else {
+    record(await page.locator('#menu-btn').isHidden() && await page.locator('#site-nav a[href="index.html"]').isVisible(), prefix + ': native navigation available without JS');
     record(await page.locator('.perf-filters').isHidden(), prefix + ': no nonfunctional filter controls');
   }
   await page.evaluate(() => window.scrollTo(0, 0));
