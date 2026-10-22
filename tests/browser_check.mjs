@@ -268,9 +268,13 @@ async function runViewport(browser, origin, name, width, height, opts) {
     const b = document.querySelector('.film-play');
     // README r7 note: the CSS must hide the button too; the hidden attribute alone does not.
     const drawn = getComputedStyle(b).display !== 'none' && b.getBoundingClientRect().width > 0;
-    return { controls: v.hasAttribute('controls'), btnHidden: b.hidden, btnDrawn: drawn, paused: v.paused };
+    return { controls: v.hasAttribute('controls'), btnHidden: b.hidden, btnDrawn: drawn, paused: v.paused,
+      muted: v.muted, volume: v.volume };
   });
-  record(advanced && !post.paused, `${tag}: click on the play button starts playback (currentTime ${t0.toFixed(2)} -> ${t1.toFixed(2)})`, JSON.stringify({ t0, t1, ...post }));
+  // README r22 4: "with sound" means not muted and a volume above 0.
+  record(advanced && !post.paused && !post.muted && post.volume > 0,
+    `${tag}: click on the play button starts playback with sound (currentTime ${t0.toFixed(2)} -> ${t1.toFixed(2)})`,
+    JSON.stringify({ t0, t1, ...post }));
   record(post.controls && post.btnHidden && !post.btnDrawn, `${tag}: controls shown and play button hidden after start`, JSON.stringify(post));
   await page.screenshot({ path: path.join(OUT, `playing-${width}.png`) });
 
@@ -345,7 +349,11 @@ async function run404AndNoJs(browser, origin) {
     const p2 = await c2.newPage();
     const docUrl = origin + p;
     const errs = [], bad = [];
-    p2.on('console', (m) => { if (m.type() === 'error' && m.location().url !== docUrl) errs.push(m.text() + ' @ ' + m.location().url); });
+    // README r22 5: only the 404 status of the page itself, and only at the missing path, may log an error. An error
+    // from an inline script, or an uncaught one (pageerror), fails at both paths.
+    const expected = (m) => status === 404 && m.location().url === docUrl && /status of 404/.test(m.text());
+    p2.on('console', (m) => { if (m.type() === 'error' && !expected(m)) errs.push(m.text() + ' @ ' + m.location().url); });
+    p2.on('pageerror', (e) => errs.push('pageerror: ' + e.message));
     p2.on('requestfailed', (r) => bad.push(`${r.url()} (${r.failure()?.errorText || ''})`));
     p2.on('response', (r) => { if (r.status() >= 400 && r.url() !== docUrl) bad.push(`${r.url()} (HTTP ${r.status()})`); });
     const resp = await p2.goto(docUrl, { waitUntil: 'load' });
@@ -371,17 +379,30 @@ async function runAutoplayPolicy(browser, origin) {
       const v = document.getElementById('film-video');
       if (!v) return;
       const go = () => {
-        v.play().then(() => { window.__autoplay = 'played'; v.pause(); }, (e) => { window.__autoplay = e.name; });
+        const done = (r) => { console.log('__autoplay:' + r); };
+        v.play().then(() => { done('played'); v.pause(); }, (e) => { done(e.name); });
       };
       if (v.readyState >= 1) go();
       else v.addEventListener('loadedmetadata', go, { once: true });
     });
   });
+  // README r22 7: the result comes back as a console message. page.waitForFunction() and page.evaluate() count as a
+  // user gesture, so when the metadata came late (a slow machine), the old wait let the play() run ("played"). The
+  // wait is 30 s; the page is read only after it, and the detail gives readyState and networkState.
   const page = await ctx.newPage();
+  const got = new Promise((resolve) => {
+    page.on('console', (m) => { if (m.text().startsWith('__autoplay:')) resolve(m.text().slice('__autoplay:'.length)); });
+  });
   await page.goto(origin + '/index.html', { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__autoplay, null, { timeout: 10000 }).catch(() => {});
-  const r = await page.evaluate(() => window.__autoplay || 'no result');
-  record(r === 'NotAllowedError', `1440x900: a play() with sound and no user gesture is refused (${r})`, r);
+  let timer;
+  const result = await Promise.race([got, new Promise((r) => { timer = setTimeout(() => r('no result'), 30000); })]);
+  clearTimeout(timer);
+  const st = await page.evaluate(() => {
+    const v = document.getElementById('film-video');
+    return { readyState: v && v.readyState, networkState: v && v.networkState };
+  });
+  record(result === 'NotAllowedError', `1440x900: a play() with sound and no user gesture is refused (${result})`,
+    JSON.stringify({ result, ...st }));
   await ctx.close();
 }
 

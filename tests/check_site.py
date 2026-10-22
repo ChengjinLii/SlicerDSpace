@@ -312,7 +312,7 @@ def resolve_local(base_file, ref):
     if path == "":
         return base_file
     if path.startswith("/"):
-        target = os.path.join(DOCS, path.lstrip("/"))
+        target = os.path.normpath(os.path.join(DOCS, path.lstrip("/")))  # README r22 1: resolve ".." here too
     else:
         target = os.path.normpath(os.path.join(os.path.dirname(base_file), path))
     if os.path.isdir(target):
@@ -343,6 +343,11 @@ def local_refs(pages):
         for attr, ref, line in refs:
             if not ref or is_absolute(ref):
                 continue
+            # README r22 2: the site is served under /SlicerDDSurfer/, so a reference that starts with "/" breaks.
+            if urlsplit(ref).path.startswith("/"):
+                problems.append("%s:%s %s=%r is root-relative (on the project site it leaves /SlicerDDSurfer/)"
+                                % (rel, line, attr, ref))
+                continue
             if ref.startswith("#"):
                 if ref != "#" and ref[1:] not in p.ids:
                     problems.append("%s:%s %s=%r has no matching id" % (rel, line, attr, ref))
@@ -361,6 +366,10 @@ def local_refs(pages):
         for m in CSS_URL.finditer(text):
             ref = m.group(2)
             if not ref or is_absolute(ref) or ref.startswith("#"):
+                continue
+            if urlsplit(ref).path.startswith("/"):  # README r22 2
+                problems.append("%s url(%r) is root-relative (on the project site it leaves /SlicerDDSurfer/)"
+                                % (os.path.relpath(css, ROOT), ref))
                 continue
             target = resolve_local(css, ref)
             inside = os.path.commonpath([DOCS, target]) == DOCS  # Codex r1 B4: inside docs/ too
@@ -749,10 +758,15 @@ def fonts_licensed():
             problems.append("%s has no OFL-%s.txt" % (n, family))
     problems += pinned_files(fdir, woffs, FONT_SHA256)
     # README N5: SIL OFL 1.1 bars the Reserved Font Name "Plex" from a modified version (our subset).
-    css = read(os.path.join(DOCS, "assets", "css", "site.css"))
-    for m in re.finditer(r"@font-face\s*\{[^}]*?font-family:\s*([^;]+);", css):
-        if "plex" in m.group(1).lower():
-            problems.append("site.css @font-face family %s keeps the Reserved Font Name Plex" % m.group(1).strip())
+    # README r22 6: in every .css file in docs/ and in the <style> blocks of both pages.
+    sheets = [(os.path.relpath(f, ROOT), read(f)) for f in sorted(all_files()) if f.endswith(".css")]
+    for page in (INDEX, PAGE404):
+        sheets += [(os.path.relpath(page, ROOT) + " <style>", b) for b in parse(page)[0].style_blocks]
+    for where, css in sheets:
+        for m in re.finditer(r"@font-face\s*\{[^}]*?font-family:\s*([^;]+);", css):
+            if "plex" in m.group(1).lower():
+                problems.append("%s @font-face family %s keeps the Reserved Font Name Plex"
+                                % (where, m.group(1).strip()))
     return fail_list(problems) if problems else None
 
 
@@ -973,6 +987,9 @@ WORDING_FIXES = (
      r'(?m)^    try:\n        got = backlog_wording\.fn\(WORDING_SELF_TEST\) or ""\n    except Exception as exc:.*\n'
      r'        got = .*\n(?=    if not all\(w in got)',
      'try: got = backlog_wording.fn(WORDING_SELF_TEST) or "" except Exception as exc:', None),
+    # README r22 1: resolve_local resolves ".." in a root-relative reference, so "/../x" is outside docs/.
+    ("r22 1", "tests/check_site.py", r"(?ms)^def resolve_local\(base_file, ref\):\n.*?(?=^\S)",
+     'target = os.path.normpath(os.path.join(DOCS, path.lstrip("/")))', None),
     # README N12, N15 and N5: the records of the re-made surfaces image, the tools and the renamed subset.
     ("N12", "SPEC.md", r"(?m)^\| out-surfaces\.jpg \| [0-9].*$", "| out-surfaces.jpg | 35.4 |", "| 34.8 |"),
     ("N12", "README.md", r"(?m)^\| out-surfaces\.jpg \|.*$", "| out-surfaces.jpg | 35.4 |", "| 34.8 |"),
@@ -989,6 +1006,14 @@ WORDING_FIXES = (
     ("N10", "README.md", r"(?ms)^## How to test.*?(?=^## )", "1440×900, 390×844 and 375×667", None),
     # Review of 01ef29c (Opus B2, Codex P1): SPEC item 17 names r20 1 (README r21 1).
     ("r21 1", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)", "r20 1, r20 2, r20 6, r21 1", None),
+    # README r22 3: the r4 A1 entry names the sizes where the run without the pre-pass fails.
+    ("r22 3", "README.md", r"(?ms)^- r4 A1 \(P3\).*?(?=^(?! )|\Z)", "fails at 1440×900 and 390×844",
+     "fails at every size"),
+    # README r23 1: item 17 names every finding of this table, first to last.
+    ("r23 1", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
+     'r9 2–4, r10 1, 2, 4, 5, r11 3, 4, r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 '
+     '1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20 6, r21 1, r22 1, r22 3, r23 1, N5, N10, '
+     'N12, N15, r2 N3, r2 N4 and r4 B4', None),
     ("r20 6", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)",
      "went through fewer or more rows than `WORDING_FIXES` holds", "did not go through every row of `WORDING_FIXES`"),
     ("r20 6", "SPEC.md", r"(?ms)^After code review of 49681a8 .*?(?=\n\n|\Z)",

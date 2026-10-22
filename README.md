@@ -165,7 +165,8 @@ Not fixed (non-blocking, from the Opus review; Codex found nothing):
 - r4 A1 (P3). **Fixed 2026-10-22** (user request): the snapshot removes the `js` class, measures, and adds it back,
   so it measures in the no-JS layout as the `site.js` pre-pass does; the check also runs at 375×667. The old snapshot
   fails at 375×667 with no real blink, and the new one passes; with the pre-pass removed from `site.js`, the new one
-  fails at every size.
+  fails at 1440×900 and 390×844. At 375×667 it passes: no section is on the first screen of the no-JS layout there,
+  so that run only guards a future layout (README r22 3).
 - r4 B1 (P2). **Fixed 2026-10-21** (user request): `hadFocus = document.activeElement === video`, so focus moves to
   the play button at film end only when the video had it; SPEC §5.3 says “move focus to the play button”.
   `browser_check.mjs` starts the film with a click, clicks plain text (focus on `<body>`) and needs focus still on
@@ -550,27 +551,43 @@ Fixed in the fix round (the same two items from both reviewers):
 - B2 (Opus B2, Codex P1; new in 12cd7fb): no row held the r21 1 fix (SPEC item 17 names r20 1). A row now wants
   “r20 1, r20 2, r20 6, r21 1” in item 17; with “r20 1, ” removed, the 01ef29c script passes and the new one fails.
 
-Not fixed (non-blocking):
-- r22 1 (P2, Opus; the gap predates, the B4 check inherits it): `resolve_local` does not `normpath` a root-relative
-  reference, so `url("/../README.md")` in `site.css` passes the B4 test (17/0). Fix: `normpath` that branch.
-- r22 2 (P3, Opus; predates): root-relative references (`/index.html#film`, `/assets/…`) pass both suites, which serve
-  `docs/` at `/`, but break on the project site under `/SlicerDDSurfer/`. None is on the site.
-- r22 3 (P2, Opus and Codex P3): the r4 A1 entry says that with the pre-pass removed the new check “fails at every
-  size”; the run fails at 1440×900 and 390×844 and passes at 375×667, where no section is on the first screen of the
-  no-JS layout, so the 375×667 run only guards a future layout.
-- r22 4 (P2, Opus): SPEC §7.2 item 5 says the click test plays “with sound”, but the test does not check it; with
-  `video.muted = true` in `start()` the suite passes. Fix: add `!v.muted && v.volume > 0`, or reword SPEC.
-- r22 5 (P2 Codex, P3 Opus): the 404 console filter drops every console error located at the page URL, also errors
-  from an inline script and on `/404.html` (HTTP 200); there is no `pageerror` listener on the 404 contexts. Fix:
-  exempt only “status of 404” at the missing path, and add `pageerror`.
-- r22 6 (P3, Opus): `fonts_licensed` reads only `site.css`; a Plex `@font-face` in an inline `<style>` passes.
-- r22 7 (information, Opus): on a slow machine the autoplay check depends only on its 10 s wait.
+Non-blocking (not fixed in that round; later fixes are marked):
+- r22 1 (P2, Opus; the gap predates, the B4 check inherits it). **Fixed 2026-10-22** (user request): `resolve_local`
+  now resolves `..` in a root-relative reference (`normpath`). With `url("/../README.md")` in `site.css`, in a tree
+  where `docs/../README.md` exists, the 9a09b96 script passes and the script with only this fix fails `local_refs`
+  (“does not resolve to a file in docs/”). With r22 2 in, that reference fails as root-relative first, so a row pins
+  the `normpath` line; with the line put back as it was, the script fails r22 1.
+- r22 2 (P3, Opus; predates). **Fixed 2026-10-22** (user request): `local_refs` fails every local reference whose path
+  starts with `/` (HTML attributes, `srcset`, `style` attributes, `<style>` blocks and `.css` files). With `<a
+  href="/index.html#film">` in `index.html`, or `url("/assets/img/poster.jpg")` in `site.css`, the 9a09b96 script
+  passes and the new one fails. Limit: a URL that `site.js` builds is not covered; the browser suite serves `docs/` at
+  `/` and cannot see it either.
+- r22 3 (P2, Opus and Codex P3). **Fixed 2026-10-22** (user request): the r4 A1 entry names the two sizes that fail
+  and says why 375×667 passes. A row pins it; with the old entry, the script fails r22 3.
+- r22 4 (P2, Opus). **Fixed 2026-10-22** (user request): the click test needs `muted` false and `volume` above 0. With
+  `video.muted = true` in `start()` in `site.js`, the 9a09b96 suite passes and the new one fails at 1440×900 and
+  390×844.
+- r22 5 (P2 Codex, P3 Opus). **Fixed 2026-10-22** (user request): at the missing path only the page's own “status of
+  404” error at the page URL is exempt; at `/404.html` nothing is. Both 404 runs listen for `pageerror`. With
+  `<script>console.error(…)</script>` or `<script>throw new Error(…)</script>` in `404.html`, the 9a09b96 suite passes
+  and the new one fails at both paths.
+- r22 6 (P3, Opus). **Fixed 2026-10-22** (user request): `fonts_licensed` reads every `.css` file in `docs/` and the
+  `<style>` blocks of both pages. With a Plex `@font-face` in a `<style>` block of `index.html` or of `404.html`, the
+  9a09b96 script passes and the new one fails.
+- r22 7 (information, Opus). **Fixed 2026-10-22** (user request): the test of this item found a real fault. With the
+  first film request held for 12 s (a slow machine), the 9a09b96 check failed 3 of 3 times with “played”, not “no
+  result”: `page.waitForFunction()` runs through `page.evaluate()`, which Chrome counts as a user gesture, so when the
+  metadata came after the wait started, the `play()` with sound was allowed. The init script now logs the result to
+  the console, and the check waits up to 30 s for that message without any call into the page; only then does it read
+  `readyState` and `networkState` for the detail. With the hold, the new check passes 3 of 3; with the old flag it
+  fails 3 of 3 (“played”); without the hold it passes 3 of 3, and with the flag and no hold it fails 3 of 3.
 
 Re-review of the fix round (3b027a2; Opus 0 blocking, Codex 0 blocking). Both reproduced the B1 and B2 runs; Opus also
 found that both paths of the B1 fix run (`readyState` 4 or 0 at `DOMContentLoaded`) and that an aborted film request
 gives a visible FAIL, not a false pass. The review is closed.
-- r23 1 (P3, Opus; predates 3b027a2): the r21 1 row pins only “r20 1, r20 2, r20 6, r21 1”; removing another name
-  (for example “r18 1, ” or “N5, ”) from SPEC item 17 still passes. No row pinned the older names either.
+- r23 1 (P3, Opus; predates 3b027a2). **Fixed 2026-10-22** (user request): a row wants the whole item 17 list, first
+  name to last. With “r18 1, ” or “N5, ” removed from it, the 9a09b96 script passes and the new one fails r23 1.
+  Limit: a reorder of the list gives a false FAIL.
 - r23 2 (P3, Opus; from 3b027a2): the heading of this record said “12cd7fb..01ef29c”, which in git leaves out 12cd7fb.
   Fixed in the record commit: the heading names `git diff f3b0bd6 01ef29c`.
 
