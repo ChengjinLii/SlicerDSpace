@@ -358,10 +358,15 @@ async function runPerformance(browser, origin, width, noJs = false) {
     record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 1, prefix + ': port filter');
     await page.locator('[data-perf-filter="all"]').click();
     await page.locator('.perf-table a[href="#method-freewater"]').click();
+    await page.waitForFunction(() => document.getElementById('method-freewater').open);
     record(await page.locator('#method-freewater').getAttribute('open') !== null, prefix + ': measurement link opens method');
     await page.locator('#method-freewater summary').focus();
     await page.keyboard.press('Enter');
+    await page.waitForFunction(() => !document.getElementById('method-freewater').open);
     record(await page.locator('#method-freewater').getAttribute('open') === null, prefix + ': keyboard collapse');
+    await page.locator('.perf-table a[href="#method-freewater"]').click();
+    await page.waitForFunction(() => document.getElementById('method-freewater').open);
+    record(await page.locator('#method-freewater').getAttribute('open') !== null, prefix + ': same-fragment link reopens method');
     const response = await context.request.get(origin + '/SlicerDDSurfer/assets/data/performance.json');
     const evidence = await response.json();
     record(response.ok() && evidence.records.length === 7 && !JSON.stringify(evidence).includes('/data/chengjin/'), prefix + ': sanitized evidence download');

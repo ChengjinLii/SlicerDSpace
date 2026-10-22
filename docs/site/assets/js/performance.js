@@ -18,12 +18,17 @@
       count.textContent = visible + ' measurement' + (visible === 1 ? '' : 's');
     });
   });
-  function openMethod() {
-    var id = location.hash.slice(1);
+  function openMethod(id) {
     var item = document.getElementById(id);
     if (item && item.classList.contains('perf-method')) { item.open = true; }
   }
-  window.addEventListener('hashchange', openMethod);
-  openMethod();
+  Array.prototype.forEach.call(document.querySelectorAll('a[href^="#method-"]'), function (link) {
+    link.addEventListener('click', function () {
+      // The same fragment can be clicked again after its details were closed.
+      openMethod(link.getAttribute('href').slice(1));
+    });
+  });
+  window.addEventListener('hashchange', function () { openMethod(location.hash.slice(1)); });
+  openMethod(location.hash.slice(1));
   count.textContent = document.querySelectorAll('.perf-table tbody tr').length + ' measurements';
 })();

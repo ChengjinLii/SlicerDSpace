@@ -210,7 +210,9 @@ class RepositoryStructureTest(unittest.TestCase):
                 offenders.append(relative)
                 continue
             name = Path(relative).name
-            public_pages = {'docs/site/index.html', 'docs/site/404.html'}
+            public_pages = {
+                'docs/site/index.html', 'docs/site/404.html', 'docs/site/performance.html',
+            }
             if (relative.endswith(".html") and relative not in public_pages) or name in {"goal.md", "goal_completion_audit.md", "AGENTS.md"}:
                 offenders.append(relative)
                 continue
