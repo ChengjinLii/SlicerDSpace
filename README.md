@@ -696,6 +696,29 @@ part, and ran 18 changed copies: every false pass is in a recorded limit. The re
   .css file below the docs/ root would pass here and break on Pages”. A row pins it; with the 2b0af82 wording, the new
   script fails r27 3 (“lacks” and “still says”), and the r26 2 row still passes.
 
+### Review of the r27 1–3 fixes (2f2ffd7; Opus 0 blocking, Codex 0 blocking)
+
+Codex and Opus each ran the committed tree and the changed copies on Python 3.9–3.15 with LF and CRLF (Codex 48 runs,
+Opus 140, all as expected), and each parsed SPEC item 17 and every row label on its own: both give the same 58 findings.
+The review is closed. Non-blocking items:
+- r28 1 (P2, Opus; from 2f2ffd7): the bodies of the new guards have no row and no self-test; one edit in
+  `label_problems` (`labels = listed`, the second report list deleted, or `return []`), `finding_names` (`return set()`)
+  or `AlsoInComments` (`self.banned = None`) turns a guard off with every check green. Kept at P2 (the same reading as
+  r25 2: the fixes are held by the test copies, and a false pass of the r27 2 case needs a second edit). Fix if wanted:
+  rows on the `labels = set().union(` line and both report lines, on the `re.fullmatch(` and `names.add(` lines, and on
+  `self.banned = banned`.
+- r28 2 (P3, Opus; from 2f2ffd7; README): the r27 1 “no part” result holds only for a comment line between the `if` line
+  and the `problems.append` line. The claim as a comment line after the append, as a trailing comment on `continue`, or
+  as a 12-space comment after `continue` passes. Fix: add these cases to the r27 1 limits.
+- r28 3 (P3, Opus; from 2f2ffd7; SPEC wording): item 17 says “a label names two findings when a later fix changed that
+  row”, but the r10 1, r10 2 and r12 3 rows were changed by later fixes (r11 2, r11 1, r14 4) and keep one name; the
+  rule used was “a name that had no row of its own”. Fix: “a label may name two findings”, as §9 says.
+- r28 4 (P3, Opus; recorded limits): the r27 1 row is the only `AlsoInComments` row; deleting it, unwrapping it to a
+  plain regex, or `AlsoInComments(None)` passes (the three pin rows keep r27 1 in the label set). Optional fix: the kind
+  test also rejects `AlsoInComments(None)`.
+- r28 5 (P3, Opus; information): parser edges give a visible FAIL, not a false pass: an Oxford comma, an ASCII hyphen in
+  a range, a bare number after a letter name, a reversed range. A name listed twice passes (the check compares sets).
+
 ## Image crop boxes as finally used
 
 Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the
