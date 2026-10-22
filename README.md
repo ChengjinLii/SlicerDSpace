@@ -621,6 +621,34 @@ film request in the test server, not with a Playwright route, and logged `naviga
   gesture, so the test does not show that the click alone allows the play, and that `runAutoplayPolicy` checks the
   policy. A row pins it; with the 14ff0aa comment, the script fails r24 4.
 
+### Review of the r24 1–4 fixes (3dc2c4a; Opus 0 blocking, Codex 0 blocking)
+
+Codex ran the static suite on Python 3.9 and 3.13–3.15 and on CRLF copies (17/0) and read the browser suite. Opus ran
+the static suite on 3.9.6 and 3.13–3.15 with LF and CRLF, the browser suite (68/0), every fail-before with its own
+copies, and its own r24 4 probe: with an 8 s timer the page still had sticky activation after one `page.evaluate()`
+(“played” 2 of 2) and none without it (`NotAllowedError`), so the r24 4 comment holds. The review is closed.
+Non-blocking items:
+- r25 1 (P2, Opus; from 3dc2c4a): **the r24 1 reason is wrong for `%2F`.** Opus measured a GitHub Pages project site
+  (google.github.io/styleguide) with curl and Chrome 155: Pages decodes `%2F` and serves the file
+  (`assets%2Fcss%2Fstyle.css` and `%2Fpyguide.html` give 200 with the same SHA-256 as the plain paths), returns 404
+  for `%5C`, and resolves a decoded leading `/` below a subfolder against that folder. So `href="%2Findex.html"` and
+  `href="assets%2Fimg%2Fposter.jpg"` in `docs/index.html` would work on Pages, and the test server, which decodes the
+  path the same way, sees what Pages sees. The case the ban really closes is `url("%2Fassets%2Fimg%2Fposter.jpg")` in
+  `site.css`: on Pages it resolves under `assets/css/` and breaks, while the 14ff0aa script unquoted first and read
+  the leading `/` as `docs/`. The comment in `local_refs` and the r24 1 “Limit” sentence state the opposite and should
+  be reworded to these facts; whether a `%2F` that works on Pages stays banned (a plain slash is the only spelling the
+  site needs) is the author's decision.
+- r25 2 (P2, Opus; the same pattern as r22 2, r22 5 and r22 6): no committed check holds the r24 1–3 code; removing
+  `re.I`, either ban, or the 404 changes leaves both suites green on the committed `docs/`. As before, the fixes are
+  held by the test copies, and rows pin only lines that a copy cannot reach (r10 2, r11 3, r22 1). Fix if wanted: one
+  row per fix (the HTML and CSS ban lines are the same text after `code_text`, so the row needs a part that holds one).
+- r25 3 (P3, Opus; from 3dc2c4a): the response filter exempts every navigation at the page URL, also an iframe that
+  loads it; the comment says “not the page itself”. No false pass was found (the once-only console rule still fails
+  the iframe). Fix: add `r.frame() === p2.mainFrame()`, or say “a navigation”.
+- r25 4 (P3, Opus; from 3dc2c4a): the exemption matches Chrome's exact wording, measured on Chrome 155.0.8059.85
+  (“Failed to load resource: the server responded with a status of 404 (Not Found)”, once, at the page URL). Other
+  wording gives a visible FAIL, not a false pass. Fix: record the Chrome version next to the regex.
+
 ## Image crop boxes as finally used
 
 Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the
