@@ -591,6 +591,23 @@ gives a visible FAIL, not a false pass. The review is closed.
 - r23 2 (P3, Opus; from 3b027a2): the heading of this record said “12cd7fb..01ef29c”, which in git leaves out 12cd7fb.
   Fixed in the record commit: the heading names `git diff f3b0bd6 01ef29c`.
 
+### Review of the r22 1–7 and r23 1 fixes (7576da9; Opus 0 blocking, Codex 0 blocking)
+
+Both reviewers ran the static suite on Python 3.9.6 and 3.15.0 and on CRLF copies (17/0). Opus also ran it on
+3.12–3.14, ran the browser suite (68/0), and reproduced every fail-before with its own copies. For r22 7 it held the
+film request in the test server, not with a Playwright route, and logged `navigator.userActivation` before the
+`play()`: the 9a09b96 check had the page active at the attempt (“played” 3 of 3), the 7576da9 check did not
+(`NotAllowedError` 3 of 3, also with a 25 s hold). The review is closed. Non-blocking items:
+- r24 1 (P3, Opus; predates; “other spellings”): `resolve_local` unquotes before the root-relative test, so
+  `href="%2Findex.html"` passes both scripts and the test server; on Pages it is probably a broken link.
+- r24 2 (P3, Opus; predates; “other spellings”): the `@font-face` regex in `fonts_licensed` is case-sensitive, so
+  `@FONT-FACE{font-family:"IBM Plex Sans";…}` passes. Fix: `re.I`.
+- r24 3 (P3, Opus): at the missing path `expected()` keys only on the page URL and “status of 404”, so an inline
+  `console.error` with that text, or a 404 from `fetch(location.href)`, is dropped (the `response` filter also skips
+  the page URL; that predates). Both need a contrived edit.
+- r24 4 (P3, Opus; predates; comment only): `browser_check.mjs` says “the click is the user gesture”; by r22 7 the
+  `page.evaluate` calls before it already give the page sticky activation (inferred, not measured in that run).
+
 ## Image crop boxes as finally used
 
 Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the
