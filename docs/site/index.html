@@ -138,263 +138,130 @@
   <div class="container">
     <p class="eyebrow">One subject, one space</p>
     <h2>From one diffusion dataset to seven kinds of result.</h2>
-    <p class="intro">Every image shows output of SlicerDDSurfer on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. Anatomy, DTI and DTI tractography come from the film’s run (b = 0 and b ≈ 1000, 117 of 297 volumes). The other methods ran on 23 October 2026 with the repository code of that day: UKF on the same input, the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes).</p>
-    <div class="result-tabs" role="tablist" aria-label="Results by module" hidden>
-      <button type="button" role="tab" id="tab-seg" aria-controls="res-seg" aria-selected="true">Segmentation<span class="tab-n">2</span></button>
-      <button type="button" role="tab" id="tab-parc" aria-controls="res-parc" aria-selected="false" tabindex="-1">Parcellation<span class="tab-n">2</span></button>
-      <button type="button" role="tab" id="tab-surf" aria-controls="res-surf" aria-selected="false" tabindex="-1">Cortical surfaces<span class="tab-n">2</span></button>
-      <button type="button" role="tab" id="tab-micro" aria-controls="res-micro" aria-selected="false" tabindex="-1">Microstructure<span class="tab-n">8</span></button>
-      <button type="button" role="tab" id="tab-tract" aria-controls="res-tract" aria-selected="false" tabindex="-1">Tractography<span class="tab-n">3</span></button>
-      <button type="button" role="tab" id="tab-bund" aria-controls="res-bund" aria-selected="false" tabindex="-1">Bundles<span class="tab-n">5</span></button>
-      <button type="button" role="tab" id="tab-conn" aria-controls="res-conn" aria-selected="false" tabindex="-1">Connectome<span class="tab-n">4</span></button>
+    <p class="intro">Each image shows output from SlicerDDSurfer on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. Six images are frames from the film; that run used the b = 0 and b ≈ 1000 volumes (117 of 297). The others come from runs on 23 October 2026 on the same Mac, rendered in the same way: UKF on the film’s input, the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes).</p>
+    <div class="gallery">
+      <article class="tile">
+        <img src="assets/img/out-dec.jpg" width="1200" height="900" loading="lazy" alt="DEC map on three planes">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DTI</span> · <span class="chip-q">microstructure</span></p>
+          <h3>Direction-encoded colour</h3>
+          <p>Principal diffusion direction weighted by FA, from the DTI fit.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-fw.jpg" width="1200" height="900" loading="lazy" alt="Free-water fraction on three planes">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">Free water</span> · <span class="chip-q">microstructure</span></p>
+          <h3>Free-water fraction</h3>
+          <p>Free-water tensor model (DIPY) on b = 0, 1000 and 2000.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-ndi.jpg" width="1200" height="900" loading="lazy" alt="NODDI neurite density on three planes">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">NODDI</span> · <span class="chip-q">microstructure</span></p>
+          <h3>Neurite density</h3>
+          <p>NDI from the NODDI fit (AMICO) on two shells.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-mk.jpg" width="1200" height="900" loading="lazy" alt="DKI mean kurtosis on three planes">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DKI</span> · <span class="chip-q">microstructure</span></p>
+          <h3>Mean kurtosis</h3>
+          <p>MK from the DKI fit (DIPY, WLS).</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-mkcurve.jpg" width="1200" height="900" loading="lazy" alt="MK-Curve mean kurtosis on three planes">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">MK-Curve</span> · <span class="chip-q">microstructure</span></p>
+          <h3>Mean kurtosis, MK-Curve</h3>
+          <p>Unofficial Python port, same data. Automatic QC did not pass: 98.7% of mask voxels are valid; the check needs all.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-tissue.jpg" width="1200" height="900" loading="lazy" alt="DDSeg tissue labels">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DDSeg</span> · <span class="chip-q">tissue</span></p>
+          <h3>Tissue labels</h3>
+          <p>White matter, grey matter and CSF, predicted from DTI features.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-regions.jpg" width="1200" height="900" loading="lazy" alt="DDParcel regions">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DDParcel</span> · <span class="chip-q">regions</span></p>
+          <h3>Brain regions</h3>
+          <p>Anatomical regions labelled in the diffusion volume.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-surfaces.jpg" width="1200" height="900" loading="lazy" alt="DDSurfer pial surface">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DDSurfer</span> · <span class="chip-q">surfaces</span></p>
+          <h3>White and pial surfaces</h3>
+          <p>Cortical surface meshes in native diffusion space.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-tracts.jpg" width="1200" height="900" loading="lazy" alt="Tractography">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">Tractography</span> · <span class="chip-q">DTI</span></p>
+          <h3>Whole-brain tractography</h3>
+          <p>Deterministic DTI tractography. Shown: a display subset of 24,000 of 130,780 streamlines.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-tr-ukf.jpg" width="1200" height="900" loading="lazy" alt="UKF two-tensor tractography">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">Tractography</span> · <span class="chip-q">UKF</span></p>
+          <h3>UKF two-tensor tractography</h3>
+          <p>UKFTractography. Shown: a display subset of 24,000 of 208,295 streamlines.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-tr-csd.jpg" width="1200" height="900" loading="lazy" alt="MSMT-CSD tractography with ACT">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">Tractography</span> · <span class="chip-q">CSD/ACT</span></p>
+          <h3>MSMT-CSD with ACT</h3>
+          <p>MRtrix3 iFOD2 with ACT. Shown: 24,000 of 1,000,000 streamlines.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-wmql-csd.jpg" width="1200" height="900" loading="lazy" alt="WMQL arcuate and corticospinal bundles">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">WMQL</span> · <span class="chip-q">bundles</span></p>
+          <h3>Arcuate and corticospinal tracts</h3>
+          <p>WMQL queries (adapted ddparcel_act preset) on the CSD/ACT tractogram: both sides, 706 streamlines.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-tc-ukf.jpg" width="1200" height="900" loading="lazy" alt="TractCloud bundles">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">TractCloud</span> · <span class="chip-q">bundles</span></p>
+          <h3>42 white-matter tracts</h3>
+          <p>TractCloud on the UKF tractogram: 84,356 streamlines classified; 9,321 shown.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-connectome.jpg" width="1200" height="900" loading="lazy" alt="Connectome nodes/edges and matrix">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">Connectome</span> · <span class="chip-q">DDParcel nodes</span></p>
+          <h3>Structural connectome</h3>
+          <p>The 260 strongest of 854 edges are drawn; the matrix shows all 84 × 84 nodes.</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-net-sift2.jpg" width="1200" height="900" loading="lazy" alt="SIFT2-weighted connectome nodes/edges and matrix">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">Connectome</span> · <span class="chip-q">SIFT2</span></p>
+          <h3>SIFT2-weighted connectome</h3>
+          <p>From the CSD/ACT tractogram. The 260 strongest of 2,726 edges are drawn.</p>
+        </div>
+      </article>
     </div>
-    <div class="result-groups">
-      <div class="result-group" id="res-seg" role="tabpanel" aria-labelledby="tab-seg">
-        <h3 class="group-title">Segmentation <span class="muted">· DDSeg</span></h3>
-        <div class="gallery cols-2">
-          <article class="tile">
-            <img src="assets/img/res-tissue.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="DDSeg tissue labels on three planes">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">DDSeg</span> · <span class="chip-q">tissue</span></p>
-              <h4>Tissue labels</h4>
-              <p>White matter, grey matter and CSF, predicted from DTI features.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-tissue-axial.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="DDSeg tissue labels on one axial slice">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">DDSeg</span> · <span class="chip-q">axial slice</span></p>
-              <h4>Tissue labels, axial</h4>
-              <p>The same labels on one slice. Neurological view: the subject’s left is on the left.</p>
-            </div>
-          </article>
-        </div>
-      </div>
-      <div class="result-group" id="res-parc" role="tabpanel" aria-labelledby="tab-parc">
-        <h3 class="group-title">Parcellation <span class="muted">· DDParcel</span></h3>
-        <div class="gallery cols-2">
-          <article class="tile">
-            <img src="assets/img/res-parcel.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="DDParcel regions on three planes">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">DDParcel</span> · <span class="chip-q">regions</span></p>
-              <h4>Brain regions</h4>
-              <p>Anatomical regions labelled in the diffusion volume.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-parcel-axial.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="DDParcel regions on one axial slice">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">DDParcel</span> · <span class="chip-q">axial slice</span></p>
-              <h4>Brain regions, axial</h4>
-              <p>FreeSurfer colour table; cerebral white matter is drawn in grey.</p>
-            </div>
-          </article>
-        </div>
-      </div>
-      <div class="result-group" id="res-surf" role="tabpanel" aria-labelledby="tab-surf">
-        <h3 class="group-title">Cortical surfaces <span class="muted">· DDSurfer</span></h3>
-        <div class="gallery cols-2">
-          <article class="tile">
-            <img src="assets/img/res-white.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="DDSurfer white-matter surface">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">DDSurfer</span> · <span class="chip-q">white</span></p>
-              <h4>White surface</h4>
-              <p>Cortical surface mesh in native diffusion space.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-pial.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="DDSurfer pial surface">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">DDSurfer</span> · <span class="chip-q">pial</span></p>
-              <h4>Pial surface</h4>
-              <p>Cortical surface mesh in native diffusion space.</p>
-            </div>
-          </article>
-        </div>
-      </div>
-      <div class="result-group" id="res-micro" role="tabpanel" aria-labelledby="tab-micro">
-        <h3 class="group-title">Microstructure <span class="muted">· DTI, free water, NODDI, DKI, MK-Curve</span></h3>
-        <div class="gallery cols-4">
-          <article class="tile">
-            <img src="assets/img/out-dec.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="DEC map on three planes">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">DTI</span> · <span class="chip-q">DEC</span></p>
-              <h4>Direction-encoded colour</h4>
-              <p>Principal diffusion direction weighted by FA, from the DTI fit.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-fa.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="DTI fractional anisotropy, axial slice">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">DTI</span> · <span class="chip-q">FA</span></p>
-              <h4>Fractional anisotropy</h4>
-              <p>Tensor fit by SlicerDMRI modules on b = 0 and 1000.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-md.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="DTI mean diffusivity, axial slice">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">DTI</span> · <span class="chip-q">MD</span></p>
-              <h4>Mean diffusivity</h4>
-              <p>Same fit. 1 µm²/ms = 10<sup>−3</sup> mm²/s.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-fw.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="Free-water fraction, axial slice">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">Free water</span> · <span class="chip-q">FW</span></p>
-              <h4>Free-water fraction</h4>
-              <p>DIPY free-water tensor model on b = 0, 1000 and 2000. Grey: outside the tissue validity mask.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-ndi.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="NODDI neurite density index, axial slice">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">NODDI</span> · <span class="chip-q">NDI</span></p>
-              <h4>Neurite density</h4>
-              <p>AMICO fit on two shells. Grey: outside the tissue validity mask.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-odi.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="NODDI orientation dispersion index, axial slice">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">NODDI</span> · <span class="chip-q">ODI</span></p>
-              <h4>Orientation dispersion</h4>
-              <p>Same AMICO fit. Grey: outside the tissue validity mask.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-mk.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="DKI mean kurtosis from the WLS fit, axial slice">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">DKI</span> · <span class="chip-q">MK, WLS</span></p>
-              <h4>Mean kurtosis</h4>
-              <p>DIPY kurtosis model, WLS fit. Grey: voxels outside the DKI validity mask.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-mkcurve.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="Mean kurtosis after MK-Curve correction, axial slice">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">MK-Curve</span> · <span class="chip-q">MK</span></p>
-              <h4>Mean kurtosis, MK-Curve</h4>
-              <p>Unofficial Python port, same data. Automatic QC did not pass: 98.7% of mask voxels are valid; the check needs all.</p>
-            </div>
-          </article>
-        </div>
-      </div>
-      <div class="result-group" id="res-tract" role="tabpanel" aria-labelledby="tab-tract">
-        <h3 class="group-title">Tractography <span class="muted">· DTI deterministic, UKF, CSD/ACT</span></h3>
-        <div class="gallery cols-3">
-          <article class="tile">
-            <img src="assets/img/res-tr-dti.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="Deterministic DTI tractography">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">Tractography</span> · <span class="chip-q">DTI</span></p>
-              <h4>DTI deterministic</h4>
-              <p>Tracking by DIPY. Shown: a display subset of 24,000 of 130,780 streamlines.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-tr-ukf.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="UKF two-tensor tractography">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">Tractography</span> · <span class="chip-q">UKF</span></p>
-              <h4>UKF two-tensor</h4>
-              <p>UKFTractography. Input mask without 21 voxels where the mean b = 0 signal is zero. Shown: 24,000 of 208,295.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-tr-csd.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="MSMT-CSD tractography with ACT">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">Tractography</span> · <span class="chip-q">CSD / ACT</span></p>
-              <h4>MSMT-CSD with ACT</h4>
-              <p>MRtrix3 iFOD2 on b = 0, 1000 and 2000; ACT tissue image from DDSeg. Shown: 24,000 of 1,000,000.</p>
-            </div>
-          </article>
-        </div>
-      </div>
-      <div class="result-group" id="res-bund" role="tabpanel" aria-labelledby="tab-bund">
-        <h3 class="group-title">Bundles <span class="muted">· WMQL, TractCloud</span></h3>
-        <div class="gallery cols-3">
-          <article class="tile">
-            <img src="assets/img/res-wmql-csd.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="WMQL arcuate and corticospinal bundles from CSD tractography">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">WMQL</span> · <span class="chip-q">on CSD / ACT</span></p>
-              <h4>AF and CST, both sides</h4>
-              <p>Author’s tract_querier, adapted ddparcel_act preset: 4 bundles, 706 streamlines. Anatomical review pending.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-wmql-ukf.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="WMQL arcuate and corticospinal bundles from UKF tractography">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">WMQL</span> · <span class="chip-q">on UKF</span></p>
-              <h4>AF and CST, both sides</h4>
-              <p>Same queries on the UKF tractogram: 4 bundles, 798 streamlines. Anatomical review pending.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-tc-dti.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="TractCloud bundles from DTI tractography">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">TractCloud</span> · <span class="chip-q">on DTI</span></p>
-              <h4>42 tracts</h4>
-              <p>Author’s model (v1.0.0): 53,522 streamlines classified. Shown: 8,994.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-tc-ukf.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="TractCloud bundles from UKF tractography">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">TractCloud</span> · <span class="chip-q">on UKF</span></p>
-              <h4>42 tracts</h4>
-              <p>84,356 streamlines classified. Shown: 9,321.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-tc-csd.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="TractCloud bundles from CSD tractography">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">TractCloud</span> · <span class="chip-q">on CSD / ACT</span></p>
-              <h4>42 tracts</h4>
-              <p>417,180 streamlines classified. Shown: 9,886.</p>
-            </div>
-          </article>
-        </div>
-        <p class="group-note">WMA (ORG atlas) also ran on the UKF tractogram and completed all steps (74 tracts), but failed the pipeline’s sampling check: the right arcuate fasciculus had 6 streamlines, below the minimum of 20. The pipeline withheld its products, so none is shown.</p>
-      </div>
-      <div class="result-group" id="res-conn" role="tabpanel" aria-labelledby="tab-conn">
-        <h3 class="group-title">Connectome <span class="muted">· streamline count, SIFT2</span></h3>
-        <div class="gallery cols-2">
-          <article class="tile">
-            <img src="assets/img/res-net-dti.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="Connectome from DTI tractography: nodes, edges and matrix">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">Connectome</span> · <span class="chip-q">DTI, count</span></p>
-              <h4>Streamline count, DTI</h4>
-              <p>84 DDParcel nodes. The 260 strongest of 854 edges are drawn; the matrix shows all 84 × 84 nodes (log scale).</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-net-ukf.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="Connectome from UKF tractography: nodes, edges and matrix">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">Connectome</span> · <span class="chip-q">UKF, count</span></p>
-              <h4>Streamline count, UKF</h4>
-              <p>The 260 strongest of 2,689 edges are drawn.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-net-csd.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="Connectome from CSD tractography: nodes, edges and matrix">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">Connectome</span> · <span class="chip-q">CSD / ACT, count</span></p>
-              <h4>Streamline count, CSD/ACT</h4>
-              <p>The 260 strongest of 2,726 edges are drawn.</p>
-            </div>
-          </article>
-          <article class="tile">
-            <img src="assets/img/res-net-sift2.jpg" width="1200" height="900" loading="lazy" decoding="async" alt="SIFT2-weighted connectome from CSD tractography">
-            <div class="tile-body">
-              <p class="chip"><span class="chip-name">Connectome</span> · <span class="chip-q">CSD / ACT, SIFT2</span></p>
-              <h4>SIFT2-weighted count</h4>
-              <p>Weights from tcksift2 on the same tractogram. The 260 strongest of 2,726 edges are drawn.</p>
-            </div>
-          </article>
-        </div>
-      </div>
-    </div>
-    <p class="note">All runs: 3D Slicer 5.12.4 on macOS (x86_64 build under Rosetta, CPU only), outside the Linux validation. Colours, subsets, slices and upsampling are display choices; they change the look, not the data. Where a stage records an automatic QC result, it passed, except MK-Curve. No expert has reviewed these outputs.</p>
+    <p class="note">Colours, subsets and upsampling are display choices; they change the look, not the data. Automatic QC passed for the DTI, DDSeg, DDParcel and DDSurfer stages, and for every other stage shown that records it, except MK-Curve. WMA also ran on the UKF tractogram but failed the pipeline’s sampling check (right arcuate fasciculus: 6 streamlines, minimum 20), so it is not shown. No expert has reviewed these outputs.</p>
   </div>
 </section>
 

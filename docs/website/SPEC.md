@@ -15,9 +15,10 @@ Addendum, 23 October 2026: the home page also has a "What is integrated" status 
 guide figure (`#choose`), a run-time figure (`#runtime`) and a numbered reference list (`#cite`). §5.6.1, §5.6a,
 §5.10, §5.10a and §5.10b below describe them. Their sources are listed in §1, rule 7.
 
-Addendum 2, 23 October 2026: `#outputs` (§5.5) is a results gallery with one tab per module (seven groups, 26 tiles),
-built from the outputs of the film's run and of the 23 October 2026 runs on the same subject; `slicer.jpg` (§5.7) is a
-new full-window screenshot of the module. Their sources are in §1, rule 7.
+Addendum 2, 23 October 2026: `#outputs` (§5.5) keeps its six film frames and adds nine tiles of the other methods
+(free water, NODDI, DKI, MK-Curve, UKF, CSD/ACT, WMQL, TractCloud, SIFT2), rendered in the film's look from the
+23 October 2026 runs on the same subject; `slicer.jpg` (§5.7) is a new full-window screenshot of the module. Their
+sources are in §1, rule 7.
 
 Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
 below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, except in the parts added on 23 October
@@ -55,11 +56,11 @@ Settled decisions (not to be reopened in review):
    - Performance section (§5.10b): `docs/release/benchmarks/*.json`, through `scripts/build_performance_site.py`.
    - References (§5.10): the DOI record of each entry (Crossref or DataCite) and the page of the tool that asks for the
      citation. Entries that could not be checked are left out.
-   - Results gallery (§5.5) and `slicer.jpg` (§5.7): the pipeline outputs and QC files of the runs, through the promo
-     project's exporters (`P/tools/export_gallery.py`, `P/tools/render_slices.py`, `P/tools/make_site_tiles.py`; each
-     tile's source file and SHA-256 in `P/renders/site_tiles/tiles.json`) and `P/runtime/gui_workflow_capture.py`
-     for the screenshot. A tile shows only products that the pipeline published (not withheld as failed); a caption
-     states any automatic QC result that did not pass.
+   - Result tiles `res-*.jpg` (§5.5) and `slicer.jpg` (§5.7): the pipeline outputs and QC files of the runs, through
+     `P/tools/export_gallery.py` (each source output and its SHA-256 in `P/film/data/gallery/index.json`),
+     `P/film/gallery.js` (stills) and `P/tools/make_site_tiles.py` (crop and resize; `P/renders/site_tiles/tiles.json`),
+     and `P/runtime/gui_workflow_capture.py` for the screenshot. A tile shows only products that the pipeline published
+     (not withheld as failed); a caption states any automatic QC result that did not pass.
 
 ## 2. Files
 
@@ -79,14 +80,16 @@ docs/assets/js/performance.js     filters and method links of the performance ev
 docs/performance.html             stub: refresh to index.html#performance, canonical link, one visible link
 docs/assets/fonts/        InterTight, Inter, IBMPlexMono as .woff2 (Latin subset) + the three OFL .txt files
 docs/assets/img/          icon-64.png, icon-180.png (from R/Resources/Icons/SlicerDDSurfer.png), poster.jpg,
-                          social.jpg, idea.jpg, out-dec.jpg, slicer.jpg, fig-route-guide.png, fig-runtime-resources.png
-                          (the two figures are rasterised from `docs/figures/*.svg`, which is not served), and the 25
-                          result tiles res-*.jpg of §5.5
+                          social.jpg, idea.jpg, out-dec.jpg, out-tissue.jpg, out-regions.jpg, out-surfaces.jpg,
+                          out-tracts.jpg, out-connectome.jpg, slicer.jpg, fig-route-guide.png, fig-runtime-resources.png
+                          (the two figures are rasterised from `docs/figures/*.svg`, which is not served), and nine result
+                          tiles: res-fw.jpg, res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tr-ukf.jpg, res-tr-csd.jpg,
+                          res-wmql-csd.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
 docs/media/SlicerDDSurfer_promo_1080p.mp4   copy of P/out/SlicerDDSurfer_promo_1080p.mp4 (41,070,370 bytes)
 docs/media/SlicerDDSurfer.en.srt            copy of P/out/SlicerDDSurfer.en.srt
 ```
 
-## 3. Images (film frames, the cover, the two figures of §5.6a and §5.10a, the result tiles of §5.5 and the screenshot of §5.7)
+## 3. Images (film frames, the cover, the two figures of §5.6a and §5.10a, nine result tiles and the screenshot)
 
 Frames come from `P/out/SlicerDDSurfer_promo_1080p.mp4` with `ffmpeg -ss <t> -i <film> -frames:v 1`. Crop boxes are
 `x0,y0,x1,y1` in the 1920×1080 frame. A crop taken while a subtitle cue is on screen ends at y ≤ 945 (subtitle text
@@ -98,18 +101,22 @@ boxes in `README.md`. JPEG quality 82, progressive, sRGB.
 | poster.jpg | 43.0 | full frame | 1920×1080 | whole-brain DTI tractography in the glass pial surface (no subtitle at 43 s) |
 | idea.jpg | 9.0 | 60,60,1760,945 | width 1400 | DWI slice, "registration" arrow, "+ T1-weighted scan" card |
 | out-dec.jpg | 22.8 | 815,155,1855,935 | 1200×900 | DEC map on three planes |
-| slicer.jpg | — | from `P/runtime/shots_workflow_ms2/results_window.png` (3840×2054), resized | 1920×1027 | real 3D Slicer screenshot (§5.7) |
+| out-tissue.jpg | 27.0 | 725,150,1765,930 | 1200×900 | DDSeg tissue labels |
+| out-regions.jpg | 30.6 | 700,150,1740,930 | 1200×900 | DDParcel regions |
+| out-surfaces.jpg | 34.8 | 665,155,1705,935 | 1200×900 | DDSurfer pial surface |
+| out-tracts.jpg | 43.0 | 470,0,1910,1080 | 1200×900 | tractography |
+| out-connectome.jpg | 50.2 | 585,140,1838,1080 | 1200×900 | connectome nodes/edges and matrix |
+| slicer.jpg | — | `P/runtime/shots_workflow_ms2/results_window.png` (3840×2054), resized | 1920×1027 | real 3D Slicer screenshot (§5.7) |
 | social.jpg | — | from P/out/cover_1280x640.png | 1280×640 | the film's cover (og:image) |
 
-Every `<img>` has `alt` (the “Shows” text above, the tile's description, or the icon’s name), `width`, `height` and
-`loading="lazy"`. (The poster is the `<video poster>`, not an `<img>`.)
+Every `<img>` has `alt` (the “Shows” text above, the tile's alt text in §5.5, or the icon’s name), `width`, `height`
+and `loading="lazy"`. (The poster is the `<video poster>`, not an `<img>`.)
 
-Result tiles (`res-*.jpg`, 1200×900, JPEG quality 84, progressive) come from `P/tools/make_site_tiles.py`: 3D stills
-rendered in the film's look by `P/film/gallery.js` (resized from 1600×1200), or axial slices from
-`P/tools/render_slices.py` with a colour bar of the display window or a legend. Grey marks voxels outside the method's
-validity mask. Nothing else is drawn on the data. The screenshot shows the subject folder through a short link
-(`/Users/Shared/EDDEN/sub-01` → the run's subject folder), the log cleared with its own Clear button and the Reason
-column widened, so no path of the build machine is in view.
+Result tiles (`res-*.jpg`, 1200×900, JPEG quality 84, progressive): 1600×1200 stills rendered in the film's look by
+`P/film/gallery.js`, cropped with one box per camera so the brain has the size of the film frames (three-plane maps
+157,135,1415,1079; tracts, bundles and networks 50,37,1550,1162) and resized. Nothing is drawn on the data. The
+screenshot shows the subject folder through a short link (`/Users/Shared/EDDEN/sub-01` → the run's subject folder),
+with the log cleared by its own Clear button and the Reason column widened, so no path of the build machine is in view.
 
 ## 4. Look
 
@@ -128,8 +135,7 @@ column widened, so no path of the build machine is in view.
 - Panels: `--panel`, 1px `--line`, `--radius`. No drop shadows except a soft DEC glow behind the film frame.
 - Motion: sections fade and rise 12px once when they enter the viewport (IntersectionObserver, 600ms). None under
   `prefers-reduced-motion: reduce`. Content must be visible without JS (add the hidden state only from JS).
-- Layout: max width `--max`, side gutter `--gutter`. Grids collapse: gallery 3 → 2 (≤ 900px) → 1 (≤ 560px), with
-  2-column groups (2 → 2 → 1) and a 4-column group (4 → 2 → 1) in §5.5;
+- Layout: max width `--max`, side gutter `--gutter`. Grids collapse: gallery 3 → 2 (≤ 900px) → 1 (≤ 560px);
   two-column sections → 1 (≤ 900px); workflow cards 5 → 2 → 1. No horizontal page scroll at 320px or wider; code
   blocks scroll inside themselves (`overflow-x: auto`), grid children have `min-width: 0`.
 - Header: sticky, 64px, `--bg` at 80% with backdrop blur, bottom tri-rule. Left: icon (28px) + "SlicerDDSurfer".
@@ -232,53 +238,31 @@ Two columns: text left, `idea.jpg` right.
 
 - Eyebrow: “One subject, one space”.
 - H2: “From one diffusion dataset to seven kinds of result.”
-- Intro: “Every image shows output of SlicerDDSurfer on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. Anatomy, DTI and DTI tractography come from the film’s run (b = 0 and b ≈ 1000, 117 of 297 volumes). The other methods ran on 23 October 2026 with the repository code of that day: UKF on the same input, the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes).” [F9 Data; P/MAKING_OF.md:69-72, 142; P/tools/make_subject_ms.py; P/runtime/r2.sh]
-- Tabs (`.result-tabs`, `role="tablist"`, `hidden` in the HTML): one button per group, `role="tab"`, with the
-  group's tile count. `site.js` shows the list, hides every group but the selected one, and supports click, ←/→,
-  Home and End; a hash `#res-<group>` selects that group. Without JS the list stays hidden and every group is shown
-  under its H3 (`.group-title`, “<module> · <methods>”). With JS the H3 stays for screen readers only.
-- Groups and tiles (image, chip, H4 title, caption, `alt`); 1200×900 each:
+- Intro: “Each image shows output from SlicerDDSurfer on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. Six images are frames from the film; that run used the b = 0 and b ≈ 1000 volumes (117 of 297). The others come from runs on 23 October 2026 on the same Mac, rendered in the same way: UKF on the film’s input, the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes).” [F9 Data; P/MAKING_OF.md:69-72, 142; P/tools/make_subject_ms.py; P/runtime/r2.sh]
+- Fifteen tiles (image, chip, title, caption), in this order:
 
-| Image | Chip | Title | Caption | alt |
+| Image | Chip | Title | Caption | Source |
 |---|---|---|---|---|
-| **Segmentation · DDSeg** (`res-seg`, `cols-2`) | | | | |
-| res-tissue.jpg | “DDSeg · tissue” | “Tissue labels” | “White matter, grey matter and CSF, predicted from DTI features.” | DDSeg tissue labels on three planes |
-| res-tissue-axial.jpg | “DDSeg · axial slice” | “Tissue labels, axial” | “The same labels on one slice. Neurological view: the subject’s left is on the left.” | DDSeg tissue labels on one axial slice |
-| **Parcellation · DDParcel** (`res-parc`, `cols-2`) | | | | |
-| res-parcel.jpg | “DDParcel · regions” | “Brain regions” | “Anatomical regions labelled in the diffusion volume.” | DDParcel regions on three planes |
-| res-parcel-axial.jpg | “DDParcel · axial slice” | “Brain regions, axial” | “FreeSurfer colour table; cerebral white matter is drawn in grey.” | DDParcel regions on one axial slice |
-| **Cortical surfaces · DDSurfer** (`res-surf`, `cols-2`) | | | | |
-| res-white.jpg | “DDSurfer · white” | “White surface” | “Cortical surface mesh in native diffusion space.” | DDSurfer white-matter surface |
-| res-pial.jpg | “DDSurfer · pial” | “Pial surface” | “Cortical surface mesh in native diffusion space.” | DDSurfer pial surface |
-| **Microstructure · DTI, free water, NODDI, DKI, MK-Curve** (`res-micro`, `cols-4`) | | | | |
-| out-dec.jpg | “DTI · DEC” | “Direction-encoded colour” | “Principal diffusion direction weighted by FA, from the DTI fit.” | DEC map on three planes |
-| res-fa.jpg | “DTI · FA” | “Fractional anisotropy” | “Tensor fit by SlicerDMRI modules on b = 0 and 1000.” | DTI fractional anisotropy, axial slice |
-| res-md.jpg | “DTI · MD” | “Mean diffusivity” | “Same fit. 1 µm²/ms = 10^−3 mm²/s.” | DTI mean diffusivity, axial slice |
-| res-fw.jpg | “Free water · FW” | “Free-water fraction” | “DIPY free-water tensor model on b = 0, 1000 and 2000. Grey: outside the tissue validity mask.” | Free-water fraction, axial slice |
-| res-ndi.jpg | “NODDI · NDI” | “Neurite density” | “AMICO fit on two shells. Grey: outside the tissue validity mask.” | NODDI neurite density index, axial slice |
-| res-odi.jpg | “NODDI · ODI” | “Orientation dispersion” | “Same AMICO fit. Grey: outside the tissue validity mask.” | NODDI orientation dispersion index, axial slice |
-| res-mk.jpg | “DKI · MK, WLS” | “Mean kurtosis” | “DIPY kurtosis model, WLS fit. Grey: voxels outside the DKI validity mask.” | DKI mean kurtosis from the WLS fit, axial slice |
-| res-mkcurve.jpg | “MK-Curve · MK” | “Mean kurtosis, MK-Curve” | “Unofficial Python port, same data. Automatic QC did not pass: 98.7% of mask voxels are valid; the check needs all.” | Mean kurtosis after MK-Curve correction, axial slice |
-| **Tractography · DTI deterministic, UKF, CSD/ACT** (`res-tract`, `cols-3`) | | | | |
-| res-tr-dti.jpg | “Tractography · DTI” | “DTI deterministic” | “Tracking by DIPY. Shown: a display subset of 24,000 of 130,780 streamlines.” | Deterministic DTI tractography |
-| res-tr-ukf.jpg | “Tractography · UKF” | “UKF two-tensor” | “UKFTractography. Input mask without 21 voxels where the mean b = 0 signal is zero. Shown: 24,000 of 208,295.” | UKF two-tensor tractography |
-| res-tr-csd.jpg | “Tractography · CSD / ACT” | “MSMT-CSD with ACT” | “MRtrix3 iFOD2 on b = 0, 1000 and 2000; ACT tissue image from DDSeg. Shown: 24,000 of 1,000,000.” | MSMT-CSD tractography with ACT |
-| **Bundles · WMQL, TractCloud** (`res-bund`, `cols-3`) | | | | |
-| res-wmql-csd.jpg | “WMQL · on CSD / ACT” | “AF and CST, both sides” | “Author’s tract_querier, adapted ddparcel_act preset: 4 bundles, 706 streamlines. Anatomical review pending.” | WMQL arcuate and corticospinal bundles from CSD tractography |
-| res-wmql-ukf.jpg | “WMQL · on UKF” | “AF and CST, both sides” | “Same queries on the UKF tractogram: 4 bundles, 798 streamlines. Anatomical review pending.” | WMQL arcuate and corticospinal bundles from UKF tractography |
-| res-tc-dti.jpg | “TractCloud · on DTI” | “42 tracts” | “Author’s model (v1.0.0): 53,522 streamlines classified. Shown: 8,994.” | TractCloud bundles from DTI tractography |
-| res-tc-ukf.jpg | “TractCloud · on UKF” | “42 tracts” | “84,356 streamlines classified. Shown: 9,321.” | TractCloud bundles from UKF tractography |
-| res-tc-csd.jpg | “TractCloud · on CSD / ACT” | “42 tracts” | “417,180 streamlines classified. Shown: 9,886.” | TractCloud bundles from CSD tractography |
-| **Connectome · streamline count, SIFT2** (`res-conn`, `cols-2`) | | | | |
-| res-net-dti.jpg | “Connectome · DTI, count” | “Streamline count, DTI” | “84 DDParcel nodes. The 260 strongest of 854 edges are drawn; the matrix shows all 84 × 84 nodes (log scale).” | Connectome from DTI tractography: nodes, edges and matrix |
-| res-net-ukf.jpg | “Connectome · UKF, count” | “Streamline count, UKF” | “The 260 strongest of 2,689 edges are drawn.” | Connectome from UKF tractography: nodes, edges and matrix |
-| res-net-csd.jpg | “Connectome · CSD / ACT, count” | “Streamline count, CSD/ACT” | “The 260 strongest of 2,726 edges are drawn.” | Connectome from CSD tractography: nodes, edges and matrix |
-| res-net-sift2.jpg | “Connectome · CSD / ACT, SIFT2” | “SIFT2-weighted count” | “Weights from tcksift2 on the same tractogram. The 260 strongest of 2,726 edges are drawn.” | SIFT2-weighted connectome from CSD tractography |
+| out-dec.jpg | “DTI · microstructure” | “Direction-encoded colour” | “Principal diffusion direction weighted by FA, from the DTI fit.” | F9 caveats (DEC = \|e1\| × FA) |
+| res-fw.jpg | “Free water · microstructure” | “Free-water fraction” | “Free-water tensor model (DIPY) on b = 0, 1000 and 2000.” | P/film/data/gallery/index.json; QC file of the run |
+| res-ndi.jpg | “NODDI · microstructure” | “Neurite density” | “NDI from the NODDI fit (AMICO) on two shells.” | P/film/data/gallery/index.json; QC file of the run |
+| res-mk.jpg | “DKI · microstructure” | “Mean kurtosis” | “MK from the DKI fit (DIPY, WLS).” | P/film/data/gallery/index.json; QC file of the run |
+| res-mkcurve.jpg | “MK-Curve · microstructure” | “Mean kurtosis, MK-Curve” | “Unofficial Python port, same data. Automatic QC did not pass: 98.7% of mask voxels are valid; the check needs all.” | P/film/data/gallery/index.json; QC file of the run |
+| out-tissue.jpg | “DDSeg · tissue” | “Tissue labels” | “White matter, grey matter and CSF, predicted from DTI features.” | F4 (five DTI features) |
+| out-regions.jpg | “DDParcel · regions” | “Brain regions” | “Anatomical regions labelled in the diffusion volume.” | F7 (DDParcel title) |
+| out-surfaces.jpg | “DDSurfer · surfaces” | “White and pial surfaces” | “Cortical surface meshes in native diffusion space.” | F2 FACTS:13 |
+| out-tracts.jpg | “Tractography · DTI” | “Whole-brain tractography” | “Deterministic DTI tractography. Shown: a display subset of 24,000 of 130,780 streamlines.” | F9 caveats |
+| res-tr-ukf.jpg | “Tractography · UKF” | “UKF two-tensor tractography” | “UKFTractography. Shown: a display subset of 24,000 of 208,295 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
+| res-tr-csd.jpg | “Tractography · CSD/ACT” | “MSMT-CSD with ACT” | “MRtrix3 iFOD2 with ACT. Shown: 24,000 of 1,000,000 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
+| res-wmql-csd.jpg | “WMQL · bundles” | “Arcuate and corticospinal tracts” | “WMQL queries (adapted ddparcel_act preset) on the CSD/ACT tractogram: both sides, 706 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
+| res-tc-ukf.jpg | “TractCloud · bundles” | “42 white-matter tracts” | “TractCloud on the UKF tractogram: 84,356 streamlines classified; 9,321 shown.” | P/film/data/gallery/index.json; QC file of the run |
+| out-connectome.jpg | “Connectome · DDParcel nodes” | “Structural connectome” | “The 260 strongest of 854 edges are drawn; the matrix shows all 84 × 84 nodes.” | F9 caveats |
+| res-net-sift2.jpg | “Connectome · SIFT2” | “SIFT2-weighted connectome” | “From the CSD/ACT tractogram. The 260 strongest of 2,726 edges are drawn.” | P/film/data/gallery/index.json; QC file of the run |
 
-- Note in the Bundles group (small): “WMA (ORG atlas) also ran on the UKF tractogram and completed all steps (74 tracts), but failed the pipeline’s sampling check: the right arcuate fasciculus had 6 streamlines, below the minimum of 20. The pipeline withheld its products, so none is shown.” [P/runtime/subjects_ukf/sub-01/outputs/04_tractography/bundles/wma_org_atlas/ukf/wma_org_atlas_qc.json]
-- Note under the groups (small): “All runs: 3D Slicer 5.12.4 on macOS (x86_64 build under Rosetta, CPU only), outside the Linux validation. Colours, subsets, slices and upsampling are display choices; they change the look, not the data. Where a stage records an automatic QC result, it passed, except MK-Curve. No expert has reviewed these outputs.” [the QC files of each run; `microstructure/mkcurve.py:265`]
-- Counts in the captions come from `P/film/data/gallery/index.json` (tractograms, bundles, networks) and the QC files.
-  The DTI tractography caption keeps “a display subset of 24,000 of 130,780” (§7.1, check 10).
+- Note under the grid (small): “Colours, subsets and upsampling are display choices; they change the look, not the data. Automatic QC passed for the DTI, DDSeg, DDParcel and DDSurfer stages, and for every other stage shown that records it, except MK-Curve. WMA also ran on the UKF tractogram but failed the pipeline’s sampling check (right arcuate fasciculus: 6 streamlines, minimum 20), so it is not shown. No expert has reviewed these outputs.”
+  [F9: MAKING_OF:26-33, 76-78; the QC files of each run; `microstructure/mkcurve.py:265`;
+  P/runtime/subjects_ukf/sub-01/outputs/04_tractography/bundles/wma_org_atlas/ukf/wma_org_atlas_qc.json]
+- The UKF run used the film's input with 21 mask voxels removed where the mean b = 0 signal is zero (P/runtime/r2.sh).
 
 ### 5.6 Workflows (`#workflows`)
 
@@ -335,7 +319,8 @@ Two columns: text left, `idea.jpg` right.
   1. “Open SlicerDDSurfer from the module selector and choose English or Chinese.”
   2. “Enter the Subject ID, the subject root and, if you like, a separate output directory.”
   3. “Tick only the products you need.”
-  4. “In Advanced settings, set routes, dependencies and models, and check the environment.”
+  4. “Choose algorithms beside each product. Use Environment to prepare dependencies; Advanced settings contains
+     detailed analysis parameters.”
   5. “Click Run SlicerDDSurfer. Missing inputs turn red; the log says what to correct.”
   6. “Key results from successful stages load into the scene. Review QC, reload, replace or clear them in Advanced
      settings › Results and QC.”
@@ -516,10 +501,7 @@ Serves `docs/` from a local HTTP server with Range support (to match GitHub Page
 1. no console error; no failed request, except `net::ERR_ABORTED` on `media/*.mp4` (Chrome cancels and re-issues
    byte-range requests for video); no response with status ≥ 400; no request to another host;
 2. `document.documentElement.scrollWidth <= innerWidth`;
-3. the results tabs: the list is shown, 7 tabs, one group open, the first tab selected; a click on Microstructure and
-   then → selects Tractography and shows only its group; every `<img>` is `complete` with `naturalWidth > 0` after
-   each tab has been opened (each image scrolled into view) and the page scrolled through; without JS the tab list
-   is not displayed and all seven groups are shown;
+3. every `<img>` is `complete` with `naturalWidth > 0` after scrolling the page through;
 4. the video: `readyState >= 1`, `duration` 64.8 ± 0.05 s, `videoWidth` 1920; `canPlayType` for
    `video/mp4; codecs="avc1.640032, mp4a.40.2"` (High, level 5.0, as ffprobe reports) is not empty;
 5. clicking the play button starts playback (`currentTime` advances within 3 s; muted in the test only) and shows

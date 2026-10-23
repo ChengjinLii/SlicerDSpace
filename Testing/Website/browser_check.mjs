@@ -147,33 +147,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
     return;
   }
 
-  // 3. results tabs: one panel at a time, mouse and keyboard; then every tab is opened (as a reader would)
-  // so the lazy images of each hidden panel load before the image check
-  const tabs = await page.evaluate(() => {
-    const list = document.querySelector('.result-tabs');
-    const tabs = [...list.querySelectorAll('[role="tab"]')];
-    const panels = tabs.map((t) => document.getElementById(t.getAttribute('aria-controls')));
-    return { shown: !list.hidden, n: tabs.length, open: panels.filter((p) => !p.hidden).length,
-      first: tabs[0].getAttribute('aria-selected') };
-  });
-  record(tabs.shown && tabs.n === 7 && tabs.open === 1 && tabs.first === 'true',
-    `${tag}: results tabs shown, 7 tabs, one panel open`, JSON.stringify(tabs));
-  await page.click('#tab-micro');
-  await page.keyboard.press('ArrowRight');
-  const kb = await page.evaluate(() => ({ focus: document.activeElement.id,
-    open: [...document.querySelectorAll('.result-group')].filter((p) => !p.hidden).map((p) => p.id) }));
-  record(kb.focus === 'tab-tract' && kb.open.join() === 'res-tract',
-    `${tag}: click and ArrowRight switch the results panel`, JSON.stringify(kb));
-  for (const id of await page.evaluate(() => [...document.querySelectorAll('.result-tabs [role="tab"]')].map((t) => t.id))) {
-    await page.click('#' + id);
-    for (let i = 0; i < await page.locator(`#${id.replace('tab-', 'res-')} img`).count(); i++) {
-      await page.locator(`#${id.replace('tab-', 'res-')} img`).nth(i).scrollIntoViewIfNeeded();
-      await sleep(80);
-    }
-  }
-  await page.click('#tab-seg');
-
-  // 4. images
+  // 3. images
   await scrollThrough(page);
   await page.waitForFunction(() => [...document.images].every((i) => i.complete), null, { timeout: 15000 }).catch(() => {});
   const imgs = await page.evaluate(() => [...document.images].map((i) => ({
@@ -343,15 +317,10 @@ async function run404AndNoJs(browser, origin) {
   const nojs = await page.evaluate(() => {
     const v = document.getElementById('film-video');
     const hidden = [...document.querySelectorAll('.reveal')].filter((e) => getComputedStyle(e).opacity !== '1').length;
-    const groups = [...document.querySelectorAll('.result-group')];
-    return { controls: v.hasAttribute('controls'), hidden, copyShown: [...document.querySelectorAll('.copy')].some((b) => getComputedStyle(b).display !== 'none'),
-      tabsShown: getComputedStyle(document.querySelector('.result-tabs')).display !== 'none',
-      groups: groups.length, groupsShown: groups.filter((g) => g.getBoundingClientRect().height > 0).length };
+    return { controls: v.hasAttribute('controls'), hidden, copyShown: [...document.querySelectorAll('.copy')].some((b) => getComputedStyle(b).display !== 'none') };
   }).catch((e) => ({ error: String(e) }));
   record(nojs.controls === true && nojs.hidden === 0 && nojs.copyShown === false,
     'no-JS: native controls stay, all sections visible, no dead Copy buttons', JSON.stringify(nojs));
-  record(nojs.tabsShown === false && nojs.groups === 7 && nojs.groupsShown === 7,
-    'no-JS: all seven result groups shown, no dead tabs', JSON.stringify(nojs));
   await page.screenshot({ path: path.join(OUT, 'nojs-1440.png') });
   await context.close();
 
