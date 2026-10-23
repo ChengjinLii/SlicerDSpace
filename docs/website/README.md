@@ -27,19 +27,41 @@ installation instructions and are not part of the public deployment.
 
 ---
 
-## Performance Subpage
+## Performance Section
 
-The overview links to `performance.html` through a closed disclosure and a footer
-link. Existing navigation, film and contributor history are retained. The subpage
-separates equivalent implementation changes, native threads, workflow scheduling
-and Python-port controls. Each record states its reference, measurement scope,
-output-equivalence checks and limitations; no whole-workflow benefit is claimed.
+The home page holds the performance evidence in its `#performance` section: one
+closed disclosure, "Performance evidence", after the `#cite` references and the
+`#runtime` figure. A footer link and the status notes point to it. `performance.html`
+is only a redirect stub (`refresh` to `index.html#performance`, a canonical link and
+one visible link); it stays a public page. The evidence separates equivalent
+implementation changes, native threads, workflow scheduling and Python-port controls.
+Each record states its reference, measurement scope, output-equivalence checks and
+limitations; no whole-workflow benefit is claimed.
 
 `python3 scripts/build_performance_site.py` exports selected benchmark records and
-renders their tables. `--check` verifies source hashes and detects stale HTML/JSON.
-Only the curated `assets/data/performance.json` is public. Raw runtime snapshots,
-private filesystem paths, subject data and internal reports are not copied into
-the site. The new files and generator are excluded from the extension runtime.
+renders their tables into `index.html`, between the `measured-evidence` markers.
+`--check` verifies source hashes and detects stale HTML/JSON. Only the curated
+`assets/data/performance.json` is public. Raw runtime snapshots, private filesystem
+paths, subject data and internal reports are not copied into the site. The new files
+and generator are excluded from the extension runtime.
+
+---
+
+## Figures, Status Table And References
+
+- `assets/img/fig-route-guide.png` (section `#choose`) and
+  `assets/img/fig-runtime-resources.png` (section `#runtime`) are rasterised from the
+  editable SVG sources in `docs/figures/`, which are not published. See
+  [`docs/figures/README.md`](../figures/README.md) to rebuild them. Each `<img>` carries
+  the pixel size of its file and links to the full-size file.
+- The "What is integrated" table in `#workflows` states, for each method, how it is
+  integrated and its status: "Supported (Linux test subjects)", "Partial" with one
+  reason, or "Needs <tool>". It must not claim more than the code and the dated Linux
+  records show. UKF, SAF, MK-Curve (MATLAB), WMQL on sparse input, WMA and TractCloud
+  on CSD input, and scalar or length connectome weights are marked partial.
+- `#cite` holds the software papers [1] to [3] and a numbered reference list [4] to
+  [35]. Use only entries whose DOI or page was checked. Add every new external URL to
+  `ALLOWED_URLS` in `Testing/Website/check_site.py`.
 
 ---
 

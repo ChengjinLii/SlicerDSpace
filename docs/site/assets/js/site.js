@@ -181,12 +181,46 @@
     });
   }
 
+  /* ---------- Open the performance evidence for #performance, and any closed
+     <details> that holds the target of a hash ---------- */
+  function openForId(id) {
+    if (!id) { return; }
+    var target = document.getElementById(id);
+    if (!target) { return; }
+    var opened = false;
+    if (id === 'performance') {
+      var evidence = document.getElementById('performance-evidence');
+      if (evidence && !evidence.open) { evidence.open = true; opened = true; }
+    }
+    var parent = target.parentElement ? target.parentElement.closest('details') : null;
+    while (parent) {
+      if (!parent.open) { parent.open = true; opened = true; }
+      parent = parent.parentElement ? parent.parentElement.closest('details') : null;
+    }
+    if (opened && id !== 'performance' && target.scrollIntoView) { target.scrollIntoView(); }
+  }
+
+  function hashId() {
+    try { return decodeURIComponent((location.hash || '').slice(1)); } catch (err) { return ''; }
+  }
+
+  function initHashOpen() {
+    openForId(hashId());
+    window.addEventListener('hashchange', function () { openForId(hashId()); });
+    /* A link to the hash that is already in the address bar fires no hashchange. */
+    document.addEventListener('click', function (e) {
+      var link = e.target.closest ? e.target.closest('a[href^="#"]') : null;
+      if (link && link.getAttribute('href').length > 1) { openForId(link.getAttribute('href').slice(1)); }
+    });
+  }
+
   function init() {
     initReveal();
     initMenu();
     initScrollSpy();
     initFilm();
     initCopy();
+    initHashOpen();
   }
 
   if (document.readyState === 'loading') {

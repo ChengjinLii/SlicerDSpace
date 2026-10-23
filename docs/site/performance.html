@@ -3,96 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Measured performance | SlicerDDSurfer</title>
-<meta name="description" content="Scoped performance measurements, equivalent computational implementations and verification limits for SlicerDDSurfer.">
+<title>Performance evidence moved | SlicerDDSurfer</title>
+<meta name="description" content="The performance evidence is now a section of the SlicerDDSurfer project page.">
+<meta name="robots" content="noindex">
 <meta name="theme-color" content="#06080b">
 <meta name="color-scheme" content="dark">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Measured performance | SlicerDDSurfer">
-<meta property="og:description" content="What changed, what was measured, and what stays the same.">
-<meta property="og:url" content="https://chengjinlii.github.io/SlicerDDSurfer/performance.html">
-<meta property="og:image" content="https://chengjinlii.github.io/SlicerDDSurfer/assets/img/social.jpg">
-<link rel="canonical" href="https://chengjinlii.github.io/SlicerDDSurfer/performance.html">
+<meta http-equiv="refresh" content="0; url=index.html#performance">
+<link rel="canonical" href="https://chengjinlii.github.io/SlicerDDSurfer/">
 <link rel="icon" type="image/png" href="assets/img/icon-64.png">
-<link rel="preload" href="assets/fonts/InterTight.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/css/site.css">
-<link rel="stylesheet" href="assets/css/performance.css">
-<script>document.documentElement.classList.add('js');</script>
-<script src="assets/js/site.js" defer></script>
-<script src="assets/js/performance.js" defer></script>
 </head>
-<body class="performance-page">
-<a class="skip-link" href="#main">Skip to content</a>
-<header class="site-header" id="site-header">
-  <div class="header-inner">
-    <a class="brand" href="index.html" aria-label="SlicerDDSurfer overview">
-      <img src="assets/img/icon-64.png" alt="SlicerDDSurfer icon" width="28" height="28" loading="lazy">
-      <span>SlicerDDSurfer</span>
-    </a>
-    <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></button>
-    <nav class="site-nav" id="site-nav" aria-label="Performance sections">
-      <ul><li><a href="index.html">Overview</a></li><li><a href="#measurements">Measurements</a></li><li><a href="#principles">Principles</a></li><li><a href="#limits">Limits</a></li></ul>
-      <span class="chip chip-status"><span class="dot" aria-hidden="true"></span>Private pre-release</span>
-    </nav>
-  </div>
-</header>
+<body>
 <main id="main">
-  <section class="perf-hero" id="top">
+  <section class="section">
     <div class="container">
-      <p class="perf-breadcrumb"><a href="index.html">Project overview</a><span aria-hidden="true"> / </span>Engineering notes</p>
-      <p class="eyebrow">Performance / evidence, not promises</p>
-      <h1>Same methods.<br><span>Less overhead.</span></h1>
-      <p class="lead">Remove repeated work, preserve the computation, and measure at the boundary that was actually tested.</p>
-      <div class="perf-intro-line"><p>Reviewed 22 October 2026</p><a href="assets/data/performance.json" download>Download measurement data (JSON)</a></div>
-      <p class="perf-disclaimer">No whole-workflow speedup has been established. Output equivalence is not anatomical validation or an increase in predictive validity.</p>
-      <p class="perf-disclaimer">Upstream versions rechecked on 22 October: DIPY 1.12.1, AMICO 2.1.1 and SciPy 1.18.1. Each method record distinguishes current-source checks, older timings and capabilities already provided upstream.</p>
-    </div>
-  </section>
-  <section class="section perf-section" id="measurements">
-    <div class="container">
-      <div class="perf-section-heading"><div><p class="eyebrow">01 / measured work</p><h2>Time, with context.</h2></div><p>Full-model calls, small regions and isolated operations are different experiments. They stay separate here.</p></div>
-      <div class="perf-filters" hidden role="group" aria-label="Filter measurement types">
-        <button type="button" data-perf-filter="all" aria-pressed="true">All evidence</button>
-        <button type="button" data-perf-filter="implementation" aria-pressed="false">Same-method implementation</button>
-        <button type="button" data-perf-filter="integration" aria-pressed="false">Existing upstream capability</button>
-        <button type="button" data-perf-filter="parallel,workflow" aria-pressed="false">Threads &amp; scheduling</button>
-        <button type="button" data-perf-filter="port" aria-pressed="false">Python-port comparison</button>
-        <span id="perf-count" aria-live="polite"></span>
-      </div>
-      <!-- measured-evidence:start -->
-<div class="perf-chart-grid"><figure class="perf-chart" data-category="implementation"><figcaption><span class="perf-kind implementation">Full brain / implementation</span><h3>Free-water WLS</h3></figcaption><div class="perf-bar-row"><span>Reference</span><div class="perf-track"><span class="perf-bar reference" style="--extent:100%"></span></div><strong>15.24 min</strong></div><div class="perf-bar-row"><span>Optimized</span><div class="perf-track"><span class="perf-bar" style="--extent:84.1349%"></span></div><strong>12.82 min</strong></div><p class="perf-chart-note">15.87% less time in this measured call. Output equivalence checked; one shared-host pair.</p></figure><figure class="perf-chart" data-category="implementation"><figcaption><span class="perf-kind implementation">Complete module / implementation</span><h3>WMA registration &amp; classification</h3></figcaption><div class="perf-bar-row"><span>Reference</span><div class="perf-track"><span class="perf-bar reference" style="--extent:100%"></span></div><strong>102.10 min</strong></div><div class="perf-bar-row"><span>Optimized</span><div class="perf-track"><span class="perf-bar" style="--extent:72.6882%"></span></div><strong>74.22 min</strong></div><p class="perf-chart-note">27.31% less time in this measured call. Output equivalence checked; one shared-host pair.</p></figure></div>
-<div class="perf-table-wrap" tabindex="0" role="region" aria-label="Measured performance comparisons, scroll horizontally on small screens"><table class="perf-table"><caption>Different models and scopes are not ranked against each other. Ratios are reference time divided by optimized time.</caption><thead><tr><th scope="col">Computation / scope</th><th scope="col">Type of change</th><th scope="col">Reference</th><th scope="col">Optimized</th><th scope="col">Measured ratio</th></tr></thead><tbody><tr data-category="implementation"><th scope="row"><a href="#method-freewater">Free-water WLS</a><small>Full brain / record 2026-10-22</small></th><td><span class="perf-kind implementation">Same-method implementation</span></td><td>15.24 min</td><td>12.82 min</td><td>1.19x<small>15.87% less time</small></td></tr><tr data-category="implementation"><th scope="row"><a href="#method-wma">WMA registration &amp; classification</a><small>Complete module / record 2026-10-20</small></th><td><span class="perf-kind implementation">Same-method implementation</span></td><td>102.10 min</td><td>74.22 min</td><td>1.38x<small>27.31% less time</small></td></tr><tr data-category="parallel"><th scope="row"><a href="#method-noddi">NODDI / AMICO</a><small>Full brain / record 2026-10-20</small></th><td><span class="perf-kind parallel">Native threads</span></td><td>29.15 min</td><td>5.19 min</td><td>5.61x<small>82.19% less time</small></td></tr><tr data-category="port"><th scope="row"><a href="#method-mkcurve">MK-Curve QR / Python port</a><small>64-voxel numeric chunk / record 2026-10-22</small></th><td><span class="perf-kind port">Python-port computation</span></td><td>1.73 s</td><td>1.09 s</td><td>1.58x<small>36.70% less time</small></td></tr><tr data-category="integration"><th scope="row"><a href="#method-dki">DKI WLS metrics</a><small>Native 24-cubed ROI / record 2026-10-22</small></th><td><span class="perf-kind integration">Existing upstream capability</span></td><td>37.11 s</td><td>11.47 s</td><td>3.24x<small>69.09% less time</small></td></tr><tr data-category="workflow"><th scope="row"><a href="#method-scheduling">Independent FW + DKI jobs</a><small>Native 24-cubed ROI / record 2026-10-20</small></th><td><span class="perf-kind workflow">Workflow scheduling</span></td><td>43.95 s</td><td>24.63 s</td><td>1.78x<small>43.96% less time</small></td></tr><tr data-category="implementation"><th scope="row"><a href="#method-wma-filter">WMA atlas length filtering</a><small>Single substage / record 2026-10-20</small></th><td><span class="perf-kind implementation">Same-method implementation</span></td><td>134.29 s</td><td>2.48 s</td><td>54.06x<small>98.15% less time</small></td></tr></tbody></table></div>
-<p class="note">Only Free-water and WMA are highlighted above; NODDI multithreading, Python-port comparisons and integration of existing DIPY array metrics are deliberately labeled separately. No timing here establishes higher anatomical validity.</p>
-<div class="perf-methods"><h3>Methods &amp; verification</h3><p class="muted">Open a record for the reference implementation, changes, checks and limits.</p><details class="perf-method" data-category="implementation" id="method-freewater"><summary><span>Free-water WLS</span><span class="perf-scope">Full brain</span></summary><div class="perf-method-body"><dl><dt>Upstream check</dt><dd>Measured DIPY 1.12.1; latest stable at review: 1.12.1. Current stable-release full-brain pair.</dd><dt>What changed</dt><dd>Diagonal-free weight multiplication and source-qualified direct tensor-helper calls remove repeated allocation and compatibility checks.</dd><dt>Reference</dt><dd>Original installed DIPY WLS, not an earlier plugin. One numerical thread in both paths.</dd><dt>Equivalence</dt><dd>All 13 raw fit parameters, four maps/masks, affines, dtypes and automatic QC match. The same 116935 voxels remain excluded.</dd><dt>Measured scope</dt><dd>740916 mask voxels; 288 measurements; automatic QC passes, anatomical review pending.</dd><dt>Limits</dt><dd>One subject, one pair on a shared Linux host; optimized first. OS caches were not flushed. Both calls include raw-parameter evidence export.</dd></dl></div></details><details class="perf-method" data-category="implementation" id="method-wma"><summary><span>WMA registration &amp; classification</span><span class="perf-scope">Complete module</span></summary><div class="perf-method-body"><dl><dt>Upstream check</dt><dd>Author commit 4532b911386d: matches current HEAD and measured source bytes.</dd><dt>What changed</dt><dd>Bulk geometry copying and verified registration-input reuse reduce repeated Python/VTK traversal and preparation.</dd><dt>Reference</dt><dd>Original-author processing versus equivalent bulk/cache implementation, with identical UKF input and atlas.</dd><dt>Equivalence</dt><dd>All 74 anatomical-tract output files are byte-identical; source inputs and author code are unchanged.</dd><dt>Measured scope</dt><dd>Full registration and 74-tract output; no streamline downsampling introduced for timing.</dd><dt>Limits</dt><dd>One full-module pair on a shared Linux host. Matching files do not certify small-bundle sampling or anatomical validity. Later transform optimizations are not measured by this pair.</dd></dl></div></details><details class="perf-method" data-category="parallel" id="method-noddi"><summary><span>NODDI / AMICO</span><span class="perf-scope">Full brain</span></summary><div class="perf-method-body"><dl><dt>Upstream check</dt><dd>AMICO 2.1.1 verified in both timed configurations; latest stable at review. Threads are already upstream functionality.</dd><dt>What changed</dt><dd>Use AMICO&#x27;s existing native multithreading: one thread versus eight.</dd><dt>Reference</dt><dd>The same author implementation and model settings. This is a thread-configuration comparison, not a new algorithm.</dd><dt>Equivalence</dt><dd>NDI, ODI, IsoVF, RMSE, NRMSE and the tissue-validity mask match voxelwise, including affines.</dd><dt>Measured scope</dt><dd>Original 740916-voxel brain mask; fresh output directories.</dd><dt>Limits</dt><dd>One shared-host pair. Hardware-specific multithreading benefit; not a universal speed or whole-workflow guarantee.</dd></dl></div></details><details class="perf-method" data-category="port" id="method-mkcurve"><summary><span>MK-Curve QR / Python port</span><span class="perf-scope">64-voxel numeric chunk</span></summary><div class="perf-method-body"><dl><dt>Upstream check</dt><dd>Current MATLAB reference 9a213e1a5850; measured on current stable SciPy 1.18.1. This port-only comparison does not claim to outperform MATLAB or invent upstream native batching.</dd><dt>What changed</dt><dd>Reuse protocol/design checks and LAPACK workspace sizes while keeping the same pivoted QR and full b0 grid.</dd><dt>Reference</dt><dd>Current SciPy 1.18.1 public gelsy solver versus qualified direct-driver/cache use in the same Python port. NOT original MATLAB versus Python.</dd><dt>Equivalence</dt><dd>Raw coefficients, full curves, every map and validity decision match in all three subjects; both reference and batched solvers checked.</dd><dt>Measured scope</dt><dd>Three real 64-voxel chunks; 181 measurements; complete 200-201 point b0 grids; one numerical thread.</dd><dt>Limits</dt><dd>Table shows subject 100206 default-QR medians, three alternating repeats after warmup. Numeric chunks exclude input preparation and file export; not whole ROI or full brain. SciPy already supplies native batching.</dd></dl></div></details><details class="perf-method" data-category="integration" id="method-dki"><summary><span>DKI WLS metrics</span><span class="perf-scope">Native 24-cubed ROI</span></summary><div class="perf-method-body"><dl><dt>Upstream check</dt><dd>DIPY 1.12.1 is current stable at review. Array metrics already exist upstream; this is plugin integration, not an author-algorithm speedup.</dd><dt>What changed</dt><dd>Evaluate the author&#x27;s existing array-capable kurtosis metrics once per block, avoiding repeated per-voxel result wrappers.</dd><dt>Reference</dt><dd>Previous plugin per-voxel integration versus existing DIPY array usage. No improvement over the author&#x27;s native vectorized API is claimed.</dd><dt>Equivalence</dt><dd>All exported voxel arrays and affines match in three subjects, with three alternating repeats each.</dd><dt>Measured scope</dt><dd>Three subjects; three repeats per path; native-grid ROI, no resampling; DIPY 1.12.1 with SciPy 1.18.1.</dd><dt>Limits</dt><dd>Table shows subject 100307 medians. This adopts existing native DIPY functionality, not a new upstream algorithm improvement. No completed full-brain DKI pair; do not scale ROI times to whole brain.</dd></dl></div></details><details class="perf-method" data-category="workflow" id="method-scheduling"><summary><span>Independent FW + DKI jobs</span><span class="perf-scope">Native 24-cubed ROI</span></summary><div class="perf-method-body"><dl><dt>Upstream check</dt><dd>Historical plugin scheduler comparison, not a latest-upstream algorithm performance claim.</dd><dt>What changed</dt><dd>Overlap independent model subprocesses after their shared inputs are ready; preserve downstream dependencies.</dd><dt>Reference</dt><dd>The same model computations, serial scheduling versus two concurrent workers.</dd><dt>Equivalence</dt><dd>All exported scalar and mask arrays match. Process startup is included.</dd><dt>Measured scope</dt><dd>Two independent models; CPU/memory-constrained scheduling; not full-brain timing.</dd><dt>Limits</dt><dd>One ROI pair. This reduces schedule wall time, not the cost of an individual scientific model. Default model concurrency remains one; memory/CPU budgets may prevent overlap.</dd></dl></div></details><details class="perf-method" data-category="implementation" id="method-wma-filter"><summary><span>WMA atlas length filtering</span><span class="perf-scope">Single substage</span></summary><div class="perf-method-body"><dl><dt>Upstream check</dt><dd>Same immutable current WMA source audit as the full-module record.</dd><dt>What changed</dt><dd>Replace per-point Python geometry copying with equivalent bulk coordinate/topology operations.</dd><dt>Reference</dt><dd>Unmodified author filter on the full 1989106-streamline registration atlas.</dd><dt>Equivalence</dt><dd>Output coordinates/topology and fixed-seed samples match exactly.</dd><dt>Measured scope</dt><dd>Full registration-atlas length-filter substage only.</dd><dt>Limits</dt><dd>One full-atlas substage pair, not complete WMA. The large local ratio must not be multiplied by or added to the full WMA result.</dd></dl></div></details></div>
-<!-- measured-evidence:end -->
-    </div>
-  </section>
-  <section class="section section-alt perf-section" id="principles">
-    <div class="container">
-      <div class="perf-section-heading"><div><p class="eyebrow">02 / what the numbers mean</p><h2>Four different levers.</h2></div><p>A larger ratio does not make two experiments comparable.</p></div>
-      <div class="perf-principles">
-        <article><span class="perf-kind implementation">Implementation</span><h3>Do the same work once.</h3><p>Batch equivalent array and geometry operations. Keep the estimator, initialization, solver, precision and QC thresholds unchanged. DKI array metrics already exist in DIPY: adopting them is integration, not outperforming the author's native API.</p></article>
-        <article><span class="perf-kind parallel">Native threads</span><h3>Use existing compute capacity.</h3><p>AMICO already supports multithreading. Configuring that capability is useful, but it is not a new NODDI algorithm. Thread budgets and hardware are part of the measurement.</p></article>
-        <article><span class="perf-kind workflow">Scheduling</span><h3>Overlap independent jobs.</h3><p>FW, NODDI and DKI can run in separate processes after their inputs are ready. Dependencies still apply; CPU and memory budgets may limit overlap. Default concurrency is one.</p></article>
-        <article><span class="perf-kind port">Python-port control</span><h3>Name the real reference.</h3><p>MK-Curve port improvements are compared with earlier Python computation, not author MATLAB. A language port and an original-author runtime comparison are different claims.</p></article>
-      </div>
-    </div>
-  </section>
-  <section class="section perf-section" id="limits">
-    <div class="container perf-limits">
-      <div><p class="eyebrow">03 / still open</p><h2>The boundary of the evidence.</h2><p>These measurements describe specific Linux inputs and settings. They are not a substitute for independent scientific review.</p><a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/release/PERFORMANCE_OPTIMIZATIONS.md" target="_blank" rel="noopener">Read the complete optimization report</a><p class="small muted">Repository links require access while the code repository is private. The JSON above is a deliberately limited public summary, not a bundle of private logs or subject data.</p></div>
-      <ul class="perf-open-items">
-        <li><strong>Whole workflow</strong><span>No matched old/new end-to-end percentage. Do not add savings or multiply ratios from overlapping stages.</span></li>
-        <li><strong>Generalization</strong><span>Repeat complete-module pairs across more subjects and hardware. Single pairs have no confidence interval.</span></li>
-        <li><strong>Long-task coverage</strong><span>A completed full-brain DKI pair, later default-QR MK-Curve timing and matched CSD/ACT/SIFT2 comparison remain open.</span></li>
-        <li><strong>Other methods</strong><span>No matched original-author runtime improvement is claimed for DDSeg, DDParcel, SAF, UKF or TractCloud. Shared DDSurfer surface mapping is attributed to upstream, not presented as a new plugin algorithm.</span></li>
-        <li><strong>Validity and platforms</strong><span>WMA small-bundle sampling and invalid fit voxels still require their own review. Native Windows/macOS scientific timing is not certified.</span></li>
-        <li><strong>Next experiment</strong><span>A local persistent-model worker could reuse weights across subjects. It is proposed, not implemented or benchmarked; no benefit is claimed.</span></li>
-      </ul>
+      <p class="eyebrow">Moved</p>
+      <h1>The performance evidence is on the project page.</h1>
+      <p class="intro">This page has moved. You are being sent to the performance section.</p>
+      <p><a class="btn btn-primary" href="index.html#performance">Go to the performance evidence</a></p>
     </div>
   </section>
 </main>
-<footer class="site-footer"><div class="container"><div class="foot-bottom"><p>Research software. Static site: no cookies, no trackers, no third-party requests.</p><a href="index.html">Back to project overview</a></div></div></footer>
 </body>
 </html>

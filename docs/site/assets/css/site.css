@@ -956,6 +956,51 @@ figcaption {
   .input-card .code-block { font-size: 12px; }
 }
 
+/* ---------- Figures (route guide, run times) ---------- */
+.fig a { display: block; border-radius: 8px; }
+.fig img { height: auto; }
+
+/* ---------- Integration table ---------- */
+.integration { margin-top: 56px; }
+.integration > h3 { font-size: clamp(24px, 3vw, 34px); margin-bottom: 10px; }
+.integration > p { max-width: 44em; font-size: 15px; margin-bottom: 24px; }
+.table-wrap { overflow-x: auto; width: 100%; border-top: 1px solid var(--line-2); }
+.int-table { width: 100%; border-collapse: collapse; min-width: 980px; font-size: 14px; }
+.int-table caption { caption-side: bottom; text-align: left; font-size: 12.5px; color: var(--muted); padding: 16px 0; }
+.int-table th, .int-table td { text-align: left; padding: 14px 12px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.5; }
+.int-table thead th { font: 400 11px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 14px; padding-bottom: 14px; }
+.int-table th:first-child, .int-table td:first-child { padding-left: 0; }
+.int-table tbody th { font: 400 12px var(--f-mono); color: var(--muted); white-space: nowrap; }
+.int-table td:nth-child(2) { font-weight: 500; min-width: 170px; }
+.int-table td:nth-child(3) { min-width: 300px; }
+.st-cell { min-width: 230px; }
+.st { display: block; }
+.st + .st { margin-top: 6px; }
+.st-ok { color: var(--text); }
+.st-partial { color: var(--orange); }
+.st-needs { color: var(--muted); font-size: 13px; }
+.ref-cell { white-space: nowrap; font-family: var(--f-mono); font-size: 12.5px; }
+.ref-cell a { display: inline-block; }
+
+/* ---------- References ---------- */
+.references { margin-top: 56px; }
+.references > h3 { font-size: clamp(24px, 3vw, 34px); margin-bottom: 10px; }
+.references > p { max-width: 44em; font-size: 15px; margin-bottom: 8px; }
+.ref-group-title { margin: 32px 0 6px; font-family: var(--f-mono); font-weight: 500; font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ref-list { list-style: none; margin: 0; padding: 0; }
+.ref-list li { display: flex; gap: 14px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14.5px; line-height: 1.55; }
+.ref-list li:target { background: rgba(91, 140, 255, .08); }
+.ref-n { flex: none; width: 3em; font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); padding-top: 1px; }
+.ref-text { min-width: 0; overflow-wrap: anywhere; }
+.ref-list .doi { white-space: normal; }
+.paper .chip-q[id] { scroll-margin-top: 90px; }
+.ref-list li, .integration, .references { scroll-margin-top: 90px; }
+
+@media (max-width: 560px) {
+  .ref-list li { gap: 8px; }
+  .ref-n { width: 2.6em; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }

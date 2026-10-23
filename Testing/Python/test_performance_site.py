@@ -30,8 +30,11 @@ class PerformanceSiteTests(unittest.TestCase):
         serialized = json.dumps(evidence)
         for private in ('/data/', '/home/', '/Users/', '/Volumes/', 'snapshot_hashes', 'source_path'):
             self.assertNotIn(private, serialized)
-        page = (ROOT / 'docs/site/performance.html').read_text()
+        page = (ROOT / 'docs/site/index.html').read_text()
         self.assertIn(render(evidence), page)
+        stub = (ROOT / 'docs/site/performance.html').read_text()
+        self.assertIn('url=index.html#performance', stub)
+        self.assertNotIn('perf-table', stub)
 
     def test_unverified_full_brain_result_is_not_publishable(self):
         with tempfile.TemporaryDirectory() as tmp:

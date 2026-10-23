@@ -24,15 +24,32 @@
 
 ---
 
-## 性能子页
+## 性能部分
 
-主页通过默认关闭的折叠入口及页脚链接进入 `performance.html`，保留原有导航、影片和贡献历史。
-子页分别展示等价计算实现、原生多线程、工作流调度及 Python 移植版对照，注明基线、
+性能证据已并入主页的 `#performance` 部分：位于 `#cite` 参考文献和 `#runtime` 图之后，是一个
+默认关闭的折叠块“Performance evidence”。页脚链接和状态说明都指向它。`performance.html`
+只是跳转页（`refresh` 到 `index.html#performance`，带 canonical 链接和一个可见链接），仍属公开页面。
+证据分别展示等价计算实现、原生多线程、工作流调度及 Python 移植版对照，注明基线、
 测量范围、输出一致性和限制，不宣称整条工作流的加速率。
 
-`python3 scripts/build_performance_site.py` 从既有证据生成表格和精简数据；`--check`
-核对来源哈希并拦截过期 HTML／JSON。只有筛选后的 `assets/data/performance.json`
-进入公开网站，不复制原始快照、私有文件路径、被试数据或内部报告；网页与生成工具不进入插件运行包。
+`python3 scripts/build_performance_site.py` 从既有证据生成表格，写入 `index.html` 中
+`measured-evidence` 标记之间；`--check` 核对来源哈希并拦截过期 HTML／JSON。只有筛选后的
+`assets/data/performance.json` 进入公开网站，不复制原始快照、私有文件路径、被试数据或内部报告；
+网页与生成工具不进入插件运行包。
+
+---
+
+## 图、状态表与参考文献
+
+- `assets/img/fig-route-guide.png`（`#choose`）和 `assets/img/fig-runtime-resources.png`（`#runtime`）
+  由 `docs/figures/` 中可编辑的 SVG 生成，SVG 不公开发布，重建方法见 `docs/figures/README.md`。
+  每个 `<img>` 的宽高与文件像素一致，并链接到原图。
+- `#workflows` 中的“What is integrated”表逐项说明接入方式和状态：“Supported (Linux test subjects)”、
+  带一条原因的“Partial”，或“Needs <工具>”。表中不得超出代码和 Linux 日期记录所能证明的范围。
+  UKF、SAF、MK-Curve（MATLAB）、稀疏输入上的 WMQL、CSD 输入上的 WMA 和 TractCloud、
+  以及标量／长度连接组权重均标为 partial。
+- `#cite` 含软件论文 [1]–[3] 和编号参考文献 [4]–[35]。只收已核对 DOI 或页面的条目。
+  新增外部链接须同步加入 `Testing/Website/check_site.py` 的 `ALLOWED_URLS`。
 
 ---
 

@@ -1,15 +1,20 @@
 # SlicerDDSurfer project site: spec v2
 
-Integration addendum, 22 October 2026: the historical one-page design below is
-retained for the overview. An approved `performance.html` subpage now presents
-selected measured evidence, reached through a closed homepage disclosure and
-footer link. It reuses the existing design and local fonts; no extra runtime
-service is required. `assets/data/performance.json` is the only allowlisted
-public data export. Tables are generated from verified benchmark records;
-methods are collapsed by default. Full-module/ROI/substage scopes and
-implementation/thread/scheduling/Python-port categories must stay distinct.
-The independent measurements do not change the film's claims or provenance.
-See [README.md](README.md#performance-subpage) for current generation and checks.
+Integration addendum, 22 October 2026 (revised 23 October 2026): the historical one-page design below is
+retained for the overview. Measured performance evidence is now a section of the home page, `#performance`, reached
+through one closed `<details>` ("Performance evidence"). It sits at the end of the page, after `#cite` and the visible
+`#runtime` figure section, and opens by script when the URL hash is `#performance`. `performance.html` is only a stub:
+a `refresh` to `index.html#performance`, a canonical link and one visible link. The section reuses the existing design
+and local fonts; no extra runtime service is required. `assets/data/performance.json` is the only allowlisted public
+data export. Tables are generated from verified benchmark records into `index.html` (between the
+`measured-evidence` markers); methods are collapsed by default. Full-module/ROI/substage scopes and
+implementation/thread/scheduling/Python-port categories must stay distinct. The independent measurements do not change
+the film's claims or provenance. See [README.md](README.md#performance-section) for current generation and checks.
+
+Addendum, 23 October 2026: the home page also has a "What is integrated" status table (in `#workflows`), a route
+guide figure (`#choose`), a run-time figure (`#runtime`) and a numbered reference list (`#cite`). §5.6 and §5.10
+below describe them. The status table and the references use only the code-backed facts and the verified entries
+recorded in the maintainers' review notes; a row never claims more than those notes.
 
 Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
 below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`.
@@ -46,11 +51,15 @@ docs/.nojekyll
 docs/index.html
 docs/404.html             small page, same header/footer style, link home
 docs/assets/css/site.css
+docs/assets/css/performance.css   styles of the performance evidence inside `#performance`
 docs/assets/js/site.js
+docs/assets/js/performance.js     filters and method links of the performance evidence
+docs/performance.html             stub: refresh to index.html#performance, canonical link, one visible link
 docs/assets/fonts/        InterTight, Inter, IBMPlexMono as .woff2 (Latin subset) + the three OFL .txt files
 docs/assets/img/          icon-64.png, icon-180.png (from R/Resources/Icons/SlicerDDSurfer.png), poster.jpg,
                           social.jpg, idea.jpg, out-dec.jpg, out-tissue.jpg, out-regions.jpg, out-surfaces.jpg,
-                          out-tracts.jpg, out-connectome.jpg, slicer.jpg
+                          out-tracts.jpg, out-connectome.jpg, slicer.jpg, fig-route-guide.png, fig-runtime-resources.png
+                          (the two figures are rasterised from `docs/figures/*.svg`, which is not served)
 docs/media/SlicerDDSurfer_promo_1080p.mp4   copy of P/out/SlicerDDSurfer_promo_1080p.mp4 (41,070,370 bytes)
 docs/media/SlicerDDSurfer.en.srt            copy of P/out/SlicerDDSurfer.en.srt
 ```
@@ -230,14 +239,37 @@ Two columns: text left, `idea.jpg` right.
      “Matching model assets, PyTorch and SlicerDMRI for the selected route”.
   3. “Microstructural analysis” — “DTI FA/MD/AD/RD, optional Free-water, NODDI and DKI, regional summaries” —
      “Route-specific packages and acquisition suitability checks”.
-  4. “White-matter pathways” — “DTI/CSD tractography, ACT/SIFT2, SAF, WMQL/WMA/TractCloud bundles” —
+  4. “White-matter pathways” — “DTI/CSD tractography, ACT/SIFT2, partial UKF and SAF routes, WMQL/WMA/TractCloud bundles” —
      “Backend-specific tools and assets”.
-  5. “Structural connectivity” — “Regional matrices, Slicer scene inspection, QC and provenance” — “Compatible
-     parcellation and tractogram; SIFT2 weights for weighted routes”.
+  5. “Structural connectivity” — “Regional matrices (streamline count; SIFT2-weighted for CSD/ACT), Slicer scene
+     inspection, QC and provenance” — “Compatible parcellation and tractogram; SIFT2 weights for the weighted matrix.
+     Scalar and length weights are Python API only”.
+  (Cards 4 and 5 differ from the README table on purpose: UKF and SAF are partial, and the GUI and CLI reach only the
+  streamline-count and SIFT2-weighted matrices.)
 - Note row (three short items with a small icon or chip each) [F3]:
   - “Microstructure runs DTI only by default. Free-water, NODDI and DKI are each enabled independently under Advanced.”
   - “MRtrix3, FSL, FreeSurfer and advanced bundle backends are optional and are not installed silently.”
   - “A missing backend is reported, never silently replaced.”
+
+#### 5.6.1 What is integrated (inside `#workflows`, after the note row)
+
+- H3 “What is integrated”, then a table in a scroll wrapper (`.table-wrap`, `tabindex="0"`, `role="region"`; the table
+  has `min-width: 980px`, so it scrolls inside the wrapper on small screens and the page never scrolls sideways).
+- Columns: Stage · Method · How it is integrated · Status · Reference [n]. One row per method, 26 rows.
+- Status values: “Supported (Linux test subjects)”; “Partial: <one-line reason>”; “Needs <tool>” as a second line where
+  an external tool is required (FreeSurfer, MATLAB, MRtrix3, FSL, dcm2niix or DWIConvert, UKF extension). A row that is
+  both partial and tool-dependent shows both lines; Partial is never dropped.
+- Partial rows: MK-Curve (MATLAB reference), UKF two-tensor, SAF, WMQL on sparse input, WMA on CSD input, TractCloud on
+  CSD input, scalar and length connectome weights (Python API only).
+- Reference cells link to `#ref-<n>` in the reference list (§5.10).
+
+### 5.6a Which route when (`#choose`, after `#workflows`)
+
+- Eyebrow “Choosing routes”, H2 “Which route when.”, then `fig-route-guide.png` in a panel, wrapped in a link
+  to the full-size file (`target="_blank" rel="noopener"`), with `width`, `height`, `loading="lazy"`, `decoding="async"`.
+- Caption: a guide to choosing routes, built from the coded gates and documented dependencies; it shows which methods
+  each acquisition and input allows, and three example choices; the rules come from the planner and method code; status
+  is recorded for Linux test subjects. The caption must not say that a single-shell scan can use CSD/ACT.
 
 ### 5.7 In Slicer (`#slicer`)
 
@@ -314,25 +346,41 @@ Two columns: text left, `idea.jpg` right.
   “Support matrix” → `docs/setup/SUPPORT_MATRIX.md`, “Model asset terms” → `docs/assets/MODEL_ASSET_TERMS.md`,
   “Repository” → repo root. All under `https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/` (root: the repo URL).
 
-### 5.10 Cite (`#cite`)
+### 5.10 Cite and references (`#cite`)
 
-- Eyebrow: “Cite”.
-- H2: “Cite the software and the methods you use.”
+- Eyebrow “Cite”, H2 “Cite the software and the methods you use.”
 - Text: “The SlicerDDSurfer protocol manuscript is in preparation. Cite the tested software version using
   CITATION.cff, together with the methods actually used.” Link “CITATION.cff” → repo `blob/main/CITATION.cff`. [F7]
-- Three paper cards (authors, title, journal, year, DOI link), exactly as CITATION.cff [F7]:
-  1. DDSurfer — “Chengjin Li, Wei Zhang, Xi Zhu, Yuqian Chen, Nir A. Sochen, Jarrett Rushmore, Carl-Fredrik Westin,
-     Yogesh Rathi, Lauren J. O’Donnell, Ofer Pasternak, Fan Zhang.” “DDSurfer: A Weakly-Supervised Dual-Stream Deep
-     Learning Framework for Cortical Surface Reconstruction From Diffusion MRI.” “Advanced Science, 2026, e76596.”
-     `https://doi.org/10.1002/advs.76596`
-  2. DDSeg — “Fan Zhang, Anna Breger, Kang Ik Kevin Cho, Lipeng Ning, Carl-Fredrik Westin, Lauren J. O’Donnell, Ofer
-     Pasternak.” “Deep learning based segmentation of brain tissue from diffusion MRI.” “NeuroImage, 2021, 233,
-     117934.” `https://doi.org/10.1016/j.neuroimage.2021.117934`
-  3. DDParcel — “Fan Zhang, Kang Ik Kevin Cho, Johanna Seitz-Holland, Lipeng Ning, Jon Haitz Legarreta, Yogesh Rathi,
-     Carl-Fredrik Westin, Lauren J. O’Donnell, Ofer Pasternak.” “DDParcel: Deep Learning Anatomical Brain Parcellation
-     From Diffusion MRI.” “IEEE Transactions on Medical Imaging, 2024, 43(3), 1191–1202.”
-     `https://doi.org/10.1109/TMI.2023.3331691`
-  (Plain ASCII hyphens in the names and titles are fine; CITATION.cff uses U+2010 in two places.)
+- Three paper cards for DDSurfer, DDSeg and DDParcel, exactly as CITATION.cff [F7], numbered [1] to [3]
+  (`id="ref-1"` to `ref-3`).
+- H3 “References”: one numbered list, [4] to [35], in groups (H4): Microstructure; Tractography and connectomes; Bundles;
+  Platform and tools; Data. Each item: lead author (“Surname Initials, et al.”; both names for two authors), title,
+  venue, volume(issue):pages, year, and a DOI link `https://doi.org/<doi>`. Items without a DOI (ISMRM abstracts) link to
+  the ISMRM archive page; the 2016 Dhollander workshop abstract has no link. Items marked unverified in the review notes
+  are left out (for example the LNCS volume of TractCloud). Every external URL is in the allowed set (§6).
+- Left out on purpose: SlicerDMRI (Norton 2017) and FastSurfer, because their titles contain “Open Source” and
+  “accurate”, which `claims_banned` rejects in the site's text; optional entries the review notes did not tie to code
+  (Reddy and Rathi 2016, Destrieux 2010, PyTorch).
+
+### 5.10a Run times (`#runtime`, directly before `#performance`)
+
+- Eyebrow “Recorded run times”, H2 “Recorded run times, per module.”, then `fig-runtime-resources.png`, same markup as
+  §5.6a (the width and height attributes equal the pixel size of the file).
+- Caption: one scoped measurement per bar, log scale, rows are not summed; panel a is the recorded run time per module
+  on Linux, GPU runs marked; panel b is the run time before and after seven code-path changes, one pair per row, on a
+  shared Linux host, outputs match. The caption names no CPU or GPU model, no workstation, no macOS laptop, no EDDEN
+  subject and no memory value: the ledger's host field is the report host, not necessarily the execution host.
+
+### 5.10b Performance (`#performance`, after `#runtime`)
+
+- Eyebrow “Performance”, H2 “Measured changes and their limits.”, then one `<details id="performance-evidence"
+  class="transcript perf-evidence">`, closed by default, with the summary “Performance evidence”.
+- Inside: the intro and the two disclaimers, the filter buttons (shown by script only), the generated evidence region
+  (charts, table, note, method records; written by `scripts/build_performance_site.py`), the four “levers” and the
+  “boundary of the evidence” list. The headline of the old subpage (“Same methods. Less overhead.”) is not kept.
+- Without JavaScript the native `<details>` still opens and shows the table. With JavaScript, `site.js` opens the
+  details when the hash is `#performance` (on load, on `hashchange` and on a click on a link to it) and opens any closed
+  `<details>` that contains the target of a hash (for example `#method-freewater`).
 
 ### 5.11 Footer
 
@@ -359,6 +407,7 @@ Three columns, then a bottom line.
 block only), `https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/` + one of `CITATION.cff`, `LICENSE.txt`,
 `THIRD_PARTY_NOTICES.md`, `docs/setup/QUICKSTART.md`, `docs/setup/SUPPORT_MATRIX.md`,
 `docs/assets/MODEL_ASSET_TERMS.md`, `docs/architecture/IMPLEMENTATION_PROVENANCE.md`;
+the DOI links of the reference list (§5.10) and the four ISMRM archive pages (`https://archive.ismrm.org/<year>/<abstract>.html`),
 `https://doi.org/10.1002/advs.76596`, `https://doi.org/10.1016/j.neuroimage.2021.117934`,
 `https://doi.org/10.1109/TMI.2023.3331691`, `https://doi.org/10.1162/imag_a_00060`,
 `https://openneuro.org/datasets/ds004666`, `https://github.com/lemomo-ai/lemo-opuscar`,

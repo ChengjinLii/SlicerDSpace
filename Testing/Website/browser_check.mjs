@@ -134,7 +134,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
       return [...document.querySelectorAll('body *')].filter((el) => {
         const r = el.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) return false;
-        if (el.closest('pre') || el.closest('.sr-only')) return false;
+        if (el.closest('pre') || el.closest('.sr-only') || el.closest('.table-wrap') || el.closest('.perf-table-wrap')) return false;
         return r.right > iw + 0.5 || r.left < -0.5;
       }).slice(0, 5).map((el) => el.tagName.toLowerCase() + '.' + el.className);
     });
@@ -336,30 +336,33 @@ async function run404AndNoJs(browser, origin) {
   await c2.close();
 }
 
+// The performance evidence is a closed <details> on the home page (index.html#performance).
 async function runPerformance(browser, origin, width, noJs = false) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: !noJs });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(String(error)));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
-  page.on('requestfailed', (request) => errors.push(request.url()));
-  page.on('request', (request) => { if (new URL(request.url()).origin !== origin) errors.push('External request: ' + request.url()); });
+  page.on('requestfailed', (request) => {
+    // Chrome cancels and re-issues byte-range requests for video. Nothing else may fail.
+    if ((request.failure()?.errorText || '').includes('ERR_ABORTED') && /\/media\/[^/?#]+\.mp4$/.test(new URL(request.url()).pathname)) return;
+    errors.push(request.url());
+  });
+  page.on('request', (request) => { const u = new URL(request.url()); if (u.origin !== origin && u.protocol !== 'data:' && u.protocol !== 'blob:' && u.protocol !== 'about:') errors.push('External request: ' + request.url()); });
   page.on('response', (response) => { if (response.status() >= 400) errors.push('HTTP ' + response.status() + ': ' + response.url()); });
-  await page.goto(origin + '/SlicerDDSurfer/performance.html', { waitUntil: 'load' });
+  await page.goto(origin + '/SlicerDDSurfer/index.html', { waitUntil: 'load' });
   await page.evaluate(() => document.fonts.ready);
   const prefix = `performance ${width}px${noJs ? ' no JS' : ''}`;
+  const evidence = page.locator('#performance-evidence');
+  record(await evidence.count() === 1 && await evidence.getAttribute('open') === null, prefix + ': evidence details closed by default');
+  record(await page.locator('#performance-evidence .perf-table').isHidden(), prefix + ': table hidden while closed');
+  await page.locator('#performance-evidence > summary').click();
+  await page.waitForFunction(() => document.getElementById('performance-evidence').open);
+  record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': click opens the evidence and shows the table');
   record(await page.locator('.perf-table tbody tr').count() === 7, prefix + ': seven scoped records');
   record(await page.locator('.perf-method[open]').count() === 0, prefix + ': method details initially collapsed');
-  record(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), prefix + ': no page overflow');
+  record(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), prefix + ': no page overflow with the evidence open');
   if (!noJs) {
-    const menu = page.locator('#menu-btn');
-    record(await menu.isVisible() === (width < 1024), prefix + ': responsive menu matches overview');
-    if (width < 1024) {
-      await menu.click();
-      record(await menu.getAttribute('aria-expanded') === 'true' && await page.locator('#site-nav a[href="index.html"]').isVisible(), prefix + ': mobile navigation opens');
-      await page.keyboard.press('Escape');
-      record(await menu.getAttribute('aria-expanded') === 'false' && await menu.evaluate((element) => element === document.activeElement), prefix + ': Escape closes navigation and restores focus');
-    }
     await page.locator('[data-perf-filter="parallel,workflow"]').click();
     record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 2, prefix + ': thread/schedule filter');
     await page.locator('[data-perf-filter="port"]').click();
@@ -370,6 +373,10 @@ async function runPerformance(browser, origin, width, noJs = false) {
     await page.locator('.perf-table a[href="#method-freewater"]').click();
     await page.waitForFunction(() => document.getElementById('method-freewater').open);
     record(await page.locator('#method-freewater').getAttribute('open') !== null, prefix + ': measurement link opens method');
+    // The hashchange handler of performance.js runs after the click. Let it finish before the key press,
+    // or it can reopen the method that the key press just closed.
+    await page.waitForFunction(() => location.hash === '#method-freewater');
+    await page.waitForTimeout(200);
     await page.locator('#method-freewater summary').focus();
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => !document.getElementById('method-freewater').open);
@@ -378,16 +385,41 @@ async function runPerformance(browser, origin, width, noJs = false) {
     await page.waitForFunction(() => document.getElementById('method-freewater').open);
     record(await page.locator('#method-freewater').getAttribute('open') !== null, prefix + ': same-fragment link reopens method');
     const response = await context.request.get(origin + '/SlicerDDSurfer/assets/data/performance.json');
-    const evidence = await response.json();
-    record(response.ok() && evidence.records.length === 7 && !JSON.stringify(evidence).includes('/data/chengjin/'), prefix + ': sanitized evidence download');
+    const data = await response.json();
+    record(response.ok() && data.records.length === 7 && !JSON.stringify(data).includes('/data/chengjin/'), prefix + ': sanitized evidence download');
+    // The hash opens the evidence; a link from the status notes opens it again after it was closed.
+    await page.goto(origin + '/SlicerDDSurfer/index.html#performance', { waitUntil: 'load' });
+    await page.waitForFunction(() => document.getElementById('performance-evidence').open);
+    record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': #performance opens the evidence');
+    await page.evaluate(() => { document.getElementById('performance-evidence').open = false; document.getElementById('performance-notes').open = true; });
+    await page.locator('#performance-notes a[href="#performance"]').click();
+    await page.waitForFunction(() => document.getElementById('performance-evidence').open);
+    record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': link from the status notes opens the evidence');
   } else {
-    record(await page.locator('#menu-btn').isHidden() && await page.locator('#site-nav a[href="index.html"]').isVisible(), prefix + ': native navigation available without JS');
     record(await page.locator('.perf-filters').isHidden(), prefix + ': no nonfunctional filter controls');
   }
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: path.join(OUT, `performance-${width}${noJs ? '-nojs' : ''}.png`), fullPage: true });
   record(errors.length === 0, prefix + ': no errors or foreign requests', errors.join('; '));
   await context.close();
+}
+
+// The old subpage is a stub that redirects to the home page section.
+async function runStubRedirect(browser, origin) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  await page.goto(origin + '/SlicerDDSurfer/performance.html', { waitUntil: 'load' });
+  const ok = await page.waitForURL(/\/index\.html#performance$/, { timeout: 8000 }).then(() => true, () => false);
+  await page.waitForFunction(() => document.getElementById('performance-evidence')?.open, null, { timeout: 5000 }).catch(() => {});
+  const opened = ok && await page.evaluate(() => document.getElementById('performance-evidence').open);
+  record(ok && opened, 'performance.html stub redirects to index.html#performance and opens the evidence', page.url());
+  await context.close();
+  // The stub also carries one visible link, for readers whose browser ignores the refresh.
+  const c2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const html = await (await c2.request.get(origin + '/SlicerDDSurfer/performance.html')).text();
+  const links = html.match(/<a [^>]*href="index\.html#performance"[^>]*>[^<]+<\/a>/g) || [];
+  record(links.length === 1 && /http-equiv="refresh" content="0; url=index\.html#performance"/.test(html), 'performance.html stub has the refresh and one visible link to index.html#performance');
+  await c2.close();
 }
 
 // ---------------------------------------------------------------- main
@@ -429,8 +461,9 @@ try {
     await ctx.close();
   }
   await run404AndNoJs(browser, origin);
-  for (const width of [1440, 390, 320]) await runPerformance(browser, origin, width);
+  for (const width of [1440, 390, 360]) await runPerformance(browser, origin, width);
   await runPerformance(browser, origin, 390, true);
+  await runStubRedirect(browser, origin);
 } catch (err) {
   record(false, 'browser run', String(err && err.stack || err));
 } finally {

@@ -183,17 +183,17 @@ def main():
     args = parser.parse_args()
     evidence = build_evidence()
     payload = json.dumps(evidence, indent=2) + '\n'
-    page = SITE / 'performance.html'
+    page = SITE / 'index.html'
     original = page.read_text()
     if original.count(BEGIN) != 1 or original.count(END) != 1:
-        raise ValueError('Expected one performance evidence region')
+        raise ValueError('Expected one performance evidence region in docs/site/index.html')
     before, middle = original.split(BEGIN)
     _, after = middle.split(END)
     expected = before + BEGIN + '\n' + render(evidence) + '\n' + END + after
     data = SITE / 'assets/data/performance.json'
     if args.check:
         if not data.is_file() or data.read_text() != payload or original != expected:
-            raise SystemExit('Website performance evidence is stale; run scripts/build_performance_site.py')
+            raise SystemExit('Website performance evidence in index.html is stale; run scripts/build_performance_site.py')
         print('PASS public performance data, source hashes and rendered measurements')
     else:
         data.parent.mkdir(parents=True, exist_ok=True)
