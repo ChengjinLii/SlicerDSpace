@@ -201,7 +201,7 @@ class BrainMaskBackendsTest(unittest.TestCase):
     def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory(prefix="mask-contract-")
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         environment = patch.dict(os.environ, ISOLATED_ENV)
         environment.start()
         self.addCleanup(environment.stop)

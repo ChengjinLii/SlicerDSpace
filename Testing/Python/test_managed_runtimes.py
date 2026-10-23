@@ -108,7 +108,7 @@ class ManagedRuntimeTests(unittest.TestCase):
 
     def test_configured_profiles_never_adopt_unmanaged_environments(self):
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
+            root = Path(temp).resolve()
             prefix = root / runtime.PROFILES["mrtrix"]["directory"]
             config = {"mrtrix_bin_dir": str(prefix / "bin")}
             self.assertEqual(runtime.configured_profiles(config, ("mrtrix",), root), ())

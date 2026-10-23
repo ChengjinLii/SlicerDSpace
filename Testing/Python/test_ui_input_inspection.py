@@ -15,7 +15,7 @@ class InputInspectionTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        self.root = Path(self.temporary.name).resolve()
         self.now = 100.0
         self.inspector = Mock(wraps=inspect_subject_directory)
         self.cache = InputInspectionCache(self.inspector, clock=lambda: self.now)

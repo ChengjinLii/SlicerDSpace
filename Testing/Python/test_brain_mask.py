@@ -127,7 +127,7 @@ class BrainMaskTest(unittest.TestCase):
         from shared.pipeline import find_subject_root
 
         with tempfile.TemporaryDirectory() as tmp:
-            subject = make_subject(Path(tmp), supplied_mask=True)
+            subject = make_subject(Path(tmp).resolve(), supplied_mask=True)
             mask = subject / "input/nodif_brain_mask.nii.gz"
             original = mask.read_bytes()
             with patch("shared.brain_mask._run") as run:

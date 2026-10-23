@@ -54,7 +54,7 @@ class DicomRootTests(unittest.TestCase):
 
     def test_conversion_is_transactional_unchanged_source_and_verified_reuse(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = self.source(Path(tmp))
+            root = self.source(Path(tmp).resolve())
             original = (root / "image.dcm").read_bytes()
             with patch("shared.dicom_input.converter_path", return_value=("dcm2niix", Path("/converter"))), \
                     patch("shared.input_import._run", side_effect=self.converter) as run:

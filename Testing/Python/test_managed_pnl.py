@@ -35,7 +35,7 @@ class ManagedPnlTests(unittest.TestCase):
 
     def test_normal_archive_strips_root_and_never_executes(self):
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
+            root = Path(temp).resolve()
             pnl.extract_regular_files(self.archive(root, "root/pipeline/test.py"), root / "installed")
             self.assertEqual((root / "installed/pipeline/test.py").read_bytes(), b"data")
 

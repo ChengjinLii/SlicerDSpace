@@ -130,7 +130,7 @@ class OptionalAssetsTests(unittest.TestCase):
 
     def test_wma_archives_and_directories_alone_are_not_ready(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             index = root / "bundles/wma/extracted_resource_index.json"
             index.parent.mkdir(parents=True)
             member = b"actual atlas"
@@ -196,7 +196,7 @@ class OptionalAssetsTests(unittest.TestCase):
 
     def test_import_retains_source_refuses_tampering_and_reuses_identical_file(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             source, target = root / 'source', root / 'cache/model'
             source.write_bytes(b'author resource')
             expected = {'sha256': hashlib.sha256(source.read_bytes()).hexdigest(), 'size_bytes': source.stat().st_size}
@@ -212,7 +212,7 @@ class OptionalAssetsTests(unittest.TestCase):
 
     def test_org_extraction_keeps_structure_omits_macos_and_rejects_traversal(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             archive = root / 'ORG-800FC-100HCP.zip'
             with zipfile.ZipFile(archive, 'w') as zipped:
                 zipped.writestr('ORG-800FC-100HCP/atlas.p', b'reference, never deserialized by importer')
@@ -229,7 +229,7 @@ class OptionalAssetsTests(unittest.TestCase):
 
     def test_shared_directory_requires_all_recorded_files_and_valid_hashes(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             path = root / 'weights/model.h5'
             path.parent.mkdir()
             manifest = root / 'catalog.json'

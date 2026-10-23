@@ -19,7 +19,7 @@ class ModuleRuntimeInventoryTests(unittest.TestCase):
         })
         with patch('scripts.collect_module_runtimes.ROOT', self.root):
             rows = collect(campaign, self.root / 'absent')
-        result = next(item for item in rows if item['source_record'] == str(manifest))
+        result = next(item for item in rows if item['source_record'] == str(manifest.resolve()))
         self.assertIn('100206', result['input_scope'])
         self.assertNotIn('100307', result['input_scope'])
         self.assertNotIn('UKF', result['input_scope'])

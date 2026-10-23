@@ -24,7 +24,7 @@ def _record(path: Path) -> dict[str, object]:
 
 
 def _subject(tmp: str) -> Path:
-    subject_root = Path(tmp) / "100307"
+    subject_root = Path(tmp).resolve() / "100307"
     input_dir = subject_root / "input"
     input_dir.mkdir(parents=True)
     for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):

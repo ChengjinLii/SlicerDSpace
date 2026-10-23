@@ -43,7 +43,7 @@ class CSDActBackendTest(unittest.TestCase):
 
     def test_dry_run_writes_manifest_qc_and_commands(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             dwi = root / "data.nii.gz"
             mask = root / "mask.nii.gz"
             five_tt = root / "5tt.nii.gz"

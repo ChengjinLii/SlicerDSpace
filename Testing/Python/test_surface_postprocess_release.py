@@ -171,7 +171,7 @@ class SurfacePostprocessReleaseTest(unittest.TestCase):
         from anatomy.surface.postprocess_release import DDSurferPostprocessConfig, run_ddsurfer_postprocess
 
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             native_dir = root / "native"
             mri_dir = root / "mri"
             backend_root = root / "backend"

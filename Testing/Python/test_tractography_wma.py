@@ -21,7 +21,7 @@ if str(REPO_ROOT) not in sys.path:
 class WMAIntegrationTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
-        self.tmp_path = Path(self.tmp.name)
+        self.tmp_path = Path(self.tmp.name).resolve()
         self.wma_root = self.tmp_path / "wma"
         self.wma_bin = self.wma_root / "bin"
         self.wma_bin.mkdir(parents=True)
