@@ -166,7 +166,8 @@ raw_command=("$SCRIPT_DIR/inputs.py" --subject "$SUBJECT_ID" --input-root "$INPU
 [[ -z "$BVEC" ]] || raw_command+=(--bvec "$BVEC")
 [[ -z "$MASK" ]] || raw_command+=(--mask "$MASK")
 RAW_PATHS=$(run_python_helper "${raw_command[@]}")
-mapfile -t RAW_FILES <<<"$RAW_PATHS"
+RAW_FILES=()
+while IFS= read -r raw_path || [[ -n "$raw_path" ]]; do RAW_FILES+=("$raw_path"); done <<<"$RAW_PATHS"
 DWI=${RAW_FILES[0]}
 BVAL=${RAW_FILES[1]}
 BVEC=${RAW_FILES[2]}
