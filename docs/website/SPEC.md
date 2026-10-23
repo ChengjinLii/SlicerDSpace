@@ -268,7 +268,7 @@ Two columns: text left, `idea.jpg` right.
 - Eyebrow “Choosing routes”, H2 “Which route when.”, then `fig-route-guide.png` in a panel, wrapped in a link
   to the full-size file (`target="_blank" rel="noopener"`), with `width`, `height`, `loading="lazy"`, `decoding="async"`.
 - Caption: a guide to choosing routes, built from the coded gates and documented dependencies; it shows which methods
-  each acquisition and input allows, and three example choices; the rules come from the planner and method code; status
+  each acquisition and input allows, and three example routes; the rules come from the planner and method code; status
   is recorded for Linux test subjects. The caption must not say that a single-shell scan can use CSD/ACT.
 
 ### 5.7 In Slicer (`#slicer`)
@@ -366,7 +366,7 @@ Two columns: text left, `idea.jpg` right.
 
 - Eyebrow “Recorded run times”, H2 “Recorded run times, per module.”, then `fig-runtime-resources.png`, same markup as
   §5.6a (the width and height attributes equal the pixel size of the file).
-- Caption: one scoped measurement per bar, log scale, rows are not summed; panel a is the recorded run time per module
+- Caption: one scoped measurement per row, log scale, rows are not summed; panel a is the recorded run time per module
   on Linux, GPU runs marked; panel b is the run time before and after seven code-path changes, one pair per row, on a
   shared Linux host, outputs match. The caption names no CPU or GPU model, no workstation, no macOS laptop, no EDDEN
   subject and no memory value: the ledger's host field is the report host, not necessarily the execution host.
