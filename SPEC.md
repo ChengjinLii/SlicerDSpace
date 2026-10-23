@@ -427,17 +427,17 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     check, is not covered.
 17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4, r10 1, 2, 4, 5, r11 3, 4,
     r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20 6,
-    r21 1, r22 1, r22 3, r23 1, r24 4, r25 1, r26 1, r26 2, r27 1–3, N5, N10, N12, N15, r2 N3, r2 N4 and r4 B4) stay in
-    place: in the part of a file that each row names (found exactly once), the fixed phrase is there and, where there is
-    one, the old phrase is not (a string or a regex; a ban of another kind is a FAIL). In a `.py` part made of comment
-    lines the `#` marks are removed before the test; from a `.py` part that holds code every comment is removed (Python
-    `tokenize`, also a comment at the end of a line), so code commented out with `#` does not count; code inside a
-    string still counts. A ban marked `AlsoInComments` is also tested on the part as written, with its comments, so that
-    an old phrase cannot come back in a comment of a part that holds code. A built-in sample checks the comment remover.
-    `main()` also runs this check on built-in rows (`WORDING_SELF_TEST`) and fails it unless they give a “lacks”, a
-    “still says” and a “still matches” problem (a crash there is a FAIL too). It also fails it when the normal call went
-    through fewer or more rows than `WORDING_FIXES` holds. The list above names exactly the findings that the row labels
-    name, in any order: a label names two findings when a later fix changed that row (for example `r16 1, r18 2`), and a
+    r21 1, r22 1, r22 3, r23 1, r24 4, r25 1, r26 1, r26 2, r27 1–3, r28 1–4, N5, N10, N12, N15, r2 N3, r2 N4 and r4 B4)
+    stay in place: in the part of a file that each row names (found exactly once), the fixed phrase is there and, where
+    there is one, the old phrase is not (a string or a regex; a ban of another kind is a FAIL). In a `.py` part made of
+    comment lines the `#` marks are removed before the test; from a `.py` part that holds code every comment is removed
+    (Python `tokenize`, also a comment at the end of a line), so code commented out with `#` does not count; code inside
+    a string still counts. A ban marked `AlsoInComments` (of a string or a regex) is also tested on the part as written,
+    with its comments, so that an old phrase cannot come back in a comment of a part that holds code. A built-in sample
+    checks the comment remover. `main()` also runs this check on built-in rows (`WORDING_SELF_TEST`) and fails it unless
+    they give a “lacks”, a “still says” and a “still matches” problem (a crash there is a FAIL too). It also fails it
+    when the normal call went through fewer or more rows than `WORDING_FIXES` holds. The list above names exactly the
+    findings that the row labels name, in any order: a label may name two findings (for example `r16 1, r18 2`), and a
     difference either way is a FAIL.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
@@ -616,3 +616,9 @@ a FAIL (r27 1: a second row holds the encoded-slash ban line of item 2 and the l
 comment remover would hide an old claim in a comment there). The check compares the findings that the row labels name
 with the item 17 list, both ways; a label may name two findings, and the row that held the whole list as one phrase is
 gone (r27 2). A row holds the corrected comment wording of r27 3.
+
+After code review (2026-10-23, README backlog r28 1–5): no rule changes. In item 17 `backlog_wording` the kind test now
+also rejects `AlsoInComments(None)`, so the code matches the stated kind “of a string or a regex” (r28 4); rows pin the
+bodies of `label_problems`, `finding_names` and `AlsoInComments` (r28 1); item 17 says that a label may name two
+findings (r28 3); the README r27 1 limits also name the three comment positions after the `problems.append` line (r28
+2). r28 5 (information) needs no change.

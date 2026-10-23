@@ -1053,11 +1053,30 @@ WORDING_FIXES = (
      'if re.search(r"%(2f|5c)", urlsplit(ref).path, re.I): problems.append("%s:%s %s=%r has an encoded slash',
      AlsoInComments(re.compile(r"breaks the link on Pages|cannot see this"))),
     ("r27 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)", "part = raw = found[0].group(0)", None),
-    ("r27 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
-     r'if isinstance(banned, AlsoInComments): banned, text = banned.banned, " ".join((text + "\n" + raw).split())',
-     None),
-    ("r27 1", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
-     "if banned is not None and not isinstance(banned, (str, re.Pattern)):", None),
+    # README r28 4: the unwrap remembers the mark, and the kind test rejects AlsoInComments(None).
+    ("r27 1, r28 4", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     r'marked = isinstance(banned, AlsoInComments) if marked: banned, text = banned.banned, " ".join((text + "\n" + '
+     r'raw).split())', None),
+    ("r27 1, r28 4", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     "if (banned is not None or marked) and not isinstance(banned, (str, re.Pattern)):", None),
+    # README r28 1: the bodies of the r27 1 and r27 2 guards.
+    ("r28 1", "tests/check_site.py", r"(?ms)^def label_problems\(.*?(?=^\S)",
+     "labels = set().union(*(finding_names(row[0]) for row in WORDING_FIXES))", None),
+    ("r28 1", "tests/check_site.py", r"(?ms)^def label_problems\(.*?(?=^\S)",
+     'return (["SPEC.md item 17 does not name %s, which a row label names" % n for n in sorted(labels - listed)] '
+     '+ ["SPEC.md item 17 names %s, which no row label names" % n for n in sorted(listed - labels)])', None),
+    ("r28 1", "tests/check_site.py", r"(?ms)^def finding_names\(.*?(?=^\S)",
+     r'm = re.fullmatch(r"(?:(r\d+) )?([A-Z]?)(\d+)(?:–(\d+))?", tok)', None),
+    ("r28 1", "tests/check_site.py", r"(?ms)^def finding_names\(.*?(?=^\S)",
+     'names.add(" ".join(x for x in (run, letter + str(n)) if x))', None),
+    ("r28 1", "tests/check_site.py", r"(?ms)^class AlsoInComments:.*?(?=^\S)", "self.banned = banned", None),
+    # README r28 2: the r27 1 entry also names the comment positions after the append line as limits.
+    ("r28 2", "README.md", r"(?ms)^- r27 1 \(P3, Opus;.*?(?=^(?! )|\Z)",
+     "as a comment line after the `problems.append` line, as a trailing comment on `continue`, or as a 12-space "
+     "comment line after `continue`", "with it as a comment line inside the `if` body"),
+    # README r28 3: a label may name two findings; no rule says when.
+    ("r28 3", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)", "a label may name two findings",
+     "a label names two findings when a later fix changed that row"),
     ("r25 1", "README.md", r"(?ms)^- r24 1 \(P3, Opus;.*?(?=^(?! )|\Z)", "Pages decodes `%2F` and serves the file",
      "the browser suite cannot see this"),
     # README r24 4: the click-test comment says what the click test does not show (measured).
@@ -1169,10 +1188,13 @@ def backlog_wording(rows=WORDING_FIXES):
         if want not in text:
             problems.append("%s: %s lacks %r" % (finding, rel, want))
         # README r27 1: this ban also reads the part as written, with its comments.
-        if isinstance(banned, AlsoInComments):
+        marked = isinstance(banned, AlsoInComments)
+        if marked:
             banned, text = banned.banned, " ".join((text + "\n" + raw).split())
-        if banned is not None and not isinstance(banned, (str, re.Pattern)):
-            problems.append("%s: %s has a ban of unknown kind %r" % (finding, rel, banned))
+        # README r28 4: a marked ban needs a string or a regex, so AlsoInComments(None) is of unknown kind too.
+        if (banned is not None or marked) and not isinstance(banned, (str, re.Pattern)):
+            problems.append("%s: %s has a ban of unknown kind %r"
+                            % (finding, rel, AlsoInComments(banned) if marked else banned))
         if isinstance(banned, re.Pattern) and banned.search(text):
             problems.append("%s: %s still matches %r" % (finding, rel, banned.pattern))
         elif isinstance(banned, str) and banned in text:

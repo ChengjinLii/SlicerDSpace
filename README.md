@@ -680,10 +680,11 @@ part, and ran 18 changed copies: every false pass is in a recorded limit. The re
   comments, since the `spec_lists_checks` comment quotes the r10 1 ban on purpose (the af78411 guard). The row's fixed
   phrase is the `if` line and the start of its `problems.append`, so it also holds the HTML ban line, one of the r25 2
   lines (r25 2 stays open for the rest). With the claim as a trailing comment on the `if` line or on the line after it,
-  the 2b0af82 script passes and the new one fails r27 1 (“still matches”); with it as a comment line inside the `if`
-  body, the new one fails r27 1 (“no part”). With the two unwrap lines deleted, the row fails (“a ban of unknown kind”).
-  Limits: a 16-space comment line above the comment block still passes, and a blank line inside the block still shrinks
-  the r25 1 part without a FAIL.
+  the 2b0af82 script passes and the new one fails r27 1 (“still matches”); with it as a comment line between the `if`
+  line and the `problems.append` line, the new one fails r27 1 (“no part”). With the two unwrap lines deleted, the row
+  fails (“a ban of unknown kind”). Limits (README r28 2): the claim still passes as a 16-space comment line above the
+  comment block, as a comment line after the `problems.append` line, as a trailing comment on `continue`, or as a
+  12-space comment line after `continue`; a blank line inside the block still shrinks the r25 1 part without a FAIL.
 - r27 2 (P3, Opus; recorded limit “a row's own definition”). **Fixed 2026-10-23** (user request; new rule):
   `backlog_wording` compares the findings that the row labels name with the SPEC item 17 list, both ways
   (`label_problems`), and the r23 1 row that held the whole list as one phrase is gone. A label names two findings when
@@ -701,23 +702,27 @@ part, and ran 18 changed copies: every false pass is in a recorded limit. The re
 Codex and Opus each ran the committed tree and the changed copies on Python 3.9–3.15 with LF and CRLF (Codex 48 runs,
 Opus 140, all as expected), and each parsed SPEC item 17 and every row label on its own: both give the same 58 findings.
 The review is closed. Non-blocking items:
-- r28 1 (P2, Opus; from 2f2ffd7): the bodies of the new guards have no row and no self-test; one edit in
-  `label_problems` (`labels = listed`, the second report list deleted, or `return []`), `finding_names` (`return set()`)
-  or `AlsoInComments` (`self.banned = None`) turns a guard off with every check green. Kept at P2 (the same reading as
-  r25 2: the fixes are held by the test copies, and a false pass of the r27 2 case needs a second edit). Fix if wanted:
-  rows on the `labels = set().union(` line and both report lines, on the `re.fullmatch(` and `names.add(` lines, and on
-  `self.banned = banned`.
-- r28 2 (P3, Opus; from 2f2ffd7; README): the r27 1 “no part” result holds only for a comment line between the `if` line
-  and the `problems.append` line. The claim as a comment line after the append, as a trailing comment on `continue`, or
-  as a 12-space comment after `continue` passes. Fix: add these cases to the r27 1 limits.
-- r28 3 (P3, Opus; from 2f2ffd7; SPEC wording): item 17 says “a label names two findings when a later fix changed that
-  row”, but the r10 1, r10 2 and r12 3 rows were changed by later fixes (r11 2, r11 1, r14 4) and keep one name; the
-  rule used was “a name that had no row of its own”. Fix: “a label may name two findings”, as §9 says.
-- r28 4 (P3, Opus; recorded limits): the r27 1 row is the only `AlsoInComments` row; deleting it, unwrapping it to a
-  plain regex, or `AlsoInComments(None)` passes (the three pin rows keep r27 1 in the label set). Optional fix: the kind
-  test also rejects `AlsoInComments(None)`.
-- r28 5 (P3, Opus; information): parser edges give a visible FAIL, not a false pass: an Oxford comma, an ASCII hyphen in
-  a range, a bare number after a letter name, a reversed range. A name listed twice passes (the check compares sets).
+- r28 1 (P2, Opus; from 2f2ffd7). **Fixed 2026-10-23** (user request): five rows pin the guard bodies: the `labels =
+  set().union(` line and the `return` with both report lists in `label_problems`, the `re.fullmatch(` and `names.add("
+  ".join(` lines in `finding_names`, and `self.banned = banned` in `AlsoInComments`. With `labels = listed`, the second
+  list deleted, `tok` replaced by `"r0 0"` in the `re.fullmatch` call, the `names.add` line replaced by `pass`, or
+  `self.banned = None`, the 4a9294a script passes and the new one fails r28 1. Limit (recorded “dead code”): `return []`
+  as the first line of `label_problems`, or `return set()` as the first line of `finding_names`, still passes in both
+  scripts.
+- r28 2 (P3, Opus; from 2f2ffd7; README). **Fixed 2026-10-23** (user request): the r27 1 entry says “between the `if`
+  line and the `problems.append` line”, and its limits name the three positions after the append. Measured on the new
+  script: the claim as a comment line after the append, as a trailing comment on `continue`, or as a 12-space comment
+  line after `continue` gives 17/0. A row pins the entry; with the 4a9294a entry, the new script fails r28 2.
+- r28 3 (P3, Opus; from 2f2ffd7; SPEC wording). **Fixed 2026-10-23** (user request): item 17 says “a label may name two
+  findings (for example `r16 1, r18 2`)”. A row pins it; with the old sentence, the new script fails r28 3.
+- r28 4 (P3, Opus; recorded limits). **Fixed 2026-10-23** (user request): the unwrap remembers the mark, and the kind
+  test also rejects `AlsoInComments(None)` (FAIL “a ban of unknown kind AlsoInComments(None)”). SPEC item 17 now says
+  “`AlsoInComments` (of a string or a regex)”. The two r27 1 pin rows on these lines are now labelled `r27 1, r28 4`.
+  With the r27 1 ban as `AlsoInComments(None)`, alone or with the claim as a trailing comment on the `if` line, the
+  4a9294a script passes and the new one fails. Deleting the r27 1 row, or unwrapping it to a plain regex, still passes
+  (recorded limit “a row's own definition”).
+- r28 5 (P3, Opus; information). **Closed 2026-10-23, no change** (user request named it; the finding asks for none):
+  the parser edges give a visible FAIL, not a false pass.
 
 ## Image crop boxes as finally used
 
