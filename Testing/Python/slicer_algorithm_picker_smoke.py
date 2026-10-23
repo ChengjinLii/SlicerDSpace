@@ -82,6 +82,19 @@ def run():
                                 for key, widget in (('check', checkbox), ('label', label), ('button', owner._algorithmButtons[family]))}
             assert label.x >= checkbox.x + checkbox.width + 4, geometry[family]
         (ROOT / 'selection_geometry.json').write_text(json.dumps(geometry, indent=2))
+        # Wrapped summaries must get the height of all their lines (macOS GUI capture, 2026-10-23: at a narrow dock
+        # "DTI + FW + NODDI + DKI (WLS)" wrapped to two lines and the row kept one line, clipping the second).
+        for width in (400, 360):
+            dock.setFixedWidth(width)
+            for _ in range(3):
+                slicer.app.processEvents()
+            for name, label in owner._algorithmSummaryLabels.items():
+                assert label.sizePolicy.hasHeightForWidth(), name
+                need = label.heightForWidth(label.width)
+                assert label.height >= need, (width, name, label.width, label.height, need, label.text)
+        dock.setFixedWidth(480)
+        slicer.app.processEvents()
+        checks.append('wrapped_algorithm_summaries_not_clipped')
         slicer.util.mainWindow().grab().save(str(ROOT / 'main_multiselect.png'))
         owner._advancedSettingsPanel.collapsed = False
         for index in range(4):

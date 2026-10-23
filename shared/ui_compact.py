@@ -67,6 +67,8 @@ def refresh_compact_algorithms(owner: Any, language: str | None = None) -> None:
             if summary is not None:
                 summary.setText(algorithms)
                 summary.setToolTip(control.toolTip)
+                from shared.ui_algorithm_picker import fit_summary_height
+                fit_summary_height(summary)
     from shared.ui_algorithm_picker import refresh_picker_language
     refresh_picker_language(owner)
 
