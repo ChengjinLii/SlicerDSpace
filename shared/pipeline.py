@@ -428,6 +428,13 @@ def build_cli_environment(cli_executable: str) -> dict[str, str]:
     if qt_loadable_dir.is_dir():
         extra_lib_dirs.append(qt_loadable_dir.as_posix())
 
+    if sys.platform == "darwin":
+        # macOS extension CLIs (UKFTractography for Slicer 5.12) name Slicer's
+        # core ITK/VTK libraries by build-machine paths, and the launcher
+        # exports no DYLD_LIBRARY_PATH; point dyld at the app's lib/Slicer-*.
+        for root in (*cli_path.parents, *Path(sys.executable).resolve().parents):
+            extra_lib_dirs.extend(path.as_posix() for path in sorted(root.glob("lib/Slicer-*")) if path.is_dir())
+
     library_var = "PATH" if os.name == "nt" or sys.platform == "win32" else (
         "DYLD_LIBRARY_PATH" if sys.platform == "darwin" else "LD_LIBRARY_PATH")
     existing = [entry for entry in env.get(library_var, "").split(os.pathsep) if entry]

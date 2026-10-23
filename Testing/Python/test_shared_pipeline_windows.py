@@ -51,6 +51,22 @@ class SharedPipelineWindowsCompatibilityTest(unittest.TestCase):
                     env = pipeline.build_cli_environment(str(executable))
                     self.assertIn(str(executable.parent), env[variable])
 
+    def test_macos_extension_cli_finds_slicer_core_libraries(self):
+        # UKFTractography 5.12 on macOS links libITK*-5.4.1.dylib by build-machine path.
+        with tempfile.TemporaryDirectory() as tmp:
+            contents = Path(tmp).resolve() / "Slicer.app/Contents"
+            core = contents / "lib/Slicer-5.12"
+            executable = contents / "Extensions-34645/UKFTractography/lib/Slicer-5.12/cli-modules/UKFTractography"
+            core.mkdir(parents=True)
+            executable.parent.mkdir(parents=True)
+            executable.touch()
+            for platform, variable, expected in (("darwin", "DYLD_LIBRARY_PATH", True), ("linux", "LD_LIBRARY_PATH", False)):
+                with self.subTest(platform=platform), patch.object(sys, "platform", platform), \
+                        patch.dict(os.environ, {}, clear=True):
+                    entries = pipeline.build_cli_environment(str(executable))[variable].split(os.pathsep)
+                    self.assertEqual(str(core) in entries, expected)
+                    self.assertEqual(entries[0], str(executable.parent))
+
     def test_cli_in_an_additional_factory_search_path_is_found(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / 'home'
