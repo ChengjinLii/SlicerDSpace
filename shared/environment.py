@@ -116,6 +116,8 @@ class EnvironmentDoctorConfig:
     preprocessing_mrtrix_bin_dir: Optional[Path] = None
     preprocessing_fsl_bin_dir: Optional[Path] = None
     postprocess_freesurfer_home: Optional[Path] = None
+    postprocess_runtime: Optional[Path] = None
+    postprocess_license_file: Optional[Path] = None
     model_assets_dir: Optional[Path] = None
     wma_root: Optional[Path] = None
     wma_atlas_dir: Optional[Path] = None
@@ -1186,41 +1188,47 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             _python(specs, target=target, import_name="SimpleITK", package="SimpleITK")
             _python(specs, target=target, import_name="trimesh", package="trimesh")
             _python(specs, target=target, import_name="rtree", package="rtree")
-            freesurfer_home = _resolve_path(config.postprocess_freesurfer_home)
-            _env(
-                specs,
-                target=target,
-                key="freesurfer_home",
-                label="FREESURFER_HOME",
-                env_vars=("SLICERDDSURFER_FREESURFER_HOME", "FREESURFER_HOME"),
-                group="freesurfer",
-                required=config.postprocess_freesurfer_home is None,
-                notes="Can also be supplied with --postprocess-freesurfer-home.",
-                resolved_path=freesurfer_home,
-                discovery_source="user setting" if freesurfer_home is not None else "",
-            )
-            for command in (
-                "mris_sphere",
-                "mris_curvature",
-                "mris_inflate",
-                "mris_register",
-                "mri_label2label",
-                "mri_surf2surf",
-            ):
-                _command(
+            from shared.surface_runtime import resolve_surface_runtime
+            try:
+                surface_backend, freesurfer_home = resolve_surface_runtime(config.postprocess_runtime, config.postprocess_freesurfer_home)
+            except (OSError, ValueError):
+                surface_backend, freesurfer_home = 'native', None
+            if surface_backend == 'freesurfer':
+                _env(
                     specs,
                     target=target,
-                    command=command,
+                    key="freesurfer_home",
+                    label="FREESURFER_HOME",
+                    env_vars=("SLICERDDSURFER_FREESURFER_HOME", "FREESURFER_HOME"),
                     group="freesurfer",
-                    bin_dir=freesurfer_home / "bin" if freesurfer_home else None,
+                    required=config.postprocess_freesurfer_home is None,
+                    notes="Can also be supplied with --postprocess-freesurfer-home.",
+                    resolved_path=freesurfer_home,
+                    discovery_source=("user setting" if config.postprocess_freesurfer_home is not None
+                                      else _resolve_freesurfer_home_with_source(platform_name)[1]),
                 )
-            metric_home = freesurfer_home or _resolve_freesurfer_home_with_source(platform_name)[0]
-            modern = ((metric_home / "bin" / "mris_place_surface") if metric_home
-                      else Path(shutil.which("mris_place_surface") or "/nonexistent/mris_place_surface"))
-            _command(specs, target=target,
-                     command="mris_place_surface" if modern.is_file() and os.access(modern, os.X_OK) else "mris_thickness",
-                     group="freesurfer", bin_dir=freesurfer_home / "bin" if freesurfer_home else None,
-                     notes="Current surface-only backend: modern metrics or the explicit older-FreeSurfer thickness fallback.")
+                for command in (
+                    "mris_sphere",
+                    "mris_curvature",
+                    "mris_inflate",
+                    "mris_register",
+                    "mri_label2label",
+                    "mri_surf2surf",
+                ):
+                    _command(
+                        specs,
+                        target=target,
+                        command=command,
+                        group="freesurfer",
+                        bin_dir=freesurfer_home / "bin" if config.postprocess_freesurfer_home is not None else None,
+                    )
+                metric_home = freesurfer_home or _resolve_freesurfer_home_with_source(platform_name)[0]
+                modern = ((metric_home / "bin" / "mris_place_surface") if metric_home
+                          else Path(shutil.which("mris_place_surface") or "/nonexistent/mris_place_surface"))
+                _command(specs, target=target,
+                         command="mris_place_surface" if modern.is_file() and os.access(modern, os.X_OK) else "mris_thickness",
+                         group="freesurfer", bin_dir=freesurfer_home / "bin" if config.postprocess_freesurfer_home is not None else None,
+                         notes="Current surface-only backend: modern metrics or the explicit older-FreeSurfer thickness fallback.")
 
         if target == "tractography" and config.tractography_backend in {"csd_act", "saf"}:
             _add_core_python(specs, target)
@@ -1990,6 +1998,20 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
     checked_python = checked_python_path.as_posix()
     specs = build_dependency_specs(config)
     statuses = tuple(_check_spec(spec, platform_name) for spec in specs)
+    if 'surface_postprocess' in targets:
+        from shared.surface_runtime import inspect_surface_runtime
+        surface = inspect_surface_runtime(config.postprocess_runtime, config.postprocess_freesurfer_home,
+                                          config.postprocess_license_file, python_bin=checked_python_path)
+        statuses += (
+            DependencyStatus(key='surface_postprocess_runtime', kind='setting', label='Surface postprocessing components',
+                status='available' if surface['components_available'] else 'missing', required=True,
+                targets=('surface_postprocess',), details=surface, install_group='surface-runtime',
+                install_hint='Use Environment > Prepare to build missing local components, or configure an existing component directory / FreeSurfer installation. No full suite is required; Check never compiles.'),
+            DependencyStatus(key='surface_postprocess_license', kind='setting', label='Personal FreeSurfer activation',
+                status='available' if surface['license_available'] else 'missing', required=True,
+                targets=('surface_postprocess',), details={'notes': 'Set the activation file or FS_LICENSE; it is not downloaded or included in the runtime.'},
+                install_group='freesurfer-license', install_hint='Register for your own FreeSurfer activation file and select it in Environment paths, or set FS_LICENSE.'),
+        )
     if config.loaded_slicer_modules is not None:
         native_targets = tuple(dict.fromkeys(target for spec in specs if spec.key == 'python:slicer.util'
                                              for target in spec.targets))

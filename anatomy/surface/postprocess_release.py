@@ -48,6 +48,9 @@ class DDSurferPostprocessConfig:
     mode: str = "whole"
     python_bin: Optional[Path] = None
     freesurfer_home: Optional[Path] = None
+    runtime: Optional[Path] = None
+    license_file: Optional[Path] = None
+    sphere_seed: Optional[int] = None
     stage_mode: str = "copy"
     atlases: Optional[tuple[str, ...]] = None
     force: bool = False
@@ -309,6 +312,8 @@ def run_ddsurfer_postprocess(
         hemis = ('lh',) if config.mode == 'left' else ('rh',) if config.mode == 'right' else ('lh', 'rh')
         if all((native_dir / f'{hemi}.{kind}.obj').is_file() for hemi in hemis for kind in ('white', 'pial')):
             return _run_current_postprocess(config, subject_root, native_dir, log)
+    if config.runtime is not None:
+        raise ValueError('Local components require indexed native white/pial OBJ inputs; legacy STL processing still needs its full external backend')
     backend_root = (config.backend_root or _default_backend_root()).expanduser().resolve()
     run_script = backend_root / "run.sh"
     if not run_script.is_file():
@@ -405,7 +410,8 @@ def run_ddsurfer_postprocess(
 def _run_current_postprocess(config, subject_root, native_dir, log):
     from .backend_bridge import BACKEND_ROOT, native_surface_hashes, run_backend, sha256, upstream_record
     layout = subject_layout(subject_root, output_root=config.output_root)
-    home = config.freesurfer_home or _default_freesurfer_home()
+    from shared.surface_runtime import resolve_surface_runtime, surface_runtime_identity
+    backend, home = resolve_surface_runtime(config.runtime, config.freesurfer_home)
     brain = config.mri_dir / 'brain.mgz' if config.mri_dir is not None else None
     brain = brain if brain is not None and brain.is_file() else None
     inputs = native_surface_hashes(native_dir, config.mode)
@@ -414,6 +420,8 @@ def _run_current_postprocess(config, subject_root, native_dir, log):
                      atlases=list(config.atlases or ('aparc', 'aparc.a2009s')),
                      freesurfer_home=str(home), brain_source=str(brain) if brain else None,
                      brain_sha256=sha256(brain) if brain else None)
+    signature['surface_runtime'] = surface_runtime_identity(config.runtime, config.freesurfer_home)
+    signature['sphere_seed'] = config.sphere_seed
     cache_key = hashlib.sha256(json.dumps(signature, sort_keys=True).encode()).hexdigest()[:20]
     if config.force:
         cache_key += '-' + uuid4().hex[:12]
@@ -421,13 +429,16 @@ def _run_current_postprocess(config, subject_root, native_dir, log):
     fs_subject = runtime / config.subject_id
     command = [BACKEND_ROOT / 'postprocessing/pipeline.py', '--subject', config.subject_id,
                '--output-root', runtime, '--hemi', 'both' if config.mode == 'whole' else config.mode,
-               '--atlases', ','.join(config.atlases or ('aparc', 'aparc.a2009s'))]
+               '--atlases', ','.join(config.atlases or ('aparc', 'aparc.a2009s')), '--backend', backend]
     hemis = ('lh',) if config.mode == 'left' else ('rh',) if config.mode == 'right' else ('lh', 'rh')
     for hemi in hemis:
         for kind in ('white', 'pial'):
             command += [f'--{hemi}-{kind}', native_dir / f'{hemi}.{kind}.obj']
-    if home is not None:
-        command += ['--freesurfer-home', home]
+    command += ['--runtime' if backend == 'native' else '--freesurfer-home', home]
+    if config.license_file is not None:
+        command += ['--license-file', config.license_file]
+    if config.sphere_seed is not None:
+        command += ['--sphere-seed', str(config.sphere_seed)]
     if brain is not None:
         command += ['--brain-source', brain]
     structural = layout.ddsurfer_postprocess

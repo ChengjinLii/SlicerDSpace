@@ -15,7 +15,7 @@ from shared.model_assets import configured_model_assets_root, _sha256_cache
 from shared.optional_assets import MANIFEST, verified_resource_directory
 from shared.model_asset_integrity import verify_against_manifest
 
-PROFILES = ("pnl-cnn", "tractcloud", "wma", "synthstrip")
+PROFILES = ("pnl-cnn", "tractcloud", "wma", "synthstrip", "surface-postprocess")
 PATH_SETTINGS = {"pnl-cnn": "pnl_mask_model_dir", "tractcloud": "tractcloud_data_dir", "wma": "wma_atlas_dir"}
 
 

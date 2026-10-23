@@ -23,6 +23,10 @@ def build_setup_plan(result, *, installed_extensions=(), loaded_extensions=None,
     managed = list(dict.fromkeys(managed))
     platforms_ok = supported_platform(system, machine)
     covered = {"model-resources", "python", "slicer-runtime", "slicer-dmri", "ukf"}
+    surface_build = platforms_ok and any(item.key == 'surface_postprocess_runtime' and
+        (item.details or {}).get('build_required') for item in missing)
+    if surface_build:
+        covered.add('surface-runtime')
     if platforms_ok:
         covered.update(("mrtrix", "fsl"))
         if "pnl_cnn" in managed:
@@ -48,6 +52,7 @@ def build_setup_plan(result, *, installed_extensions=(), loaded_extensions=None,
             "optional_asset_size_bytes": optional_plan.get("size_bytes", 0),
             "optional_asset_terms": optional_plan.get("terms", []),
             "managed_profiles": managed if platforms_ok else [],
+            "surface_build_required": surface_build,
             "unsupported_profiles": managed if not platforms_ok else [],
             "manual_items": [{"key": item.key, "label": item.label, "hint": item.install_hint}
                              for item in missing if item.install_group not in covered and item.key not in handled_keys],

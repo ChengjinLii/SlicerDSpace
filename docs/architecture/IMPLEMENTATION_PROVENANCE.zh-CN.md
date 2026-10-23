@@ -22,6 +22,7 @@
 | PNL diffusion CNN 脑掩膜 | [原作者 Python/TensorFlow 代码](https://github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segmentation) | `shared/brain_mask.py` 调用外部官方 `dwi_masking.py`、模型及 ANTs | **对已有官方 Python 的集成适配**，不是 MATLAB 移植，也不是重写整套 PNLpipeline |
 | MK-Curve | [原作者 MATLAB 算法](https://github.com/zhangfanmark/MK-Curve/tree/9a213e1a5850fe50c998793f31ed852df00242f8) | `microstructure/mkcurve.py`、`mkcurve_tensor.py`，可选 MATLAB 对照 | **非官方 MATLAB 到 Python 移植版**，不能与普通 DIPY DKI 混称 |
 | DDSurfer 表面重建 | 上游 Python/PyTorch 项目 | 固定的 `anatomy/surface/ddsurfer_backend/` 快照与 Slicer 调度 | 同步上游 Python，不是 MATLAB 改写 |
+| 皮层后处理 | 原始 FreeSurfer C++ 算法 | 固定上游配方在本机编译七个命令，或复用已有 FreeSurfer | **原生算法复用**，不是 Python 重写；本机组件无需完整套件；[配置与边界](../setup/SURFACE_COMPONENTS.zh-CN.md) |
 | DTI / Free-water / NODDI | 所选路线的 DIPY / AMICO Python 实现 | 输入验证、拟合适配、参数记录与 QC | 调用科学计算库，不能笼统称为本项目 MATLAB 移植 |
 | Free-water WLS 优化 | 固定来源的 DIPY `wls_iter` Python 估计器 | 源码匹配时用 `microstructure/freewater_wls.py` 消除大对角矩阵；串行 NLS 沿用同一初始化 | **修改后的等价 Python 计算实现**，不是新估计器或 MATLAB 移植；见[配对实测](../release/PERFORMANCE_OPTIMIZATIONS.zh-CN.md)及[DIPY 授权](../../licenses/DIPY.txt) |
 | WMA / WMQL / TractCloud | 外部作者 Python/shell 流程 | 独立运行目录、原始入口和溯源记录；TractCloud 增加固定种子/logging 兼容启动器 | **外部作者代码适配**，不是算法移植；[真实核查](../release/BUNDLE_BACKENDS_20261013.zh-CN.md) 区分执行、完整性和人工解剖核验 |

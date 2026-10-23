@@ -93,7 +93,7 @@ class UIRunControllerTest(unittest.TestCase):
             selected_workflows(flags),
             [
                 "Surface / DDSurfer native STL",
-                "Surface postprocess / FreeSurfer",
+                "Surface postprocess",
                 "Parcellation / DDParcel",
                 "Bundles",
             ],

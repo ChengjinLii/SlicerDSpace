@@ -9,7 +9,8 @@ PATH_FIELDS = {'repo_root', 'output_dir', 'python_executable', 'conda_executable
                'pnl_mask_script', 'pnl_mask_model_dir', 'pnl_mask_ants_bin_dir', 'synthstrip_python',
                'ukf_executable', 'dwiconvert_executable', 'dki_matlab_executable', 'dki_mkcurve_root',
                'mrtrix_bin_dir', 'preprocessing_mrtrix_bin_dir', 'preprocessing_fsl_bin_dir',
-               'postprocess_freesurfer_home', 'model_assets_dir', 'wma_root', 'wma_atlas_dir',
+               'postprocess_freesurfer_home', 'postprocess_runtime', 'postprocess_license_file',
+               'model_assets_dir', 'wma_root', 'wma_atlas_dir',
                'slicer_executable', 'fiber_tract_measurements_cli', 'tract_querier_root', 'tractcloud_root',
                'tractcloud_python_executable', 'tractcloud_data_dir'}
 

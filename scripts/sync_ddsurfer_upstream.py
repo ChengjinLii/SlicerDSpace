@@ -29,8 +29,8 @@ def copy_if_changed(source, destination):
     return True
 
 
-def synchronize(upstream, assets):
-    upstream, assets = upstream.resolve(), assets.resolve()
+def synchronize_backend(upstream):
+    upstream = upstream.resolve()
     revision = subprocess.check_output(['git', '-C', str(upstream), 'rev-parse', 'HEAD'], text=True).strip()
     dirty = subprocess.check_output(['git', '-C', str(upstream), 'status', '--porcelain'], text=True).strip()
     if dirty:
@@ -39,7 +39,7 @@ def synchronize(upstream, assets):
     files = []
     for directory in ('model', 'inference', 'preprocessing', 'postprocessing', 'utils', 'tools', 'tests'):
         files.extend(p for p in (upstream / directory).rglob('*')
-                     if p.is_file() and p.suffix in ('.py', '.sh', '.md'))
+                     if p.is_file() and p.suffix in ('.py', '.sh', '.md', '.txt', '.json', '.cmake'))
     files.extend(upstream / name for name in
                  ('DDSurfer_predict.py', 'run_ddsurfer_pipeline.py', 'run_ddsurfer_pipeline.sh',
                   'environment.yml', 'requirements.txt', 'README.md'))
@@ -62,9 +62,21 @@ def synchronize(upstream, assets):
         for obsolete in set(json.loads(record.read_text())['files']) - hashes.keys():
             (backend / obsolete).unlink(missing_ok=True)
     record.write_text(json.dumps({'repository': 'DDSurfer', 'commit': revision, 'files': hashes}, indent=2) + '\n')
+    return revision, len(hashes)
+
+
+def synchronize(upstream, assets, *, source_only=False):
+    upstream = upstream.resolve()
+    revision, source_count = synchronize_backend(upstream)
 
     manifest_path = ROOT / 'models/assets_manifest.json'
     manifest = json.loads(manifest_path.read_text())
+    if source_only:
+        manifest['ddsurfer_upstream_commit'] = revision
+        manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
+        print(json.dumps(dict(commit=revision, source_files=source_count, assets_changed=False), indent=2))
+        return
+    assets = assets.resolve()
     legacy_prefixes = ('Resources/Data/ckpts/', 'Resources/Data/template/', 'surface/template/')
     manifest['asset_records'] = {key: value for key, value in manifest['asset_records'].items()
                                  if not key.startswith(legacy_prefixes)}
@@ -116,13 +128,16 @@ def synchronize(upstream, assets):
     (assets / 'asset_mirror_manifest.json').write_text(json.dumps(mirror, indent=2) + '\n')
     (assets / 'asset_mirror_index.tsv').write_text('path\tsize_bytes\tsha256\n' +
         ''.join(f"{r['path']}\t{r['size_bytes']}\t{r['sha256']}\n" for r in records))
-    print(json.dumps({'commit': revision, 'source_files': len(hashes), 'assets': len(required),
+    print(json.dumps({'commit': revision, 'source_files': source_count, 'assets': len(required),
                       'asset_root': str(assets)}, indent=2))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--upstream', type=Path, required=True)
-    parser.add_argument('--asset-root', type=Path, required=True)
+    parser.add_argument('--asset-root', type=Path)
+    parser.add_argument('--source-only', action='store_true', help='Do not modify model files or mirror indexes')
     args = parser.parse_args()
-    synchronize(args.upstream, args.asset_root)
+    if not args.source_only and args.asset_root is None:
+        parser.error('--asset-root is required unless --source-only is selected')
+    synchronize(args.upstream, args.asset_root, source_only=args.source_only)

@@ -158,6 +158,13 @@ FreeSurfer executable installation or any third-party assets.
 
 The source snapshot is under `anatomy/surface/ddsurfer_backend/`; code revisions
 and per-file hashes remain in its `UPSTREAM.json`.
+The current snapshot includes the original-algorithm source-build recipe under
+`postprocessing/core/` and data metadata/notices under `postprocessing/assets/`.
+The source build reuses FreeSurfer C++ at its pinned revision, with ITK/zlib;
+it is not a Python rewrite or removal of their licenses. No compiled FreeSurfer
+executables or personal activation files are shipped in this extension.
+The optional atlas archive is fetched separately; retain its complete
+[upstream notices](anatomy/surface/ddsurfer_backend/postprocessing/assets/LICENSE.txt).
 The upstream project added an explicit MIT license in
 [commit 0c399ef](https://github.com/ChengjinLii/DDSurfer/blob/0c399ef8ff8c9931730cab6beaf5796ee61243ca/LICENSE).
 An exact copy is bundled as

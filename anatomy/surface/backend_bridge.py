@@ -36,7 +36,13 @@ def native_surface_hashes(native_dir, mode='whole'):
 def python_executable(explicit=None):
     configured = explicit or os.environ.get('DDSURFER_PYTHON_BIN')
     if configured:
-        return str(Path(configured).expanduser())
+        selected = Path(configured).expanduser()
+        # The raw embedded interpreter needs the launcher to reconstruct its
+        # Python home after Slicer's process environment has been isolated.
+        launcher = selected.parent / 'PythonSlicer'
+        if selected.name == 'python-real' and launcher.is_file():
+            return str(launcher)
+        return str(selected)
     try:
         import slicer
         if hasattr(slicer, 'app'):

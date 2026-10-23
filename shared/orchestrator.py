@@ -127,6 +127,8 @@ class ProductOrchestratorConfig:
     postprocess_mode: str = "whole"
     postprocess_python_bin: Optional[Path] = None
     postprocess_freesurfer_home: Optional[Path] = None
+    postprocess_runtime: Optional[Path] = None
+    postprocess_license_file: Optional[Path] = None
     postprocess_atlases: Optional[tuple[str, ...]] = None
     postprocess_force: bool = False
     atlas_t2: Optional[Path] = None
@@ -1333,6 +1335,8 @@ def _surface_postprocess_complete(
     mode: str = "whole",
     native_dir: Optional[Path] = None,
     atlases: Optional[tuple[str, ...]] = None,
+    runtime: Optional[Path] = None,
+    freesurfer_home: Optional[Path] = None,
 ) -> bool:
     outputs = _surface_postprocess_outputs(subject_root, subject_id, output_root)
     structural_root = outputs["manifest"].parent
@@ -1356,8 +1360,18 @@ def _surface_postprocess_complete(
             if manifest.get('cache_signature', {}).get('atlases') != expected_atlases:
                 return False
             signature = manifest.get('cache_signature') or {}
+            if runtime is not None or freesurfer_home is not None:
+                from shared.surface_runtime import surface_runtime_identity
+                if signature.get('surface_runtime') != surface_runtime_identity(runtime, freesurfer_home):
+                    return False
             if signature.get('mode') != mode:
                 return False
+            runtime = signature.get('surface_runtime')
+            if runtime is not None:
+                from anatomy.surface.backend_bridge import sha256
+                record = Path(runtime['home']) / ('runtime.json' if runtime['backend'] == 'native' else 'build-stamp.txt')
+                if (sha256(record) if record.is_file() else None) != runtime.get('record_sha256'):
+                    return False
             if signature.get('brain_source'):
                 from anatomy.surface.backend_bridge import sha256
                 if sha256(Path(signature['brain_source'])) != signature.get('brain_sha256'):
@@ -1925,6 +1939,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 mode=config.postprocess_mode,
                 native_dir=_resolve_optional_path(config.postprocess_native_dir),
                 atlases=config.postprocess_atlases,
+                runtime=_resolve_optional_path(config.postprocess_runtime),
+                freesurfer_home=_resolve_optional_path(config.postprocess_freesurfer_home),
             )
         if target == "microstructure":
             return _microstructure_dti_complete(subject_root, config.subject_id, output_root, fit_method=config.microstructure_fit_method)
@@ -2126,6 +2142,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 mode=config.postprocess_mode,
                 native_dir=explicit_native_dir,
                 atlases=config.postprocess_atlases,
+                runtime=_resolve_optional_path(config.postprocess_runtime),
+                freesurfer_home=_resolve_optional_path(config.postprocess_freesurfer_home),
             ):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=postprocess_outputs)
             elif explicit_native_dir is not None and not explicit_native_dir.is_dir():
@@ -3457,6 +3475,8 @@ def _run_subject_products_impl(
             mode=config.postprocess_mode,
             native_dir=_resolve_optional_path(config.postprocess_native_dir),
             atlases=config.postprocess_atlases,
+            runtime=_resolve_optional_path(config.postprocess_runtime),
+            freesurfer_home=_resolve_optional_path(config.postprocess_freesurfer_home),
         ):
             tasks.append(
                 ProductTaskRecord(
@@ -3527,6 +3547,8 @@ def _run_subject_products_impl(
                         mode=config.postprocess_mode,
                         python_bin=_resolve_optional_path(config.postprocess_python_bin),
                         freesurfer_home=_resolve_optional_path(config.postprocess_freesurfer_home),
+                        runtime=_resolve_optional_path(config.postprocess_runtime),
+                        license_file=_resolve_optional_path(config.postprocess_license_file),
                         atlases=config.postprocess_atlases,
                         force=bool(config.postprocess_force),
                     ),
@@ -3539,6 +3561,8 @@ def _run_subject_products_impl(
                     mode=config.postprocess_mode,
                     native_dir=native_dir,
                     atlases=config.postprocess_atlases,
+                    runtime=_resolve_optional_path(config.postprocess_runtime),
+                    freesurfer_home=_resolve_optional_path(config.postprocess_freesurfer_home),
                 )
                 tasks.append(
                     ProductTaskRecord(
@@ -4589,6 +4613,8 @@ def _run_subject_products_impl(
         "postprocess_mode": config.postprocess_mode,
         "postprocess_python_bin": config.postprocess_python_bin.expanduser().resolve().as_posix() if config.postprocess_python_bin else None,
         "postprocess_freesurfer_home": config.postprocess_freesurfer_home.expanduser().resolve().as_posix() if config.postprocess_freesurfer_home else None,
+        "postprocess_runtime": config.postprocess_runtime.expanduser().resolve().as_posix() if config.postprocess_runtime else None,
+        "postprocess_license_file": config.postprocess_license_file.expanduser().resolve().as_posix() if config.postprocess_license_file else None,
         "postprocess_atlases": list(config.postprocess_atlases) if config.postprocess_atlases else None,
         "postprocess_force": config.postprocess_force,
         "atlas_t2": atlas_t2.as_posix(),

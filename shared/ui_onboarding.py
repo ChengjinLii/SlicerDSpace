@@ -71,7 +71,8 @@ TRANSLATIONS = {
         "surface_postprocess_tooltip": (
             "Optional. Compute cortical annotations and surface metrics from DDSurfer white and pial surfaces. "
             "This does not run recon-all or produce a complete T1-derived FreeSurfer subject. "
-            "Requires FreeSurfer and a valid license. The backend is included in this extension. "
+            "Uses locally compiled original FreeSurfer components or an existing installation, with your own valid license. "
+            "A full FreeSurfer installation is optional for the current native OBJ route. "
             "Select Surface too unless native surfaces already exist; DDParcel is optional for the current backend."
         ),
         "parcellation": "Parcellation",
@@ -258,7 +259,8 @@ TRANSLATIONS = {
         "surface_postprocess_tooltip": (
             "可选。基于 DDSurfer 白质与软脑膜表面计算皮层标注及表面指标。"
             "它不会运行 recon-all，也不会生成基于 T1 的完整 FreeSurfer 受试者目录。"
-            "需要 FreeSurfer 安装及有效许可证，后处理代码已随插件提供。"
+            "使用本机编译的原始 FreeSurfer 组件或已有安装，并需您自己的有效许可证。"
+            "当前原生 OBJ 路线不强制安装完整 FreeSurfer。"
             "未生成原生表面时请同时选择表面重建；新版后处理无需强制运行 DDParcel。"
         ),
         "parcellation": "脑区分割",
@@ -464,9 +466,11 @@ ENVIRONMENT_DEPENDENCY_TEXT = {
             "Optional. Directory containing eddy and topup for MRtrix/FSL preprocessing.",
         ),
         "postprocess_freesurfer_home": (
-            "FreeSurfer home",
-            "FreeSurfer installation root for surface post-processing and SynthStrip brain masking. FREESURFER_HOME is also detected.",
+            "FreeSurfer home (optional)",
+            "Optional existing installation. Surface processing can instead use locally compiled components; SynthStrip remains separate. FREESURFER_HOME is detected.",
         ),
+        "postprocess_runtime": ("Surface components (optional)", "Local source-built runtime containing runtime.json; otherwise the matching user cache is detected. Does not contain SynthStrip."),
+        "postprocess_license_file": ("FreeSurfer activation file", "Your own activation file outside the runtime; FS_LICENSE is also detected. Never downloaded or bundled."),
         "pnl_mask_python": (
             "PNL mask Python",
             "Python executable in the external PNL CNN dMRI masking environment; not the general dependency-install Python.",
@@ -522,7 +526,9 @@ ENVIRONMENT_DEPENDENCY_TEXT = {
         "model_assets_dir": ("模型资源根目录", "可选。下载的 SlicerDDSurfer 模型资源根目录；默认使用 SLICERDDSURFER_MODEL_ASSETS_DIR 或用户数据目录。"),
         "mrtrix_bin_dir": ("MRtrix3 bin 目录", "可选。包含 mrconvert、dwi2response、dwi2fod、tckgen、tcksift2 的目录。"),
         "preprocessing_fsl_bin_dir": ("FSL bin 目录", "可选。包含 MRtrix/FSL 预处理所需 eddy 和 topup 的目录。"),
-        "postprocess_freesurfer_home": ("FreeSurfer 主目录", "表面后处理与 SynthStrip 脑掩膜共用的 FreeSurfer 安装根目录；也会检测 FREESURFER_HOME。"),
+        "postprocess_freesurfer_home": ("FreeSurfer 主目录（可选）", "可选已有 FreeSurfer 安装根目录；表面后处理可改用本机编译组件，SynthStrip 仍需单独配置；检测 FREESURFER_HOME。"),
+        "postprocess_runtime": ("表面处理组件（可选）", "本机源码编译、包含 runtime.json 的目录；留空检测匹配的用户缓存。不含 SynthStrip。"),
+        "postprocess_license_file": ("FreeSurfer 激活文件", "您自己的激活文件，放在组件目录外；也检测 FS_LICENSE。插件不会下载或打包私人激活文件。"),
         "pnl_mask_python": ("PNL 掩膜 Python", "外部 PNL CNN dMRI 脑掩膜环境的 Python 可执行文件，不是用于通用依赖安装的 Python。"),
         "pnl_mask_script": ("PNL dwi_masking.py", "外部官方 PNL CNN dwi_masking.py 脚本路径；不会自动切换其他脑掩膜后端。"),
         "pnl_mask_model_dir": ("PNL 掩膜模型目录", "外部 PNL CNN 模型目录。使用 PNL CNN 生成缺失掩膜时需配置；已有的用户掩膜会被复用。"),
