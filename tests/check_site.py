@@ -970,8 +970,9 @@ WORDING_FIXES = (
      r'(?m)(?:^[ \t]*#.*\n)+(?=    \("r13 1", "tests/check_site.py", MAIN_TAIL,\n)',
      "the run-order flag is on the line above the comparison.", "summary flag is in MAIN_TAIL"),
     # Opus r17 5: the self-test call in main() and its FAIL. Opus r19 4: the call is in a try, right above the test.
-    ("r17 5", "tests/check_site.py", MAIN_TAIL,
-     'if not all(w in got for w in ("lacks", "still says", "still matches")):'
+    # README r29 3: the self-test rows must also give "unknown kind".
+    ("r17 5, r29 3", "tests/check_site.py", MAIN_TAIL,
+     'if not all(w in got for w in ("lacks", "still says", "still matches", "unknown kind")):'
      ' results.append(("FAIL", "backlog_wording",', None),
     ("r19 4", "tests/check_site.py", MAIN_TAIL,
      'try: got = backlog_wording.fn(WORDING_SELF_TEST) or "" except Exception as exc: got = "exception: %r" % (exc,)'
@@ -1070,6 +1071,45 @@ WORDING_FIXES = (
     ("r28 1", "tests/check_site.py", r"(?ms)^def finding_names\(.*?(?=^\S)",
      'names.add(" ".join(x for x in (run, letter + str(n)) if x))', None),
     ("r28 1", "tests/check_site.py", r"(?ms)^class AlsoInComments:.*?(?=^\S)", "self.banned = banned", None),
+    # README r29 1, r29 4: the name-parser sample test.
+    ("r29 1, r29 4", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     'names = finding_names(NAMES_SAMPLE) if names != NAMES_SAMPLE_SET: problems.append("finding_names gives', None),
+    # README r29 5: the unknown-kind message shows the row's own ban.
+    ("r29 5", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     'shown = banned marked = isinstance(banned, AlsoInComments)', None),
+    ("r29 5", "tests/check_site.py", r"(?ms)^def backlog_wording\(.*?(?=^\S)",
+     'problems.append("%s: %s has a ban of unknown kind %r" % (finding, rel, shown))', None),
+    # README r25 2: the r24 1-3 code (the HTML ban line is held by the r27 1 row).
+    ("r25 2", "tests/check_site.py",
+     r'(?m)^            if re\.search\(r"%\(2f\|5c\)", urlsplit\(ref\)\.path, re\.I\):.*\n'
+     r'                problems\.append\("%s url\(%r\) has an encoded slash.*\n',
+     'if re.search(r"%(2f|5c)", urlsplit(ref).path, re.I): problems.append("%s url(%r) has an encoded slash in its'
+     ' path"', None),
+    ("r25 2", "tests/check_site.py", r'(?m)^        for m in re\.finditer\(r"@font-face.*\n',
+     r'for m in re.finditer(r"@font-face\s*\{[^}]*?font-family:\s*([^;]+);", css, re.I):', None),
+    ("r25 2", "tests/browser_check.mjs", r"(?m)^    const expected = \(m\) => .*\n.*\n",
+     r"const expected = (m) => status === 404 && m.location().url === docUrl && /^Failed to load resource: the server "
+     r"responded with a status of 404\b/.test(m.text()) && exempted++ === 0;", None),
+    # README r25 3: the response filter exempts only the page's own navigation in the main frame.
+    ("r25 2, r25 3", "tests/browser_check.mjs", r"(?ms)^    p2\.on\('response', \(r\) => \{\n.*?^    \}\);\n",
+     "const own = r.url() === docUrl && r.request().isNavigationRequest() && r.frame() === p2.mainFrame(); "
+     "if (r.status() >= 400 && !own) bad.push(", None),
+    # README r25 4: the Chrome version of the exempt message.
+    ("r25 4", "tests/browser_check.mjs", r"(?m)(?:^    //.*\n)+(?=    let exempted = 0;)",
+     "Measured on Chrome 155.0.8059.85 (r24 3) and on Chrome 156.0.8078.47", None),
+    # README r29 2: the r11 2 limit names code added at the end of a pinned line.
+    ("r29 2", "README.md", r"(?ms)^- r11 2 \(P3\)\..*?(?=^(?! )|\Z)", "when code is added at its end", None),
+    # README r29 6: the r27 2 entry says what the four labels are, not a rule.
+    ("r29 6", "README.md", r"(?ms)^- r27 2 \(P3, Opus;.*?(?=^(?! )|\Z)", "Four rows now name two findings",
+     "A label names two findings when a later fix changed that row"),
+    # README r29 7: the r28 paragraph of SPEC §9 says what the rows pin; item 17 states the kind.
+    ("r29 7", "SPEC.md", r"(?ms)^After code review \(2026-10-23, README backlog r28 1–5\).*?(?=\n\n|\Z)",
+     "five rows pin lines in", "rows pin the bodies of"),
+    ("r29 7", "SPEC.md", r"(?ms)^17\. `backlog_wording`.*?(?=^(?! )|\Z)", "`AlsoInComments` (of a string or a regex)",
+     None),
+    # README r29 8: the r28 1 entry names which names.add line the run changed.
+    ("r29 8", "README.md", r"(?ms)^- r28 1 \(P2, Opus;.*?(?=^(?! )|\Z)", '`names.add(" ".join(` line replaced by `pass`',
+     "the `names.add` line replaced"),
     # README r28 2: the r27 1 entry also names the comment positions after the append line as limits.
     ("r28 2", "README.md", r"(?ms)^- r27 1 \(P3, Opus;.*?(?=^(?! )|\Z)",
      "as a comment line after the `problems.append` line, as a trailing comment on `continue`, or as a 12-space "
@@ -1092,14 +1132,20 @@ WORDING_FIXES = (
 # string stays.
 CODE_SAMPLE = 'x = 1  # a trailing comment\n# a comment line\ny = "# not a comment"\n'
 CODE_SAMPLE_TEXT = 'x = 1 y = "# not a comment"'
+# README r29 1, r29 4: a sample for finding_names: a bare number after a round, a range, a letter name with and
+# without a round, "and", and a token that is not a name (kept as it is).
+NAMES_SAMPLE = "r10 1, 2, r12 1–3, N5, r2 N3 and x 1-2"
+NAMES_SAMPLE_SET = {"r10 1", "r10 2", "r12 1", "r12 2", "r12 3", "N5", "r2 N3", "x 1-2"}
 
 # Opus r17 5: no row can guard the lines that report every row (the "lacks", "still says" and "still matches" lines,
-# and the return line), so main() runs backlog_wording on these rows, which must give all three problems.
+# and the return line), so main() runs backlog_wording on these rows, which must give all four problems (README r29 3:
+# also "unknown kind").
 WORDING_SELF_TEST = (
     ("self-test", "tests/check_site.py", r"(?m)^CODE_SAMPLE_TEXT = .*$", "a phrase that this line does not hold",
      "CODE_SAMPLE_TEXT"),
     ("self-test", "tests/check_site.py", r"(?m)^CODE_SAMPLE_TEXT = .*$", "CODE_SAMPLE_TEXT",
      re.compile(r"SAMPLE_TEXT")),
+    ("self-test", "tests/check_site.py", r"(?m)^CODE_SAMPLE_TEXT = .*$", "CODE_SAMPLE_TEXT", AlsoInComments(None)),
 )
 # Review of 49681a8 (README r19 1): the rows that the last backlog_wording call went through; main() compares it
 # with WORDING_FIXES.
@@ -1159,6 +1205,10 @@ def backlog_wording(rows=WORDING_FIXES):
         sample = "exception: %r" % (exc,)
     if sample != CODE_SAMPLE_TEXT:
         problems.append("the comment remover gives %r for its sample, not %r" % (sample, CODE_SAMPLE_TEXT))
+    names = finding_names(NAMES_SAMPLE)  # README r29 1, r29 4: the name parser of label_problems reads its sample
+    if names != NAMES_SAMPLE_SET:
+        problems.append("finding_names gives %r for its sample, not %r"
+                        % (sorted(names), sorted(NAMES_SAMPLE_SET)))
     WORDING_RUN["rows"] = 0
     for finding, rel, where, want, banned in rows:
         WORDING_RUN["rows"] += 1
@@ -1188,13 +1238,13 @@ def backlog_wording(rows=WORDING_FIXES):
         if want not in text:
             problems.append("%s: %s lacks %r" % (finding, rel, want))
         # README r27 1: this ban also reads the part as written, with its comments.
+        shown = banned  # README r29 5: the ban as the row gives it, for the message below
         marked = isinstance(banned, AlsoInComments)
         if marked:
             banned, text = banned.banned, " ".join((text + "\n" + raw).split())
         # README r28 4: a marked ban needs a string or a regex, so AlsoInComments(None) is of unknown kind too.
         if (banned is not None or marked) and not isinstance(banned, (str, re.Pattern)):
-            problems.append("%s: %s has a ban of unknown kind %r"
-                            % (finding, rel, AlsoInComments(banned) if marked else banned))
+            problems.append("%s: %s has a ban of unknown kind %r" % (finding, rel, shown))
         if isinstance(banned, re.Pattern) and banned.search(text):
             problems.append("%s: %s still matches %r" % (finding, rel, banned.pattern))
         elif isinstance(banned, str) and banned in text:
@@ -1254,8 +1304,8 @@ def main(argv):
         got = backlog_wording.fn(WORDING_SELF_TEST) or ""
     except Exception as exc:  # Opus r19 4: a crash here is a FAIL line, not a lost report
         got = "exception: %r" % (exc,)
-    if not all(w in got for w in ("lacks", "still says", "still matches")):
-        results.append(("FAIL", "backlog_wording", "its self-test rows give %r, not the three problems" % got))
+    if not all(w in got for w in ("lacks", "still says", "still matches", "unknown kind")):
+        results.append(("FAIL", "backlog_wording", "its self-test rows give %r, not the four problems" % got))
 
     # Opus r13 1: from here on a result is not counted, so a check that runs now prints its FAIL and exits 1.
     RUN["summary"] = True

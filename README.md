@@ -79,9 +79,11 @@ Items from the spec review (SPEC §9) that were not taken. They do not block the
 - N18 (P3). **No change** (marked 2026-10-22): for DDSeg the QC that passed is the world-space QC (DDSeg-vs-DDParcel
   WM Dice 0.848). The Outputs note says “Automatic QC passed for the … DDSeg … stages”; the reviewer found that
   acceptable.
-- N19 (P3). **Not on this branch** (marked 2026-10-22): `CITATION.cff` writes O'Donnell with an ASCII apostrophe in
-  the DDSurfer entry; the page uses ’ (allowed by the SPEC typography rule). `CITATION.cff` is on `main`, which this
-  branch does not change; fix it there if wanted.
+- N19 (P3). **Not on this branch** (marked 2026-10-22): `CITATION.cff` writes O'Donnell with an ASCII apostrophe in the
+  DDSurfer entry; the page uses ’ (allowed by the SPEC typography rule). `CITATION.cff` is on `main`, which this branch
+  does not change; fix it there if wanted. **Closed 2026-10-23, no change** (the user asked to close every open item):
+  an ASCII apostrophe is the usual spelling in citation metadata (YAML, name matching), so the file's ' and the page's ’
+  are both right, and this branch does not change `main` (the user's choice when the site went to `gh-pages`).
 
 ### Code review, round 1 (commit 935a5d9; Opus and Codex)
 
@@ -303,13 +305,14 @@ Not fixed (non-blocking, from the Opus review):
   (`MAIN_TAIL`). With the comparison moved below the count, the c9d46ec script passes and the new script fails.
 - r11 2 (P3). **Fixed 2026-10-21** (user request): the r10 1 row now bans the old split with a regex in both quote
   styles (a row's banned phrase may be a string, a compiled regex or `None`). With `.split('\n\n')` added after the
-  `re.split` line, the c9d46ec script passes and the new script fails.
-  Limit (README r13 2, r14 1): Code pins accept dead code and other spellings. This holds for every code pin in
-  `WORDING_FIXES`, not only this ban. A pinned line still counts when it does not run (under `if False:`, or below a
-  `return` moved above it) and when a line added after it undoes it (for example `sample = CODE_SAMPLE_TEXT` added
-  below the line that makes the sample). A ban misses
-  other spellings of the old code: six other spellings of the old split pass, for example `.split( "\n\n" )` or
-  `.split(sep="\n\n")`; the old split under `if False:` still fails the ban, because a ban reads text.
+  `re.split` line, the c9d46ec script passes and the new script fails. Limit (README r13 2, r14 1): Code pins accept
+  dead code and other spellings. This holds for every code pin in `WORDING_FIXES`, not only this ban. A pinned line
+  still counts when it does not run (under `if False:`, or below a `return` moved above it) and when a line added after
+  it undoes it (for example `sample = CODE_SAMPLE_TEXT` added below the line that makes the sample), and when code is
+  added at its end (README r29 2: for example `labels = set().union(...) | listed`, since a fixed phrase only has to be
+  in the text). A ban misses other spellings of the old code: six other spellings of the old split pass, for example
+  `.split( "\n\n" )` or `.split(sep="\n\n")`; the old split under `if False:` still fails the ban, because a ban reads
+  text.
 - r11 3 (P3). **Fixed 2026-10-21** (user request): a check called after the run-order comparison was neither listed
   nor compared. `main()` now sets `RUN["compared"]` after the comparison, and the `check()` wrapper fails a check
   that runs after that. With `menu_focus_wording()` called again after the comparison, the c9d46ec script passes
@@ -646,12 +649,24 @@ Non-blocking items:
   `re.I`, either ban, or the 404 changes leaves both suites green on the committed `docs/`. As before, the fixes are
   held by the test copies, and rows pin only lines that a copy cannot reach (r10 2, r11 3, r22 1). Fix if wanted: one
   row per fix (the HTML and CSS ban lines are the same text after `code_text`, so the row needs a part that holds one).
+  **Fixed 2026-10-23** (user request: close every open item): rows pin the CSS ban line and its append, the `@font-face`
+  line with `re.I`, and in `browser_check.mjs` the `expected` filter and the response filter; the r27 1 row already
+  holds the HTML ban line. With `re.I` removed from the CSS ban or from the `@font-face` line, `exempted++ === 0`
+  replaced by `true`, or the response filter turned off, the 3bc40be script passes and the new one fails r25 2. Limit: a
+  part of a `.mjs` file is raw text, so a commented-out line there still holds a pin.
 - r25 3 (P3, Opus; from 3dc2c4a): the response filter exempts every navigation at the page URL, also an iframe that
-  loads it; the comment says “not the page itself”. No false pass was found (the once-only console rule still fails
-  the iframe). Fix: add `r.frame() === p2.mainFrame()`, or say “a navigation”.
+  loads it; the comment says “not the page itself”. No false pass was found (the once-only console rule still fails the
+  iframe). Fix: add `r.frame() === p2.mainFrame()`, or say “a navigation”. **Fixed 2026-10-23** (user request): the
+  response filter exempts a 404 at the page URL only for a navigation in the main frame (`r.frame() ===
+  p2.mainFrame()`), and its comment says so; a row pins the line. With the 3bc40be filter line, the new script fails r25
+  2, r25 3. Measured with a copy of `404.html` that, away from `/404.html`, adds an iframe loading the page URL: the
+  3bc40be suite fails it only through the console rule (`bad` is empty), the new one also lists the iframe's 404 in
+  `bad`.
 - r25 4 (P3, Opus; from 3dc2c4a): the exemption matches Chrome's exact wording, measured on Chrome 155.0.8059.85
   (“Failed to load resource: the server responded with a status of 404 (Not Found)”, once, at the page URL). Other
-  wording gives a visible FAIL, not a false pass. Fix: record the Chrome version next to the regex.
+  wording gives a visible FAIL, not a false pass. Fix: record the Chrome version next to the regex. **Fixed 2026-10-23**
+  (user request): the comment next to the regex names Chrome 155.0.8059.85 (r24 3) and Chrome 156.0.8078.47 (measured
+  2026-10-23 with `browser.version()`; the suite passes on it). A row pins it.
 
 ### Review of the r25 1 fix (134f246; Opus 0 blocking, Codex 0 blocking)
 
@@ -687,12 +702,12 @@ part, and ran 18 changed copies: every false pass is in a recorded limit. The re
   12-space comment line after `continue`; a blank line inside the block still shrinks the r25 1 part without a FAIL.
 - r27 2 (P3, Opus; recorded limit “a row's own definition”). **Fixed 2026-10-23** (user request; new rule):
   `backlog_wording` compares the findings that the row labels name with the SPEC item 17 list, both ways
-  (`label_problems`), and the r23 1 row that held the whole list as one phrase is gone. A label names two findings when
-  a later fix changed that row: `r16 1, r18 2`, `r16 3, r18 4`, `r17 1, r19 2` and `r25 1, r26 1` (the four names that
-  had no row of their own). A row labelled `r23 1, r27 2` pins the call. With the r26 2 row deleted, or a row labelled
-  `r99 1` added, the 2b0af82 script passes and the new one fails; with `r26 2` taken out of item 17, both fail; with two
-  names swapped in item 17, the 2b0af82 script fails (a false FAIL, now gone) and the new one passes. Limit: deleting a
-  row whose findings another row also names (for example one of the six r12 1 rows) still passes.
+  (`label_problems`), and the r23 1 row that held the whole list as one phrase is gone. Four rows now name two findings,
+  their own and the later one that changed them: `r16 1, r18 2`, `r16 3, r18 4`, `r17 1, r19 2` and `r25 1, r26 1` (the
+  four names that had no row of their own). A row labelled `r23 1, r27 2` pins the call. With the r26 2 row deleted, or
+  a row labelled `r99 1` added, the 2b0af82 script passes and the new one fails; with `r26 2` taken out of item 17, both
+  fail; with two names swapped in item 17, the 2b0af82 script fails (a false FAIL, now gone) and the new one passes.
+  Limit: deleting a row whose findings another row also names (for example one of the six r12 1 rows) still passes.
 - r27 3 (P3, Opus; wording). **Fixed 2026-10-23** (user request): the comment says that `url("%2Fassets/...")` “in a
   .css file below the docs/ root would pass here and break on Pages”. A row pins it; with the 2b0af82 wording, the new
   script fails r27 3 (“lacks” and “still says”), and the r26 2 row still passes.
@@ -705,10 +720,10 @@ The review is closed. Non-blocking items:
 - r28 1 (P2, Opus; from 2f2ffd7). **Fixed 2026-10-23** (user request): five rows pin the guard bodies: the `labels =
   set().union(` line and the `return` with both report lists in `label_problems`, the `re.fullmatch(` and `names.add("
   ".join(` lines in `finding_names`, and `self.banned = banned` in `AlsoInComments`. With `labels = listed`, the second
-  list deleted, `tok` replaced by `"r0 0"` in the `re.fullmatch` call, the `names.add` line replaced by `pass`, or
-  `self.banned = None`, the 4a9294a script passes and the new one fails r28 1. Limit (recorded “dead code”): `return []`
-  as the first line of `label_problems`, or `return set()` as the first line of `finding_names`, still passes in both
-  scripts.
+  list deleted, `tok` replaced by `"r0 0"` in the `re.fullmatch` call, the `names.add(" ".join(` line replaced by
+  `pass`, or `self.banned = None`, the 4a9294a script passes and the new one fails r28 1. Limit (recorded “dead code”):
+  `return []` as the first line of `label_problems`, or `return set()` as the first line of `finding_names`, still
+  passes in both scripts.
 - r28 2 (P3, Opus; from 2f2ffd7; README). **Fixed 2026-10-23** (user request): the r27 1 entry says “between the `if`
   line and the `problems.append` line”, and its limits name the three positions after the append. Measured on the new
   script: the claim as a comment line after the append, as a trailing comment on `continue`, or as a 12-space comment
@@ -733,22 +748,44 @@ kind the old one did (about 90 runs). The review is closed. Non-blocking items:
   off with every check green: `return set()` in place of `return names`, `for tok in ():`, or `for n in range(0):`
   (17/0; with `r28 3` also taken out of item 17, still 17/0). The README r28 1 limit names only `return set()` as the
   first line, so it says less is open than is. Fix if wanted: a self-test of `finding_names` on a fixed list in
-  `main()`, or a pin on `return names` with the loop lines recorded as a limit.
+  `main()`, or a pin on `return names` with the loop lines recorded as a limit. **Fixed 2026-10-23** (user request:
+  close every open item): `backlog_wording` checks `finding_names` on a built-in sample (`NAMES_SAMPLE`: a bare number
+  after a round, a range, a letter name with and without a round, “and”, and a token that is not a name), next to the
+  comment-remover sample, so `return []` at the top of `label_problems` does not switch it off; a row pins the test.
+  With `return set()` in place of `return names` or as the first line, `for tok in ():` or `for n in range(0):`, the
+  3bc40be script passes and the new one fails (“finding_names gives … for its sample”). This also closes the r28 1
+  dead-code case for `finding_names`; `return []` at the top of `label_problems` stays in that limit.
 - r29 2 (P3, Opus; predates): a fixed phrase only has to be in the text, so code added at the end of a pinned line
   passes (`labels = set().union(...) | listed` with an unlisted label; `self.banned = banned if 0 else
-  re.compile("(?!)")` with the claim as a trailing comment). Both edits are deliberate.
+  re.compile("(?!)")` with the claim as a trailing comment). Both edits are deliberate. **Closed 2026-10-23 as a
+  recorded limit** (user request: close every open item): a fixed phrase is a substring of the normalized text, so the
+  end of a line is not visible to it; changing that would reopen the settled pin genre. The r11 2 limit now names this
+  case; a row pins it.
 - r29 3 (P3, Opus; predates): no row pins the line that reports a ban of unknown kind; replaced by `pass` it gives 17/0.
   Fix if wanted: a `WORDING_SELF_TEST` row with a bad kind, and “unknown kind” among the problems `main()` expects.
+  **Fixed 2026-10-23** (user request): a third `WORDING_SELF_TEST` row has the ban `AlsoInComments(None)`, and `main()`
+  fails `backlog_wording` unless the self-test rows also give “unknown kind” (the r17 5 row now has the label `r17 5,
+  r29 3`). With the report line replaced by `pass`, the 3bc40be script passes and the new one fails (“not the four
+  problems”, and the r29 5 row).
 - r29 4 (P3, Opus; predates): `names.add(tok)` has no row; deleted, with an ASCII-hyphen range added to item 17, it
-  gives 17/0. The r29 1 self-test would cover it.
+  gives 17/0. The r29 1 self-test would cover it. **Fixed 2026-10-23** (user request): the r29 1 sample holds a token
+  that is not a name (`x 1-2`). With `names.add(tok)` deleted, the 3bc40be script passes and the new one fails.
 - r29 5 (P3, Opus; from 12d3a9a; cosmetic): with the `if marked:` block deleted, the message wraps the ban twice
-  (`AlsoInComments(AlsoInComments(...))`); the check still fails, and the pin reports “lacks”.
+  (`AlsoInComments(AlsoInComments(...))`); the check still fails, and the pin reports “lacks”. **Fixed 2026-10-23**
+  (user request): the message shows the ban as the row gives it (`shown`); two rows pin the lines. With the `if marked:`
+  block deleted, the 3bc40be message is `AlsoInComments(AlsoInComments(re.compile(…)))` and the new one
+  `AlsoInComments(re.compile(…))`.
 - r29 6 (P3, Opus; wording; a cross-reference of r28 3): the README r27 2 entry still says “A label names two findings
-  when a later fix changed that row”.
+  when a later fix changed that row”. **Fixed 2026-10-23** (user request): the entry says “Four rows now name two
+  findings, their own and the later one that changed them”. A row pins it; with the old sentence, the new script fails
+  r29 6.
 - r29 7 (P3, Opus; wording): the r28 §9 paragraph says “rows pin the bodies”, but the rows pin five lines; no row pins
-  the item 17 words “(of a string or a regex)”.
+  the item 17 words “(of a string or a regex)”. **Fixed 2026-10-23** (user request): the r28 paragraph says “five rows
+  pin lines in”, and a row pins the item 17 words “`AlsoInComments` (of a string or a regex)”. With either old text, the
+  new script fails r29 7.
 - r29 8 (P3, Opus; wording): the README r28 1 entry says “the `names.add` line”, but `finding_names` has two; the run
-  changed the `names.add(" ".join(` line.
+  changed the `names.add(" ".join(` line. **Fixed 2026-10-23** (user request): the r28 1 entry names the `names.add("
+  ".join(` line. A row pins it; with the old words, the new script fails r29 8.
 
 ## Image crop boxes as finally used
 

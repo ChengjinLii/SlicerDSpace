@@ -427,29 +427,30 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     check, is not covered.
 17. `backlog_wording`: the fixes in the script's `WORDING_FIXES` table (README backlog r9 2–4, r10 1, 2, 4, 5, r11 3, 4,
     r12 1–4, r13 1–3, r14 1, r14 3–6, r15 2, r16 1, r16 3, r17 1–5, r18 1, r18 2, r18 4, r19 1–5, r20 1, r20 2, r20 6,
-    r21 1, r22 1, r22 3, r23 1, r24 4, r25 1, r26 1, r26 2, r27 1–3, r28 1–4, N5, N10, N12, N15, r2 N3, r2 N4 and r4 B4)
-    stay in place: in the part of a file that each row names (found exactly once), the fixed phrase is there and, where
-    there is one, the old phrase is not (a string or a regex; a ban of another kind is a FAIL). In a `.py` part made of
-    comment lines the `#` marks are removed before the test; from a `.py` part that holds code every comment is removed
-    (Python `tokenize`, also a comment at the end of a line), so code commented out with `#` does not count; code inside
-    a string still counts. A ban marked `AlsoInComments` (of a string or a regex) is also tested on the part as written,
-    with its comments, so that an old phrase cannot come back in a comment of a part that holds code. A built-in sample
-    checks the comment remover. `main()` also runs this check on built-in rows (`WORDING_SELF_TEST`) and fails it unless
-    they give a “lacks”, a “still says” and a “still matches” problem (a crash there is a FAIL too). It also fails it
-    when the normal call went through fewer or more rows than `WORDING_FIXES` holds. The list above names exactly the
-    findings that the row labels name, in any order: a label may name two findings (for example `r16 1, r18 2`), and a
-    difference either way is a FAIL.
+    r21 1, r22 1, r22 3, r23 1, r24 4, r25 1–4, r26 1, r26 2, r27 1–3, r28 1–4, r29 1–8, N5, N10, N12, N15, r2 N3, r2 N4
+    and r4 B4) stay in place: in the part of a file that each row names (found exactly once), the fixed phrase is there
+    and, where there is one, the old phrase is not (a string or a regex; a ban of another kind is a FAIL). In a `.py`
+    part made of comment lines the `#` marks are removed before the test; from a `.py` part that holds code every
+    comment is removed (Python `tokenize`, also a comment at the end of a line), so code commented out with `#` does not
+    count; code inside a string still counts. A ban marked `AlsoInComments` (of a string or a regex) is also tested on
+    the part as written, with its comments, so that an old phrase cannot come back in a comment of a part that holds
+    code. Built-in samples check the comment remover and the name parser of the label comparison. `main()` also runs
+    this check on built-in rows (`WORDING_SELF_TEST`) and fails it unless they give a “lacks”, a “still says”, a “still
+    matches” and an “unknown kind” problem (a crash there is a FAIL too). It also fails it when the normal call went
+    through fewer or more rows than `WORDING_FIXES` holds. The list above names exactly the findings that the row labels
+    name, in any order: a label may name two findings (for example `r16 1, r18 2`), and a difference either way is a
+    FAIL.
 
 ### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
 
-Serves `docs/` from a local HTTP server with Range support (to match GitHub Pages), opens it in Google Chrome
-(`channel: 'chrome'`; Playwright's Chromium lacks H.264/AAC) with Chrome's own autoplay policy (no `--autoplay-policy`
-flag), and checks at 1440×900 and 390×844 (and 320×640 for overflow only; 861, 900, 1023, 1024 and 1100 px wide for
-header fit, no overlap of brand, nav links, chip and Menu button, and the Menu button shown up to 1023 px and hidden
-from 1024 px; the no-JS page at 1440×900 and 390×844, with no failed load; the 404 page at `/404.html` (no console
-error) and at a missing path (only the page's own 404 status, once, and no other response ≥ 400 at its URL), with no
-page error at either; the first-screen sections at 1440×900, 390×844 and 375×667, measured in the no-JS layout as
-`site.js` does; and a `play()` with sound that no user gesture starts must be refused, within a 30 s wait):
+Serves `docs/` from a local HTTP server with Range support (to match GitHub Pages), opens it in Google Chrome (`channel:
+'chrome'`; Playwright's Chromium lacks H.264/AAC) with Chrome's own autoplay policy (no `--autoplay-policy` flag), and
+checks at 1440×900 and 390×844 (and 320×640 for overflow only; 861, 900, 1023, 1024 and 1100 px wide for header fit, no
+overlap of brand, nav links, chip and Menu button, and the Menu button shown up to 1023 px and hidden from 1024 px; the
+no-JS page at 1440×900 and 390×844, with no failed load; the 404 page at `/404.html` (no console error) and at a missing
+path (only the page's own 404 status, once, for its navigation in the main frame, and no other response ≥ 400 at its
+URL), with no page error at either; the first-screen sections at 1440×900, 390×844 and 375×667, measured in the no-JS
+layout as `site.js` does; and a `play()` with sound that no user gesture starts must be refused, within a 30 s wait):
 
 1. no console error; no failed request, except `net::ERR_ABORTED` on `media/*.mp4` (Chrome cancels and re-issues
    byte-range requests for video); no response with status ≥ 400; no request to another host;
@@ -618,7 +619,15 @@ with the item 17 list, both ways; a label may name two findings, and the row tha
 gone (r27 2). A row holds the corrected comment wording of r27 3.
 
 After code review (2026-10-23, README backlog r28 1–5): no rule changes. In item 17 `backlog_wording` the kind test now
-also rejects `AlsoInComments(None)`, so the code matches the stated kind “of a string or a regex” (r28 4); rows pin the
-bodies of `label_problems`, `finding_names` and `AlsoInComments` (r28 1); item 17 says that a label may name two
-findings (r28 3); the README r27 1 limits also name the three comment positions after the `problems.append` line (r28
-2). r28 5 (information) needs no change.
+also rejects `AlsoInComments(None)`, so the code matches the stated kind “of a string or a regex” (r28 4); five rows pin
+lines in `label_problems`, `finding_names` and `AlsoInComments` (r28 1); item 17 says that a label may name two findings
+(r28 3); the README r27 1 limits also name the three comment positions after the `problems.append` line (r28 2). r28 5
+(information) needs no change.
+
+After code review (2026-10-23, README backlog r25 2–4 and r29 1–8; the user asked to close every open item): two rule
+changes in item 17 `backlog_wording`: the self-test rows also give an “unknown kind” problem (r29 3), and a built-in
+sample checks the name parser of the label comparison (r29 1, r29 4). One narrowing in §7.2: at the missing path only
+the page's own navigation in the main frame may give 404 (r25 3). No other rule changes: rows pin the r24 1–3 code (r25
+2), the Chrome versions of the exempt message (r25 4) and the unknown-kind message, which now shows the row's own ban
+(r29 5); the README r11 2 limit names code added at the end of a pinned line (r29 2); r29 6 and r29 8 are README
+wording; for r29 7 the r28 paragraph above now says “five rows pin lines in”.
