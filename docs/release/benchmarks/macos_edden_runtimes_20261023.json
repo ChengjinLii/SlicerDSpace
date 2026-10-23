@@ -1,0 +1,176 @@
+{
+ "kind": "slicerddsurfer_macos_runtime_ledger",
+ "version": 1,
+ "report_date": "2026-10-23",
+ "host": {
+  "machine": "Apple M4 (4 performance + 6 efficiency cores)",
+  "memory_gib": 24,
+  "os": "macOS 15.8.1",
+  "slicer": "3D Slicer 5.12.4 (rev 34645), x86_64 build under Rosetta 2",
+  "device": "CPU only (no CUDA on macOS)"
+ },
+ "subject": "EDDEN ds004666 sub-01, ses-1p5mm AVG_mag (CC0)",
+ "notes": [
+  "One subject, one run per task; not a benchmark and not comparable with the Linux inventory rows.",
+  "Tasks marked overlapped_with ran at the same time as other tasks and shared the 10 cores.",
+  "peak_rss_mib sums the resident memory of each process in the task's tree from 5 s samples: an upper bound (shared pages count more than once); null means the task was not sampled.",
+  "Times are the pipeline's own task runtime_seconds (no Slicer start-up).",
+  "One row per subject root and task: a run that did not share the CPU is preferred; other completed runs are under repeats.",
+  "QC-only tasks (DDSeg world-coordinate QC) are left out."
+ ],
+ "records": [
+  {
+   "module": "microstructure.dti",
+   "root": "A",
+   "input_scope": "140x140x92 at 1.5 mm, 117 volumes (b0 + b1000)",
+   "run_name": "promo",
+   "runtime_seconds": 40.501,
+   "status": "completed",
+   "started_at": "2026-10-19T15:14:33+00:00",
+   "source_record": "subjects/sub-01/outputs/00_run_metadata/history/promo/20261019T151518100902Z/promo_orchestration_manifest.json",
+   "source_record_sha256": "f76f2c5c2f58ff372a754dbd7509d7be0f7676a3a2a43da98f5fa124d7aeb570",
+   "device": "cpu",
+   "overlapped_with": [],
+   "peak_rss_mib": null,
+   "mean_cpu_percent": null
+  },
+  {
+   "module": "tractography.dti_det",
+   "root": "A",
+   "input_scope": "140x140x92 at 1.5 mm, 117 volumes (b0 + b1000)",
+   "run_name": "promo",
+   "runtime_seconds": 46.537,
+   "status": "completed",
+   "started_at": "2026-10-19T15:15:18+00:00",
+   "source_record": "subjects/sub-01/outputs/00_run_metadata/history/promo/20261019T151608189843Z/promo_orchestration_manifest.json",
+   "source_record_sha256": "dbf35c63e5e2e7e6417841bafa98d0dadcae8fa9010727c06c235e552bcb2b01",
+   "device": "cpu",
+   "overlapped_with": [],
+   "peak_rss_mib": null,
+   "mean_cpu_percent": null
+  },
+  {
+   "module": "segmentation.ddseg",
+   "root": "A",
+   "input_scope": "140x140x92 at 1.5 mm, 117 volumes (b0 + b1000)",
+   "run_name": "promo",
+   "runtime_seconds": 90.833,
+   "status": "completed",
+   "started_at": "2026-10-19T15:16:08+00:00",
+   "source_record": "subjects/sub-01/outputs/00_run_metadata/history/promo/20261019T151743092785Z/promo_orchestration_manifest.json",
+   "source_record_sha256": "9c22e77acdbd46ded0e32459b129b1356d558760bb6c9ce633dcd777163524cb",
+   "device": "cpu",
+   "overlapped_with": [],
+   "peak_rss_mib": null,
+   "mean_cpu_percent": null
+  },
+  {
+   "module": "parcellation.ddparcel",
+   "root": "A",
+   "input_scope": "140x140x92 at 1.5 mm, 117 volumes (b0 + b1000)",
+   "run_name": "promo",
+   "runtime_seconds": 1956.05,
+   "status": "completed",
+   "started_at": "2026-10-19T15:17:43+00:00",
+   "source_record": "subjects/sub-01/outputs/00_run_metadata/history/promo/20261019T155023104001Z/promo_orchestration_manifest.json",
+   "source_record_sha256": "1d502acbb226bffc18d9700aa0d0423278daf2ea1d92ef5d6eb81f35ad64b56a",
+   "device": "cpu",
+   "overlapped_with": [
+    "surface.ddsurfer (A)"
+   ],
+   "peak_rss_mib": null,
+   "mean_cpu_percent": null
+  },
+  {
+   "module": "surface.ddsurfer",
+   "root": "A",
+   "input_scope": "140x140x92 at 1.5 mm, 117 volumes (b0 + b1000)",
+   "run_name": "promo_surf",
+   "runtime_seconds": 1085.246,
+   "status": "completed",
+   "started_at": "2026-10-19T15:27:01+00:00",
+   "source_record": "subjects/sub-01/outputs/00_run_metadata/promo_surf_orchestration_manifest.json",
+   "source_record_sha256": "c369c7dbf3227645ac08aaaee11058b2e8c9cbc66662b83782c7c3888faa7125",
+   "device": "cpu",
+   "overlapped_with": [
+    "parcellation.ddparcel (A)"
+   ],
+   "peak_rss_mib": null,
+   "mean_cpu_percent": null
+  },
+  {
+   "module": "connectome.streamline_count",
+   "root": "A",
+   "input_scope": "140x140x92 at 1.5 mm, 117 volumes (b0 + b1000)",
+   "run_name": "promo",
+   "runtime_seconds": 9.564,
+   "status": "completed",
+   "started_at": "2026-10-19T15:50:23+00:00",
+   "source_record": "subjects/sub-01/outputs/00_run_metadata/history/promo/20261019T155036969423Z/promo_orchestration_manifest.json",
+   "source_record_sha256": "c93a6390bc74ae2c43959e6471a155db7cb5f649572b3a6eb7735bf0677bddb2",
+   "device": "cpu",
+   "overlapped_with": [],
+   "peak_rss_mib": null,
+   "mean_cpu_percent": null
+  },
+  {
+   "module": "bundles.tractcloud",
+   "root": "A",
+   "input_scope": "140x140x92 at 1.5 mm, 117 volumes (b0 + b1000)",
+   "run_name": "promo",
+   "runtime_seconds": 259.472,
+   "status": "completed",
+   "started_at": "2026-10-23T09:14:48+00:00",
+   "source_record": "subjects/sub-01/outputs/00_run_metadata/promo_orchestration_manifest.json",
+   "source_record_sha256": "0c139f4f6eed5d16e32650e25f9a826de10d75083b98b7bc6ba05a175f6f8c34",
+   "device": "cpu",
+   "overlapped_with": [],
+   "peak_rss_mib": null,
+   "mean_cpu_percent": null
+  },
+  {
+   "module": "tractography.ukf",
+   "root": "UKF",
+   "input_scope": "140x140x92 at 1.5 mm, 117 volumes (b0 + b1000); mask minus 21 voxels with mean b0 = 0",
+   "run_name": "ukf",
+   "runtime_seconds": 1448.264,
+   "status": "completed",
+   "started_at": "2026-10-23T09:32:48+00:00",
+   "source_record": "subjects_ukf/sub-01/outputs/00_run_metadata/history/ukf/20261023T100148722241Z/ukf_orchestration_manifest.json",
+   "source_record_sha256": "935af6fefcc086ac84783879f4bc160cb769ab92a39d5213c9d824c4a0288490",
+   "device": "cpu",
+   "overlapped_with": [],
+   "peak_rss_mib": null,
+   "mean_cpu_percent": null,
+   "repeats": [
+    {
+     "runtime_seconds": 2017.774,
+     "started_at": "2026-10-23T10:01:50+00:00",
+     "overlapped_with": [
+      "bundles.wmql (UKF)"
+     ],
+     "source_record": "subjects_ukf/sub-01/outputs/00_run_metadata/history/ukf/20261023T103559493905Z/ukf_orchestration_manifest.json"
+    }
+   ]
+  },
+  {
+   "module": "bundles.wmql",
+   "root": "UKF",
+   "input_scope": "140x140x92 at 1.5 mm, 117 volumes (b0 + b1000); mask minus 21 voxels with mean b0 = 0",
+   "run_name": "ukf",
+   "runtime_seconds": 21.813,
+   "status": "completed",
+   "started_at": "2026-10-23T10:35:26+00:00",
+   "source_record": "subjects_ukf/sub-01/outputs/00_run_metadata/history/ukf/20261023T103559493905Z/ukf_orchestration_manifest.json",
+   "source_record_sha256": "09e6a67508b86e9aff10b8d699727c1ffc30087bd064ff0ce0b7ac354bb236e7",
+   "device": "cpu",
+   "overlapped_with": [
+    "tractography.ukf (UKF)"
+   ],
+   "peak_rss_mib": 2427,
+   "mean_cpu_percent": 99,
+   "resource_samples": 6,
+   "resource_source": "logs/r2/res/wmql_ukf.tsv"
+  }
+ ]
+}
