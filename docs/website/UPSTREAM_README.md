@@ -11,7 +11,7 @@ The site is made from the repository docs at a48fc95 and the delivered promo fil
   Fonts are self-hosted (Latin subsets of Inter, Inter Tight and IBM Plex Mono, SIL OFL 1.1; the licence texts sit
   next to the fonts).
 - The film in `docs/media/` is the delivered file, byte for byte (41,070,370 bytes). Nobody re-encoded it.
-  (Replaced on 23 October 2026 by a new 72.0 s render, 50,757,754 bytes; see SPEC.md, Addendum 3.)
+  (Replaced on 23 October 2026 by a new 72.0 s render, 50,757,754 bytes; see SPEC.md, Addendum 3. Replaced again on 24 October 2026, 47,838,648 bytes; see SPEC.md, Addendum 6.)
 
 ## How to publish (owner only)
 

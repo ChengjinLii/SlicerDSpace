@@ -42,6 +42,14 @@ lines were too bright). They show an axial and a coronal plane without frame lin
 texts say “on an axial and a coronal plane”. The route figure now has six example routes, and both figure PNGs have
 new heights (route 2400×1713, run time 2400×1676).
 
+Addendum 6, 24 October 2026: the film is a new 72.0 s render (§2, §3, §5.3, §7; user request: a more finished
+look, no capsule labels, a Bundles scene without WMQL whose narration names no method). The type is a new system
+of eyebrows, titles and notes; the Bundles scene shows TractCloud's bundles on the film run's DTI tractogram, and
+line 10 is now “White-matter bundles, from the same tractogram.”; the two Slicer window moves (55.1–59.3 s) have
+motion blur (180° shutter, sub-frames averaged in linear light). `poster.jpg`, `idea.jpg`, the three `out-*` tiles
+and `social.jpg` are new frames of this render (§3 table); the note under the transcript names TractCloud as the
+source of the bundles. The film's facts are in `FACTS.md` §9.
+
 Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
 below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, except in the parts added on 23 October
 2026 (§5.6.1, §5.6a, §5.10, §5.10a, §5.10b, and the performance section). Those parts have their own sources, named in
@@ -107,7 +115,7 @@ docs/assets/img/          icon-64.png, icon-180.png (from R/Resources/Icons/Slic
                           `docs/figures/*.svg`, which is not served), and twelve result tiles: res-dec.jpg, res-fw.jpg,
                           res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tissue.jpg, res-parcel.jpg, res-tr-ukf.jpg,
                           res-tr-csd.jpg, res-wmql-csd.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
-docs/media/SlicerDDSurfer_promo_1080p.mp4   copy of P/out/SlicerDDSurfer_promo_1080p.mp4 (50,757,754 bytes)
+docs/media/SlicerDDSurfer_promo_1080p.mp4   copy of P/out/SlicerDDSurfer_promo_1080p.mp4 (47,838,648 bytes)
 docs/media/SlicerDDSurfer.en.srt            copy of P/out/SlicerDDSurfer.en.srt
 ```
 
@@ -118,16 +126,16 @@ The three `out-*` tiles are the same film moments rendered from the film page at
 `P/tools/film_frames_hd.mjs`; the page draws its 3D canvas at that size), cropped with the boxes below × 2 and
 resized (JPEG quality 90), so they are not enlarged from the encoded video. Crop boxes are `x0,y0,x1,y1` in the
 1920×1080 frame. A crop taken while a subtitle cue is on screen ends at y ≤ 945 (subtitle text starts near y = 950;
-two-line cues reach y ≈ 1040). Frames at 43.0 and 57.4 s show no cue. Check each output by eye; adjust a box by up to 60 px if a brain or label is cut, and record the final
+two-line cues reach y ≈ 1040). Frames at 41.6, 42.4 and 54.8 s show no cue. Check each output by eye; adjust a box by up to 60 px if a brain or label is cut, and record the final
 boxes in `README.md`. JPEG quality 82, progressive, sRGB.
 
 | File | t (s) | Crop box | Output size | Shows |
 |---|---|---|---|---|
-| poster.jpg | 43.0 | full frame | 1920×1080 | whole-brain DTI tractography in the glass pial surface (no subtitle at 43 s) |
+| poster.jpg | 42.4 | full frame | 1920×1080 | whole-brain DTI tractography in the glass pial surface (no subtitle at 42.4 s) |
 | idea.jpg | 9.0 | 60,60,1760,945 | width 1400 | DWI slice, "registration" arrow, "+ T1-weighted scan" card |
-| out-surfaces.jpg | 34.8 | 665,155,1705,935 | 1200×900 | DDSurfer pial surface |
-| out-tracts.jpg | 43.0 | 470,0,1910,1080 | 1200×900 | tractography |
-| out-connectome.jpg | 57.4 | 585,140,1838,1080 | 1200×900 | connectome nodes/edges and matrix |
+| out-surfaces.jpg | 35.3 | 684,220,1644,940 | 1200×900 | DDSurfer pial surface |
+| out-tracts.jpg | 41.6 | 520,228,1656,1080 | 1200×900 | tractography |
+| out-connectome.jpg | 54.8 | 548,68,1860,1052 | 1200×900 | connectome nodes/edges and matrix |
 | slicer.jpg | — | `P/runtime/shots_workflow_ms2/results_window.png` (3840×2054), resized | 1920×1027 | real 3D Slicer screenshot (§5.7) |
 | social.jpg | — | from P/out/cover_1280x640.png | 1280×640 | the film's cover (og:image) |
 
@@ -220,7 +228,7 @@ Links: “Film” `#film`, “Idea” `#idea`, “Outputs” `#outputs`, “Work
   triangle icon, label “Play film · 1:12”). Click/Enter/Space: hide the button, add `controls`, `play()` with sound.
   On `ended`: show the button again (label “Play again”). Without JS the native controls stay.
 - Meta row under the frame (mono, small): “72.0 s · 1920 × 1080 · narrated · subtitles in the picture” and links
-  “Download MP4 (51 MB)” `media/SlicerDDSurfer_promo_1080p.mp4` (`download`), “Subtitles (.srt)”
+  “Download MP4 (48 MB)” `media/SlicerDDSurfer_promo_1080p.mp4` (`download`), “Subtitles (.srt)”
   `media/SlicerDDSurfer.en.srt` (`download`). [F9]
 - `<details>` “Transcript”: an ordered list of the 13 narration lines, verbatim from the `.srt`, in order [F9]:
   1. Diffusion MRI records how water moves through the living brain.
@@ -232,11 +240,11 @@ Links: “Film” `#film`, “Idea” `#idea`, “Outputs” `#outputs`, “Work
   7. White and pial surfaces,
   8. all in native diffusion space.
   9. Whole-brain tractography, traced in the same native space.
-  10. White-matter bundles, classified by TractCloud or selected by WMQL queries.
+  10. White-matter bundles, from the same tractogram.
   11. And structural connectomes, built on the same anatomy.
   12. One 3D Slicer module, with automatic QC and a record of every run.
   13. SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer.
-- Note under the transcript (small): “Most scenes come from one run on EDDEN sub-01 (b = 0 and b ≈ 1000 volumes). TractCloud ran on that run’s DTI tractogram; the WMQL bundles and the 3D Slicer screenshot come from multi-shell runs. The film names free water, NODDI and kurtosis but does not show them; Outputs below does.” (The dataset is named in full in §5.5; the date of the later runs is in the footer, §5.11.) [F9; F12.15; Addendum 3]
+- Note under the transcript (small): “Most scenes come from one run on EDDEN sub-01 (b = 0 and b ≈ 1000 volumes). The bundles are TractCloud’s, on that run’s DTI tractogram; the 3D Slicer screenshot comes from multi-shell runs. The film names free water, NODDI and kurtosis but does not show them; Outputs below does.” (The dataset is named in full in §5.5; the date of the later runs is in the footer, §5.11.) [F9; F12.15; Addendum 3]
 
 ### 5.4 The idea (`#idea`)
 
@@ -542,7 +550,7 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 3. `external_urls`: every absolute URL in `docs/` (HTML, CSS, JS) is in the §6 set; `<link>`, `<script>`, `<img>`,
    `<source>`, `<video>` and CSS `url()`/`@import` never point to another host, except `<link rel="canonical">` with
    the §6 Pages URL. Inline SVG carries no `xmlns` (or namespace URIs are exempt).
-4. `film_bytes`: `docs/media/SlicerDDSurfer_promo_1080p.mp4` is 50,757,754 bytes and, when `--film` is given, equal in
+4. `film_bytes`: `docs/media/SlicerDDSurfer_promo_1080p.mp4` is 47,838,648 bytes and, when `--film` is given, equal in
    SHA-256 to that file.
 5. `film_faststart`: top-level MP4 boxes: `ftyp` first, `moov` before `mdat` (pure Python box scan).
 6. `film_probe`: with `ffprobe` on PATH: h264 1920×1080 yuv420p, aac, duration 72.0 ± 0.05 s. `SKIP` without ffprobe.

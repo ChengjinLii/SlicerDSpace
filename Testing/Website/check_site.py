@@ -23,7 +23,7 @@ INDEX = os.path.join(DOCS, "index.html")
 PAGE404 = os.path.join(DOCS, "404.html")
 FILM = os.path.join(DOCS, "media", "SlicerDDSurfer_promo_1080p.mp4")
 SRT = os.path.join(DOCS, "media", "SlicerDDSurfer.en.srt")
-FILM_BYTES = 50757754
+FILM_BYTES = 47838648
 
 REPO = "https://github.com/ChengjinLii/SlicerDDSurfer"
 BLOB = REPO + "/blob/main/"

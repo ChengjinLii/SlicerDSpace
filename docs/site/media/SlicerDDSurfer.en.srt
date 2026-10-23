@@ -35,17 +35,17 @@ all in native diffusion space.
 Whole-brain tractography, traced in the same native space.
 
 10
-00:00:46,000 --> 00:00:52,476
-White-matter bundles, classified by TractCloud or selected by WMQL queries.
+00:00:46,000 --> 00:00:49,224
+White-matter bundles, from the same tractogram.
 
 11
-00:00:53,200 --> 00:00:56,931
+00:00:50,800 --> 00:00:54,531
 And structural connectomes, built on the same anatomy.
 
 12
-00:00:58,200 --> 00:01:03,700
+00:00:55,800 --> 00:01:01,300
 One 3D Slicer module, with automatic QC and a record of every run.
 
 13
-00:01:05,500 --> 00:01:11,950
+00:01:05,400 --> 00:01:11,950
 SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer.
