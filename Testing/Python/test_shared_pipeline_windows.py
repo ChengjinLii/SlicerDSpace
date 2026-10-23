@@ -67,6 +67,37 @@ class SharedPipelineWindowsCompatibilityTest(unittest.TestCase):
                     self.assertEqual(str(core) in entries, expected)
                     self.assertEqual(entries[0], str(executable.parent))
 
+    def test_c5_dyld_fallback_only_for_clis_that_belong_to_the_running_slicer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            contents = base / "Slicer.app/Contents"
+            core = contents / "lib/Slicer-5.12"
+            core.mkdir(parents=True)
+            (contents / "bin").mkdir()
+            python = contents / "bin/PythonSlicer"
+            python.touch()
+            standalone = base / "tools/ukf/bin/UKFTractography"
+            standalone.parent.mkdir(parents=True)
+            standalone.touch()
+            (base / "tools/ukf/lib/Slicer-5.12").mkdir(parents=True)  # the tool's own copy
+            inside = contents / "Extensions-34645/UKF/lib/Slicer-5.12/cli-modules/UKFTractography"
+            inside.parent.mkdir(parents=True)
+            inside.touch()
+            user = base / "user/slicer.org/Extensions-34645/UKF/lib/Slicer-5.12/cli-modules/UKFTractography"
+            user.parent.mkdir(parents=True)
+            user.touch()
+            # A folder above the .app that also holds lib/Slicer-*: the walk must stop at Contents.
+            (base / "lib/Slicer-9.9").mkdir(parents=True)
+            with patch.object(sys, "platform", "darwin"), patch.object(sys, "executable", str(python)), \
+                    patch.dict(os.environ, {}, clear=True):
+                def entries(cli: Path) -> list[str]:
+                    return pipeline.build_cli_environment(str(cli))["DYLD_LIBRARY_PATH"].split(os.pathsep)
+
+                self.assertNotIn(str(core), entries(standalone))
+                self.assertIn(str(core), entries(inside))
+                self.assertIn(str(core), entries(user))
+                self.assertNotIn(str(base / "lib/Slicer-9.9"), entries(inside))
+
     def test_cli_in_an_additional_factory_search_path_is_found(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp).resolve() / 'home'

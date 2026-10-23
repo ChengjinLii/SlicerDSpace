@@ -432,7 +432,25 @@ def build_cli_environment(cli_executable: str) -> dict[str, str]:
         # macOS extension CLIs (UKFTractography for Slicer 5.12) name Slicer's
         # core ITK/VTK libraries by build-machine paths, and the launcher
         # exports no DYLD_LIBRARY_PATH; point dyld at the app's lib/Slicer-*.
-        for root in (*cli_path.parents, *Path(sys.executable).resolve().parents):
+        # C5: stop every ancestor walk at the .app/Contents folder, and use the
+        # running Slicer's lib only for a CLI that belongs to that Slicer
+        # (inside its root, or in a Slicer-managed slicer.org/Extensions-* folder).
+        def bounded_parents(path: Path) -> list[Path]:
+            result: list[Path] = []
+            for parent in path.parents:
+                result.append(parent)
+                if parent.name == "Contents" and parent.parent.suffix == ".app":
+                    break
+            return result
+
+        runtime_root = next((root for root in bounded_parents(Path(sys.executable).resolve())
+                             if any(root.glob("lib/Slicer-*"))), None)
+        belongs_to_slicer = (
+            (runtime_root is not None and runtime_root in cli_path.parents)
+            or any(parent.parent.name == "slicer.org" and parent.name.startswith("Extensions-")
+                   for parent in cli_path.parents)
+        )
+        for root in (*bounded_parents(cli_path), *((runtime_root,) if belongs_to_slicer and runtime_root else ())):
             extra_lib_dirs.extend(path.as_posix() for path in sorted(root.glob("lib/Slicer-*")) if path.is_dir())
 
     library_var = "PATH" if os.name == "nt" or sys.platform == "win32" else (
@@ -462,9 +480,19 @@ def _cli_search_dirs() -> tuple[Path, ...]:
             if path.is_dir():
                 candidates.append(path.resolve())
     if sys.platform == "darwin":
+        # C1: accept only extension builds made for this Slicer's own lib/Slicer-X.Y,
+        # newest revision first; a 5.6 or 5.10 CLI must not serve a 5.12 runtime.
         user_extensions = Path.home() / "Library/Application Support/slicer.org"
-        for path in sorted(user_extensions.glob("Extensions-*/*/lib/Slicer-*/cli-modules")):
-            if path.is_dir() and path.resolve() not in candidates:
+        own_versions = {path.name for path in slicer_home.glob("lib/Slicer-*") if path.is_dir()}
+
+        def revision(path: Path) -> int:
+            digits = path.parents[3].name.rpartition("-")[2]
+            return int(digits) if digits.isdecimal() else -1
+
+        user_dirs = [path for path in user_extensions.glob("Extensions-*/*/lib/Slicer-*/cli-modules")
+                     if path.is_dir() and path.parent.name in own_versions]
+        for path in sorted(user_dirs, key=lambda item: (-revision(item), item.as_posix())):
+            if path.resolve() not in candidates:
                 candidates.append(path.resolve())
     # Extension Manager/development paths need not live under SLICER_HOME.
     # PythonQt exposes searchPaths as a property on some Slicer versions.
