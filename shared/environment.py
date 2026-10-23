@@ -87,6 +87,7 @@ class EnvironmentDoctorConfig:
     python_executable: Optional[Path] = None
     python_path_entries: tuple[Path, ...] = ()
     loaded_slicer_modules: Optional[tuple[str, ...]] = None
+    check_slicer_cli_modules: bool = False
     python_environment: Optional[str] = None
     conda_executable: Optional[Path] = None
     platform_name: Optional[str] = None
@@ -1987,6 +1988,26 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
     )
 
 
+def _slicer_cli_statuses(targets: tuple[str, ...]) -> tuple[DependencyStatus, ...]:
+    """Headless counterpart of the GUI loaded-module check: search the Slicer CLI folders."""
+    from shared.pipeline import resolve_cli_executable
+
+    statuses = []
+    for name in ("DWIToDTIEstimation", "DiffusionTensorScalarMeasurements"):
+        try:
+            found, error = resolve_cli_executable(name), ""
+        except (RuntimeError, ImportError) as exc:
+            found, error = "", str(exc)
+        statuses.append(DependencyStatus(
+            key=f"slicer_cli:{name.lower()}", kind="setting", label=f"SlicerDMRI {name} CLI",
+            status="available" if found else "missing", required=True, targets=targets,
+            details={"path": found, "error": error, "check": "Slicer CLI module search"},
+            install_group="slicer-dmri",
+            install_hint="" if found else "Install SlicerDMRI in 3D Slicer, or run with Slicer's PythonSlicer so its CLI folders are searched.",
+        ))
+    return tuple(statuses)
+
+
 def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctorResult:
     platform_name = _effective_platform_name(config)
     host_platform = platform.system() or "unknown"
@@ -2007,6 +2028,11 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
                 install_group='slicer-dmri',
                 install_hint='' if available else 'Install or enable SlicerDMRI in Extension Manager, then restart Slicer. Importing slicer.util alone does not load its CLI modules.',
             ),)
+    if config.check_slicer_cli_modules and config.loaded_slicer_modules is None:
+        native_targets = tuple(dict.fromkeys(target for spec in specs if spec.key == 'python:slicer.util'
+                                             for target in spec.targets))
+        if native_targets:
+            statuses += _slicer_cli_statuses(native_targets)
     if "microstructure_dki" in targets and config.dki_fit_method.upper().startswith("MKCURVE"):
         matlab_reference = config.dki_fit_method.upper() == "MKCURVE_MATLAB"
         if matlab_reference:

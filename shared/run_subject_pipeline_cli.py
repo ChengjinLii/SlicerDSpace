@@ -232,6 +232,7 @@ def _environment_config_from_args(
             for entry in sys.path
             if entry and Path(entry).expanduser().exists()
         ),
+        check_slicer_cli_modules=True,
         python_environment=args.python_environment,
         conda_executable=args.conda_executable,
         preprocessing_backend=args.preprocessing_backend,
