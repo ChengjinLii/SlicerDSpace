@@ -29,7 +29,7 @@ class SharedPipelineWindowsCompatibilityTest(unittest.TestCase):
 
     def test_macos_app_root_and_launcher_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
-            app = Path(tmp) / "Slicer.app"
+            app = Path(tmp).resolve() / "Slicer.app"
             home = app / "Contents"
             (home / "lib/Slicer-5.10").mkdir(parents=True)
             (home / "MacOS").mkdir()
@@ -69,8 +69,8 @@ class SharedPipelineWindowsCompatibilityTest(unittest.TestCase):
 
     def test_cli_in_an_additional_factory_search_path_is_found(self):
         with tempfile.TemporaryDirectory() as tmp:
-            home = Path(tmp) / 'home'
-            extra = Path(tmp) / 'external-cli'
+            home = Path(tmp).resolve() / 'home'
+            extra = Path(tmp).resolve() / 'external-cli'
             home.mkdir()
             extra.mkdir()
             executable = extra / 'DWIToDTIEstimation'

@@ -101,7 +101,8 @@ class ProtocolTests(unittest.TestCase):
             ukf.inspect_schema("ukf", {})
 
     def test_headless_converter_discovery(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp_name:
+            tmp = str(Path(tmp_name).resolve())
             binary = Path(tmp) / "lib/Slicer-5.10/cli-modules/DWIConvert"
             binary.parent.mkdir(parents=True)
             binary.write_text("fixture")
