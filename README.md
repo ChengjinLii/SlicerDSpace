@@ -724,6 +724,32 @@ The review is closed. Non-blocking items:
 - r28 5 (P3, Opus; information). **Closed 2026-10-23, no change** (user request named it; the finding asks for none):
   the parser edges give a visible FAIL, not a false pass.
 
+### Review of the r28 1–5 fixes (12d3a9a; Opus 0 blocking, Codex 0 blocking)
+
+Codex and Opus each ran the committed tree on Python 3.9–3.15 with LF and CRLF (all 17/0) and reproduced every changed
+copy; Codex found that the 9 locators with an r28 label each match once, and Opus that the new kind test rejects every
+kind the old one did (about 90 runs). The review is closed. Non-blocking items:
+- r29 1 (P2, Opus; left over from r28 1): one edit in `finding_names` that is not dead code still turns the r27 2 guard
+  off with every check green: `return set()` in place of `return names`, `for tok in ():`, or `for n in range(0):`
+  (17/0; with `r28 3` also taken out of item 17, still 17/0). The README r28 1 limit names only `return set()` as the
+  first line, so it says less is open than is. Fix if wanted: a self-test of `finding_names` on a fixed list in
+  `main()`, or a pin on `return names` with the loop lines recorded as a limit.
+- r29 2 (P3, Opus; predates): a fixed phrase only has to be in the text, so code added at the end of a pinned line
+  passes (`labels = set().union(...) | listed` with an unlisted label; `self.banned = banned if 0 else
+  re.compile("(?!)")` with the claim as a trailing comment). Both edits are deliberate.
+- r29 3 (P3, Opus; predates): no row pins the line that reports a ban of unknown kind; replaced by `pass` it gives 17/0.
+  Fix if wanted: a `WORDING_SELF_TEST` row with a bad kind, and “unknown kind” among the problems `main()` expects.
+- r29 4 (P3, Opus; predates): `names.add(tok)` has no row; deleted, with an ASCII-hyphen range added to item 17, it
+  gives 17/0. The r29 1 self-test would cover it.
+- r29 5 (P3, Opus; from 12d3a9a; cosmetic): with the `if marked:` block deleted, the message wraps the ban twice
+  (`AlsoInComments(AlsoInComments(...))`); the check still fails, and the pin reports “lacks”.
+- r29 6 (P3, Opus; wording; a cross-reference of r28 3): the README r27 2 entry still says “A label names two findings
+  when a later fix changed that row”.
+- r29 7 (P3, Opus; wording): the r28 §9 paragraph says “rows pin the bodies”, but the rows pin five lines; no row pins
+  the item 17 words “(of a string or a regex)”.
+- r29 8 (P3, Opus; wording): the README r28 1 entry says “the `names.add` line”, but `finding_names` has two; the run
+  changed the `names.add(" ".join(` line.
+
 ## Image crop boxes as finally used
 
 Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the
