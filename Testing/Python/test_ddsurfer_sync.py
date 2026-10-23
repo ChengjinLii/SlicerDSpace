@@ -32,6 +32,27 @@ class DDSurferSyncTests(unittest.TestCase):
             self.assertTrue(copy_if_changed(source, target))
             self.assertEqual(target.read_bytes(), source.read_bytes())
 
+    def test_c4_sync_refuses_to_overwrite_recorded_local_patches(self):
+        import scripts.sync_ddsurfer_upstream as sync
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            record = root / 'anatomy/surface/ddsurfer_backend/UPSTREAM.json'
+            record.parent.mkdir(parents=True)
+            record.write_text(json.dumps({'files': {}, 'local_patches': {'preprocessing/dti.sh': 'x',
+                                                                       'run_ddsurfer_pipeline.sh': 'y'}}))
+            with patch.object(sync, 'ROOT', root):
+                with self.assertRaises(ValueError) as caught:
+                    sync.synchronize(root / 'upstream', root / 'assets')
+            self.assertIn('preprocessing/dti.sh', str(caught.exception))
+            self.assertIn('run_ddsurfer_pipeline.sh', str(caught.exception))
+
+    def test_c4_local_bash_patches_stay_recorded_and_guarded(self):
+        record = json.loads((BACKEND_ROOT / 'UPSTREAM.json').read_text())
+        self.assertEqual(set(record['local_patches']), {'preprocessing/dti.sh', 'run_ddsurfer_pipeline.sh'})
+        wrapper = (BACKEND_ROOT / 'run_ddsurfer_pipeline.sh').read_text()
+        self.assertIn('${ARGS[@]+"${ARGS[@]}"}', wrapper)
+        self.assertNotIn(' "${ARGS[@]}"', wrapper)
+
     def test_optional_training_loss_has_packaged_upstream_notice(self):
         from scripts.extension_runtime.runtime_resources import runtime_files
         self.assertEqual(sha256(BACKEND_ROOT / 'utils/LICENSE.pytorch3d'), sha256(ROOT / 'licenses/PyTorch3D.txt'))

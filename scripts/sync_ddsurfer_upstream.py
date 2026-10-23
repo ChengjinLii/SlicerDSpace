@@ -31,6 +31,13 @@ def copy_if_changed(source, destination):
 
 def synchronize(upstream, assets):
     upstream, assets = upstream.resolve(), assets.resolve()
+    recorded = ROOT / 'anatomy/surface/ddsurfer_backend/UPSTREAM.json'
+    patched = sorted(json.loads(recorded.read_text()).get('local_patches', {})) if recorded.is_file() else []
+    if patched:
+        # C4: a sync would overwrite these files with upstream text and drop the record.
+        raise ValueError('The vendored snapshot has local patches that a sync would overwrite: '
+                         + ', '.join(patched) + '. Re-apply them by hand after syncing, or remove them from '
+                         'UPSTREAM.json local_patches once upstream carries the change.')
     revision = subprocess.check_output(['git', '-C', str(upstream), 'rev-parse', 'HEAD'], text=True).strip()
     dirty = subprocess.check_output(['git', '-C', str(upstream), 'status', '--porcelain'], text=True).strip()
     if dirty:
