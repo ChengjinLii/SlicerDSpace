@@ -210,6 +210,28 @@ class OptionalAssetsTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'checksum'):
                 import_file(source, target, expected)
 
+    def test_cli_asset_root_below_a_symlinked_directory_is_accepted(self):
+        # macOS keeps /tmp, /var and the default temp folder behind symlinks.
+        import contextlib
+        import io
+        import import_external_resources as importer
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            (base / 'real').mkdir()
+            (base / 'link').symlink_to(base / 'real')
+            source = base / 'synthstrip.pt'
+            source.write_bytes(b'author resource')
+            relative = 'brain_mask/synthstrip/synthstrip.1.pt'
+            catalog = base / 'catalog.json'
+            catalog.write_text(json.dumps({'asset_records': {relative: {
+                'sha256': hashlib.sha256(b'author resource').hexdigest(), 'size_bytes': 15, 'redistribution': 'test'}}}))
+            argv = ['import_external_resources.py', '--asset-root', str(base / 'link/assets'),
+                    '--synthstrip-model', str(source), '--execute']
+            with patch.object(importer, 'MANIFEST', catalog), patch.object(sys, 'argv', argv), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                importer.main()
+            self.assertEqual((base / 'real/assets' / relative).read_bytes(), b'author resource')
+
     def test_org_extraction_keeps_structure_omits_macos_and_rejects_traversal(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()

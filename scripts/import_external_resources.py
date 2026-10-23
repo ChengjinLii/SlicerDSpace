@@ -94,7 +94,9 @@ def main():
     parser.add_argument('--execute', action='store_true', help='Copy verified resources; otherwise print a plan only')
     parser.add_argument('--report', type=Path)
     args = parser.parse_args()
-    root = args.asset_root.expanduser().absolute()
+    # Resolve the chosen root once (macOS keeps /tmp and /var behind symlinks);
+    # import_file and extract_org then refuse any link below it.
+    root = args.asset_root.expanduser().resolve()
     manifest = json.loads(MANIFEST.read_text())
     mapping = {}
     for relative in manifest['asset_records']:
