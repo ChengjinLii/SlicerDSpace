@@ -197,22 +197,24 @@ Three method papers, exactly as CITATION.cff gives them (R/CITATION.cff:32-111):
 
 ## 9. Promo film facts
 
-File `P/out/SlicerDDSurfer_promo_1080p.mp4`, render of 23 October 2026 (72.0 s; the first delivery was 64.8 s, 41,070,370 bytes, 1944 frames, 12 cues). Re-measured with the commands below.
+File `P/out/SlicerDDSurfer_promo_1080p.mp4`, render of 24 October 2026 (72.0 s, 2160 frames). Earlier deliveries: the first cut (64.8 s, 41,070,370 bytes, 1944 frames, 12 cues) and the 23 October render (72.0 s, 50,757,754 bytes). Re-measured on 24 October 2026 with the commands below.
 
 | Fact | Value | Source |
 |---|---|---|
-| Duration | 72.000000 s | `ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height,pix_fmt,r_frame_rate,sample_rate -of compact` |
-| File size | 50,757,754 bytes (about 48.4 MiB) | same command |
-| Video | h264, 1920x1080, yuv420p, 30/1 fps | same command |
-| Video detail | profile High, color_range tv (limited), bt709, 2160 frames | `ffprobe -show_entries stream=...` (second call) |
+| Duration | 72.000000 s | `ffprobe -v error -show_entries format=duration,size,bit_rate:stream=index,codec_type,codec_name,profile,width,height,pix_fmt,r_frame_rate,color_range,color_space,sample_rate,channels,bit_rate,nb_frames -of compact` |
+| File size | 47,838,648 bytes (about 45.6 MiB) | same command; `ls -l` |
+| SHA-256 | 123e1d20ebb637aca1d8a8d2e02ac5967a1e7ebe7a34956edd19b2916d4ba4a1 | `shasum -a 256` |
+| Video | h264, 1920x1080, yuv420p, 30/1 fps | same ffprobe command |
+| Video detail | profile High, color_range tv (limited), bt709, 2160 frames, about 5.04 Mb/s (file about 5.32 Mb/s) | same; P/MAKING_OF.md:11 |
 | Audio | aac (LC), 48000 Hz, 2 channels, about 264 kb/s | same |
-| Streams | exactly 2: video and audio. No subtitle stream. | `ffprobe -show_entries stream=index,codec_type` |
-| Subtitles | burned into the picture, plus sidecar SRT with 13 cues | P/MAKING_OF.md:3, 11-12; cue count from P/out/SlicerDDSurfer.en.srt (13 numbered cues). |
-| Loudness | -14.0 LUFS integrated, peak -1.0 dBFS (ebur128 in `sh build.sh check`, 23 October 2026) | P/logs/build_20261023_bundles.log |
-| moov / mdat order | ftyp@0 (32 B), moov@32 (72,507 B), free@72539 (8 B), mdat@72547 (40,997,823 B). moov is BEFORE mdat (faststart OK). | `python3 -I` top-level box scan |
-| Cover images | cover_1920x1080.png = 1920x1080 (1,275,244 B); cover_1280x640.png = 1280x640 (611,562 B); the 1280x640 is "GitHub social-preview size (centre crop of the cover)" | `sips -g pixelWidth -g pixelHeight`; P/MAKING_OF.md:13-14 |
+| Streams | exactly 2: video and audio. No subtitle stream. | same (stream index and codec_type) |
+| Subtitles | burned into the picture, plus sidecar SRT with 13 cues | P/MAKING_OF.md:3, 11-12; cue count from P/out/SlicerDDSurfer.en.srt (13 numbered cues; build log: "13 cues", P/logs/build_20261024_type.log:7-8) |
+| Loudness | -14.0 LUFS integrated, LRA 3.0 LU, true peak -1.2 dBFS (`ffmpeg -af ebur128=peak=true` on the final MP4); no black segment of 0.25 s or more (`blackdetect`) | P/MAKING_OF.md:133. The build log P/logs/build_20261024_type.log:88-98 records the same values, but it was written before the motion-blur step (log 00:42, final MP4 01:51 on 24 October); the values were measured again on the final file |
+| moov / mdat order | ftyp@0 (32 B), moov@32 (80,111 B), free@80143 (8 B), mdat@80151 (47,758,497 B). moov is BEFORE mdat (faststart OK). | `python3 -I` top-level box scan |
+| Cover images | cover_1920x1080.png = 1920x1080 (1,267,791 B); cover_1280x640.png = 1280x640 (607,718 B); the 1280x640 is "GitHub social-preview size (centre crop of the cover)" | `sips -g pixelWidth -g pixelHeight`; `ls -l`; P/MAKING_OF.md:13-14 |
+| Motion blur | On the two fast Slicer-window moves only (pull-back 55.2-57.4 s, glide 57.6-59.2 s). Frames 1653-1778 (55.1-59.3 s, 126 frames) are replaced. 180 degree shutter; per frame 8 to 47 sub-frames (minimum 8, maximum used 47), so that no visible point of the window moves more than 1 px between sub-frames; averaged in linear light. Only the GOPs that hold a replaced frame (frames 1620-1869) are encoded again. The renderer itself has no motion blur. | P/MAKING_OF.md:24-35; settings and per-frame values in P/logs/motion_blur.json (`n_min` 8, `n_max_used` 47, `shutter_deg` 180, `frames_replaced` 126, `reencoded_frames` [1620, 1869]); tools `P/tools/motion_blur.mjs` and `P/tools/motion_blur_avg.py`. Frames 0-1578 and 1959-2159 are bit-identical to the film before the blur (P/MAKING_OF.md:135) |
 
-Narration, 12 lines verbatim (P/out/SlicerDDSurfer.en.srt; times in file):
+Narration, 13 lines verbatim (P/out/SlicerDDSurfer.en.srt; times in file; the film names no method in the narration):
 1. (0:00.8-0:04.95) "Diffusion MRI records how water moves through the living brain." (srt:3)
 2. (0:05.0-0:11.55) "Mapping anatomy has usually meant a second, T1-weighted scan, registered into diffusion space." (srt:7)
 3. (0:12.1-0:19.25) "SlicerDDSurfer reconstructs anatomy directly from diffusion MRI, without a T1-weighted scan." (srt:11)
@@ -222,24 +224,33 @@ Narration, 12 lines verbatim (P/out/SlicerDDSurfer.en.srt; times in file):
 7. (0:31.4-0:33.35) "White and pial surfaces," (srt:27)
 8. (0:33.4-0:35.722) "all in native diffusion space." (srt:31)
 9. (0:37.0-0:41.018) "Whole-brain tractography, traced in the same native space." (srt:35)
-10. (0:46.0-0:49.731) "And structural connectomes, built on the same anatomy." (srt:39)
-11. (0:51.0-0:56.5) "One 3D Slicer module, with automatic QC and a record of every run." (srt:43)
-12. (0:58.3-1:04.75) "SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer." (srt:47)
+10. (0:46.0-0:49.224) "White-matter bundles, from the same tractogram." (srt:39)
+11. (0:50.8-0:54.531) "And structural connectomes, built on the same anatomy." (srt:43)
+12. (0:55.8-1:01.3) "One 3D Slicer module, with automatic QC and a record of every run." (srt:47)
+13. (1:05.4-1:11.95) "SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer." (srt:51)
 
-Voice: Kokoro TTS reads respelled text ("T one weighted", "Slicer D D Surfer", "nod-ee", "pie-al" ...); subtitles show the written text (P/MAKING_OF.md:99-101). "The ASR check is automatic; no person has listened to the final mix yet." (P/MAKING_OF.md:105-106)
+Voice: Kokoro TTS reads respelled text ("T one weighted", "Slicer D D Surfer", "nod-ee", "pie-al" ...); subtitles show the written text (P/MAKING_OF.md:143-145). "The ASR check is automatic; no person has listened to the final mix yet." (P/MAKING_OF.md:149; also :131: "No person has listened to the mix")
+
+Bundles scene (45.6-50.4 s):
+- Model and tractogram: TractCloud v1.0.0 on the film's own DTI deterministic tractogram (the same 130,780-streamline file that the Tractography scene samples). The model ran on 23 October 2026. 42 bundles; 53,522 classified streamlines; 8,994 drawn (display subset). (P/MAKING_OF.md:99; P/film/FACTS.md:15)
+- What the viewer sees: the whole-brain fibres dim to grey; the 42 bundles arrive family by family (commissural, projection, association, cerebellar, superficial), one colour each. (P/MAKING_OF.md:73-76, 99; P/film/TREATMENT.md:7-10)
+- On-screen text: title "White-matter bundles", note "42 tracts · display subset". (P/film/content.json:65-69)
+- The film names no method, in the narration (line 10, srt:39) or on screen (user request, 24 October 2026). (P/MAKING_OF.md:164-166; P/film/FACTS.md:15)
+- The 23 October cut also showed WMQL tracts from the multi-shell run (two bundle methods). The 24 October cut does not. (P/MAKING_OF.md:99; P/film/TREATMENT.md:20-21)
 
 Data used:
 - EDDEN (Evaluating Diffusion MRI Denoising), OpenNeuro ds004666, subject sub-01, session ses-1p5mm, licence CC0. Used: topup + eddy corrected `AVG_mag` DWI (5 repeats averaged), bval/bvec, brain mask, and the T1-weighted image "shown only on the 'problem' card". (P/CREDITS.md:4-5)
 - Citation: Manzano-Patron, J. P. et al., Imaging Neuroscience (2024). (P/CREDITS.md:5). Primary-source wording: "Manzano-Patron, J.P. et al, Denoising Diffusion MRI: Considerations and implications for analysis, Imaging Neuroscience, 2024 (https://doi.org/10.1162/imag_a_00060)". (P/docs/research/DATA_LICENSES.md:21-22)
-- Licence evidence: `dataset_description.json` "License": "CC0"; "No attribution is legally required (CC0); cite the paper as a courtesy." (DATA_LICENSES.md:8-11, 20-22). Dataset DOI doi:10.18112/openneuro.ds004666.v1.0.8 (snapshot 1.0.8, 2026-01-25) (DATA_LICENSES.md:19).
+- Licence evidence: `dataset_description.json` "License": "CC0"; "No attribution is legally required (CC0); cite the paper as a courtesy." (DATA_LICENSES.md:11, 20-22). Dataset DOI doi:10.18112/openneuro.ds004666.v1.0.8 (snapshot 1.0.8, 2026-01-25) (DATA_LICENSES.md:19).
 - Subject: one healthy volunteer (DATA_LICENSES.md:24). Defacing of the T1w is not stated in the dataset README: "UNVERIFIED" (DATA_LICENSES.md:35).
-- Volumes used in the pipeline: only b0 and b about 1000: 27 + 90 = 117 of 297 volumes; the hook readout shows all 297 (P/MAKING_OF.md:50, 69-72).
-- End-card credit: "Data: EDDEN, OpenNeuro ds004666 (CC0) · Manzano-Patron et al. 2024" (P/MAKING_OF.md:131; visible in the cover PNGs).
+- Volumes used in the pipeline: only b0 and b about 1000: 27 + 90 = 117 of 297 volumes; the hook readout shows all 297 (P/MAKING_OF.md:90, 110-113).
+- End-card credit: "Data: EDDEN, OpenNeuro ds004666 (CC0) · Manzano-Patron et al. 2024" (P/film/content.json:91; P/MAKING_OF.md:179; visible in the cover PNGs).
 
 Software shown:
-- SlicerDDSurfer "repo HEAD a48fc95", run headless on the EDDEN data (P/CREDITS.md:9). The run started from the command line, not the Run button (P/MAKING_OF.md:40-42).
-- 3D Slicer 5.12.4 (Slicer License, BSD-style), SlicerDMRI, PyTorch extension (P/CREDITS.md:13). x86_64 Slicer under Rosetta on an Apple M4, CPU only (P/MAKING_OF.md:73-74).
+- SlicerDDSurfer "repo HEAD a48fc95", run headless on the EDDEN data (P/CREDITS.md:9). The run started from the command line, not the Run button (P/MAKING_OF.md:61-62).
+- 3D Slicer 5.12.4 (Slicer License, BSD-style), SlicerDMRI, PyTorch extension (P/CREDITS.md:13). x86_64 Slicer under Rosetta on an Apple M4, CPU only (P/MAKING_OF.md:114-115).
 - Methods cited: DDSeg, DDParcel, DDSurfer (P/CREDITS.md:10-12).
+- The Slicer section (55.2-64.8 s) is a real screenshot of the module in 3D Slicer 5.12.4, from `runtime/shots/final_ms3/window.png`. It shows Results and QC open on the multi-shell run `ms_micro`. The film shows it as a floating window that zooms out and then glides beside a step list ("Select products", "Run", "Review results & QC"). (P/MAKING_OF.md:46-53, 77-81, 101; P/film/content.json:79-86)
 
 Production credits (P/CREDITS.md:16-23):
 - lemo-opuscar: MIT, (c) 2026 LemoLab, vendored.
@@ -250,19 +261,21 @@ Production credits (P/CREDITS.md:16-23):
 - Music and effects: original, synthesized by code (`film/audio/mix.py`, numpy; physical-model plucks). "No samples, no stock audio."
 - Icon: `Resources/Icons/SlicerDDSurfer.png` from the repo.
 
-Display-subset caveats (P/MAKING_OF.md:26-45):
-- "Tractography: 24,000 of 130,780 streamlines (length >= 30 mm, random subset, seed 7), resampled every 2.5 mm. This is our display subset; it is not the module's own VTK preview and not the analysis tractogram." (:31-32)
-- "Connectome: the 260 strongest of 854 edges are drawn; the matrix panel shows all 84 x 84 nodes." (:33)
-- "The Slicer section is a **real screenshot** of 3D Slicer 5.12.4 with the SlicerDDSurfer module." Edits: status bar cropped; 3D view box and axis labels hidden; lateral camera; "Advanced settings > Results and QC" opened; module inputs and ticked products set by script to match the run (six ran: microstructure, segmentation, parcellation, surface, tractography, connectome). (:34-42)
-- Volumes upsampled 2x for textures; DEC colour = |principal eigenvector| x FA; white matter labels 2 and 41 drawn grey; GM orange, WM ivory, CSF blue (:26-30).
-- The tractography shown is DTI deterministic, labelled "DTI tractography · preview" (P/MAKING_OF.md:117-118).
-- Not run for the film and not shown: Free-water, NODDI, DKI, CSD, ACT, SIFT2, SAF, bundles (WMQL/WMA/TractCloud), surface postprocess (P/MAKING_OF.md:115-118, 146). The narration names Free-water, NODDI and kurtosis; the film marks them "optional" in chips (P/film/FACTS.md:11).
-- One subject, one session; EDDEN AVG_mag averages 5 repeats so SNR is higher than a typical single scan (P/MAKING_OF.md:142-143). EDDEN publishes no eddy-rotated bvecs; original bvecs were used (:143).
-- QC state of the run: automatic QC passed for DTI, DDParcel, DDSurfer; DDSeg world-space QC passed (DDSeg-vs-DDParcel WM Dice 0.848, gate >= 0.70); tractography and connectome "completed"; `human_review` is "pending": "nobody reviewed the outputs as an expert." (P/MAKING_OF.md:76-78)
-- Run times (one subject, Rosetta, CPU): DTI 44 s, tractography 50 s, DDSeg 95 s, DDParcel 1956 s, DDSurfer 1089 s, connectome 12 s (P/MAKING_OF.md:75). Own checks: FA vs dataset FA Pearson r = 0.826; principal direction mean |cos| = 0.952 (:84-85).
-- Render note: renders are not always bit-identical (P/MAKING_OF.md:157-158).
-- Film end card text: "Diffusion MRI workflows in 3D Slicer" and "Research software · Not for clinical use" (P/film/FACTS.md:17-18; visible in cover PNGs). The repository URL is not shown (P/film/FACTS.md:25).
-- Claims the film says it does NOT make: "Open source / available now / Extension Manager / version or date; speed or accuracy numbers; clinical use; 'first' or 'only'; cross-platform support; 'U-shaped fibres'; 'no registration'; 'no preprocessing'; 'fully automatic'." (P/film/FACTS.md:23-24)
+Display-subset caveats (P/MAKING_OF.md:36-45):
+- "Tractography: 24,000 of 130,780 streamlines (length >= 30 mm, random subset, seed 7), resampled every 2.5 mm. This is our display subset; it is not the module's own VTK preview and not the analysis tractogram." (:43-44)
+- "Connectome: the 260 strongest of 854 edges are drawn; the matrix panel shows all 84 x 84 nodes." (:45)
+- Bundles: 8,994 of 53,522 classified streamlines are drawn (P/MAKING_OF.md:99). The film's note reads "42 tracts · display subset" (P/film/content.json:68).
+- Volumes upsampled 2x for textures; DEC colour = |principal eigenvector| x FA; white matter labels 2 and 41 drawn grey; GM orange, WM ivory, CSF blue (:39-42).
+- The Slicer window is "a **real screenshot** of 3D Slicer 5.12.4 with the SlicerDDSurfer module." Edits to the first screenshot: status bar cropped; 3D view box and axis labels hidden; lateral camera; "Advanced settings > Results and QC" opened; module inputs and ticked products set by script to match the run (six ran: microstructure, segmentation, parcellation, surface, tractography, connectome). (:54-62) The 23 October screenshot replaced it and the status bar is cropped as before (:46-53).
+- The tractography shown is DTI deterministic. The film labels it "DTI tractography" with the note "Display subset · 24,000 of 130,780 streamlines" (P/film/content.json:60-63; P/MAKING_OF.md:161-163). The 23 October cut labelled it "DTI tractography · preview" (P/MAKING_OF.md:162-163).
+- Not run for the film's main run (`promo`) and not shown: Free-water, NODDI, DKI, CSD, ACT, SIFT2, SAF, WMQL/WMA, surface postprocess (P/MAKING_OF.md:159-163, 199-200). TractCloud did run on the film's DTI tractogram and its bundles are shown (P/MAKING_OF.md:99, 199-200). The 23 October website-gallery runs added UKF, CSD, ACT, SIFT2, free water, NODDI, DKI and WMQL/WMA/TractCloud on other tractograms; the film does not show them (P/MAKING_OF.md:200-202).
+- The narration names free water, NODDI and kurtosis. On screen, the rows Free-water, NODDI and DKI carry the note "optional" (P/film/content.json:22-33; P/film/FACTS.md:11; P/MAKING_OF.md:159-160). Until 23 October the film showed them as chips; there are no chips now (P/MAKING_OF.md:63-65, 159-160).
+- One subject, one session; EDDEN AVG_mag averages 5 repeats so SNR is higher than a typical single scan (P/MAKING_OF.md:195). EDDEN publishes no eddy-rotated bvecs; original bvecs were used (:196).
+- QC state of the run: automatic QC passed for DTI, DDParcel, DDSurfer; DDSeg world-space QC passed (DDSeg-vs-DDParcel WM Dice 0.848, gate >= 0.70); tractography and connectome "completed"; `human_review` is "pending": "nobody reviewed the outputs as an expert." (P/MAKING_OF.md:117-119)
+- Run times (one subject, Rosetta, CPU): DTI 44 s, tractography 50 s, DDSeg 95 s, DDParcel 1956 s, DDSurfer 1089 s, connectome 12 s (P/MAKING_OF.md:116). Own checks: FA vs dataset FA Pearson r = 0.826; principal direction mean |cos| = 0.952 (:125-126).
+- Render note: renders are not always bit-identical (P/MAKING_OF.md:212-214).
+- Film end card text: "Diffusion MRI workflows in 3D Slicer" and "Research software · Not for clinical use" (P/film/content.json:89-90; P/film/FACTS.md:18-19; visible in cover PNGs). The repository URL is not shown (P/film/FACTS.md:26; `endcard.url` is empty in P/film/content.json:92).
+- Claims the film says it does NOT make: "Open source / available now / Extension Manager / version or date; speed or accuracy numbers; clinical use; 'first' or 'only'; cross-platform support; 'U-shaped fibres'; 'no registration'; 'no preprocessing'; 'fully automatic'." (P/film/FACTS.md:24-25)
 
 ## 10. Image assets
 
@@ -271,12 +284,12 @@ Display-subset caveats (P/MAKING_OF.md:26-45):
 | R/Resources/Icons/SlicerDDSurfer.png | 1024x1024; 1,389,926 B (`sips`, `ls`) | White brain with two wave lines on a blue square; text "DDSURFER". Byte-identical to P/film/assets/icon.png (`cmp`). Used as the Slicer module icon (s4ext:12). | Project file. Project licence is BSD-3-Clause unless a file states otherwise (LICENSE.txt:31-32). No separate record of the icon's author or origin in the files read. |
 | R/docs/images/slicerdds-compact-en.png | 440x651; 74,455 B | Real Qt widget capture of the compact module panel (EN). Empty inputs shown in red. Log: "Validation failed. Missing entries: Subject ID, Subject directory". Not a result. | Genuine capture from the isolated Slicer 5.10 compact-UI smoke test; source tree 4993990b..., main commit 37a543c; "copied without generative modification"; "no patient data/private paths" (R/docs/images/README.md:13-21). Project licence applies. Listed as the extension screenshot (s4ext:13). |
 | R/docs/images/slicerdds-compact-zh.png | 426x684; 84,280 B | Same panel in Chinese. | Same as above. |
-| P/out/cover_1920x1080.png | 1920x1080; 1,275,244 B | Dark cover: icon, "SlicerDDSurfer", "Diffusion MRI workflows in 3D Slicer", "Research software · Not for clinical use", a DEC-coloured tractography brain in a glass surface on the right, credit line "Data: EDDEN, OpenNeuro ds004666 (CC0) · Manzano-Patron et al. 2024". | Rendered by the film page (`?cover=1`); data from EDDEN sub-01 (CC0); tractography is the display subset (24,000 of 130,780). Film tools and fonts per section 9 (P/MAKING_OF.md:43-44). No licence for the cover itself is stated in P/CREDITS.md. |
-| P/out/cover_1280x640.png | 1280x640; 611,562 B | Centre crop of the same cover. | Same. |
-| P/runtime/shots/final/window.png | 3840x2054; 3,432,324 B | Real 3D Slicer 5.12.4 screenshot with the SlicerDDSurfer module: Subject ID sub-01, products ticked, "Ready to run.", Results and QC run "2026-10-19 23:50 · sub-01 · promo · completed", a 3D pial surface with sparse fibre ends, and axial/coronal/sagittal FA slices with a tissue overlay ("sub-01_segmentation (35%)" over "sub-01_microstructure.dti_fa"). | Source of the film's Slicer section (P/MAKING_OF.md:61). The file as it sits in runtime/ shows local path fragments ("fer-promo/runtime/subjects/sub-01") and a red error icon at the bottom right. MAKING_OF:36-37 says the status bar is cropped in the film. I did not check the film frame. File is not listed in P/.gitignore. |
+| P/out/cover_1920x1080.png | 1920x1080; 1,267,791 B | Dark cover: icon, "SlicerDDSurfer", "Diffusion MRI workflows in 3D Slicer", "Research software · Not for clinical use", a DEC-coloured tractography brain in a glass surface on the right, credit line "Data: EDDEN, OpenNeuro ds004666 (CC0) · Manzano-Patron et al. 2024". | Rendered by the film page (`?cover=1`); data from EDDEN sub-01 (CC0); tractography is the display subset (24,000 of 130,780). Film tools and fonts per section 9 (P/MAKING_OF.md:43-44). No licence for the cover itself is stated in P/CREDITS.md. |
+| P/out/cover_1280x640.png | 1280x640; 607,718 B | Centre crop of the same cover. | Same. |
+| P/runtime/shots/final_ms3/window.png | 3840x2054; 2,999,948 B | Real 3D Slicer 5.12.4 screenshot with the SlicerDDSurfer module (24 October film; the 23 October and earlier cuts used `runtime/shots/final/window.png`): Subject ID sub-01, products ticked, Results and QC on the run "2026-10-23 20:26 · sub-01 · ms_micro · completed" ("Recorded QC: 4 passed, 0 issues, 0 unavailable | Visual review: pending"), DTI FA in the three slice views ("sub-01_microstructure.dti_fa") and the CSD/ACT tractogram with bundles in the 3D view. | Source of the film's Slicer section (P/MAKING_OF.md:46-53). The file shows a red error indicator at the bottom right (SlicerDMRI "No data to glyph!" and macOS messages; `docs/review_backlog.md`). |
 | P/runtime/shots/final/view3d.png | 3000x886; 1,960,731 B | 3D view capture (not opened). | Same run. |
-| P/out/SlicerDDSurfer.en.srt | 13 cues, 1163 B | Subtitles | Section 9. |
-| P/out/picture.mp4 | 89,492,158 B | Intermediate render without final audio mix. Listed in P/.gitignore:22 ("the muxed film in out/ is the deliverable"). | Do not publish. |
+| P/out/SlicerDDSurfer.en.srt | 13 cues, 1,135 B | Subtitles | Section 9. |
+| P/out/picture.mp4 | 109,619,433 B (24 October; `out/picture_blur.mp4` is the motion-blurred copy) | Intermediate render without final audio mix. Listed in P/.gitignore:22-23 ("the muxed film in out/ is the deliverable"). | Do not publish. |
 
 Items NOT to publish (P/MAKING_OF.md:147-152; P/.gitignore:1-17): `runtime/model-assets/` (weights and templates), `runtime/stage/` (copy of private code), `data/edden_ds004666/`, `runtime/subjects/`, local environments. "No bundle has been made or checked yet." (MAKING_OF.md:151-152)
 
