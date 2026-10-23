@@ -86,7 +86,7 @@ exit 0
         self.assertTrue(result.manifest_path.is_file())
         self.assertTrue(result.qc_path.is_file())
         command = list(result.command)
-        self.assertEqual(command[:3], [self.python.resolve().as_posix(), "-m", "tractcloud"])
+        self.assertEqual(command[:3], [self.python.absolute().as_posix(), "-m", "tractcloud"])
         self.assertIn("--include-other", command)
         self.assertIn("--mrb", command)
         self.assertIn("cpu", command)
