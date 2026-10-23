@@ -827,6 +827,19 @@ def run_wma_org_atlas(
                                 f'--report-dir {shlex.quote(str(log_dir))} -- "$@"\n', encoding="utf-8")
                             registration_shim.chmod(0o755)
                             manifest["registration_preprocess_cache"]["installed"] = True
+                author_harden = wma_root / "bin" / "harden_transform_with_slicer.py"
+                harden_runner = Path(__file__).resolve().parents[1] / "scripts" / "run_wma_harden_transform.py"
+                if author_harden.is_file() and harden_runner.is_file():
+                    # wm_harden_transform.py runs `Slicer --python-script $(which harden_transform_with_slicer.py)`;
+                    # this shim comes first on PATH and saves fiber bundles without Slicer's default writer choice.
+                    harden_shim = Path(temp_python_dir.name) / author_harden.name
+                    harden_shim.write_text(
+                        "import sys\n"
+                        f"sys.path.insert(0, {str(harden_runner.parent)!r})\n"
+                        "import run_wma_harden_transform\n"
+                        f"run_wma_harden_transform.run({str(author_harden)!r})\n", encoding="utf-8")
+                    harden_shim.chmod(0o755)
+                    manifest["harden_transform_shim"] = harden_shim.name
                 if config.use_virtual_x:
                     real_xvfb = _command_path("xvfb-run", wma_root)
                     if real_xvfb is not None:

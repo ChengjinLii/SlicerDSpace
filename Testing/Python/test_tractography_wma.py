@@ -252,6 +252,33 @@ exit 0
         self.assertEqual(len(second_reports), 1)
         self.assertNotEqual(first_reports, second_reports)
 
+    @unittest.skipIf(sys.platform == 'win32', 'POSIX shim; Windows uses the WSL bridge')
+    def test_harden_step_finds_the_fiber_bundle_save_shim_first_on_path(self):
+        # macOS, Slicer 5.12.4 + SlicerDMRI: saveNode() chose the unregistered "TRXFile" writer, so
+        # wm_harden_transform.py wrote no cluster ("800 resulting fiber clusters, but only 23 generated").
+        from tractography.wma import WMAOrgAtlasConfig, run_wma_org_atlas
+        python = self.tmp_path / 'bin' / 'PythonSlicer'
+        python.parent.mkdir()
+        python.symlink_to(sys.executable)
+        author = self.wma_bin / 'harden_transform_with_slicer.py'
+        author.write_text('import slicer\n')
+        author.chmod(0o755)
+        self.wma_script.write_text(self.wma_script.read_text().replace(
+            'while [ "$#" -gt 0 ]; do',
+            'h=$(command -v harden_transform_with_slicer.py) || exit 7\n'
+            '[ "$h" != "%s" ] || exit 8\n'
+            'grep -q "run_wma_harden_transform.run(.%s.)" "$h" || exit 9\n'
+            'while [ "$#" -gt 0 ]; do' % (author, author)))
+        config = WMAOrgAtlasConfig(subject_id='100307', input_tractography=self.tractography,
+            atlas_dir=self.atlas_dir, output_dir=self.output_dir, slicer_executable=self.slicer_executable,
+            wma_root=self.wma_root, execute=True)
+        result = run_wma_org_atlas(config)
+        self.assertEqual(result.status, 'completed', result.manifest_path.read_text())
+        manifest = json.loads(result.manifest_path.read_text())
+        self.assertEqual(manifest['harden_transform_shim'], 'harden_transform_with_slicer.py')
+        runner = Path(__file__).resolve().parents[2] / 'scripts' / 'run_wma_harden_transform.py'
+        self.assertIn('def run(author)', runner.read_text())
+
     def test_cache_can_be_disabled_without_changing_author_command(self):
         from tractography.wma import WMAOrgAtlasConfig, run_wma_org_atlas
         config = WMAOrgAtlasConfig(subject_id='100307', input_tractography=self.tractography,
