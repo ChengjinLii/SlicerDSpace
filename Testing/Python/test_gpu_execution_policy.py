@@ -34,7 +34,7 @@ class GPUExecutionPolicyTests(unittest.TestCase):
 
     def test_pnl_auto_prefers_gpu_and_preserves_caller_visibility(self):
         tf = self.fake_tf(("GPU:0", "GPU:1"))
-        with patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": "3,5"}):
+        with patch("shared.pnl_mask_runner.platform.system", return_value="Linux"), patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": "3,5"}):
             result = pnl_device("auto", tf)
             self.assertEqual(os.environ["CUDA_VISIBLE_DEVICES"], "3,5")
         self.assertEqual(result["resolved"], "cuda")
@@ -60,7 +60,7 @@ class GPUExecutionPolicyTests(unittest.TestCase):
                 pnl_device("cuda", tf)
 
     def test_pnl_no_gpu_auto_uses_cpu_but_explicit_cuda_fails(self):
-        with patch.dict(os.environ):
+        with patch("shared.pnl_mask_runner.platform.system", return_value="Linux"), patch.dict(os.environ):
             self.assertEqual(pnl_device("auto", self.fake_tf())["resolved"], "cpu")
             with self.assertRaisesRegex(RuntimeError, "no visible CUDA GPU"):
                 pnl_device("cuda", self.fake_tf())
@@ -68,7 +68,7 @@ class GPUExecutionPolicyTests(unittest.TestCase):
     def test_pnl_gpu_configuration_errors_do_not_fall_back(self):
         tf = self.fake_tf(("GPU:0",))
         tf.config.experimental.set_memory_growth.side_effect = RuntimeError("CUDA initialization failure")
-        with self.assertRaisesRegex(RuntimeError, "CUDA initialization"):
+        with patch("shared.pnl_mask_runner.platform.system", return_value="Linux"), self.assertRaisesRegex(RuntimeError, "CUDA initialization"):
             pnl_device("auto", tf)
 
     def test_pnl_repairs_only_legacy_selection_and_preserves_source(self):
