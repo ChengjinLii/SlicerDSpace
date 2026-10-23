@@ -14,7 +14,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from shared.external_process import text_subprocess_kwargs, python_tool_environment
+from shared.external_process import interpreter_path, text_subprocess_kwargs, python_tool_environment
 from shared.model_assets import model_asset_candidates, model_asset_path_or_none
 
 
@@ -196,6 +196,10 @@ def _resolve_path(path: Optional[Path]) -> Optional[Path]:
     return path.expanduser().resolve() if path is not None else None
 
 
+def _resolve_interpreter(path: Optional[Path]) -> Optional[Path]:
+    return interpreter_path(path) if path is not None else None
+
+
 def _merge_spec(existing: DependencySpec, incoming: DependencySpec) -> DependencySpec:
     targets = tuple(dict.fromkeys((*existing.targets, *incoming.targets)))
     return DependencySpec(
@@ -251,7 +255,7 @@ def _python(
             python_import=import_name,
             python_package=package,
             python_install_requirement=install_requirement or package,
-            python_executable=_resolve_path(python_executable),
+            python_executable=_resolve_interpreter(python_executable),
             python_path_entries=tuple(path.expanduser().resolve() for path in python_path_entries),
             discovery_source="python",
             install_group=install_group,
@@ -306,7 +310,7 @@ def _device(
             label=f"{target} requested device {normalized}",
             required=required,
             targets=(target,),
-            python_executable=_resolve_path(python_executable),
+            python_executable=_resolve_interpreter(python_executable),
             device=normalized,
             discovery_source="device",
             install_group="device",
@@ -466,11 +470,11 @@ def _env_path(*names: str) -> Optional[Path]:
     return None
 
 
-def _env_path_with_source(*names: str) -> tuple[Optional[Path], str]:
+def _env_path_with_source(*names: str, resolve: bool = True) -> tuple[Optional[Path], str]:
     for name in names:
         value = os.environ.get(name)
         if value:
-            return Path(value).expanduser().resolve(), f"env:{name}"
+            return (Path(value).expanduser().resolve() if resolve else interpreter_path(value)), f"env:{name}"
     return None, ""
 
 
@@ -962,7 +966,7 @@ def _apply_default_python(
     python_executable: Optional[Path],
     python_path_entries: Iterable[Path] = (),
 ) -> tuple[DependencySpec, ...]:
-    default_python = _resolve_path(python_executable)
+    default_python = _resolve_interpreter(python_executable)
     default_python_paths = tuple(
         dict.fromkeys(path.expanduser().resolve() for path in python_path_entries if path)
     )
@@ -971,7 +975,7 @@ def _apply_default_python(
     updated: list[DependencySpec] = []
     for spec in specs:
         if spec.kind in {"python", "device"}:
-            spec_python = _resolve_path(spec.python_executable)
+            spec_python = _resolve_interpreter(spec.python_executable)
             uses_default_python = spec_python is None or spec_python == default_python
             inherited_python_paths = default_python_paths if uses_default_python else ()
             updated.append(
@@ -1485,11 +1489,12 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 if tractcloud_root is not None:
                     tractcloud_root_source = "common path"
             tractcloud_python_source = "user setting"
-            tractcloud_python = _resolve_path(config.tractcloud_python_executable)
+            tractcloud_python = _resolve_interpreter(config.tractcloud_python_executable)
             if tractcloud_python is None:
                 tractcloud_python, tractcloud_python_source = _env_path_with_source(
                     "SLICERDDSURFER_TRACTCLOUD_PYTHON_EXECUTABLE",
                     "TRACTCLOUD_PYTHON_EXECUTABLE",
+                    resolve=False,
                 )
             if tractcloud_python is not None:
                 _path(

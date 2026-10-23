@@ -22,6 +22,11 @@ def resolve_external_command(name: str, bin_dir: Optional[Path] = None, *, requi
     return shutil.which(name)
 
 
+def interpreter_path(path: Path | str) -> Path:
+    """Absolute interpreter path that keeps a virtualenv's ``bin/python`` symlink."""
+    return Path(path).expanduser().absolute()
+
+
 def slicer_runtime_roots(home: Path | str) -> tuple[Path, ...]:
     """Accept an install root or macOS .app without hardcoding an OS layout."""
     root = Path(home).expanduser()

@@ -26,6 +26,7 @@ from shared.io_layout import (
 )
 from shared.validation import InputValidationConfig, validate_subject_inputs
 from shared.environment import resolve_auto_torch_device
+from shared.external_process import interpreter_path
 from shared.model_assets import model_asset_path
 from shared.output_contracts import outputs_readable, tractography_readable
 
@@ -431,6 +432,10 @@ def _find_first_existing(candidates: list[Path]) -> Optional[Path]:
 
 def _resolve_optional_path(path: Optional[Path]) -> Optional[Path]:
     return path.expanduser().resolve() if path is not None else None
+
+
+def _optional_interpreter(path: Optional[Path]) -> Optional[Path]:
+    return interpreter_path(path) if path is not None else None
 
 
 def _resolve_slicer_executable(config: ProductOrchestratorConfig) -> Optional[Path]:
@@ -1249,7 +1254,7 @@ def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional
                 or manifest.get('cpu_threads') != expected.surface_cpu_threads
                 or manifest.get('max_gpu_gib') != expected.surface_max_gpu_gib):
             return False
-        if expected.surface_python_bin and manifest.get('runtime', {}).get('executable') != str(expected.surface_python_bin.resolve()):
+        if expected.surface_python_bin and manifest.get('runtime', {}).get('executable') != str(interpreter_path(expected.surface_python_bin)):
             return False
         if expected.surface_atlas_t2 and manifest.get('resources', {}).get('registration_atlas') != str(expected.surface_atlas_t2.resolve()):
             return False
@@ -3408,7 +3413,7 @@ def _run_subject_products_impl(
                 device=surface_device,
                 model_assets_dir=model_assets_dir,
                 registration_atlas=_resolve_optional_path(config.surface_atlas_t2),
-                python_bin=_resolve_optional_path(config.surface_python_bin),
+                python_bin=_optional_interpreter(config.surface_python_bin),
                 precision=config.surface_precision,
                 cpu_threads=config.surface_cpu_threads,
                 max_gpu_gib=config.surface_max_gpu_gib,
@@ -3525,7 +3530,7 @@ def _run_subject_products_impl(
                         output_root=subject_layout(subject_root, output_root=output_root).outputs,
                         backend_root=_resolve_optional_path(config.postprocess_backend_root),
                         mode=config.postprocess_mode,
-                        python_bin=_resolve_optional_path(config.postprocess_python_bin),
+                        python_bin=_optional_interpreter(config.postprocess_python_bin),
                         freesurfer_home=_resolve_optional_path(config.postprocess_freesurfer_home),
                         atlases=config.postprocess_atlases,
                         force=bool(config.postprocess_force),
@@ -4587,7 +4592,7 @@ def _run_subject_products_impl(
         "postprocess_mri_dir": config.postprocess_mri_dir.expanduser().resolve().as_posix() if config.postprocess_mri_dir else None,
         "postprocess_backend_root": config.postprocess_backend_root.expanduser().resolve().as_posix() if config.postprocess_backend_root else None,
         "postprocess_mode": config.postprocess_mode,
-        "postprocess_python_bin": config.postprocess_python_bin.expanduser().resolve().as_posix() if config.postprocess_python_bin else None,
+        "postprocess_python_bin": _optional_interpreter(config.postprocess_python_bin).as_posix() if config.postprocess_python_bin else None,
         "postprocess_freesurfer_home": config.postprocess_freesurfer_home.expanduser().resolve().as_posix() if config.postprocess_freesurfer_home else None,
         "postprocess_atlases": list(config.postprocess_atlases) if config.postprocess_atlases else None,
         "postprocess_force": config.postprocess_force,
@@ -4595,7 +4600,7 @@ def _run_subject_products_impl(
         "ddseg_device": config.ddseg_device,
         "surface_device": config.surface_device,
         "surface_atlas_t2": config.surface_atlas_t2.expanduser().resolve().as_posix() if config.surface_atlas_t2 else None,
-        "surface_python_bin": config.surface_python_bin.expanduser().resolve().as_posix() if config.surface_python_bin else None,
+        "surface_python_bin": _optional_interpreter(config.surface_python_bin).as_posix() if config.surface_python_bin else None,
         "surface_precision": config.surface_precision,
         "surface_cpu_threads": config.surface_cpu_threads,
         "surface_max_gpu_gib": config.surface_max_gpu_gib,
@@ -4625,7 +4630,7 @@ def _run_subject_products_impl(
         "fiber_tract_measurements_cli": config.fiber_tract_measurements_cli.expanduser().resolve().as_posix() if config.fiber_tract_measurements_cli else None,
         "tractcloud_input_tractography": tractcloud_input_tractography.as_posix() if tractcloud_input_tractography else None,
         "tractcloud_root": config.tractcloud_root.expanduser().resolve().as_posix() if config.tractcloud_root else None,
-        "tractcloud_python_executable": config.tractcloud_python_executable.expanduser().resolve().as_posix() if config.tractcloud_python_executable else None,
+        "tractcloud_python_executable": _optional_interpreter(config.tractcloud_python_executable).as_posix() if config.tractcloud_python_executable else None,
         "tractcloud_data_dir": config.tractcloud_data_dir.expanduser().resolve().as_posix() if config.tractcloud_data_dir else None,
         "tractcloud_device": config.tractcloud_device,
         "resolved_tractcloud_device": tractcloud_device,

@@ -16,14 +16,14 @@ class PythonEnvironmentTest(unittest.TestCase):
             python = Path(tmp) / "PythonSlicer"
             python.write_text("", encoding="utf-8")
 
-            self.assertEqual(resolve_python_executable(python_executable=python), python.resolve())
+            self.assertEqual(resolve_python_executable(python_executable=python), python)
 
     def test_python_environment_can_be_python_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             python = Path(tmp) / "python"
             python.write_text("", encoding="utf-8")
 
-            self.assertEqual(resolve_python_executable(python_environment=python.as_posix()), python.resolve())
+            self.assertEqual(resolve_python_executable(python_environment=python.as_posix()), python)
 
     def test_python_environment_name_resolves_through_conda_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -43,7 +43,7 @@ class PythonEnvironmentTest(unittest.TestCase):
 
             self.assertEqual(
                 resolve_python_executable(python_environment="slicerdsurfer", conda_executable=conda),
-                expected_python.resolve(),
+                expected_python,
             )
 
     def test_conda_env_name_requires_conda_or_explicit_python(self) -> None:

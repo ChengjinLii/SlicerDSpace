@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from shared.environment import resolve_freesurfer_home
-from shared.external_process import merged_startup_environment, text_subprocess_kwargs
+from shared.external_process import interpreter_path, merged_startup_environment, text_subprocess_kwargs
 
 import nibabel as nib
 import numpy as np
@@ -344,7 +344,7 @@ def run_ddsurfer_postprocess(
         stage_mode=config.stage_mode,
     )
 
-    python_bin = (config.python_bin.expanduser().resolve() if config.python_bin else Path(sys.executable))
+    python_bin = interpreter_path(config.python_bin) if config.python_bin else Path(sys.executable)
     freesurfer_home = config.freesurfer_home.expanduser().resolve() if config.freesurfer_home else _default_freesurfer_home()
 
     cmd = [

@@ -589,7 +589,7 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
                 )
             )
 
-            self.assertEqual(result.python_executable, expected_python.resolve().as_posix())
+            self.assertEqual(result.python_executable, expected_python.as_posix())
 
     def test_cuda_probe_reports_timeout_status_instead_of_hanging(self) -> None:
         timeout_exc = subprocess.TimeoutExpired(cmd=["python", "-c", "..."], timeout=DEPENDENCY_PROBE_TIMEOUT_SECONDS)

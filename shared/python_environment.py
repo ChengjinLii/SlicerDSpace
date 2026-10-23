@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from shared.external_process import text_subprocess_kwargs
+from shared.external_process import interpreter_path, text_subprocess_kwargs
 
 
 def _looks_like_path(value: str) -> bool:
@@ -31,13 +31,12 @@ def resolve_python_executable(
     """
 
     if python_executable is not None:
-        return python_executable.expanduser().resolve()
+        return interpreter_path(python_executable)
 
     env_text = str(python_environment or "").strip()
     if env_text:
-        env_path = Path(env_text).expanduser()
         if _looks_like_path(env_text):
-            return env_path.resolve()
+            return interpreter_path(env_text)
         conda = conda_executable.expanduser().resolve() if conda_executable is not None else None
         if conda is None:
             resolved = shutil.which("conda") or shutil.which("mamba")
@@ -73,6 +72,6 @@ def resolve_python_executable(
         python_path = completed.stdout.strip().splitlines()[-1].strip() if completed.stdout.strip() else ""
         if not python_path:
             raise RuntimeError(f"Conda environment '{env_text}' did not report a Python executable.")
-        return Path(python_path).expanduser().resolve()
+        return interpreter_path(python_path)
 
-    return Path(sys.executable).expanduser().resolve()
+    return interpreter_path(sys.executable)
