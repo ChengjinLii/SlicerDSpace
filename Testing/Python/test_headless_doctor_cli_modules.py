@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,7 +12,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from shared import run_subject_pipeline_cli as cli
-from shared.environment import DependencySpec, EnvironmentDoctorConfig, run_environment_doctor
+import shared.pipeline as pipeline
+from shared.environment import DependencySpec, EnvironmentDoctorConfig, _slicer_cli_statuses, run_environment_doctor
 
 
 def _native_spec(targets=("microstructure",)) -> DependencySpec:
@@ -53,6 +57,49 @@ class HeadlessDoctorCliModuleTests(unittest.TestCase):
         self.assertEqual(statuses["slicer_cli:dwitodtiestimation"].status, "available")
         self.assertEqual(statuses["slicer_cli:dwitodtiestimation"].details["path"], "/slicer/cli-modules/DWIToDTIEstimation")
         self.assertEqual(report.blocker_count, 0)
+
+    def test_c2_cli_search_runs_in_the_selected_interpreter(self) -> None:
+        selected = Path(tempfile.gettempdir()) / "selected-venv" / "bin" / "python"
+        payload = {"DWIToDTIEstimation": ["/selected/cli/DWIToDTIEstimation", ""],
+                   "DiffusionTensorScalarMeasurements": ["", "not in the selected runtime"]}
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append(command)
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(payload), stderr="")
+
+        def caller_runtime(name):
+            raise AssertionError("the caller's runtime must not be searched")
+
+        config = EnvironmentDoctorConfig(targets=("microstructure",), repo_root=Path("."),
+                                         check_slicer_cli_modules=True, python_executable=selected)
+        with patch("shared.environment.subprocess.run", side_effect=fake_run):
+            report = _doctor(config, caller_runtime)
+        statuses = {item.key: item for item in report.statuses}
+        self.assertEqual(calls[0][0], selected.as_posix())
+        self.assertEqual(statuses["slicer_cli:dwitodtiestimation"].details["path"], "/selected/cli/DWIToDTIEstimation")
+        self.assertEqual(statuses["slicer_cli:dwitodtiestimation"].status, "available")
+        self.assertEqual(statuses["slicer_cli:diffusiontensorscalarmeasurements"].status, "missing")
+
+    def test_c2_same_interpreter_keeps_the_in_process_search(self) -> None:
+        config = EnvironmentDoctorConfig(targets=("microstructure",), repo_root=Path("."),
+                                         check_slicer_cli_modules=True, python_executable=Path(sys.executable))
+        with patch("shared.environment.subprocess.run", side_effect=AssertionError("no subprocess")):
+            report = _doctor(config, lambda name: f"/in-process/{name}")
+        statuses = {item.key: item for item in report.statuses}
+        self.assertEqual(statuses["slicer_cli:dwitodtiestimation"].details["path"], "/in-process/DWIToDTIEstimation")
+
+    def test_c7_unreadable_cli_folder_gives_a_status_not_a_traceback(self) -> None:
+        class Unreadable:
+            def iterdir(self):
+                raise PermissionError(13, "Permission denied")
+
+        with patch.object(pipeline, "SLICER_IMPORT_ERROR", None), \
+             patch.object(pipeline, "slicer", SimpleNamespace(modules=SimpleNamespace())), \
+             patch.object(pipeline, "_cli_search_dirs", return_value=(Unreadable(),)):
+            statuses = _slicer_cli_statuses(("microstructure",))
+        self.assertEqual({item.status for item in statuses}, {"missing"})
+        self.assertIn("Permission denied", statuses[0].details["error"])
 
     def test_default_config_and_gui_check_are_unchanged(self) -> None:
         def unexpected(name):

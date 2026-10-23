@@ -272,6 +272,30 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
         for module in ("joblib", "scipy", "xlrd"):
             self.assertIn(f"python:{module}", keys)
 
+    def test_c3_wma_package_checks_use_the_configured_slicers_pythonslicer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            contents = Path(tmp).resolve() / "Slicer.app/Contents"
+            (contents / "MacOS").mkdir(parents=True)
+            (contents / "bin").mkdir()
+            launcher = contents / "MacOS/Slicer"
+            launcher.touch()
+            pythonslicer = contents / "bin/PythonSlicer"
+            pythonslicer.touch()
+            with mock.patch.object(sys, "platform", "darwin"):
+                specs = {spec.key: spec for spec in build_dependency_specs(EnvironmentDoctorConfig(
+                    targets=("wma",), repo_root=REPO_ROOT, slicer_executable=launcher))}
+                for module in ("joblib", "scipy", "xlrd"):
+                    self.assertEqual(specs[f"python:{module}"].python_executable, pythonslicer, module)
+                # Fallback: a launcher with no PythonSlicer keeps the doctor's own Python.
+                bare = Path(tmp).resolve() / "bare/Slicer"
+                bare.parent.mkdir()
+                bare.touch()
+                specs = {spec.key: spec for spec in build_dependency_specs(EnvironmentDoctorConfig(
+                    targets=("wma",), repo_root=REPO_ROOT, slicer_executable=bare))}
+                for module in ("joblib", "scipy", "xlrd"):
+                    self.assertNotEqual(getattr(specs[f"python:{module}"].python_executable, "name", ""),
+                                        "PythonSlicer", module)
+
     def test_environment_path_source_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_bin = self._make_mrtrix_bin(Path(tmp))

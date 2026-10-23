@@ -14,7 +14,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from shared.external_process import interpreter_path, text_subprocess_kwargs, python_tool_environment
+from shared.external_process import interpreter_path, slicer_runtime_roots, text_subprocess_kwargs, python_tool_environment
 from shared.model_assets import model_asset_candidates, model_asset_path_or_none
 
 
@@ -230,6 +230,21 @@ def _merge_spec(existing: DependencySpec, incoming: DependencySpec) -> Dependenc
 def _put(specs: dict[str, DependencySpec], spec: DependencySpec) -> None:
     existing = specs.get(spec.key)
     specs[spec.key] = _merge_spec(existing, spec) if existing else spec
+
+
+def _pythonslicer_next_to(slicer_executable: Optional[Path]) -> Optional[Path]:
+    """PythonSlicer of a Slicer launcher, resolved as tractography/wma.py does; None if absent."""
+    if slicer_executable is None or sys.platform == "win32":
+        return None
+    try:
+        launcher_dir = slicer_executable.expanduser().resolve().parent
+    except OSError:
+        return None
+    for root in slicer_runtime_roots(launcher_dir):
+        for candidate in (root / "PythonSlicer", root / "bin" / "PythonSlicer"):
+            if candidate.is_file():
+                return candidate
+    return None
 
 
 def _python(
@@ -1324,8 +1339,22 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     notes="Required by the pipeline host to decode bundle geometry; bundled with Slicer.")
             # The author scripts run in Slicer's Python and `import whitematteranalysis` loads these at import time
             # (whitematteranalysis/__init__.py, tract_measurement.py; its requirements.txt).
+            slicer_executable_source = "user setting"
+            slicer_executable = _resolve_path(config.slicer_executable)
+            if slicer_executable is None:
+                slicer_executable, slicer_executable_source = _env_path_with_source(
+                    "SLICERDDSURFER_SLICER_EXECUTABLE",
+                )
+            if slicer_executable is None:
+                slicer_executable, _ = _first_existing_path(_common_slicer_executables(platform_name), kind="file")
+                if slicer_executable is not None:
+                    slicer_executable_source = "common path"
+            # C3: the author scripts run with the PythonSlicer of the configured Slicer (tractography/wma.py),
+            # so probe that interpreter; fall back to the doctor's Python when it cannot be resolved.
+            wma_python = _pythonslicer_next_to(slicer_executable)
             for import_name, package in (("joblib", "joblib"), ("scipy", "scipy"), ("xlrd", "xlrd")):
                 _python(specs, target=target, import_name=import_name, package=package,
+                        python_executable=wma_python,
                         notes="Imported by the WhiteMatterAnalysis package in Slicer's Python.")
             _command(
                 specs,
@@ -1423,16 +1452,6 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     group="wma",
                     notes="Pass --wma-atlas-dir. The directory must contain ORG-RegAtlas-100HCP and ORG-800FC-100HCP.",
                 )
-            slicer_executable_source = "user setting"
-            slicer_executable = _resolve_path(config.slicer_executable)
-            if slicer_executable is None:
-                slicer_executable, slicer_executable_source = _env_path_with_source(
-                    "SLICERDDSURFER_SLICER_EXECUTABLE",
-                )
-            if slicer_executable is None:
-                slicer_executable, _ = _first_existing_path(_common_slicer_executables(platform_name), kind="file")
-                if slicer_executable is not None:
-                    slicer_executable_source = "common path"
             _env(
                 specs,
                 target=target,
@@ -1993,20 +2012,73 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
     )
 
 
-def _slicer_cli_statuses(targets: tuple[str, ...]) -> tuple[DependencyStatus, ...]:
-    """Headless counterpart of the GUI loaded-module check: search the Slicer CLI folders."""
+_SLICER_CLI_NAMES = ("DWIToDTIEstimation", "DiffusionTensorScalarMeasurements")
+
+
+def _find_slicer_clis_in_interpreter(python_path: Path) -> dict[str, tuple[str, str]]:
+    """Run the CLI search in the selected interpreter (C2); return name -> (path, error)."""
+    probe = (
+        "import json, sys\n"
+        f"sys.path.insert(0, {Path(__file__).resolve().parents[1].as_posix()!r})\n"
+        f"names = {list(_SLICER_CLI_NAMES)!r}\n"
+        "result = {}\n"
+        "try:\n"
+        "    from shared.pipeline import resolve_cli_executable\n"
+        "except Exception as exc:\n"
+        "    result = {name: ['', str(exc)] for name in names}\n"
+        "else:\n"
+        "    for name in names:\n"
+        "        try:\n"
+        "            result[name] = [resolve_cli_executable(name), '']\n"
+        "        except Exception as exc:\n"
+        "            result[name] = ['', str(exc)]\n"
+        "print(json.dumps(result))\n"
+    )
+    try:
+        completed = subprocess.run(
+            [python_path.as_posix(), "-c", probe],
+            check=True, capture_output=True, env=python_tool_environment(python_path),
+            timeout=DEPENDENCY_PROBE_TIMEOUT_SECONDS, **text_subprocess_kwargs(),
+        )
+        payload = _parse_json_probe_output(completed.stdout)
+    except subprocess.TimeoutExpired as exc:
+        return {name: ("", _probe_timeout_error(exc)) for name in _SLICER_CLI_NAMES}
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {name: ("", str(exc)) for name in _SLICER_CLI_NAMES}
+    results = {}
+    for name in _SLICER_CLI_NAMES:
+        entry = payload.get(name)
+        found, error = (str(entry[0]), str(entry[1])) if isinstance(entry, list) and len(entry) == 2 else ("", "probe returned no result")
+        results[name] = (found, error)
+    return results
+
+
+def _slicer_cli_statuses(targets: tuple[str, ...], python_executable: Optional[Path] = None) -> tuple[DependencyStatus, ...]:
+    """Headless counterpart of the GUI loaded-module check: search the Slicer CLI folders.
+
+    The search runs in the selected interpreter (C2); the in-process search is kept when
+    that interpreter is the caller's own.
+    """
     from shared.pipeline import resolve_cli_executable
 
+    selected = interpreter_path(python_executable) if python_executable is not None else None
+    results: dict[str, tuple[str, str]] = {}
+    if selected is not None and selected != interpreter_path(sys.executable):
+        results = _find_slicer_clis_in_interpreter(selected)
+    else:
+        for name in _SLICER_CLI_NAMES:
+            try:
+                results[name] = (resolve_cli_executable(name), "")
+            except (RuntimeError, ImportError, OSError) as exc:  # C7: iterdir can raise PermissionError
+                results[name] = ("", str(exc))
     statuses = []
-    for name in ("DWIToDTIEstimation", "DiffusionTensorScalarMeasurements"):
-        try:
-            found, error = resolve_cli_executable(name), ""
-        except (RuntimeError, ImportError) as exc:
-            found, error = "", str(exc)
+    for name in _SLICER_CLI_NAMES:
+        found, error = results[name]
         statuses.append(DependencyStatus(
             key=f"slicer_cli:{name.lower()}", kind="setting", label=f"SlicerDMRI {name} CLI",
             status="available" if found else "missing", required=True, targets=targets,
-            details={"path": found, "error": error, "check": "Slicer CLI module search"},
+            details={"path": found, "error": error, "check": "Slicer CLI module search",
+                     "python_executable": (selected or Path(sys.executable)).as_posix()},
             install_group="slicer-dmri",
             install_hint="" if found else "Install SlicerDMRI in 3D Slicer, or run with Slicer's PythonSlicer so its CLI folders are searched.",
         ))
@@ -2037,7 +2109,7 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
         native_targets = tuple(dict.fromkeys(target for spec in specs if spec.key == 'python:slicer.util'
                                              for target in spec.targets))
         if native_targets:
-            statuses += _slicer_cli_statuses(native_targets)
+            statuses += _slicer_cli_statuses(native_targets, checked_python_path)
     if "microstructure_dki" in targets and config.dki_fit_method.upper().startswith("MKCURVE"):
         matlab_reference = config.dki_fit_method.upper() == "MKCURVE_MATLAB"
         if matlab_reference:
