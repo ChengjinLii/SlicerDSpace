@@ -454,10 +454,17 @@ def _cli_search_dirs() -> tuple[Path, ...]:
     patterns = [
         "lib/Slicer-*/cli-modules",
         "slicer.org/Extensions-*/*/lib/Slicer-*/cli-modules",
+        # A stock macOS .app keeps its extensions in Contents/Extensions-<revision>.
+        "Extensions-*/*/lib/Slicer-*/cli-modules",
     ]
     for pattern in patterns:
         for path in sorted(slicer_home.glob(pattern)):
             if path.is_dir():
+                candidates.append(path.resolve())
+    if sys.platform == "darwin":
+        user_extensions = Path.home() / "Library/Application Support/slicer.org"
+        for path in sorted(user_extensions.glob("Extensions-*/*/lib/Slicer-*/cli-modules")):
+            if path.is_dir() and path.resolve() not in candidates:
                 candidates.append(path.resolve())
     # Extension Manager/development paths need not live under SLICER_HOME.
     # PythonQt exposes searchPaths as a property on some Slicer versions.
