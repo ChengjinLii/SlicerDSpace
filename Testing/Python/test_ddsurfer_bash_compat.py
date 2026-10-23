@@ -11,7 +11,18 @@ from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parents[2] / "anatomy/surface/ddsurfer_backend"
 BASH = Path("/bin/bash")
-BASH4_ONLY = re.compile(r"^\s*(?:mapfile|readarray)\b|\bdeclare\s+-A\b", re.MULTILINE)
+# C8: constructs that bash 3.2 (stock macOS /bin/bash) does not parse or run.
+BASH4_ONLY = re.compile(
+    r"\b(?:mapfile|readarray)\b"                     # builtins new in bash 4.0
+    r"|\b(?:declare|local|typeset)\s+-[a-zA-Z]*[An]\b"  # associative arrays, namerefs
+    r"|\$\{[A-Za-z_]\w*(?:,,?|\^\^?)[^}]*\}"        # case conversion ${v,,} ${v^^} ${v,} ${v^}
+    r"|\[\[\s+-v\s"                                  # [[ -v var ]]
+    r"|\$\{[A-Za-z_]\w*\[-\d+\]\}"                  # negative array index
+    r"|;;&|;&"                                       # case fall-through terminators
+    r"|\|&|&>>"                                      # |& and &>> redirections
+    r"|\bwait\s+-n\b|\bcoproc\b",
+    re.MULTILINE,
+)
 
 
 class Bash32CompatibilityTests(unittest.TestCase):
@@ -21,6 +32,25 @@ class Bash32CompatibilityTests(unittest.TestCase):
         for script in scripts:
             with self.subTest(script=script.name):
                 self.assertIsNone(BASH4_ONLY.search(script.read_text(encoding="utf-8")))
+
+    def test_c8_detector_flags_bash4_constructs_and_accepts_bash3_ones(self) -> None:
+        flagged = [
+            'mapfile -t lines < f', 'x=$(foo); readarray -t a < f', 'declare -A m', 'declare -n ref=v', 'local -n ref=v',
+            'echo "${v,,}"', 'echo "${v^^}"', 'echo "${v,}"', 'echo "${v^}"', '[[ -v NAME ]] && true',
+            'echo "${a[-1]}"', 'case $x in a) y;& b) z;; esac', 'case $x in a) y;;& esac',
+            'cmd |& tee log', 'cmd &>> log', 'wait -n', 'coproc FOO { sleep 1; }',
+        ]
+        for text in flagged:
+            with self.subTest(text=text):
+                self.assertIsNotNone(BASH4_ONLY.search(text))
+        accepted = [
+            'RAW_FILES=()', 'declare -a list', 'local count=0', 'echo "${ARGS[@]+"${ARGS[@]}"}"', 'echo "${a[0]}"',
+            'v=${x:-default}', 'cmd >> log 2>&1', 'cmd > log 2>&1', 'case $x in a) y;; esac', 'wait', '[[ -n "$v" ]]',
+            'echo "${v%%.*}"', 'echo "${v#*,}"',
+        ]
+        for text in accepted:
+            with self.subTest(text=text):
+                self.assertIsNone(BASH4_ONLY.search(text))
 
     @unittest.skipUnless(BASH.exists(), "/bin/bash is missing")
     def test_dti_raw_path_parsing_keeps_paths_with_spaces(self) -> None:
