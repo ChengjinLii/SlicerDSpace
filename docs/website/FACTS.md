@@ -214,7 +214,7 @@ File `P/out/SlicerDDSurfer_promo_1080p.mp4`, render of 24 October 2026 (72.0 s, 
 | Cover images | cover_1920x1080.png = 1920x1080 (1,267,791 B); cover_1280x640.png = 1280x640 (607,718 B); the 1280x640 is "GitHub social-preview size (centre crop of the cover)" | `sips -g pixelWidth -g pixelHeight`; `ls -l`; P/MAKING_OF.md:13-14 |
 | Motion blur | On the two fast Slicer-window moves only (pull-back 55.2-57.4 s, glide 57.6-59.2 s). Frames 1653-1778 (55.1-59.3 s, 126 frames) are replaced. 180 degree shutter; per frame 8 to 47 sub-frames (minimum 8, maximum used 47), so that no visible point of the window moves more than 1 px between sub-frames; averaged in linear light. Only the GOPs that hold a replaced frame (frames 1620-1869) are encoded again. The renderer itself has no motion blur. | P/MAKING_OF.md:24-35; settings and per-frame values in P/logs/motion_blur.json (`n_min` 8, `n_max_used` 47, `shutter_deg` 180, `frames_replaced` 126, `reencoded_frames` [1620, 1869]); tools `P/tools/motion_blur.mjs` and `P/tools/motion_blur_avg.py`. Frames 0-1578 and 1959-2159 are bit-identical to the film before the blur (P/MAKING_OF.md:135) |
 
-Narration, 13 lines verbatim (P/out/SlicerDDSurfer.en.srt; times in file; the film names no method in the narration):
+Narration, 13 lines verbatim (P/out/SlicerDDSurfer.en.srt; times in file; the narration names no bundle method):
 1. (0:00.8-0:04.95) "Diffusion MRI records how water moves through the living brain." (srt:3)
 2. (0:05.0-0:11.55) "Mapping anatomy has usually meant a second, T1-weighted scan, registered into diffusion space." (srt:7)
 3. (0:12.1-0:19.25) "SlicerDDSurfer reconstructs anatomy directly from diffusion MRI, without a T1-weighted scan." (srt:11)
@@ -235,8 +235,8 @@ Bundles scene (45.6-50.4 s):
 - Model and tractogram: TractCloud v1.0.0 on the film's own DTI deterministic tractogram (the same 130,780-streamline file that the Tractography scene samples). The model ran on 23 October 2026. 42 bundles; 53,522 classified streamlines; 8,994 drawn (display subset). (P/MAKING_OF.md:99; P/film/FACTS.md:15)
 - What the viewer sees: the whole-brain fibres dim to grey; the 42 bundles arrive family by family (commissural, projection, association, cerebellar, superficial), one colour each. (P/MAKING_OF.md:73-76, 99; P/film/TREATMENT.md:7-10)
 - On-screen text: title "White-matter bundles", note "42 tracts · display subset". (P/film/content.json:65-69)
-- The film names no method, in the narration (line 10, srt:39) or on screen (user request, 24 October 2026). (P/MAKING_OF.md:164-166; P/film/FACTS.md:15)
-- The 23 October cut also showed WMQL tracts from the multi-shell run (two bundle methods). The 24 October cut does not. (P/MAKING_OF.md:99; P/film/TREATMENT.md:20-21)
+- The Bundles scene names no method, in the narration (line 10, srt:39) or on screen (user request, 24 October 2026). (P/MAKING_OF.md:164-166; P/film/FACTS.md:15)
+- The 23 October cut also showed WMQL tracts from the multi-shell run (two bundle methods). The 24 October cut's Bundles scene does not. The 3D Slicer screenshot later in the film still shows the module's Bundles row ("WMQL + WMA + TractCloud") and the WMQL AF and CST bundles in its 3D view (P/runtime/shots_workflow_ms3/capture.log:13). (P/MAKING_OF.md:99; P/film/TREATMENT.md:20-21)
 
 Data used:
 - EDDEN (Evaluating Diffusion MRI Denoising), OpenNeuro ds004666, subject sub-01, session ses-1p5mm, licence CC0. Used: topup + eddy corrected `AVG_mag` DWI (5 repeats averaged), bval/bvec, brain mask, and the T1-weighted image "shown only on the 'problem' card". (P/CREDITS.md:4-5)

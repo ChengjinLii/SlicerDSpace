@@ -150,7 +150,7 @@ and resized by `P/tools/make_site_tiles.py` (sources and SHA-256 in `P/renders/s
   `tiles.json` `view`), crop 1398,440,3202,1794 (the union box of the seven brains), resized to 1200×900 with Lanczos. The inside of the brain is as sharp as the
   exported volumes allow (about 280 voxels across, trilinear sampling); no sharpening is applied;
 - tracts, bundles and networks: 1600×1200 stills, crop 50,37,1550,1162, JPEG quality 84.
-Nothing is drawn on the data except the plane frames. The
+Nothing is drawn on the data (the slice maps have no plane frames since Addendum 5). The
 screenshot shows the subject folder through a short link (`/Users/Shared/EDDEN/sub-01` → the run's subject folder),
 with the log cleared by its own Clear button and the Reason column widened, so no path of the build machine is in view.
 

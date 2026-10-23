@@ -135,6 +135,6 @@ brain, no cut-off label.
 
 This table records the first delivery. On 23 October 2026 the DEC, tissue and regions frames were replaced by
 renders (`res-dec.jpg`, `res-tissue.jpg`, `res-parcel.jpg`), the other frames come from the 72 s film, and
-`out-connectome.jpg` is at 57.4 s; see SPEC.md §3.
+`out-connectome.jpg` is at 57.4 s; see SPEC.md §3. (Since 24 October 2026 it is at 54.8 s of the new film; SPEC.md Addendum 6.)
 
 `icon-64.png` and `icon-180.png` are resized from `Resources/Icons/SlicerDDSurfer.png` of the repository.
