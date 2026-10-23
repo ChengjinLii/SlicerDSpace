@@ -74,8 +74,9 @@ class DDSurferSyncTests(unittest.TestCase):
     def test_vendored_sources_match_recorded_snapshot(self):
         record = upstream_record()
         self.assertEqual(len(record['commit']), 40)
+        patched = record.get('local_patches', {})
         for filename, digest in record['files'].items():
-            self.assertEqual(sha256(BACKEND_ROOT / filename), digest, filename)
+            self.assertEqual(sha256(BACKEND_ROOT / filename), patched.get(filename, digest), filename)
 
     def test_snapshot_matches_asset_release(self):
         assets = json.loads((ROOT / 'models/assets_manifest.json').read_text())
