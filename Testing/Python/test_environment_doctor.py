@@ -20,6 +20,7 @@ from shared.environment import (
     _common_command_dirs,
     _common_freesurfer_homes,
     _common_slicer_executables,
+    _install_hint,
     _model_asset_spec_path,
     _parse_json_probe_output,
     _python_requirement_details,
@@ -270,7 +271,7 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
         specs = build_dependency_specs(EnvironmentDoctorConfig(targets=("wma",), repo_root=REPO_ROOT))
         keys = {spec.key for spec in specs}
         for module in ("joblib", "scipy", "xlrd"):
-            self.assertIn(f"python:{module}", keys)
+            self.assertIn(f"python:wma:{module}", keys)
 
     def test_c3_wma_package_checks_use_the_configured_slicers_pythonslicer(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -285,7 +286,7 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
                 specs = {spec.key: spec for spec in build_dependency_specs(EnvironmentDoctorConfig(
                     targets=("wma",), repo_root=REPO_ROOT, slicer_executable=launcher))}
                 for module in ("joblib", "scipy", "xlrd"):
-                    self.assertEqual(specs[f"python:{module}"].python_executable, pythonslicer, module)
+                    self.assertEqual(specs[f"python:wma:{module}"].python_executable, pythonslicer, module)
                 # Fallback: a launcher with no PythonSlicer keeps the doctor's own Python.
                 bare = Path(tmp).resolve() / "bare/Slicer"
                 bare.parent.mkdir()
@@ -293,8 +294,37 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
                 specs = {spec.key: spec for spec in build_dependency_specs(EnvironmentDoctorConfig(
                     targets=("wma",), repo_root=REPO_ROOT, slicer_executable=bare))}
                 for module in ("joblib", "scipy", "xlrd"):
-                    self.assertNotEqual(getattr(specs[f"python:{module}"].python_executable, "name", ""),
+                    self.assertNotEqual(getattr(specs[f"python:wma:{module}"].python_executable, "name", ""),
                                         "PythonSlicer", module)
+
+    def test_n1_wma_scipy_check_stays_separate_from_the_host_scipy_check(self) -> None:
+        # N1: WMA probes PythonSlicer; segmentation/saf probe the host interpreter. They must not merge.
+        host_python = Path(sys.executable).resolve()
+        with tempfile.TemporaryDirectory() as tmp:
+            contents = Path(tmp).resolve() / "Slicer.app/Contents"
+            (contents / "MacOS").mkdir(parents=True)
+            (contents / "bin").mkdir()
+            launcher = contents / "MacOS/Slicer"
+            launcher.touch()
+            pythonslicer = contents / "bin/PythonSlicer"
+            pythonslicer.touch()
+            extra = Path(tmp).resolve() / "extra_site"
+            extra.mkdir()
+            for host_target in ("segmentation", "saf"):
+                with self.subTest(host_target=host_target), mock.patch.object(sys, "platform", "darwin"):
+                    specs = {spec.key: spec for spec in build_dependency_specs(EnvironmentDoctorConfig(
+                        targets=(host_target, "wma"), repo_root=REPO_ROOT, slicer_executable=launcher,
+                        python_executable=host_python, python_path_entries=(extra,)))}
+                    host = specs["python:scipy"]
+                    wma = specs["python:wma:scipy"]
+                    self.assertEqual(host.targets, (host_target,))
+                    self.assertEqual(wma.targets, ("wma",))
+                    self.assertEqual(wma.python_executable, pythonslicer)
+                    self.assertNotEqual(host.python_executable, pythonslicer)
+                    self.assertIn(extra, host.python_path_entries)
+                    self.assertNotIn("WMA", host.label)
+                    self.assertIn("WMA", wma.label)
+                    self.assertIn(pythonslicer.as_posix(), _install_hint(wma, "Darwin"))
 
     def test_environment_path_source_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

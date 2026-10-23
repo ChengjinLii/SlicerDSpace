@@ -259,13 +259,15 @@ def _python(
     python_path_entries: tuple[Path, ...] = (),
     install_group: str = "python",
     notes: str = "",
+    key: Optional[str] = None,
+    label: Optional[str] = None,
 ) -> None:
     _put(
         specs,
         DependencySpec(
-            key=f"python:{import_name}",
+            key=key or f"python:{import_name}",
             kind="python",
-            label=import_name,
+            label=label or import_name,
             required=required,
             targets=(target,),
             python_import=import_name,
@@ -1353,8 +1355,10 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             # so probe that interpreter; fall back to the doctor's Python when it cannot be resolved.
             wma_python = _pythonslicer_next_to(slicer_executable)
             for import_name, package in (("joblib", "joblib"), ("scipy", "scipy"), ("xlrd", "xlrd")):
+                # N1: own key, so the host interpreter's check of the same module is not merged into this one.
                 _python(specs, target=target, import_name=import_name, package=package,
-                        python_executable=wma_python,
+                        python_executable=wma_python, key=f"python:wma:{import_name}",
+                        label=f"{import_name} (WMA)",
                         notes="Imported by the WhiteMatterAnalysis package in Slicer's Python.")
             _command(
                 specs,
