@@ -37,6 +37,11 @@ unchanged. Second pass, same day (layout, for a shorter page): the reference lis
 section padding and some inner margins are smaller (§4). Images, `<img>` attributes and the two figures are
 unchanged. §7.2 item 8 checks the reference links.
 
+Addendum 5, 24 October 2026: the seven slice maps in `#outputs` are new renders (§3; user request: the plane frame
+lines were too bright). They show an axial and a coronal plane without frame lines, in one shared view. Their alt
+texts say “on an axial and a coronal plane”. The route figure now has six example routes, and both figure PNGs have
+new heights (route 2400×1713, run time 2400×1676).
+
 Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
 below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, except in the parts added on 23 October
 2026 (§5.6.1, §5.6a, §5.10, §5.10a, §5.10b, and the performance section). Those parts have their own sources, named in
@@ -131,10 +136,10 @@ and `loading="lazy"`. (The poster is the `<video poster>`, not an `<img>`.)
 
 Result tiles (`res-*.jpg`, 1200×900, progressive), rendered in the film's look by `P/film/gallery.js` and cropped
 and resized by `P/tools/make_site_tiles.py` (sources and SHA-256 in `P/renders/site_tiles/tiles.json`):
-- the seven three-plane maps (`res-dec`, `res-fw`, `res-ndi`, `res-mk`, `res-mkcurve`, `res-tissue`, `res-parcel`):
-  3840×2160 stills with the film's state at 22.8 s (camera, plane positions, rim, background, bloom, vignette;
-  `?look=film`), plane frames in red (axial), green (coronal) and yellow (sagittal) at full strength, crop
-  1630,310,3710,1870 (the DEC frame's box × 2), JPEG quality 94, 4:4:4. The inside of the brain is as sharp as the
+- the seven slice maps (`res-dec`, `res-fw`, `res-ndi`, `res-mk`, `res-mkcurve`, `res-tissue`, `res-parcel`):
+  3840×2160 stills in the film's look (`?look=film`) with one shared view: an axial and a coronal plane, the sagittal
+  plane hidden, no plane frame lines (`frame=0&hide=0&cam=235,38,470,0,4,0,30,0.1,-0.02`; the full query is in
+  `tiles.json` `view`), crop 1398,440,3202,1794 (the union box of the seven brains), resized to 1200×900 with Lanczos. The inside of the brain is as sharp as the
   exported volumes allow (about 280 voxels across, trilinear sampling); no sharpening is applied;
 - tracts, bundles and networks: 1600×1200 stills, crop 50,37,1550,1162, JPEG quality 84.
 Nothing is drawn on the data except the plane frames. The
@@ -338,7 +343,7 @@ Two columns: text left, `idea.jpg` right.
 
 - Eyebrow “Choosing routes”, H2 “Which route when.”, then `fig-route-guide.png` in a panel, wrapped in a link
   to the full-size file (`target="_blank" rel="noopener"`), with `width`, `height`, `loading="lazy"`, `decoding="async"`.
-- Caption: “Which methods each acquisition and input allows (including the b-value limit for DKI), with three example
+- Caption: “Which methods each acquisition and input allows (including the b-value limit for DKI), with six example
   routes. Built from the planner and method code and the documented dependencies; status is recorded for Linux test
   subjects.” The caption must not say that a single-shell scan can use CSD/ACT.
 
