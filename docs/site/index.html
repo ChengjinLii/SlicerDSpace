@@ -59,7 +59,7 @@
   <div class="container">
     <p class="eyebrow">3D Slicer module · Diffusion MRI</p>
     <h1>Brain anatomy from diffusion MRI, inside 3D Slicer.</h1>
-    <p class="lead">SlicerDDSurfer reconstructs tissue labels, brain regions and cortical surfaces directly from diffusion MRI, with no T1-weighted scan needed at analysis time. The same module maps microstructure, traces white-matter pathways and builds structural connectomes.</p>
+    <p class="lead">SlicerDDSurfer builds tissue labels, brain regions and cortical surfaces from diffusion MRI, with no T1-weighted scan at analysis time. It also maps microstructure, traces white-matter pathways and builds structural connectomes.</p>
     <div class="btn-row">
       <a class="btn btn-primary" href="#film" data-play-film>
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>
@@ -105,7 +105,7 @@
         <li>SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer.</li>
       </ol>
     </details>
-    <p class="note">The film shows SlicerDDSurfer output for one public dataset (EDDEN sub-01). Most scenes come from one run on the b = 0 and b ≈ 1000 volumes. On 23 October 2026, TractCloud ran on that run’s DTI tractogram; the WMQL bundles and the 3D Slicer screenshot come from the multi-shell runs of the same day. The film names free water, NODDI and kurtosis but does not show them; Outputs below does.</p>
+    <p class="note">Most scenes come from one run on EDDEN sub-01 (b = 0 and b ≈ 1000 volumes). TractCloud ran on that run’s DTI tractogram; the WMQL bundles and the 3D Slicer screenshot come from multi-shell runs. The film names free water, NODDI and kurtosis but does not show them; Outputs below does.</p>
   </div>
 </section>
 
@@ -114,8 +114,8 @@
     <div class="split-text">
       <p class="eyebrow">The idea</p>
       <h2>Anatomy from the diffusion scan itself.</h2>
-      <p>Mapping anatomy for a diffusion study has usually meant a second, T1-weighted scan, registered into diffusion space.</p>
-      <p>SlicerDDSurfer works from the diffusion scan. DDSeg labels tissue, DDParcel labels brain regions and DDSurfer builds white and pial surfaces, all in native diffusion space.</p>
+      <p>Diffusion studies have usually needed a second, T1-weighted scan, registered into diffusion space.</p>
+      <p>SlicerDDSurfer works from the diffusion scan. DDSeg labels tissue, DDParcel labels regions and DDSurfer builds white and pial surfaces, all in native diffusion space.</p>
       <div class="panel input-card">
         <h3 class="card-title">Canonical input</h3>
         <pre class="code-block"><code>sub-01/
@@ -124,13 +124,13 @@
     bvals
     bvecs
     nodif_brain_mask.nii.gz   # optional; generation needs a supported backend</code></pre>
-        <p class="caption">A DWI series, its gradient files and an optional brain mask. DWI and mask must share one voxel grid.</p>
+        <p class="caption">DWI and mask must share one voxel grid.</p>
       </div>
       <p class="small muted">‘No T1-weighted scan’ describes analysis time. The models were trained with labels derived from T1-weighted MRI.</p>
     </div>
     <figure class="split-media">
       <img src="assets/img/idea.jpg" width="1400" height="729" loading="lazy" alt="DWI slice, “registration” arrow, “+ T1-weighted scan” card">
-      <figcaption>From the film: the usual route registers a separate T1-weighted scan into diffusion space.</figcaption>
+      <figcaption>From the film: the usual route.</figcaption>
     </figure>
   </div>
 </section>
@@ -139,7 +139,7 @@
   <div class="container">
     <p class="eyebrow">One subject, one space</p>
     <h2>From one diffusion dataset to seven kinds of result.</h2>
-    <p class="intro">Each image shows output from SlicerDDSurfer on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. Six images come from the film’s run, which used the b = 0 and b ≈ 1000 volumes (117 of 297); three of them are moments of the film. The others come from runs on 23 October 2026 on the same Mac: UKF on the film’s input, the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes). All are rendered in the film’s look; the three-plane maps share one view.</p>
+    <p class="intro">Data: EDDEN sub-01 (OpenNeuro ds004666, CC0), AVG_mag series. The series averages five repeated acquisitions, so its SNR is higher than a typical single scan. Six images come from the film’s run (b = 0 and b ≈ 1000; 117 of 297 volumes). The others come from runs of 23 October 2026 on the same Mac: UKF on the same input; the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes).</p>
     <div class="gallery">
       <article class="tile">
         <img src="assets/img/res-dec.jpg" width="1200" height="900" loading="lazy" alt="DEC map on three planes">
@@ -262,7 +262,7 @@
         </div>
       </article>
     </div>
-    <p class="note">Colours, subsets and upsampling are display choices; they change the look, not the data. Automatic QC passed for the DTI, DDSeg, DDParcel and DDSurfer stages, and for every other stage shown that records it, except MK-Curve. WMA also ran on the UKF tractogram but failed the pipeline’s sampling check (right arcuate fasciculus: 6 streamlines, minimum 20), so it is not shown. No expert has reviewed these outputs.</p>
+    <p class="note">All images use the film’s look; colours, subsets and upsampling change the look, not the data. Automatic QC passed for every stage shown that records it, except MK-Curve. WMA also ran on the UKF tractogram but is not shown: it failed the pipeline’s sampling check (right arcuate fasciculus: 6 streamlines, minimum 20). No expert has reviewed these outputs.</p>
   </div>
 </section>
 
@@ -270,7 +270,7 @@
   <div class="container">
     <p class="eyebrow">Workflows</p>
     <h2>One module, five workflow families.</h2>
-    <p class="intro">Select only the products you need. Install dependencies for the route you select, not for every possible product.</p>
+    <p class="intro">Select only the products you need, and install dependencies only for their routes.</p>
     <div class="wf-grid">
       <article class="wf-card">
         <p class="wf-num">01</p>
@@ -319,48 +319,47 @@
           <dt>Products</dt>
           <dd>Regional matrices (streamline count; SIFT2-weighted for CSD/ACT), Slicer scene inspection, QC and provenance</dd>
           <dt>Needs</dt>
-          <dd>Compatible parcellation and tractogram; SIFT2 weights for the weighted matrix. Scalar and length weights are Python API only</dd>
+          <dd>Compatible parcellation and tractogram; SIFT2 weights for the weighted matrix</dd>
         </dl>
       </article>
     </div>
     <ul class="note-row">
-      <li class="n-red"><span class="n-icon" aria-hidden="true"></span><span>Microstructure runs DTI only by default. Free-water, NODDI and DKI are each enabled independently under Advanced.</span></li>
+      <li class="n-red"><span class="n-icon" aria-hidden="true"></span><span>Microstructure runs DTI only by default; turn on Free-water, NODDI or DKI under Advanced.</span></li>
       <li class="n-green"><span class="n-icon" aria-hidden="true"></span><span>MRtrix3, FSL, FreeSurfer and advanced bundle backends are optional and are not installed silently.</span></li>
       <li class="n-blue"><span class="n-icon" aria-hidden="true"></span><span>A missing backend is reported, never silently replaced.</span></li>
     </ul>
     <div class="integration" id="integrated">
       <h3>What is integrated</h3>
-      <p class="muted">How each method is integrated and what is recorded for it. A status describes the project’s own integration and the dated records for it, not the method itself.</p>
       <div class="table-wrap" tabindex="0" role="region" aria-label="What is integrated, scroll horizontally on small screens">
         <table class="int-table">
-          <caption>Status follows the code and dated records on Linux test subjects. macOS and Windows scientific workflows are not certified. Expert review of the outputs is pending.</caption>
-          <thead><tr><th scope="col">Stage</th><th scope="col">Method</th><th scope="col">How it is integrated</th><th scope="col">Status</th><th scope="col">Reference [n]</th></tr></thead>
+          <caption>A status describes this project’s integration and its dated records, not the method itself. Expert review of the outputs is pending.</caption>
+          <thead><tr><th scope="col">Stage</th><th scope="col">Method</th><th scope="col">How it is integrated</th><th scope="col">Status on Linux test subjects</th><th scope="col">Reference [n]</th></tr></thead>
           <tbody>
-            <tr><th scope="row">Input</th><td>Import and validation: DICOM, NIfTI, NRRD</td><td>Own checks in Python. DICOM conversion by dcm2niix or SlicerDMRI DWIConvert.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span><span class="st st-needs">Needs dcm2niix or DWIConvert (DICOM only)</span></td><td class="ref-cell"><span class="muted">–</span></td></tr>
-            <tr><th scope="row">Pre-processing</th><td>DIPY: denoising, Gibbs removal, motion correction</td><td>Calls DIPY functions. No susceptibility or eddy-current modelling.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-30">[30]</a></td></tr>
-            <tr><th scope="row">Pre-processing</th><td>MRtrix3 and FSL: dwidenoise, mrdegibbs, topup, eddy</td><td>Calls the external tools.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span><span class="st st-needs">Needs MRtrix3 and FSL</span></td><td class="ref-cell"><a href="#ref-29">[29]</a></td></tr>
-            <tr><th scope="row">Brain mask</th><td>PNL CNN (default)</td><td>Calls the author’s existing Python backend. Not rewritten.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><span class="muted">–</span></td></tr>
-            <tr><th scope="row">Brain mask</th><td>SynthStrip</td><td>Calls FreeSurfer mri_synthstrip.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span><span class="st st-needs">Needs FreeSurfer</span></td><td class="ref-cell"><a href="#ref-32">[32]</a></td></tr>
-            <tr><th scope="row">Brain mask</th><td>MRtrix3 dwi2mask</td><td>Calls dwi2mask.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span><span class="st st-needs">Needs MRtrix3</span></td><td class="ref-cell"><a href="#ref-29">[29]</a></td></tr>
-            <tr><th scope="row">Anatomy</th><td>DDSeg: tissue labels</td><td>Python/PyTorch reimplementation of the author’s MATLAB U-Nets. Weights converted, not retrained.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-2">[2]</a></td></tr>
-            <tr><th scope="row">Anatomy</th><td>DDParcel: brain regions</td><td>Bundled author-derived Python. Registration with Slicer BRAINSFit.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-3">[3]</a></td></tr>
-            <tr><th scope="row">Anatomy</th><td>DDSurfer: white and pial surfaces</td><td>Bundled upstream Python, run unchanged as a subprocess.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-1">[1]</a></td></tr>
-            <tr><th scope="row">Anatomy</th><td>Surface postprocessing</td><td>Calls FreeSurfer commands on the DDSurfer surfaces.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span><span class="st st-needs">Needs FreeSurfer</span></td><td class="ref-cell"><a href="#ref-33">[33]</a></td></tr>
-            <tr><th scope="row">Microstructure</th><td>DTI</td><td>Tensor fit and scalar maps by SlicerDMRI modules; RD is derived in the project.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-27">[27]</a> <a href="#ref-28">[28]</a></td></tr>
-            <tr><th scope="row">Microstructure</th><td>Free water</td><td>DIPY FreeWaterTensorModel, with a modified equivalent routine. Needs at least 3 distinct b-values, b0 included.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-4">[4]</a> <a href="#ref-5">[5]</a> <a href="#ref-6">[6]</a> <a href="#ref-30">[30]</a></td></tr>
-            <tr><th scope="row">Microstructure</th><td>NODDI</td><td>Fitted with AMICO. Needs at least 2 non-zero shells.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-7">[7]</a> <a href="#ref-31">[31]</a></td></tr>
-            <tr><th scope="row">Microstructure</th><td>DKI (WLS or OLS)</td><td>DIPY DiffusionKurtosisModel. Checked in the plan: only shells at or below 2500 s/mm² count. Needs one b0, at least 2 such shells with 15 directions each, 22 volumes and design rank 22.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-8">[8]</a> <a href="#ref-30">[30]</a></td></tr>
-            <tr><th scope="row">Microstructure</th><td>MK-Curve (Python)</td><td>Unofficial Python port of the author’s MATLAB method. Same plan check as DKI: only shells at or below 2500 s/mm² count. Needs one b0, at least 2 such shells with 15 directions each, 22 volumes and design rank 22. Not all voxels are valid; validity masks are exported.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-9">[9]</a></td></tr>
+            <tr><th scope="row">Input</th><td>Import and validation: DICOM, NIfTI, NRRD</td><td>Own Python checks; DICOM conversion by dcm2niix or SlicerDMRI DWIConvert.</td><td class="st-cell"><span class="st st-ok">Supported</span><span class="st st-needs">Needs dcm2niix or DWIConvert (DICOM only)</span></td><td class="ref-cell"><span class="muted">–</span></td></tr>
+            <tr><th scope="row">Pre-processing</th><td>DIPY: denoising, Gibbs removal, motion correction</td><td>Calls DIPY functions. No susceptibility or eddy-current modelling.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-30">[30]</a></td></tr>
+            <tr><th scope="row">Pre-processing</th><td>MRtrix3 and FSL: dwidenoise, mrdegibbs, topup, eddy</td><td>Calls the external tools.</td><td class="st-cell"><span class="st st-ok">Supported</span><span class="st st-needs">Needs MRtrix3 and FSL</span></td><td class="ref-cell"><a href="#ref-29">[29]</a></td></tr>
+            <tr><th scope="row">Brain mask</th><td>PNL CNN (default)</td><td>Calls the author’s existing Python backend. Not rewritten.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><span class="muted">–</span></td></tr>
+            <tr><th scope="row">Brain mask</th><td>SynthStrip</td><td>Calls FreeSurfer mri_synthstrip.</td><td class="st-cell"><span class="st st-ok">Supported</span><span class="st st-needs">Needs FreeSurfer</span></td><td class="ref-cell"><a href="#ref-32">[32]</a></td></tr>
+            <tr><th scope="row">Brain mask</th><td>MRtrix3 dwi2mask</td><td>Calls dwi2mask.</td><td class="st-cell"><span class="st st-ok">Supported</span><span class="st st-needs">Needs MRtrix3</span></td><td class="ref-cell"><a href="#ref-29">[29]</a></td></tr>
+            <tr><th scope="row">Anatomy</th><td>DDSeg: tissue labels</td><td>Python/PyTorch reimplementation of the author’s MATLAB U-Nets. Weights converted, not retrained.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-2">[2]</a></td></tr>
+            <tr><th scope="row">Anatomy</th><td>DDParcel: brain regions</td><td>Bundled author-derived Python. Registration with Slicer BRAINSFit.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-3">[3]</a></td></tr>
+            <tr><th scope="row">Anatomy</th><td>DDSurfer: white and pial surfaces</td><td>Bundled upstream Python, run unchanged as a subprocess.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-1">[1]</a></td></tr>
+            <tr><th scope="row">Anatomy</th><td>Surface postprocessing</td><td>Calls FreeSurfer commands on the DDSurfer surfaces.</td><td class="st-cell"><span class="st st-ok">Supported</span><span class="st st-needs">Needs FreeSurfer</span></td><td class="ref-cell"><a href="#ref-33">[33]</a></td></tr>
+            <tr><th scope="row">Microstructure</th><td>DTI</td><td>Tensor fit and scalar maps by SlicerDMRI modules; RD is derived in the project.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-27">[27]</a> <a href="#ref-28">[28]</a></td></tr>
+            <tr><th scope="row">Microstructure</th><td>Free water</td><td>DIPY FreeWaterTensorModel, with a modified equivalent routine. Needs at least 3 distinct b-values, b0 included.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-4">[4]</a> <a href="#ref-5">[5]</a> <a href="#ref-6">[6]</a> <a href="#ref-30">[30]</a></td></tr>
+            <tr><th scope="row">Microstructure</th><td>NODDI</td><td>Fitted with AMICO. Needs at least 2 non-zero shells.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-7">[7]</a> <a href="#ref-31">[31]</a></td></tr>
+            <tr><th scope="row">Microstructure</th><td>DKI (WLS or OLS)</td><td>DIPY DiffusionKurtosisModel. Checked in the plan: only shells at or below 2500 s/mm² count. Needs one b0, at least 2 such shells with 15 directions each, 22 volumes and design rank 22.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-8">[8]</a> <a href="#ref-30">[30]</a></td></tr>
+            <tr><th scope="row">Microstructure</th><td>MK-Curve (Python)</td><td>Unofficial Python port of the author’s MATLAB method. Same plan check as DKI. Not all voxels are valid; validity masks are exported.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-9">[9]</a></td></tr>
             <tr><th scope="row">Microstructure</th><td>MK-Curve (MATLAB reference)</td><td>Calls MATLAB and the author’s checkout.</td><td class="st-cell"><span class="st st-partial">Partial: no recorded run with real MATLAB</span><span class="st st-needs">Needs MATLAB</span></td><td class="ref-cell"><a href="#ref-9">[9]</a></td></tr>
-            <tr><th scope="row">Tractography</th><td>CSD / ACT / SIFT2 (default)</td><td>Calls MRtrix3 (dwi2response dhollander, dwi2fod msmt_csd, tckgen iFOD2 with ACT, tcksift2). The ACT tissue image is built in the project from DDSeg, not by 5ttgen. DDParcel is optional: when present it adds sub-cortical priors and enables the 0.70 white-matter Dice gate between DDSeg and DDParcel, which blocks the route below 0.70.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span><span class="st st-needs">Needs MRtrix3</span></td><td class="ref-cell"><a href="#ref-10">[10]</a> <a href="#ref-11">[11]</a> <a href="#ref-12">[12]</a> <a href="#ref-13">[13]</a> <a href="#ref-14">[14]</a> <a href="#ref-15">[15]</a> <a href="#ref-16">[16]</a> <a href="#ref-17">[17]</a> <a href="#ref-18">[18]</a> <a href="#ref-29">[29]</a></td></tr>
-            <tr><th scope="row">Tractography</th><td>DTI deterministic</td><td>Tensor fit by SlicerDMRI modules. Tracking by DIPY.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-28">[28]</a> <a href="#ref-30">[30]</a></td></tr>
+            <tr><th scope="row">Tractography</th><td>CSD / ACT / SIFT2 (default)</td><td>Calls MRtrix3 (dwi2response dhollander, dwi2fod msmt_csd, tckgen iFOD2 with ACT, tcksift2). The project builds the ACT tissue image from DDSeg, not with 5ttgen. Optional DDParcel adds sub-cortical priors and a white-matter Dice gate with DDSeg: the route stops below 0.70.</td><td class="st-cell"><span class="st st-ok">Supported</span><span class="st st-needs">Needs MRtrix3</span></td><td class="ref-cell"><a href="#ref-10">[10]</a> <a href="#ref-11">[11]</a> <a href="#ref-12">[12]</a> <a href="#ref-13">[13]</a> <a href="#ref-14">[14]</a> <a href="#ref-15">[15]</a> <a href="#ref-16">[16]</a> <a href="#ref-17">[17]</a> <a href="#ref-18">[18]</a> <a href="#ref-29">[29]</a></td></tr>
+            <tr><th scope="row">Tractography</th><td>DTI deterministic</td><td>Tensor fit by SlicerDMRI modules. Tracking by DIPY.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-28">[28]</a> <a href="#ref-30">[30]</a></td></tr>
             <tr><th scope="row">Tractography</th><td>UKF two-tensor</td><td>Calls the UKFTractography module and DWIConvert. No UKF source is bundled.</td><td class="st-cell"><span class="st st-partial">Partial: the fresh check of the adapter used synthetic data only</span><span class="st st-needs">Needs UKF extension</span></td><td class="ref-cell"><a href="#ref-19">[19]</a></td></tr>
             <tr><th scope="row">Tractography</th><td>SAF</td><td>Unofficial Python port of the author’s MATLAB method. Runs its own MRtrix tracking on the CSD FODs, then filters the tracks with the post-processed DDSurfer surfaces. Default seeding differs from the paper.</td><td class="st-cell"><span class="st st-partial">Partial: recorded evidence re-filters one archived tractogram</span><span class="st st-needs">Needs MRtrix3 and FreeSurfer</span></td><td class="ref-cell"><a href="#ref-20">[20]</a></td></tr>
-            <tr><th scope="row">Bundles</th><td>WMQL</td><td>Calls the author’s tract_querier. The default preset ddparcel_act is an adapted protocol.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span><span class="st st-partial">Partial on sparse input: a 50,000-track input gave 1 left and 1 right AF streamline</span></td><td class="ref-cell"><a href="#ref-21">[21]</a></td></tr>
-            <tr><th scope="row">Bundles</th><td>WMA (ORG atlas)</td><td>Calls the author’s whitematteranalysis scripts, with three bulk accelerators. Needs Slicer and the ORG atlas.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects) with UKF input</span><span class="st st-partial">Partial on CSD input: 45 of 74 tracts non-empty (1,000,000 tracks)</span></td><td class="ref-cell"><a href="#ref-22">[22]</a> <a href="#ref-23">[23]</a> <a href="#ref-24">[24]</a> <a href="#ref-26">[26]</a></td></tr>
-            <tr><th scope="row">Bundles</th><td>TractCloud</td><td>Calls the author’s PyTorch code with its v1.0.0 model. Needs a separate Python with PyTorch.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span><span class="st st-partial">Partial on CSD input: on a 50,000-track input four groups held 1 to 14 tracks</span></td><td class="ref-cell"><a href="#ref-25">[25]</a> <a href="#ref-22">[22]</a></td></tr>
-            <tr><th scope="row">Connectome</th><td>Streamline count</td><td>Python end-point assignment to DDParcel nodes. MRtrix3 tck2connectome backend for CSD/ACT only.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span></td><td class="ref-cell"><a href="#ref-29">[29]</a></td></tr>
-            <tr><th scope="row">Connectome</th><td>SIFT2-weighted count</td><td>Uses tcksift2 weights. CSD/ACT only.</td><td class="st-cell"><span class="st st-ok">Supported (Linux test subjects)</span><span class="st st-needs">Needs MRtrix3</span></td><td class="ref-cell"><a href="#ref-16">[16]</a> <a href="#ref-29">[29]</a></td></tr>
+            <tr><th scope="row">Bundles</th><td>WMQL</td><td>Calls the author’s tract_querier. The default preset ddparcel_act is an adapted protocol.</td><td class="st-cell"><span class="st st-ok">Supported</span><span class="st st-partial">Partial on sparse input: 50,000 tracks gave 1 AF streamline per side</span></td><td class="ref-cell"><a href="#ref-21">[21]</a></td></tr>
+            <tr><th scope="row">Bundles</th><td>WMA (ORG atlas)</td><td>Calls the author’s whitematteranalysis scripts, with three bulk accelerators. Needs Slicer and the ORG atlas.</td><td class="st-cell"><span class="st st-ok">Supported with UKF input</span><span class="st st-partial">Partial on CSD input: 45 of 74 tracts non-empty (1,000,000 tracks)</span></td><td class="ref-cell"><a href="#ref-22">[22]</a> <a href="#ref-23">[23]</a> <a href="#ref-24">[24]</a> <a href="#ref-26">[26]</a></td></tr>
+            <tr><th scope="row">Bundles</th><td>TractCloud</td><td>Calls the author’s PyTorch code with its v1.0.0 model. Needs a separate Python with PyTorch.</td><td class="st-cell"><span class="st st-ok">Supported</span><span class="st st-partial">Partial on CSD input: from 50,000 tracks, four groups held 1 to 14 tracks</span></td><td class="ref-cell"><a href="#ref-25">[25]</a> <a href="#ref-22">[22]</a></td></tr>
+            <tr><th scope="row">Connectome</th><td>Streamline count</td><td>Python end-point assignment to DDParcel nodes. MRtrix3 tck2connectome backend for CSD/ACT only.</td><td class="st-cell"><span class="st st-ok">Supported</span></td><td class="ref-cell"><a href="#ref-29">[29]</a></td></tr>
+            <tr><th scope="row">Connectome</th><td>SIFT2-weighted count</td><td>Uses tcksift2 weights. CSD/ACT only.</td><td class="st-cell"><span class="st st-ok">Supported</span><span class="st st-needs">Needs MRtrix3</span></td><td class="ref-cell"><a href="#ref-16">[16]</a> <a href="#ref-29">[29]</a></td></tr>
             <tr><th scope="row">Connectome</th><td>Scalar and length weights</td><td>Python code in the project.</td><td class="st-cell"><span class="st st-partial">Partial: Python API only, not in the CLI or GUI</span></td><td class="ref-cell"><span class="muted">–</span></td></tr>
           </tbody>
         </table>
@@ -377,7 +376,7 @@
       <a href="assets/img/fig-route-guide.png" target="_blank" rel="noopener" aria-label="Open the full-size route guide">
         <img src="assets/img/fig-route-guide.png" width="2400" height="1280" loading="lazy" decoding="async" alt="Route guide. Panel a: a grid of the products in five columns (microstructure, anatomy, tractography, bundles, connectome) with arrows for the inputs each one reads; outlines mark default, optional and partial routes. Panel b: three example routes on the same grid, with the selected products filled.">
       </a>
-      <figcaption>A guide to choosing routes, built from the coded gates and documented dependencies. It shows which methods each acquisition and input allows (including the b-value limit for DKI), and three example routes. The rules come from the planner and method code; status is recorded for Linux test subjects.</figcaption>
+      <figcaption>Which methods each acquisition and input allows (including the b-value limit for DKI), with three example routes. Built from the planner and method code and the documented dependencies; status is recorded for Linux test subjects.</figcaption>
     </figure>
   </div>
 </section>
@@ -388,23 +387,23 @@
     <h2>One 3D Slicer module, with QC and a record of every run.</h2>
     <figure class="panel shot">
       <img src="assets/img/slicer.jpg" width="1920" height="1027" loading="lazy" decoding="async" alt="Real 3D Slicer screenshot: the SlicerDDSurfer panel with Results and QC open, FA in the slice views and tractography with bundles in the 3D view">
-      <figcaption>A real screenshot of 3D Slicer 5.12.4 on macOS with the SlicerDDSurfer module. The module loaded the key results of the multi-shell EDDEN runs into the scene: FA in the slice views; the CSD/ACT tractogram with the WMQL and TractCloud bundles in the 3D view. Results and QC shows the selected run and its recorded QC. A capture script set the inputs and products to match the runs; the runs themselves were started from the command line.</figcaption>
+      <figcaption>A real screenshot of 3D Slicer 5.12.4 on macOS. The module loaded the multi-shell EDDEN results: FA in the slice views; the CSD/ACT tractogram with the WMQL and TractCloud bundles in 3D; the run’s recorded QC in Results and QC. A capture script set the inputs and products to match; the runs were started from the command line.</figcaption>
     </figure>
     <div class="slicer-grid">
       <div>
         <h3 class="card-title">A run in six steps</h3>
         <ol class="steps">
-          <li>Open SlicerDDSurfer from the module selector and choose English or Chinese.</li>
-          <li>Enter the Subject ID, the subject root and, if you like, a separate output directory.</li>
+          <li>Open SlicerDDSurfer and choose English or Chinese.</li>
+          <li>Enter the Subject ID, the subject root and, optionally, an output directory.</li>
           <li>Tick only the products you need.</li>
-          <li>Choose algorithms beside each product. Use Environment to prepare dependencies; Advanced settings contains detailed analysis parameters.</li>
+          <li>Choose each product’s algorithm. Prepare dependencies in Environment; set detailed parameters in Advanced settings.</li>
           <li>Click Run SlicerDDSurfer. Missing inputs turn red; the log says what to correct.</li>
-          <li>Key results from successful stages load into the scene. Review QC, reload, replace or clear them in Advanced settings › Results and QC.</li>
+          <li>Key results of successful stages load into the scene. Review QC, reload, replace or clear them in Advanced settings › Results and QC.</li>
         </ol>
       </div>
       <aside class="panel side-note">
         <h3 class="card-title">From the command line</h3>
-        <p>Check inputs and the environment without running any algorithm:</p>
+        <p>Check inputs and environment without running anything:</p>
         <div class="code" data-code>
           <div class="code-head"><span>shell</span><button class="copy" type="button" hidden>Copy</button></div>
           <pre><code>python3 run_subject_pipeline.py --subject-root /path/to/sub-01 --targets validation,microstructure --microstructure-stages dti --doctor</code></pre>
@@ -423,8 +422,8 @@
       <article class="panel status-col s-green">
         <h3>Recorded</h3>
         <ul>
-          <li>Linux real-data and GUI evidence is documented for specific checkouts, routes and datasets.</li>
-          <li>The compact interface has its own UI validation record.</li>
+          <li>Linux real-data and GUI records for specific checkouts, routes and datasets.</li>
+          <li>A UI validation record of the compact interface.</li>
         </ul>
       </article>
       <article class="panel status-col s-orange">
@@ -438,20 +437,20 @@
         <h3>Not yet released</h3>
         <ul>
           <li>Private pre-release; not in the official Extensions Catalog.</li>
-          <li>The Extension Index JSON is a draft Tier 1 proposal, not a submitted catalog entry and not acceptance by Slicer.</li>
+          <li>The Extension Index JSON is a draft Tier 1 proposal: not submitted, and not acceptance by Slicer.</li>
           <li>Public source access, third-party licence clearance and asset redistribution review remain release gates.</li>
         </ul>
       </article>
     </div>
     <div class="origins">
       <h3 class="card-title">Implementation origins</h3>
-      <p>DDSeg is a MATLAB-to-Python/PyTorch reimplementation. SAF and MK-Curve are unofficial Python ports of author MATLAB methods. PNL CNN masking invokes the author’s existing Python backend, not a rewritten PNL pipeline. DDSurfer runs bundled upstream Python code.</p>
+      <p>The <a href="#integrated">integration table</a> under Workflows says how each method is implemented: reimplemented, ported, bundled or called.</p>
       <p><a class="link-arrow" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/architecture/IMPLEMENTATION_PROVENANCE.md" target="_blank" rel="noopener">Implementation provenance and verification limits</a></p>
     </div>
     <p class="panel callout callout-warn">A completed run is not a clinical assessment or proof of scientific correctness.</p>
     <details class="transcript" id="performance-notes">
       <summary>Performance &amp; implementation notes</summary>
-      <p>Measured changes, output-equivalence checks and the limits of each benchmark. Full-model calls, regional tests and native multithreading are reported separately.</p>
+      <p>Measured changes, equivalence checks and limits, with each scope kept separate.</p>
       <p><a href="#performance">Explore the performance evidence</a></p>
     </details>
   </div>
@@ -461,7 +460,7 @@
   <div class="container">
     <p class="eyebrow">Get started</p>
     <h2>Install from source.</h2>
-    <p class="panel callout callout-info">The repository is private during pre-release. Use an authorized checkout; links into the repository need access.</p>
+    <p class="panel callout callout-info">The repository is private during pre-release; you need access to clone it or open its links.</p>
     <ol class="start-steps">
       <li class="start-step">
         <div class="start-body">
@@ -473,13 +472,13 @@ cd SlicerDDSurfer
 python3 scripts/stage_slicer_extension.py \
   --install-root ~/SlicerDDSurfer-extension --link-mode copy --clean</code></pre>
           </div>
-          <p>Set <code>--slicer-version</code> to your Slicer version. This is a source/staging installation, not an official CPack release.</p>
+          <p>Set <code>--slicer-version</code> to your Slicer version. This is a source install, not an official CPack release.</p>
         </div>
       </li>
       <li class="start-step">
         <div class="start-body">
           <h3>Add the module path</h3>
-          <p>In Edit › Application Settings › Modules, add the expanded absolute path of <code>~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules</code> to Additional module paths, then restart Slicer. Local GUI validation uses Slicer 5.10.</p>
+          <p>In Edit › Application Settings › Modules, add the expanded absolute path of <code>~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules</code> to Additional module paths and restart Slicer. GUI validation uses Slicer 5.10.</p>
         </div>
       </li>
       <li class="start-step">
@@ -491,7 +490,7 @@ python3 scripts/stage_slicer_extension.py \
       <li class="start-step">
         <div class="start-body">
           <h3>Get the model files</h3>
-          <p>Review the asset terms first, then download only the profile you need to a writable folder outside the checkout:</p>
+          <p>Read the asset terms, then download only the profile you need to a writable folder outside the checkout:</p>
           <div class="code" data-code>
             <div class="code-head"><span>bash</span><button class="copy" type="button" hidden>Copy</button></div>
             <pre><code>python3 scripts/download_model_assets.py --profile surface \
@@ -504,7 +503,7 @@ python3 scripts/stage_slicer_extension.py \
       <li class="start-step">
         <div class="start-body">
           <h3>Prepare the input</h3>
-          <p>Use the canonical layout shown above. Gradient files must match the DWI measurements; corrected gradients must accompany motion-corrected DWI.</p>
+          <p>Use the canonical layout under <a href="#idea">Idea</a>. Gradients must match the DWI; motion-corrected DWI needs corrected gradients.</p>
         </div>
       </li>
     </ol>
@@ -521,7 +520,7 @@ python3 scripts/stage_slicer_extension.py \
   <div class="container">
     <p class="eyebrow">Cite</p>
     <h2>Cite the software and the methods you use.</h2>
-    <p class="intro">The SlicerDDSurfer protocol manuscript is in preparation. Cite the tested software version using <a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/CITATION.cff" target="_blank" rel="noopener">CITATION.cff</a>, together with the methods actually used.</p>
+    <p class="intro">The protocol manuscript is in preparation. Cite the software version you used (<a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/CITATION.cff" target="_blank" rel="noopener">CITATION.cff</a>) and the methods you ran.</p>
     <div class="paper-grid">
       <article class="panel paper">
         <p class="chip"><span class="chip-name">DDSurfer</span> · <span class="chip-q" id="ref-1">[1]</span></p>
@@ -547,7 +546,7 @@ python3 scripts/stage_slicer_extension.py \
     </div>
     <div class="references" id="references">
       <h3>References</h3>
-      <p class="muted">The numbers in the Reference column of the integration table under Workflows point to this list. [1] to [3] are the software papers above. [34] and [35] are the data shown in the film. Each entry names its lead author; the linked page gives the full author list.</p>
+      <p class="muted">The Reference column of the <a href="#integrated">integration table</a> points here. [1] to [3] are the papers above; [34] and [35] are the film’s data.</p>
       <h4 class="ref-group-title">Microstructure</h4>
       <ol class="ref-list">
           <li id="ref-4"><span class="ref-n">[4]</span><span class="ref-text">Pasternak O, et al. Free water elimination and mapping from diffusion MRI. <i>Magnetic Resonance in Medicine 62(3):717–730, 2009.</i> <a class="doi" href="https://doi.org/10.1002/mrm.22055" target="_blank" rel="noopener">DOI 10.1002/mrm.22055</a></span></li>
@@ -601,13 +600,13 @@ python3 scripts/stage_slicer_extension.py \
 
 <section class="section section-alt reveal" id="runtime">
   <div class="container">
-    <p class="eyebrow">Recorded run times</p>
+    <p class="eyebrow">Run times</p>
     <h2>Recorded run times, per module.</h2>
     <figure class="panel shot fig">
       <a href="assets/img/fig-runtime-resources.png" target="_blank" rel="noopener" aria-label="Open the full-size run-time figure">
         <img src="assets/img/fig-runtime-resources.png" width="2400" height="1668" loading="lazy" decoding="async" alt="Dot plots on a log time scale. Panel a: recorded run time per module on Linux, GPU runs marked. Panel b: run time before and after seven code-path changes, one pair per row.">
       </a>
-      <figcaption>One scoped measurement per row, log scale; rows are not summed. Panel a: recorded run time per module on Linux, with GPU runs marked. Panel b: run time before and after seven code-path changes, one pair per row, on a shared Linux host; outputs match. The SAF row re-filters 100,000 existing tracks; new initial tracking is not included. The TractCloud row ran on 50,000 tracks.</figcaption>
+      <figcaption>Log scale, one scoped measurement per row; rows are not summed. Panel a: recorded run time per module on Linux, GPU runs marked. Panel b: before and after seven code-path changes, one pair per row, on a shared Linux host; outputs match. SAF re-filters 100,000 existing tracks (no new initial tracking); TractCloud ran on 50,000 tracks.</figcaption>
     </figure>
   </div>
 </section>
@@ -619,11 +618,11 @@ python3 scripts/stage_slicer_extension.py \
     <details class="transcript perf-evidence" id="performance-evidence">
       <summary>Performance evidence</summary>
       <div class="perf-body">
-        <p class="perf-lead">Remove repeated work, preserve the computation, and measure at the boundary that was actually tested.</p>
+        <p class="perf-lead">Remove repeated work, keep the computation, measure only what was tested.</p>
         <div class="perf-intro-line"><p>Reviewed 22 October 2026</p><a href="assets/data/performance.json" download>Download measurement data (JSON)</a></div>
         <p class="perf-disclaimer">No whole-workflow speedup has been established. Output equivalence is not anatomical validation or an increase in predictive validity.</p>
-        <p class="perf-disclaimer">Upstream versions rechecked on 22 October: DIPY 1.12.1, AMICO 2.1.1 and SciPy 1.18.1. Each method record distinguishes current-source checks, older timings and capabilities already provided upstream.</p>
-        <div class="perf-block-head"><p class="eyebrow">Measured work</p><h3>Time, with context.</h3><p class="muted">Full-model calls, small regions and isolated operations are different experiments. They stay separate here.</p></div>
+        <p class="perf-disclaimer">Upstream versions rechecked on 22 October: DIPY 1.12.1, AMICO 2.1.1, SciPy 1.18.1. Each method record separates current-source checks, older timings and upstream capabilities.</p>
+        <div class="perf-block-head"><p class="eyebrow">Measured work</p><h3>Time, with context.</h3><p class="muted">Full models, small regions and single operations are different experiments; they stay separate.</p></div>
         <div class="perf-filters" hidden role="group" aria-label="Filter measurement types">
           <button type="button" data-perf-filter="all" aria-pressed="true">All evidence</button>
           <button type="button" data-perf-filter="implementation" aria-pressed="false">Same-method implementation</button>
@@ -640,20 +639,20 @@ python3 scripts/stage_slicer_extension.py \
 <!-- measured-evidence:end -->
         <div class="perf-block-head"><p class="eyebrow">What the numbers mean</p><h3>Four different levers.</h3><p class="muted">A larger ratio does not make two experiments comparable.</p></div>
         <div class="perf-principles">
-          <article><span class="perf-kind implementation">Implementation</span><h4>Do the same work once.</h4><p>Batch equivalent array and geometry operations. Keep the estimator, initialization, solver, precision and QC thresholds unchanged. DKI array metrics already exist in DIPY: adopting them is integration, not outperforming the author's native API.</p></article>
-          <article><span class="perf-kind parallel">Native threads</span><h4>Use existing compute capacity.</h4><p>AMICO already supports multithreading. Configuring that capability is useful, but it is not a new NODDI algorithm. Thread budgets and hardware are part of the measurement.</p></article>
-          <article><span class="perf-kind workflow">Scheduling</span><h4>Overlap independent jobs.</h4><p>FW, NODDI and DKI can run in separate processes after their inputs are ready. Dependencies still apply; CPU and memory budgets may limit overlap. Default concurrency is one.</p></article>
-          <article><span class="perf-kind port">Python-port control</span><h4>Name the real reference.</h4><p>MK-Curve port improvements are compared with earlier Python computation, not author MATLAB. A language port and an original-author runtime comparison are different claims.</p></article>
+          <article><span class="perf-kind implementation">Implementation</span><h4>Do the same work once.</h4><p>Batch equivalent operations. Estimator, initialization, solver, precision and QC thresholds stay the same.</p></article>
+          <article><span class="perf-kind parallel">Native threads</span><h4>Use existing compute capacity.</h4><p>AMICO’s own threads, not a new NODDI algorithm. Hardware is part of the measurement.</p></article>
+          <article><span class="perf-kind workflow">Scheduling</span><h4>Overlap independent jobs.</h4><p>FW, NODDI and DKI overlap once their inputs are ready. Default concurrency is one.</p></article>
+          <article><span class="perf-kind port">Python-port control</span><h4>Name the real reference.</h4><p>MK-Curve port changes are compared with earlier Python code, not the author’s MATLAB.</p></article>
         </div>
         <div class="perf-limits">
-          <div><div class="perf-block-head"><p class="eyebrow">Still open</p><h3>The boundary of the evidence.</h3></div><p class="muted">These measurements describe specific Linux inputs and settings. They are not a substitute for independent scientific review.</p><p><a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/release/PERFORMANCE_OPTIMIZATIONS.md" target="_blank" rel="noopener">Read the complete optimization report</a></p><p class="small muted">Repository links require access while the code repository is private. The JSON above is a deliberately limited public summary, not a bundle of private logs or subject data.</p></div>
+          <div><div class="perf-block-head"><p class="eyebrow">Still open</p><h3>The boundary of the evidence.</h3></div><p class="muted">These measurements cover specific Linux inputs and settings. They do not replace independent scientific review.</p><p><a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/release/PERFORMANCE_OPTIMIZATIONS.md" target="_blank" rel="noopener">Read the complete optimization report</a></p><p class="small muted">The JSON is a limited public summary, not private logs or subject data.</p></div>
           <ul class="perf-open-items">
-            <li><strong>Whole workflow</strong><span>No matched old/new end-to-end percentage. Do not add savings or multiply ratios from overlapping stages.</span></li>
-            <li><strong>Generalization</strong><span>Repeat complete-module pairs across more subjects and hardware. Single pairs have no confidence interval.</span></li>
-            <li><strong>Long-task coverage</strong><span>A completed full-brain DKI pair, later default-QR MK-Curve timing and matched CSD/ACT/SIFT2 comparison remain open.</span></li>
-            <li><strong>Other methods</strong><span>No matched original-author runtime improvement is claimed for DDSeg, DDParcel, SAF, UKF or TractCloud. Shared DDSurfer surface mapping is attributed to upstream, not presented as a new plugin algorithm.</span></li>
-            <li><strong>Validity and platforms</strong><span>WMA small-bundle sampling and invalid fit voxels still require their own review. Native Windows/macOS scientific timing is not certified.</span></li>
-            <li><strong>Next experiment</strong><span>A local persistent-model worker could reuse weights across subjects. It is proposed, not implemented or benchmarked; no benefit is claimed.</span></li>
+            <li><strong>Whole workflow</strong><span>No matched end-to-end comparison. Do not add savings or multiply ratios across overlapping stages.</span></li>
+            <li><strong>Generalization</strong><span>Single pairs, no confidence interval; more subjects and hardware are needed.</span></li>
+            <li><strong>Long-task coverage</strong><span>A full-brain DKI pair, later default-QR MK-Curve timing and a matched CSD/ACT/SIFT2 comparison remain open.</span></li>
+            <li><strong>Other methods</strong><span>No run-time gain over the authors’ code is claimed for DDSeg, DDParcel, SAF, UKF or TractCloud. DDSurfer surface mapping is upstream work.</span></li>
+            <li><strong>Validity and platforms</strong><span>WMA small-bundle sampling and invalid fit voxels need their own review. Native Windows/macOS scientific timing is not certified.</span></li>
+            <li><strong>Next experiment</strong><span>A persistent-model worker that reuses weights across subjects is proposed, not built or measured.</span></li>
           </ul>
         </div>
       </div>
@@ -680,7 +679,7 @@ python3 scripts/stage_slicer_extension.py \
       <div class="foot-col">
         <h2 class="foot-title">About the film</h2>
         <p>Data: EDDEN, OpenNeuro <a href="https://openneuro.org/datasets/ds004666" target="_blank" rel="noopener">ds004666</a> (CC0), Manzano-Patron et al., Imaging Neuroscience <a href="https://doi.org/10.1162/imag_a_00060" target="_blank" rel="noopener">2024</a>.</p>
-        <p>Run: SlicerDDSurfer a48fc95, started from the command line, with 3D Slicer 5.12.4, SlicerDMRI and PyTorch on macOS (x86_64 build under Rosetta, CPU only). This run is outside the Linux validation and needed local run-time workarounds that are not in the repository. The bundles and the 3D Slicer screenshot: runs of 23 October 2026 on the same Mac, started from a checkout of the repository.</p>
+        <p>Run: SlicerDDSurfer a48fc95 from the command line, with 3D Slicer 5.12.4, SlicerDMRI and PyTorch on macOS (x86_64 under Rosetta, CPU only). This run is outside the Linux validation and needed local run-time workarounds that are not in the repository. Bundles and screenshot: runs of 23 October 2026 on the same Mac, from a repository checkout.</p>
         <p>Made with <a href="https://github.com/lemomo-ai/lemo-opuscar" target="_blank" rel="noopener">lemo-opuscar</a> (MIT) and three.js (MIT). Voice: Kokoro TTS (Apache-2.0). Fonts: Inter, Inter Tight, IBM Plex Mono (SIL OFL 1.1). Music and sound: original, synthesized in code.</p>
       </div>
     </div>

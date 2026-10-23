@@ -26,6 +26,14 @@ black squares in the connectome scene. In `#outputs` the seven three-plane maps 
 frame's camera and planes, brighter plane frames), and the surfaces, tracts and connectome tiles are film moments
 rendered at device scale 2 (§3).
 
+Addendum 4, 24 October 2026: the home page copy is shorter (user request: less text, a shorter page). Sentences that
+repeated another section are cut (the dataset and run story, the implementation origins, the “not certified” line in
+the table caption); other sentences are shortened. No fact, honesty statement, section, table row, figure or image is
+removed. §5 below holds the new copy; the integration table states its scope once, in the column header “Status on
+Linux test subjects”, so its cells read “Supported”. The transcript, the reference entries, the paper cards and the
+generated evidence are unchanged. The `claims_required` and `claims_banned` lists (§7.1 items 10 and 11) are
+unchanged.
+
 Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
 below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, except in the parts added on 23 October
 2026 (§5.6.1, §5.6a, §5.10, §5.10a, §5.10b, and the performance section). Those parts have their own sources, named in
@@ -186,9 +194,9 @@ Links: “Film” `#film`, “Idea” `#idea`, “Outputs” `#outputs`, “Work
 
 - Eyebrow: “3D Slicer module · Diffusion MRI”.
 - H1: “Brain anatomy from diffusion MRI, inside 3D Slicer.” [F9 narration 12; F1 README:15-18]
-- Lead: “SlicerDDSurfer reconstructs tissue labels, brain regions and cortical surfaces directly from diffusion MRI,
-  with no T1-weighted scan needed at analysis time. The same module maps microstructure, traces white-matter pathways
-  and builds structural connectomes.” [F2 FACTS:10; F3 README table]
+- Lead: “SlicerDDSurfer builds tissue labels, brain regions and cortical surfaces from diffusion MRI, with no
+  T1-weighted scan at analysis time. It also maps microstructure, traces white-matter pathways and builds structural
+  connectomes.” [F2 FACTS:10; F3 README table]
 - Buttons: primary “Watch the film” (scrolls to the `#film` section and calls `play()` on `#film-video`), secondary “Get started” (`#start`).
 - Status line under the buttons (small, `--muted`): “Research software · Private pre-release · BSD-3-Clause code”
   [F1 README:20; LICENSE].
@@ -219,7 +227,7 @@ Links: “Film” `#film`, “Idea” `#idea`, “Outputs” `#outputs`, “Work
   11. And structural connectomes, built on the same anatomy.
   12. One 3D Slicer module, with automatic QC and a record of every run.
   13. SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer.
-- Note under the transcript (small): “The film shows SlicerDDSurfer output for one public dataset (EDDEN sub-01). Most scenes come from one run on the b = 0 and b ≈ 1000 volumes. On 23 October 2026, TractCloud ran on that run’s DTI tractogram; the WMQL bundles and the 3D Slicer screenshot come from the multi-shell runs of the same day. The film names free water, NODDI and kurtosis but does not show them; Outputs below does.” [F9; F12.15; Addendum 3]
+- Note under the transcript (small): “Most scenes come from one run on EDDEN sub-01 (b = 0 and b ≈ 1000 volumes). TractCloud ran on that run’s DTI tractogram; the WMQL bundles and the 3D Slicer screenshot come from multi-shell runs. The film names free water, NODDI and kurtosis but does not show them; Outputs below does.” (The dataset is named in full in §5.5; the date of the later runs is in the footer, §5.11.) [F9; F12.15; Addendum 3]
 
 ### 5.4 The idea (`#idea`)
 
@@ -227,10 +235,10 @@ Two columns: text left, `idea.jpg` right.
 
 - Eyebrow: “The idea”.
 - H2: “Anatomy from the diffusion scan itself.”
-- P1: “Mapping anatomy for a diffusion study has usually meant a second, T1-weighted scan, registered into diffusion
-  space.” [F2 FACTS:9]
-- P2: “SlicerDDSurfer works from the diffusion scan. DDSeg labels tissue, DDParcel labels brain regions and DDSurfer
-  builds white and pial surfaces, all in native diffusion space.” [F2; F3; F9 narration 5–8]
+- P1: “Diffusion studies have usually needed a second, T1-weighted scan, registered into diffusion space.”
+  [F2 FACTS:9]
+- P2: “SlicerDDSurfer works from the diffusion scan. DDSeg labels tissue, DDParcel labels regions and DDSurfer builds
+  white and pial surfaces, all in native diffusion space.” [F2; F3; F9 narration 5–8]
 - Input card (mono, panel), title “Canonical input”:
   ```
   sub-01/
@@ -240,17 +248,17 @@ Two columns: text left, `idea.jpg` right.
       bvecs
       nodif_brain_mask.nii.gz   # optional; generation needs a supported backend
   ```
-  caption: “A DWI series, its gradient files and an optional brain mask. DWI and mask must share one voxel grid.”
+  caption: “DWI and mask must share one voxel grid.” (The layout above already marks the mask as optional.)
   [F6 README:100-113]
 - Footnote (small, `--muted`): “‘No T1-weighted scan’ describes analysis time. The models were trained with labels
   derived from T1-weighted MRI.” [F2 FACTS:10]
-- Image caption: “From the film: the usual route registers a separate T1-weighted scan into diffusion space.”
+- Image caption: “From the film: the usual route.” (P1 says what the usual route is.)
 
 ### 5.5 Outputs (`#outputs`)
 
 - Eyebrow: “One subject, one space”.
 - H2: “From one diffusion dataset to seven kinds of result.”
-- Intro: “Each image shows output from SlicerDDSurfer on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. Six images come from the film’s run, which used the b = 0 and b ≈ 1000 volumes (117 of 297); three of them are moments of the film. The others come from runs on 23 October 2026 on the same Mac: UKF on the film’s input, the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes). All are rendered in the film’s look; the three-plane maps share one view.” [F9 Data; P/MAKING_OF.md:69-72, 142; P/tools/make_subject_ms.py; P/runtime/r2.sh]
+- Intro: “Data: EDDEN sub-01 (OpenNeuro ds004666, CC0), AVG_mag series. The series averages five repeated acquisitions, so its SNR is higher than a typical single scan. Six images come from the film’s run (b = 0 and b ≈ 1000; 117 of 297 volumes). The others come from runs of 23 October 2026 on the same Mac: UKF on the same input; the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes).” [F9 Data; P/MAKING_OF.md:69-72, 142; P/tools/make_subject_ms.py; P/runtime/r2.sh]
 - Fifteen tiles (image, chip, title, caption), in this order:
 
 | Image | Chip | Title | Caption | Source |
@@ -271,7 +279,7 @@ Two columns: text left, `idea.jpg` right.
 | out-connectome.jpg | “Connectome · DDParcel nodes” | “Structural connectome” | “The 260 strongest of 854 edges are drawn; the matrix shows all 84 × 84 nodes.” | F9 caveats |
 | res-net-sift2.jpg | “Connectome · SIFT2” | “SIFT2-weighted connectome” | “From the CSD/ACT tractogram. The 260 strongest of 2,726 edges are drawn.” | P/film/data/gallery/index.json; QC file of the run |
 
-- Note under the grid (small): “Colours, subsets and upsampling are display choices; they change the look, not the data. Automatic QC passed for the DTI, DDSeg, DDParcel and DDSurfer stages, and for every other stage shown that records it, except MK-Curve. WMA also ran on the UKF tractogram but failed the pipeline’s sampling check (right arcuate fasciculus: 6 streamlines, minimum 20), so it is not shown. No expert has reviewed these outputs.”
+- Note under the grid (small): “All images use the film’s look; colours, subsets and upsampling change the look, not the data. Automatic QC passed for every stage shown that records it, except MK-Curve. WMA also ran on the UKF tractogram but is not shown: it failed the pipeline’s sampling check (right arcuate fasciculus: 6 streamlines, minimum 20). No expert has reviewed these outputs.” (“Every stage shown that records it” includes the DTI, DDSeg, DDParcel and DDSurfer stages.)
   [F9: MAKING_OF:26-33, 76-78; the QC files of each run; `microstructure/mkcurve.py:265`;
   P/runtime/subjects_ukf/sub-01/outputs/04_tractography/bundles/wma_org_atlas/ukf/wma_org_atlas_qc.json]
 - The UKF run used the film's input with 21 mask voxels removed where the mean b = 0 signal is zero (P/runtime/r2.sh).
@@ -280,9 +288,9 @@ Two columns: text left, `idea.jpg` right.
 
 - Eyebrow: “Workflows”.
 - H2: “One module, five workflow families.” [F3 README:28]
-- Intro: “Select only the products you need. Install dependencies for the route you select, not for every possible
-  product.” [F3 README:38]
-- Five cards, numbered 01–05. Each: title, “Products” list, “Needs” line. Text verbatim from the README table [F3]:
+- Intro: “Select only the products you need, and install dependencies only for their routes.” [F3 README:38]
+- Five cards, numbered 01–05. Each: title, “Products” list, “Needs” line. Text from the README table [F3], except as
+  noted below the list:
   1. “Input preparation” — Products: “DICOM/NIfTI/NRRD import, gradient validation, optional mask generation and
      preprocessing” — Needs: “Appropriate import/preprocessing backend”.
   2. “Anatomical reconstruction” — “DDSeg tissue labels, DDParcel regions, DDSurfer white/pial surfaces” —
@@ -292,12 +300,12 @@ Two columns: text left, `idea.jpg` right.
   4. “White-matter pathways” — “DTI/CSD tractography, ACT/SIFT2, partial UKF and SAF routes, WMQL/WMA/TractCloud bundles” —
      “Backend-specific tools and assets”.
   5. “Structural connectivity” — “Regional matrices (streamline count; SIFT2-weighted for CSD/ACT), Slicer scene
-     inspection, QC and provenance” — “Compatible parcellation and tractogram; SIFT2 weights for the weighted matrix.
-     Scalar and length weights are Python API only”.
+     inspection, QC and provenance” — “Compatible parcellation and tractogram; SIFT2 weights for the weighted matrix”.
   (Cards 4 and 5 differ from the README table on purpose: UKF and SAF are partial, and the GUI and CLI reach only the
-  streamline-count and SIFT2-weighted matrices.)
+  streamline-count and SIFT2-weighted matrices. That scalar and length weights are Python API only is stated once, in
+  the table row of §5.6.1.)
 - Note row (three short items with a small icon or chip each) [F3]:
-  - “Microstructure runs DTI only by default. Free-water, NODDI and DKI are each enabled independently under Advanced.”
+  - “Microstructure runs DTI only by default; turn on Free-water, NODDI or DKI under Advanced.”
   - “MRtrix3, FSL, FreeSurfer and advanced bundle backends are optional and are not installed silently.”
   - “A missing backend is reported, never silently replaced.”
 
@@ -305,10 +313,16 @@ Two columns: text left, `idea.jpg` right.
 
 - H3 “What is integrated”, then a table in a scroll wrapper (`.table-wrap`, `tabindex="0"`, `role="region"`; the table
   has `min-width: 980px`, so it scrolls inside the wrapper on small screens and the page never scrolls sideways).
-- Columns: Stage · Method · How it is integrated · Status · Reference [n]. One row per method, 26 rows.
-- Status values: “Supported (Linux test subjects)”; “Partial: <one-line reason>”; “Needs <tool>” as a second line where
-  an external tool is required (FreeSurfer, MATLAB, MRtrix3, FSL, dcm2niix or DWIConvert, UKF extension). A row that is
-  both partial and tool-dependent shows both lines; Partial is never dropped.
+- Caption: “A status describes this project’s integration and its dated records, not the method itself. Expert review
+  of the outputs is pending.” (That macOS and Windows scientific workflows are not certified is stated in §5.8.)
+- Columns: Stage · Method · How it is integrated · Status on Linux test subjects · Reference [n]. One row per method,
+  26 rows.
+- Status values: “Supported” (the column header gives the scope, Linux test subjects; the WMA row reads “Supported
+  with UKF input”); “Partial: <one-line reason>”; “Needs <tool>” as a second line where an external tool is required
+  (FreeSurfer, MATLAB, MRtrix3, FSL, dcm2niix or DWIConvert, UKF extension). A row that is both partial and
+  tool-dependent shows both lines; Partial is never dropped.
+- The MK-Curve (Python) row says “Same plan check as DKI” instead of repeating the DKI row's shell, direction, volume
+  and rank rule.
 - Partial rows: MK-Curve (MATLAB reference), UKF two-tensor, SAF, WMQL on sparse input, WMA on CSD input, TractCloud on
   CSD input, scalar and length connectome weights (Python API only).
 - Reference cells link to `#ref-<n>` in the reference list (§5.10).
@@ -317,27 +331,27 @@ Two columns: text left, `idea.jpg` right.
 
 - Eyebrow “Choosing routes”, H2 “Which route when.”, then `fig-route-guide.png` in a panel, wrapped in a link
   to the full-size file (`target="_blank" rel="noopener"`), with `width`, `height`, `loading="lazy"`, `decoding="async"`.
-- Caption: a guide to choosing routes, built from the coded gates and documented dependencies; it shows which methods
-  each acquisition and input allows (including the b-value limit for DKI), and three example routes; the rules come from the planner and method code; status
-  is recorded for Linux test subjects. The caption must not say that a single-shell scan can use CSD/ACT.
+- Caption: “Which methods each acquisition and input allows (including the b-value limit for DKI), with three example
+  routes. Built from the planner and method code and the documented dependencies; status is recorded for Linux test
+  subjects.” The caption must not say that a single-shell scan can use CSD/ACT.
 
 ### 5.7 In Slicer (`#slicer`)
 
 - Eyebrow: “In 3D Slicer”.
 - H2: “One 3D Slicer module, with QC and a record of every run.” [F9 narration 11; F1 README:15-18]
-- `slicer.jpg` (1920×1027) full width in a panel. Caption: “A real screenshot of 3D Slicer 5.12.4 on macOS with the SlicerDDSurfer module. The module loaded the key results of the multi-shell EDDEN runs into the scene: FA in the slice views; the CSD/ACT tractogram with the WMQL and TractCloud bundles in the 3D view. Results and QC shows the selected run and its recorded QC. A capture script set the inputs and products to match the runs; the runs themselves were started from the command line.”
+- `slicer.jpg` (1920×1027) full width in a panel. Caption: “A real screenshot of 3D Slicer 5.12.4 on macOS. The module loaded the multi-shell EDDEN results: FA in the slice views; the CSD/ACT tractogram with the WMQL and TractCloud bundles in 3D; the run’s recorded QC in Results and QC. A capture script set the inputs and products to match; the runs were started from the command line.”
   [P/runtime/gui_workflow_capture.py; P/runtime/shots_workflow_ms2/capture.log]
 - Ordered list “A run in six steps” [F6 README:89-94]:
-  1. “Open SlicerDDSurfer from the module selector and choose English or Chinese.”
-  2. “Enter the Subject ID, the subject root and, if you like, a separate output directory.”
+  1. “Open SlicerDDSurfer and choose English or Chinese.”
+  2. “Enter the Subject ID, the subject root and, optionally, an output directory.”
   3. “Tick only the products you need.”
-  4. “Choose algorithms beside each product. Use Environment to prepare dependencies; Advanced settings contains
-     detailed analysis parameters.”
+  4. “Choose each product’s algorithm. Prepare dependencies in Environment; set detailed parameters in Advanced
+     settings.”
   5. “Click Run SlicerDDSurfer. Missing inputs turn red; the log says what to correct.”
-  6. “Key results from successful stages load into the scene. Review QC, reload, replace or clear them in Advanced
+  6. “Key results of successful stages load into the scene. Review QC, reload, replace or clear them in Advanced
      settings › Results and QC.”
-- Side note (panel, mono command) [F3 README:144-152]: title “From the command line”, text “Check inputs and the
-  environment without running any algorithm:”, code
+- Side note (panel, mono command) [F3 README:144-152]: title “From the command line”, text “Check inputs and
+  environment without running anything:”, code
   `python3 run_subject_pipeline.py --subject-root /path/to/sub-01 --targets validation,microstructure --microstructure-stages dti --doctor`,
   then “Use `--plan` instead of `--doctor` to write a run plan.”
 
@@ -346,26 +360,29 @@ Two columns: text left, `idea.jpg` right.
 - Eyebrow: “Status”.
 - H2: “Research software, stated plainly.”
 - Three columns, each a panel with a coloured top edge (green, orange, blue):
-  - “Recorded” (green): “Linux real-data and GUI evidence is documented for specific checkouts, routes and
-    datasets.” / “The compact interface has its own UI validation record.” [F5 README:158-163]
+  - “Recorded” (green): “Linux real-data and GUI records for specific checkouts, routes and datasets.” / “A UI
+    validation record of the compact interface.” [F5 README:158-163]
   - “Not certified” (orange): “Native Windows and macOS scientific workflows.” / “Three-platform SDK builds.”
     [F5 README:174]
   - “Not yet released” (blue): “Private pre-release; not in the official Extensions Catalog.” / “The Extension Index
-    JSON is a draft Tier 1 proposal, not a submitted catalog entry and not acceptance by Slicer.” / “Public source access, third-party licence clearance and
-    asset redistribution review remain release gates.” [F1; F5 README:175-176; EXTENSION_READINESS.md:106-107]
-- Block “Implementation origins” [F4 README:42-45; PROVENANCE:25]: “DDSeg is a MATLAB-to-Python/PyTorch
-  reimplementation. SAF and MK-Curve are unofficial Python ports of author MATLAB methods. PNL CNN masking invokes the
-  author’s existing Python backend, not a rewritten PNL pipeline. DDSurfer runs bundled upstream Python code.”
+    JSON is a draft Tier 1 proposal: not submitted, and not acceptance by Slicer.” / “Public source access,
+    third-party licence clearance and asset redistribution review remain release gates.” [F1; F5 README:175-176;
+    EXTENSION_READINESS.md:106-107]
+- Block “Implementation origins” [F4 README:42-45; PROVENANCE:25]: “The integration table under Workflows says how
+  each method is implemented: reimplemented, ported, bundled or called.” (“integration table” links to `#integrated`;
+  the table rows for DDSeg, SAF, MK-Curve, PNL CNN and DDSurfer carry the origin of each.)
   Link: “Implementation provenance and verification limits” → repo `docs/architecture/IMPLEMENTATION_PROVENANCE.md`.
 - Callout (full width, panel, larger text): “A completed run is not a clinical assessment or proof of scientific
   correctness.” [F1 README:21-22]
+- `<details id="performance-notes">` “Performance & implementation notes”: “Measured changes, equivalence checks
+  and limits, with each scope kept separate.” and the link “Explore the performance evidence” → `#performance`.
 
 ### 5.9 Get started (`#start`)
 
 - Eyebrow: “Get started”.
 - H2: “Install from source.”
-- Callout (top): “The repository is private during pre-release. Use an authorized checkout; links into the
-  repository need access.” [F1 README:51] (Not the model-asset repository: `SlicerDDSurfer-models` is public,
+- Callout (top): “The repository is private during pre-release; you need access to clone it or open its links.”
+  [F1 README:51] (Not the model-asset repository: `SlicerDDSurfer-models` is public,
   R/docs/release/VALIDATION_20260816.md:36.)
 - Steps, each with a short title, text and (where given) a code block with a “Copy” button [F6 README:51-81]:
   1. “Stage the extension” —
@@ -375,22 +392,21 @@ Two columns: text left, `idea.jpg` right.
      python3 scripts/stage_slicer_extension.py \
        --install-root ~/SlicerDDSurfer-extension --link-mode copy --clean
      ```
-     “Set `--slicer-version` to your Slicer version. This is a source/staging installation, not an official CPack
-     release.”
+     “Set `--slicer-version` to your Slicer version. This is a source install, not an official CPack release.”
   2. “Add the module path” — “In Edit › Application Settings › Modules, add the expanded absolute path of
-     `~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules` to Additional module paths, then
-     restart Slicer. Local GUI validation uses Slicer 5.10.”
+     `~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules` to Additional module paths and
+     restart Slicer. GUI validation uses Slicer 5.10.”
   3. “Add the extensions your routes need” — “Install SlicerDMRI and PyTorch from Slicer’s Extension Manager.”
-  4. “Get the model files” — “Review the asset terms first, then download only the profile you need to a writable
-     folder outside the checkout:”
+  4. “Get the model files” — “Read the asset terms, then download only the profile you need to a writable folder
+     outside the checkout:”
      ```
      python3 scripts/download_model_assets.py --profile surface \
        --asset-root ~/SlicerDDSurfer-model-assets --source url \
        --source-id slicerdsurfer_models_git
      ```
      “Availability and SHA256 verification do not establish redistribution rights.”
-  5. “Prepare the input” — “Use the canonical layout shown above. Gradient files must match the DWI measurements;
-     corrected gradients must accompany motion-corrected DWI.”
+  5. “Prepare the input” — “Use the canonical layout under Idea. Gradients must match the DWI; motion-corrected DWI
+     needs corrected gradients.” (“Idea” links to `#idea`.)
 - Doc links (chips/buttons, `target="_blank" rel="noopener"`): “Quick Start” → `docs/setup/QUICKSTART.md`,
   “Support matrix” → `docs/setup/SUPPORT_MATRIX.md`, “Model asset terms” → `docs/assets/MODEL_ASSET_TERMS.md`,
   “Repository” → repo root. All under `https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/` (root: the repo URL).
@@ -398,12 +414,14 @@ Two columns: text left, `idea.jpg` right.
 ### 5.10 Cite and references (`#cite`)
 
 - Eyebrow “Cite”, H2 “Cite the software and the methods you use.”
-- Text: “The SlicerDDSurfer protocol manuscript is in preparation. Cite the tested software version using
-  CITATION.cff, together with the methods actually used.” Link “CITATION.cff” → repo `blob/main/CITATION.cff`. [F7]
+- Text: “The protocol manuscript is in preparation. Cite the software version you used (CITATION.cff) and the methods
+  you ran.” Link “CITATION.cff” → repo `blob/main/CITATION.cff`. [F7]
 - Three paper cards for DDSurfer, DDSeg and DDParcel, exactly as CITATION.cff [F7], numbered [1] to [3]
   (`id="ref-1"` to `ref-3`).
-- H3 “References”: one numbered list, [4] to [35], in groups (H4): Microstructure; Tractography and connectomes; Bundles;
-  Platform and tools; Data. Each item: lead author (“Surname Initials, et al.”; both names for two authors), title,
+- H3 “References”, then the intro “The Reference column of the integration table points here. [1] to [3] are the
+  papers above; [34] and [35] are the film’s data.” (“integration table” links to `#integrated`), then one numbered
+  list, [4] to [35], in groups (H4): Microstructure; Tractography and connectomes; Bundles; Platform and tools; Data.
+  Each item: lead author (“Surname Initials, et al.”; both names for two authors), title,
   venue, volume(issue):pages, year, and a DOI link `https://doi.org/<doi>`. Items without a DOI (ISMRM abstracts) link to
   the ISMRM archive page; the 2016 Dhollander workshop abstract has no link. Items marked unverified in the review notes
   are left out (for example the LNCS volume of TractCloud). Every external URL is in the allowed set (§6).
@@ -413,9 +431,12 @@ Two columns: text left, `idea.jpg` right.
 
 ### 5.10a Run times (`#runtime`, directly before `#performance`)
 
-- Eyebrow “Recorded run times”, H2 “Recorded run times, per module.”, then `fig-runtime-resources.png`, same markup as
+- Eyebrow “Run times”, H2 “Recorded run times, per module.”, then `fig-runtime-resources.png`, same markup as
   §5.6a (the width and height attributes equal the pixel size of the file).
-- Caption: one scoped measurement per row, log scale, rows are not summed; panel a is the recorded run time per module
+- Caption: “Log scale, one scoped measurement per row; rows are not summed. Panel a: recorded run time per module on
+  Linux, GPU runs marked. Panel b: before and after seven code-path changes, one pair per row, on a shared Linux host;
+  outputs match. SAF re-filters 100,000 existing tracks (no new initial tracking); TractCloud ran on 50,000 tracks.”
+  It covers: one scoped measurement per row, log scale, rows are not summed; panel a is the recorded run time per module
   on Linux, GPU runs marked; panel b is the run time before and after seven code-path changes, one pair per row, on a
   shared Linux host, outputs match. The caption names no CPU or GPU model, no workstation, no macOS laptop, no EDDEN
   subject and no memory value: the ledger's host field is the report host, not necessarily the execution host. It
@@ -429,6 +450,33 @@ Two columns: text left, `idea.jpg` right.
 - Inside: the intro and the two disclaimers, the filter buttons (shown by script only), the generated evidence region
   (charts, table, note, method records; written by `scripts/build_performance_site.py`), the four “levers” and the
   “boundary of the evidence” list. The headline of the old subpage (“Same methods. Less overhead.”) is not kept.
+- Hand-written copy around the generated region (shortened 24 October 2026; the generated method records carry the
+  details):
+  - Lead: “Remove repeated work, keep the computation, measure only what was tested.”
+  - Disclaimers: “No whole-workflow speedup has been established. Output equivalence is not anatomical validation or
+    an increase in predictive validity.” / “Upstream versions rechecked on 22 October: DIPY 1.12.1, AMICO 2.1.1,
+    SciPy 1.18.1. Each method record separates current-source checks, older timings and upstream capabilities.”
+  - “Measured work” / “Time, with context.” / “Full models, small regions and single operations are different
+    experiments; they stay separate.”
+  - Four levers (“What the numbers mean” / “Four different levers.” / “A larger ratio does not make two experiments
+    comparable.”): Implementation, “Do the same work once.”, “Batch equivalent operations. Estimator,
+    initialization, solver, precision and QC thresholds stay the same.” · Native threads, “Use existing compute
+    capacity.”, “AMICO’s own threads, not a new NODDI algorithm. Hardware is part of the measurement.” · Scheduling,
+    “Overlap independent jobs.”, “FW, NODDI and DKI overlap once their inputs are ready. Default concurrency is one.” ·
+    Python-port control, “Name the real reference.”, “MK-Curve port changes are compared with earlier Python code, not
+    the author’s MATLAB.”
+  - “Still open” / “The boundary of the evidence.” / “These measurements cover specific Linux inputs and settings.
+    They do not replace independent scientific review.”, the link “Read the complete optimization report”, and “The
+    JSON is a limited public summary, not private logs or subject data.” (The private-repository note is the one in
+    §5.9.)
+  - Open items: Whole workflow, “No matched end-to-end comparison. Do not add savings or multiply ratios across
+    overlapping stages.” · Generalization, “Single pairs, no confidence interval; more subjects and hardware are
+    needed.” · Long-task coverage, “A full-brain DKI pair, later default-QR MK-Curve timing and a matched
+    CSD/ACT/SIFT2 comparison remain open.” · Other methods, “No run-time gain over the authors’ code is claimed for
+    DDSeg, DDParcel, SAF, UKF or TractCloud. DDSurfer surface mapping is upstream work.” · Validity and platforms,
+    “WMA small-bundle sampling and invalid fit voxels need their own review. Native Windows/macOS scientific timing is
+    not certified.” · Next experiment, “A persistent-model worker that reuses weights across subjects is proposed, not
+    built or measured.”
 - Without JavaScript the native `<details>` still opens and shows the table. With JavaScript, `site.js` opens the
   details when the hash is `#performance` (on load, on `hashchange` and on a click on a link to it) and opens any closed
   `<details>` that contains the target of a hash (for example `#method-freewater`).
@@ -444,9 +492,10 @@ Three columns, then a bottom line.
   “Third-party notices” → repo `blob/main/LICENSE.txt`, `blob/main/THIRD_PARTY_NOTICES.md`. [F8]
 - Column 3 “About the film” [F9 credits]: “Data: EDDEN, OpenNeuro ds004666 (CC0), Manzano-Patron et al., Imaging
   Neuroscience 2024.” (links: “ds004666” → `https://openneuro.org/datasets/ds004666`, “2024” paper →
-  `https://doi.org/10.1162/imag_a_00060`). “Run: SlicerDDSurfer a48fc95, started from the command line, with 3D Slicer
-  5.12.4, SlicerDMRI and PyTorch on macOS (x86_64 build under Rosetta, CPU only). This run is outside the Linux
-  validation and needed local run-time workarounds that are not in the repository.” “Made with lemo-opuscar (MIT) and
+  `https://doi.org/10.1162/imag_a_00060`). “Run: SlicerDDSurfer a48fc95 from the command line, with 3D Slicer 5.12.4,
+  SlicerDMRI and PyTorch on macOS (x86_64 under Rosetta, CPU only). This run is outside the Linux validation and needed
+  local run-time workarounds that are not in the repository. Bundles and screenshot: runs of 23 October 2026 on the
+  same Mac, from a repository checkout.” “Made with lemo-opuscar (MIT) and
   three.js (MIT). Voice: Kokoro TTS (Apache-2.0). Fonts: Inter, Inter Tight, IBM Plex Mono (SIL OFL 1.1). Music and
   sound: original, synthesized in code.” (link “lemo-opuscar” → `https://github.com/lemomo-ai/lemo-opuscar`)
   [F5 MAKING_OF:73-74, 144-145, 168; P/runtime/STATUS.md]

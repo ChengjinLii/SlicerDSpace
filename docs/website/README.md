@@ -55,8 +55,8 @@ and generator are excluded from the extension runtime.
   [`docs/figures/README.md`](../figures/README.md) to rebuild them. Each `<img>` carries
   the pixel size of its file and links to the full-size file.
 - The "What is integrated" table in `#workflows` states, for each method, how it is
-  integrated and its status: "Supported (Linux test subjects)", "Partial" with one
-  reason, or "Needs <tool>". It must not claim more than the code and the dated Linux
+  integrated and its status: "Supported" (the column header "Status on Linux test
+  subjects" gives the scope), "Partial" with one reason, or "Needs <tool>". It must not claim more than the code and the dated Linux
   records show. UKF, SAF, MK-Curve (MATLAB), WMQL on sparse input, WMA and TractCloud
   on CSD input, and scalar or length connectome weights are marked partial.
 - `#cite` holds the software papers [1] to [3] and a numbered reference list [4] to

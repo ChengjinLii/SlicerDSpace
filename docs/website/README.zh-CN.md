@@ -44,8 +44,8 @@
 - `assets/img/fig-route-guide.png`（`#choose`）和 `assets/img/fig-runtime-resources.png`（`#runtime`）
   由 `docs/figures/` 中可编辑的 SVG 生成，SVG 不公开发布，重建方法见 `docs/figures/README.md`。
   每个 `<img>` 的宽高与文件像素一致，并链接到原图。
-- `#workflows` 中的“What is integrated”表逐项说明接入方式和状态：“Supported (Linux test subjects)”、
-  带一条原因的“Partial”，或“Needs <工具>”。表中不得超出代码和 Linux 日期记录所能证明的范围。
+- `#workflows` 中的“What is integrated”表逐项说明接入方式和状态：“Supported”（列标题
+  “Status on Linux test subjects”给出范围）、带一条原因的“Partial”，或“Needs <工具>”。表中不得超出代码和 Linux 日期记录所能证明的范围。
   UKF、SAF、MK-Curve（MATLAB）、稀疏输入上的 WMQL、CSD 输入上的 WMA 和 TractCloud、
   以及标量／长度连接组权重均标为 partial。
 - `#cite` 含软件论文 [1]–[3] 和编号参考文献 [4]–[35]。只收已核对 DOI 或页面的条目。
