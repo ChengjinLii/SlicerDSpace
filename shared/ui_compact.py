@@ -67,8 +67,6 @@ def refresh_compact_algorithms(owner: Any, language: str | None = None) -> None:
             if summary is not None:
                 summary.setText(algorithms)
                 summary.setToolTip(control.toolTip)
-                from shared.ui_algorithm_picker import fit_summary_height
-                fit_summary_height(summary)
     from shared.ui_algorithm_picker import refresh_picker_language
     refresh_picker_language(owner)
 
@@ -84,12 +82,14 @@ def install_compact_layout(owner: Any) -> None:
     ui = owner.ui
     root = owner._uiWidget
     root.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Maximum)
-    owner.layout.setAlignment(qt.Qt.AlignTop)
+    # Content stays at the top through trailing stretches, not setAlignment(AlignTop): an aligned
+    # layout keeps its size hint as height, which leaves out wrapped lines (height-for-width), so
+    # rows were clipped in narrow docks.
+    owner.layout.addStretch(1)
     owner.layout.setSizeConstraint(qt.QLayout.SetMinAndMaxSize)
     layout = root.layout()
     layout.setContentsMargins(6, 4, 6, 6)
     layout.setSpacing(6)
-    layout.setAlignment(qt.Qt.AlignTop)
     layout.setSizeConstraint(qt.QLayout.SetMinAndMaxSize)
     ui.headerLayout.setContentsMargins(0, 2, 0, 5)
     ui.headerTextLayout.setContentsMargins(0, 0, 0, 0)
@@ -156,7 +156,9 @@ def install_compact_layout(owner: Any) -> None:
     ui.logCollapsibleButton.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Maximum)
     owner._prepareInputWidgets["panel"].setStyleSheet("")
     for section in (ui.configurationCollapsibleButton, ui.targetsCollapsibleButton):
-        section.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Maximum)
+        # Preferred, not Maximum: Maximum caps a section at its size hint, which leaves out wrapped
+        # form rows; the trailing stretch below keeps sections from growing beyond their content.
+        section.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Preferred)
         section.layout().setContentsMargins(8, 6, 8, 6)
         section.layout().setSpacing(4)
     for form in (ui.configurationFormLayout, ui.targetProductsFormLayout):
@@ -168,6 +170,7 @@ def install_compact_layout(owner: Any) -> None:
     owner._runProgressBar.hide()
     owner._cancelRunButton.hide()
     owner._selectedProductsSummaryLabel.hide()
+    layout.addStretch(1)
 
     def fit_height() -> None:
         # Slicer's scroll area keeps an old expanded height unless resized explicitly.

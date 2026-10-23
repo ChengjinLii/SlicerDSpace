@@ -86,29 +86,10 @@ def choose_algorithms(owner, family):
     return accepted
 
 
-def fit_summary_height(label):
-    """Minimum height = the height of the wrapped text at the label's width (0 when not laid out)."""
-    need = label.heightForWidth(label.width) if label.width > 0 else -1
-    if need > 0 and label.minimumHeight != need:
-        label.setMinimumHeight(need)
-
-
-def _summary_height_filter():
-    import qt
-
-    class SummaryHeightFilter(qt.QObject):
-        def eventFilter(self, obj, event):
-            if event.type() == qt.QEvent.Resize:
-                fit_summary_height(obj)
-            return False
-    return SummaryHeightFilter()
-
-
 def install_algorithm_pickers(owner):
     import qt
     owner._algorithmButtons = {}
     owner._algorithmSummaryLabels = {}
-    owner._summaryHeightFilter = _summary_height_filter()
     form = owner.ui.targetProductsFormLayout
     form.setVerticalSpacing(4)
     for row, (family, (name, _, _)) in enumerate(FAMILIES.items(), start=5):
@@ -126,14 +107,8 @@ def install_algorithm_pickers(owner):
         layout.addWidget(checkbox, 0, qt.Qt.AlignTop)
         summary = qt.QLabel()
         summary.wordWrap = True
-        # The collapsible sections above do not pass height-for-width on, so a wrapped summary
-        # kept a one-line row and its second line was clipped (narrow docks). Give the label the
-        # height its text needs at its current width whenever it is resized.
-        policy = qt.QSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Preferred)
-        policy.setHeightForWidth(True)
-        summary.setSizePolicy(policy)
+        summary.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Preferred)
         summary.setMinimumWidth(0)
-        summary.installEventFilter(owner._summaryHeightFilter)
         layout.addWidget(summary, 1)
         owner._algorithmSummaryLabels[name] = summary
         button = qt.QToolButton()

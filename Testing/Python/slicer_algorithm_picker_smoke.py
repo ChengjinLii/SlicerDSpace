@@ -84,17 +84,27 @@ def run():
         (ROOT / 'selection_geometry.json').write_text(json.dumps(geometry, indent=2))
         # Wrapped summaries must get the height of all their lines (macOS GUI capture, 2026-10-23: at a narrow dock
         # "DTI + FW + NODDI + DKI (WLS)" wrapped to two lines and the row kept one line, clipping the second).
-        for width in (400, 360):
-            dock.setFixedWidth(width)
-            for _ in range(3):
-                slicer.app.processEvents()
-            for name, label in owner._algorithmSummaryLabels.items():
-                assert label.sizePolicy.hasHeightForWidth(), name
-                need = label.heightForWidth(label.width)
-                assert label.height >= need, (width, name, label.width, label.height, need, label.text)
+        # The row that holds a wrapped summary must be as tall as its text, or the row clips it (the label
+        # alone can be tall enough while its row is not). 260 px is Slicer's default dock width.
+        for language in ('zh', 'en'):
+            combo.setCurrentIndex(combo.findData(language))
+            for width in (260, 400, 360):
+                dock.setFixedWidth(width)
+                for _ in range(5):
+                    slicer.app.processEvents()
+                wrapped = 0
+                for name, label in owner._algorithmSummaryLabels.items():
+                    metrics = label.fontMetrics()
+                    need = metrics.boundingRect(0, 0, label.contentsRect().width(), 100000,
+                                                int(qt.Qt.TextWordWrap), label.text).height()
+                    wrapped += need > metrics.height()
+                    row = label.parentWidget()
+                    assert label.height >= need and row.height >= label.y + need, (
+                        language, width, name, label.width, label.height, row.height, need, label.text)
+                assert width > 260 or wrapped, (language, width, 'no summary wrapped at the narrowest dock')
+        checks.append('wrapped_algorithm_summaries_not_clipped')
         dock.setFixedWidth(480)
         slicer.app.processEvents()
-        checks.append('wrapped_algorithm_summaries_not_clipped')
         slicer.util.mainWindow().grab().save(str(ROOT / 'main_multiselect.png'))
         owner._advancedSettingsPanel.collapsed = False
         for index in range(4):
