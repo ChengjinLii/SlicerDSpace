@@ -76,7 +76,6 @@ ALLOWED_URLS = {
     "https://doi.org/10.3389/fninf.2014.00008",
     "https://doi.org/10.5281/zenodo.2648292",
     "https://chengjinlii.github.io/SlicerDDSurfer/",
-    "https://chengjinlii.github.io/SlicerDDSurfer/performance.html",
     "https://chengjinlii.github.io/SlicerDDSurfer/assets/img/social.jpg",
 }
 

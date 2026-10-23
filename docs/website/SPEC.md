@@ -12,12 +12,13 @@ implementation/thread/scheduling/Python-port categories must stay distinct. The 
 the film's claims or provenance. See [README.md](README.md#performance-section) for current generation and checks.
 
 Addendum, 23 October 2026: the home page also has a "What is integrated" status table (in `#workflows`), a route
-guide figure (`#choose`), a run-time figure (`#runtime`) and a numbered reference list (`#cite`). §5.6 and §5.10
-below describe them. The status table and the references use only the code-backed facts and the verified entries
-recorded in the maintainers' review notes; a row never claims more than those notes.
+guide figure (`#choose`), a run-time figure (`#runtime`) and a numbered reference list (`#cite`). §5.6.1, §5.6a,
+§5.10, §5.10a and §5.10b below describe them. Their sources are listed in §1, rule 7.
 
 Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
-below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`.
+below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, except in the parts added on 23 October
+2026 (§5.6.1, §5.6a, §5.10, §5.10a, §5.10b, and the performance section). Those parts have their own sources, named in
+§1, rule 7.
 
 ## 1. Goal and limits
 
@@ -38,6 +39,18 @@ Settled decisions (not to be reopened in review):
    transcript in the page.
 5. No asset downloads (weights, templates, data) and no install-from-Extension-Manager claim for SlicerDDSurfer [F12.11].
 6. Links into the repository are allowed; they need access while the repository is private. One note on the page says so.
+7. Sources of the parts added on 23 October 2026. A row, a caption or a reference never claims more than its source:
+   - Status table (§5.6.1): the code (`shared/orchestrator.py`, `shared/pipeline.py`, `microstructure/dki.py`,
+     `microstructure/pipeline.py`, `tractography/*.py`, `connectome/pipeline.py`) and the dated records
+     `docs/release/MODULE_RUNTIMES_20261017.md`, `docs/release/BUNDLE_WORKFLOW_20261021.md`,
+     `docs/release/BUNDLE_BACKENDS_20261013.md`, `docs/release/SAF_PYTHON_20261013.md`,
+     `docs/release/ALGORITHM_SELECTION_20261021.md`, `docs/setup/SUPPORT_MATRIX.md`, `docs/setup/UKF.md`,
+     `docs/setup/MICROSTRUCTURE.md` and `docs/architecture/IMPLEMENTATION_PROVENANCE.md`.
+   - Figures (§5.6a, §5.10a): `docs/figures/README.md` (legends, generators and data files) and the data files it names
+     (`docs/release/benchmarks/module_runtimes_20261017.json`, `docs/site/assets/data/performance.json`).
+   - Performance section (§5.10b): `docs/release/benchmarks/*.json`, through `scripts/build_performance_site.py`.
+   - References (§5.10): the DOI record of each entry (Crossref or DataCite) and the page of the tool that asks for the
+     citation. Entries that could not be checked are left out.
 
 ## 2. Files
 
@@ -64,7 +77,7 @@ docs/media/SlicerDDSurfer_promo_1080p.mp4   copy of P/out/SlicerDDSurfer_promo_1
 docs/media/SlicerDDSurfer.en.srt            copy of P/out/SlicerDDSurfer.en.srt
 ```
 
-## 3. Images (all from the delivered film or cover; no new renders)
+## 3. Images (film frames and the cover; the two figures of §5.6a and §5.10a are the only other images)
 
 Frames come from `P/out/SlicerDDSurfer_promo_1080p.mp4` with `ffmpeg -ss <t> -i <film> -frames:v 1`. Crop boxes are
 `x0,y0,x1,y1` in the 1920×1080 frame. A crop taken while a subtitle cue is on screen ends at y ≤ 945 (subtitle text
@@ -268,7 +281,7 @@ Two columns: text left, `idea.jpg` right.
 - Eyebrow “Choosing routes”, H2 “Which route when.”, then `fig-route-guide.png` in a panel, wrapped in a link
   to the full-size file (`target="_blank" rel="noopener"`), with `width`, `height`, `loading="lazy"`, `decoding="async"`.
 - Caption: a guide to choosing routes, built from the coded gates and documented dependencies; it shows which methods
-  each acquisition and input allows, and three example routes; the rules come from the planner and method code; status
+  each acquisition and input allows (including the b-value limit for DKI), and three example routes; the rules come from the planner and method code; status
   is recorded for Linux test subjects. The caption must not say that a single-shell scan can use CSD/ACT.
 
 ### 5.7 In Slicer (`#slicer`)
@@ -369,7 +382,9 @@ Two columns: text left, `idea.jpg` right.
 - Caption: one scoped measurement per row, log scale, rows are not summed; panel a is the recorded run time per module
   on Linux, GPU runs marked; panel b is the run time before and after seven code-path changes, one pair per row, on a
   shared Linux host, outputs match. The caption names no CPU or GPU model, no workstation, no macOS laptop, no EDDEN
-  subject and no memory value: the ledger's host field is the report host, not necessarily the execution host.
+  subject and no memory value: the ledger's host field is the report host, not necessarily the execution host. It
+  adds that the SAF row re-filters 100,000 existing tracks (new initial tracking is not included) and that the
+  TractCloud row ran on 50,000 tracks.
 
 ### 5.10b Performance (`#performance`, after `#runtime`)
 

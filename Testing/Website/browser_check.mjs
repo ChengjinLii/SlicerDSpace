@@ -461,7 +461,7 @@ try {
     await ctx.close();
   }
   await run404AndNoJs(browser, origin);
-  for (const width of [1440, 390, 360]) await runPerformance(browser, origin, width);
+  for (const width of [1440, 390, 360, 320]) await runPerformance(browser, origin, width);
   await runPerformance(browser, origin, 390, true);
   await runStubRedirect(browser, origin);
 } catch (err) {
