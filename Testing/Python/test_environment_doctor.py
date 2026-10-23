@@ -264,6 +264,14 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             self.assertEqual(statuses["env:slicer_executable"].status, "available")
             self.assertEqual(statuses["env:slicer_executable"].details["detected_source"], "user setting")
 
+    def test_wma_checks_the_python_packages_the_author_package_imports(self) -> None:
+        # Real-run finding (macOS EDDEN run, 2026-10-23): the doctor reported WMA ready, then
+        # `import whitematteranalysis` failed in Slicer's Python with "No module named 'xlrd'".
+        specs = build_dependency_specs(EnvironmentDoctorConfig(targets=("wma",), repo_root=REPO_ROOT))
+        keys = {spec.key for spec in specs}
+        for module in ("joblib", "scipy", "xlrd"):
+            self.assertIn(f"python:{module}", keys)
+
     def test_environment_path_source_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_bin = self._make_mrtrix_bin(Path(tmp))

@@ -1322,6 +1322,11 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             _add_core_python(specs, target)
             _python(specs, target=target, import_name="vtk", package="vtk",
                     notes="Required by the pipeline host to decode bundle geometry; bundled with Slicer.")
+            # The author scripts run in Slicer's Python and `import whitematteranalysis` loads these at import time
+            # (whitematteranalysis/__init__.py, tract_measurement.py; its requirements.txt).
+            for import_name, package in (("joblib", "joblib"), ("scipy", "scipy"), ("xlrd", "xlrd")):
+                _python(specs, target=target, import_name=import_name, package=package,
+                        notes="Imported by the WhiteMatterAnalysis package in Slicer's Python.")
             _command(
                 specs,
                 target=target,
