@@ -16,7 +16,7 @@ class PagesPublicationTest(unittest.TestCase):
     def test_current_public_site_passes_allowlist(self):
         result = audit(ROOT)
         self.assertEqual(result["status"], "pass", result)
-        self.assertEqual(result["file_count"], 30)
+        self.assertEqual(result["file_count"], 32)   # 30 + the route and run-time figures
 
     def test_private_documents_and_symlinks_are_not_publishable(self):
         with tempfile.TemporaryDirectory() as directory:
