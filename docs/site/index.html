@@ -76,15 +76,15 @@
   <div class="container">
     <div class="film-wrap">
       <div class="film-frame" id="film-frame">
-        <video id="film-video" controls playsinline preload="metadata" poster="assets/img/poster.jpg" width="1920" height="1080" aria-label="SlicerDDSurfer film, 65 seconds, narrated, with subtitles in the picture">
+        <video id="film-video" controls playsinline preload="metadata" poster="assets/img/poster.jpg" width="1920" height="1080" aria-label="SlicerDDSurfer film, 72 seconds, narrated, with subtitles in the picture">
           <source src="media/SlicerDDSurfer_promo_1080p.mp4" type="video/mp4">
           <a href="media/SlicerDDSurfer_promo_1080p.mp4" download>Download the film (MP4)</a>
         </video>
       </div>
     </div>
     <p class="meta-row">
-      <span>64.8 s · 1920 × 1080 · narrated · subtitles in the picture</span>
-      <a href="media/SlicerDDSurfer_promo_1080p.mp4" download>Download MP4 (41 MB)</a>
+      <span>72.0 s · 1920 × 1080 · narrated · subtitles in the picture</span>
+      <a href="media/SlicerDDSurfer_promo_1080p.mp4" download>Download MP4 (51 MB)</a>
       <a href="media/SlicerDDSurfer.en.srt" download>Subtitles (.srt)</a>
     </p>
     <details class="transcript" id="transcript">
@@ -99,12 +99,13 @@
         <li>White and pial surfaces,</li>
         <li>all in native diffusion space.</li>
         <li>Whole-brain tractography, traced in the same native space.</li>
+        <li>White-matter bundles, classified by TractCloud or selected by WMQL queries.</li>
         <li>And structural connectomes, built on the same anatomy.</li>
         <li>One 3D Slicer module, with automatic QC and a record of every run.</li>
         <li>SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer.</li>
       </ol>
     </details>
-    <p class="note">The film shows one SlicerDDSurfer run on one public dataset (EDDEN sub-01). Free water, NODDI and kurtosis are optional routes; they were not run for the film.</p>
+    <p class="note">The film shows SlicerDDSurfer output for one public dataset (EDDEN sub-01). Most scenes come from one run on the b = 0 and b ≈ 1000 volumes. On 23 October 2026, TractCloud ran on that run’s DTI tractogram; the WMQL bundles and the 3D Slicer screenshot come from the multi-shell runs of the same day. The film names free water, NODDI and kurtosis but does not show them; Outputs below does.</p>
   </div>
 </section>
 
@@ -138,10 +139,10 @@
   <div class="container">
     <p class="eyebrow">One subject, one space</p>
     <h2>From one diffusion dataset to seven kinds of result.</h2>
-    <p class="intro">Each image shows output from SlicerDDSurfer on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. Six images are frames from the film; that run used the b = 0 and b ≈ 1000 volumes (117 of 297). The others come from runs on 23 October 2026 on the same Mac, rendered in the same way: UKF on the film’s input, the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes).</p>
+    <p class="intro">Each image shows output from SlicerDDSurfer on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. Six images come from the film’s run, which used the b = 0 and b ≈ 1000 volumes (117 of 297); three of them are moments of the film. The others come from runs on 23 October 2026 on the same Mac: UKF on the film’s input, the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes). All are rendered in the film’s look; the three-plane maps share one view.</p>
     <div class="gallery">
       <article class="tile">
-        <img src="assets/img/out-dec.jpg" width="1200" height="900" loading="lazy" alt="DEC map on three planes">
+        <img src="assets/img/res-dec.jpg" width="1200" height="900" loading="lazy" alt="DEC map on three planes">
         <div class="tile-body">
           <p class="chip"><span class="chip-name">DTI</span> · <span class="chip-q">microstructure</span></p>
           <h3>Direction-encoded colour</h3>
@@ -181,7 +182,7 @@
         </div>
       </article>
       <article class="tile">
-        <img src="assets/img/out-tissue.jpg" width="1200" height="900" loading="lazy" alt="DDSeg tissue labels">
+        <img src="assets/img/res-tissue.jpg" width="1200" height="900" loading="lazy" alt="DDSeg tissue labels">
         <div class="tile-body">
           <p class="chip"><span class="chip-name">DDSeg</span> · <span class="chip-q">tissue</span></p>
           <h3>Tissue labels</h3>
@@ -189,7 +190,7 @@
         </div>
       </article>
       <article class="tile">
-        <img src="assets/img/out-regions.jpg" width="1200" height="900" loading="lazy" alt="DDParcel regions">
+        <img src="assets/img/res-parcel.jpg" width="1200" height="900" loading="lazy" alt="DDParcel regions">
         <div class="tile-body">
           <p class="chip"><span class="chip-name">DDParcel</span> · <span class="chip-q">regions</span></p>
           <h3>Brain regions</h3>
@@ -233,7 +234,7 @@
         <div class="tile-body">
           <p class="chip"><span class="chip-name">WMQL</span> · <span class="chip-q">bundles</span></p>
           <h3>Arcuate and corticospinal tracts</h3>
-          <p>WMQL queries (adapted ddparcel_act preset) on the CSD/ACT tractogram: both sides, 706 streamlines.</p>
+          <p>WMQL queries (adapted ddparcel_act preset) on the CSD/ACT tractogram: both sides, 706 streamlines; 540 shown.</p>
         </div>
       </article>
       <article class="tile">
@@ -679,7 +680,7 @@ python3 scripts/stage_slicer_extension.py \
       <div class="foot-col">
         <h2 class="foot-title">About the film</h2>
         <p>Data: EDDEN, OpenNeuro <a href="https://openneuro.org/datasets/ds004666" target="_blank" rel="noopener">ds004666</a> (CC0), Manzano-Patron et al., Imaging Neuroscience <a href="https://doi.org/10.1162/imag_a_00060" target="_blank" rel="noopener">2024</a>.</p>
-        <p>Run: SlicerDDSurfer a48fc95, started from the command line, with 3D Slicer 5.12.4, SlicerDMRI and PyTorch on macOS (x86_64 build under Rosetta, CPU only). This run is outside the Linux validation and needed local run-time workarounds that are not in the repository.</p>
+        <p>Run: SlicerDDSurfer a48fc95, started from the command line, with 3D Slicer 5.12.4, SlicerDMRI and PyTorch on macOS (x86_64 build under Rosetta, CPU only). This run is outside the Linux validation and needed local run-time workarounds that are not in the repository. The bundles and the 3D Slicer screenshot: runs of 23 October 2026 on the same Mac, started from a checkout of the repository.</p>
         <p>Made with <a href="https://github.com/lemomo-ai/lemo-opuscar" target="_blank" rel="noopener">lemo-opuscar</a> (MIT) and three.js (MIT). Voice: Kokoro TTS (Apache-2.0). Fonts: Inter, Inter Tight, IBM Plex Mono (SIL OFL 1.1). Music and sound: original, synthesized in code.</p>
       </div>
     </div>

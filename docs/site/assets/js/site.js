@@ -107,7 +107,7 @@
 
     video.removeAttribute('controls');
     frame.appendChild(btn);
-    show('Play film · 1:05');
+    show('Play film · 1:12');
 
     btn.addEventListener('click', function () {
       if (video.ended) { video.currentTime = 0; }

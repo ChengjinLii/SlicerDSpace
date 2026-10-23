@@ -18,7 +18,7 @@ Git author is `x1aji <jwjwei@gmail.com>`. Its three original commits
 normal merge, not a squash, rebase or copied replacement commit. Their author,
 committer, timestamps and co-author trailers are unchanged.
 
-Public HTML, styles, scripts, fonts, images, subtitles and the 41,070,370-byte
+Public HTML, styles, scripts, fonts, images, subtitles and the 50,757,754-byte
 promo film live under `docs/site/`. Integration moves the original files without
 redesigning the site or re-encoding its media. [FACTS.md](FACTS.md),
 [SPEC.md](SPEC.md) and [UPSTREAM_README.md](UPSTREAM_README.md) preserve the

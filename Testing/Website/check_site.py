@@ -23,7 +23,7 @@ INDEX = os.path.join(DOCS, "index.html")
 PAGE404 = os.path.join(DOCS, "404.html")
 FILM = os.path.join(DOCS, "media", "SlicerDDSurfer_promo_1080p.mp4")
 SRT = os.path.join(DOCS, "media", "SlicerDDSurfer.en.srt")
-FILM_BYTES = 41070370
+FILM_BYTES = 50757754
 
 REPO = "https://github.com/ChengjinLii/SlicerDDSurfer"
 BLOB = REPO + "/blob/main/"
@@ -500,8 +500,8 @@ def film_probe():
     if not audio or audio[0].get("codec_name") != "aac":
         problems.append("audio is not aac")
     dur = float(info["format"]["duration"])
-    if abs(dur - 64.8) > 0.05:
-        problems.append("duration %.3f s, need 64.8 +/- 0.05" % dur)
+    if abs(dur - 72.0) > 0.05:
+        problems.append("duration %.3f s, need 72.0 +/- 0.05" % dur)
     return "; ".join(problems) if problems else None
 
 
@@ -518,8 +518,8 @@ def srt_cues(path):
 @check("transcript_matches_srt")
 def transcript_matches_srt(idx):
     cues = srt_cues(SRT)
-    if len(cues) != 12:
-        return "SRT has %d cues, expected 12" % len(cues)
+    if len(cues) != 13:
+        return "SRT has %d cues, expected 13" % len(cues)
     page = idx.transcript
     if page != cues:
         for i, (a, b) in enumerate(zip(page, cues), 1):
@@ -604,7 +604,7 @@ def images(pages):
 
 REQUIRED = ["at analysis time", "Private pre-release", "not a clinical assessment",
             "not certified", "24,000 of 130,780", "not installed silently", "in preparation",
-            "display subset", "not acceptance by Slicer", "not run for the film",
+            "display subset", "not acceptance by Slicer", "does not show them",
             "No expert has reviewed", "SNR is higher than a typical single scan",
             "workarounds that are not in the repository", "must share one voxel grid"]
 BANNED = [r"T1w?-free", r"T1-weighted-free", r"fully automatic", r"no registration",

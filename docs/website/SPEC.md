@@ -20,6 +20,12 @@ Addendum 2, 23 October 2026: `#outputs` (§5.5) keeps its six film frames and ad
 23 October 2026 runs on the same subject; `slicer.jpg` (§5.7) is a new full-window screenshot of the module. Their
 sources are in §1, rule 7.
 
+Addendum 3, 23 October 2026: the film is a new 72.0 s render (§2, §5.3, §7). It adds a Bundles scene (TractCloud on
+the film run's DTI tractogram, WMQL on the multi-shell CSD/ACT run), the new module screenshot, and a fix for one-frame
+black squares in the connectome scene. In `#outputs` the seven three-plane maps are renders of one view (the DEC film
+frame's camera and planes, brighter plane frames), and the surfaces, tracts and connectome tiles are film moments
+rendered at device scale 2 (§3).
+
 Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
 below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, except in the parts added on 23 October
 2026 (§5.6.1, §5.6a, §5.10, §5.10a, §5.10b, and the performance section). Those parts have their own sources, named in
@@ -80,41 +86,47 @@ docs/assets/js/performance.js     filters and method links of the performance ev
 docs/performance.html             stub: refresh to index.html#performance, canonical link, one visible link
 docs/assets/fonts/        InterTight, Inter, IBMPlexMono as .woff2 (Latin subset) + the three OFL .txt files
 docs/assets/img/          icon-64.png, icon-180.png (from R/Resources/Icons/SlicerDDSurfer.png), poster.jpg,
-                          social.jpg, idea.jpg, out-dec.jpg, out-tissue.jpg, out-regions.jpg, out-surfaces.jpg,
-                          out-tracts.jpg, out-connectome.jpg, slicer.jpg, fig-route-guide.png, fig-runtime-resources.png
-                          (the two figures are rasterised from `docs/figures/*.svg`, which is not served), and nine result
-                          tiles: res-fw.jpg, res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tr-ukf.jpg, res-tr-csd.jpg,
-                          res-wmql-csd.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
-docs/media/SlicerDDSurfer_promo_1080p.mp4   copy of P/out/SlicerDDSurfer_promo_1080p.mp4 (41,070,370 bytes)
+                          social.jpg, idea.jpg, out-surfaces.jpg, out-tracts.jpg, out-connectome.jpg, slicer.jpg,
+                          fig-route-guide.png, fig-runtime-resources.png (the two figures are rasterised from
+                          `docs/figures/*.svg`, which is not served), and twelve result tiles: res-dec.jpg, res-fw.jpg,
+                          res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tissue.jpg, res-parcel.jpg, res-tr-ukf.jpg,
+                          res-tr-csd.jpg, res-wmql-csd.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
+docs/media/SlicerDDSurfer_promo_1080p.mp4   copy of P/out/SlicerDDSurfer_promo_1080p.mp4 (50,757,754 bytes)
 docs/media/SlicerDDSurfer.en.srt            copy of P/out/SlicerDDSurfer.en.srt
 ```
 
-## 3. Images (film frames, the cover, the two figures of §5.6a and §5.10a, nine result tiles and the screenshot)
+## 3. Images (film frames, the cover, the two figures of §5.6a and §5.10a, twelve result tiles and the screenshot)
 
-Frames come from `P/out/SlicerDDSurfer_promo_1080p.mp4` with `ffmpeg -ss <t> -i <film> -frames:v 1`. Crop boxes are
-`x0,y0,x1,y1` in the 1920×1080 frame. A crop taken while a subtitle cue is on screen ends at y ≤ 945 (subtitle text
-starts near y = 950; two-line cues reach y ≈ 1040). Frames at 43.0, 50.2 and 56.8 s show no cue. Check each output by eye; adjust a box by up to 60 px if a brain or label is cut, and record the final
+`poster.jpg` and `idea.jpg` come from `P/out/SlicerDDSurfer_promo_1080p.mp4` with `ffmpeg -ss <t> -i <film> -frames:v 1`.
+The three `out-*` tiles are the same film moments rendered from the film page at device scale 2 (3840×2160,
+`P/tools/film_frames_hd.mjs`; the page draws its 3D canvas at that size), cropped with the boxes below × 2 and
+resized (JPEG quality 90), so they are not enlarged from the encoded video. Crop boxes are `x0,y0,x1,y1` in the
+1920×1080 frame. A crop taken while a subtitle cue is on screen ends at y ≤ 945 (subtitle text starts near y = 950;
+two-line cues reach y ≈ 1040). Frames at 43.0 and 57.4 s show no cue. Check each output by eye; adjust a box by up to 60 px if a brain or label is cut, and record the final
 boxes in `README.md`. JPEG quality 82, progressive, sRGB.
 
 | File | t (s) | Crop box | Output size | Shows |
 |---|---|---|---|---|
 | poster.jpg | 43.0 | full frame | 1920×1080 | whole-brain DTI tractography in the glass pial surface (no subtitle at 43 s) |
 | idea.jpg | 9.0 | 60,60,1760,945 | width 1400 | DWI slice, "registration" arrow, "+ T1-weighted scan" card |
-| out-dec.jpg | 22.8 | 815,155,1855,935 | 1200×900 | DEC map on three planes |
-| out-tissue.jpg | 27.0 | 725,150,1765,930 | 1200×900 | DDSeg tissue labels |
-| out-regions.jpg | 30.6 | 700,150,1740,930 | 1200×900 | DDParcel regions |
 | out-surfaces.jpg | 34.8 | 665,155,1705,935 | 1200×900 | DDSurfer pial surface |
 | out-tracts.jpg | 43.0 | 470,0,1910,1080 | 1200×900 | tractography |
-| out-connectome.jpg | 50.2 | 585,140,1838,1080 | 1200×900 | connectome nodes/edges and matrix |
+| out-connectome.jpg | 57.4 | 585,140,1838,1080 | 1200×900 | connectome nodes/edges and matrix |
 | slicer.jpg | — | `P/runtime/shots_workflow_ms2/results_window.png` (3840×2054), resized | 1920×1027 | real 3D Slicer screenshot (§5.7) |
 | social.jpg | — | from P/out/cover_1280x640.png | 1280×640 | the film's cover (og:image) |
 
 Every `<img>` has `alt` (the “Shows” text above, the tile's alt text in §5.5, or the icon’s name), `width`, `height`
 and `loading="lazy"`. (The poster is the `<video poster>`, not an `<img>`.)
 
-Result tiles (`res-*.jpg`, 1200×900, JPEG quality 84, progressive): 1600×1200 stills rendered in the film's look by
-`P/film/gallery.js`, cropped with one box per camera so the brain has the size of the film frames (three-plane maps
-157,135,1415,1079; tracts, bundles and networks 50,37,1550,1162) and resized. Nothing is drawn on the data. The
+Result tiles (`res-*.jpg`, 1200×900, progressive), rendered in the film's look by `P/film/gallery.js` and cropped
+and resized by `P/tools/make_site_tiles.py` (sources and SHA-256 in `P/renders/site_tiles/tiles.json`):
+- the seven three-plane maps (`res-dec`, `res-fw`, `res-ndi`, `res-mk`, `res-mkcurve`, `res-tissue`, `res-parcel`):
+  3840×2160 stills with the film's state at 22.8 s (camera, plane positions, rim, background, bloom, vignette;
+  `?look=film`), plane frames in red (axial), green (coronal) and yellow (sagittal) at full strength, crop
+  1630,310,3710,1870 (the DEC frame's box × 2), JPEG quality 94, 4:4:4. The inside of the brain is as sharp as the
+  exported volumes allow (about 280 voxels across, trilinear sampling); no sharpening is applied;
+- tracts, bundles and networks: 1600×1200 stills, crop 50,37,1550,1162, JPEG quality 84.
+Nothing is drawn on the data except the plane frames. The
 screenshot shows the subject folder through a short link (`/Users/Shared/EDDEN/sub-01` → the run's subject folder),
 with the log cleared by its own Clear button and the Reason column widened, so no path of the build machine is in view.
 
@@ -185,15 +197,15 @@ Links: “Film” `#film`, “Idea” `#idea`, “Outputs” `#outputs`, “Work
 
 - A wide frame (max 1200px, 16:9, `--radius`, 1px `--line-2`, soft DEC glow) holding:
   `<video id="film-video" controls playsinline preload="metadata" poster="assets/img/poster.jpg" width="1920"
-  height="1080" aria-label="SlicerDDSurfer film, 65 seconds, narrated, with subtitles in the picture">` with
+  height="1080" aria-label="SlicerDDSurfer film, 72 seconds, narrated, with subtitles in the picture">` with
   `<source src="media/SlicerDDSurfer_promo_1080p.mp4" type="video/mp4">` and a fallback link “Download the film (MP4)”.
 - Progressive enhancement: JS removes `controls` at start and shows a centred play button (round, 88px, glass,
-  triangle icon, label “Play film · 1:05”). Click/Enter/Space: hide the button, add `controls`, `play()` with sound.
+  triangle icon, label “Play film · 1:12”). Click/Enter/Space: hide the button, add `controls`, `play()` with sound.
   On `ended`: show the button again (label “Play again”). Without JS the native controls stay.
-- Meta row under the frame (mono, small): “64.8 s · 1920 × 1080 · narrated · subtitles in the picture” and links
-  “Download MP4 (41 MB)” `media/SlicerDDSurfer_promo_1080p.mp4` (`download`), “Subtitles (.srt)”
+- Meta row under the frame (mono, small): “72.0 s · 1920 × 1080 · narrated · subtitles in the picture” and links
+  “Download MP4 (51 MB)” `media/SlicerDDSurfer_promo_1080p.mp4` (`download`), “Subtitles (.srt)”
   `media/SlicerDDSurfer.en.srt` (`download`). [F9]
-- `<details>` “Transcript”: an ordered list of the 12 narration lines, verbatim from the `.srt`, in order [F9]:
+- `<details>` “Transcript”: an ordered list of the 13 narration lines, verbatim from the `.srt`, in order [F9]:
   1. Diffusion MRI records how water moves through the living brain.
   2. Mapping anatomy has usually meant a second, T1-weighted scan, registered into diffusion space.
   3. SlicerDDSurfer reconstructs anatomy directly from diffusion MRI, without a T1-weighted scan.
@@ -203,11 +215,11 @@ Links: “Film” `#film`, “Idea” `#idea`, “Outputs” `#outputs`, “Work
   7. White and pial surfaces,
   8. all in native diffusion space.
   9. Whole-brain tractography, traced in the same native space.
-  10. And structural connectomes, built on the same anatomy.
-  11. One 3D Slicer module, with automatic QC and a record of every run.
-  12. SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer.
-- Note under the transcript (small): “The film shows one SlicerDDSurfer run on one public dataset (EDDEN sub-01). Free
-  water, NODDI and kurtosis are optional routes; they were not run for the film.” [F9; F12.15]
+  10. White-matter bundles, classified by TractCloud or selected by WMQL queries.
+  11. And structural connectomes, built on the same anatomy.
+  12. One 3D Slicer module, with automatic QC and a record of every run.
+  13. SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer.
+- Note under the transcript (small): “The film shows SlicerDDSurfer output for one public dataset (EDDEN sub-01). Most scenes come from one run on the b = 0 and b ≈ 1000 volumes. On 23 October 2026, TractCloud ran on that run’s DTI tractogram; the WMQL bundles and the 3D Slicer screenshot come from the multi-shell runs of the same day. The film names free water, NODDI and kurtosis but does not show them; Outputs below does.” [F9; F12.15; Addendum 3]
 
 ### 5.4 The idea (`#idea`)
 
@@ -238,23 +250,23 @@ Two columns: text left, `idea.jpg` right.
 
 - Eyebrow: “One subject, one space”.
 - H2: “From one diffusion dataset to seven kinds of result.”
-- Intro: “Each image shows output from SlicerDDSurfer on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. Six images are frames from the film; that run used the b = 0 and b ≈ 1000 volumes (117 of 297). The others come from runs on 23 October 2026 on the same Mac, rendered in the same way: UKF on the film’s input, the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes).” [F9 Data; P/MAKING_OF.md:69-72, 142; P/tools/make_subject_ms.py; P/runtime/r2.sh]
+- Intro: “Each image shows output from SlicerDDSurfer on one public dataset: EDDEN, OpenNeuro ds004666, subject sub-01 (CC0). The input is EDDEN’s AVG_mag series: five repeated acquisitions, averaged, so its SNR is higher than a typical single scan. Six images come from the film’s run, which used the b = 0 and b ≈ 1000 volumes (117 of 297); three of them are moments of the film. The others come from runs on 23 October 2026 on the same Mac: UKF on the film’s input, the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes). All are rendered in the film’s look; the three-plane maps share one view.” [F9 Data; P/MAKING_OF.md:69-72, 142; P/tools/make_subject_ms.py; P/runtime/r2.sh]
 - Fifteen tiles (image, chip, title, caption), in this order:
 
 | Image | Chip | Title | Caption | Source |
 |---|---|---|---|---|
-| out-dec.jpg | “DTI · microstructure” | “Direction-encoded colour” | “Principal diffusion direction weighted by FA, from the DTI fit.” | F9 caveats (DEC = \|e1\| × FA) |
+| res-dec.jpg | “DTI · microstructure” | “Direction-encoded colour” | “Principal diffusion direction weighted by FA, from the DTI fit.” | F9 caveats (DEC = \|e1\| × FA) |
 | res-fw.jpg | “Free water · microstructure” | “Free-water fraction” | “Free-water tensor model (DIPY) on b = 0, 1000 and 2000.” | P/film/data/gallery/index.json; QC file of the run |
 | res-ndi.jpg | “NODDI · microstructure” | “Neurite density” | “NDI from the NODDI fit (AMICO) on two shells.” | P/film/data/gallery/index.json; QC file of the run |
 | res-mk.jpg | “DKI · microstructure” | “Mean kurtosis” | “MK from the DKI fit (DIPY, WLS).” | P/film/data/gallery/index.json; QC file of the run |
 | res-mkcurve.jpg | “MK-Curve · microstructure” | “Mean kurtosis, MK-Curve” | “Unofficial Python port, same data. Automatic QC did not pass: 98.7% of mask voxels are valid; the check needs all.” | P/film/data/gallery/index.json; QC file of the run |
-| out-tissue.jpg | “DDSeg · tissue” | “Tissue labels” | “White matter, grey matter and CSF, predicted from DTI features.” | F4 (five DTI features) |
-| out-regions.jpg | “DDParcel · regions” | “Brain regions” | “Anatomical regions labelled in the diffusion volume.” | F7 (DDParcel title) |
+| res-tissue.jpg | “DDSeg · tissue” | “Tissue labels” | “White matter, grey matter and CSF, predicted from DTI features.” | F4 (five DTI features) |
+| res-parcel.jpg | “DDParcel · regions” | “Brain regions” | “Anatomical regions labelled in the diffusion volume.” | F7 (DDParcel title) |
 | out-surfaces.jpg | “DDSurfer · surfaces” | “White and pial surfaces” | “Cortical surface meshes in native diffusion space.” | F2 FACTS:13 |
 | out-tracts.jpg | “Tractography · DTI” | “Whole-brain tractography” | “Deterministic DTI tractography. Shown: a display subset of 24,000 of 130,780 streamlines.” | F9 caveats |
 | res-tr-ukf.jpg | “Tractography · UKF” | “UKF two-tensor tractography” | “UKFTractography. Shown: a display subset of 24,000 of 208,295 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
 | res-tr-csd.jpg | “Tractography · CSD/ACT” | “MSMT-CSD with ACT” | “MRtrix3 iFOD2 with ACT. Shown: 24,000 of 1,000,000 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
-| res-wmql-csd.jpg | “WMQL · bundles” | “Arcuate and corticospinal tracts” | “WMQL queries (adapted ddparcel_act preset) on the CSD/ACT tractogram: both sides, 706 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
+| res-wmql-csd.jpg | “WMQL · bundles” | “Arcuate and corticospinal tracts” | “WMQL queries (adapted ddparcel_act preset) on the CSD/ACT tractogram: both sides, 706 streamlines; 540 shown.” | P/film/data/gallery/index.json; QC file of the run |
 | res-tc-ukf.jpg | “TractCloud · bundles” | “42 white-matter tracts” | “TractCloud on the UKF tractogram: 84,356 streamlines classified; 9,321 shown.” | P/film/data/gallery/index.json; QC file of the run |
 | out-connectome.jpg | “Connectome · DDParcel nodes” | “Structural connectome” | “The 260 strongest of 854 edges are drawn; the matrix shows all 84 × 84 nodes.” | F9 caveats |
 | res-net-sift2.jpg | “Connectome · SIFT2” | “SIFT2-weighted connectome” | “From the CSD/ACT tractogram. The 260 strongest of 2,726 edges are drawn.” | P/film/data/gallery/index.json; QC file of the run |
@@ -467,11 +479,11 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 3. `external_urls`: every absolute URL in `docs/` (HTML, CSS, JS) is in the §6 set; `<link>`, `<script>`, `<img>`,
    `<source>`, `<video>` and CSS `url()`/`@import` never point to another host, except `<link rel="canonical">` with
    the §6 Pages URL. Inline SVG carries no `xmlns` (or namespace URIs are exempt).
-4. `film_bytes`: `docs/media/SlicerDDSurfer_promo_1080p.mp4` is 41,070,370 bytes and, when `--film` is given, equal in
+4. `film_bytes`: `docs/media/SlicerDDSurfer_promo_1080p.mp4` is 50,757,754 bytes and, when `--film` is given, equal in
    SHA-256 to that file.
 5. `film_faststart`: top-level MP4 boxes: `ftyp` first, `moov` before `mdat` (pure Python box scan).
-6. `film_probe`: with `ffprobe` on PATH: h264 1920×1080 yuv420p, aac, duration 64.8 ± 0.05 s. `SKIP` without ffprobe.
-7. `transcript_matches_srt`: the transcript list equals the 12 cue texts of `docs/media/SlicerDDSurfer.en.srt`, in order.
+6. `film_probe`: with `ffprobe` on PATH: h264 1920×1080 yuv420p, aac, duration 72.0 ± 0.05 s. `SKIP` without ffprobe.
+7. `transcript_matches_srt`: the transcript list equals the 13 cue texts of `docs/media/SlicerDDSurfer.en.srt`, in order.
 8. `sizes`: no file in `docs/` is over 50 MB; `docs/` is under 100 MB in total.
 9. `images`: every `<img>` has non-empty `alt`, integer `width` and `height`; each image file's pixel size matches its
    attributes' aspect ratio within 2% (PNG/JPEG header parse, stdlib only).
@@ -479,7 +491,7 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     `title` attribute, `<title>`, `<meta name="description">`/`og:*` content, and the string literals in `site.js`.
 10. `claims_required`: the visible text contains each of: “at analysis time”, “Private pre-release”, “not a clinical
     assessment”, “not certified” (case-insensitive), “24,000 of 130,780”, “not installed silently”, “in preparation”, “display subset”, “not acceptance by Slicer”,
-    “not run for the film”, “No expert has reviewed”, “SNR is higher than a typical single scan”, “workarounds that are
+    “does not show them”, “No expert has reviewed”, “SNR is higher than a typical single scan”, “workarounds that are
     not in the repository”, “must share one voxel grid”.
 11. `claims_banned`: the visible text matches none of (case-insensitive): `T1w?-free`, `T1-weighted-free`, `fully
     automatic`, `no registration`, `no preprocessing`, `U-shaped`, `\bthe first\b`, `\bthe only\b`, `clinical-grade`,
@@ -502,7 +514,7 @@ Serves `docs/` from a local HTTP server with Range support (to match GitHub Page
    byte-range requests for video); no response with status ≥ 400; no request to another host;
 2. `document.documentElement.scrollWidth <= innerWidth`;
 3. every `<img>` is `complete` with `naturalWidth > 0` after scrolling the page through;
-4. the video: `readyState >= 1`, `duration` 64.8 ± 0.05 s, `videoWidth` 1920; `canPlayType` for
+4. the video: `readyState >= 1`, `duration` 72.0 ± 0.05 s, `videoWidth` 1920; `canPlayType` for
    `video/mp4; codecs="avc1.640032, mp4a.40.2"` (High, level 5.0, as ffprobe reports) is not empty;
 5. clicking the play button starts playback (`currentTime` advances within 3 s; muted in the test only) and shows
    `controls`;

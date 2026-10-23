@@ -11,6 +11,7 @@ The site is made from the repository docs at a48fc95 and the delivered promo fil
   Fonts are self-hosted (Latin subsets of Inter, Inter Tight and IBM Plex Mono, SIL OFL 1.1; the licence texts sit
   next to the fonts).
 - The film in `docs/media/` is the delivered file, byte for byte (41,070,370 bytes). Nobody re-encoded it.
+  (Replaced on 23 October 2026 by a new 72.0 s render, 50,757,754 bytes; see SPEC.md, Addendum 3.)
 
 ## How to publish (owner only)
 
@@ -131,5 +132,9 @@ brain, no cut-off label.
 | out-connectome.jpg | 50.2 | 585,140,1838,1080 | 1200×900 | none |
 | slicer.jpg | 56.8 | full frame | 1920×1080 | none (SPEC v2 uses 56.8 s: cue 11 ends at 56.5 s, the fade starts at 56.9 s) |
 | social.jpg | – | `cover_1280x640.png` | 1280×640 | none (PNG converted to JPEG) |
+
+This table records the first delivery. On 23 October 2026 the DEC, tissue and regions frames were replaced by
+renders (`res-dec.jpg`, `res-tissue.jpg`, `res-parcel.jpg`), the other frames come from the 72 s film, and
+`out-connectome.jpg` is at 57.4 s; see SPEC.md §3.
 
 `icon-64.png` and `icon-180.png` are resized from `Resources/Icons/SlicerDDSurfer.png` of the repository.

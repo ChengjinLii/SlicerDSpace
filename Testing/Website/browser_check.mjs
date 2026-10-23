@@ -181,7 +181,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
       can: v.canPlayType('video/mp4; codecs="avc1.640032, mp4a.40.2"'),
     };
   });
-  record(vid.readyState >= 1 && Math.abs(vid.duration - 64.8) <= 0.05 && vid.videoWidth === 1920,
+  record(vid.readyState >= 1 && Math.abs(vid.duration - 72.0) <= 0.05 && vid.videoWidth === 1920,
     `${tag}: video metadata (readyState ${vid.readyState}, duration ${vid.duration?.toFixed?.(3)}, width ${vid.videoWidth})`,
     JSON.stringify(vid));
   record(vid.can !== '', `${tag}: canPlayType for avc1.640032 + mp4a.40.2 is "${vid.can}"`, 'empty');
@@ -192,7 +192,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
     const b = document.querySelector('.film-play');
     return { controls: v.hasAttribute('controls'), btn: !!b && !b.hidden, label: b ? b.textContent.trim() : '' };
   });
-  record(!pre.controls && pre.btn && pre.label === 'Play film · 1:05',
+  record(!pre.controls && pre.btn && pre.label === 'Play film · 1:12',
     `${tag}: play button shown, controls removed (label "${pre.label}")`, JSON.stringify(pre));
 
   // 6. menu with the keyboard (narrow only)
@@ -298,7 +298,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
     d.open = true;
     return d.querySelectorAll('li').length;
   });
-  record(tr === 12, `${tag}: transcript has ${tr} lines`, String(tr));
+  record(tr === 13, `${tag}: transcript has ${tr} lines`, String(tr));
 
   record(consoleErrors.length === 0 && failed.length === 0 && foreign.length === 0,
     `${tag}: no console error, failed request or foreign host`,

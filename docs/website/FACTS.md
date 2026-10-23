@@ -197,18 +197,18 @@ Three method papers, exactly as CITATION.cff gives them (R/CITATION.cff:32-111):
 
 ## 9. Promo film facts
 
-File `P/out/SlicerDDSurfer_promo_1080p.mp4`.
+File `P/out/SlicerDDSurfer_promo_1080p.mp4`, render of 23 October 2026 (72.0 s; the first delivery was 64.8 s, 41,070,370 bytes, 1944 frames, 12 cues). Re-measured with the commands below.
 
 | Fact | Value | Source |
 |---|---|---|
-| Duration | 64.800000 s | `ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height,pix_fmt,r_frame_rate,sample_rate -of compact` |
-| File size | 41,070,370 bytes (about 39.2 MiB) | same command |
+| Duration | 72.000000 s | `ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height,pix_fmt,r_frame_rate,sample_rate -of compact` |
+| File size | 50,757,754 bytes (about 48.4 MiB) | same command |
 | Video | h264, 1920x1080, yuv420p, 30/1 fps | same command |
-| Video detail | profile High, color_range tv (limited), bt709, 1944 frames, about 4.80 Mb/s | `ffprobe -show_entries stream=...` (second call) |
+| Video detail | profile High, color_range tv (limited), bt709, 2160 frames | `ffprobe -show_entries stream=...` (second call) |
 | Audio | aac (LC), 48000 Hz, 2 channels, about 264 kb/s | same |
 | Streams | exactly 2: video and audio. No subtitle stream. | `ffprobe -show_entries stream=index,codec_type` |
-| Subtitles | burned into the picture, plus sidecar SRT with 12 cues | P/MAKING_OF.md:3, 11-12; cue count from P/out/SlicerDDSurfer.en.srt (12 numbered cues). I did not view a film frame. |
-| Loudness | "-14 LUFS integrated", LRA 2.9 LU, true peak -1.2 dBFS (as recorded in build.log, not re-measured) | P/MAKING_OF.md:3, 92 |
+| Subtitles | burned into the picture, plus sidecar SRT with 13 cues | P/MAKING_OF.md:3, 11-12; cue count from P/out/SlicerDDSurfer.en.srt (13 numbered cues). |
+| Loudness | -14.0 LUFS integrated, peak -1.0 dBFS (ebur128 in `sh build.sh check`, 23 October 2026) | P/logs/build_20261023_bundles.log |
 | moov / mdat order | ftyp@0 (32 B), moov@32 (72,507 B), free@72539 (8 B), mdat@72547 (40,997,823 B). moov is BEFORE mdat (faststart OK). | `python3 -I` top-level box scan |
 | Cover images | cover_1920x1080.png = 1920x1080 (1,275,244 B); cover_1280x640.png = 1280x640 (611,562 B); the 1280x640 is "GitHub social-preview size (centre crop of the cover)" | `sips -g pixelWidth -g pixelHeight`; P/MAKING_OF.md:13-14 |
 
@@ -275,7 +275,7 @@ Display-subset caveats (P/MAKING_OF.md:26-45):
 | P/out/cover_1280x640.png | 1280x640; 611,562 B | Centre crop of the same cover. | Same. |
 | P/runtime/shots/final/window.png | 3840x2054; 3,432,324 B | Real 3D Slicer 5.12.4 screenshot with the SlicerDDSurfer module: Subject ID sub-01, products ticked, "Ready to run.", Results and QC run "2026-10-19 23:50 · sub-01 · promo · completed", a 3D pial surface with sparse fibre ends, and axial/coronal/sagittal FA slices with a tissue overlay ("sub-01_segmentation (35%)" over "sub-01_microstructure.dti_fa"). | Source of the film's Slicer section (P/MAKING_OF.md:61). The file as it sits in runtime/ shows local path fragments ("fer-promo/runtime/subjects/sub-01") and a red error icon at the bottom right. MAKING_OF:36-37 says the status bar is cropped in the film. I did not check the film frame. File is not listed in P/.gitignore. |
 | P/runtime/shots/final/view3d.png | 3000x886; 1,960,731 B | 3D view capture (not opened). | Same run. |
-| P/out/SlicerDDSurfer.en.srt | 12 cues, 1053 B | Subtitles | Section 9. |
+| P/out/SlicerDDSurfer.en.srt | 13 cues, 1163 B | Subtitles | Section 9. |
 | P/out/picture.mp4 | 89,492,158 B | Intermediate render without final audio mix. Listed in P/.gitignore:22 ("the muxed film in out/ is the deliverable"). | Do not publish. |
 
 Items NOT to publish (P/MAKING_OF.md:147-152; P/.gitignore:1-17): `runtime/model-assets/` (weights and templates), `runtime/stage/` (copy of private code), `data/edden_ds004666/`, `runtime/subjects/`, local environments. "No bundle has been made or checked yet." (MAKING_OF.md:151-152)
@@ -322,7 +322,7 @@ Gaps / claims the sources do NOT support:
 12. Performance numbers. No speed, accuracy or benchmark claim is made for the product in the sources. Film numbers (run times, r = 0.826, Dice 0.848, |cos| = 0.952) are one subject, CPU, Rosetta, not benchmarks; the film does not claim them. "Full-brain timing missing" for DKI/MK-Curve (SUPPORT_MATRIX.md:61). Paper speed claims are not in the files read.
 13. Clinical use. Not supported. "A completed run is not a clinical assessment" (README.md:21-22). Human review of the film run is "pending" (MAKING_OF.md:78).
 14. Cross-platform. Not supported (README.md:174). Linux only for recorded real-data/GUI evidence. The film run was on macOS and needed workarounds (MAKING_OF.md:144-145, 166-181: six maintainer findings, none fixed in the repo).
-15. Features shown versus run. Free-water, NODDI, DKI, CSD, ACT, SIFT2, SAF, WMQL/WMA/TractCloud and surface postprocess were not run for the film. The film's tractography is a display subset of a DTI deterministic run (24,000 of 130,780 streamlines); connectome edges 260 of 854. The film run used the CLI, not the Run button.
+15. Features shown versus run. Free-water, NODDI, DKI, CSD, ACT, SIFT2, SAF, WMQL/WMA/TractCloud and surface postprocess were not run for the film. Update, 23 October 2026: the 72 s film adds TractCloud (run that day on the film run's DTI tractogram) and WMQL (multi-shell CSD/ACT run of that day); free water, NODDI and DKI ran that day but the film does not show them. The film's tractography is a display subset of a DTI deterministic run (24,000 of 130,780 streamlines); connectome edges 260 of 854. The film run used the CLI, not the Run button.
 16. Screenshots. The docs images show a missing-input state, not a result, and the Microstructure label there reads "DTI / Free-water / NODDI" (no DKI). The window.png screenshot shows the label "DTI + optional models". The UI labels differ between the two captures (Slicer 5.10 doc image vs 5.12.4 film image).
 17. Acceptance records not read (SLICER_ACCEPTANCE_20261007.md, UI_SIMPLIFICATION_20261008.md, DISTRIBUTION_VALIDATION_20261012.md). The datasets, subject counts and test counts behind "Linux real-data validation" are not on this sheet. Do not state them.
 18. "First" or "only", "fully automatic", "no registration", "no preprocessing", "U-shaped fibres": not supported; film FACTS.md rules them out (:21-25), provenance page rules out U-shaped (:72-74).
