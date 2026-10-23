@@ -12,4 +12,4 @@ while (($#)); do
     *) ARGS+=("$1"); shift ;;
   esac
 done
-exec "${PYTHON_BIN:-python3}" "$PROJECT_ROOT/run_ddsurfer_pipeline.py" "${ARGS[@]}"
+exec "${PYTHON_BIN:-python3}" "$PROJECT_ROOT/run_ddsurfer_pipeline.py" ${ARGS[@]+"${ARGS[@]}"}

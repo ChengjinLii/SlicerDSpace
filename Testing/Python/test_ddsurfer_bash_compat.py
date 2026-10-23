@@ -1,9 +1,11 @@
-"""DDSurfer shell scripts run under bash 3.2, the stock macOS /bin/bash (macOS F2)."""
+"""DDSurfer shell scripts run under bash 3.2, the stock macOS /bin/bash (macOS F2, F6)."""
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -36,6 +38,22 @@ class Bash32CompatibilityTests(unittest.TestCase):
         result = subprocess.run([str(BASH), "-c", script], capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.splitlines(), ["4", *paths])
+
+
+    @unittest.skipUnless(BASH.exists(), "/bin/bash is missing")
+    def test_wrapper_with_no_arguments_does_not_trip_nounset(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stub = Path(tmp) / "python-stub"
+            stub.write_text('#!/bin/sh\necho "argc=$#"\n', encoding="utf-8")
+            stub.chmod(0o755)
+            env = {**os.environ, "PYTHON_BIN": str(stub)}
+            result = subprocess.run(
+                [str(BASH), str(BACKEND / "run_ddsurfer_pipeline.sh")],
+                capture_output=True, text=True, env=env, check=False,
+            )
+        self.assertNotIn("unbound variable", result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "argc=1")
 
 
 if __name__ == "__main__":
