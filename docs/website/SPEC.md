@@ -32,7 +32,10 @@ the table caption); other sentences are shortened. No fact, honesty statement, s
 removed. §5 below holds the new copy; the integration table states its scope once, in the column header “Status on
 Linux test subjects”, so its cells read “Supported”. The transcript, the reference entries, the paper cards and the
 generated evidence are unchanged. The `claims_required` and `claims_banned` lists (§7.1 items 10 and 11) are
-unchanged.
+unchanged. Second pass, same day (layout, for a shorter page): the reference list [4] to [35] is in a closed
+`<details>` (§5.10); the gallery has 4 columns on wide screens (§4); the integration table is compact (§5.6.1);
+section padding and some inner margins are smaller (§4). Images, `<img>` attributes and the two figures are
+unchanged. §7.2 item 8 checks the reference links.
 
 Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
 below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, except in the parts added on 23 October
@@ -155,7 +158,8 @@ with the log cleared by its own Clear button and the Reason column widened, so n
 - Panels: `--panel`, 1px `--line`, `--radius`. No drop shadows except a soft DEC glow behind the film frame.
 - Motion: sections fade and rise 12px once when they enter the viewport (IntersectionObserver, 600ms). None under
   `prefers-reduced-motion: reduce`. Content must be visible without JS (add the hidden state only from JS).
-- Layout: max width `--max`, side gutter `--gutter`. Grids collapse: gallery 3 → 2 (≤ 900px) → 1 (≤ 560px);
+- Layout: max width `--max`, side gutter `--gutter`. Section padding `clamp(44px, 5.5vw, 76px)` (Addendum 4).
+  Grids collapse: gallery 4 → 3 (≤ 1099px) → 2 (≤ 699px; smaller tile text on phones), tiles stay 4:3;
   two-column sections → 1 (≤ 900px); workflow cards 5 → 2 → 1. No horizontal page scroll at 320px or wider; code
   blocks scroll inside themselves (`overflow-x: auto`), grid children have `min-width: 0`.
 - Header: sticky, 64px, `--bg` at 80% with backdrop blur, bottom tri-rule. Left: icon (28px) + "SlicerDDSurfer".
@@ -326,6 +330,9 @@ Two columns: text left, `idea.jpg` right.
 - Partial rows: MK-Curve (MATLAB reference), UKF two-tensor, SAF, WMQL on sparse input, WMA on CSD input, TractCloud on
   CSD input, scalar and length connectome weights (Python API only).
 - Reference cells link to `#ref-<n>` in the reference list (§5.10).
+- Compact layout (Addendum 4): cell padding 7px 10px, line height 1.4, 13.5px text. The reference cell wraps between
+  `[n]` links (each link stays whole), so the “How it is integrated” column gets the width. All 26 rows and every
+  Partial and Needs line stay visible.
 
 ### 5.6a Which route when (`#choose`, after `#workflows`)
 
@@ -419,9 +426,11 @@ Two columns: text left, `idea.jpg` right.
 - Three paper cards for DDSurfer, DDSeg and DDParcel, exactly as CITATION.cff [F7], numbered [1] to [3]
   (`id="ref-1"` to `ref-3`).
 - H3 “References”, then the intro “The Reference column of the integration table points here. [1] to [3] are the
-  papers above; [34] and [35] are the film’s data.” (“integration table” links to `#integrated`), then one numbered
-  list, [4] to [35], in groups (H4): Microstructure; Tractography and connectomes; Bundles; Platform and tools; Data.
-  Each item: lead author (“Surname Initials, et al.”; both names for two authors), title,
+  papers above; [34] and [35] are the film’s data.” (“integration table” links to `#integrated`), then a closed
+  `<details id="reference-list" class="transcript ref-details">` with the summary “Reference list [4] to [35]”. It
+  holds one numbered list, [4] to [35], in groups (H4): Microstructure; Tractography and connectomes; Bundles; Platform
+  and tools; Data. A click on a `#ref-<n>` link opens it (`site.js` opens any closed `<details>` that holds a hash
+  target); without JS, Chrome opens it on fragment navigation. Each item: lead author (“Surname Initials, et al.”; both names for two authors), title,
   venue, volume(issue):pages, year, and a DOI link `https://doi.org/<doi>`. Items without a DOI (ISMRM abstracts) link to
   the ISMRM archive page; the 2016 Dhollander workshop abstract has no link. Items marked unverified in the review notes
   are left out (for example the LNCS volume of TractCloud). Every external URL is in the allowed set (§6).
@@ -568,7 +577,10 @@ Serves `docs/` from a local HTTP server with Range support (to match GitHub Page
 5. clicking the play button starts playback (`currentTime` advances within 3 s; muted in the test only) and shows
    `controls`;
 6. at 390px the Menu button opens and closes the nav with the keyboard;
-7. full-page screenshots to `tests/out/` (git-ignored) for a human look.
+7. full-page screenshots to `tests/out/` (git-ignored) for a human look;
+8. at 1440 and 390 px the reference list [4] to [35] is in a closed `<details>`, and a click on the `[21]` link in the
+   integration table opens it and shows `#ref-21` in the upper half of the viewport once scrolling stops; without JS,
+   loading `index.html#ref-21` opens it.
 
 ## 8. README.md (branch root) must say
 

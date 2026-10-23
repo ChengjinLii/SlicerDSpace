@@ -404,6 +404,46 @@ async function runPerformance(browser, origin, width, noJs = false) {
   await context.close();
 }
 
+// The reference list [4] to [35] is a closed <details>. A click on a #ref-n link in the integration table
+// opens it (site.js) and shows the entry; without JS, Chrome opens it on fragment navigation.
+async function runReferenceLinks(browser, origin) {
+  for (const width of [1440, 390]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(origin + '/index.html', { waitUntil: 'load' });
+    const closed = await page.evaluate(() => {
+      const d = document.getElementById('reference-list');
+      return !!d && !d.open && !!d.querySelector('#ref-4') && !!d.querySelector('#ref-35');
+    });
+    record(closed, `references ${width}px: list [4] to [35] is in a closed <details>`, String(closed));
+    const link = page.locator('.int-table a[href="#ref-21"]').first();
+    await link.scrollIntoViewIfNeeded();
+    await link.click();
+    // Smooth scrolling takes a while: wait until the position is stable.
+    let s = null;
+    let last = null;
+    for (let i = 0; i < 60; i++) {
+      await page.waitForTimeout(150);
+      s = await page.evaluate(() => {
+        const r = document.getElementById('ref-21').getBoundingClientRect();
+        return { open: document.getElementById('reference-list').open, top: Math.round(r.top), h: r.height, ih: innerHeight };
+      });
+      if (last !== null && s.top === last) break;
+      last = s.top;
+    }
+    record(s.open && s.h > 0 && s.top >= 0 && s.top < s.ih / 2,
+      `references ${width}px: a click on [21] in the table opens the list and shows the entry (top ${s.top})`, JSON.stringify(s));
+    await context.close();
+  }
+  const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, javaScriptEnabled: false });
+  const p2 = await c2.newPage();
+  await p2.goto(origin + '/index.html#ref-21', { waitUntil: 'load' });
+  await p2.waitForTimeout(300);
+  const nojs = await p2.evaluate(() => document.getElementById('reference-list').open);
+  record(nojs === true, 'references no-JS: index.html#ref-21 opens the closed list', String(nojs));
+  await c2.close();
+}
+
 // The old subpage is a stub that redirects to the home page section.
 async function runStubRedirect(browser, origin) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -461,6 +501,7 @@ try {
     await ctx.close();
   }
   await run404AndNoJs(browser, origin);
+  await runReferenceLinks(browser, origin);
   for (const width of [1440, 390, 360, 320]) await runPerformance(browser, origin, width);
   await runPerformance(browser, origin, 390, true);
   await runStubRedirect(browser, origin);
