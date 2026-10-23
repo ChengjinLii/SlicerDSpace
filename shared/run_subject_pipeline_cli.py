@@ -1000,7 +1000,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(json.dumps(payload, indent=2, ensure_ascii=False))
 
-    failure_like_statuses = {"failed"}
+    # The same rule as the run manifest's "failed" status (orchestrator.py): partial_failed counts.
+    failure_like_statuses = {"failed", "partial_failed"}
     if args.execute and any(task.status in failure_like_statuses for task in result.tasks):
         return 2
     return 0

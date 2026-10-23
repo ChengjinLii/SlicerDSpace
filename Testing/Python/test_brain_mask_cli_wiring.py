@@ -68,6 +68,29 @@ class BrainMaskCliWiringTest(unittest.TestCase):
             self.assertEqual(cli.main(["--subject-root", str(subject), "--targets", "microstructure", *flags]), 0)
         return run, planning, checking
 
+    def test_partial_failed_task_gives_exit_code_2_like_the_failed_run_manifest(self) -> None:
+        # EDDEN sub-01 WMA run, 2026-10-23: the run manifest said "failed" (bundles.wma partial_failed),
+        # but the CLI exited 0, so a batch counted the subject as a success.
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = Path(tmp) / "sub-01"
+            for status, code in (("partial_failed", 2), ("failed", 2), ("completed", 0), ("blocked", 0)):
+                with self.subTest(status=status):
+                    task = SimpleNamespace(name="bundles.wma", status=status, reason="", manifest_path=None,
+                                           qc_path=None, outputs={})
+                    result = SimpleNamespace(subject_id="sub-01", subject_root=subject,
+                                             run_manifest_path=subject / "missing.json", run_plan_path=None,
+                                             tasks=(task,))
+                    plan = SimpleNamespace(run_plan_path=subject / "plan.json", items=(),
+                                           to_dict=lambda: {"summary": {"will_run": 1, "skipped": 0, "blocked": 0}})
+                    with ExitStack() as stack:
+                        stack.enter_context(patch.object(cli, "run_subject_products", return_value=result))
+                        stack.enter_context(patch.object(cli, "plan_subject_products", return_value=plan))
+                        stack.enter_context(patch.object(cli.signal, "signal"))
+                        stack.enter_context(redirect_stdout(io.StringIO()))
+                        stack.enter_context(redirect_stderr(io.StringIO()))
+                        self.assertEqual(cli.main(["--subject-root", str(subject), "--no-user-config",
+                                                   "--targets", "wma", "--execute"]), code)
+
     def test_doctor_plan_execution_and_dry_run_forward_every_choice_and_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             subject = Path(tmp) / "sub-01"
