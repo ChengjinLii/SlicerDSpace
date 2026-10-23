@@ -1107,6 +1107,19 @@ def _noddi_threads(config) -> int:
     return max(1, min(8, available))
 
 
+def _ensure_amico_rotation_matrices(lmax: int, ndirs: int, log) -> None:
+    """Run amico.setup() once when AMICO's precomputed rotation matrices are missing.
+
+    AMICO 2.x reports the missing files with util.ERROR(), which calls exit() (SystemExit) instead of
+    raising, so the check below loads them before generate_kernels() rather than catching its failure.
+    """
+    try:
+        amico.lut.load_precomputed_rotation_matrices(lmax, ndirs)
+    except (Exception, SystemExit):
+        _emit("[Microstructure] AMICO rotation matrices missing; running amico.setup() once.", log)
+        amico.setup(lmax=lmax)
+
+
 def _amico_subject_dir(config: MicrostructureConfig) -> Path:
     return _amico_cache_root(config) / config.subject_id
 
@@ -1314,6 +1327,7 @@ def _compute_noddi_maps(
         lambda2=float(config.noddi_solver_lambda2),
     )
     write_noddi_progress("running", "generating_kernels", nonzero_shells=nonzero_shells)
+    _ensure_amico_rotation_matrices(int(config.noddi_lmax), int(config.noddi_ndirs), log)
     try:
         evaluation.generate_kernels(
             regenerate=False,
