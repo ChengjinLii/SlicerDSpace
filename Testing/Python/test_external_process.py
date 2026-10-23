@@ -15,7 +15,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from shared.external_process import text_subprocess_kwargs, external_python_environment
+from shared.external_process import (
+    external_python_environment, interpreter_path, python_tool_environment, text_subprocess_kwargs)
 
 
 class TextSubprocessKwargsTest(unittest.TestCase):
@@ -40,6 +41,38 @@ class TextSubprocessKwargsTest(unittest.TestCase):
             actual = external_python_environment()
         self.assertEqual(actual["DYLD_LIBRARY_PATH"], "/opt/real-tool/lib")
         self.assertEqual(actual["DYLD_FALLBACK_LIBRARY_PATH"], "")
+    def test_c6_interpreter_path_normalizes_dotdot_and_keeps_the_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            real = root / "base/bin/python3"
+            real.parent.mkdir(parents=True)
+            real.touch()
+            link = root / "venv/bin/python"
+            link.parent.mkdir(parents=True)
+            link.symlink_to(real)
+            cwd = root / "work"
+            cwd.mkdir()
+            old = os.getcwd()
+            os.chdir(cwd)
+            try:
+                actual = interpreter_path("../venv/bin/python")
+            finally:
+                os.chdir(old)
+            self.assertEqual(actual, link)
+            self.assertNotIn("..", actual.parts)
+            self.assertTrue(actual.is_symlink())
+
+    def test_c9_virtualenv_under_a_slicer_named_folder_is_not_slicers_python(self) -> None:
+        startup = {"PATH": "/usr/bin", "PYTHONHOME": "/slicer/lib/Python"}
+        with tempfile.TemporaryDirectory() as tmp:
+            python = Path(tmp).resolve() / "Slicer-envs/ddsurfer/bin/python"
+            python.parent.mkdir(parents=True)
+            python.touch()
+            with patch("shared.external_process.startup_environment", return_value=startup.copy()):
+                self.assertEqual(python_tool_environment(python)["PYTHONHOME"], "/slicer/lib/Python")  # no venv yet
+                (python.parent.parent / "pyvenv.cfg").write_text("home = /usr/bin\n")
+                self.assertNotIn("PYTHONHOME", python_tool_environment(python))
+
     def test_defaults_force_utf8_with_replacement(self) -> None:
         kwargs = text_subprocess_kwargs()
         self.assertEqual(

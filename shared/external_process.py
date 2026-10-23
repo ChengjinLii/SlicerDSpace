@@ -23,8 +23,9 @@ def resolve_external_command(name: str, bin_dir: Optional[Path] = None, *, requi
 
 
 def interpreter_path(path: Path | str) -> Path:
-    """Absolute interpreter path that keeps a virtualenv's ``bin/python`` symlink."""
-    return Path(path).expanduser().absolute()
+    """Absolute, normalized interpreter path that keeps a virtualenv's ``bin/python`` symlink."""
+    # C6: abspath removes ``..`` like ``sys.executable`` does; it does not follow symlinks.
+    return Path(os.path.abspath(os.path.expanduser(str(path))))
 
 
 def slicer_runtime_roots(home: Path | str) -> tuple[Path, ...]:
@@ -171,6 +172,8 @@ def python_tool_environment(python_executable: Path | str,
     Slicer's PYTHONHOME or library overrides leak into that environment.
     """
     path = Path(python_executable).expanduser().absolute()
-    if path.name in {"PythonSlicer", "python-real"} or _looks_like_slicer_runtime_path(str(path)):
+    # C9: a virtualenv is never Slicer's Python, even under a folder named like "Slicer-envs".
+    in_venv = (path.parent.parent / "pyvenv.cfg").is_file()
+    if path.name in {"PythonSlicer", "python-real"} or (not in_venv and _looks_like_slicer_runtime_path(str(path))):
         return startup_environment(extra_env)
     return external_python_environment(extra_env, path_prepend=[path.parent])
