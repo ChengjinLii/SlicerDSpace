@@ -787,6 +787,16 @@ kind the old one did (about 90 runs). The review is closed. Non-blocking items:
   changed the `names.add(" ".join(` line. **Fixed 2026-10-23** (user request): the r28 1 entry names the `names.add("
   ".join(` line. A row pins it; with the old words, the new script fails r29 8.
 
+### Review of the last batch (3734da3; Opus 0 blocking, Codex 0 blocking)
+
+Codex and Opus each ran the static suite on Python 3.9–3.15 with LF and CRLF (all 17/0) and reproduced the 31 changed
+copies; Opus also ran the browser suite on a copy of 3734da3 (68/0, Chrome 156.0.8078.47) and checked in the vendored
+Playwright 1.63 that `r.frame() === p2.mainFrame()` holds for the page's own navigation. Neither found a blocking or a
+reportable non-blocking item. Opus called one sentence ambiguous but not false: the r27 2 entry's “Four rows now name
+two findings” counts the four relabelled rows, not the new `r23 1, r27 2` row that the next sentence names; no change.
+This was the last round (the user asked to close every open item and to stop the loop); no item of the review backlog is
+open.
+
 ## Image crop boxes as finally used
 
 Frames come from the delivered film with `ffmpeg -ss <t> -i <film> -frames:v 1`. Boxes are `x0,y0,x1,y1` in the
