@@ -22,6 +22,8 @@ def run():
         assert len(owner._algorithmButtons) == 3
         assert not owner._advancedSettingsPanel.isAncestorOf(owner.ui.environmentCollapsibleButton)
         assert not owner._advancedSettingsPanel.isAncestorOf(owner.ui.resultsCollapsibleButton)
+        # Results and QC sat in the collapsed Advanced panel (hidden by it) before it moved to the main column.
+        assert not owner.ui.resultsCollapsibleButton.isHidden() and owner.ui.resultsCollapsibleButton.visible
         assert owner._advancedCategorySelector.count == 4
         checks.append('three_pickers_and_independent_environment')
         for button in owner._algorithmButtons.values():

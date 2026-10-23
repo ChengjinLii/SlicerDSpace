@@ -83,6 +83,8 @@ def install_advanced_categories(owner):
     layout.removeWidget(owner.ui.resultsCollapsibleButton)
     root_layout.insertWidget(root_layout.indexOf(owner.ui.logCollapsibleButton), owner.ui.resultsCollapsibleButton)
     owner.ui.resultsCollapsibleButton.collapsed = True
+    # It sat in the collapsed Advanced panel, which hid it explicitly; moving it does not show it again.
+    owner.ui.resultsCollapsibleButton.show()
     selector.currentIndexChanged.connect(stack.setCurrentIndex)
     def fit(*_):
         page = stack.currentWidget()
