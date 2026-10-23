@@ -38,7 +38,7 @@ class SurfaceRuntimeTests(unittest.TestCase):
     def test_explicit_runtime_wins_without_discovering_full_install(self):
         with tempfile.TemporaryDirectory() as tmp, patch('shared.environment.resolve_freesurfer_home') as discover:
             selected = resolve_surface_runtime(Path(tmp), Path('/old/full-install'))
-            self.assertEqual(selected, ('native', Path(tmp)))
+            self.assertEqual(selected, ('native', Path(tmp).resolve()))   # macOS: /var is /private/var
             discover.assert_not_called()
 
     def test_auto_retains_an_existing_install_or_uses_user_cache(self):
@@ -111,13 +111,25 @@ class SurfaceRuntimeTests(unittest.TestCase):
 
     def test_builder_dry_run_and_unapproved_execute_never_prepare_resources(self):
         from scripts.setup_surface_runtime import prepare
-        with tempfile.TemporaryDirectory() as tmp, patch('scripts.setup_optional_assets.prepare') as resources:
+        with tempfile.TemporaryDirectory() as tmp, patch('scripts.setup_optional_assets.prepare') as resources, \
+                patch('platform.system', return_value='Linux'):
             prefix = Path(tmp) / 'components'
             self.assertEqual(prepare(prefix=prefix)['status'], 'planned')
             with self.assertRaises(PermissionError):
                 prepare(prefix=prefix, execute=True)
             self.assertFalse(prefix.exists())
             resources.assert_not_called()
+
+    def test_builder_refuses_automatic_preparation_outside_linux(self):
+        from scripts.setup_surface_runtime import prepare
+        for system in ('Darwin', 'Windows'):
+            with tempfile.TemporaryDirectory() as tmp, patch('platform.system', return_value=system), \
+                    patch('scripts.setup_optional_assets.prepare') as resources:
+                prefix = Path(tmp) / 'components'
+                with self.assertRaisesRegex(ValueError, 'validated on Linux only'):
+                    prepare(prefix=prefix)
+                self.assertFalse(prefix.exists())
+                resources.assert_not_called()
 
     def test_source_recipe_and_data_manifest_are_in_install_contract_not_large_archive(self):
         from scripts.extension_runtime.runtime_resources import runtime_files
