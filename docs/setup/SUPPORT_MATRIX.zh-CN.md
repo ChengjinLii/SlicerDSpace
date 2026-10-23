@@ -57,7 +57,7 @@ WSL 是 Linux 后端，不是 Windows 原生计算；Windows/macOS 不继承 Lin
 | DKI/Python MK-Curve | 仅真实小 ROI 已测，全脑时间缺失 | 原生数值候选，需适用的多壳数据 | 原生数值候选，需适用的多壳数据 |
 | PNL CNN 掩膜 | 外部路线已测；Linux x86_64 自动配置与 CUDA 前向/掩膜检查 | **Windows 原生 GUI 不支持**；提供掩膜或明确选择 MRtrix/WSL | 需 POSIX/ANTs/TensorFlow；无 CUDA，Metal 未实现，未实测 |
 | 完整 FreeSurfer SynthStrip 环境 | CPU/CUDA 已测 | **当前封装不支持原生 Windows**，需完整 Linux/WSL 环境 | FreeSurfer/Python CPU 候选，未实测 |
-| FreeSurfer 风格表面后处理 | 有 Linux 记录 | 需 WSL/Linux，桥接全流程待验收 | macOS FreeSurfer 候选，shell/CLI 待验收 |
+| 皮层表面后处理 | 本机源码组件或已有 FreeSurfer；[配置说明](SURFACE_COMPONENTS.zh-CN.md) | 不支持原生源码构建；WSL／完整安装桥接待验收 | 已有原生 FreeSurfer 候选；源码编译未验证、不自动准备 |
 | MRtrix/FSL 预处理 | CPU、CUDA 有记录 | WSL 2 桥接；设备策略在实际 WSL Python 内运行 | 原生 CPU MRtrix/FSL 候选；**不能使用 CUDA eddy** |
 | CSD/ACT/SIFT2 | 外部 MRtrix 路线已测 | MRtrix WSL 桥接，全流程待验收 | 原生 MRtrix 候选，全流程待验收 |
 | 完整 SAF | 指定输入的 Python 筛选/几何已核验 | 已补 argv/PATH 适配；需 MRtrix 桥接和准备好的表面，待验收 | POSIX/MRtrix 及准备好的表面，待验收 |

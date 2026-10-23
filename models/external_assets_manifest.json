@@ -14,6 +14,14 @@
     }
   },
   "asset_records": {
+    "surface/postprocessing/atlas.tar.gz": {
+      "sha256": "531f481bd677396f8b4c816f0be076a35249f2991cb4d4456b22cbc1b583c510",
+      "size_bytes": 29657074,
+      "urls": ["https://raw.githubusercontent.com/ChengjinLii/DDSurfer/8a8699c0fda32be7e0a3cbca2903680b9f0c950b/postprocessing/assets/atlas.tar.gz"],
+      "redistribution": "with-notice",
+      "license": "FreeSurfer Software License Agreement and included third-party notices",
+      "note": "Pinned data-only upstream archive; no native binaries or personal activation. Not yet mirrored by this change."
+    },
     "bundles/wma/extracted_resource_index.json": {
       "sha256": "b9b506e9b61628e84be4791b4532c8c88be7c3f335ba1d0f481c124a8752cada",
       "size_bytes": 149489,
@@ -119,6 +127,11 @@
     }
   },
   "profiles": {
+    "surface-postprocess": {
+      "directory": "surface/postprocessing",
+      "required_paths": ["surface/postprocessing/atlas.tar.gz"],
+      "terms_notice": ["Original FreeSurfer atlas data and notices from the pinned DDSurfer revision. Preserve the complete MGH/third-party agreements. Source compilation downloads pinned FreeSurfer, ITK and zlib sources separately. No executable binaries or personal activation file are downloaded in this profile."]
+    },
     "pnl-cnn-weights": {
       "required_paths": [
         "brain_mask/pnl_cnn/CompNetBasicModel.json",

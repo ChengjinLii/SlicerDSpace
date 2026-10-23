@@ -41,6 +41,11 @@ Install dependencies **for the selected route**, not for every possible product.
 MRtrix3, FSL, FreeSurfer and advanced bundle backends are optional and are not
 silently installed. See the [capability and platform matrix](docs/setup/SUPPORT_MATRIX.md).
 
+Optional cortical postprocessing can use **locally compiled original FreeSurfer
+components without the full installation**, or reuse an existing installation.
+Preparation is explicit; a personal activation file is still required.
+See [surface component setup](docs/setup/SURFACE_COMPONENTS.md).
+
 Large weights, templates and inference atlases are managed separately from code.
 The selected-environment preparation downloads only required resource groups,
 verifies SHA256 and saves their paths; existing and offline resources are reused.

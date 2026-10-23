@@ -93,6 +93,8 @@ class EnvironmentDialogState:
 
 
 PATH_STATUS_DEPENDENCY_KEYS = {
+    "postprocess_runtime": {"surface_postprocess_runtime"},
+    "postprocess_license_file": {"surface_postprocess_license"},
     "mrtrix_bin_dir": {
         "command:mrconvert",
         "command:dwi2response",

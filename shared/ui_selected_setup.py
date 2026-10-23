@@ -111,6 +111,10 @@ def _confirm(owner, plan):
     if plan["manual_items"]:
         parts.append(_text(owner, "Some items still need attention: ", "以下项目仍需处理：") +
                      ", ".join(item["label"] for item in plan["manual_items"]))
+    if plan.get('surface_build_required'):
+        parts.append(_text(owner,
+            'Surface postprocessing: download the pinned source/data and compile seven commands in your user cache. Requires Git, C/C++ compilers and CMake >=3.24,<4. This may take several minutes or longer and uses CPU only. No full FreeSurfer installation or Slicer Python modification. Your own activation file is still required for analysis.',
+            '表面后处理：下载固定源码与图谱，在用户缓存中编译七个命令；需要 Git、C/C++ 编译器和 CMake >=3.24,<4。可能需要数分钟或更久，仅使用 CPU。不安装完整 FreeSurfer，不改动 Slicer Python；分析仍需您自己的激活文件。'))
     if plan["pnl_terms_required"]:
         parts.append(_text(owner, "PNL source, model and template permissions are separate; download/hash verification is not a license grant.",
                            "PNL 源码、模型与模板的权限须分别核对；下载及哈希验证不代表获得授权。"))
@@ -123,6 +127,14 @@ def _confirm(owner, plan):
     label.wordWrap = True
     layout.addWidget(label)
     approvals = []
+    if plan.get('surface_build_required'):
+        terms = qt.QLabel('<a href="https://surfer.nmr.mgh.harvard.edu/fswiki/FreeSurferSoftwareLicense">FreeSurfer source/data terms</a> | ITK / zlib notices')
+        terms.openExternalLinks = True
+        layout.addWidget(terms)
+        check = qt.QCheckBox(_text(owner, 'I have reviewed the source/data terms and approve this local build.',
+                                  '我已阅读源码与数据许可，同意进行本机编译。'))
+        approvals.append(check)
+        layout.addWidget(check)
     if plan["optional_asset_profiles"]:
         check = qt.QCheckBox(_text(owner, "I have reviewed the resource terms above; my use complies.",
                                   "我已阅读以上资源许可，且本次使用符合许可。"))
@@ -192,7 +204,7 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
         need_ukf="tractography" in targets and contains_tracking(owner._tractography_backend_text(), "ukf"),
         brain_mask_backend=getattr(owner._parameterNode, "brainMaskBackend", "pnl_cnn"), gpu_available=gpu,
         existing_managed_profiles=existing, repair=repair)
-    pending_actions = any(plan[key] for key in (
+    pending_actions = plan.get('surface_build_required', False) or any(plan[key] for key in (
         "extensions", "restart_extensions", "python_packages", "asset_profiles", "optional_asset_profiles",
         "managed_profiles", "unsupported_profiles", "manual_items"))
     if pending_actions and not _confirm(owner, plan):
@@ -315,9 +327,37 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
         start_setup_job(owner, _text(owner, "Prepare external tools", "准备外部计算工具"),
                         [(owner._slicer_launcher_program(), args, {})], done)
 
+    def surface_setup():
+        if not plan.get('surface_build_required'):
+            managed_setup()
+            return
+        from shared.ui_setup_jobs import start_setup_job
+        from shared.ui_managed_runtimes import apply_runtime_result
+        receipt = folder / 'surface-runtime-result.json'
+        script = Path(__file__).resolve().parents[1] / 'scripts/setup_surface_runtime.py'
+        args = ['--launch', 'PythonSlicer', '-u', str(script), '--execute', '--accept-terms',
+                '--jobs', '4', '--result', str(receipt)]
+        for key, flag in (('model_assets_dir', '--asset-root'), ('postprocess_runtime', '--prefix')):
+            if config.get(key):
+                args += [flag, str(config[key])]
+
+        def done(status, details, _log):
+            if status != 'completed':
+                finish(status, details)
+                return
+            try:
+                apply_runtime_result(owner, json.loads(receipt.read_text()))
+            except Exception as exc:
+                finish('failed', str(exc))
+                return
+            managed_setup()
+
+        start_setup_job(owner, _text(owner, 'Build surface components', '编译表面处理组件'),
+                        [(owner._slicer_launcher_program(), args, {})], done)
+
     def optional_setup():
         if not plan["optional_asset_profiles"]:
-            managed_setup()
+            surface_setup()
             return
         from shared.ui_setup_jobs import start_setup_job
         from scripts.setup_optional_assets import PATH_SETTINGS
@@ -349,7 +389,7 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
             except Exception as exc:
                 finish("failed", str(exc))
                 return
-            managed_setup()
+            surface_setup()
 
         start_setup_job(owner, _text(owner, "Prepare selected resources", "准备所选资源"),
                         [(owner._slicer_launcher_program(), args, {})], done)

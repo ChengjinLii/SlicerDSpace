@@ -36,6 +36,9 @@ SlicerDDSurfer 在一个 Slicer 模块中组织扩散 MRI 解剖重建、微结�
 MRtrix3、FSL、FreeSurfer 和高级白质束后端均为按需配置，不会静默安装。
 详见[能力与平台矩阵](docs/setup/SUPPORT_MATRIX.zh-CN.md)。
 
+可选皮层后处理支持**本机编译原始 FreeSurfer 组件，无需安装完整套件**，也能复用已有安装。
+准备操作需用户确认，仍需个人激活文件。见[表面组件配置](docs/setup/SURFACE_COMPONENTS.zh-CN.md)。
+
 大型权重、模板和推理图谱与代码分开管理。“准备所选分析环境”仅下载当前路线需要的资源，
 校验 SHA256 后自动保存路径，复用已有文件，也支持离线资源。
 见[资源目录、授权与下载策略](docs/assets/EXTERNAL_RESOURCES.zh-CN.md)。

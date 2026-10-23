@@ -61,7 +61,7 @@ inherit Linux QC or timings.
 | DKI/Python MK-Curve | Small real ROIs only; full-brain timing missing | Native numerical candidate; eligible multi-shell data | Native numerical candidate; eligible multi-shell data |
 | PNL CNN mask | External TensorFlow/Keras/ANTs route measured; Linux x86_64 managed setup and CUDA forward/mask checks | **Unavailable in native Windows GUI**; supply a mask or explicitly select MRtrix/WSL | POSIX/ANTs/TensorFlow required; no CUDA, Metal unimplemented; unmeasured here |
 | Full FreeSurfer SynthStrip environment | CPU/CUDA measured | **Not native Windows in this wrapper**; full Linux/WSL environment needed | FreeSurfer/Python CPU candidate, unmeasured here |
-| FreeSurfer-style surface postprocessing | Linux route recorded | WSL/Linux required; bridge end-to-end acceptance pending | macOS FreeSurfer candidate; shell/CLI acceptance pending |
+| Cortical postprocessing | Source-built native components or existing FreeSurfer; [setup](SURFACE_COMPONENTS.md) | Native source build unsupported; WSL/full-install bridge acceptance pending | Existing native FreeSurfer candidate; local source build unvalidated, not auto-provisioned |
 | MRtrix/FSL preprocessing | CPU/CUDA recorded | WSL 2 bridges; device policy runs in actual WSL Python | Native CPU MRtrix/FSL candidate; **no CUDA eddy** |
 | CSD/ACT/SIFT2 | External MRtrix route recorded | MRtrix WSL bridges; acceptance pending | Native MRtrix candidate; acceptance pending |
 | Full SAF | Python filter/geometry checks on recorded inputs | Windows argv/PATH adaptation added; MRtrix bridges/prepared surfaces; acceptance pending | POSIX/MRtrix with prepared surfaces; acceptance pending |

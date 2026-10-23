@@ -500,11 +500,14 @@ DIPY preprocessing backend 不需要 FSL，但它不提供完整 susceptibility 
 
 ## 6. FreeSurfer
 
-FreeSurfer 主要用于 DDSurfer postprocess 后端，生成 FreeSurfer-style `surf/label/stats`。
+DDSurfer postprocess 生成 FreeSurfer-style `surf/label/stats`，当前原生 OBJ 路线可使用
+本机从固定源码编译的七个原始组件，**不强制安装完整 FreeSurfer**。已有完整安装仍可复用。
+组件并非 Python 重写，仍适用 FreeSurfer 许可及个人激活要求；SynthStrip 单独配置。
+详见[表面组件与首次准备](SURFACE_COMPONENTS.zh-CN.md)。
 
 ### 6.1 用途
 
-需要 FreeSurfer 的功能：
+使用这些组件或已有 FreeSurfer 的功能：
 
 - DDSurfer postprocess
 - surface annotation 投射
@@ -516,7 +519,7 @@ FreeSurfer-style subject 目录。
 
 ### 6.2 需要的资源/命令
 
-需要：
+本机组件路线需要有效组件目录和个人激活文件。完整安装兼容路线需要：
 
 - `FREESURFER_HOME`
 - `FREESURFER_HOME/subjects/fsaverage`
@@ -538,6 +541,12 @@ FreeSurfer-style subject 目录。
 这不是完整 `recon-all` 或 `mris_anatomical_stats` 的替代实现；不会新增灰质体积或 eTIV。
 
 ### 6.3 配置方式
+
+可在 Slicer 的环境与安装中配置表面组件目录和激活文件，也可使用
+`--postprocess-runtime`、`--postprocess-license-file`，或 `SLICERDDSURFER_SURFACE_RUNTIME`
+与 `FS_LICENSE`。缺少组件时明确确认后可后台编译；环境检查和分析本身不会下载或编译。
+
+已有完整安装可继续配置：
 
 ```bash
 export FREESURFER_HOME=/path/to/freesurfer
@@ -743,6 +752,8 @@ scripts/download_model_assets.sh --profile parcellation
 | `SLICERDDSURFER_MRTRIX_HOME` / `MRTRIX_HOME` / `MRTRIX3_HOME` | MRtrix3 安装根目录 |
 | `SLICERDDSURFER_FSL_BIN_DIR` / `FSL_BIN_DIR` / `FSLDIR` | FSL 安装或 `bin` 目录 |
 | `SLICERDDSURFER_FREESURFER_HOME` / `FREESURFER_HOME` | FreeSurfer 安装目录 |
+| `SLICERDDSURFER_SURFACE_RUNTIME` | 可选本机源码编译的表面组件目录 |
+| `FS_LICENSE` | 本机组件或完整安装使用的个人激活文件 |
 | `FREESURFER_LICENSE` | FreeSurfer license |
 | `SLICERDDSURFER_WMA_ROOT` / `WMA_ROOT` | WhiteMatterAnalysis checkout |
 | `SLICERDDSURFER_WMA_ATLAS_DIR` / `WMA_ATLAS_DIR` | WMA ORG atlas 目录 |
@@ -762,7 +773,7 @@ scripts/download_model_assets.sh --profile parcellation
 | 启动 Slicer GUI | 3D Slicer, PyTorch Extension | SlicerDMRI 用于 fiber bundle 显示 |
 | Input validation | `nibabel`, `SimpleITK` | 可检查 MRtrix/FSL/Microstructure 依赖状态 |
 | DDSurfer surface | PyTorch, `torchvision`, DDSurfer weights/templates, `SimpleITK`, `trimesh` | GPU 可选 |
-| DDSurfer postprocess | FreeSurfer, `nibabel`, `numpy`, `trimesh`, `rtree` | 不需要外部 T1w；可用 FA/b0 生成 `brain.mgz` |
+| DDSurfer postprocess | 本机源码组件或已有 FreeSurfer、个人许可证、`nibabel`、`numpy`、`trimesh`、`rtree` | 当前原生 OBJ 路线不需完整版；不需要外部 T1w，可用 FA/b0 生成 `brain.mgz` |
 | DDParcel | PyTorch, `torchvision`, `nibabel`, `pynrrd`, `h5py`, `scikit-image`, `SimpleITK`, weights | Slicer CLI DTI extraction |
 | DDSeg | PyTorch, `torchvision`, `nibabel`, `pynrrd`, weights | GPU 可选 |
 | Microstructure DTI | `dipy`, `nibabel`, `numpy` | ROI-wise 需要 parcellation label map |
@@ -788,7 +799,7 @@ scripts/download_model_assets.sh --profile parcellation
 3. 如需 Microstructure，安装 DIPY 和 AMICO。
 4. 如需 CSD/ACT/SAF/connectome MRtrix 后端，安装 MRtrix3 并配置 `SLICERDDSURFER_MRTRIX_BIN_DIR`。
 5. 如需高质量 preprocessing，安装 FSL 并配置 FSL bin。
-6. 如需 DDSurfer postprocess，安装 FreeSurfer 并配置 `FREESURFER_HOME` 和 license。
+6. 如需 DDSurfer postprocess，可按[组件指南](SURFACE_COMPONENTS.zh-CN.md)准备本机组件及个人激活文件；已有 FreeSurfer 仍可使用，历史 STL/shell 路线有额外依赖。
 7. 如需 bundle 后端，再分别安装 WMA / Tract Querier / TractCloud。
 
 不要在不需要对应功能时强制安装所有可选后端；统一命令会通过 manifest/QC 报告当前缺少的依赖和 blocked reason。

@@ -96,6 +96,7 @@ User-local defaults live alongside model assets under `SlicerDDSurfer/runtimes`.
 | DDSurfer / DDSeg / DDParcel assets | Existing background download with profile-specific selection and default directory |
 | Python scientific packages | Selected interpreter, protected Slicer core packages, native packaging API when available; official PyTorch helper |
 | PNL diffusion CNN | Linux x86_64; pinned official source, v0.3 three-view weights, IIT b0 template, Python 3.11, TensorFlow 2.15.1/Keras 2 and ANTs 2.3.0 in a separate prefix |
+| Optional cortical postprocessing | Linux x86_64; [explicit local source build](SURFACE_COMPONENTS.md) of seven original FreeSurfer components, with toolchain prerequisites and personal activation; a full installation is optional |
 | WMA / TractCloud / SynthStrip non-code resources | Selected optional profile download/import, checksums, ORG extraction and automatic path saving; private-mirror authorization still applies |
 | Full FreeSurfer, WMA/WMQL/TractCloud executable backends | Not all provisioned by this installer; configured adapters and missing-item guidance remain |
 | Windows/macOS managed MRtrix/FSL/PNL setup | Not implemented/accepted; existing platform setup and Advanced paths remain |

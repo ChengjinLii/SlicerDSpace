@@ -115,6 +115,7 @@ def apply_runtime_result(owner, result):
         raise ValueError("Only a completed managed runtime setup can update paths")
     file_settings = {"pnl_mask_python", "pnl_mask_script"}
     allowed = {"mrtrix_bin_dir", "preprocessing_mrtrix_bin_dir", "preprocessing_fsl_bin_dir",
+               "postprocess_runtime",
                "pnl_mask_python", "pnl_mask_script", "pnl_mask_model_dir", "pnl_mask_ants_bin_dir"}
     settings = result.get("external_dependencies", {})
     if not settings or set(settings) - allowed:

@@ -169,7 +169,7 @@ def selected_workflows(flags: ProductTargetFlags) -> list[str]:
     if flags.surface:
         selected.append("Surface / DDSurfer native STL")
     if flags.surface_postprocess:
-        selected.append("Surface postprocess / FreeSurfer")
+        selected.append("Surface postprocess")
     if flags.parcellation:
         selected.append("Parcellation / DDParcel")
     if flags.segmentation:
@@ -430,6 +430,8 @@ def build_single_subject_run_kwargs(
         "preprocessing_mrtrix_bin_dir": external_paths.get("mrtrix_bin_dir"),
         "preprocessing_fsl_bin_dir": external_paths.get("preprocessing_fsl_bin_dir"),
         "postprocess_freesurfer_home": external_paths.get("postprocess_freesurfer_home"),
+        "postprocess_runtime": external_paths.get("postprocess_runtime"),
+        "postprocess_license_file": external_paths.get("postprocess_license_file"),
         "pnl_mask_python": external_paths.get("pnl_mask_python"),
         "pnl_mask_script": external_paths.get("pnl_mask_script"),
         "pnl_mask_model_dir": external_paths.get("pnl_mask_model_dir"),
@@ -669,6 +671,8 @@ EXTERNAL_PATH_CLI_FLAGS: tuple[tuple[str, str], ...] = (
     ("mrtrix_bin_dir", "--preprocessing-mrtrix-bin-dir"),
     ("preprocessing_fsl_bin_dir", "--preprocessing-fsl-bin-dir"),
     ("postprocess_freesurfer_home", "--postprocess-freesurfer-home"),
+    ("postprocess_runtime", "--postprocess-runtime"),
+    ("postprocess_license_file", "--postprocess-license-file"),
     ("pnl_mask_python", "--pnl-mask-python"),
     ("pnl_mask_script", "--pnl-mask-script"),
     ("pnl_mask_model_dir", "--pnl-mask-model-dir"),
