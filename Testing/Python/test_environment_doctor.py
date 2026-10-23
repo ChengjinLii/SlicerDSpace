@@ -95,6 +95,27 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
         self.assertEqual(status.status, "available")
         self.assertEqual(status.details["pythonpath"], [package_root.as_posix()])
 
+    def test_external_python_probe_drops_slicer_pythonhome(self) -> None:
+        # PythonSlicer exports PYTHONHOME; an external venv probed with it fails ("SRE module mismatch").
+        slicer_env = {"PYTHONHOME": "/Applications/Slicer.app/Contents/lib/Python",
+                      "PYTHONPATH": "/Applications/Slicer.app/Contents/lib/Slicer-5.12"}
+        with mock.patch.dict(os.environ, slicer_env):
+            status = _check_spec(
+                DependencySpec(
+                    key="python:json",
+                    kind="python",
+                    label="json",
+                    required=True,
+                    targets=("tractcloud",),
+                    python_import="json",
+                    python_package="",
+                    python_executable=Path(sys.executable),
+                ),
+                sys.platform,
+            )
+
+        self.assertEqual(status.status, "available", status.details.get("error"))
+
     def test_python_version_requirement_rejects_old_torch(self) -> None:
         specifier, satisfied = _python_requirement_details("torch>=2.0.0", "1.8.1+cpu")
         self.assertEqual(specifier, ">=2.0.0")

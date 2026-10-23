@@ -1809,7 +1809,7 @@ def _check_spec(spec: DependencySpec, platform_name: str) -> DependencyStatus:
             }
         else:
             python_path = python_executable or Path(sys.executable)
-            env = os.environ.copy()
+            env = python_tool_environment(python_path)
             if python_path_entries:
                 env["PYTHONPATH"] = os.pathsep.join(path.as_posix() for path in python_path_entries) + os.pathsep + env.get("PYTHONPATH", "")
             probe = (
