@@ -173,7 +173,7 @@ Three method papers, exactly as CITATION.cff gives them (R/CITATION.cff:32-111):
 
 - CITATION.cff comment: the three papers "were verified individually against Crossref" (:27-31). THIRD_PARTY_NOTICES.md:152-164 repeats the three.
 - Other paper cited in the repo: SAF, Shastin et al., "Surface-based tracking for short association fibre tractography", NeuroImage 2022, doi:10.1016/j.neuroimage.2022.119423 (R/THIRD_PARTY_NOTICES.md:45-49).
-- Promo CREDITS gives the DDSurfer issue as "Advanced Science 13(56):e76596 (2026)" (P/CREDITS.md:12). CITATION.cff has no volume or issue for it.
+- Promo CREDITS gives the DDSurfer issue as "Advanced Science 13(56):e76596 (2026)" (P/CREDITS.md:12). CITATION.cff has no volume or issue for it. Crossref (api.crossref.org/works/10.1002/advs.76596, read 2026-10-24) gives volume 13, issue 56, article number e76596, as does anatomy/surface/ddsurfer_backend/README.md:34.
 - Model-asset terms require citing the DDSeg and DDParcel papers (R/docs/assets/MODEL_ASSET_TERMS.md:37-38).
 
 ## 8. Licences
@@ -236,7 +236,7 @@ Bundles scene (45.6-50.4 s):
 - What the viewer sees: the whole-brain fibres dim to grey; the 42 bundles arrive family by family (commissural, projection, association, cerebellar, superficial), one colour each. (P/MAKING_OF.md:73-76, 99; P/film/TREATMENT.md:7-10)
 - On-screen text: title "White-matter bundles", note "42 tracts · display subset". (P/film/content.json:65-69)
 - The Bundles scene names no method, in the narration (line 10, srt:39) or on screen (user request, 24 October 2026). (P/MAKING_OF.md:164-166; P/film/FACTS.md:15)
-- The 23 October cut also showed WMQL tracts from the multi-shell run (two bundle methods). The 24 October cut's Bundles scene does not. The 3D Slicer screenshot later in the film still shows the module's Bundles row ("WMQL + WMA + TractCloud") and the WMQL AF and CST bundles in its 3D view (P/runtime/shots_workflow_ms3/capture.log:13). (P/MAKING_OF.md:99; P/film/TREATMENT.md:20-21)
+- The 23 October cut also showed WMQL tracts from the multi-shell run (two bundle methods). The 24 October cut's Bundles scene does not. The 3D Slicer screenshot later in the film still shows the module's Bundles row ("WMQL + WMA + TractCloud") and, in its 3D view, the CSD/ACT tractogram with bundles (P/runtime/shots/final_ms3/window.png). The scene's fibre nodes are that tractogram, the WMQL AF and CST bundles (left and right) and four TractCloud bundles: AF, CC1, CC2 and CST (P/runtime/shots_workflow_ms3/capture.log:13). (P/MAKING_OF.md:99; P/film/TREATMENT.md:20-21)
 
 Data used:
 - EDDEN (Evaluating Diffusion MRI Denoising), OpenNeuro ds004666, subject sub-01, session ses-1p5mm, licence CC0. Used: topup + eddy corrected `AVG_mag` DWI (5 repeats averaged), bval/bvec, brain mask, and the T1-weighted image "shown only on the 'problem' card". (P/CREDITS.md:4-5)
@@ -325,7 +325,7 @@ Contradictions between sources:
 4. Tag. RELEASE.md:163 mentions "the existing `v0.1.0` tag" and a draft release file. `git tag -l` in R/ lists no tag. CITATION.cff:2 asks users to cite "the tagged software release". HEAD is dated 2026-10-16; date-released is 2026-06-24.
 5. Clinical wording. The end card says "Not for clinical use" and P/film/FACTS.md:18 attributes it to the README. The README wording is "A completed run is not a clinical assessment or proof of scientific correctness." (README.md:21-22). The words "Not for clinical use" do not appear in the README.
 6. "Official". zh README calls the PNL backend "官方" (official) Python; English says "the author's existing Python backend".
-7. DDSurfer citation detail. CITATION.cff has year 2026 and article number e76596 only; P/CREDITS.md:12 adds "13(56)". Not in any repo file read.
+7. DDSurfer citation detail. CITATION.cff has year 2026 and article number e76596 only; P/CREDITS.md:12 adds "13(56)". Settled: Crossref gives 13(56) (§7); the site's [1] gives it since 2026-10-24.
 8. Description text differs across README, s4ext, CITATION.cff, codemeta, .zenodo.json (section 1). No file defines one official one-line description. README tagline: "Diffusion MRI workflows in 3D Slicer".
 9. Final narration line 12 ("Brain anatomy from diffusion MRI, inside 3D Slicer.") has no row of its own in P/film/FACTS.md. The FACTS row for the end card covers the tagline "Diffusion MRI workflows in 3D Slicer" only.
 

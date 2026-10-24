@@ -287,7 +287,7 @@ Two columns: text left, `idea.jpg` right.
 | res-mkcurve.jpg | “MK-Curve · microstructure” | “Mean kurtosis, MK-Curve” | “Unofficial Python port, same data. Automatic QC did not pass: 98.7% of mask voxels are valid; the check needs all.” | P/film/data/gallery/index.json; QC file of the run |
 | res-tissue.jpg | “DDSeg · tissue” | “Tissue labels” | “White matter, grey matter and CSF, predicted from DTI features.” | F4 (five DTI features) |
 | res-parcel.jpg | “DDParcel · regions” | “Brain regions” | “Anatomical regions labelled in the diffusion volume.” | F7 (DDParcel title) |
-| out-surfaces.jpg | “DDSurfer · surfaces” | “White and pial surfaces” | “Cortical surface meshes in native diffusion space.” | F2 FACTS:13 |
+| out-surfaces.jpg | “DDSurfer · surfaces” | “Cortical surfaces” | “White and pial meshes in native diffusion space. Shown: the pial surface.” | F2 FACTS:13; the 35.3 s frame shows the pial surface (P/film/main.js:350, white → pial morph ends at 35.2 s) |
 | out-tracts.jpg | “Tractography · DTI” | “Whole-brain tractography” | “Deterministic DTI tractography. Shown: a display subset of 24,000 of 130,780 streamlines.” | F9 caveats |
 | res-tr-ukf.jpg | “Tractography · UKF” | “UKF two-tensor tractography” | “UKFTractography. Shown: a display subset of 24,000 of 208,295 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
 | res-tr-csd.jpg | “Tractography · CSD/ACT” | “MSMT-CSD with ACT” | “MRtrix3 iFOD2 with ACT. Shown: 24,000 of 1,000,000 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
