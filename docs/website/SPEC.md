@@ -359,7 +359,7 @@ Two columns: text left, `idea.jpg` right.
 
 - Eyebrow: “In 3D Slicer”.
 - H2: “One 3D Slicer module, with QC and a record of every run.” [F9 narration 11; F1 README:15-18]
-- `slicer.jpg` (1920×1027) full width in a panel. Caption: “A real screenshot of 3D Slicer 5.12.4 on macOS. The module loaded the multi-shell EDDEN results: free-water FA in the slice views, the TractCloud bundles in 3D, the run’s recorded QC in Results and QC. A capture script set the inputs, the products and the view settings; the runs were started from the command line.”
+- `slicer.jpg` (1920×1027) full width in a panel. Caption: “A real screenshot of 3D Slicer 5.12.4 on macOS. The module loaded the multi-shell EDDEN results: free-water-corrected FA in the slice views, the TractCloud bundles in 3D, the run’s recorded QC in Results and QC. A capture script set the inputs, the products and the view settings; the runs were started from the command line.”
   [P/runtime/capture_gui_workflow.sh; P/runtime/gui_workflow_capture.py; P/runtime/shots_workflow_v2/capture.log]
 - Ordered list “A run in six steps” [F6 README:89-94]:
   1. “Open SlicerDDSurfer and choose English or Chinese.”

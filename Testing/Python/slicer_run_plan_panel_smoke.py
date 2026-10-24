@@ -102,8 +102,10 @@ def _ui_result_ready(widget) -> bool:
             status_item = table.item(row, 1)
             statuses.append(status_item.text() if status_item else "")
     unfinished = {"queued", "running", "will_run"}
+    from shared.ui_run_controller import summary_names_run_status
+
     return (
-        summary_text.startswith("Status:")
+        summary_names_run_status(summary_text)
         and bool(report_button and report_button.enabled)
         and bool(latest_report and latest_report.is_file())
         and not any(status in unfinished for status in statuses)

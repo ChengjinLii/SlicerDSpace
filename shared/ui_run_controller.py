@@ -391,6 +391,20 @@ def run_summary_from_manifest(manifest: dict[str, Any]) -> tuple[str, str]:
     return "\n".join(lines), status
 
 
+RUN_STATUS_WORDS = {"completed", "passed", "failed", "running", "partial", "blocked", "planned", "unknown", "cancelled"}
+
+
+def summary_names_run_status(text: str) -> bool:
+    """True when a run-summary label names a run's status: the manifest summary ("Completed · 9m 22s") or a
+    "Status: …" message; False for a plan, a fallback line or an empty label."""
+
+    text = str(text or "").strip()
+    if text.startswith("Status:"):
+        return True
+    head = text.split("\n", 1)[0].split(" · ", 1)[0].strip().lower().replace(" ", "_")
+    return head in RUN_STATUS_WORDS
+
+
 def preflight_blockers_for_targets(doctor_result: Any, selected_targets: tuple[str, ...]) -> dict[str, str]:
     """Return environment blockers limited to selected targets."""
 

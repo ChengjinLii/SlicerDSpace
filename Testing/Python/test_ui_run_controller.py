@@ -179,6 +179,18 @@ class UIRunControllerTest(unittest.TestCase):
             qc_path.write_text(json.dumps({"summary": summary}), encoding="utf-8")
             return run_summary_from_manifest({"report_paths": {"qc_summary_json_latest": qc_path.as_posix()}})
 
+    def test_finished_run_summaries_are_recognised_in_the_new_format(self) -> None:
+        # slicer_run_plan_panel_smoke.py waited for "Status:", which f6bab13 removed from the manifest summary
+        from shared.ui_run_controller import summary_names_run_status
+
+        for status in ("completed", "failed", "partial", "blocked", "running", "planned", "unknown"):
+            message, _ = self._summary_for({"status": status, "elapsed_time": "4 s", "tasks": {"completed": 1}})
+            self.assertTrue(summary_names_run_status(message), message)
+        self.assertTrue(summary_names_run_status("Status: failed | Background process exited with code 1."))
+        for text in ("", "Plan: 3 task(s) will run.", "Run finished. Manifest: /tmp/m.json",
+                     "Report summary unavailable: bad json"):
+            self.assertFalse(summary_names_run_status(text), text)
+
     def test_run_summary_orders_task_states_and_uses_plain_separators(self) -> None:
         message, status = self._summary_for({
             "status": "failed",
