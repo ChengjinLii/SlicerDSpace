@@ -38,7 +38,7 @@ Read in full: all files named in the brief. Not read (linked from them): docs/re
 | "keep the repository private until an explicit maintainer decision to publish." "The Index JSON is a draft only" | R/docs/release/RELEASE.md:38-39 |
 | "Use an authorized checkout while the repository is private." | R/README.md:51 |
 | Public repo access is a release gate: "Public repository, resolvable icon/screenshot URLs, GitHub topic: Deferred by maintainer; required before public Index submission" | R/docs/release/EXTENSION_READINESS.md:99 |
-| Dependencies shown in the film: SlicerDMRI extension (DWIToDTIEstimation, DiffusionTensorScalarMeasurements), PyTorch extension | P/CREDITS.md:13 |
+| Dependencies shown in the film: SlicerDMRI extension (DWIToDTIEstimation, DiffusionTensorScalarMeasurements), PyTorch extension | P/CREDITS.md:14 |
 
 ## 2. The core claim: "without a T1-weighted scan"
 
@@ -248,11 +248,11 @@ Data used:
 
 Software shown:
 - SlicerDDSurfer "repo HEAD a48fc95", run headless on the EDDEN data (P/CREDITS.md:9). The run started from the command line, not the Run button (P/MAKING_OF.md:61-62).
-- 3D Slicer 5.12.4 (Slicer License, BSD-style), SlicerDMRI, PyTorch extension (P/CREDITS.md:13). x86_64 Slicer under Rosetta on an Apple M4, CPU only (P/MAKING_OF.md:114-115).
-- Methods cited: DDSeg, DDParcel, DDSurfer (P/CREDITS.md:10-12).
+- 3D Slicer 5.12.4 (Slicer License, BSD-style), SlicerDMRI, PyTorch extension (P/CREDITS.md:14). x86_64 Slicer under Rosetta on an Apple M4, CPU only (P/MAKING_OF.md:114-115).
+- Methods cited: DDSeg, DDParcel, DDSurfer (as the model-asset terms ask) and TractCloud, whose bundles the film shows (P/CREDITS.md:9-13).
 - The Slicer section (55.2-64.8 s) is a real screenshot of the module in 3D Slicer 5.12.4, from `runtime/shots/final_ms3/window.png`. It shows Results and QC open on the multi-shell run `ms_micro`. The film shows it as a floating window that zooms out and then glides beside a step list ("Select products", "Run", "Review results & QC"). (P/MAKING_OF.md:46-53, 77-81, 101; P/film/content.json:79-86)
 
-Production credits (P/CREDITS.md:16-23):
+Production credits (P/CREDITS.md:17-24):
 - lemo-opuscar: MIT, (c) 2026 LemoLab, vendored.
 - three.js r170: MIT.
 - Voice: Kokoro TTS (Apache 2.0), voice `af_heart`, offline.
@@ -319,7 +319,7 @@ No URL was probed (no network call was made). The repo, CI badge and raw.githubu
 ## 12. Contradictions and gaps
 
 Contradictions between sources:
-1. Slicer version. README says 5.10 (README.md:9, 62, 64; images README:14). The film credits 3D Slicer 5.12.4 (P/CREDITS.md:13; MAKING_OF.md:34, 73). The 5.12.4 run was macOS/Rosetta and is not the Linux validation.
+1. Slicer version. README says 5.10 (README.md:9, 62, 64; images README:14). The film credits 3D Slicer 5.12.4 (P/CREDITS.md:14; MAKING_OF.md:34, 73). The 5.12.4 run was macOS/Rosetta and is not the Linux validation.
 2. Licence. R/docs/architecture/PRODUCT_ARCHITECTURE.md:82 says "the extension's MIT license". LICENSE.txt, README, CITATION.cff, .zenodo.json, codemeta say BSD-3-Clause. (The DDSurfer backend inside is MIT; THIRD_PARTY_NOTICES.md:117-126.)
 3. Platforms. codemeta.json:12-18 lists runtimePlatform "Linux, macOS, Windows" and developmentStatus "active". README:174 and SUPPORT_MATRIX say Windows/macOS scientific workflows are not certified.
 4. Tag. RELEASE.md:163 mentions "the existing `v0.1.0` tag" and a draft release file. `git tag -l` in R/ lists no tag. CITATION.cff:2 asks users to cite "the tagged software release". HEAD is dated 2026-10-16; date-released is 2026-06-24.
