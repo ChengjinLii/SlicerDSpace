@@ -1421,7 +1421,7 @@
            <set>ctkPathLineEdit::Dirs</set>
           </property>
           <property name="placeholderText" stdset="0">
-           <string>Optional. Defaults to &lt;subject_root&gt;/outputs/03_structural/ddparcel</string>
+           <string>Optional. Defaults to &lt;subject_root&gt;/outputs/03_anatomy/ddparcel. Existing 03_structural results remain readable.</string>
           </property>
          </widget>
         </item>
@@ -1505,7 +1505,7 @@
          <string notr="true">QLabel#microstructureHintLabel { color: #546E7A; }</string>
         </property>
         <property name="text">
-         <string>Export native-space FA and MD from the shared DTI cache, fit a DIPY Free Water model from the raw DWI, fit AMICO NODDI maps, and compute ROI-wise FA / MD / FWF / corrected tissue FA / corrected tissue MD / NDI / ODI / NODDI FWF. If ROI label map is left empty, the workflow will try &lt;subject_root&gt;/outputs/03_structural/ddparcel/&lt;subject&gt;-DDSurfer-wmparc.nii.gz. Multi-shell DWI is required. Free Water and NODDI are cached as separate stages, so reruns can selectively recompute only the stage you enable. For stability on this environment, AMICO NODDI runs with a single worker thread (nthreads=1).</string>
+         <string>Export native-space DTI scalar maps and run selected optional microstructure models. If ROI labels are left empty, use &lt;subject_root&gt;/outputs/03_anatomy/ddparcel, with compatible reading of existing 03_structural products. Each enabled model checks its acquisition requirements; optional multi-shell models are not run on ineligible data. Model outputs and cache records are kept separately for selective reruns.</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>
@@ -1793,7 +1793,7 @@
            <set>ctkPathLineEdit::Dirs</set>
           </property>
           <property name="placeholderText" stdset="0">
-           <string>Optional in subject-root mode. Defaults to &lt;subject_root&gt;/outputs/03_structural/ddseg</string>
+           <string>Optional in subject-root mode. Defaults to &lt;subject_root&gt;/outputs/03_anatomy/ddseg. Existing 03_structural results remain readable.</string>
           </property>
          </widget>
         </item>

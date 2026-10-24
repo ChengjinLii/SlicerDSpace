@@ -23,9 +23,9 @@ class IOLayoutTest(unittest.TestCase):
             layout = subject_layout(subject_root)
 
             self.assertEqual(default_task_output_dir(subject_root, "microstructure"), layout.outputs / "02_microstructure")
-            self.assertEqual(default_task_output_dir(subject_root, "ddseg"), layout.outputs / "03_structural" / "ddseg")
-            self.assertEqual(default_task_output_dir(subject_root, "ddsurfer"), layout.outputs / "03_structural" / "ddsurfer")
-            self.assertEqual(default_task_output_dir(subject_root, "ddparcel"), layout.outputs / "03_structural" / "ddparcel")
+            self.assertEqual(default_task_output_dir(subject_root, "ddseg"), layout.outputs / "03_anatomy" / "ddseg")
+            self.assertEqual(default_task_output_dir(subject_root, "ddsurfer"), layout.outputs / "03_anatomy" / "ddsurfer")
+            self.assertEqual(default_task_output_dir(subject_root, "ddparcel"), layout.outputs / "03_anatomy" / "ddparcel")
             self.assertEqual(
                 default_task_output_dir(subject_root, "tractography_dti"),
                 layout.outputs / "04_tractography" / "tractograms" / "dti_det",

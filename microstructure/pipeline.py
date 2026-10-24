@@ -245,22 +245,15 @@ def _resolve_roi_label_map(config: MicrostructureConfig) -> Path | None:
             raise FileNotFoundError(f"ROI label map not found: {roi_path}")
         return roi_path
 
+    from shared.io_layout import subject_layout
+    layout = subject_layout(config.native_bundle.subject_root)
+    directory = layout.anatomy_input_dir("ddparcel")
     default_candidates = [
-        config.native_bundle.subject_root
-        / "outputs"
-        / "03_structural"
-        / "ddparcel"
-        / f"{config.subject_id}_ddparcel_wmparc_labels.nii.gz",
-        config.native_bundle.subject_root
-        / "outputs"
-        / "03_structural"
-        / "ddparcel"
-        / f"{config.subject_id}-DDSurfer-wmparc.nii.gz",
-        config.native_bundle.subject_root
-        / "outputs"
-        / "ddparcel"
-        / f"{config.subject_id}-DDSurfer-wmparc.nii.gz",
+        directory / f"{config.subject_id}_ddparcel_wmparc_labels.nii.gz",
+        directory / f"{config.subject_id}-DDSurfer-wmparc.nii.gz",
     ]
+    if not directory.exists() and not directory.is_symlink():
+        default_candidates.append(layout.outputs / "ddparcel" / f"{config.subject_id}-DDSurfer-wmparc.nii.gz")
     for default_path in default_candidates:
         if default_path.is_file():
             return default_path

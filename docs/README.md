@@ -21,6 +21,7 @@ lightweight source checkout or complete development/research repository.
 | Guide | Purpose |
 | --- | --- |
 | [Quick Start](setup/QUICKSTART.md) | Minimal DTI workflow and synthetic installation check |
+| [Output layout](setup/OUTPUT_LAYOUT.md) | New `03_anatomy` products and read-only compatibility with historical `03_structural` results |
 | [Capabilities and platforms](setup/SUPPORT_MATRIX.md) | Configure only the selected backend |
 | [Result review](setup/GUI_RESULT_REVIEW.md) | Run-scoped loading, cancellation and QC |
 | [Brain masking](setup/brain_mask_gui_config.md) | PNL CNN default, explicit alternatives and external runtime |

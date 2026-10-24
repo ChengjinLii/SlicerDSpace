@@ -87,9 +87,11 @@ SLICERDDSURFER_USE_EXISTING_DISPLAY=1 \
   make test-slicer
 ```
 
-The GitHub Actions `Release` workflow exposes the fresh-clone smoke gate only as
-a manual `workflow_dispatch` input. Push and pull request CI downloads only the
-small sentinel asset, not the model profiles.
+All GitHub Actions workflows are currently manual-only (`workflow_dispatch`),
+including CI, Website, Release and Slicer SDK. Pushes and pull requests do not
+start them. Run local validation during development; a maintainer may explicitly
+request a release or cross-platform run when needed. A manually dispatched CI
+downloads only the small sentinel asset, not the model profiles.
 
 The same manual `Release` workflow can create or update the draft GitHub Release
 page by setting `create_github_release=true`. To attach fresh-clone evidence to
@@ -108,8 +110,10 @@ GITHUB_TOKEN=<token> \
   --branch main
 ```
 
-The normal required check should be `CI / fast-checks` or `fast-checks`. Remove
-stale required checks such as `fresh-clone-smoke`, `create-github-release`, or
+If automatic CI is re-enabled later, the normal required check should be
+`CI / fast-checks` or `fast-checks`. While automation is manual-only, do not require
+an automatic check that will never start; branch protection is an owner-managed
+setting and is not changed by the workflow edit. Remove stale required checks such as `fresh-clone-smoke`, `create-github-release`, or
 `create-github-release-with-smoke` from GitHub branch protection. The manual
 `Release` workflow is still available for fresh-clone smoke and draft release
 creation, but it should not be required for every push or pull request.

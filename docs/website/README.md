@@ -83,10 +83,12 @@ an eligible paid plan. The website is public; the source repository stays privat
 The current connector can read/write repository content but does not expose the
 Pages administration endpoint. A successful merge is not proof that Pages is enabled.
 
-If Pages is off or still configured for branch-based publishing, validation
-continues, but the deployment job is explicitly skipped with a setup notice.
-After enabling Actions, rerun `Website` from the Actions page, or push a site
-change. A deployment is accepted only after the deploy job succeeds and the
+The `Website` workflow is manual-only; a push or pull request does not run
+validation or deploy the site. When explicitly dispatched, if Pages is off or
+still configured for branch-based publishing, validation continues but deployment
+is skipped with a setup notice. After enabling Pages, manually run `Website`
+from the Actions page when publication is wanted.
+A deployment is accepted only after the deploy job succeeds and the
 public URL responds successfully.
 
 Expected URL: `https://chengjinlii.github.io/SlicerDDSurfer/`. The canonical URL,

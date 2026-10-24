@@ -4,7 +4,6 @@
 
 **3D Slicer 中的扩散 MRI 分析工作流**
 
-[![CI (main)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
 [![Slicer](https://img.shields.io/badge/3D_Slicer-5.10-58728B)](https://www.slicer.org/)
 
@@ -181,8 +180,11 @@ Linux 真实数据与 GUI 验证见[验收记录](docs/release/SLICER_ACCEPTANCE
 
 [10 月 16 日复核](docs/release/QC_FOLLOWUP_20261016.zh-CN.md)记录新版 CSD／WMA
 检查、真实 Linux SDK／CPack 安装验收，以及仍失败的 WMQL 采样和人审边界。
-CI 徽章跟踪 main 的 push 检查；
-私有仓库的徽章不能供外部公开访问，请以登录后的 Actions 结果为准。
+开发阶段使用本地验证。GitHub Actions（包括网站部署）仅保留手动触发，
+推送和拉取请求均不自动运行。
+
+新解剖结果统一写入 `outputs/03_anatomy/`，下设 `ddseg/`、`ddparcel/` 和 `ddsurfer/`。
+旧 `03_structural/` 结果兼容读取，不自动搬迁或重写，见[输出目录说明](docs/setup/OUTPUT_LAYOUT.zh-CN.md)。
 
 - CMake 与 staging 共用一份运行资源清单，安装包检查核对文件和源文件哈希。
 - 快速 CI 和本地安装测试不能替代真实 SDK/CTest/CPack 构建。

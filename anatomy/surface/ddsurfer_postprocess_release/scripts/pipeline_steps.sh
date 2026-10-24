@@ -28,7 +28,7 @@ canonical_paths_init() {
     else
         OUTPUT_SUBJECT_ROOT="${OUTPUTS_DIR}/${SUBJECT_ID}"
     fi
-    STRUCTURAL_ROOT="${OUTPUT_SUBJECT_ROOT}/03_structural/ddsurfer/postprocess"
+    STRUCTURAL_ROOT="${OUTPUT_SUBJECT_ROOT}/${SLICERDDSURFER_ANATOMY_DIRNAME:-03_anatomy}/ddsurfer/postprocess"
     STATS_ROOT="${OUTPUT_SUBJECT_ROOT}/05_statistics/ddsurfer/postprocess"
     WORK_SUBJECTS_DIR="${STRUCTURAL_ROOT}/_subjects"
     SUBJECT_PATH="${WORK_SUBJECTS_DIR}/${SUBJECT_ID}"

@@ -55,7 +55,8 @@ def run(subject_root, report_dir, run_dki=False, refit_noddi=False):
         print(f"[Scalar QC] {stage}: {checks[-1]['status']}", flush=True)
     from anatomy.parcellation.qc import validate_outputs
 
-    parcel = subject_root / "outputs/03_structural/ddparcel"
+    from shared.io_layout import subject_layout
+    parcel = subject_layout(subject_root).anatomy_input_dir("ddparcel")
     if parcel.is_dir():
         # QC writes are redirected by a shallow copy of only the six products.
         # Keep saved scientific data untouched and use links where supported.

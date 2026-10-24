@@ -185,6 +185,15 @@ class RepositoryStructureTest(unittest.TestCase):
             text = (REPO_ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
             self.assertIn("-r scripts/dev/requirements-ci.txt", text)
 
+    def test_actions_workflows_are_manual_only(self) -> None:
+        import re
+        for workflow in (REPO_ROOT / ".github/workflows").glob("*.yml"):
+            text = workflow.read_text(encoding="utf-8")
+            events = re.search(r"(?ms)^on:\n(.*?)(?=^\S|\Z)", text)
+            self.assertIsNotNone(events, workflow.name)
+            self.assertIn("workflow_dispatch:", events.group(1), workflow.name)
+            self.assertNotRegex(events.group(1), r"(?m)^  (push|pull_request|schedule|workflow_run|release):")
+
     def test_cache_settings_preserve_scientific_evidence(self) -> None:
         project = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")

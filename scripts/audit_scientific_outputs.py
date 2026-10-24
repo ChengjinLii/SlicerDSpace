@@ -1274,10 +1274,10 @@ def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) ->
         return set()
     output_root = Path(str(output_root_value))
     subject_id = str(manifest["subject_id"])
-    structural_root = output_root / "03_structural"
-    ddseg_dir = structural_root / "ddseg"
-    ddparcel_dir = structural_root / "ddparcel"
-    surface_dir = structural_root / "ddsurfer"
+    from shared.io_layout import anatomy_input_dir
+    ddseg_dir = anatomy_input_dir(output_root, "ddseg")
+    ddparcel_dir = anatomy_input_dir(output_root, "ddparcel")
+    surface_dir = anatomy_input_dir(output_root, "ddsurfer")
     task_names = {
         "ddseg": "segmentation.ddseg",
         "ddparcel": "parcellation.ddparcel",

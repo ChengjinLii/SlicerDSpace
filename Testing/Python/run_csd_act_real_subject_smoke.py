@@ -32,8 +32,10 @@ def _read_json(path: Path) -> dict[str, object]:
 
 
 def _resolve_segmentation(subject_root: Path) -> Path:
+    from shared.io_layout import subject_layout
+    directory = subject_layout(subject_root).anatomy_input_dir("ddseg")
     candidates = [
-        subject_root / "outputs" / "03_structural" / "ddseg" / "SegmentationMap_GMWMCSF.nii.gz",
+        directory / "SegmentationMap_GMWMCSF.nii.gz",
         subject_root / ".legacy_flat_outputs" / "ddseg" / "SegmentationMap_GMWMCSF.nii.gz",
         subject_root / "segmentation" / "SegmentationMap_GMWMCSF.nii.gz",
     ]
@@ -44,9 +46,11 @@ def _resolve_segmentation(subject_root: Path) -> Path:
 
 
 def _resolve_parcellation(subject_root: Path, subject_id: str) -> Path:
+    from shared.io_layout import subject_layout
+    directory = subject_layout(subject_root).anatomy_input_dir("ddparcel")
     candidates = [
-        subject_root / "outputs" / "03_structural" / "ddparcel" / f"{subject_id}_ddparcel_wmparc_labels.nii.gz",
-        subject_root / "outputs" / "03_structural" / "ddparcel" / f"{subject_id}-DDSurfer-wmparc.nii.gz",
+        directory / f"{subject_id}_ddparcel_wmparc_labels.nii.gz",
+        directory / f"{subject_id}-DDSurfer-wmparc.nii.gz",
         subject_root / ".legacy_flat_outputs" / "ddparcel" / f"{subject_id}-DDSurfer-wmparc.nii.gz",
         subject_root / "parcellation" / "wmparc.nii.gz",
     ]

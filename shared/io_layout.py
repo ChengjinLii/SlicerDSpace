@@ -14,6 +14,26 @@ from pathlib import Path
 import json
 import shutil
 
+ANATOMY_OUTPUT_NAME = "03_anatomy"
+LEGACY_ANATOMY_OUTPUT_NAME = "03_structural"
+
+
+def anatomy_input_dir(output_root: Path, product: str = "") -> Path:
+    """Read one intact product directory, preferring the new layout, without mutation.
+
+    An existing new directory takes precedence even if incomplete or a broken
+    symlink; never fill its missing files from a different historical product.
+    Writers must use SubjectIOLayout.anatomy and its canonical child properties.
+    """
+    relative = Path(product)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError("anatomy product must be a relative path without parent traversal")
+    current = Path(output_root) / ANATOMY_OUTPUT_NAME / relative
+    legacy = Path(output_root) / LEGACY_ANATOMY_OUTPUT_NAME / relative
+    if current.exists() or current.is_symlink():
+        return current
+    return legacy if legacy.exists() else current
+
 
 @dataclass(frozen=True)
 class SubjectIOLayout:
@@ -55,16 +75,24 @@ class SubjectIOLayout:
         return self.microstructure / "dki"
 
     @property
+    def anatomy(self) -> Path:
+        return self.outputs / ANATOMY_OUTPUT_NAME
+
+    @property
     def structural(self) -> Path:
-        return self.outputs / "03_structural"
+        """Backward-compatible Python API alias for the canonical anatomy output."""
+        return self.anatomy
+
+    def anatomy_input_dir(self, product: str = "") -> Path:
+        return anatomy_input_dir(self.outputs, product)
 
     @property
     def ddseg(self) -> Path:
-        return self.structural / "ddseg"
+        return self.anatomy / "ddseg"
 
     @property
     def ddsurfer(self) -> Path:
-        return self.structural / "ddsurfer"
+        return self.anatomy / "ddsurfer"
 
     @property
     def ddsurfer_postprocess(self) -> Path:
@@ -72,11 +100,11 @@ class SubjectIOLayout:
 
     @property
     def ddparcel(self) -> Path:
-        return self.structural / "ddparcel"
+        return self.anatomy / "ddparcel"
 
     @property
     def registered_to_dwi(self) -> Path:
-        return self.structural / "registered_to_dwi"
+        return self.anatomy / "registered_to_dwi"
 
     @property
     def tractography(self) -> Path:
@@ -420,12 +448,16 @@ def materialize_canonical_output_tree(
     directory_map = {
         "validation": layout.run_metadata / "validation",
         "ddseg": layout.ddseg,
-        "ddseg_cpu": layout.structural / "ddseg_cpu",
-        "ddseg_cuda": layout.structural / "ddseg_cuda",
+        "ddseg_cpu": layout.anatomy / "ddseg_cpu",
+        "ddseg_cuda": layout.anatomy / "ddseg_cuda",
         "ddsurfer": layout.ddsurfer,
         "ddparcel": layout.ddparcel,
     }
     for legacy_name, canonical_dir in directory_map.items():
+        if canonical_dir.is_relative_to(layout.anatomy):
+            previous = outputs / LEGACY_ANATOMY_OUTPUT_NAME / canonical_dir.relative_to(layout.anatomy)
+            if previous.exists() or previous.is_symlink():
+                continue  # A numbered historical product outranks an older flat view.
         legacy_dir = outputs / legacy_name
         if legacy_dir.exists():
             _safe_link_or_copy(legacy_dir, canonical_dir, mode=mode)
@@ -589,7 +621,8 @@ def archive_development_outputs(
         "00_run_metadata",
         "01_preproc",
         "02_microstructure",
-        "03_structural",
+        ANATOMY_OUTPUT_NAME,
+        LEGACY_ANATOMY_OUTPUT_NAME,
         "04_tractography",
         "05_statistics",
         "06_slicer_scene_report",
@@ -599,11 +632,11 @@ def archive_development_outputs(
             if child.name not in allowed_top_level:
                 _move_if_exists(child, debug_root / "legacy_outputs_root")
 
-    structural = layout.structural
+    structural = layout.anatomy
     if structural.is_dir():
         for child in structural.iterdir():
             if child.name.endswith("_dryrun") or child.name.endswith("_smoke"):
-                _move_if_exists(child, debug_root / "03_structural")
+                _move_if_exists(child, debug_root / ANATOMY_OUTPUT_NAME)
 
     tractography = layout.tractography
     if tractography.is_dir():

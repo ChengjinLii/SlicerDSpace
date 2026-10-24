@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-from .io_layout import normalize_run_name
+from .io_layout import ANATOMY_OUTPUT_NAME, LEGACY_ANATOMY_OUTPUT_NAME, anatomy_input_dir, normalize_run_name
 
 
 @dataclass(frozen=True)
@@ -50,16 +50,16 @@ DIR_NOTES = {
     "02_microstructure/freewater": "Free-water 校正模型输出",
     "02_microstructure/noddi": "NODDI 模型输出与 AMICO 后端缓存",
     "02_microstructure/noddi/_amico_noddi": "AMICO NODDI 内部拟合缓存",
-    "03_structural": "结构分割、DDSurfer 表面、DDParcel 分区和 post-process",
-    "03_structural/cache": "结构阶段缓存",
-    "03_structural/cache/ddsurfer_postprocess_runtime": "DDSurfer post-process 运行时 staging/cache",
-    "03_structural/ddparcel": "DDParcel 白质分区和配准后的 DTI 输入",
-    "03_structural/ddseg": "DDSeg 组织概率图和硬分割图",
-    "03_structural/ddsurfer": "DDSurfer 表面重建、预处理、原始配准和 post-process",
-    "03_structural/ddsurfer/postprocess": "DDSurfer post-process 正式输出",
-    "03_structural/ddsurfer/postprocess/_subjects": "FreeSurfer SUBJECTS_DIR 风格输出根",
-    "03_structural/ddsurfer/postprocess/fsaverage": "同步到正式目录的 fsaverage overlay",
-    "03_structural/ddsurfer/postprocess/logs": "post-process 后端日志",
+    "03_anatomy": "解剖重建：组织分割、DDSurfer 表面、DDParcel 分区和 post-process",
+    "03_anatomy/cache": "解剖重建阶段缓存",
+    "03_anatomy/cache/ddsurfer_postprocess_runtime": "DDSurfer post-process 运行时 staging/cache",
+    "03_anatomy/ddparcel": "DDParcel 白质分区和配准后的 DTI 输入",
+    "03_anatomy/ddseg": "DDSeg 组织概率图和硬分割图",
+    "03_anatomy/ddsurfer": "DDSurfer 表面重建、预处理、原始配准和 post-process",
+    "03_anatomy/ddsurfer/postprocess": "DDSurfer post-process 正式输出",
+    "03_anatomy/ddsurfer/postprocess/_subjects": "FreeSurfer SUBJECTS_DIR 风格输出根",
+    "03_anatomy/ddsurfer/postprocess/fsaverage": "同步到正式目录的 fsaverage overlay",
+    "03_anatomy/ddsurfer/postprocess/logs": "post-process 后端日志",
     "04_tractography": "纤维追踪、束分割、connectome 和 SAF 结果",
     "04_tractography/act_prep": "ACT 追踪需要的 5TT 和 GMWMI 准备产物",
     "04_tractography/bundles": "束分割结果集合",
@@ -105,7 +105,14 @@ def _read_json(path: Path) -> dict[str, Any]:
         return {}
 
 
+def _anatomy_description_path(path: str) -> str:
+    if path == LEGACY_ANATOMY_OUTPUT_NAME or path.startswith(LEGACY_ANATOMY_OUTPUT_NAME + "/"):
+        return ANATOMY_OUTPUT_NAME + path[len(LEGACY_ANATOMY_OUTPUT_NAME):]
+    return path
+
+
 def _describe_dir(path: str) -> str:
+    path = _anatomy_description_path(path)
     if path in DIR_NOTES:
         return DIR_NOTES[path]
     if path.endswith("/logs"):
@@ -170,6 +177,7 @@ def _describe_postprocess_file(path: str) -> str:
 
 
 def _describe_file(path: str, *, symlink: bool) -> str:
+    path = _anatomy_description_path(path)
     name = path.rsplit("/", 1)[-1]
     prefix = "symlink：" if symlink else ""
     if "/tasks/" in path:
@@ -222,11 +230,11 @@ def _describe_file(path: str, *, symlink: bool) -> str:
         return prefix + "DDSeg GM/WM/CSF 硬分割标签图"
     if "predicted_" in name:
         return prefix + "DDSurfer 预测表面网格"
-    if path.startswith("03_structural/ddsurfer/postprocess/_subjects/"):
+    if path.startswith("03_anatomy/ddsurfer/postprocess/_subjects/"):
         return prefix + _describe_postprocess_file(path)
-    if path.startswith("03_structural/ddsurfer/postprocess/fsaverage/"):
+    if path.startswith("03_anatomy/ddsurfer/postprocess/fsaverage/"):
         return prefix + "post-process fsaverage overlay 同步入口"
-    if path.startswith("03_structural/cache/ddsurfer_postprocess_runtime/"):
+    if path.startswith("03_anatomy/cache/ddsurfer_postprocess_runtime/"):
         return prefix + "DDSurfer post-process staging/runtime 缓存"
     if name.endswith("_5tt_from_labels.nii.gz"):
         return prefix + "从标签图生成的 ACT 5TT 图"
@@ -258,6 +266,7 @@ def _describe_file(path: str, *, symlink: bool) -> str:
 
 
 def _css_class(kind: str, path: str) -> str:
+    path = _anatomy_description_path(path)
     if kind == "symlink":
         return "symlink"
     name = path.rsplit("/", 1)[-1]
@@ -265,7 +274,7 @@ def _css_class(kind: str, path: str) -> str:
         return "optional"
     if path.startswith("00_run_metadata/") or name.endswith((".json", ".log", ".md", ".txt", ".tsv")):
         return "metadata"
-    if path.startswith("03_structural/ddsurfer/postprocess/"):
+    if path.startswith("03_anatomy/ddsurfer/postprocess/"):
         return "generated"
     if name.endswith((".nii.gz", ".mgz", ".mgh", ".tck", ".trk", ".vtk", ".vtp", ".stl", ".obj", ".mif", ".csv", ".annot", ".label", ".stats")):
         return "generated"
@@ -337,8 +346,9 @@ def _render_tree(tree: dict[str, Any]) -> str:
 
 
 def _postprocess_summary(output_root: Path) -> dict[str, Any]:
-    manifest = _read_json(output_root / "03_structural" / "ddsurfer" / "postprocess" / "manifest.json")
-    qc = _read_json(output_root / "03_structural" / "ddsurfer" / "postprocess" / "qc.json")
+    directory = anatomy_input_dir(output_root, "ddsurfer/postprocess")
+    manifest = _read_json(directory / "manifest.json")
+    qc = _read_json(directory / "qc.json")
     core_outputs = qc.get("core_outputs") if isinstance(qc.get("core_outputs"), dict) else {}
     stage_status = manifest.get("stage_status") if isinstance(manifest.get("stage_status"), dict) else {}
     status = qc.get("status") or ("completed" if stage_status and all(value == "completed" for value in stage_status.values()) else "not available")

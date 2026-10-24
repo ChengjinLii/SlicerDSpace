@@ -86,7 +86,8 @@ def main():
     for name in ('FW_FA', 'NDI', 'ODI'):
         m = micro / ('freewater/100307_fw_tissue_valid_mask.nii.gz' if name == 'FW_FA' else 'noddi/100307_noddi_tissue_valid_mask.nii.gz')
         masks[name] = np.asarray(nib.load(str(m)).dataobj) > 0
-    atlas = subject / '03_structural/ddparcel/100307-DDSurfer-wmparc.nii.gz'
+    from shared.io_layout import anatomy_input_dir
+    atlas = anatomy_input_dir(subject, 'ddparcel') / '100307-DDSurfer-wmparc.nii.gz'
     started = time.monotonic()
     count = _compute_roi_stats(metric_paths=metrics, roi_label_map=atlas, lut_path=None,
                                csv_path=args.output_dir / 'roi_stats.csv', json_path=args.output_dir / 'roi_stats.json',

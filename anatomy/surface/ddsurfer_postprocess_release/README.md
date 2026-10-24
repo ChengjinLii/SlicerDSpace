@@ -44,7 +44,7 @@ postprocess-release-optimize/
         <subject_id>_predicted_pial_rh_orig.stl
   outputs/
     <subject_id>/
-      03_structural/
+      03_anatomy/
         ddsurfer/
           postprocess/
           _subjects/<subject_id>/   # internal FreeSurfer workdir
@@ -177,9 +177,9 @@ bash run.sh \
 ## Output Notes
 
 - Internal FreeSurfer execution happens under:
-  - `outputs/<subject_id>/03_structural/ddsurfer/postprocess/_subjects/<subject_id>/`
+  - `outputs/<subject_id>/03_anatomy/ddsurfer/postprocess/_subjects/<subject_id>/`
 - User-facing canonical outputs live under:
-  - `outputs/<subject_id>/03_structural/ddsurfer/postprocess/`
+  - `outputs/<subject_id>/03_anatomy/ddsurfer/postprocess/`
   - `outputs/<subject_id>/05_statistics/ddsurfer/postprocess/`
 
 This split keeps FreeSurfer happy without exposing only the raw subject tree.

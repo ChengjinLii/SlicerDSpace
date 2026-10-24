@@ -4,7 +4,6 @@
 
 **Diffusion MRI workflows in 3D Slicer**
 
-[![CI (main)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/ChengjinLii/SlicerDDSurfer/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
 [![Slicer](https://img.shields.io/badge/3D_Slicer-5.10-58728B)](https://www.slicer.org/)
 
@@ -213,8 +212,12 @@ future configurations.
 The [16 October follow-up](docs/release/QC_FOLLOWUP_20261016.md) records the
 new CSD/WMA checks and real Linux SDK/CPack installation acceptance, including
 the remaining WMQL sampling failure and human-review boundaries.
-For this private repository, consult authenticated Actions results; the live
-badge tracks main push runs and is not externally accessible without authorization.
+Validation is run locally during development. GitHub Actions, including website
+deployment, are manual-only and do not run on pushes or pull requests.
+
+New anatomical products use `outputs/03_anatomy/`, with `ddseg/`, `ddparcel/`
+and `ddsurfer/` subdirectories. Existing `03_structural/` products remain readable
+without being moved or rewritten. See [output layout](docs/setup/OUTPUT_LAYOUT.md).
 
 Current release boundaries:
 

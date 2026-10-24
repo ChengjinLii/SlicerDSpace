@@ -21,7 +21,7 @@ import numpy as np
 from nibabel.freesurfer.mghformat import MGHImage
 from nibabel.processing import resample_from_to
 
-from shared.io_layout import subject_layout
+from shared.io_layout import ANATOMY_OUTPUT_NAME, anatomy_input_dir, subject_layout
 from shared.staging_paths import resolve_staging_subject_dir
 
 REQUIRED_MRI_FILES = ("brain.mgz", "DDSurfer-wmparc.nii.gz")
@@ -146,7 +146,7 @@ def _resolve_native_dir(config: DDSurferPostprocessConfig, subject_root: Path) -
     if config.native_dir is not None:
         return config.native_dir.expanduser().resolve()
     layout = subject_layout(subject_root, output_root=config.output_root)
-    return (layout.ddsurfer / "pred_results_SlicerDDSurfer" / "native" / config.subject_id).resolve()
+    return (layout.anatomy_input_dir("ddsurfer") / "pred_results_SlicerDDSurfer" / "native" / config.subject_id).resolve()
 
 
 def _resolve_wmparc_path(subject_id: str, mri_dir: Path) -> Path:
@@ -239,9 +239,9 @@ def _generate_brain_mgz(*, subject_root: Path, subject_id: str, output_root: Pat
 
 def _expose_canonical_postprocess_outputs(*, output_root: Path, subject_id: str) -> tuple[Path, Path]:
     nested_subject_root = output_root / subject_id
-    nested_structural_root = nested_subject_root / "03_structural"
+    nested_structural_root = anatomy_input_dir(nested_subject_root)
     nested_stats_root = nested_subject_root / "05_statistics"
-    canonical_structural_root = output_root / "03_structural"
+    canonical_structural_root = output_root / ANATOMY_OUTPUT_NAME
     canonical_stats_root = output_root / "05_statistics"
     if nested_structural_root.exists():
         _symlink_canonical_output(nested_structural_root, canonical_structural_root)
@@ -324,11 +324,11 @@ def run_ddsurfer_postprocess(
     subject_root = _resolve_subject_root(config)
     layout = subject_layout(subject_root, output_root=output_root)
     native_dir = _resolve_native_dir(config, subject_root)
-    mri_dir = config.mri_dir.expanduser().resolve() if config.mri_dir is not None else layout.ddparcel
+    mri_dir = config.mri_dir.expanduser().resolve() if config.mri_dir is not None else layout.anatomy_input_dir("ddparcel")
     wmparc_path = _resolve_wmparc_path(config.subject_id, mri_dir)
     brain_mgz_path = mri_dir / "brain.mgz"
 
-    runtime_root = layout.structural / "cache" / "ddsurfer_postprocess_runtime"
+    runtime_root = layout.anatomy / "cache" / "ddsurfer_postprocess_runtime"
     generated_mri_dir = runtime_root / "generated_mri" / config.subject_id
     if not brain_mgz_path.is_file():
         brain_mgz_path = _generate_brain_mgz(
@@ -377,6 +377,7 @@ def run_ddsurfer_postprocess(
 
     _emit("[DDSurfer Postprocess] Running: " + " ".join(cmd), log)
     env = merged_startup_environment()
+    env["SLICERDDSURFER_ANATOMY_DIRNAME"] = ANATOMY_OUTPUT_NAME
     process = subprocess.Popen(
         cmd,
         cwd=str(backend_root),
@@ -396,7 +397,7 @@ def run_ddsurfer_postprocess(
     if return_code != 0:
         raise RuntimeError(f"DDSurfer postprocess failed with exit code {return_code}")
 
-    structural_root = output_root / "03_structural" / "ddsurfer" / "postprocess"
+    structural_root = anatomy_input_dir(output_root, "ddsurfer/postprocess")
     stats_root = output_root / "05_statistics" / "ddsurfer" / "postprocess"
     return DDSurferPostprocessResult(
         manifest_path=structural_root / "manifest.json",
@@ -425,7 +426,7 @@ def _run_current_postprocess(config, subject_root, native_dir, log):
     cache_key = hashlib.sha256(json.dumps(signature, sort_keys=True).encode()).hexdigest()[:20]
     if config.force:
         cache_key += '-' + uuid4().hex[:12]
-    runtime = layout.structural / 'cache/ddsurfer_surface_only' / cache_key
+    runtime = layout.anatomy / 'cache/ddsurfer_surface_only' / cache_key
     fs_subject = runtime / config.subject_id
     command = [BACKEND_ROOT / 'postprocessing/pipeline.py', '--subject', config.subject_id,
                '--output-root', runtime, '--hemi', 'both' if config.mode == 'whole' else config.mode,

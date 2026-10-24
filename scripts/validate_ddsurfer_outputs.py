@@ -62,12 +62,14 @@ def main():
     result['batch'] = None
     if orchestration_path.is_file():
         batch = json.loads(orchestration_path.read_text())
-        surface = json.loads((work / 'orchestrator_outputs/03_structural/ddsurfer/surface_manifest.json').read_text())
+        from shared.io_layout import anatomy_input_dir
+        surface = json.loads((anatomy_input_dir(work / 'orchestrator_outputs', 'ddsurfer') / 'surface_manifest.json').read_text())
         result['batch'] = dict(status=batch['status'], subject_id=batch['subject_id'],
                                tasks=batch['tasks'], runtime=surface.get('runtime'))
-    if (work / 'postprocess/03_structural/ddsurfer/postprocess/qc.json').is_file():
-        result['postprocess_qc'] = json.loads((work / 'postprocess/03_structural/ddsurfer/postprocess/qc.json').read_text())
-        post = work / 'postprocess/03_structural/ddsurfer/postprocess'
+    from shared.io_layout import anatomy_input_dir
+    post = anatomy_input_dir(work / 'postprocess', 'ddsurfer/postprocess')
+    if (post / 'qc.json').is_file():
+        result['postprocess_qc'] = json.loads((post / 'qc.json').read_text())
         result['postprocess_metrics'] = {}
         if result['postprocess_qc'].get('status') == 'completed':
             for hemi in ('lh', 'rh'):

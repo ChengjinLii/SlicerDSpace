@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from shared.io_layout import (
+    ANATOMY_OUTPUT_NAME,
+    LEGACY_ANATOMY_OUTPUT_NAME,
     archive_development_outputs,
     canonical_connectome_output_dir,
     materialize_canonical_output_tree,
@@ -1052,11 +1054,13 @@ def _preprocessing_complete(
 
 def _resolve_segmentation(subject_root: Path, output_root: Optional[Path] = None) -> Optional[Path]:
     layout = subject_layout(subject_root, output_root=output_root)
-    candidates = [
-        layout.ddseg / "SegmentationMap_GMWMCSF.nii.gz",
-        subject_root / ".legacy_flat_outputs" / "ddseg" / "SegmentationMap_GMWMCSF.nii.gz",
-        subject_root / "segmentation" / "SegmentationMap_GMWMCSF.nii.gz",
-    ]
+    directory = layout.anatomy_input_dir("ddseg")
+    candidates = [directory / "SegmentationMap_GMWMCSF.nii.gz"]
+    if not directory.exists() and not directory.is_symlink():
+        candidates.extend([
+            subject_root / ".legacy_flat_outputs" / "ddseg" / "SegmentationMap_GMWMCSF.nii.gz",
+            subject_root / "segmentation" / "SegmentationMap_GMWMCSF.nii.gz",
+        ])
     return next((path for path in candidates if path.is_file()), None)
 
 
@@ -1155,12 +1159,16 @@ def _recorded_source_dwi(path: Path, key: str) -> Optional[str]:
 
 def _resolve_parcellation(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> Optional[Path]:
     layout = subject_layout(subject_root, output_root=output_root)
+    directory = layout.anatomy_input_dir("ddparcel")
     candidates = [
-        layout.ddparcel / f"{subject_id}_ddparcel_wmparc_labels.nii.gz",
-        layout.ddparcel / f"{subject_id}-DDSurfer-wmparc.nii.gz",
-        subject_root / ".legacy_flat_outputs" / "ddparcel" / f"{subject_id}-DDSurfer-wmparc.nii.gz",
-        subject_root / "parcellation" / "wmparc.nii.gz",
+        directory / f"{subject_id}_ddparcel_wmparc_labels.nii.gz",
+        directory / f"{subject_id}-DDSurfer-wmparc.nii.gz",
     ]
+    if not directory.exists() and not directory.is_symlink():
+        candidates.extend([
+            subject_root / ".legacy_flat_outputs" / "ddparcel" / f"{subject_id}-DDSurfer-wmparc.nii.gz",
+            subject_root / "parcellation" / "wmparc.nii.gz",
+        ])
     return next((path for path in candidates if path.is_file()), None)
 
 
@@ -1182,12 +1190,13 @@ def _default_ddseg_weights(model_assets_dir: Optional[Path] = None) -> Path:
 
 def _segmentation_outputs(subject_root: Path, output_root: Optional[Path] = None) -> dict[str, Path]:
     layout = subject_layout(subject_root, output_root=output_root)
+    directory = layout.anatomy_input_dir("ddseg")
     return {
-        "segmentation": layout.ddseg / "SegmentationMap_GMWMCSF.nii.gz",
-        "gm_probability": layout.ddseg / "ProbabilisticMap_GM.nii.gz",
-        "wm_probability": layout.ddseg / "ProbabilisticMap_WM.nii.gz",
-        "csf_probability": layout.ddseg / "ProbabilisticMap_CSF.nii.gz",
-        "qc": layout.ddseg / "ddseg_qc.json",
+        "segmentation": directory / "SegmentationMap_GMWMCSF.nii.gz",
+        "gm_probability": directory / "ProbabilisticMap_GM.nii.gz",
+        "wm_probability": directory / "ProbabilisticMap_WM.nii.gz",
+        "csf_probability": directory / "ProbabilisticMap_CSF.nii.gz",
+        "qc": directory / "ddseg_qc.json",
     }
 
 
@@ -1220,13 +1229,14 @@ def _segmentation_complete(subject_root: Path, output_root: Optional[Path] = Non
 
 def _parcellation_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
     layout = subject_layout(subject_root, output_root=output_root)
+    directory = layout.anatomy_input_dir("ddparcel")
     return {
-        "wmparc": layout.ddparcel / f"{subject_id}-DDSurfer-wmparc.nii.gz",
-        "wmparc_reg": layout.ddparcel / f"{subject_id}-DDSurfer-wmparc-Reg.mgz",
-        "fa_reg_norm": layout.ddparcel / f"{subject_id}-dti-FractionalAnisotropy-Reg-NormMasked.nii.gz",
-        "trace_reg_norm": layout.ddparcel / f"{subject_id}-dti-Trace-Reg-NormMasked.nii.gz",
-        "min_eig_reg_norm": layout.ddparcel / f"{subject_id}-dti-MinEigenvalue-Reg-NormMasked.nii.gz",
-        "mid_eig_reg_norm": layout.ddparcel / f"{subject_id}-dti-MidEigenvalue-Reg-NormMasked.nii.gz",
+        "wmparc": directory / f"{subject_id}-DDSurfer-wmparc.nii.gz",
+        "wmparc_reg": directory / f"{subject_id}-DDSurfer-wmparc-Reg.mgz",
+        "fa_reg_norm": directory / f"{subject_id}-dti-FractionalAnisotropy-Reg-NormMasked.nii.gz",
+        "trace_reg_norm": directory / f"{subject_id}-dti-Trace-Reg-NormMasked.nii.gz",
+        "min_eig_reg_norm": directory / f"{subject_id}-dti-MinEigenvalue-Reg-NormMasked.nii.gz",
+        "mid_eig_reg_norm": directory / f"{subject_id}-dti-MidEigenvalue-Reg-NormMasked.nii.gz",
     }
 
 
@@ -1238,7 +1248,7 @@ def _parcellation_complete(subject_root: Path, subject_id: str, output_root: Opt
 
 
 def _surface_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
-    native_dir = subject_layout(subject_root, output_root=output_root).ddsurfer / "pred_results_SlicerDDSurfer" / "native" / subject_id
+    native_dir = subject_layout(subject_root, output_root=output_root).anatomy_input_dir("ddsurfer") / "pred_results_SlicerDDSurfer" / "native" / subject_id
     return {
         "white_lh": native_dir / f"{subject_id}_predicted_wm_lh.stl",
         "white_rh": native_dir / f"{subject_id}_predicted_wm_rh.stl",
@@ -1250,7 +1260,7 @@ def _surface_outputs(subject_root: Path, subject_id: str, output_root: Optional[
 def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None,
                       *, config: Optional[ProductOrchestratorConfig] = None) -> bool:
     from anatomy.surface.backend_bridge import sha256, upstream_record
-    surface_root = subject_layout(subject_root, output_root=output_root).ddsurfer
+    surface_root = subject_layout(subject_root, output_root=output_root).anatomy_input_dir("ddsurfer")
     try:
         manifest = json.loads((surface_root / 'surface_manifest.json').read_text())
         qc = json.loads((surface_root / 'surface_qc.json').read_text())
@@ -1295,7 +1305,7 @@ def _surface_postprocess_native_dir(
     output_root: Optional[Path] = None,
 ) -> Path:
     return (
-        subject_layout(subject_root, output_root=output_root).ddsurfer
+        subject_layout(subject_root, output_root=output_root).anatomy_input_dir("ddsurfer")
         / "pred_results_SlicerDDSurfer"
         / "native"
         / subject_id
@@ -1326,7 +1336,7 @@ def _surface_postprocess_wmparc_path(subject_id: str, mri_dir: Path) -> Optional
 
 def _surface_postprocess_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
     layout = subject_layout(subject_root, output_root=output_root)
-    structural_root = layout.ddsurfer_postprocess
+    structural_root = layout.anatomy_input_dir("ddsurfer/postprocess")
     stats_root = layout.ddsurfer_postprocess_stats
     return {
         "manifest": structural_root / "manifest.json",
@@ -2146,7 +2156,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 config.subject_id,
                 output_root,
             )
-            mri_dir = explicit_mri_dir or layout.ddparcel
+            mri_dir = explicit_mri_dir or layout.anatomy_input_dir("ddparcel")
             native_ready = _surface_postprocess_native_ready(native_dir, config.subject_id, config.postprocess_mode)
             wmparc_path = _surface_postprocess_wmparc_path(config.subject_id, mri_dir)
             native_will_run = explicit_native_dir is None and available.get("surface", False)
@@ -2728,7 +2738,7 @@ def _expected_output_top_dirs(targets: tuple[str, ...]) -> set[str]:
     if selected & {"microstructure", "microstructure_freewater", "microstructure_noddi", "microstructure_dki"}:
         expected.update({"02_microstructure", "05_statistics"})
     if selected & {"segmentation", "parcellation", "surface", "surface_postprocess"}:
-        expected.add("03_structural")
+        expected.add(ANATOMY_OUTPUT_NAME)
     if selected & {"tractography", "bundles", "saf", "wma", "tractcloud", "connectome"}:
         expected.add("04_tractography")
     expected.add("06_slicer_scene_report")
@@ -2741,7 +2751,10 @@ def _audit_output_tree(layout, *, subject_id: str, selected_targets: tuple[str, 
     warnings: list[str] = []
     outputs = layout.outputs
     present_top_dirs = sorted(path.name for path in outputs.iterdir() if path.is_dir()) if outputs.is_dir() else []
-    missing = sorted(name for name in expected_top_dirs - optional_missing if not (outputs / name).exists())
+    missing = sorted(name for name in expected_top_dirs - optional_missing if not (
+        (outputs / name).exists() or
+        (name == ANATOMY_OUTPUT_NAME and (outputs / LEGACY_ANATOMY_OUTPUT_NAME).is_dir())
+    ))
     for name in missing:
         warnings.append(f"missing canonical output directory: {name}")
     nested_outputs = outputs / subject_id / "outputs"
@@ -2803,11 +2816,15 @@ def _write_output_tree_semantics(
         ("00_run_metadata", ("validation",), "Run metadata, validation, environment and task records."),
         ("01_preproc", ("preprocessing",), "DWI preprocessing outputs."),
         ("02_microstructure", ("microstructure", "microstructure_freewater", "microstructure_noddi", "microstructure_dki"), "Microstructure model outputs."),
-        ("03_structural", ("segmentation", "parcellation", "surface", "surface_postprocess"), "Segmentation, parcellation and surface products."),
+        (ANATOMY_OUTPUT_NAME, ("segmentation", "parcellation", "surface", "surface_postprocess"), "Segmentation, parcellation and surface products."),
         ("04_tractography", ("tractography", "bundles", "saf", "wma", "tractcloud", "connectome"), "Tractography, bundle extraction, SAF and connectome products."),
         ("05_statistics", ("microstructure", "microstructure_freewater", "microstructure_noddi", "microstructure_dki", "surface_postprocess"), "Regional summaries and post-process statistics."),
         ("06_slicer_scene_report", tuple(TARGET_ORDER), "HTML/Markdown reports and output tree views."),
     ]
+    if (layout.outputs / LEGACY_ANATOMY_OUTPUT_NAME).is_dir():
+        directory_targets.append((LEGACY_ANATOMY_OUTPUT_NAME,
+                                  ("segmentation", "parcellation", "surface", "surface_postprocess"),
+                                  "Historical anatomy outputs retained in place for compatible reading."))
     for relative, targets, description in directory_targets:
         path = layout.outputs / relative
         selected_here = bool(requested & set(targets)) or relative == "00_run_metadata"
@@ -3336,6 +3353,7 @@ def _run_subject_products_impl(
                 )
             )
             _finish_task_timer("DDSeg", task_started, log)
+            segmentation_outputs = _segmentation_outputs(subject_root, output_root)
             tasks.append(
                 ProductTaskRecord(
                     name="segmentation.ddseg",
@@ -3352,7 +3370,7 @@ def _run_subject_products_impl(
                     name="parcellation.ddparcel",
                     status="skipped",
                     reason="completed outputs found",
-                    qc_path=layout.ddparcel / "ddparcel_qc.json",
+                    qc_path=parcellation_outputs["wmparc"].parent / "ddparcel_qc.json",
                     outputs={key: path.as_posix() for key, path in parcellation_outputs.items()},
                 )
             )
@@ -3395,6 +3413,7 @@ def _run_subject_products_impl(
             )
             _write_anatomy_source(layout.ddparcel / "ddparcel_source.json", raw_bundle)
             _finish_task_timer("DDParcel", task_started, log)
+            parcellation_outputs = _parcellation_outputs(subject_root, config.subject_id, output_root)
             tasks.append(
                 ProductTaskRecord(
                     name="parcellation.ddparcel",
@@ -3411,11 +3430,14 @@ def _run_subject_products_impl(
         """Run the DDSeg/DDParcel world-space gate once per invocation; return a failure reason."""
 
         if "failure" not in ddseg_world_qc_state:
+            world_qc_path = layout.ddseg / "ddseg_world_qc.json"
+            if segmentation is not None and segmentation.parent != layout.ddseg:
+                world_qc_path = layout.run_metadata / "anatomy_world_qc" / "ddseg_world_qc.json"
             ddseg_world_qc_state["failure"] = _run_ddseg_world_qc_gate(
                 config,
                 segmentation,
                 parcellation,
-                layout.ddseg / "ddseg_world_qc.json",
+                world_qc_path,
                 tasks,
                 log,
             )
@@ -3523,7 +3545,7 @@ def _run_subject_products_impl(
                 config.subject_id,
                 output_root,
             )
-            mri_dir = explicit_mri_dir or layout.ddparcel
+            mri_dir = explicit_mri_dir or layout.anatomy_input_dir("ddparcel")
             if explicit_native_dir is not None and not explicit_native_dir.is_dir():
                 tasks.append(
                     ProductTaskRecord(
@@ -3944,8 +3966,8 @@ def _run_subject_products_impl(
                 _emit(f"[Orchestrator] Running CSD/ACT {run_name}", log)
                 task_started = _start_task_timer(f"CSD/ACT {run_name}", log)
                 anatomy_sources = {
-                    "ddseg_source_dwi": _recorded_source_dwi(layout.ddseg / "ddseg_qc.json", "source_dwi"),
-                    "ddparcel_source_dwi": _recorded_source_dwi(layout.ddparcel / "ddparcel_source.json", "dwi"),
+                    "ddseg_source_dwi": _recorded_source_dwi(layout.anatomy_input_dir("ddseg") / "ddseg_qc.json", "source_dwi"),
+                    "ddparcel_source_dwi": _recorded_source_dwi(layout.anatomy_input_dir("ddparcel") / "ddparcel_source.json", "dwi"),
                     "csd_dwi": analysis_inputs["dwi"].resolve().as_posix(),
                 }
                 if parcellation is None:

@@ -204,10 +204,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 if [[ "$nested" = "0" ]]; then
-  structural_root="${outputs_dir}/03_structural/ddsurfer/postprocess"
+  structural_root="${outputs_dir}/${SLICERDDSURFER_ANATOMY_DIRNAME:-03_structural}/ddsurfer/postprocess"
   stats_root="${outputs_dir}/05_statistics/ddsurfer/postprocess/stats"
 else
-  structural_root="${outputs_dir}/${subject_id}/03_structural/ddsurfer/postprocess"
+  structural_root="${outputs_dir}/${subject_id}/${SLICERDDSURFER_ANATOMY_DIRNAME:-03_structural}/ddsurfer/postprocess"
   stats_root="${outputs_dir}/${subject_id}/05_statistics/ddsurfer/postprocess/stats"
 fi
 mkdir -p "${structural_root}/surf" "${structural_root}/label" "${stats_root}"
@@ -231,7 +231,7 @@ printf '{"status":"completed"}' > "${structural_root}/qc.json"
 
             self.assertEqual(
                 result.structural_root,
-                output_root / "03_structural" / "ddsurfer" / "postprocess",
+                output_root / "03_anatomy" / "ddsurfer" / "postprocess",
             )
             self.assertEqual(
                 result.stats_root,
@@ -240,7 +240,8 @@ printf '{"status":"completed"}' > "${structural_root}/qc.json"
             self.assertTrue(result.manifest_path.is_file())
             self.assertTrue(result.qc_path.is_file())
             self.assertTrue((result.staged_input_dir / "surf" / "877168_predicted_wm_lh_orig.stl").exists())
-            self.assertTrue((output_root / "03_structural").is_dir())
+            self.assertTrue((output_root / "03_anatomy").is_dir())
+            self.assertFalse((output_root / "03_structural").exists())
             self.assertTrue((output_root / "05_statistics").is_dir())
             manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
@@ -316,7 +317,7 @@ printf '{"status":"completed"}' > "${structural_root}/qc.json"
                     )
                 )
 
-            generated = output_root / "03_structural" / "cache" / "ddsurfer_postprocess_runtime" / "generated_mri" / "100307" / "brain.mgz"
+            generated = output_root / "03_anatomy" / "cache" / "ddsurfer_postprocess_runtime" / "generated_mri" / "100307" / "brain.mgz"
             staged = result.staged_input_dir / "mri" / "brain.mgz"
             self.assertTrue(generated.is_file())
             self.assertTrue(staged.exists())
