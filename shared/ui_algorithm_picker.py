@@ -59,14 +59,15 @@ def choose_algorithms(owner, family):
             box.text += "（基础步骤）" if zh else " (required preparation)"
         boxes[value] = box
         layout.addWidget(box)
-    note = qt.QLabel(("多种追踪方法将顺序运行，结果分别保存；束分析和连接组按各追踪结果分别计算，不混合流线。" if zh else
-                     "Tracking methods run sequentially with separate outputs. Selected bundles/connectomes are computed per tracking method; streamlines are not mixed.")
+    note = qt.QLabel(("每种方法分别输出流线；束分析和连接组按方法分别计算。" if zh else
+                     "Each method writes its own tractogram. Bundles and connectomes are computed for each method separately.")
                     if family == "tractography" else
                     ("可在高级设置调整参数；不改变各算法的数据条件或 QC 门槛。" if zh else
                      "Adjust parameters in Advanced settings. Acquisition requirements and QC gates are unchanged."))
     note.wordWrap = True
     note.setMaximumWidth(380)
     layout.addWidget(note)
+    layout.addSpacing(8)
     buttons = qt.QDialogButtonBox(dialog)
     buttons.setStandardButtons(qt.QDialogButtonBox.Apply | qt.QDialogButtonBox.Cancel)
     apply = buttons.button(qt.QDialogButtonBox.Apply)
@@ -92,6 +93,10 @@ def install_algorithm_pickers(owner):
     owner._algorithmSummaryLabels = {}
     form = owner.ui.targetProductsFormLayout
     form.setVerticalSpacing(4)
+    # Match a plain QCheckBox row: the summary text starts one indicator plus one label gap from the left edge.
+    style = qt.QApplication.style()
+    indicator_width = style.pixelMetric(qt.QStyle.PM_IndicatorWidth)
+    label_gap = style.pixelMetric(qt.QStyle.PM_CheckBoxLabelSpacing)
     for row, (family, (name, _, _)) in enumerate(FAMILIES.items(), start=5):
         checkbox = getattr(owner.ui, name)
         role = qt.QFormLayout.FieldRole
@@ -99,12 +104,13 @@ def install_algorithm_pickers(owner):
         container = qt.QWidget()
         layout = qt.QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(0)
         checkbox.setSizePolicy(qt.QSizePolicy.Fixed, qt.QSizePolicy.Fixed)
         # Keep the checkbox's full accessible text, but render the summary in a
         # wrapping label so multi-selection never forces a wider Slicer dock.
-        checkbox.setFixedWidth(20)
-        layout.addWidget(checkbox, 0, qt.Qt.AlignTop)
+        checkbox.setFixedWidth(indicator_width)
+        layout.addWidget(checkbox, 0, qt.Qt.AlignVCenter)
+        layout.addSpacing(label_gap)
         summary = qt.QLabel()
         summary.wordWrap = True
         summary.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Preferred)
@@ -115,7 +121,8 @@ def install_algorithm_pickers(owner):
         button.objectName = family + "AlgorithmSelectButton"
         button.setFixedSize(28, 22)
         button.clicked.connect(lambda _checked=False, family=family: choose_algorithms(owner, family))
-        layout.addWidget(button, 0, qt.Qt.AlignTop)
+        layout.addSpacing(6)
+        layout.addWidget(button, 0, qt.Qt.AlignVCenter)
         form.setWidget(row, role, container)
         owner._algorithmButtons[family] = button
     refresh_picker_language(owner)

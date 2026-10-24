@@ -4,7 +4,9 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from shared.result_scene import result_candidates, recorded_qc_summary, result_nodes, owned_nodes, clear_run
+from shared.result_scene import (
+    clear_run, owned_nodes, recorded_qc_summary, result_candidates, result_nodes, review_state_text,
+)
 from tractography.wma import REQUIRED_MAJOR_TRACTS
 
 
@@ -177,3 +179,21 @@ class ResultSelectionTest(unittest.TestCase):
                 candidates, _ = result_candidates({"tasks": [{"name": "microstructure.dti", "status": "skipped",
                     "reason": reason, "outputs": {"fa": str(path)}}]})
                 self.assertEqual(len(candidates), expected)
+
+
+class ReviewStateTextTest(unittest.TestCase):
+    def test_review_state_text_has_no_pipes_and_one_format(self):
+        qc = {"passed": 4, "issues": 0, "unavailable": 1}
+        self.assertEqual(
+            review_state_text(qc, issues_found=False),
+            "Recorded QC: 4 passed · 0 issues · 1 unavailable\nVisual review: pending",
+        )
+
+    def test_review_state_text_prefixes_execution_issues(self):
+        qc = {"passed": 1, "issues": 2, "unavailable": 0}
+        text = review_state_text(qc, issues_found=True)
+        self.assertEqual(
+            text,
+            "Execution: issues found\nRecorded QC: 1 passed · 2 issues · 0 unavailable\nVisual review: pending",
+        )
+        self.assertNotIn("|", text)

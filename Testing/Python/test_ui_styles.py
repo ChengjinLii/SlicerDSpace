@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import unittest
 
 from shared.ui_styles import (
@@ -44,6 +45,28 @@ class UIStylesTest(unittest.TestCase):
         self.assertIn("#F3F7F4", unknown)
         self.assertIn("QLabel#runSummaryLabel", unknown)
         self.assertNotIn("border-left", failed)
+
+
+    def _rule_for(self, selector: str) -> str:
+        """Return the declaration block of the rule whose selector list names ``selector``."""
+
+        for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", SLICERDDSURFER_UI_STYLE):
+            if selector in [part.strip() for part in selectors.split(",")]:
+                return body
+        self.fail(f"no rule for {selector}")
+
+    def test_review_and_details_labels_have_no_box(self) -> None:
+        for selector in ("QLabel#reviewStateLabel", "QLabel#runDetailsLabel"):
+            with self.subTest(selector=selector):
+                body = self._rule_for(selector)
+                self.assertIn("background: transparent", body)
+                self.assertIn("border: none", body)
+                self.assertIn("color: #63727D", body)
+                self.assertRegex(body, r"padding: 0 \d+px")
+
+    def test_run_summary_card_keeps_its_box(self) -> None:
+        body = self._rule_for("QLabel#runSummaryLabel")
+        self.assertIn("border: 1px solid", body)
 
 
 if __name__ == "__main__":

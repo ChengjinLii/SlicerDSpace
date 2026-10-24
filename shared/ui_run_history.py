@@ -20,21 +20,29 @@ from shared.run_history import (
     parse_run_manifest,
     progress_from_manifest,
     remember_directory,
+    run_record_brief,
     run_record_details,
     run_record_label,
     status_label,
 )
 from shared.ui_run_state import (
+    SCENE_ACTION_TOOLTIPS,
     progress_bar_format,
     result_actions_state,
     run_state_from_manifest_status,
     run_state_presentation,
 )
+from shared.ui_run_status_panel import fit_table_height
 
 
 RUN_HISTORY_SETTING = "SlicerDDSurfer/UserSettings/runHistoryDirectories"
 PROGRESS_POLL_INTERVAL_MS = 2000
-SCENE_ACTIONS = (("Load / reuse", "reuse"), ("Replace", "replace"), ("Append copy", "append"), ("Clear run", "clear"))
+ADD_RUN_FOLDER_TEXT = "Add a run folder…"
+ADD_RUN_FOLDER_TOOLTIP = (
+    "Add any run or output folder (GUI, command-line or batch). The folder is searched three levels deep "
+    "for 00_run_metadata/<run>_orchestration_manifest.json and remembered for later sessions."
+)
+SCENE_ACTIONS = (("Load", "reuse"), ("Replace", "replace"), ("Append", "append"), ("Clear", "clear"))
 
 
 def _text(owner: Any, key: str, fallback: str) -> str:
@@ -255,9 +263,7 @@ def install_results_panel(owner: Any) -> None:
         return
     import qt
 
-    form = qt.QFormLayout()
-    form.setRowWrapPolicy(qt.QFormLayout.WrapLongRows)
-    form.setFieldGrowthPolicy(qt.QFormLayout.AllNonFixedFieldsGrow)
+    run_row = qt.QHBoxLayout()
     run_label = qt.QLabel("Run")
     run_label.setObjectName("runHistoryLabel")
     combo = qt.QComboBox()
@@ -266,31 +272,19 @@ def install_results_panel(owner: Any) -> None:
     combo.setMinimumContentsLength(14)
     combo.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
     combo.setToolTip(
-        "Runs found under the output directory, the subject root, the batch root and folders added with Browse…, "
-        "newest first. GUI, command-line and batch runs all appear here, also from earlier Slicer sessions."
+        "Runs found under the output directory, the subject root, the batch root and folders added with "
+        "“Add a run folder…”, newest first. GUI, command-line and batch runs all appear here, "
+        "also from earlier Slicer sessions. The list is rescanned whenever this section is opened."
     )
     run_label.setBuddy(combo)
-    form.addRow(run_label, combo)
-    layout.addLayout(form)
+    run_row.addWidget(run_label)
+    run_row.addWidget(combo, 1)
+    layout.addLayout(run_row)
 
-    tools = qt.QHBoxLayout()
-    tools.addStretch(1)
-    refresh = qt.QPushButton("Refresh")
-    refresh.setObjectName("runHistoryRefreshButton")
-    refresh.setToolTip("Rescan the output directory, subject root, batch root and added folders for run manifests.")
-    try:
-        refresh.setIcon(qt.QApplication.style().standardIcon(qt.QStyle.SP_BrowserReload))
-    except Exception:
-        pass
-    browse = qt.QPushButton("Browse…")
-    browse.setObjectName("runHistoryBrowseButton")
-    browse.setToolTip(
-        "Add any run or output folder (GUI, command-line or batch). The folder is searched three levels deep "
-        "for 00_run_metadata/<run>_orchestration_manifest.json and remembered for later sessions."
-    )
-    tools.addWidget(refresh)
-    tools.addWidget(browse)
-    layout.addLayout(tools)
+    summary = qt.QLabel("Run summary will appear after a plan or run completes.")
+    summary.wordWrap = True
+    summary.setObjectName("runSummaryLabel")
+    layout.addWidget(summary)
 
     details = qt.QLabel("No run selected.")
     details.setObjectName("runDetailsLabel")
@@ -301,12 +295,7 @@ def install_results_panel(owner: Any) -> None:
         pass
     layout.addWidget(details)
 
-    summary = qt.QLabel("Run summary will appear after a plan or run completes.")
-    summary.wordWrap = True
-    summary.setObjectName("runSummaryLabel")
-    layout.addWidget(summary)
-
-    review = qt.QLabel("Execution: not started   |   QC: consult report   |   Visual review: pending")
+    review = qt.QLabel("Recorded QC: consult report\nVisual review: pending")
     review.wordWrap = True
     review.setObjectName("reviewStateLabel")
     layout.addWidget(review)
@@ -315,19 +304,29 @@ def install_results_panel(owner: Any) -> None:
     table.setObjectName("runStatusTable")
     table.setColumnCount(6)
     table.setHorizontalHeaderLabels(["Target", "State", "Reason", "Manifest", "QC", "Logs"])
-    table.setMinimumHeight(140)
     table.setAlternatingRowColors(True)
     table.setEditTriggers(qt.QAbstractItemView.NoEditTriggers)
     table.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
     table.setHorizontalScrollMode(qt.QAbstractItemView.ScrollPerPixel)
-    table.setToolTip("Per-stage outcome of the selected run. Double-click a path cell to open it.")
+    # One text line per row. Prose cells elide on the right; the manifest, QC and log paths sit in hidden
+    # columns and show in the Target cell's tooltip. The height follows the rows (see fit_table_height).
+    table.setWordWrap(False)
+    table.setTextElideMode(qt.Qt.ElideRight)
+    table.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+    table.verticalHeader().setVisible(False)
+    table.verticalHeader().setDefaultSectionSize(table.fontMetrics().height() + 8)
+    for column in (3, 4, 5):
+        table.setColumnHidden(column, True)
+    table.setToolTip("Per-stage outcome of the selected run. Double-click a row to open its QC file or logs.")
     try:
         header = table.horizontalHeader()
-        header.setStretchLastSection(True)
+        header.setStretchLastSection(False)
         header.setSectionResizeMode(0, qt.QHeaderView.ResizeToContents)
         header.setSectionResizeMode(1, qt.QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, qt.QHeaderView.Stretch)
     except Exception:
         pass
+    fit_table_height(table)
     table.cellDoubleClicked.connect(owner._on_run_status_table_double_clicked)
     table.setContextMenuPolicy(qt.Qt.CustomContextMenu)
 
@@ -346,19 +345,19 @@ def install_results_panel(owner: Any) -> None:
     table.customContextMenuRequested.connect(result_menu)
     layout.addWidget(table)
 
-    scene_grid = qt.QGridLayout()
+    scene_row = qt.QHBoxLayout()
     owner._resultSceneButtons = []
-    for index, (label, mode) in enumerate(SCENE_ACTIONS):
+    for label, mode in SCENE_ACTIONS:
         button = qt.QPushButton(label)
         button.enabled = False
-        button.setToolTip("Manage only scene nodes owned by this run; source files are never deleted.")
+        button.setToolTip(SCENE_ACTION_TOOLTIPS[mode])
         button.connect("clicked()", lambda mode=mode: owner._manage_result_scene(mode))
-        scene_grid.addWidget(button, index // 2, index % 2)
+        scene_row.addWidget(button)
         owner._resultSceneButtons.append(button)
-    layout.addLayout(scene_grid)
+    layout.addLayout(scene_row)
 
     report_row = qt.QHBoxLayout()
-    report_button = qt.QPushButton("Open latest report")
+    report_button = qt.QPushButton("Open report")
     report_button.enabled = False
     report_button.setToolTip("Open the HTML report of the selected run.")
     report_button.connect("clicked()", owner._on_open_latest_report_clicked)
@@ -371,16 +370,14 @@ def install_results_panel(owner: Any) -> None:
     layout.addLayout(report_row)
 
     combo.currentIndexChanged.connect(lambda _index: owner._on_run_history_selection_changed())
-    refresh.connect("clicked()", owner._refresh_run_history)
-    browse.connect("clicked()", owner._on_browse_run_directory_clicked)
+    section = getattr(owner.ui, "resultsCollapsibleButton", None)
+    if section is not None:
+        section.connect("contentsCollapsed(bool)", lambda collapsed: on_results_section_toggled(owner, collapsed))
 
-    for widget, key in ((run_label, "run_selector_label"), (refresh, "refresh"), (browse, "browse_runs")):
-        _bind(owner, widget, "text", key)
+    _bind(owner, run_label, "text", "run_selector_label")
 
     owner._runStatusPanel = getattr(owner.ui, "resultsCollapsibleButton", None) or table
     owner._runHistoryComboBox = combo
-    owner._runHistoryRefreshButton = refresh
-    owner._runHistoryBrowseButton = browse
     owner._runHistoryRecords = ()
     owner._runDetailsLabel = details
     owner._runSummaryLabel = summary
@@ -450,8 +447,15 @@ def refresh_run_history(owner: Any, select_path: Optional[Path] = None) -> None:
             combo.addItem(run_record_label(record), record.manifest_path.as_posix())
             combo.setItemData(combo.count - 1, run_record_details(record), 3)  # Qt::ToolTipRole
         if not discovery.records:
-            combo.addItem(_text(owner, "no_runs_found", "No runs found — use Browse… to add a run folder"), "")
-        combo.enabled = bool(discovery.records)
+            combo.addItem(_text(owner, "no_runs_found", "No runs found"), "")
+        # The last item adds a folder; it carries no manifest, so a selection never reads it as a run.
+        try:
+            combo.insertSeparator(combo.count)
+        except Exception:
+            pass
+        combo.addItem(_text(owner, "add_run_folder", ADD_RUN_FOLDER_TEXT), "")
+        combo.setItemData(combo.count - 1, ADD_RUN_FOLDER_TOOLTIP, 3)
+        combo.enabled = True
         target_index = 0
         if previous is not None:
             wanted = Path(previous).as_posix()
@@ -460,13 +464,14 @@ def refresh_run_history(owner: Any, select_path: Optional[Path] = None) -> None:
                     target_index = index
                     break
         combo.setCurrentIndex(target_index)
+        owner._runHistoryPreviousIndex = target_index
     finally:
         combo.blockSignals(False)
     notes = []
     if discovery.skipped:
         notes.append(f"{len(discovery.skipped)} unreadable manifest(s) skipped; first: {discovery.skipped[0][1]}")
     if discovery.truncated:
-        notes.append("Search stopped early in a very large folder; use Browse… on the run folder itself.")
+        notes.append("Search stopped early in a very large folder; choose “Add a run folder…” and pick the run folder itself.")
     owner._runHistoryNotes = tuple(notes)
     on_run_selection_changed(owner, from_refresh=True)
 
@@ -475,15 +480,51 @@ def selected_manifest_path(owner: Any) -> Optional[Path]:
     combo = getattr(owner, "_runHistoryComboBox", None)
     if combo is None or combo.count == 0:
         return None
+    if is_add_run_folder_item(combo):
+        return None
     data = combo.itemData(combo.currentIndex)
     return Path(str(data)) if data else None
 
 
+def is_add_run_folder_item(combo: Any) -> bool:
+    """True when the combo shows its last item, "Add a run folder…", which is an action and not a run."""
+
+    return combo.count > 0 and combo.currentIndex == combo.count - 1
+
+
+def on_run_combo_changed(owner: Any) -> None:
+    """Combo slot: show the chosen run, or open the folder dialog for the "Add a run folder…" item."""
+
+    combo = getattr(owner, "_runHistoryComboBox", None)
+    if combo is not None and is_add_run_folder_item(combo):
+        # Put the previous run back first, so a cancelled dialog leaves the selection unchanged.
+        # A folder that adds runs re-selects through refresh_run_history.
+        previous = getattr(owner, "_runHistoryPreviousIndex", 0)
+        combo.blockSignals(True)
+        try:
+            combo.setCurrentIndex(previous if 0 <= previous < combo.count - 1 else 0)
+        finally:
+            combo.blockSignals(False)
+        owner._on_browse_run_directory_clicked()
+        return
+    if combo is not None:
+        owner._runHistoryPreviousIndex = combo.currentIndex
+    on_run_selection_changed(owner)
+
+
+def on_results_section_toggled(owner: Any, collapsed: bool) -> None:
+    """Rescan for runs each time the Results and QC section is opened, keeping the selection."""
+
+    if not collapsed:
+        owner._refresh_run_history()
+
+
 def _set_scene_actions(owner: Any, *, has_subject_run: bool, is_batch: bool, error: str = "") -> None:
     state = result_actions_state(has_subject_run=has_subject_run, is_batch=is_batch, error=error)
-    for button in getattr(owner, "_resultSceneButtons", []):
+    # An enabled button explains its own action; a disabled one gives the reason for all four.
+    for button, (_label, mode) in zip(getattr(owner, "_resultSceneButtons", []), SCENE_ACTIONS):
         button.enabled = state.enabled
-        button.setToolTip(state.tooltip)
+        button.setToolTip(SCENE_ACTION_TOOLTIPS[mode] if state.enabled else state.tooltip)
 
 
 def on_run_selection_changed(owner: Any, *, from_refresh: bool = False) -> None:
@@ -497,6 +538,7 @@ def on_run_selection_changed(owner: Any, *, from_refresh: bool = False) -> None:
         _set_scene_actions(owner, has_subject_run=False, is_batch=False)
         if details is not None:
             details.setText(_text(owner, "no_run_selected", "No run selected.") + (f"\n{notes}" if notes else ""))
+            details.setToolTip("")
         return
     # A programmatic refresh keeps the live run's table (running or just cancelled);
     # picking a run in the list always shows that run.
@@ -509,9 +551,11 @@ def on_run_selection_changed(owner: Any, *, from_refresh: bool = False) -> None:
         _set_scene_actions(owner, has_subject_run=False, is_batch=False, error=str(exc))
         if details is not None:
             details.setText(f"Cannot use this run: {exc}")
+            details.setToolTip("")
         return
     if details is not None:
-        details.setText(run_record_details(record) + (f"\n{notes}" if notes else ""))
+        details.setText(run_record_brief(record) + (f"\n{notes}" if notes else ""))
+        details.setToolTip(run_record_details(record))
     if live:
         # Keep showing the live run's stage table while it executes.
         return
@@ -520,7 +564,7 @@ def on_run_selection_changed(owner: Any, *, from_refresh: bool = False) -> None:
 
 
 def show_record(owner: Any, record: RunRecord, manifest: dict[str, Any]) -> None:
-    from shared.result_scene import recorded_qc_summary
+    from shared.result_scene import recorded_qc_summary, review_state_text
     from shared.ui_run_controller import rows_from_batch_manifest, rows_from_single_subject_manifest
 
     review = getattr(owner, "_reviewStateLabel", None)
@@ -532,8 +576,8 @@ def show_record(owner: Any, record: RunRecord, manifest: dict[str, Any]) -> None
         owner._set_latest_report_path(None)
         owner._set_latest_output_tree_path(None)
         owner._set_run_summary_message(
-            f"Status: {status_label(record.status)} | Subjects: {counts['total']} | Completed: {counts['completed']} | "
-            f"Failed: {counts['failed']} | Skipped: {counts['skipped']}",
+            f"{status_label(record.status).capitalize()} · {counts['total']} subjects\n"
+            f"{counts['completed']} completed · {counts['failed']} failed · {counts['skipped']} skipped",
             "failed" if counts["failed"] else "completed",
         )
         if review is not None:
@@ -555,23 +599,15 @@ def show_record(owner: Any, record: RunRecord, manifest: dict[str, Any]) -> None
     )
     state = run_state_from_manifest_status(record.status)
     fallback = (
-        f"Status: {status_label(record.status)} | Tasks: {len(rows)} | Failed: {counts['failed']} | "
-        f"Blocked: {counts['blocked']}"
+        f"{status_label(record.status).capitalize()}\n"
+        f"{len(rows)} tasks · {counts['failed']} failed · {counts['blocked']} blocked"
     )
     message, summary_state = owner._run_summary_from_manifest(manifest)
     owner._set_run_summary_message(message or fallback, summary_state if message else state)
     if review is not None:
         qc = recorded_qc_summary(manifest)
         issues = counts["failed"] or counts["blocked"]
-        if record.status in {"running", "cancelled"}:
-            execution = f"Execution: {status_label(record.status)}"
-        else:
-            execution = "Execution: issues found" if issues else "Execution: completed"
-        review.setText(
-            execution
-            + f"  |  Recorded QC: {qc['passed']} passed, {qc['issues']} issues, {qc['unavailable']} unavailable"
-            + "  |  Visual review: pending"
-        )
+        review.setText(review_state_text(qc, issues_found=bool(issues)))
 
 
 def validated_selected_manifest(owner: Any) -> tuple[Optional[Path], str]:
@@ -579,7 +615,7 @@ def validated_selected_manifest(owner: Any) -> tuple[Optional[Path], str]:
 
     path = getattr(owner, "_latestResultManifestPath", None) or selected_manifest_path(owner)
     if path is None:
-        return None, "No run is selected. Choose one in the Run list or use Browse… to add a run folder."
+        return None, "No run is selected. Choose one in the Run list or choose “Add a run folder…” there."
     try:
         record = parse_run_manifest(Path(path))
     except ManifestError as exc:

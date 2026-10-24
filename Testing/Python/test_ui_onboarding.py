@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import types
 import unittest
 from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from shared.demo_data import create_synthetic_demo_subject
 from shared.ui_onboarding import (
@@ -234,6 +235,32 @@ class OnboardingHelpersTest(unittest.TestCase):
             with self.subTest(english=english):
                 self.assertEqual(translated_ui_message("zh", english), chinese)
                 self.assertEqual(translated_ui_message("en", chinese), english)
+
+    def test_result_buttons_use_short_labels_in_both_languages(self) -> None:
+        owner = FakeLanguageOwner()
+        owner._resultSceneButtons = [FakeTextWidget() for _ in range(4)]
+
+        apply_onboarding_language(owner, "zh")
+        self.assertEqual([button.value for button in owner._resultSceneButtons], ["加载", "替换", "追加", "清除"])
+        self.assertEqual(onboarding_text("zh", "open_latest_report"), "打开报告")
+
+        apply_onboarding_language(owner, "en")
+        self.assertEqual([button.value for button in owner._resultSceneButtons], ["Load", "Replace", "Append", "Clear"])
+        self.assertEqual(onboarding_text("en", "open_latest_report"), "Open report")
+
+    def test_wma_input_path_shows_what_empty_means_in_both_languages(self) -> None:
+        owner = FakeLanguageOwner()
+        line_edit = FakeTextWidget()
+        path_edit = FakeTextWidget()
+        path_edit.findChildren = lambda _kind: [line_edit]
+        owner.ui.wmaInputTractographyPath = path_edit
+
+        with patch.dict(sys.modules, {"qt": MagicMock()}):  # findChildren(qt.QLineEdit) needs qt
+            apply_onboarding_language(owner, "en")
+            # short enough to show in full in the 430 px panel (the long form was cut off in Slicer)
+            self.assertEqual(line_edit.placeholder, "Automatic (UKF tractogram)")
+            apply_onboarding_language(owner, "zh")
+            self.assertEqual(line_edit.placeholder, "自动（UKF 流线）")
 
     def test_prepare_and_environment_dynamic_controls_switch_language(self) -> None:
         owner = FakeLanguageOwner()

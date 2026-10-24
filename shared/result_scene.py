@@ -108,6 +108,13 @@ def recorded_qc_summary(manifest):
     return counts
 
 
+def review_state_text(qc, *, issues_found):
+    """Text of the review label: recorded QC counts, then the pending human review on its own line."""
+    text = (f"Recorded QC: {qc['passed']} passed · {qc['issues']} issues · {qc['unavailable']} unavailable"
+            "\nVisual review: pending")
+    return "Execution: issues found\n" + text if issues_found else text
+
+
 def result_candidates(manifest, *, allow_bundle_directory_scan=True, include_preprocessing=False):
     candidates, skipped, seen = [], [], set()
     for task in manifest.get("tasks", []) or []:

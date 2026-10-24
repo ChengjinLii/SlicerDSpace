@@ -95,6 +95,7 @@ TRANSLATIONS = {
         "wmql_definition": "WMQL definition",
         "parallel_models": "Concurrent microstructure models",
         "wma_input_tractography": "WMA tractography input",
+        "wma_input_placeholder": "Automatic (UKF tractogram)",
         "act_saf_streamlines": "ACT/SAF streamlines",
         "microstructure_stages": "Microstructure stages",
         "batch_mode": "Batch mode",
@@ -104,7 +105,7 @@ TRANSLATIONS = {
         "arrange_inputs": "Arrange inputs",
         "run_plan_pending": "Run plan has not been generated yet.",
         "run_summary_pending": "Run summary will appear after a plan or run completes.",
-        "open_latest_report": "Open latest report",
+        "open_latest_report": "Open report",
         "open_output_tree": "Open output tree",
         "target": "Target",
         "state": "State",
@@ -283,6 +284,7 @@ TRANSLATIONS = {
         "wmql_definition": "WMQL 解剖查询定义",
         "parallel_models": "微结构模型并发数",
         "wma_input_tractography": "WMA 纤维追踪输入",
+        "wma_input_placeholder": "自动（UKF 流线）",
         "act_saf_streamlines": "ACT/SAF 流线数量",
         "microstructure_stages": "微结构阶段",
         "batch_mode": "批处理模式",
@@ -292,7 +294,7 @@ TRANSLATIONS = {
         "arrange_inputs": "整理输入",
         "run_plan_pending": "尚未生成运行计划。",
         "run_summary_pending": "生成计划或运行完成后将在此显示摘要。",
-        "open_latest_report": "打开最新报告",
+        "open_latest_report": "打开报告",
         "open_output_tree": "打开输出目录报告",
         "target": "目标",
         "state": "状态",
@@ -812,6 +814,23 @@ def _set_widget_tooltip(widget: Any, text: str) -> None:
         pass
 
 
+def _set_path_edit_placeholder(widget: Any, text: str) -> None:
+    """Show placeholder text in a ctkPathLineEdit, whose editable combo box holds the real QLineEdit."""
+
+    if widget is None:
+        return
+    try:
+        import qt
+
+        edits = widget.findChildren(qt.QLineEdit)
+    except Exception:
+        edits = []
+    for edit in edits[:1]:
+        _set_widget_placeholder(edit, text)
+        return
+    _set_widget_placeholder(widget, text)
+
+
 def _set_widget_placeholder(widget: Any, text: str) -> None:
     """Set translated placeholder text on Qt/PythonQt input widgets."""
 
@@ -1056,8 +1075,8 @@ def apply_onboarding_language(owner: Any, language: str) -> None:
 
     lang = normalized_language(language)
     owner._onboardingLanguage = lang
-    scene_labels = (("加载 / 复用", "替换", "追加副本", "清除此运行") if lang == "zh" else
-                    ("Load / reuse", "Replace", "Append copy", "Clear run"))
+    scene_labels = (("加载", "替换", "追加", "清除") if lang == "zh" else
+                    ("Load", "Replace", "Append", "Clear"))
     for button, text in zip(getattr(owner, "_resultSceneButtons", []), scene_labels):
         _set_widget_text(button, text)
     widgets = getattr(owner, "_onboardingWidgets", {}) or {}
@@ -1091,6 +1110,8 @@ def apply_onboarding_language(owner: Any, language: str) -> None:
 
     for widget_name, key in MAIN_UI_TOOLTIP_BINDINGS.items():
         _set_widget_tooltip(getattr(ui, widget_name, None), onboarding_text(lang, key))
+
+    _set_path_edit_placeholder(getattr(ui, "wmaInputTractographyPath", None), onboarding_text(lang, "wma_input_placeholder"))
 
     mask_combo = getattr(ui, "brainMaskBackendComboBox", None)
     if mask_combo is not None:

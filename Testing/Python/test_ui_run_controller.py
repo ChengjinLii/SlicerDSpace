@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import unittest
 import tempfile
 from dataclasses import dataclass
@@ -169,9 +170,47 @@ class UIRunControllerTest(unittest.TestCase):
             )
 
             self.assertEqual(status, "passed")
-            self.assertIn("Status: passed", message)
-            self.assertIn("completed=2", message)
-            self.assertIn("ready", message)
+            # The interpretation repeats the counts for a passed run, so it is hidden.
+            self.assertEqual(message, "Passed · 2 s\n2 completed")
+
+    def _summary_for(self, summary: dict) -> tuple[str, str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            qc_path = Path(tmp) / "qc_summary.json"
+            qc_path.write_text(json.dumps({"summary": summary}), encoding="utf-8")
+            return run_summary_from_manifest({"report_paths": {"qc_summary_json_latest": qc_path.as_posix()}})
+
+    def test_run_summary_orders_task_states_and_uses_plain_separators(self) -> None:
+        message, status = self._summary_for({
+            "status": "failed",
+            "elapsed_time": "9m 22s",
+            "interpretation": "Some selected tasks failed.",
+            "tasks": {
+                "zeta": 1, "alpha": 4, "failed": 1, "cancelled": 1, "blocked": 1, "partial": 1,
+                "skipped": 2, "reused": 1, "passed": 1, "completed": 2, "unused": 0,
+            },
+        })
+
+        self.assertEqual(status, "failed")
+        lines = message.split("\n")
+        self.assertEqual(lines[0], "Failed · 9m 22s")
+        self.assertEqual(
+            lines[1],
+            "2 completed · 1 passed · 1 reused · 2 skipped · 1 partial · 1 blocked · 1 cancelled · 1 failed"
+            " · 4 alpha · 1 zeta",
+        )
+        self.assertEqual(lines[2], "Some selected tasks failed.")
+        self.assertEqual(len(lines), 3)
+        self.assertNotIn("|", message)
+        self.assertNotIn("=", message)
+
+    def test_run_summary_hides_interpretation_for_completed_and_elapsed_when_missing(self) -> None:
+        message, status = self._summary_for({
+            "status": "completed", "interpretation": "All selected tasks completed.",
+            "tasks": {"completed": 2, "skipped": 2},
+        })
+
+        self.assertEqual(status, "completed")
+        self.assertEqual(message, "Completed\n2 completed · 2 skipped")
 
     def test_rows_from_plan_normalizes_will_run_and_counts(self) -> None:
         @dataclass

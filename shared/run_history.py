@@ -247,7 +247,7 @@ def load_manifest_json(path: Path) -> dict[str, Any]:
     except FileNotFoundError as exc:
         raise ManifestError(
             f"Run manifest not found: {path}. The run folder may have been moved or deleted; "
-            "click Refresh or use Browse… to pick its new location."
+            "open Results and QC again to rescan, or choose “Add a run folder…” to pick its new location."
         ) from exc
     except OSError as exc:
         raise ManifestError(f"Cannot read run manifest {path}: {exc}. Check file permissions.") from exc
@@ -449,7 +449,7 @@ def candidate_run_roots(
 
     Covers the GUI's output directory (or ``<subject root>/outputs``), the
     subject root, the batch root and its default ``batch_outputs`` folder, and
-    any folders the user added with Browse… in this or an earlier session.
+    any folders the user added with “Add a run folder…” in this or an earlier session.
     """
 
     candidates: list[Path] = []
@@ -501,6 +501,9 @@ STATUS_LABELS = {
 }
 
 
+BATCH_HINT = "Batch run: pick one subject's run in the list to load its images."
+
+
 def status_label(status: str) -> str:
     return STATUS_LABELS.get(status, status or "unknown")
 
@@ -509,6 +512,37 @@ def run_record_label(record: RunRecord) -> str:
     """One-line combo-box label: time · subject · run · status."""
 
     return f"{record.timestamp_text} · {record.subject_id} · {record.run_name} · {status_label(record.status)}"
+
+
+# Product names as the Products section shows them; every name in orchestrator.TARGET_ORDER needs one.
+TARGET_LABELS = {
+    "validation": "input validation",
+    "preprocessing": "preprocessing",
+    "segmentation": "DDSeg",
+    "parcellation": "DDParcel",
+    "surface": "DDSurfer surfaces",
+    "surface_postprocess": "surface postprocess",
+    "microstructure": "DTI",
+    "microstructure_freewater": "free water",
+    "microstructure_noddi": "NODDI",
+    "microstructure_dki": "DKI",
+    "tractography": "tractography",
+    "bundles": "bundles",
+    "saf": "SAF",
+    "wma": "WMA",
+    "tractcloud": "TractCloud",
+    "connectome": "connectome",
+}
+
+
+def run_record_brief(record: RunRecord) -> str:
+    """One-line description for the details label; run_record_details stays the tooltip."""
+
+    if record.is_batch:
+        return BATCH_HINT
+    if not record.targets:
+        return "Products: not recorded"
+    return "Products: " + ", ".join(TARGET_LABELS.get(target, target) for target in record.targets)
 
 
 def run_record_details(record: RunRecord) -> str:
@@ -522,7 +556,7 @@ def run_record_details(record: RunRecord) -> str:
         f"Manifest: {record.manifest_path}",
     ]
     if record.is_batch:
-        lines.append("Batch run: pick one subject's run in the list to load its images.")
+        lines.append(BATCH_HINT)
     return "\n".join(lines)
 
 

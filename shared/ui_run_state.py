@@ -103,15 +103,23 @@ def run_button_state(
     return ButtonState(True, RUN_BUTTON_READY_TOOLTIP)
 
 
+SCENE_ACTION_TOOLTIPS = {
+    "reuse": "Load this run's results. Nodes this run already owns and that are unchanged are reused, not duplicated.",
+    "replace": "Remove the nodes this run owns, then load its results again.",
+    "append": "Add another copy of this run's results next to the existing nodes.",
+    "clear": "Remove the nodes this run owns. Source files are never deleted.",
+}
+
+
 def result_actions_state(*, has_subject_run: bool, is_batch: bool, error: str = "") -> ButtonState:
-    """Enablement for Load / reuse, Replace, Append copy and Clear run."""
+    """Enablement for Load, Replace, Append and Clear."""
 
     if error:
         return ButtonState(False, error)
     if is_batch:
         return ButtonState(False, "Batch runs list one entry per subject; choose a subject's run to load its images.")
     if not has_subject_run:
-        return ButtonState(False, "Choose a run in the list above, or use Browse… to add a run folder.")
+        return ButtonState(False, "Choose a run in the list above, or choose “Add a run folder…” in the Run list.")
     return ButtonState(True, "Manage only scene nodes owned by this run; source files are never deleted.")
 
 

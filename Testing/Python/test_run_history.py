@@ -24,6 +24,7 @@ from shared.run_history import (
     progress_from_manifest,
     progress_from_payloads,
     remember_directory,
+    run_record_brief,
     run_record_details,
     run_record_label,
 )
@@ -159,6 +160,55 @@ class ManifestParsingTest(unittest.TestCase):
         self.assertIn("GUI1", label)
         self.assertIn("completed, some blocked", label)
         self.assertRegex(label, r"^2026-09-2\d \d\d:\d\d")
+
+
+class RecordBriefTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _record(self, **overrides):
+        path = _write(self.root / "b_orchestration_manifest.json", _subject_manifest(**overrides))
+        return parse_run_manifest(path)
+
+    def test_brief_uses_friendly_product_names_in_recorded_order(self) -> None:
+        record = self._record(targets=[
+            "microstructure", "microstructure_freewater", "microstructure_noddi", "microstructure_dki",
+        ])
+        self.assertEqual(run_record_brief(record), "Products: DTI, free water, NODDI, DKI")
+        record = self._record(targets=["segmentation", "parcellation", "surface"])
+        self.assertEqual(run_record_brief(record), "Products: DDSeg, DDParcel, DDSurfer surfaces")
+
+    def test_brief_falls_back_to_raw_name_for_unknown_target(self) -> None:
+        record = self._record(targets=["segmentation", "future_product"])
+        self.assertEqual(run_record_brief(record), "Products: DDSeg, future_product")
+
+    def test_brief_without_targets_says_not_recorded(self) -> None:
+        self.assertEqual(run_record_brief(self._record(targets=[])), "Products: not recorded")
+
+    def test_brief_of_batch_keeps_the_batch_sentence_and_details_stay_unchanged(self) -> None:
+        batch = parse_run_manifest(_write(self.root / "batch_x.json", {
+            "kind": BATCH_MANIFEST_KIND, "version": 1, "status": "completed", "subjects": [],
+        }))
+        self.assertTrue(batch.is_batch)
+        self.assertEqual(
+            run_record_brief(batch), "Batch run: pick one subject's run in the list to load its images."
+        )
+        record = self._record(targets=["segmentation"])
+        self.assertIn("Targets: segmentation", run_record_details(record))
+        self.assertIn("Manifest: ", run_record_details(record))
+
+    def test_every_orchestrator_target_has_a_friendly_label(self) -> None:
+        from shared.orchestrator import TARGET_ORDER
+        from shared.run_history import TARGET_LABELS
+
+        for target in TARGET_ORDER:
+            with self.subTest(target=target):
+                self.assertIn(target, TARGET_LABELS)
+                self.assertTrue(TARGET_LABELS[target].strip())
 
 
 class DiscoveryTest(unittest.TestCase):

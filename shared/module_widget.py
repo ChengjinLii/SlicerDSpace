@@ -58,7 +58,7 @@ from shared.topup_parameters import (
 )
 from shared.ui_run_history import (
     browse_run_directory,
-    on_run_selection_changed,
+    on_run_combo_changed,
     poll_run_progress,
     refresh_run_history,
     set_run_state,
@@ -128,6 +128,7 @@ from shared.process_group import capture_process_group_id, finish_process_group,
 from shared.ui_run_status_panel import (
     install_run_status_panel,
     mark_unfinished_rows,
+    row_open_path,
     set_run_status_table_rows,
     table_item,
     update_run_status_table_item,
@@ -382,7 +383,7 @@ class SharedWidgetMixin:
             self.appendLog(f"[Results] Could not scan for previous runs: {exc}")
 
     def _on_run_history_selection_changed(self) -> None:
-        on_run_selection_changed(self)
+        on_run_combo_changed(self)
 
     def _on_browse_run_directory_clicked(self) -> None:
         browse_run_directory(self)
@@ -1559,18 +1560,11 @@ class SharedWidgetMixin:
 
     def _on_run_status_table_double_clicked(self, row: int, column: int) -> None:
         table = getattr(self, "_runStatusTable", None)
-        if not table or column < 3:
+        if not table:
             return
-        item = table.item(row, column)
-        if not item:
-            return
-        path_text = str(item.text() if callable(getattr(item, "text", None)) else item.text).strip()
-        if not path_text:
-            return
-        path = Path(path_text).expanduser()
-        if not path.exists():
-            return
-        qt.QDesktopServices.openUrl(qt.QUrl.fromLocalFile(path.as_posix()))
+        path = row_open_path(table, row)
+        if path is not None:
+            qt.QDesktopServices.openUrl(qt.QUrl.fromLocalFile(path.as_posix()))
 
     def _browse_environment_dependency_path(self, item: dict[str, str], line_edit) -> None:
         current = self._line_edit_text(line_edit)
@@ -2299,7 +2293,7 @@ class SharedWidgetMixin:
             button.enabled = False
         review = getattr(self, "_reviewStateLabel", None)
         if review:
-            review.text = "Execution: starting   |   QC: not available yet   |   Visual review: pending"
+            review.text = "Recorded QC: not available yet\nVisual review: pending"
 
     def _startBackgroundPipeline(
         self,
@@ -2544,11 +2538,8 @@ class SharedWidgetMixin:
             button.enabled = True
         review = getattr(self, "_reviewStateLabel", None)
         if review:
-            from shared.result_scene import recorded_qc_summary
-            qc = recorded_qc_summary(manifest)
-            review.text = (("Execution: issues found" if failed or blocked else "Execution: completed") +
-                           f"  |  Recorded QC: {qc['passed']} passed, {qc['issues']} issues, {qc['unavailable']} unavailable"
-                           "  |  Visual review: pending")
+            from shared.result_scene import recorded_qc_summary, review_state_text
+            review.text = review_state_text(recorded_qc_summary(manifest), issues_found=bool(failed or blocked))
         report_path = ""
         report_paths = manifest.get("report_paths") or {}
         if isinstance(report_paths, dict):
@@ -2616,10 +2607,13 @@ class SharedWidgetMixin:
                 title="Cannot load this run",
                 what="The selected run could not be loaded into the scene.",
                 why=error,
-                next_step="Click Refresh to rescan run folders, or use Browse… to pick the run's output folder.",
+                next_step=(
+                    "Open Results and QC again to rescan run folders, or choose “Add a run folder…” "
+                    "in the Run list."
+                ),
                 auto_fix="Not available; no scene nodes were changed.",
                 details=str(getattr(self, "_latestResultManifestPath", "") or "no run selected"),
-                actions=(("Refresh", self._refresh_run_history), ("Browse…", self._on_browse_run_directory_clicked)),
+                actions=(("Rescan", self._refresh_run_history), ("Add a run folder…", self._on_browse_run_directory_clicked)),
             )
             return
         if mode in {"replace", "clear"} and not slicer.util.confirmYesNoDisplay(

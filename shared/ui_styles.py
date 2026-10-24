@@ -30,7 +30,7 @@ QGroupBox#externalBackendsGroup {
 QLabel#subtitleLabel, QLabel#environmentHintLabel,
 QLabel#environmentResultLabel, QLabel#externalSectionDescriptionLabel,
 QLabel#externalSubsectionDescriptionLabel, QLabel#advancedRunSectionLabel,
-QLabel#runDetailsLabel, QLabel#runMessageLabel, QLabel#runStageLabel,
+QLabel#runMessageLabel, QLabel#runStageLabel,
 QLabel#advancedSettingsHintLabel {
   color: #63727D;
   background: transparent;
@@ -48,12 +48,18 @@ QLabel#externalSectionTitleLabel, QLabel#externalSubsectionTitleLabel {
   padding: 4px 0;
 }
 QLabel#modelAssetsSummaryLabel, QLabel#selectedProductsSummaryLabel,
-QLabel#runSummaryLabel, QLabel#reviewStateLabel {
+QLabel#runSummaryLabel {
   background: #F6F8FA;
   border: 1px solid #DFE5E9;
   border-radius: 4px;
   color: #52616D;
   padding: 6px;
+}
+QLabel#runDetailsLabel, QLabel#reviewStateLabel {
+  color: #63727D;
+  background: transparent;
+  border: none;
+  padding: 0 10px;
 }
 QLineEdit, QComboBox {
   background: #FFFFFF;

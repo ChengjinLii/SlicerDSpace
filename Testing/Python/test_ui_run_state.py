@@ -90,7 +90,7 @@ class ResultActionsTest(unittest.TestCase):
         self.assertFalse(batch.enabled)
         self.assertIn("subject's run", batch.tooltip)
         none = result_actions_state(has_subject_run=False, is_batch=False)
-        self.assertIn("Browse…", none.tooltip)
+        self.assertIn("Add a run folder…", none.tooltip)
         error = result_actions_state(has_subject_run=True, is_batch=False, error="version 9 unsupported")
         self.assertFalse(error.enabled)
         self.assertEqual(error.tooltip, "version 9 unsupported")

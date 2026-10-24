@@ -351,6 +351,9 @@ def task_keys_for_running_line(line: str) -> tuple[str, ...]:
     return ()
 
 
+SUMMARY_STATE_ORDER = ("completed", "passed", "reused", "skipped", "partial", "blocked", "cancelled", "failed")
+
+
 def run_summary_from_manifest(manifest: dict[str, Any]) -> tuple[str, str]:
     """Return a compact run summary from a manifest's QC summary path."""
 
@@ -374,13 +377,18 @@ def run_summary_from_manifest(manifest: dict[str, Any]) -> tuple[str, str]:
     interpretation = str(summary.get("interpretation") or "").strip()
     elapsed = str(summary.get("elapsed_time") or "").strip()
     tasks = summary.get("tasks") if isinstance(summary.get("tasks"), dict) else {}
-    task_text = ", ".join(f"{key}={value}" for key, value in sorted(tasks.items())) if tasks else "no task counts"
-    parts = [f"Status: {status}", f"Tasks: {task_text}"]
-    if elapsed:
-        parts.append(f"Elapsed: {elapsed}")
-    if interpretation:
-        parts.append(interpretation)
-    return " | ".join(parts), status
+    ranked = {state: index for index, state in enumerate(SUMMARY_STATE_ORDER)}
+    shown = sorted(
+        ((state, count) for state, count in tasks.items() if count),
+        key=lambda item: (ranked.get(item[0], len(ranked)), item[0]),
+    )
+    first = status.replace("_", " ").capitalize() + (f" · {elapsed}" if elapsed else "")
+    lines = [first]
+    if shown:
+        lines.append(" · ".join(f"{count} {state.replace('_', ' ')}" for state, count in shown))
+    if interpretation and status not in {"completed", "passed"}:
+        lines.append(interpretation)
+    return "\n".join(lines), status
 
 
 def preflight_blockers_for_targets(doctor_result: Any, selected_targets: tuple[str, ...]) -> dict[str, str]:

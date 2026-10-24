@@ -58,7 +58,7 @@ dependency checks and QC gates still apply. More methods require more time and d
 4. Click **Run SlicerDDSurfer** and inspect the log. Necessary preflight checks
    run in the background. Missing dependencies stop submission and open the
    Environment section; prepare them and retry rather than silently omitting products.
-5. FA/MD automatically load as successful stages finish. In the separate **Results and QC** section, select the completed run to inspect QC or use **Load / reuse** again without duplicating nodes.
+5. FA/MD automatically load as successful stages finish. In the separate **Results and QC** section, select the completed run to inspect QC or use **Load** again without duplicating nodes.
 6. Inspect the mask, finite-value checks, spatial alignment and QC summary before accepting results.
 
 Generate a plan without execution:

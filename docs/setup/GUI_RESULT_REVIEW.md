@@ -53,12 +53,12 @@ presenting unrelated historical results as current results.
 
 Open the separate **Results and QC** section. The **Run** list shows every run found under the output
 directory (or `<subject root>/outputs`), the subject root, the batch root and
-any folder added earlier with **Browse…**, newest first, as
+any folder added earlier with **Add a run folder…**, newest first, as
 `time · subject · run name · status`. GUI, command-line and batch runs all
-appear, including runs from earlier Slicer sessions. **Browse…** adds any run
+appear, including runs from earlier Slicer sessions. The last list item, **Add a run folder…**, adds any run
 or output folder (searched three levels deep for
 `00_run_metadata/<run>_orchestration_manifest.json` or
-`00_batch_metadata/batch_*.json`) and remembers it; **Refresh** rescans.
+`00_batch_metadata/batch_*.json`) and remembers it. The list rescans each time the section is opened.
 Manifests with an unknown `kind` or an unsupported `version` are skipped and
 reported. The selected manifest is validated again when a scene action is
 clicked. Batch entries show per-subject status; pick a subject's own run to
@@ -67,10 +67,10 @@ load images.
 Nodes are grouped by subject, run and product in Subject Hierarchy. Source and
 run attributes persist when the scene is saved and reopened.
 
-- **Load / reuse** reuses unchanged owned nodes instead of duplicating them.
+- **Load** reuses unchanged owned nodes instead of duplicating them.
 - **Replace** removes nodes owned by this run and reloads its declared results.
-- **Append copy** explicitly adds another copy.
-- **Clear run** removes only this run's owned nodes, never source files.
+- **Append** explicitly adds another copy.
+- **Clear** removes only this run's owned nodes, never source files.
 
 In automatic mode, a changed owned source is replaced. In manual reuse mode,
 changed source file size or modification time triggers a reload warning rather
