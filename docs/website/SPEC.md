@@ -111,7 +111,7 @@ docs/performance.html             stub: refresh to index.html#performance, canon
 docs/assets/fonts/        InterTight, Inter, IBMPlexMono as .woff2 (Latin subset) + the three OFL .txt files
 docs/assets/img/          icon-64.png, icon-180.png (from R/Resources/Icons/SlicerDDSurfer.png), poster.jpg,
                           social.jpg, idea.jpg, out-surfaces.jpg, out-tracts.jpg, out-connectome.jpg, slicer.jpg,
-                          fig-route-guide.png, fig-runtime-resources.png (the two figures are rasterised from
+                          fig-product-map.png, fig-route-guide.png, fig-runtime-resources.png (the three figures are rasterised from
                           `docs/figures/*.svg`, which is not served), and twelve result tiles: res-dec.jpg, res-fw.jpg,
                           res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tissue.jpg, res-parcel.jpg, res-tr-ukf.jpg,
                           res-tr-csd.jpg, res-wmql-csd.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
@@ -349,11 +349,13 @@ Two columns: text left, `idea.jpg` right.
 
 ### 5.6a Which route when (`#choose`, after `#workflows`)
 
-- Eyebrow “Choosing routes”, H2 “Which route when.”, then `fig-route-guide.png` in a panel, wrapped in a link
-  to the full-size file (`target="_blank" rel="noopener"`), with `width`, `height`, `loading="lazy"`, `decoding="async"`.
-- Caption: “Which methods each acquisition and input allows (including the b-value limit for DKI), with six example
-  routes. Built from the planner and method code and the documented dependencies; status is recorded for Linux test
-  subjects.” The caption must not say that a single-shell scan can use CSD/ACT.
+- Eyebrow “Choosing routes”, H2 “Which route when.”, then two panels, `fig-product-map.png` and below it
+  `fig-route-guide.png`, each wrapped in a link to the full-size file (`target="_blank" rel="noopener"`), with `width`,
+  `height`, `loading="lazy"`, `decoding="async"`.
+- Captions: “What each method makes and what it reads. Free water, NODDI and DKI need at least two non-zero shells;
+  DKI counts only shells up to 2500 s/mm².” and “Six example routes that together use every method. Built from the
+  planner and method code and the documented dependencies; status is recorded for Linux test subjects.” No caption
+  may say that a single-shell scan can use CSD/ACT.
 
 ### 5.7 In Slicer (`#slicer`)
 

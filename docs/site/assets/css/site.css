@@ -665,6 +665,7 @@ figcaption {
 
 /* ---------- In Slicer ---------- */
 .shot { margin: 8px 0 0; padding: 12px; }
+.shot + .shot { margin-top: 24px; }
 .shot img {
   width: 100%;
   border-radius: 8px;
