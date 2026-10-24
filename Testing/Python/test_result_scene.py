@@ -197,3 +197,80 @@ class ReviewStateTextTest(unittest.TestCase):
             "Execution: issues found\nRecorded QC: 1 passed · 2 issues · 0 unavailable\nVisual review: pending",
         )
         self.assertNotIn("|", text)
+
+
+class _FakeTable:
+    def __init__(self, values):
+        self.values = values
+
+    def GetTableValue(self, label):
+        return self.values[label]
+
+
+class _FakeColor:
+    """A colour table as Slicer reads FreeSurferColorLUT.txt: its unused alpha column (0) becomes alpha 0."""
+
+    def __init__(self):
+        self.names = {0: "Unknown", 2: "Left-Cerebral-White-Matter", 1001: "ctx-lh-bankssts"}
+        self.values = {label: (0.1 * (i + 1), 0.2, 0.3, 0.0) for i, label in enumerate(self.names)}
+        self.attributes = {}
+
+    def GetID(self):
+        return "vtkMRMLColorTableNode7"
+
+    def GetNumberOfColors(self):
+        return 1002
+
+    def GetColorName(self, label):
+        return self.names.get(label, "(none)")
+
+    def GetLookupTable(self):
+        return _FakeTable(self.values)
+
+    def SetColor(self, label, name, r, g, b, a):
+        self.names[label], self.values[label] = name, (r, g, b, a)
+
+    def SetAttribute(self, key, value):
+        self.attributes[key] = value
+
+    def GetAttribute(self, key):
+        return self.attributes.get(key)
+
+
+class FreeSurferColorNodeTest(unittest.TestCase):
+    """Slicer 5.x has no FreeSurfer colour table without the SlicerFreeSurfer extension (5.12.4, 2026-10-24):
+    DDParcel labels fell back to the generic Labels table."""
+
+    def _slicer(self, scene_ids=()):
+        loaded, nodes = [], []
+
+        def load(path):
+            loaded.append(path)
+            color = _FakeColor()
+            nodes.append(color)
+            return color
+
+        scene = {identity: SimpleNamespace(GetID=lambda identity=identity: identity) for identity in scene_ids}
+        return SimpleNamespace(
+            mrmlScene=SimpleNamespace(GetNodeByID=scene.get),
+            util=SimpleNamespace(loadColorTable=load, getNodesByClass=lambda _name: list(nodes))), loaded
+
+    def test_bundled_lut_is_loaded_once_and_opaque(self):
+        from shared.result_scene import FREESURFER_LUT, freesurfer_color_node
+
+        self.assertTrue(FREESURFER_LUT.is_file())
+        slicer, loaded = self._slicer()
+        color = freesurfer_color_node(slicer)
+        self.assertEqual(loaded, [str(FREESURFER_LUT)])
+        self.assertEqual(color.GetLookupTable().GetTableValue(1001)[3], 1.0)
+        self.assertEqual(color.GetLookupTable().GetTableValue(2)[3], 1.0)
+        self.assertEqual(color.GetLookupTable().GetTableValue(0)[3], 0.0)    # background stays clear
+        self.assertIs(freesurfer_color_node(slicer), color)
+        self.assertEqual(len(loaded), 1)
+
+    def test_slicers_own_freesurfer_table_is_used_when_present(self):
+        from shared.result_scene import freesurfer_color_node
+
+        slicer, loaded = self._slicer({"vtkMRMLColorTableNodeFileFreeSurferColorLUT.txt"})
+        self.assertEqual(freesurfer_color_node(slicer).GetID(), "vtkMRMLColorTableNodeFileFreeSurferColorLUT.txt")
+        self.assertEqual(loaded, [])

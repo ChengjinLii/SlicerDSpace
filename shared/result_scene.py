@@ -5,6 +5,7 @@ import json
 from shared.bundle_qc import bundle_record_error
 
 PREFIX = "SlicerDDSurfer."
+FREESURFER_LUT = Path(__file__).resolve().parents[1] / "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt"
 SUFFIXES = (".nii.gz", ".nii", ".mgz", ".csv", ".tsv", ".stl", ".vtk", ".vtp", ".trk", ".tck")
 
 
@@ -273,6 +274,36 @@ def regional_color_node(slicer, candidate):
     return color
 
 
+def freesurfer_color_node(slicer):
+    """Slicer's FreeSurfer colour table, else the bundled FreeSurferColorLUT.txt, loaded once.
+
+    Slicer 5.x keeps the FreeSurfer tables in the SlicerFreeSurfer extension; without it, DDParcel labels fell back
+    to the generic Labels table. FreeSurfer's unused alpha column is read as opaque, as in regional_color_node.
+    """
+    node = slicer.mrmlScene.GetNodeByID("vtkMRMLColorTableNodeFileFreeSurferColorLUT.txt")
+    if node is not None:
+        return node
+    if not FREESURFER_LUT.is_file():
+        return None
+    identity, stamp = "parcellation:" + str(FREESURFER_LUT), source_stamp(FREESURFER_LUT)
+    color = next((item for item in slicer.util.getNodesByClass('vtkMRMLColorTableNode')
+                  if item.GetAttribute(PREFIX + 'LUTSourcePath') == identity
+                  and item.GetAttribute(PREFIX + 'LUTSourceStamp') == stamp), None)
+    if color is not None:
+        return color
+    color = slicer.util.loadColorTable(str(FREESURFER_LUT))
+    if color is None:
+        return None
+    table = color.GetLookupTable()
+    for label in range(1, color.GetNumberOfColors()):
+        name = color.GetColorName(label)
+        if name not in {None, '', '(none)', 'NoName'}:
+            color.SetColor(label, name, *table.GetTableValue(label)[:3], 1.)
+    color.SetAttribute(PREFIX + 'LUTSourcePath', identity)
+    color.SetAttribute(PREFIX + 'LUTSourceStamp', stamp)
+    return color
+
+
 def automatic_display_preset(slicer, node, candidate, *, hide_pial=True):
     """Only display properties change; voxel values, label IDs and mesh data do not."""
     annotate_automatic_result(node, candidate)
@@ -311,7 +342,11 @@ def automatic_display_preset(slicer, node, candidate, *, hide_pial=True):
             if color is not None:
                 display.SetAndObserveColorNodeID(color.GetID())
         elif candidate["product"].startswith("parcellation."):
-            color_node("vtkMRMLColorTableNodeFileFreeSurferColorLUT.txt", "vtkMRMLColorTableNodeLabels")
+            color = freesurfer_color_node(slicer)
+            if color is not None:
+                display.SetAndObserveColorNodeID(color.GetID())
+            else:
+                color_node("vtkMRMLColorTableNodeLabels")
         else:
             color_node("vtkMRMLColorTableNodeGenericAnatomyColors", "vtkMRMLColorTableNodeLabels")
     elif role.startswith("surface:"):
