@@ -109,7 +109,8 @@ class SlicerDDSurferParameterNode:
     orchestrationTractographyBackend: Annotated[str, Choice(selection_choices(TRACKING))] = "csd_act"
     ukfParameters: str = "{}"
     orchestrationBundleBackend: Annotated[str, Choice([*selection_choices(BUNDLES), "all"]) ] = "wmql"
-    orchestrationWmqlPreset: Annotated[str, Choice(["ddparcel_act", "author", "published_endpoints"])] = "ddparcel_act"
+    orchestrationWmqlPreset: Annotated[str, Choice(["official"])] = "official"
+    orchestrationWmqlSelection: str = ""
     maxParallelModels: Annotated[int, WithinRange(1, 3)] = 1
     wmaInputTractography: str = ""
     orchestrationSelectStreamlines: int = 1000000
@@ -197,6 +198,13 @@ class SlicerDDSurferLogic(
         from shared.ui_settings import mark_new_parameter_node
         raw = super().getParameterNode()
         mark_new_parameter_node(raw)
+        previous = raw.GetParameter('orchestrationWmqlPreset')
+        if previous in {'ddparcel_act', 'author', 'published_endpoints'}:
+            with slicer.util.NodeModify(raw):
+                raw.SetAttribute('SlicerDDSurfer.LegacyWMQLPreset', previous)
+                raw.SetParameter('orchestrationWmqlPreset', 'official')
+            self.log('[WMQL] Migrated GUI configuration to official multi-bundle rules; previous preset '
+                     + previous + ' retained as a scene attribute. Historical run files are unchanged.')
         return SlicerDDSurferParameterNode(raw)
 
 

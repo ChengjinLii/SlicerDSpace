@@ -87,7 +87,8 @@ class ProductOrchestratorConfig:
     ukf_executable: Optional[Path] = None
     dwiconvert_executable: Optional[Path] = None
     bundle_backend: str = "wmql"
-    wmql_query_preset: str = "ddparcel_act"
+    wmql_query_preset: str = "official"
+    wmql_query_selection: tuple[str, ...] = ()
     execute: bool = False
     resume: bool = True
     preprocessing_backend: str = "dipy"
@@ -322,20 +323,28 @@ def _wmql_complete(
     manifest_path: Optional[Path] = None,
     input_tractography: Optional[Path] = None,
     parcellation: Optional[Path] = None,
-    query_preset: str = "ddparcel_act",
+    query_preset: str = "official",
+    query_selection: tuple[str, ...] = (),
 ) -> bool:
-    """Return true only when completed WMQL QC points to real bundles."""
+    """Reuse frozen, readable extraction, retaining official coverage warnings as warnings."""
 
-    if not _qc_completed(qc_path):
-        return False
     try:
-        from tractography.wmql import summarize_wmql_outputs, _wmql_output_contract_error, WMQL_QC_VERSION, bundled_wmql_query_path, wmql_query_cache_current
+        from tractography.wmql import (summarize_wmql_outputs, _wmql_output_contract_error, WMQL_QC_VERSION,
+                                       bundled_wmql_query_path, wmql_query_cache_current,
+                                       canonical_wmql_selection, official_query_names, AUTHOR_ALIAS_SHA256)
         import hashlib
 
         native_manifest_path = manifest_path or qc_path.with_name("wmql_manifest.json")
         manifest = _read_json(native_manifest_path)
         qc = _read_json(qc_path)
-        if qc.get('version') != WMQL_QC_VERSION or qc.get('automatic_qc_passed') is not True:
+        official = query_preset == 'official'
+        if (qc.get('version') != WMQL_QC_VERSION or qc.get('status') != 'completed' or qc.get('error')
+                or (official and (not qc.get('official_multibundle') or not qc.get('execution_passed')
+                                  or not qc.get('output_integrity_passed')))
+                or (not official and qc.get('automatic_qc_passed') is not True)):
+            return False
+        selected = canonical_wmql_selection(query_selection) if official else tuple(query_selection)
+        if official and tuple(manifest.get('query_selection', ())) != selected:
             return False
         query = Path(manifest.get('query_path') or '')
         if not query.is_file() or manifest.get('query_sha256') != hashlib.sha256(query.read_bytes()).hexdigest():
@@ -343,6 +352,9 @@ def _wmql_complete(
         if manifest.get('query_sha256') != hashlib.sha256(bundled_wmql_query_path(query_preset).read_bytes()).hexdigest():
             return False
         if not wmql_query_cache_current(manifest):
+            return False
+        if official and not any(Path(path).name == 'FreeSurfer.qry' and digest == AUTHOR_ALIAS_SHA256
+                                for path, digest in manifest.get('query_dependencies', {}).items()):
             return False
         expected_dependencies = {
             key: path
@@ -359,14 +371,15 @@ def _wmql_complete(
         ):
             return False
         summary = summarize_wmql_outputs(qc_path.parent, manifest.get('subject_id'))
-        expected_count = max(1, len(manifest.get("query_selection") or []))
+        requested = (selected or official_query_names()) if official else tuple(manifest.get('query_selection') or ())
+        expected_count = 1 if official else max(1, len(requested))
         bundle_count = int(summary.get("bundle_count", 0) or 0)
         readable_count = int(summary.get("bundle_readable_count", 0) or 0)
         nonempty_count = int(summary.get("bundle_nonempty_count", 0) or 0)
         if bundle_count < expected_count:
             return False
         return readable_count == bundle_count and nonempty_count >= expected_count and _wmql_output_contract_error(
-            summary, expected_count, tuple(manifest.get('query_selection') or ())) is None
+            summary, expected_count, requested, require_sampling=not official) is None
     except (OSError, TypeError, ValueError):
         return False
 
@@ -1756,6 +1769,9 @@ def _validate_surface_settings(config: ProductOrchestratorConfig) -> None:
 
 
 def _validate_tractography_settings(config: ProductOrchestratorConfig) -> None:
+    if config.wmql_query_preset == 'official':
+        from tractography.wmql_protocol import canonical_wmql_selection
+        canonical_wmql_selection(config.wmql_query_selection)
     if config.tractography_backend == 'ukf':
         from tractography.ukf import parameters
         parameters(config.ukf_parameters)
@@ -1974,6 +1990,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             return _wmql_complete(
                 wmql_dir / "wmql_qc.json",
                 query_preset=config.wmql_query_preset,
+                query_selection=config.wmql_query_selection,
                 input_tractography=tractogram_trk,
                 parcellation=parcellation,
             )
@@ -2292,6 +2309,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             if config.resume and ukf_cached and _wmql_complete(
                 wmql_outputs["qc"],
                 query_preset=config.wmql_query_preset,
+                query_selection=config.wmql_query_selection,
                 manifest_path=wmql_outputs["manifest"],
                 input_tractography=tractogram_trk,
                 parcellation=parcellation,
@@ -4038,6 +4056,7 @@ def _run_subject_products_impl(
         elif config.resume and _wmql_complete(
             wmql_qc,
             query_preset=config.wmql_query_preset,
+            query_selection=config.wmql_query_selection,
             input_tractography=tractogram_trk,
             parcellation=parcellation,
         ):
@@ -4061,6 +4080,7 @@ def _run_subject_products_impl(
                     output_dir=wmql_dir,
                     tract_querier_root=config.tract_querier_root,
                     query_preset=config.wmql_query_preset,
+                    query_selection=config.wmql_query_selection,
                     execute=True,
                 ),
                 log=log,
@@ -4072,6 +4092,7 @@ def _run_subject_products_impl(
                 input_tractography=tractogram_trk,
                 parcellation=parcellation,
                 query_preset=config.wmql_query_preset,
+                query_selection=config.wmql_query_selection,
             )
             tasks.append(
                 _task_from_result(
@@ -4568,6 +4589,7 @@ def _run_subject_products_impl(
         "primary_tractography_backend": primary_tractography_backend,
         "bundle_backend": config.bundle_backend,
         "wmql_query_preset": config.wmql_query_preset,
+        "wmql_query_selection": list(config.wmql_query_selection),
         "max_parallel_models": config.max_parallel_models,
         "bundle_backends": list(bundle_backends),
         "execute": config.execute,

@@ -50,7 +50,7 @@ class BundleAuditScopeTests(unittest.TestCase):
             with mock.patch('tractography.wmql.wmql_query_dependencies', return_value=dependencies), \
                  mock.patch('scripts.audit_bundle_products.tracks_from_file') as tracks:
                 for query in (bundled_wmql_query_path('published_endpoints'),
-                              bundled_wmql_query_path().with_name('CST_WMQL2016.qry')):
+                              bundled_wmql_query_path('published_endpoints').with_name('CST_WMQL2016.qry')):
                     manifest = {'query_path': str(query), 'atlas_path': str(atlas)}
                     tracks.return_value = [np.array([[0., 0., 0.], [1., 1., 1.]])]
                     self.assertEqual(endpoint_rule_check(manifest, [root / 'x_desc-wmql_CST.left.trk'])['status'], 'passed')

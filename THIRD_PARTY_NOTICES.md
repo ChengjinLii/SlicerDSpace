@@ -15,6 +15,18 @@ The integrity check is not a legal opinion or a grant of model/template rights.
 
 ---
 
+## WMQL Author Query Resources
+
+`tractography/wmql_queries/official/` distributes unmodified `FreeSurfer.qry`
+and `freesurfer_queries.qry` from [demianw/tract_querier](https://github.com/demianw/tract_querier)
+at commit `5c69c594d489859e08485110678dca7f6f4cba40`.
+The upstream [license text](tractography/wmql_queries/official/LICENSE.txt) ships
+beside these files. The Tract Querier execution engine remains an optional
+dependency. Historical project-specific query wrappers are distinct from the
+official definitions and are not current GUI defaults.
+
+---
+
 ## DIPY Free-water WLS Adaptation
 
 `microstructure/freewater_wls.py` is adapted from `dipy/reconst/fwdti.py::wls_iter`

@@ -53,7 +53,7 @@ class WMQLIntegrationTest(unittest.TestCase):
         backend = {'available': True, 'commands': {'python': str(self.python), 'tract_querier_executable': None,
                    'root_script': str(self.tract_querier_root / 'scripts/cli_tract_querier.py')}}
         def mutate(command, **kwargs):
-            (self.tract_querier_root / 'tract_querier/data/FreeSurfer.qry').write_text('Brain_Stem |= 116\n')
+            (Path(command[command.index('-q') + 1]).parent / 'FreeSurfer.qry').write_text('Brain_Stem |= 116\n')
             return subprocess.CompletedProcess(command, 0)
         with mock.patch('tractography.wmql.inspect_wmql_backend', return_value=backend), mock.patch(
             'tractography.wmql.subprocess.run', side_effect=mutate
@@ -127,7 +127,10 @@ exit 0
         self.tractography = self.tmp_path / "wholebrain.vtk"
         self.tractography.write_text("# vtk DataFile Version 3.0\n", encoding="utf-8")
         self.atlas = self.tmp_path / "wmparc.nii.gz"
-        self.atlas.write_text("atlas", encoding="utf-8")
+        import nibabel as nib
+        import numpy as np
+        labels = np.array([0, 2, 41, 16, 1001, 2001, 1024, 2024], dtype=np.int16).reshape(2, 2, 2)
+        nib.save(nib.Nifti1Image(labels, np.eye(4)), self.atlas)
         self.output_dir = self.tmp_path / "wmql_out"
 
     def tearDown(self) -> None:
@@ -139,7 +142,8 @@ exit 0
         query = bundled_wmql_query_path()
         self.assertTrue(query.is_file())
         text = query.read_text(encoding="utf-8")
-        self.assertIn("import freesurfer_queries.qry", text)
+        self.assertIn("import FreeSurfer.qry", text)
+        self.assertIn('UF.side =', text)
         self.assertNotIn("endpoints_in(Brain_Stem)", text)
         self.assertIn("CST.side", bundled_wmql_query_path('published_endpoints').read_text())
 
@@ -151,10 +155,10 @@ exit 0
         result = run_wmql_bundle_segmentation(config)
         manifest = json.loads(result.manifest_path.read_text())
         self.assertEqual({Path(path).name for path in manifest['query_dependencies']},
-                         {'AF_CST_DDParcel_ACT.qry', 'freesurfer_queries.qry', 'FreeSurfer.qry'})
+                         {'freesurfer_queries.qry', 'FreeSurfer.qry'})
         (self.tract_querier_root / 'tract_querier/data/freesurfer_queries.qry').unlink()
-        with self.assertRaisesRegex(FileNotFoundError, 'freesurfer_queries.qry'):
-            run_wmql_bundle_segmentation(config)
+        # Installed official query resources must not depend on the backend checkout's data directory.
+        run_wmql_bundle_segmentation(config)
 
     def test_builds_wmql_command_without_running(self) -> None:
         from tractography import WMQLConfig, run_wmql_bundle_segmentation
@@ -180,8 +184,7 @@ exit 0
         self.assertIn("-t", command)
         self.assertIn("-a", command)
         self.assertIn("-q", command)
-        self.assertIn("--query_selection", command)
-        self.assertIn("af.left,af.right,cst.left,cst.right", command)
+        self.assertNotIn("--query_selection", command)
         manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
         self.assertEqual(manifest["kind"], "wmql_bundle_segmentation")
         self.assertEqual(manifest["status"], "planned")
@@ -207,15 +210,18 @@ exit 0
         self.assertTrue(result.executed)
         self.assertEqual(result.return_code, 0)
         qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
-        self.assertEqual(qc["status"], "failed")
+        self.assertEqual(qc["status"], "completed")
         self.assertFalse(qc['automatic_qc_passed'])
         self.assertFalse(qc['quantification_eligible'])
-        self.assertIn('insufficient bundle sampling', qc['error'])
+        self.assertIsNone(qc['error'])
+        self.assertTrue(qc['execution_passed'])
+        self.assertEqual(qc['scientific_status'], 'partial_bundle_coverage')
+        self.assertEqual(qc['bundle_assessment']['requested_count'], 48)
         self.assertEqual(qc["output_summary"]["bundle_count"], 4)
         self.assertEqual(qc["output_summary"]["bundle_nonempty_count"], 4)
         self.assertEqual(len(qc["output_summary"]["bundles"]), 4)
         self.assertIn("size", qc["output_summary"]["bundles"][0])
-        self.assertFalse(list(self.output_dir.glob('100307_desc-wmql_*.vtk')))
+        self.assertEqual(len(list(self.output_dir.glob('100307_desc-wmql_*.vtk'))), 4)
 
     def test_sampling_policy_is_not_just_nonempty(self):
         from tractography.wmql import _wmql_output_contract_error, MIN_BUNDLE_STREAMLINES
@@ -224,6 +230,21 @@ exit 0
         self.assertIn('insufficient', _wmql_output_contract_error(summary, 1, ('AF.left',)))
         summary['bundles'][0]['streamline_count'] = MIN_BUNDLE_STREAMLINES
         self.assertIsNone(_wmql_output_contract_error(summary, 1, ('AF.left',)))
+
+    def test_official_invalid_atlas_writes_failed_qc_without_starting_backend(self):
+        from tractography import WMQLConfig, run_wmql_bundle_segmentation
+        import nibabel as nib
+        import numpy as np
+        nib.save(nib.Nifti1Image(np.ones((2, 2, 2), np.int16), np.eye(4)), self.atlas)
+        with self.assertRaisesRegex(ValueError, 'Atlas compatibility failed'):
+            run_wmql_bundle_segmentation(WMQLConfig('100307', self.tractography, self.atlas, self.output_dir,
+                tract_querier_root=self.tract_querier_root, python_executable=self.python, execute=True))
+        qc = json.loads((self.output_dir / 'wmql_qc.json').read_text())
+        self.assertEqual(qc['status'], 'failed')
+        self.assertFalse(qc['execution_passed'])
+        self.assertFalse(qc['automatic_qc_passed'])
+        self.assertIn('regional label IDs', qc['error'])
+        self.assertFalse(list(self.output_dir.glob('100307_desc-wmql_*')))
 
     def test_windows_stages_query_includes_without_drive_separated_I_argument(self) -> None:
         from tractography import WMQLConfig, run_wmql_bundle_segmentation

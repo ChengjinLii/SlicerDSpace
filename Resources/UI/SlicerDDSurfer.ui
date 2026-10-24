@@ -644,10 +644,20 @@
         <item row="8" column="1">
          <widget class="QComboBox" name="wmqlQueryPresetComboBox">
           <property name="SlicerParameterName" stdset="0"><string>orchestrationWmqlPreset</string></property>
-          <property name="toolTip"><string>ddparcel_act: existing DDParcel AF endpoint candidates plus author CST crossings; recommended for this pipeline. author: unchanged repository AF/CST crossing rules. published_endpoints: distinct strict brainstem endpoint protocol. No subject-specific fallback or relaxed sampling threshold.</string></property>
-          <item><property name="text"><string>ddparcel_act</string></property></item>
-          <item><property name="text"><string>author</string></property></item>
-          <item><property name="text"><string>published_endpoints</string></property></item>
+          <property name="toolTip"><string>Unmodified author multi-bundle rules and label aliases. All 48 output queries run by default. Empty or sparse bundles are reported separately; no fallback definitions.</string></property>
+          <item><property name="text"><string>official</string></property></item>
+         </widget>
+        </item>
+        <item row="9" column="0">
+         <widget class="QLabel" name="wmqlQuerySelectionLabel">
+          <property name="text"><string>WMQL bundles</string></property>
+         </widget>
+        </item>
+        <item row="9" column="1">
+         <widget class="QLineEdit" name="wmqlQuerySelectionLineEdit">
+          <property name="SlicerParameterName" stdset="0"><string>orchestrationWmqlSelection</string></property>
+          <property name="placeholderText"><string>All official bundles (optional: AF,CST,UF,cc_4)</string></property>
+          <property name="toolTip"><string>Leave empty for all official output queries. Enter comma-separated families or exact names, e.g. AF,CST,UF,ilf.right,cc_4. Family names select both sides. Missing outputs and sampling warnings are retained.</string></property>
          </widget>
         </item>
         <item row="4" column="0">

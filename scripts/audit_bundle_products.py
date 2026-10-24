@@ -154,7 +154,9 @@ def audit(manifest_path, tolerance=.001):
     elif kind == 'wmql_bundle_segmentation':
         from tractography.wmql import summarize_wmql_outputs, _wmql_output_contract_error
         summary = summarize_wmql_outputs(directory, manifest['subject_id'])
-        contract_error = _wmql_output_contract_error(summary, len(manifest.get('query_selection', ())), tuple(manifest.get('query_selection', ())))
+        requested = tuple(manifest.get('requested_queries') or manifest.get('query_selection', ()))
+        contract_error = _wmql_output_contract_error(summary, len(requested), requested,
+                                                    require_sampling=not manifest.get('official_multibundle', False))
         files = list(map(Path, summary['bundle_files']))
     elif kind == 'tractcloud_parcellation':
         from tractography.tractcloud import summarize_tractcloud_outputs, _tractcloud_output_contract_error
@@ -212,6 +214,12 @@ def audit(manifest_path, tolerance=.001):
     duplicate_count = sum(v - 1 for v in all_assigned.values())
     checks, not_run = applicable_checks(kind, contract_error, geometry_ok, duplicate_count, endpoint_rules,
         wma_sampling=summary.get('tract_sampling', {}).get('all_tract_sampling_passed'))
+    if kind == 'wmql_bundle_segmentation' and manifest.get('official_multibundle'):
+        from tractography.wmql_protocol import bundle_assessment
+        from tractography.wmql import MIN_BUNDLE_STREAMLINES
+        assessment = bundle_assessment(summary, requested, MIN_BUNDLE_STREAMLINES)
+        summary['bundle_assessment'] = assessment
+        checks['wmql_all_requested_sampling'] = assessment['all_requested_sampling_passed']
     return {'status': 'integrity_pass_anatomical_review_pending' if all(checks.values()) else 'needs_review',
             'subject_id': manifest['subject_id'], 'backend': kind, 'manifest': str(manifest_path.resolve()),
             'source': str(source_path.resolve()), 'source_sha256': hashlib.sha256(source_path.read_bytes()).hexdigest(),

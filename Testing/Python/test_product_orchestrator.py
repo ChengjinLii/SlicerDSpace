@@ -59,12 +59,8 @@ def _wmql_query_fixture(folder):
     import shutil
     from tractography.wmql import bundled_wmql_query_path, wmql_query_dependencies
     query = bundled_wmql_query_path()
-    # Cache tests need an import graph, not an installed author backend.
-    data = folder / 'synthetic_query_data'
-    data.mkdir(exist_ok=True)
-    (data / 'FreeSurfer.qry').write_text('# Synthetic cache-only dependency\nBrain_Stem |= 16\n')
-    (data / 'freesurfer_queries.qry').write_text('# Synthetic cache-only dependency\nimport FreeSurfer.qry\n')
-    directories = [data]
+    # Packaged rules are available without an installed author backend.
+    directories = [query.parent]
     dependencies = wmql_query_dependencies(query, directories)
     snapshot = folder / 'queries'
     snapshot.mkdir(exist_ok=True)
@@ -1297,7 +1293,10 @@ class ProductOrchestratorTest(unittest.TestCase):
                 json.dumps(
                     {
                         "status": "completed",
-                        "version": 5,
+                        "version": 6,
+                        "official_multibundle": True,
+                        "execution_passed": True,
+                        "output_integrity_passed": True,
                         "automatic_qc_passed": True,
                         "output_summary": {"bundle_files": [wmql_bundle.as_posix()]},
                     }
@@ -1317,7 +1316,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             (wmql_dir / "wmql_manifest.json").write_text(
                 json.dumps(
                     {
-                        "query_selection": ["CST.left"],
+                        "query_selection": [],
                         **_wmql_query_fixture(wmql_dir),
                         "dependencies": {
                             "input_tractography": _file_record(csd_trk),
@@ -1465,7 +1464,10 @@ class ProductOrchestratorTest(unittest.TestCase):
                 json.dumps(
                     {
                         "status": "completed",
-                        "version": 5,
+                        "version": 6,
+                        "official_multibundle": True,
+                        "execution_passed": True,
+                        "output_integrity_passed": True,
                         "automatic_qc_passed": True,
                         "output_summary": {"bundle_files": [bundle.as_posix()]},
                     }
@@ -1476,7 +1478,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             (wmql_dir / "wmql_manifest.json").write_text(
                 json.dumps(
                     {
-                        "query_selection": ["CST.left"],
+                        "query_selection": [],
                         **_wmql_query_fixture(wmql_dir),
                         "dependencies": {
                             "input_tractography": _file_record(tractogram),

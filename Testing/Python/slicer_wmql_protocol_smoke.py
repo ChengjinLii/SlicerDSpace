@@ -11,8 +11,9 @@ def run():
         widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
         node = widget._parameterNode
         combo = widget.ui.wmqlQueryPresetComboBox
-        assert node.orchestrationWmqlPreset == 'ddparcel_act'
-        assert combo.currentText == 'ddparcel_act'
+        assert node.orchestrationWmqlPreset == 'official'
+        assert combo.currentText == 'official'
+        assert combo.count == 1
         node.targetBundles = True
         node.orchestrationBundleBackend = 'wmql'
         widget._advancedSettingsPanel.collapsed = False
@@ -22,15 +23,26 @@ def run():
         print('WMQL_PRESET_STATE', node.targetBundles, node.orchestrationBundleBackend,
               combo.currentText, combo.isHidden(), flush=True)
         assert not combo.isHidden(), 'WMQL preset row must not be dropped/hidden in its form layout'
-        combo.setCurrentText('published_endpoints')
+        selection = widget.ui.wmqlQuerySelectionLineEdit
+        selection.setText('AF,CST,UF')
         slicer.app.processEvents()
-        assert node.orchestrationWmqlPreset == 'published_endpoints'
-        node.orchestrationWmqlPreset = 'author'
+        assert node.orchestrationWmqlSelection == 'AF,CST,UF'
+        node.orchestrationWmqlSelection = 'cc_4'
         slicer.app.processEvents()
-        assert combo.currentText == 'author'
+        assert selection.text == 'cc_4'
+        from tractography.wmql_protocol import canonical_wmql_selection
+        assert canonical_wmql_selection('AF,CST,UF') == ('af.left', 'af.right', 'cst.left', 'cst.right', 'uf.left', 'uf.right')
         node.orchestrationBundleBackend = 'wma'
         widget._refresh_advanced_run_settings()
         assert combo.isHidden()
+        assert selection.isHidden()
+        raw = node.parameterNode
+        widget.setParameterNode(None)
+        raw.SetParameter('orchestrationWmqlPreset', 'ddparcel_act')
+        migrated = widget.logic.getParameterNode()
+        assert migrated.orchestrationWmqlPreset == 'official'
+        assert migrated.parameterNode.GetAttribute('SlicerDDSurfer.LegacyWMQLPreset') == 'ddparcel_act'
+        widget.setParameterNode(migrated)
         print('WMQL_PROTOCOL_GUI_PASS', flush=True)
         slicer.app.exit(0)
     except Exception:

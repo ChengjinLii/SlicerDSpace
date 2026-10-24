@@ -172,9 +172,12 @@ Linux 真实数据与 GUI 验证见[验收记录](docs/release/SLICER_ACCEPTANCE
 这些记录仅覆盖对应代码快照、路线和数据，不代表所有配置均已通过。
 
 [10 月 17 日根因与一次运行队列验收](docs/release/WORKFLOW_GENERALIZATION_20261017.zh-CN.md)
-说明 WMQL 默认 `ddparcel_act` 兼容协议（原 DDParcel AF 端点候选＋作者 CST 穿行规则）、
-WMA 逐束采样门禁及 MK-Curve 逐指标有效性。它不是完整作者 AF/CST 复现；高级选项仍可
-选择 `author` 或 `published_endpoints`。多被试新协议验收仍在运行，不能据此宣称所有结果通过。
+记录当时的 WMQL `ddparcel_act` 兼容协议、WMA 逐束采样门禁及 MK-Curve 逐指标有效性。
+**当前 WMQL 默认已改为未修改的作者官方多束规则**，自动执行 48 个输出查询。
+在 **Advanced > Model parameters > WMQL 束子集** 留空运行全部，或填写 `AF,CST,UF,cc_4`。
+插件随包提供规则与标签定义，不需要用户编写查询。历史改写预设不再作为 GUI 选项。
+缺失、低采样和损坏结果分别记录；执行完成不等于全束 QC 通过。
+见[官方协议与验证说明](docs/setup/WMQL.zh-CN.md)。
 
 [10 月 16 日复核](docs/release/QC_FOLLOWUP_20261016.zh-CN.md)记录新版 CSD／WMA
 检查、真实 Linux SDK／CPack 安装验收，以及仍失败的 WMQL 采样和人审边界。

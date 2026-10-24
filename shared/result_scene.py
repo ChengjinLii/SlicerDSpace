@@ -76,6 +76,13 @@ def record_qc_state(record):
     failed_check = (any(value is False for value in checks.values()) if isinstance(checks, dict) else
                     any(isinstance(value, dict) and value.get('passed') is False for value in checks)
                     if isinstance(checks, list) else False)
+    if (record.get('kind') == 'wmql_bundle_segmentation_qc' and record.get('version') == 6
+            and record.get('official_multibundle') is True and status == 'completed'
+            and record.get('execution_passed') is True and record.get('output_integrity_passed') is True
+            and not failed_check and not record.get('error')
+            and record.get('bundle_assessment', {}).get('bundles')
+            and record.get('automatic_qc_passed') is False):
+        return 'warning'  # Usable candidates, not all-bundle scientific acceptance.
     if (status in {'fail', 'failed', 'partial_failed', 'error'}
             or record.get('automatic_qc_passed') is False or failed_check or record.get('error')):
         return 'failed'

@@ -626,7 +626,8 @@ ORG 解剖束覆盖 QC。其他算法生成的全脑 tractogram 可通过
 
 ## 9. WMQL / Tract Querier
 
-WMQL 是规则化 bundle 提取后端，当前默认查询覆盖 AF/CST。
+WMQL 是规则化 bundle 提取后端，默认使用随扩展打包的未修改作者多束规则，执行 48 个输出查询。
+Advanced 可选束子集；空束和低采样束单独记录，不宣称全束定量通过。见 [WMQL](WMQL.zh-CN.md)。
 
 ### 9.1 需要的软件
 
@@ -783,7 +784,7 @@ scripts/download_model_assets.sh --profile parcellation
 | MRtrix/FSL preprocessing | MRtrix3, FSL | 需要 `dwifslpreproc`, `dwi2mask`, `eddy`, `topup` |
 | CSD/FOD/ACT | MRtrix3, 5TT, GMWMI | 当前 5TT/GMWMI 可由标签近似生成 |
 | SAF | 内置 SAF backend, MRtrix3, DDSurfer postprocess surface | 表面必须位于原生 dMRI 空间 |
-| WMQL | Tract Querier, `nibabel`, `numpy` | 默认 AF/CST 查询 |
+| WMQL | Tract Querier, `nibabel`, `numpy` | 默认官方多束规则，支持束子集 |
 | WMA ORG atlas | external WMA, ORG atlas, Slicer | 可选 xvfb/SlicerDMRI measurements |
 | TractCloud | TractCloud, `torch`, model data | 当前是可选后端 |
 | Connectome | Python 或 MRtrix3 `tck2connectome` | 两个后端默认采用 4 mm 径向端点分配、FreeSurfer/DDParcel 灰质节点和零对角矩阵；Python 支持 `.trk/.tck/.vtk/.vtp` |

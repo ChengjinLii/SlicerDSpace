@@ -584,7 +584,10 @@ class SharedWidgetMixin:
                 if not has_key:
                     continue
                 try:
-                    setattr(node, attribute, self._coerce_user_setting_value(settings.value(key), value_type))
+                    value = self._coerce_user_setting_value(settings.value(key), value_type)
+                    if attribute == 'orchestrationWmqlPreset' and value != 'official':
+                        value = 'official'  # Migrate saved defaults, not loaded scientific run records.
+                    setattr(node, attribute, value)
                 except Exception:
                     continue
         if config is not None:
@@ -2065,7 +2068,7 @@ class SharedWidgetMixin:
     def _refresh_bundle_backend_highlight(self, *, bundle_backend: Optional[str] = None) -> None:
         active_sections = active_bundle_backend_sections(bundle_backend or self._bundle_backend_text())
         node = self._parameterNode
-        for name in ("wmqlQueryPresetLabel", "wmqlQueryPresetComboBox"):
+        for name in ("wmqlQueryPresetLabel", "wmqlQueryPresetComboBox", 'wmqlQuerySelectionLabel', 'wmqlQuerySelectionLineEdit'):
             control = getattr(self.ui, name, None)
             if control is not None:
                 from shared.algorithm_selection import algorithms, BUNDLES
@@ -2844,6 +2847,12 @@ class SharedWidgetMixin:
         if not selected:
             self._setStatus("error", self._summarise_missing(["Target products"]))
             return
+        try:
+            from tractography.wmql_protocol import canonical_wmql_selection
+            canonical_wmql_selection(getattr(self._parameterNode, 'orchestrationWmqlSelection', ''))
+        except ValueError as exc:
+            self._setStatus('error', str(exc))
+            return
         self._save_common_user_settings()
 
         self._apply_shared_inputs_to_workflow_fields()
@@ -2872,7 +2881,8 @@ class SharedWidgetMixin:
             tractography_backend=self._tractography_backend_text(),
             bundle_backend=self._bundle_backend_text(),
             microstructure_freewater=run_free_water,
-            wmql_query_preset=getattr(self._parameterNode, "orchestrationWmqlPreset", "ddparcel_act") or "ddparcel_act",
+            wmql_query_preset=getattr(self._parameterNode, "orchestrationWmqlPreset", "official") or "official",
+            wmql_query_selection=getattr(self._parameterNode, 'orchestrationWmqlSelection', '') or '',
             max_parallel_models=int(getattr(self._parameterNode, 'maxParallelModels', 1)),
             ukf_parameters_text=getattr(self._parameterNode, 'ukfParameters', '{}'),
             microstructure_noddi=run_noddi,

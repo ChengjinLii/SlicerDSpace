@@ -94,7 +94,9 @@ def sync_parameter_node_to_ui(widget) -> None:
         getattr(node, "wmaInputTractography", "") or "",
     )
     widget._sync_combo_text(getattr(ui, "wmqlQueryPresetComboBox", None),
-                            getattr(node, "orchestrationWmqlPreset", "ddparcel_act") or "ddparcel_act", via_index=False)
+                            getattr(node, "orchestrationWmqlPreset", "official") or "official", via_index=False)
+    widget._sync_line_edit(getattr(ui, 'wmqlQuerySelectionLineEdit', None),
+                           getattr(node, 'orchestrationWmqlSelection', '') or '')
     widget._sync_spinbox(getattr(ui, 'parallelModelsSpinBox', None), int(getattr(node, 'maxParallelModels', 1)))
     widget._sync_spinbox(getattr(ui, "orchestrationSelectStreamlinesSpinBox", None), int(node.orchestrationSelectStreamlines))
     widget._sync_combo_text(

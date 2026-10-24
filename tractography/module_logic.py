@@ -263,7 +263,7 @@ class TractographyLogicMixin:
         atlas_path: Path,
         output_dir: Optional[Path] = None,
         query_path: Optional[Path] = None,
-        query_selection: tuple[str, ...] = ("AF", "CST"),
+        query_selection: tuple[str, ...] = (),
         tract_querier_root: Optional[Path] = None,
         tract_querier_executable: Optional[Path] = None,
         python_executable: Optional[Path] = None,

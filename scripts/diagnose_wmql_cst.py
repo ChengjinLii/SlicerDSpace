@@ -77,7 +77,7 @@ def compare_cst_results(reference_manifest, candidate_manifest, output):
         return [ast.dump(node, include_attributes=False) for node in tree.body if isinstance(node, ast.Assign)
                 and any(isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name)
                         and target.value.id.lower() == 'cst' and target.attr.lower() == 'side' for target in node.targets)]
-    expected = cst_assignment(bundled_wmql_query_path().with_name('CST_WMQL2016.qry'))
+    expected = cst_assignment(bundled_wmql_query_path('published_endpoints').with_name('CST_WMQL2016.qry'))
     checks = {'published_assignment_identical': bool(expected) and all(cst_assignment(path) == expected for path in queries)}
     products = []
     for record in manifests:

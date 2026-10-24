@@ -1,0 +1,140 @@
+{
+  "kind": "ddseg_prepared_input_prediction_timing",
+  "version": 1,
+  "measured_at": "2026-10-24T12:32:51.358010+00:00",
+  "subject_id": "877168",
+  "status": "passed",
+  "checks": {
+    "repeat_outputs_exact": true,
+    "labels_match_saved_reference": true,
+    "probabilities_finite": true,
+    "source_files_unchanged": true
+  },
+  "median_seconds": 5.832402562722564,
+  "repeat_seconds": [
+    6.606150474399328,
+    5.832402562722564,
+    5.819988153874874
+  ],
+  "warmups": 1,
+  "timing_scope": "Current predict_model_space on prepared full-volume features with preloaded models; includes transfers, three views, fusion and softmax",
+  "excluded": [
+    "DTI fitting",
+    "feature reading/normalization",
+    "checkpoint loading",
+    "orientation restoration",
+    "file export",
+    "QC"
+  ],
+  "device": "cuda",
+  "resolved_device": "cuda:0",
+  "environment": {
+    "python": "3.12.10",
+    "torch": "2.11.0+cu129",
+    "cpu_threads": 4,
+    "cuda_visible_devices": null,
+    "gpu_name": "NVIDIA H100 PCIe",
+    "gpu_state_before": [
+      "0, NVIDIA H100 PCIe, 100 %, 9236 MiB",
+      "1, NVIDIA H100 PCIe, 100 %, 46886 MiB"
+    ],
+    "gpu_shared": true,
+    "peak_allocated_bytes": 451729408
+  },
+  "shape": [
+    256,
+    256,
+    160,
+    5
+  ],
+  "sources": [
+    {
+      "file": "external/nodif_brain_mask.nii.gz",
+      "sha256": "3f91c95779e340cb0f7286a816d91518ef167b3c52528659a73496170d86268c"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_E1.nrrd",
+      "sha256": "f1bf6855244a236c21c1f206456e5a99d98bf3eb3f62bd93be6864aa65c09b8e"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_E2.nrrd",
+      "sha256": "d237387c41233ce550e68b764fd3fa74479599e566b0463ce911ea8b9bbfdc16"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_E3.nrrd",
+      "sha256": "bec151e96418c1bf1a7b0c0c813c734664988a592641febed60052cfc58b364a"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_FA.nrrd",
+      "sha256": "26c0bdbc411298942725371812f0dec539a690fcffc51d5337c2940316d5c9fd"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MD.nrrd",
+      "sha256": "ca2f064759e8bd2a13fdae062633fed94a76339114261ff88de41daeab65fb11"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MaxEigenvalue.nrrd",
+      "sha256": "f1bf6855244a236c21c1f206456e5a99d98bf3eb3f62bd93be6864aa65c09b8e"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MeanDiffusivity.nrrd",
+      "sha256": "35b569ae26f3288293862c4d28091853cf5562dff1726e685b0337931ecb4be5"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MidEigenvalue.nrrd",
+      "sha256": "d237387c41233ce550e68b764fd3fa74479599e566b0463ce911ea8b9bbfdc16"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MinEigenvalue.nrrd",
+      "sha256": "bec151e96418c1bf1a7b0c0c813c734664988a592641febed60052cfc58b364a"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_Trace.nrrd",
+      "sha256": "ca2f064759e8bd2a13fdae062633fed94a76339114261ff88de41daeab65fb11"
+    },
+    {
+      "file": "external/dti_axial.pt",
+      "sha256": "e331fa15cb531958f892e1b03eaef8405c3ddd927f4cd7427de841f9e9f41e77"
+    },
+    {
+      "file": "external/dti_coronal.pt",
+      "sha256": "800a8467021471a99e9cbcec1e5b8cda4b0935018113a85b07d2b903890b8376"
+    },
+    {
+      "file": "external/dti_sagittal.pt",
+      "sha256": "5a150b5654d8f31ac03549bfd952aad40f176ffcd2c7bfb359ed9aaf3785612b"
+    },
+    {
+      "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/03_structural/ddseg/SegmentationMap_GMWMCSF.nii.gz",
+      "sha256": "1b509d7066060417fd2c7b209bca68ed1dc72bf9453afb00346f977610f2db85"
+    }
+  ],
+  "code": [
+    {
+      "file": "anatomy/segmentation/pipeline.py",
+      "sha256": "05646804cd81dc73c0874f965458b59d9839ccf074ec4d0ab3a9e8ad6b9020ba"
+    },
+    {
+      "file": "anatomy/segmentation/inference.py",
+      "sha256": "1c0bbcd0a58886b873fbac74832db8aa6129a92b42dd2080366a5de3e237a7ed"
+    },
+    {
+      "file": "anatomy/segmentation/model_loader.py",
+      "sha256": "11a16dc669ecc4a682933a45b295fede3abdfa5164768d3a521e9a1fc8ee3fd3"
+    },
+    {
+      "file": "anatomy/segmentation/preprocess.py",
+      "sha256": "56f52944be28803e0654dd16c5fb4b68911d947f9b29774702c0f7d03862fa53"
+    }
+  ],
+  "output_hashes": {
+    "labels": "ee69df0454c9771530790fce6d65453a6dacefb781ce8aa5b731e5f83aeb621e",
+    "probabilities": "0fbd00b9691392cd0c0f8effe50276d719b579278868cd53cb0377e2c434615a"
+  },
+  "label_agreement": 1.0,
+  "limitations": [
+    "One subject on a shared host/GPU; not a controlled cross-hardware benchmark",
+    "Warm prepared-input prediction, not cold first-use or pure CUDA kernel time",
+    "Output agreement is not human anatomical validation"
+  ]
+}

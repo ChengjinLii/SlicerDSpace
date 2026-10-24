@@ -517,8 +517,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument('--max-parallel-models', type=int, choices=(1,2,3), default=1,
                         help='Independent Free-water/NODDI/DKI processes; resource-bounded; default sequential.')
-    parser.add_argument("--wmql-query-preset", choices=("ddparcel_act", "author", "published_endpoints"), default="ddparcel_act",
-                        help="ddparcel_act preserves DDParcel AF endpoint candidates and author CST crossings; author keeps original AF/CST crossings; published_endpoints keeps strict brainstem termination. No automatic fallback.")
+    parser.add_argument("--wmql-query-preset", choices=("official", "ddparcel_act", "author", "published_endpoints"), default="official",
+                        help="Unmodified official multi-bundle rules (default). Other choices are deprecated historical protocols, not fallback routes.")
+    parser.add_argument('--wmql-query-selection', default='',
+                        help='Comma-separated official query/family names, e.g. AF,CST,UF,cc_4. Empty/all runs every official output query.')
     parser.add_argument(
         "--select-streamlines",
         type=int,
@@ -856,6 +858,7 @@ def main(argv: list[str] | None = None) -> int:
         dwiconvert_executable=args.dwiconvert_executable,
         execute=bool(args.execute),
         wmql_query_preset=args.wmql_query_preset,
+        wmql_query_selection=tuple(value.strip() for value in args.wmql_query_selection.split(',') if value.strip()),
         max_parallel_models=args.max_parallel_models,
         resume=not args.no_resume,
         preprocessing_backend=args.preprocessing_backend,

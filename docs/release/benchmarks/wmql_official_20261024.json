@@ -1,0 +1,852 @@
+{
+  "schema": "wmql_official_validation.v1",
+  "date": "2026-10-24",
+  "upstream_commit": "5c69c594d489859e08485110678dca7f6f4cba40",
+  "runs": [
+    {
+      "subject": "100307",
+      "tracking": "ukf",
+      "source_sha256": "1c3358fa0e922826c3e90b2f36e6f831ef8ed41a18de36f48fb43cac0a04be7b",
+      "atlas_sha256": "32599cf4d9e94594a81aab58ff196e8380140d2f967db129b843d0b50a52aa25",
+      "runtime_seconds": 36.687831953167915,
+      "requested": 48,
+      "extracted": 41,
+      "sampling_passed": 31,
+      "automatic_qc_passed": false,
+      "execution_passed": true,
+      "anatomical_review": "pending",
+      "bundles": [
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "af.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 1184
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "af.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 1216
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cb.left",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cb.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 20
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_1",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 49
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_2",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 120
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_3",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 5
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_4",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_5",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_6",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_7",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 178
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cst.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 168
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cst.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 252
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ec.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 36
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ec.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 22
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "extreme_capsule.left",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 7
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "extreme_capsule.right",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 10
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ilf.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 29
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ilf.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 25
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "internal_capsule_new.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 90
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "internal_capsule_new.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 62
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ioff.left",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 13
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ioff.right",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 14
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "mdlf.left",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "mdlf.right",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_i.left",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 14
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_i.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 90
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_ii.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 93
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_ii.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 45
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_iii.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 143
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_iii.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 195
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "soff.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 76
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "soff.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 63
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_frontal.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 384
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_frontal.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 207
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_occipital.left",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 4
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_occipital.right",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 3
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_parietal.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 25
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_parietal.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 51
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_frontal.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 76
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_frontal.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 35
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_occipital.left",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 18
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_occipital.right",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 9
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_parietal.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 54
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_parietal.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 38
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "uf.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 83
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "uf.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 54
+        }
+      ],
+      "atlas_warnings": [
+        "No regional WM labels (3000/4000 series). DK cortex/aseg IDs are usable but do not establish FreeSurfer wmparc equivalence; crossing-rule coverage may be sparse on ACT tracks."
+      ]
+    },
+    {
+      "subject": "100307",
+      "tracking": "csd",
+      "source_sha256": "30940c54a34163accd9e93317f1a5a7cfa59045b7ad8290e8b60b8f876df049b",
+      "atlas_sha256": "32599cf4d9e94594a81aab58ff196e8380140d2f967db129b843d0b50a52aa25",
+      "runtime_seconds": 54.40666123479605,
+      "requested": 48,
+      "extracted": 34,
+      "sampling_passed": 28,
+      "automatic_qc_passed": false,
+      "execution_passed": true,
+      "anatomical_review": "pending",
+      "bundles": [
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "af.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 70
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "af.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 28
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cb.left",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cb.right",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_1",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 352
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_2",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 540
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_3",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 33
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_4",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 494
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_5",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_6",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cc_7",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 500
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cst.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 154
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "cst.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 311
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ec.left",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 2
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ec.right",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 1
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "extreme_capsule.left",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "extreme_capsule.right",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ilf.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 102
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ilf.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 85
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "internal_capsule_new.left",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "internal_capsule_new.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 25
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ioff.left",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "ioff.right",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "mdlf.left",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "mdlf.right",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_i.left",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_i.right",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 1
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_ii.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 77
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_ii.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 73
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_iii.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 69
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "slf_iii.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 60
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "soff.left",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 1
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "soff.right",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 6
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_frontal.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 2302
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_frontal.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 4030
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_occipital.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 206
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_occipital.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 481
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_parietal.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 932
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "striato_parietal.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 1593
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_frontal.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 3140
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_frontal.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 3347
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_occipital.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 239
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_occipital.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 261
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_parietal.left",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 1333
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "thalamo_parietal.right",
+          "sampling_passed": true,
+          "state": "anatomical_review_pending",
+          "streamline_count": 1803
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "uf.left",
+          "sampling_passed": false,
+          "state": "not_extracted",
+          "streamline_count": 0
+        },
+        {
+          "human_review": "pending",
+          "quantification_eligible": false,
+          "query_name": "uf.right",
+          "sampling_passed": false,
+          "state": "insufficient_sampling",
+          "streamline_count": 13
+        }
+      ],
+      "atlas_warnings": [
+        "No regional WM labels (3000/4000 series). DK cortex/aseg IDs are usable but do not establish FreeSurfer wmparc equivalence; crossing-rule coverage may be sparse on ACT tracks."
+      ]
+    }
+  ],
+  "ukf_direct_author_comparison": {
+    "checks": {
+      "source_files_unchanged": true,
+      "output_query_sets_equal": true,
+      "all_query_multisets_equal": true,
+      "all_source_membership_passed": true
+    },
+    "queries": 48,
+    "runtime_seconds": 19.808351343497634
+  },
+  "subset_validation": {
+    "requested": 6,
+    "extracted": 6,
+    "runtime_seconds": 18.714840987697244,
+    "all_requested_sampling_passed": true,
+    "automatic_qc_passed": false,
+    "counts_match_full_run": true
+  },
+  "independent_audit": {
+    "status": "needs_review",
+    "input_streamlines": 277875,
+    "checks": {
+      "current_output_contract": true,
+      "finite_positive_geometry_and_source_membership": true,
+      "wmql_all_requested_sampling": false
+    }
+  },
+  "slicer_gui": {
+    "version": "5.10.0 Linux",
+    "scope": "Isolated staged install, defaults, Advanced binding, visibility and legacy-scene migration",
+    "passed": true,
+    "tracebacks": 0,
+    "live_session_modified": false
+  },
+  "unit_tests": {
+    "total": 1410,
+    "passed": 1405,
+    "skipped": 5,
+    "failed": 0
+  },
+  "scope": "One subject, two archived tracking inputs. Not a multi-subject or anatomical accuracy acceptance."
+}

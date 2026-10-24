@@ -18,11 +18,13 @@ from typing import Any, Callable, Optional
 from shared.external_process import python_tool_environment, text_subprocess_kwargs
 from shared.output_contracts import polydata_streamline_count
 from shared.product_staging import archive_run_records, new_product_staging, publish_products, retain_failed_products
+from tractography.wmql_protocol import (OFFICIAL_DIR, official_query_names, canonical_wmql_selection,
+                                       atlas_compatibility, bundle_assessment)
 
 
 TRACT_QUERIER_REPOSITORY = "https://github.com/demianw/tract_querier"
 VALID_TRACT_EXTENSIONS = {".vtk", ".vtp", ".trk"}
-WMQL_QC_VERSION = 5
+WMQL_QC_VERSION = 6
 # Sampling sanity policy, not an anatomical accuracy or statistical-power test.
 MIN_BUNDLE_STREAMLINES = 20
 AUTHOR_QUERY_COMMIT = "5c69c594d489859e08485110678dca7f6f4cba40"
@@ -51,7 +53,7 @@ class WMQLConfig:
     atlas_path: Path
     output_dir: Path
     query_path: Optional[Path] = None
-    query_selection: tuple[str, ...] = ("AF.left", "AF.right", "CST.left", "CST.right")
+    query_selection: tuple[str, ...] = ()
     tract_querier_root: Optional[Path] = None
     tract_querier_executable: Optional[Path] = None
     python_executable: Optional[Path] = None
@@ -59,7 +61,7 @@ class WMQLConfig:
     threshold: float = 2.0
     length_threshold: float = 0.0
     execute: bool = False
-    query_preset: str = "ddparcel_act"
+    query_preset: str = "official"
 
 
 @dataclass(frozen=True)
@@ -75,7 +77,10 @@ class WMQLResult:
     status: str = 'planned'
 
 
-def bundled_wmql_query_path(preset: str = "ddparcel_act") -> Path:
+def bundled_wmql_query_path(preset: str = "official") -> Path:
+    if preset == 'official':
+        return OFFICIAL_DIR / 'freesurfer_queries.qry'
+    # Read-only historical protocols remain addressable for reproducibility.
     files = {"ddparcel_act": "AF_CST_DDParcel_ACT.qry", "author": "AF_CST_ACT.qry",
              "published_endpoints": "AF_CST.qry"}
     if preset not in files:
@@ -125,7 +130,7 @@ def wmql_query_cache_current(manifest) -> bool:
 def wmql_query_provenance(query_path, dependencies=None):
     query_path = Path(query_path)
     digest = hashlib.sha256(Path(query_path).read_bytes()).hexdigest()
-    published = bundled_wmql_query_path().with_name('CST_WMQL2016.qry')
+    published = bundled_wmql_query_path('published_endpoints').with_name('CST_WMQL2016.qry')
     endpoint_digests = {hashlib.sha256(path.read_bytes()).hexdigest() for path in (published, bundled_wmql_query_path('published_endpoints'))}
     author_selection = digest == hashlib.sha256(bundled_wmql_query_path('author').read_bytes()).hexdigest()
     adapted_selection = digest == hashlib.sha256(bundled_wmql_query_path('ddparcel_act').read_bytes()).hexdigest()
@@ -415,17 +420,22 @@ def _wmql_output_contract_error(
     output_summary: dict[str, Any],
     expected_bundle_count: int,
     requested_queries: tuple[str, ...] = (),
+    *,
+    require_sampling: bool = True,
 ) -> Optional[str]:
     expected_names = {name.strip().lower() for name in requested_queries if name.strip()}
     present = {item.get('query_name') for item in output_summary.get('bundles', [])
                if int(item.get('streamline_count', 0)) > 0}
     missing = expected_names - present
-    if missing:
+    if missing and require_sampling:
         return 'WMQL is missing requested non-empty query outputs: ' + ', '.join(sorted(missing))
     bundle_count = int(output_summary.get("bundle_count", 0) or 0)
     readable_count = int(output_summary.get("bundle_readable_count", 0) or 0)
     nonempty_count = int(output_summary.get("bundle_nonempty_count", 0) or 0)
-    expected = max(1, expected_bundle_count)
+    expected = max(1, expected_bundle_count) if require_sampling else 1
+    unexpected = present - expected_names if expected_names else set()
+    if unexpected:
+        return 'WMQL returned unrequested queries: ' + ', '.join(sorted(unexpected))
     if bundle_count < expected:
         return f"WMQL produced {bundle_count} bundle files; at least {expected} were requested."
     if readable_count != bundle_count:
@@ -436,7 +446,7 @@ def _wmql_output_contract_error(
               for item in output_summary.get('bundles', [])
               if item.get('query_name') in (expected_names or present)
               and int(item.get('streamline_count', 0)) < MIN_BUNDLE_STREAMLINES]
-    if sparse:
+    if sparse and require_sampling:
         return (f"WMQL insufficient bundle sampling (local minimum {MIN_BUNDLE_STREAMLINES} streamlines): "
                 + ', '.join(sparse) + '. Review atlas label compatibility and tractography coverage; '
                 'do not interpret these candidates as validated bundle quantification.')
@@ -471,6 +481,10 @@ def run_wmql_bundle_segmentation(
 ) -> WMQLResult:
     """Prepare or execute WMQL bundle extraction for one whole-brain tractogram."""
 
+    official_mode = config.query_preset == 'official' and config.query_path is None
+    if official_mode:
+        config = replace(config, query_selection=canonical_wmql_selection(config.query_selection))
+    requested_queries = (config.query_selection or official_query_names()) if official_mode else config.query_selection
     backend_status = inspect_wmql_backend(
         tract_querier_root=config.tract_querier_root,
         tract_querier_executable=config.tract_querier_executable,
@@ -486,6 +500,21 @@ def run_wmql_bundle_segmentation(
     include_dirs = _query_include_dirs(config, query_path)
     query_dependencies = wmql_query_dependencies(query_path, include_dirs)
     provenance = wmql_query_provenance(query_path, query_dependencies)
+    if official_mode:
+        if (query_dependencies.get(str(query_path)) != AUTHOR_BUNDLE_QUERY_SHA256
+                or not any(Path(path).name == 'FreeSurfer.qry' and digest == AUTHOR_ALIAS_SHA256
+                           for path, digest in query_dependencies.items())):
+            raise ValueError('Official WMQL rule bytes do not match the pinned author source')
+        provenance.update(preset='official_multibundle', upstream_commit=AUTHOR_QUERY_COMMIT,
+                          scope='Unmodified author repository rules and label aliases; no DDParcel-specific predicate overrides')
+    compatibility, compatibility_error = None, None
+    if official_mode and config.execute:
+        import nibabel as nib
+        try:
+            compatibility = atlas_compatibility(config.atlas_path)
+        except (OSError, ValueError, nib.filebasedimages.ImageFileError) as exc:
+            compatibility_error = f'Atlas compatibility failed: {exc}'
+            compatibility = dict(status='failed', error=compatibility_error)
     staged_query = queries_dir / query_path.name
     if query_path.resolve() != staged_query.resolve():
         shutil.copy2(query_path, staged_query)
@@ -517,6 +546,9 @@ def run_wmql_bundle_segmentation(
         "query_provenance": provenance,
         "staged_query": staged_query.as_posix(),
         "query_selection": list(config.query_selection),
+        "requested_queries": list(requested_queries),
+        "official_multibundle": official_mode,
+        "atlas_compatibility": compatibility,
         "threshold": config.threshold,
         "length_threshold": config.length_threshold,
         "executed": bool(config.execute),
@@ -541,7 +573,7 @@ def run_wmql_bundle_segmentation(
 
     start_time = time.monotonic()
     return_code: Optional[int] = None
-    execution_error: Optional[str] = None
+    execution_error: Optional[str] = compatibility_error
     execution_exception: Optional[Exception] = None
     staging = None
     published_archive = None
@@ -551,6 +583,8 @@ def run_wmql_bundle_segmentation(
             root = config.tract_querier_root.expanduser().resolve()
             env["PYTHONPATH"] = root.as_posix() + os.pathsep + env.get("PYTHONPATH", "")
         try:
+            if compatibility_error:
+                raise ValueError(compatibility_error)
             staging = new_product_staging(output_dir, 'wmql')
             runtime_command = list(command)
             runtime_command[runtime_command.index('-o') + 1] = str(staging / f'{config.subject_id}_desc-wmql')
@@ -571,6 +605,9 @@ def run_wmql_bundle_segmentation(
             # errors) in QC/manifest before surfacing the original exception.
             execution_error = f"{type(exc).__name__}: {exc}"
             execution_exception = exc
+        except ValueError as exc:
+            execution_error = str(exc)
+            execution_exception = exc
         finally:
             output_summary = summarize_wmql_outputs(staging, config.subject_id) if staging else {}
             if not wmql_query_cache_current(manifest):
@@ -578,7 +615,8 @@ def run_wmql_bundle_segmentation(
             if any(record != _file_info(Path(record['path'])) for record in manifest['dependencies'].values()):
                 execution_error = 'WMQL source inputs changed during execution; outputs are not reusable'
             if execution_error is None:
-                execution_error = _wmql_output_contract_error(output_summary, len(config.query_selection), config.query_selection)
+                execution_error = _wmql_output_contract_error(output_summary, len(requested_queries), requested_queries,
+                                                               require_sampling=not official_mode)
             if staging:
                 try:
                     if execution_error is None:
@@ -595,11 +633,15 @@ def run_wmql_bundle_segmentation(
     if config.execute and execution_error is None:
         execution_error = _wmql_output_contract_error(
             output_summary,
-            len(config.query_selection),
-            config.query_selection,
+            len(requested_queries), requested_queries, require_sampling=not official_mode,
         )
 
     elapsed_seconds = time.monotonic() - start_time
+    assessment = bundle_assessment(output_summary, requested_queries, MIN_BUNDLE_STREAMLINES)
+    coverage_warning = bool(official_mode and not assessment['all_requested_sampling_passed'])
+    scientific_warnings = [f"{b['query_name']}: {b['state']} ({b['streamline_count']} streamlines)"
+                           for b in assessment['bundles'] if not b['sampling_passed']]
+    scientific_warnings.extend((compatibility or {}).get('warnings', []))
     qc = {
         "kind": "wmql_bundle_segmentation_qc",
         "version": WMQL_QC_VERSION,
@@ -609,14 +651,19 @@ def run_wmql_bundle_segmentation(
         "return_code": return_code,
         "elapsed_seconds": elapsed_seconds,
         "human_review": "pending",
-        "automatic_qc_passed": bool(config.execute and execution_error is None),
+        "execution_passed": bool(config.execute and execution_error is None),
+        "output_integrity_passed": bool(config.execute and execution_error is None),
+        "automatic_qc_passed": bool(config.execute and execution_error is None and not coverage_warning
+                                    and not (compatibility or {}).get('warnings')),
+        "official_multibundle": official_mode,
+        "bundle_assessment": assessment,
+        "atlas_compatibility": compatibility,
         "quantification_eligible": False,
         "acceptance_criteria": {"minimum_streamlines_per_requested_bundle": MIN_BUNDLE_STREAMLINES,
                                 "scope": "Sampling sanity only; passing does not validate anatomical identity."},
-        "scientific_status": "insufficient_or_invalid_products" if execution_error else "anatomical_review_pending",
-        "scientific_warnings": [f"{b['query_name']} has only {b['streamline_count']} streamlines; insufficient sampling"
-                                for b in output_summary.get('bundles', [])
-                                if int(b.get('streamline_count', 0)) < MIN_BUNDLE_STREAMLINES],
+        "scientific_status": ("insufficient_or_invalid_products" if execution_error else
+                              "partial_bundle_coverage" if coverage_warning else "anatomical_review_pending"),
+        "scientific_warnings": scientific_warnings,
         "previous_products": published_archive,
         "query_provenance": provenance,
         "scientific_scope": "Requested-query identity, frozen imports and decoded geometry; not expert anatomical validation. Query definitions and references are recorded separately.",

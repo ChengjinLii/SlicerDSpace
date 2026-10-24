@@ -33,6 +33,7 @@ COMMON_USER_SETTING_SPECS: tuple[tuple[str, type], ...] = (
     ("ukfParameters", str),
     ("orchestrationBundleBackend", str),
     ("orchestrationWmqlPreset", str),
+    ("orchestrationWmqlSelection", str),
     ("maxParallelModels", int),
     ("orchestrationSelectStreamlines", int),
     ("orchestrationMicrostructureStages", str),

@@ -161,11 +161,15 @@ Tracking methods can be multi-selected. They run sequentially in separate
 `<run>__<backend>` variants, reusing the shared anatomical/microstructure stages.
 Selected bundle methods and connectomes run for each tracking variant, without
 combining streamlines or relaxing QC. Multiple methods increase runtime and disk use.
-WMQL defaults to `ddparcel_act`: the existing DDParcel AF endpoint candidates
-combined with the author's CST crossing/exclusion rules. This is an explicitly
-adapted protocol, not unchanged official AF/CST. The full `author` and strict
-`published_endpoints` presets remain available under Advanced. WMA reports
-per-tract sampling, and MK-Curve regional summaries use per-metric validity.
+WMQL defaults to the **unmodified official multi-bundle rules**: all 48 output
+queries in the pinned author's `freesurfer_queries.qry`. Under **Advanced > Model
+parameters > WMQL bundles**, leave empty for all, or enter a subset such as
+`AF,CST,UF,cc_4`. Rules and label aliases ship with the extension; no query editing
+is needed. Numeric DDParcel/DK label compatibility is checked, but does not prove
+FreeSurfer wmparc equivalence. Missing/sparse bundles are listed individually and
+excluded from quantitative acceptance; successful execution is not all-bundle QC.
+Historical adapted protocols are not offered in the GUI. See [WMQL protocol](docs/setup/WMQL.md).
+WMA reports per-tract sampling, and MK-Curve summaries use per-metric validity.
 See [root causes and one-pass cohort validation](docs/release/WORKFLOW_GENERALIZATION_20261017.md)
 for actual evidence and remaining limitations, not an all-results-passed claim.
 For a minimal DTI-only walkthrough and a clearly identified synthetic

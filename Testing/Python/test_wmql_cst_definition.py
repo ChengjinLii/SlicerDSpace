@@ -24,7 +24,7 @@ class PublishedCSTDefinitionTests(unittest.TestCase):
         self.assertFalse(assignments(adapted, 'CST'))
         imports = [node.names[0].name for node in ast.parse(adapted.read_text()).body if isinstance(node, ast.Import)]
         self.assertEqual(imports, ['freesurfer_queries.qry'])
-        self.assertEqual(bundled_wmql_query_path(), adapted)
+        self.assertNotEqual(bundled_wmql_query_path(), adapted)
 
     def test_adapted_provenance_never_claims_unchanged_author_af(self):
         from tractography.wmql import (AUTHOR_ALIAS_SHA256, AUTHOR_BUNDLE_QUERY_SHA256,
@@ -40,7 +40,7 @@ class PublishedCSTDefinitionTests(unittest.TestCase):
     def test_provenance_checks_aliases_and_does_not_attribute_absent_af(self):
         from tractography.wmql import AUTHOR_ALIAS_SHA256, bundled_wmql_query_path, wmql_query_provenance
 
-        published = bundled_wmql_query_path().with_name('CST_WMQL2016.qry')
+        published = bundled_wmql_query_path('published_endpoints').with_name('CST_WMQL2016.qry')
         with tempfile.TemporaryDirectory() as temporary:
             with mock.patch('tractography.wmql._default_query_data_dir', return_value=None):
                 verified = {'/isolated/backend/FreeSurfer.qry': AUTHOR_ALIAS_SHA256}
@@ -99,7 +99,7 @@ class PublishedCSTDefinitionTests(unittest.TestCase):
         index = tq.TractographySpatialIndexing([track], labels, np.eye(4), 0, 2.0)
         data = ROOT / 'third_party/tract_querier/tract_querier/data'
         results = []
-        for path in (bundled_wmql_query_path('published_endpoints'), bundled_wmql_query_path().with_name('CST_WMQL2016.qry')):
+        for path in (bundled_wmql_query_path('published_endpoints'), bundled_wmql_query_path('published_endpoints').with_name('CST_WMQL2016.qry')):
             queries = tq.queries_preprocess(path.read_text(), include_folders=[str(data)])
             results.append(tq.eval_queries(queries, index))
         return results, index
