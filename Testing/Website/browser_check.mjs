@@ -359,7 +359,7 @@ async function runPerformance(browser, origin, width, noJs = false) {
   await page.locator('#performance-evidence > summary').click();
   await page.waitForFunction(() => document.getElementById('performance-evidence').open);
   record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': click opens the evidence and shows the table');
-  record(await page.locator('.perf-table tbody tr').count() === 7, prefix + ': seven scoped records');
+  record(await page.locator('.perf-table tbody tr').count() === 13, prefix + ': thirteen scoped records');
   record(await page.locator('.perf-method[open]').count() === 0, prefix + ': method details initially collapsed');
   record(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), prefix + ': no page overflow with the evidence open');
   if (!noJs) {
@@ -386,7 +386,7 @@ async function runPerformance(browser, origin, width, noJs = false) {
     record(await page.locator('#method-freewater').getAttribute('open') !== null, prefix + ': same-fragment link reopens method');
     const response = await context.request.get(origin + '/SlicerDDSurfer/assets/data/performance.json');
     const data = await response.json();
-    record(response.ok() && data.records.length === 7 && !JSON.stringify(data).includes('/data/chengjin/'), prefix + ': sanitized evidence download');
+    record(response.ok() && data.records.length === 13 && !JSON.stringify(data).includes('/data/chengjin/'), prefix + ': sanitized evidence download');
     // The hash opens the evidence; a link from the status notes opens it again after it was closed.
     await page.goto(origin + '/SlicerDDSurfer/index.html#performance', { waitUntil: 'load' });
     await page.waitForFunction(() => document.getElementById('performance-evidence').open);

@@ -1,7 +1,7 @@
 {
   "kind": "slicerddsurfer_public_performance_evidence",
-  "version": 2,
-  "reviewed_on": "2026-10-22",
+  "version": 3,
+  "reviewed_on": "2026-10-25",
   "sources": [
     {
       "file": "freewater_latest_stable_full_20261022.json",
@@ -22,6 +22,22 @@
     {
       "file": "author_wma_optimizations_20261020.json",
       "sha256": "edef21040341eda6e614d73f9c5e972cdcf4cfb35d169c0de2efb59a642b8e34"
+    },
+    {
+      "file": "freewater_dispatch_slicer_20261021.json",
+      "sha256": "c5c3597f662cb3cd71877058e7d384379d2558575aabe3bdb46a1ae1a3eaab12"
+    },
+    {
+      "file": "wma_transform_20261021.json",
+      "sha256": "1436dfcf82ed8dbe36886719ad89bd38103a453955ec1466adc27605343bba35"
+    },
+    {
+      "file": "wma_fibers_bounded_20261021.json",
+      "sha256": "7e09c9d6ae6be3442abb6c472a4cbbf77db05ab6f93335e1501064890aae9529"
+    },
+    {
+      "file": "performance_optimizations_20261020.json",
+      "sha256": "8b0c16688e6ce00c3c3527060be6d950a8a6cef9083c9340f256fe2c31f35a39"
     },
     {
       "file": "upstream_freshness_verified_20261022.json",
@@ -45,7 +61,11 @@
       "unchanged": "All 13 raw fit parameters, four maps/masks, affines, dtypes and automatic QC match. The same 116935 voxels remain excluded.",
       "limitation": "One subject, one pair on a shared Linux host; optimized first. OS caches were not flushed. Both calls include raw-parameter evidence export.",
       "sample": "740916 mask voxels; 288 measurements; automatic QC passes, anatomical review pending.",
-      "upstream_reference": "Measured DIPY 1.12.1; latest stable at review: 1.12.1. Current stable-release full-brain pair."
+      "upstream_reference": "Measured DIPY 1.12.1; latest stable at review: 1.12.1. Current stable-release full-brain pair.",
+      "measurement_source": {
+        "file": "freewater_latest_stable_full_20261022.json",
+        "sha256": "731c9611d5bc92f27ac65cc67d3ad7b1e5a560224961749ba754f0b1194f49b1"
+      }
     },
     {
       "id": "wma",
@@ -63,7 +83,11 @@
       "unchanged": "All 74 anatomical-tract output files are byte-identical; source inputs and author code are unchanged.",
       "limitation": "One full-module pair on a shared Linux host. Matching files do not certify small-bundle sampling or anatomical validity. Later transform optimizations are not measured by this pair.",
       "sample": "Full registration and 74-tract output; no streamline downsampling introduced for timing.",
-      "upstream_reference": "Author commit 4532b911386d: matches current HEAD and measured source bytes."
+      "upstream_reference": "Author commit 4532b911386d: matches current HEAD and measured source bytes.",
+      "measurement_source": {
+        "file": "complete_models_20261020.json",
+        "sha256": "347ace4803bb070ad48e5c9a1b51702ce82d7e0cb37f8849d29940f9f51f6c98"
+      }
     },
     {
       "id": "noddi",
@@ -81,7 +105,11 @@
       "unchanged": "NDI, ODI, IsoVF, RMSE, NRMSE and the tissue-validity mask match voxelwise, including affines.",
       "limitation": "One shared-host pair. Hardware-specific multithreading benefit; not a universal speed or whole-workflow guarantee.",
       "sample": "Original 740916-voxel brain mask; fresh output directories.",
-      "upstream_reference": "AMICO 2.1.1 verified in both timed configurations; latest stable at review. Threads are already upstream functionality."
+      "upstream_reference": "AMICO 2.1.1 verified in both timed configurations; latest stable at review. Threads are already upstream functionality.",
+      "measurement_source": {
+        "file": "complete_models_20261020.json",
+        "sha256": "347ace4803bb070ad48e5c9a1b51702ce82d7e0cb37f8849d29940f9f51f6c98"
+      }
     },
     {
       "id": "mkcurve",
@@ -143,7 +171,11 @@
           "speed_ratio": 1.067971812863282
         }
       ],
-      "upstream_reference": "Current MATLAB reference 9a213e1a5850; measured on current stable SciPy 1.18.1. This port-only comparison does not claim to outperform MATLAB or invent upstream native batching."
+      "upstream_reference": "Current MATLAB reference 9a213e1a5850; measured on current stable SciPy 1.18.1. This port-only comparison does not claim to outperform MATLAB or invent upstream native batching.",
+      "measurement_source": {
+        "file": "mkcurve_qr_scipy1181_20261022.json",
+        "sha256": "e4b11207509cd39278ce3d12d9c4336d1912584cb6a3d5dac4ffeeccfbef6bab"
+      }
     },
     {
       "id": "dki",
@@ -181,7 +213,11 @@
           "speed_ratio": 3.2161399790533363
         }
       ],
-      "upstream_reference": "DIPY 1.12.1 is current stable at review. Array metrics already exist upstream; this is plugin integration, not an author-algorithm speedup."
+      "upstream_reference": "DIPY 1.12.1 is current stable at review. Array metrics already exist upstream; this is plugin integration, not an author-algorithm speedup.",
+      "measurement_source": {
+        "file": "dki_latest_stable_integration_20261022.json",
+        "sha256": "d906ebffdc9d5136969403a1be1925233b40fecd3f679f7ba896a6db3cdb5847"
+      }
     },
     {
       "id": "scheduling",
@@ -199,7 +235,11 @@
       "unchanged": "All exported scalar and mask arrays match. Process startup is included.",
       "limitation": "One ROI pair. This reduces schedule wall time, not the cost of an individual scientific model. Default model concurrency remains one; memory/CPU budgets may prevent overlap.",
       "sample": "Two independent models; CPU/memory-constrained scheduling; not full-brain timing.",
-      "upstream_reference": "Historical plugin scheduler comparison, not a latest-upstream algorithm performance claim."
+      "upstream_reference": "Historical plugin scheduler comparison, not a latest-upstream algorithm performance claim.",
+      "measurement_source": {
+        "file": "complete_models_20261020.json",
+        "sha256": "347ace4803bb070ad48e5c9a1b51702ce82d7e0cb37f8849d29940f9f51f6c98"
+      }
     },
     {
       "id": "wma-filter",
@@ -217,7 +257,143 @@
       "unchanged": "Output coordinates/topology and fixed-seed samples match exactly.",
       "limitation": "One full-atlas substage pair, not complete WMA. The large local ratio must not be multiplied by or added to the full WMA result.",
       "sample": "Full registration-atlas length-filter substage only.",
-      "upstream_reference": "Same immutable current WMA source audit as the full-module record."
+      "upstream_reference": "Same immutable current WMA source audit as the full-module record.",
+      "measurement_source": {
+        "file": "author_wma_optimizations_20261020.json",
+        "sha256": "edef21040341eda6e614d73f9c5e972cdcf4cfb35d169c0de2efb59a642b8e34"
+      }
+    },
+    {
+      "id": "freewater-nls",
+      "title": "Free-water NLS dispatch",
+      "category": "implementation",
+      "scope": "1728-voxel ROI",
+      "evidence_date": "2026-10-21",
+      "reference_seconds": 12.469540137797594,
+      "optimized_seconds": 5.174686264246702,
+      "speed_ratio": 2.4097190633474725,
+      "seconds_saved": 7.294853873550892,
+      "reduction_percent": 58.50138652217636,
+      "method": "Call source-qualified author NLS, residual and Jacobian bodies directly, removing repeated keyword-compatibility dispatch.",
+      "baseline": "Installed original DIPY 1.12.1 serial NLS versus the same function bodies; one numerical thread in both paths.",
+      "unchanged": "All 13 raw parameters, exported maps, affine and QC decisions match in all three subjects.",
+      "limitation": "Subject 100307 medians, three alternating repeats after warmup. ROI, not full brain. These timings precede later WLS-initialization/helper changes and cannot be added to them.",
+      "sample": "Three native 12-cubed ROIs; 288 measurements; complete ROI stage including fresh export.",
+      "upstream_reference": "Measured DIPY 1.12.1 in Slicer; author NLS/residual/Jacobian source hashes match the dated stable-source audit.",
+      "measurement_source": {
+        "file": "freewater_dispatch_slicer_20261021.json",
+        "sha256": "c5c3597f662cb3cd71877058e7d384379d2558575aabe3bdb46a1ae1a3eaab12"
+      }
+    },
+    {
+      "id": "wma-transform",
+      "title": "WMA point transformation",
+      "category": "implementation",
+      "scope": "1000 fibers x 15 points",
+      "evidence_date": "2026-10-21",
+      "reference_seconds": 0.024585530161857605,
+      "optimized_seconds": 0.00032218173146247864,
+      "speed_ratio": 76.30951031970862,
+      "seconds_saved": 0.024263348430395126,
+      "reduction_percent": 98.6895473502446,
+      "method": "Use the same author vtkTransform with a bounded bulk point call, instead of one Python/VTK call per point.",
+      "baseline": "Unmodified author point-transform loop versus bulk calls with the same float64 point order and transform.",
+      "unchanged": "All transformed points, complete small-optimizer trajectories and final transforms match in three subjects.",
+      "limitation": "Subject 100206 median of five point-transform repeats, not full registration. Small-optimizer gains were only about 1.27-1.28x; the point-kernel ratio cannot be applied to whole WMA.",
+      "sample": "Three real-subject fixtures; explicit synthetic offset for the separate optimizer check.",
+      "upstream_reference": "Author register_two_subjects.py SHA256 matches the 22 October WMA source audit; measured bulk vtkTransform path.",
+      "measurement_source": {
+        "file": "wma_transform_20261021.json",
+        "sha256": "1436dfcf82ed8dbe36886719ad89bd38103a453955ec1466adc27605343bba35"
+      }
+    },
+    {
+      "id": "wma-fibers",
+      "title": "WMA fiber-array conversion",
+      "category": "implementation",
+      "scope": "20000 fibers x 15 points",
+      "evidence_date": "2026-10-21",
+      "reference_seconds": 0.5866658464074135,
+      "optimized_seconds": 0.012798488140106201,
+      "speed_ratio": 45.83868344332,
+      "seconds_saved": 0.5738673582673073,
+      "reduction_percent": 97.81843647137791,
+      "method": "Gather the same author nearest-neighbor fiber samples from VTK connectivity in bounded NumPy blocks.",
+      "baseline": "Unmodified author FiberArray conversion versus equivalent bulk conversion; no interpolation or streamline reduction added.",
+      "unchanged": "All arrays, hemisphere flags and separate small-optimizer trajectories/transforms match in three subjects.",
+      "limitation": "Subject 100206 median of five conversion repeats. Not whole WMA; small-optimizer gains were only about 1.02-1.05x. Historical source sampling failures remain failed.",
+      "sample": "20000 identical sampled fibers per subject; original nearest-neighbor rule and ordering.",
+      "upstream_reference": "Author fibers.py at 4532b911386d independently verified; native VTK array sampling, not a new registration algorithm.",
+      "measurement_source": {
+        "file": "wma_fibers_bounded_20261021.json",
+        "sha256": "7e09c9d6ae6be3442abb6c472a4cbbf77db05ab6f93335e1501064890aae9529"
+      }
+    },
+    {
+      "id": "wma-cache",
+      "title": "WMA registration-input reuse",
+      "category": "implementation",
+      "scope": "Three preparation calls",
+      "evidence_date": "2026-10-20",
+      "reference_seconds": 533.7745765317231,
+      "optimized_seconds": 180.54995530471206,
+      "speed_ratio": 2.9563816597510533,
+      "seconds_saved": 353.2246212270111,
+      "reduction_percent": 66.17486796057968,
+      "method": "Reuse verified deterministic atlas/subject length-filter results across seeds; keep fresh author random sampling.",
+      "baseline": "Three original author preparation calls versus first cache fill plus reuse, with the same input and fixed seeds.",
+      "unchanged": "Bitwise-equal registration input signatures; source hashes unchanged",
+      "limitation": "One subject, one pair; includes initial cache construction. This overlaps WMA filtering and the full-module pair; savings cannot be added.",
+      "sample": "Three fixed-seed preparation calls, including first cache fill; not full WMA",
+      "upstream_reference": "Preserved same-author preparation pair. Source-qualified reuse, not a fresh latest-version benchmark.",
+      "measurement_source": {
+        "file": "performance_optimizations_20261020.json",
+        "sha256": "8b0c16688e6ce00c3c3527060be6d950a8a6cef9083c9340f256fe2c31f35a39"
+      }
+    },
+    {
+      "id": "surface-mapping",
+      "title": "DDSurfer surface-map reuse",
+      "category": "inherited",
+      "scope": "Four left-hemisphere overlays",
+      "evidence_date": "2026-10-20",
+      "reference_seconds": 13.37943259254098,
+      "optimized_seconds": 3.5190587118268013,
+      "speed_ratio": 3.80199186435156,
+      "seconds_saved": 9.860373880714178,
+      "reduction_percent": 73.69799737405401,
+      "method": "Pack four overlays into one multi-frame mri_surf2surf call, sharing the same surface registration.",
+      "baseline": "Four separate FreeSurfer commands versus one multi-frame command. Inherited from DDSurfer upstream c3b2d40, not plugin-original work.",
+      "unchanged": "Four byte-identical MGH outputs; 163842 vertices per overlay; source hashes unchanged",
+      "limitation": "One subject, command timing only; extra packing/validation excluded. Not surface reconstruction or a new FreeSurfer algorithm.",
+      "sample": "100307 left hemisphere; four separate FreeSurfer commands versus one multi-frame command",
+      "upstream_reference": "Optimization inherited from DDSurfer c3b2d40; no plugin-original credit or latest-FreeSurfer speed claim.",
+      "measurement_source": {
+        "file": "performance_optimizations_20261020.json",
+        "sha256": "8b0c16688e6ce00c3c3527060be6d950a8a6cef9083c9340f256fe2c31f35a39"
+      }
+    },
+    {
+      "id": "dwi-io",
+      "title": "Compressed DWI block reading",
+      "category": "io",
+      "scope": "Three slabs",
+      "evidence_date": "2026-10-20",
+      "reference_seconds": 37.25199197977781,
+      "optimized_seconds": 17.078589437529445,
+      "speed_ratio": 2.181210111996615,
+      "seconds_saved": 20.17340254224837,
+      "reduction_percent": 54.15388941670414,
+      "method": "Decode gzip once to temporary disk, then memory-map the same requested blocks; leave the source file unchanged.",
+      "baseline": "Repeated compressed-array reads versus one sequential decode and disk-backed block reads; no indexed_gzip in this measurement.",
+      "unchanged": "Exact arrays and affine for all three slabs; unchanged input hash",
+      "limitation": "One subject, one pair, uncontrolled OS page cache; needs temporary disk. I/O only, not model fitting; no universal storage-performance guarantee.",
+      "sample": "Three real slabs including sequential decode. NOT a model-fit or full pipeline speedup.",
+      "upstream_reference": "Generic compression/I/O control, not an improvement to a scientific estimator or an upstream-freshness claim.",
+      "measurement_source": {
+        "file": "performance_optimizations_20261020.json",
+        "sha256": "8b0c16688e6ce00c3c3527060be6d950a8a6cef9083c9340f256fe2c31f35a39"
+      }
     }
   ],
   "upstream_review": {

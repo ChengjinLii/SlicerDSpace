@@ -45,12 +45,19 @@ renders their tables into `index.html`, between the `measured-evidence` markers.
 paths, subject data and internal reports are not copied into the site. The new files
 and generator are excluded from the extension runtime.
 
+The catalogue contains 13 scoped records. The optimization figure selects ten
+reusable implementation, port, inherited-upstream and I/O changes, with timings
+above a matching methods table. Thread counts, device switches, scheduling and
+earlier-plugin-only API integration remain outside this figure. The catalogue
+was expanded on 25 October; the upstream-source audit is still dated 22 October.
+
 ---
 
 ## Figures, Status Table And References
 
 - `assets/img/fig-route-guide.png` (section `#choose`) and
-  `assets/img/fig-runtime-resources.png` (section `#runtime`) are rasterised from the
+  `assets/img/fig-runtime-resources.png` and `assets/img/fig-runtime-optimizations.png`
+  (two independent figures in section `#runtime`) are rasterised from the
   editable SVG sources in `docs/figures/`, which are not published. See
   [`docs/figures/README.md`](../figures/README.md) to rebuild them. Each `<img>` carries
   the pixel size of its file and links to the full-size file.

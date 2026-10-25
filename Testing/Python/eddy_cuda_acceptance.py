@@ -35,10 +35,14 @@ def main(argv=None):
     parser.add_argument("--reverse-phase-b0", type=Path)
     parser.add_argument("--eddy-slm", choices=("none", "linear", "quadratic"), default="none")
     parser.add_argument("--eddy-threads", type=int, default=4)
+    parser.add_argument("--device", choices=("cpu", "cuda"), default="cuda")
     args = parser.parse_args(argv)
     if args.output_dir.exists():
         parser.error("Use a new output directory; this acceptance never overwrites earlier results")
     args.output_dir.mkdir(parents=True)
+    if args.device == "cpu":
+        # An explicit CPU benchmark must not select the installed CUDA executable.
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     receipt = {"kind": "eddy_cuda_acceptance", "status": "running",
                "config": {key: str(value) if isinstance(value, Path) else value
                           for key, value in vars(args).items()},
@@ -75,7 +79,7 @@ def main(argv=None):
         dw = bvals > 50
         checks = {
             "pipeline_completed": result.status == "completed",
-            "cuda_selected": device["resolved"] == "cuda",
+            f"{args.device}_selected": device["resolved"] == args.device,
             "no_cpu_retry": device["cuda_error_cpu_retry"] is False,
             "dwi_same_shape": image.shape == source_image.shape,
             "dwi_same_world_grid": bool(np.allclose(image.affine, source_image.affine)),

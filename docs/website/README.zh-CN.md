@@ -37,11 +37,17 @@
 `assets/data/performance.json` 进入公开网站，不复制原始快照、私有文件路径、被试数据或内部报告；
 网页与生成工具不进入插件运行包。
 
+目录共保留 13 条分范围记录；优化图选取十项有通用价值的实现、移植版、继承上游与 I/O
+优化，上方展示计时、下方通过相同编号解释方法及一致性。线程数、设备切换、调度和仅与
+插件旧版比较的 API 接入优化不进入该图。目录在 10 月 25 日补齐，源码新鲜度核验仍是
+10 月 22 日，不将旧测速改称当天复测。
+
 ---
 
 ## 图、状态表与参考文献
 
-- `assets/img/fig-route-guide.png`（`#choose`）和 `assets/img/fig-runtime-resources.png`（`#runtime`）
+- `assets/img/fig-route-guide.png`（`#choose`），以及 `#runtime` 中独立的
+  `assets/img/fig-runtime-resources.png` 和 `assets/img/fig-runtime-optimizations.png`
   由 `docs/figures/` 中可编辑的 SVG 生成，SVG 不公开发布，重建方法见 `docs/figures/README.md`。
   每个 `<img>` 的宽高与文件像素一致，并链接到原图。
 - `#workflows` 中的“What is integrated”表逐项说明接入方式和状态：“Supported”（列标题

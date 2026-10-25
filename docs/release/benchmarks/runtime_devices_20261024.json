@@ -1,0 +1,1505 @@
+{
+  "version": 1,
+  "kind": "same_input_cpu_cuda_observations",
+  "measured_at": "2026-10-24T18:39:41.356055+00:00",
+  "hardware": {
+    "cpu": "Intel(R) Xeon(R) Platinum 8360Y CPU @ 2.40GHz",
+    "threads": 4,
+    "logical_cpus": 144,
+    "python": "3.12.10",
+    "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+    "gpu_state": [
+      "0, NVIDIA H100 PCIe, 81559 MiB, 100 %, 29924 MiB",
+      "1, NVIDIA H100 PCIe, 81559 MiB, 100 %, 64276 MiB"
+    ],
+    "shared_host": true,
+    "cuda_visible_devices": null
+  },
+  "modules": {
+    "parcellation.ddparcel": {
+      "observations": {
+        "cpu": {
+          "seconds": 13114.3,
+          "device": "cpu",
+          "timing_scope": "Three prediction loops on prepared volumes; includes batches, transfers and CPU probability accumulation",
+          "subject_id": "100408",
+          "evidence": "fresh_same_input_device_observation",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/parcel_cpu_16t/measurement.json",
+            "sha256": "9a8d9166abecf9cdbc6bc269e46e14ead00b9fc08a711d8a45ce79cc89f0b0c8"
+          },
+          "environment": {
+            "cpu": "Intel(R) Xeon(R) Platinum 8360Y CPU @ 2.40GHz",
+            "threads": 16,
+            "logical_cpus": 144,
+            "python": "3.12.10",
+            "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+            "gpu_state": [
+              "0, NVIDIA H100 PCIe, 81559 MiB, 100 %, 19974 MiB",
+              "1, NVIDIA H100 PCIe, 81559 MiB, 100 %, 55995 MiB"
+            ],
+            "shared_host": true,
+            "cuda_visible_devices": null
+          },
+          "checks": {
+            "inputs_unchanged": true,
+            "output_finite": true,
+            "output_nonempty": true
+          },
+          "input_sources": [
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-FractionalAnisotropy-Reg-NormMasked.nii.gz",
+              "sha256": "72293dfcb6d96efa491e3c769ddbaddaa2eb658da67dede887a3f7d59132434e"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-MidEigenvalue-Reg-NormMasked.nii.gz",
+              "sha256": "f32f6cb841ee8a5d63064ed5f5ac9e76970f07267858b7c2f97b8bbaae08c218"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-MinEigenvalue-Reg-NormMasked.nii.gz",
+              "sha256": "1484108c7ca8237891e3d914d462d6ab04fdc563cf1fa6d43774289675053561"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-Trace-Reg-NormMasked.nii.gz",
+              "sha256": "52c779cd1101fc9e4c930cd88efb55f2e4c80b0102a206c01aefc9c3067e97b1"
+            }
+          ],
+          "model_resources": [
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/Fused-Unet-v3-noMax-axial.pkl",
+              "sha256": "e330123ba4fb3ea440a3deb4c16200f74a8022cab41902f5c9239b45e81cb527"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/Fused-Unet-v3-noMax-coronal.pkl",
+              "sha256": "1690ae3a6631d32579b1b91648098f68ac01d272c9c3cc2d52e44924df5ab05c"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/Fused-Unet-v3-noMax-sagittal.pkl",
+              "sha256": "82b3843cdfdb551eca21ac78b300a52f1c7e42eded92ef2bcf6e0084e44c78ad"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-FractionalAnisotropy-reg-NormMasked-axial.pkl",
+              "sha256": "a96335aa059bcbd3b079f17fb1aa768b224a3ed94dec7baf3a47cd30b551139a"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-FractionalAnisotropy-reg-NormMasked-coronal.pkl",
+              "sha256": "45ef5359104a31b62ccae7045bfec25725fbff4e67fa6a145e58d40285211f87"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-FractionalAnisotropy-reg-NormMasked-sagittal.pkl",
+              "sha256": "d9c1d83d59fce85c2b6ed5074bea0895822d25a2117267b569398ca73ebd660d"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MidEigenvalue-reg-NormMasked-axial.pkl",
+              "sha256": "75dab6bf98a631693db4414b3778aad18367cac5c810d55f6daec5e6477cddbe"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MidEigenvalue-reg-NormMasked-coronal.pkl",
+              "sha256": "47672c0b700164397c5fe6198ee8936c8a09d46d3ffda4bed43752464a42c9cd"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MidEigenvalue-reg-NormMasked-sagittal.pkl",
+              "sha256": "39cee3bfd6726acad53386c3d64b4b7e4fbbc797788eb938b0a49deecabcd450"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MinEigenvalue-reg-NormMasked-axial.pkl",
+              "sha256": "2828a3ddaab013b05ef2a8535914edc4022743be146f6d61543f86981458a3cd"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MinEigenvalue-reg-NormMasked-coronal.pkl",
+              "sha256": "5110c611191dfdeb5c3ae7a606e1bcf67ddef3349c468b7718dcb30ccb7f6207"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MinEigenvalue-reg-NormMasked-sagittal.pkl",
+              "sha256": "b18c5d5fd3ea6204b4851969c226caa4ba942cd18361d454b7e5c86cec33394e"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-Trace-reg-NormMasked-axial.pkl",
+              "sha256": "d8dcf6877e372a9f1939818d236c5db833e84a1036749a5c05fd617a565f7a53"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-Trace-reg-NormMasked-coronal.pkl",
+              "sha256": "9c97f98133c7eb2ad7156cab08a57c8904f436f5a895193e26a3a0ed161c9ccc"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-Trace-reg-NormMasked-sagittal.pkl",
+              "sha256": "292f029a3d656a50329aa3bcce5bc9f795496bf434cb23d6769ee183478533b4"
+            }
+          ],
+          "code": [
+            {
+              "file": "anatomy/parcellation/DDSurfer_Pred.py",
+              "sha256": "386fe23f56b8f32fcf3605b4ecda92f9701799c4e4df9a93d8ff705e53824125"
+            }
+          ],
+          "excludes": [
+            "DTI fitting",
+            "registration",
+            "normalization",
+            "model and checkpoint loading",
+            "final label cleanup",
+            "native-space resampling",
+            "file export"
+          ],
+          "limitation": [
+            "Single fresh run; phase logs rounded to 0.1 s",
+            "Agreement is against saved CUDA labels, not ground truth"
+          ]
+        },
+        "cuda": {
+          "seconds": 68.5,
+          "device": "cuda",
+          "timing_scope": "Three prediction loops on prepared volumes; includes batches, transfers and CPU probability accumulation",
+          "subject_id": "100408",
+          "evidence": "fresh_same_input_device_observation",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/parcel_cuda/measurement.json",
+            "sha256": "72e382aa225636147090bd5e8d4dea02208419664d1f1409fc4fab7d3566e825"
+          },
+          "environment": {
+            "cpu": "Intel(R) Xeon(R) Platinum 8360Y CPU @ 2.40GHz",
+            "threads": 4,
+            "logical_cpus": 144,
+            "python": "3.12.10",
+            "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+            "gpu_state": [
+              "0, NVIDIA H100 PCIe, 81559 MiB, 100 %, 29924 MiB",
+              "1, NVIDIA H100 PCIe, 81559 MiB, 100 %, 64276 MiB"
+            ],
+            "shared_host": true,
+            "cuda_visible_devices": "0"
+          },
+          "checks": {
+            "inputs_unchanged": true,
+            "output_finite": true,
+            "output_nonempty": true
+          },
+          "input_sources": [
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-FractionalAnisotropy-Reg-NormMasked.nii.gz",
+              "sha256": "72293dfcb6d96efa491e3c769ddbaddaa2eb658da67dede887a3f7d59132434e"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-MidEigenvalue-Reg-NormMasked.nii.gz",
+              "sha256": "f32f6cb841ee8a5d63064ed5f5ac9e76970f07267858b7c2f97b8bbaae08c218"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-MinEigenvalue-Reg-NormMasked.nii.gz",
+              "sha256": "1484108c7ca8237891e3d914d462d6ab04fdc563cf1fa6d43774289675053561"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-Trace-Reg-NormMasked.nii.gz",
+              "sha256": "52c779cd1101fc9e4c930cd88efb55f2e4c80b0102a206c01aefc9c3067e97b1"
+            }
+          ],
+          "model_resources": [
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/Fused-Unet-v3-noMax-axial.pkl",
+              "sha256": "e330123ba4fb3ea440a3deb4c16200f74a8022cab41902f5c9239b45e81cb527"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/Fused-Unet-v3-noMax-coronal.pkl",
+              "sha256": "1690ae3a6631d32579b1b91648098f68ac01d272c9c3cc2d52e44924df5ab05c"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/Fused-Unet-v3-noMax-sagittal.pkl",
+              "sha256": "82b3843cdfdb551eca21ac78b300a52f1c7e42eded92ef2bcf6e0084e44c78ad"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-FractionalAnisotropy-reg-NormMasked-axial.pkl",
+              "sha256": "a96335aa059bcbd3b079f17fb1aa768b224a3ed94dec7baf3a47cd30b551139a"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-FractionalAnisotropy-reg-NormMasked-coronal.pkl",
+              "sha256": "45ef5359104a31b62ccae7045bfec25725fbff4e67fa6a145e58d40285211f87"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-FractionalAnisotropy-reg-NormMasked-sagittal.pkl",
+              "sha256": "d9c1d83d59fce85c2b6ed5074bea0895822d25a2117267b569398ca73ebd660d"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MidEigenvalue-reg-NormMasked-axial.pkl",
+              "sha256": "75dab6bf98a631693db4414b3778aad18367cac5c810d55f6daec5e6477cddbe"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MidEigenvalue-reg-NormMasked-coronal.pkl",
+              "sha256": "47672c0b700164397c5fe6198ee8936c8a09d46d3ffda4bed43752464a42c9cd"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MidEigenvalue-reg-NormMasked-sagittal.pkl",
+              "sha256": "39cee3bfd6726acad53386c3d64b4b7e4fbbc797788eb938b0a49deecabcd450"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MinEigenvalue-reg-NormMasked-axial.pkl",
+              "sha256": "2828a3ddaab013b05ef2a8535914edc4022743be146f6d61543f86981458a3cd"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MinEigenvalue-reg-NormMasked-coronal.pkl",
+              "sha256": "5110c611191dfdeb5c3ae7a606e1bcf67ddef3349c468b7718dcb30ccb7f6207"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-MinEigenvalue-reg-NormMasked-sagittal.pkl",
+              "sha256": "b18c5d5fd3ea6204b4851969c226caa4ba942cd18361d454b7e5c86cec33394e"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-Trace-reg-NormMasked-axial.pkl",
+              "sha256": "d8dcf6877e372a9f1939818d236c5db833e84a1036749a5c05fd617a565f7a53"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-Trace-reg-NormMasked-coronal.pkl",
+              "sha256": "9c97f98133c7eb2ad7156cab08a57c8904f436f5a895193e26a3a0ed161c9ccc"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/parcellation/weights/backbones/dti-Trace-reg-NormMasked-sagittal.pkl",
+              "sha256": "292f029a3d656a50329aa3bcce5bc9f795496bf434cb23d6769ee183478533b4"
+            }
+          ],
+          "code": [
+            {
+              "file": "anatomy/parcellation/DDSurfer_Pred.py",
+              "sha256": "386fe23f56b8f32fcf3605b4ecda92f9701799c4e4df9a93d8ff705e53824125"
+            }
+          ],
+          "excludes": [
+            "DTI fitting",
+            "registration",
+            "normalization",
+            "model and checkpoint loading",
+            "final label cleanup",
+            "native-space resampling",
+            "file export"
+          ],
+          "limitation": [
+            "Single fresh run; phase logs rounded to 0.1 s",
+            "Agreement is against saved CUDA labels, not ground truth"
+          ]
+        }
+      },
+      "comparison": {
+        "same_inputs": true,
+        "same_weights": true,
+        "voxel_agreement": 0.9997150301933289,
+        "different_voxels": 4781
+      }
+    },
+    "surface.ddsurfer": {
+      "observations": {
+        "cpu": {
+          "seconds": 189.7589484602213,
+          "device": "cpu",
+          "timing_scope": "Bilateral white and pial prediction from prepared volumes; includes volume loading, smoothing and OBJ export",
+          "subject_id": "100408",
+          "evidence": "fresh_same_input_device_observation",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/surface_cpu/measurement.json",
+            "sha256": "44070f1a235b7a1442742a34b929aec424ff4afb2d7510c22fac0f611d5fd472"
+          },
+          "environment": {
+            "cpu": "Intel(R) Xeon(R) Platinum 8360Y CPU @ 2.40GHz",
+            "threads": 4,
+            "logical_cpus": 144,
+            "python": "3.12.10",
+            "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+            "gpu_state": [
+              "0, NVIDIA H100 PCIe, 81559 MiB, 100 %, 29924 MiB",
+              "1, NVIDIA H100 PCIe, 81559 MiB, 100 %, 64276 MiB"
+            ],
+            "shared_host": true,
+            "cuda_visible_devices": null
+          },
+          "checks": {
+            "inputs_unchanged": true,
+            "finite_meshes": true,
+            "topology_exact": true
+          },
+          "input_sources": [
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-FA.nii.gz",
+              "sha256": "ba83a1b83f23f9c780c190c0a91d78bb788f78638cabe00c13621622d162ec2f"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-MD.nii.gz",
+              "sha256": "2b7ec12275f1fade691930512dd787e154f21365472a69c1b69e4459549f6b73"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-MaxEigenvalue.nii.gz",
+              "sha256": "52a06934b3fddbe750247e21453161886066916c901e08b7690586beb28fbc56"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-MidEigenvalue.nii.gz",
+              "sha256": "b5d19945c01dc91cc0104ac77b90443afbbf8614337e14b63d387a2d47acaea3"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-MinEigenvalue.nii.gz",
+              "sha256": "92f8a48e99e832a43f0842c3a51d11011b15faf18227978a3d031b9a799c1028"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-brainmask_resampled.nii.gz",
+              "sha256": "26578a2c29c2decd0fec7c68b0d81a075c78393682ba9ac8d5b2be6eff34821b"
+            }
+          ],
+          "model_resources": [
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/surface/weights/ddsurfer_lh_pial.pt",
+              "sha256": "ac5a5f5b30fbb27627372447295e34f614e4b71e3f70551e44af88a635d97c27"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/surface/weights/ddsurfer_lh_wm.pt",
+              "sha256": "0441f8991d2be2aa65c68fa7454b068d92f73089bdbd548b45f61a867ed5fa8f"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/surface/weights/ddsurfer_rh_pial.pt",
+              "sha256": "d22ed9df70e618f5e2c2319619aab3418388ce271427925bf15baf5bf3216a24"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/surface/weights/ddsurfer_rh_wm.pt",
+              "sha256": "ec6e2c6844fae44a61cda92ae369c3f19b5c2d0c9452e4391ed142e2ab4c0030"
+            }
+          ],
+          "code": [
+            {
+              "file": "anatomy/surface/ddsurfer_backend/inference/predict.py",
+              "sha256": "8c47b4950854709c412049f91cd44b2f2226e918c6499224e9f16ca9f5c9c8f6"
+            }
+          ],
+          "excludes": [
+            "DTI fitting",
+            "registration",
+            "model and checkpoint loading",
+            "native-space remapping",
+            "FreeSurfer-style surface postprocessing"
+          ],
+          "limitation": [
+            "One fresh bilateral run; CPU and CUDA may differ numerically",
+            "Vertex agreement is not human anatomical validation"
+          ]
+        },
+        "cuda": {
+          "seconds": 23.96584071032703,
+          "device": "cuda",
+          "timing_scope": "Bilateral white and pial prediction from prepared volumes; includes volume loading, smoothing and OBJ export",
+          "subject_id": "100408",
+          "evidence": "fresh_same_input_device_observation",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/surface_cuda/measurement.json",
+            "sha256": "5402fec520e45bd0b6b44224efced2b43c78bad5d0663792fbe744a165c96fc9"
+          },
+          "environment": {
+            "cpu": "Intel(R) Xeon(R) Platinum 8360Y CPU @ 2.40GHz",
+            "threads": 4,
+            "logical_cpus": 144,
+            "python": "3.12.10",
+            "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+            "gpu_state": [
+              "0, NVIDIA H100 PCIe, 81559 MiB, 98 %, 34301 MiB",
+              "1, NVIDIA H100 PCIe, 81559 MiB, 100 %, 55995 MiB"
+            ],
+            "shared_host": true,
+            "cuda_visible_devices": "0"
+          },
+          "checks": {
+            "inputs_unchanged": true,
+            "finite_meshes": true,
+            "topology_exact": true
+          },
+          "input_sources": [
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-FA.nii.gz",
+              "sha256": "ba83a1b83f23f9c780c190c0a91d78bb788f78638cabe00c13621622d162ec2f"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-MD.nii.gz",
+              "sha256": "2b7ec12275f1fade691930512dd787e154f21365472a69c1b69e4459549f6b73"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-MaxEigenvalue.nii.gz",
+              "sha256": "52a06934b3fddbe750247e21453161886066916c901e08b7690586beb28fbc56"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-MidEigenvalue.nii.gz",
+              "sha256": "b5d19945c01dc91cc0104ac77b90443afbbf8614337e14b63d387a2d47acaea3"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-MinEigenvalue.nii.gz",
+              "sha256": "92f8a48e99e832a43f0842c3a51d11011b15faf18227978a3d031b9a799c1028"
+            },
+            {
+              "file": "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddsurfer/upstream/100408/.cache/volumes/100408/100408-brainmask_resampled.nii.gz",
+              "sha256": "26578a2c29c2decd0fec7c68b0d81a075c78393682ba9ac8d5b2be6eff34821b"
+            }
+          ],
+          "model_resources": [
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/surface/weights/ddsurfer_lh_pial.pt",
+              "sha256": "ac5a5f5b30fbb27627372447295e34f614e4b71e3f70551e44af88a635d97c27"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/surface/weights/ddsurfer_lh_wm.pt",
+              "sha256": "0441f8991d2be2aa65c68fa7454b068d92f73089bdbd548b45f61a867ed5fa8f"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/surface/weights/ddsurfer_rh_pial.pt",
+              "sha256": "d22ed9df70e618f5e2c2319619aab3418388ce271427925bf15baf5bf3216a24"
+            },
+            {
+              "file": "/data/chengjin/SlicerDDSurfer-models/surface/weights/ddsurfer_rh_wm.pt",
+              "sha256": "ec6e2c6844fae44a61cda92ae369c3f19b5c2d0c9452e4391ed142e2ab4c0030"
+            }
+          ],
+          "code": [
+            {
+              "file": "anatomy/surface/ddsurfer_backend/inference/predict.py",
+              "sha256": "8c47b4950854709c412049f91cd44b2f2226e918c6499224e9f16ca9f5c9c8f6"
+            }
+          ],
+          "excludes": [
+            "DTI fitting",
+            "registration",
+            "model and checkpoint loading",
+            "native-space remapping",
+            "FreeSurfer-style surface postprocessing"
+          ],
+          "limitation": [
+            "One fresh bilateral run; CPU and CUDA may differ numerically",
+            "Vertex agreement is not human anatomical validation"
+          ]
+        }
+      },
+      "comparison": {
+        "same_inputs": true,
+        "same_weights": true,
+        "meshes": {
+          "left_wm": {
+            "max_vertex_distance_mm": 0.00014319179201401525,
+            "mean_vertex_distance_mm": 2.6997088522776873e-05,
+            "topology_exact": true
+          },
+          "left_pial": {
+            "max_vertex_distance_mm": 0.00043111289913442586,
+            "mean_vertex_distance_mm": 3.288345347447597e-05,
+            "topology_exact": true
+          },
+          "right_wm": {
+            "max_vertex_distance_mm": 0.00018562454067121538,
+            "mean_vertex_distance_mm": 3.7694277265855907e-05,
+            "topology_exact": true
+          },
+          "right_pial": {
+            "max_vertex_distance_mm": 0.0008229871198871528,
+            "mean_vertex_distance_mm": 4.896190848269357e-05,
+            "topology_exact": true
+          }
+        }
+      }
+    },
+    "bundles.tractcloud": {
+      "observations": {
+        "cpu": {
+          "seconds": 70.80189892835915,
+          "device": "cpu",
+          "timing_scope": "TractCloud on the saved 50,000-track CSD input; excludes tracking",
+          "subject_id": "100307",
+          "evidence": "fresh_same_input_device_observation",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/tractcloud_cpu_r2/measurement.json",
+            "sha256": "403ae5f08a826a470e67cc176fb03ac6c0614616dafe5f629029d13cd8809817"
+          },
+          "environment": {
+            "cpu": "Intel(R) Xeon(R) Platinum 8360Y CPU @ 2.40GHz",
+            "threads": 4,
+            "logical_cpus": 144,
+            "python": "3.12.10",
+            "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+            "gpu_state": [
+              "0, NVIDIA H100 PCIe, 81559 MiB, 100 %, 29924 MiB",
+              "1, NVIDIA H100 PCIe, 81559 MiB, 100 %, 64276 MiB"
+            ],
+            "shared_host": true,
+            "cuda_visible_devices": null
+          },
+          "checks": {
+            "input_unchanged": true,
+            "device_verified": true,
+            "completed": true
+          },
+          "input_sources": [
+            {
+              "file": "ignore/validation/slicer_acceptance_20261006/science/subjects/100307/outputs/04_tractography/tractograms/acceptance_science/100307_csd_act_ifod2.vtk",
+              "sha256": "26af14588db9607eb83331a1d086adefa2e1e83e4581867d9b337889a195f59e"
+            }
+          ],
+          "model_resources": {
+            "TrainData_800clu800ol/HCP_mass_center.npy": {
+              "exists": true,
+              "is_file": true,
+              "mtime_ns": 1689495879000000000,
+              "path": "/data/chengjin/SlicerDDSurfer-test/resources/tractcloud_data/TrainData_800clu800ol/HCP_mass_center.npy",
+              "sha256": "62cbbae3dcf1c8d3792af3453c338bbce6fceed4705810a10e23b75b8d4b0fa9",
+              "size": 308
+            },
+            "TrainedModel/best_tract_f1_model.pth": {
+              "exists": true,
+              "is_file": true,
+              "mtime_ns": 1689495880000000000,
+              "path": "/data/chengjin/SlicerDDSurfer-test/resources/tractcloud_data/TrainedModel/best_tract_f1_model.pth",
+              "sha256": "93b01cf532ff4e1739754866bb9d7b71c5f5dffc9e8e6d4cf95ac8c6a0431d6a",
+              "size": 8876702
+            },
+            "TrainedModel/cli_args.txt": {
+              "exists": true,
+              "is_file": true,
+              "mtime_ns": 1690081658000000000,
+              "path": "/data/chengjin/SlicerDDSurfer-test/resources/tractcloud_data/TrainedModel/cli_args.txt",
+              "sha256": "fd521ca95673fb440a84c14078e287f42214975be60b7ff523e6b0df90480fda",
+              "size": 1082
+            }
+          },
+          "code": [],
+          "excludes": [],
+          "limitation": [
+            "Single seeded run including subprocess startup and output screening",
+            "Bundle sampling and anatomical QC are separate from timing completion"
+          ]
+        },
+        "cuda": {
+          "seconds": 29.473266649991274,
+          "device": "cuda",
+          "timing_scope": "TractCloud on the saved 50,000-track CSD input; excludes tracking",
+          "subject_id": "100307",
+          "evidence": "fresh_same_input_device_observation",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/tractcloud_cuda/measurement.json",
+            "sha256": "cec09f8fc9407734660fc818281206dc57419581b4147dd3b5822b0cec12c8fb"
+          },
+          "environment": {
+            "cpu": "Intel(R) Xeon(R) Platinum 8360Y CPU @ 2.40GHz",
+            "threads": 4,
+            "logical_cpus": 144,
+            "python": "3.12.10",
+            "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+            "gpu_state": [
+              "0, NVIDIA H100 PCIe, 81559 MiB, 100 %, 34755 MiB",
+              "1, NVIDIA H100 PCIe, 81559 MiB, 100 %, 55995 MiB"
+            ],
+            "shared_host": true,
+            "cuda_visible_devices": "0"
+          },
+          "checks": {
+            "input_unchanged": true,
+            "device_verified": true,
+            "completed": true
+          },
+          "input_sources": [
+            {
+              "file": "ignore/validation/slicer_acceptance_20261006/science/subjects/100307/outputs/04_tractography/tractograms/acceptance_science/100307_csd_act_ifod2.vtk",
+              "sha256": "26af14588db9607eb83331a1d086adefa2e1e83e4581867d9b337889a195f59e"
+            }
+          ],
+          "model_resources": {
+            "TrainData_800clu800ol/HCP_mass_center.npy": {
+              "exists": true,
+              "is_file": true,
+              "mtime_ns": 1689495879000000000,
+              "path": "/data/chengjin/SlicerDDSurfer-test/resources/tractcloud_data/TrainData_800clu800ol/HCP_mass_center.npy",
+              "sha256": "62cbbae3dcf1c8d3792af3453c338bbce6fceed4705810a10e23b75b8d4b0fa9",
+              "size": 308
+            },
+            "TrainedModel/best_tract_f1_model.pth": {
+              "exists": true,
+              "is_file": true,
+              "mtime_ns": 1689495880000000000,
+              "path": "/data/chengjin/SlicerDDSurfer-test/resources/tractcloud_data/TrainedModel/best_tract_f1_model.pth",
+              "sha256": "93b01cf532ff4e1739754866bb9d7b71c5f5dffc9e8e6d4cf95ac8c6a0431d6a",
+              "size": 8876702
+            },
+            "TrainedModel/cli_args.txt": {
+              "exists": true,
+              "is_file": true,
+              "mtime_ns": 1690081658000000000,
+              "path": "/data/chengjin/SlicerDDSurfer-test/resources/tractcloud_data/TrainedModel/cli_args.txt",
+              "sha256": "fd521ca95673fb440a84c14078e287f42214975be60b7ff523e6b0df90480fda",
+              "size": 1082
+            }
+          },
+          "code": [],
+          "excludes": [],
+          "limitation": [
+            "Single seeded run including subprocess startup and output screening",
+            "Bundle sampling and anatomical QC are separate from timing completion"
+          ]
+        }
+      },
+      "comparison": {
+        "same_inputs": true,
+        "same_weights": true,
+        "cpu_bundles": 39,
+        "cuda_bundles": 39,
+        "same_bundle_names": true,
+        "geometry_exact_bundles": 37,
+        "geometry_exact_all": false,
+        "nonexact_bundle_names": [
+          "Superficial/superficial frontal (Sup-F).vtp",
+          "Superficial/superficial temporal (Sup-T).vtp"
+        ]
+      }
+    },
+    "segmentation.ddseg": {
+      "observations": {
+        "cpu": {
+          "seconds": 669.3184089604765,
+          "device": "cpu",
+          "subject_id": "877168",
+          "timing_scope": "Current predict_model_space on prepared full-volume features with preloaded models; includes transfers, three views, fusion and softmax",
+          "excludes": [
+            "DTI fitting",
+            "feature reading/normalization",
+            "checkpoint loading",
+            "orientation restoration",
+            "file export",
+            "QC"
+          ],
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/ddseg_cpu_16t.json",
+            "sha256": "8d8f9398a6e2dce529312a39548d44bc292f6807b2e7127c2c2d3854d92f6ef0"
+          },
+          "evidence": "fresh_same_input_device_observation",
+          "environment": {
+            "python": "3.12.10",
+            "torch": "2.11.0+cu129",
+            "cpu_threads": 16,
+            "cuda_visible_devices": null,
+            "gpu_name": null,
+            "gpu_state_before": [
+              "0, NVIDIA H100 PCIe, 100 %, 20012 MiB",
+              "1, NVIDIA H100 PCIe, 100 %, 55995 MiB"
+            ],
+            "gpu_shared": true,
+            "peak_allocated_bytes": null
+          },
+          "checks": {
+            "repeat_outputs_exact": true,
+            "labels_match_saved_reference": false,
+            "probabilities_finite": true,
+            "source_files_unchanged": true
+          },
+          "input_and_weight_sources": [
+            {
+              "file": "external/nodif_brain_mask.nii.gz",
+              "sha256": "3f91c95779e340cb0f7286a816d91518ef167b3c52528659a73496170d86268c"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_E1.nrrd",
+              "sha256": "f1bf6855244a236c21c1f206456e5a99d98bf3eb3f62bd93be6864aa65c09b8e"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_E2.nrrd",
+              "sha256": "d237387c41233ce550e68b764fd3fa74479599e566b0463ce911ea8b9bbfdc16"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_E3.nrrd",
+              "sha256": "bec151e96418c1bf1a7b0c0c813c734664988a592641febed60052cfc58b364a"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_FA.nrrd",
+              "sha256": "26c0bdbc411298942725371812f0dec539a690fcffc51d5337c2940316d5c9fd"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MD.nrrd",
+              "sha256": "ca2f064759e8bd2a13fdae062633fed94a76339114261ff88de41daeab65fb11"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MaxEigenvalue.nrrd",
+              "sha256": "f1bf6855244a236c21c1f206456e5a99d98bf3eb3f62bd93be6864aa65c09b8e"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MeanDiffusivity.nrrd",
+              "sha256": "35b569ae26f3288293862c4d28091853cf5562dff1726e685b0337931ecb4be5"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MidEigenvalue.nrrd",
+              "sha256": "d237387c41233ce550e68b764fd3fa74479599e566b0463ce911ea8b9bbfdc16"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MinEigenvalue.nrrd",
+              "sha256": "bec151e96418c1bf1a7b0c0c813c734664988a592641febed60052cfc58b364a"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_Trace.nrrd",
+              "sha256": "ca2f064759e8bd2a13fdae062633fed94a76339114261ff88de41daeab65fb11"
+            },
+            {
+              "file": "external/dti_axial.pt",
+              "sha256": "e331fa15cb531958f892e1b03eaef8405c3ddd927f4cd7427de841f9e9f41e77"
+            },
+            {
+              "file": "external/dti_coronal.pt",
+              "sha256": "800a8467021471a99e9cbcec1e5b8cda4b0935018113a85b07d2b903890b8376"
+            },
+            {
+              "file": "external/dti_sagittal.pt",
+              "sha256": "5a150b5654d8f31ac03549bfd952aad40f176ffcd2c7bfb359ed9aaf3785612b"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/03_structural/ddseg/SegmentationMap_GMWMCSF.nii.gz",
+              "sha256": "1b509d7066060417fd2c7b209bca68ed1dc72bf9453afb00346f977610f2db85"
+            }
+          ],
+          "code": [
+            {
+              "file": "anatomy/segmentation/pipeline.py",
+              "sha256": "05646804cd81dc73c0874f965458b59d9839ccf074ec4d0ab3a9e8ad6b9020ba"
+            },
+            {
+              "file": "anatomy/segmentation/inference.py",
+              "sha256": "1c0bbcd0a58886b873fbac74832db8aa6129a92b42dd2080366a5de3e237a7ed"
+            },
+            {
+              "file": "anatomy/segmentation/model_loader.py",
+              "sha256": "11a16dc669ecc4a682933a45b295fede3abdfa5164768d3a521e9a1fc8ee3fd3"
+            },
+            {
+              "file": "anatomy/segmentation/preprocess.py",
+              "sha256": "56f52944be28803e0654dd16c5fb4b68911d947f9b29774702c0f7d03862fa53"
+            }
+          ],
+          "repeat_seconds": [
+            669.3184089604765
+          ],
+          "warmups": 1,
+          "limitation": [
+            "One subject on a shared host/GPU; not a controlled cross-hardware benchmark",
+            "Warm prepared-input prediction, not cold first-use or pure CUDA kernel time",
+            "Output agreement is not human anatomical validation"
+          ]
+        },
+        "cuda": {
+          "seconds": 7.830441653728485,
+          "device": "cuda",
+          "subject_id": "877168",
+          "timing_scope": "Current predict_model_space on prepared full-volume features with preloaded models; includes transfers, three views, fusion and softmax",
+          "excludes": [
+            "DTI fitting",
+            "feature reading/normalization",
+            "checkpoint loading",
+            "orientation restoration",
+            "file export",
+            "QC"
+          ],
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/ddseg_cuda.json",
+            "sha256": "773daaa0aabfa77e4a7c78e7b271ba274430cfed50740034dee10afbb826073c"
+          },
+          "evidence": "fresh_same_input_device_observation",
+          "environment": {
+            "python": "3.12.10",
+            "torch": "2.11.0+cu129",
+            "cpu_threads": 4,
+            "cuda_visible_devices": "0",
+            "gpu_name": "NVIDIA H100 PCIe",
+            "gpu_state_before": [
+              "0, NVIDIA H100 PCIe, 100 %, 46447 MiB",
+              "1, NVIDIA H100 PCIe, 100 %, 55995 MiB"
+            ],
+            "gpu_shared": true,
+            "peak_allocated_bytes": 451729408
+          },
+          "checks": {
+            "repeat_outputs_exact": true,
+            "labels_match_saved_reference": true,
+            "probabilities_finite": true,
+            "source_files_unchanged": true
+          },
+          "input_and_weight_sources": [
+            {
+              "file": "external/nodif_brain_mask.nii.gz",
+              "sha256": "3f91c95779e340cb0f7286a816d91518ef167b3c52528659a73496170d86268c"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_E1.nrrd",
+              "sha256": "f1bf6855244a236c21c1f206456e5a99d98bf3eb3f62bd93be6864aa65c09b8e"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_E2.nrrd",
+              "sha256": "d237387c41233ce550e68b764fd3fa74479599e566b0463ce911ea8b9bbfdc16"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_E3.nrrd",
+              "sha256": "bec151e96418c1bf1a7b0c0c813c734664988a592641febed60052cfc58b364a"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_FA.nrrd",
+              "sha256": "26c0bdbc411298942725371812f0dec539a690fcffc51d5337c2940316d5c9fd"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MD.nrrd",
+              "sha256": "ca2f064759e8bd2a13fdae062633fed94a76339114261ff88de41daeab65fb11"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MaxEigenvalue.nrrd",
+              "sha256": "f1bf6855244a236c21c1f206456e5a99d98bf3eb3f62bd93be6864aa65c09b8e"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MeanDiffusivity.nrrd",
+              "sha256": "35b569ae26f3288293862c4d28091853cf5562dff1726e685b0337931ecb4be5"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MidEigenvalue.nrrd",
+              "sha256": "d237387c41233ce550e68b764fd3fa74479599e566b0463ce911ea8b9bbfdc16"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_MinEigenvalue.nrrd",
+              "sha256": "bec151e96418c1bf1a7b0c0c813c734664988a592641febed60052cfc58b364a"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/cache/native_dti/ls/DTI_Trace.nrrd",
+              "sha256": "ca2f064759e8bd2a13fdae062633fed94a76339114261ff88de41daeab65fb11"
+            },
+            {
+              "file": "external/dti_axial.pt",
+              "sha256": "e331fa15cb531958f892e1b03eaef8405c3ddd927f4cd7427de841f9e9f41e77"
+            },
+            {
+              "file": "external/dti_coronal.pt",
+              "sha256": "800a8467021471a99e9cbcec1e5b8cda4b0935018113a85b07d2b903890b8376"
+            },
+            {
+              "file": "external/dti_sagittal.pt",
+              "sha256": "5a150b5654d8f31ac03549bfd952aad40f176ffcd2c7bfb359ed9aaf3785612b"
+            },
+            {
+              "file": "ignore/validation/cohort_onepass_20261017/subjects/877168/outputs/03_structural/ddseg/SegmentationMap_GMWMCSF.nii.gz",
+              "sha256": "1b509d7066060417fd2c7b209bca68ed1dc72bf9453afb00346f977610f2db85"
+            }
+          ],
+          "code": [
+            {
+              "file": "anatomy/segmentation/pipeline.py",
+              "sha256": "05646804cd81dc73c0874f965458b59d9839ccf074ec4d0ab3a9e8ad6b9020ba"
+            },
+            {
+              "file": "anatomy/segmentation/inference.py",
+              "sha256": "1c0bbcd0a58886b873fbac74832db8aa6129a92b42dd2080366a5de3e237a7ed"
+            },
+            {
+              "file": "anatomy/segmentation/model_loader.py",
+              "sha256": "11a16dc669ecc4a682933a45b295fede3abdfa5164768d3a521e9a1fc8ee3fd3"
+            },
+            {
+              "file": "anatomy/segmentation/preprocess.py",
+              "sha256": "56f52944be28803e0654dd16c5fb4b68911d947f9b29774702c0f7d03862fa53"
+            }
+          ],
+          "repeat_seconds": [
+            8.977171646431088,
+            6.047463601455092,
+            7.830441653728485
+          ],
+          "warmups": 1,
+          "limitation": [
+            "One subject on a shared host/GPU; not a controlled cross-hardware benchmark",
+            "Warm prepared-input prediction, not cold first-use or pure CUDA kernel time",
+            "Output agreement is not human anatomical validation"
+          ]
+        }
+      },
+      "comparison": {
+        "same_inputs_and_weights": true,
+        "label_arrays_exact": false,
+        "probability_arrays_exact": false,
+        "cpu_label_agreement_to_saved_cuda": 0.9998061967827025
+      }
+    },
+    "brainmask.pnl_cnn": {
+      "observations": {
+        "cpu": {
+          "seconds": 137.83151320554316,
+          "device": "cpu",
+          "timing_scope": "Fresh mask generation, hashing, b0 preparation, external process and integrity QC",
+          "evidence": "fresh_same_input_device_observation",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/pnl_cpu/pnl_cnn_acceptance.json",
+            "sha256": "da6dbfcfa883b379f69c434f90a31098190791c3fe1e46f17fa418355dcf2320"
+          },
+          "device_execution": {
+            "upstream_sha256": "de1180437804dcfdc6c4cdf697bed70c59ab8f5c196cc104be05519a1cb7d961",
+            "device_selection_compatibility_fix": true,
+            "scientific_code_modified": false,
+            "requested": "cpu",
+            "resolved": "cpu",
+            "reason": "Explicit CPU selection",
+            "tensorflow_package_version": "2.15.1",
+            "keras_package_version": "2.15.0"
+          },
+          "checks": {
+            "geometry_pass": true,
+            "binary": true,
+            "finite": true,
+            "brain_voxels": 697325,
+            "mask_fov_fraction": 0.1906118878729482,
+            "human_review": "pending",
+            "warnings": [
+              "Inspect brain boundaries, cerebellum and brainstem before quantitative use"
+            ]
+          },
+          "thread_environment": {
+            "OMP_NUM_THREADS": "4",
+            "MKL_NUM_THREADS": "4",
+            "OPENBLAS_NUM_THREADS": "4",
+            "TF_NUM_INTRAOP_THREADS": null,
+            "TF_NUM_INTEROP_THREADS": null,
+            "TF_ENABLE_ONEDNN_OPTS": null
+          },
+          "input_sources": [
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/100307/input/data.nii.gz",
+              "size": 1257959510,
+              "sha256": "0c146b380d873cd6987c968fdf090875f89fd5795b0d6c72564a3acab737f07c"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/100307/input/bvals",
+              "size": 1343,
+              "sha256": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/100307/input/bvecs",
+              "size": 9507,
+              "sha256": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71"
+            }
+          ],
+          "model_resources": [
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/shared/pnl_mask_runner.py",
+              "size": 5711,
+              "sha256": "99f93528f452df8f162aa4e6ccf9a4a014665fad825ffa61911829a1173a3e36"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/selected_setup_20261021/pnl-cnn-tf2.15.1/pnl-source/pipeline/dwi_masking.py",
+              "size": 33178,
+              "sha256": "de1180437804dcfdc6c4cdf697bed70c59ab8f5c196cc104be05519a1cb7d961"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer-models/brain_mask/pnl_cnn/CompNetBasicModel.json",
+              "size": 96841,
+              "sha256": "989fd5a64d9307268441c3525d59b31d59c20db864f0262ef53ad53ec495bdae"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer-models/brain_mask/pnl_cnn/IITmean_b0_256.nii.gz",
+              "size": 7830929,
+              "sha256": "2bb1a7bbe448702033a515e76164df6472828422ecef5cb4f996d91ec126dead"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer-models/brain_mask/pnl_cnn/weights-sagittal-improvement-09.h5",
+              "size": 75337792,
+              "sha256": "27aaafddac65617e0653c4da4fd0c650529fcc8150b4efd6b66135070ebc01bc"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer-models/brain_mask/pnl_cnn/weights-coronal-improvement-08.h5",
+              "size": 75337792,
+              "sha256": "248dcf90752d4e0a2e22a136c5f0ca6d3c9cb9b628d131ce869d9ef6cbea702c"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer-models/brain_mask/pnl_cnn/weights-axial-improvement-08.h5",
+              "size": 75337792,
+              "sha256": "e11d3c410769c68844109a86eed40ebedc655ea03c14f6f54f4f13749c5ead18"
+            }
+          ],
+          "limitation": "Single cold-process run; includes model loading and registration when used; not inference-only"
+        },
+        "cuda": {
+          "seconds": 132.1677704807371,
+          "device": "cuda",
+          "timing_scope": "Fresh mask generation, hashing, b0 preparation, external process and integrity QC",
+          "evidence": "fresh_same_input_device_observation",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/pnl_cuda/pnl_cnn_acceptance.json",
+            "sha256": "bce46d84d45e2edc4722b411c5013c6654fa97ffb7075d1f0b4fdc0730d1d506"
+          },
+          "device_execution": {
+            "upstream_sha256": "de1180437804dcfdc6c4cdf697bed70c59ab8f5c196cc104be05519a1cb7d961",
+            "device_selection_compatibility_fix": true,
+            "scientific_code_modified": false,
+            "requested": "cuda",
+            "tensorflow_version": "2.15.1",
+            "visible_gpus": [
+              "/physical_device:GPU:0"
+            ],
+            "cuda_visible_devices": "0",
+            "resolved": "cuda",
+            "selected_gpu": "/physical_device:GPU:0",
+            "reason": "First visible CUDA GPU; memory growth enabled",
+            "tensorflow_package_version": "2.15.1",
+            "keras_package_version": "2.15.0"
+          },
+          "checks": {
+            "geometry_pass": true,
+            "binary": true,
+            "finite": true,
+            "brain_voxels": 697884,
+            "mask_fov_fraction": 0.19076468899913895,
+            "human_review": "pending",
+            "warnings": [
+              "Inspect brain boundaries, cerebellum and brainstem before quantitative use"
+            ]
+          },
+          "thread_environment": {
+            "OMP_NUM_THREADS": "4",
+            "MKL_NUM_THREADS": "4",
+            "OPENBLAS_NUM_THREADS": "4",
+            "TF_NUM_INTRAOP_THREADS": null,
+            "TF_NUM_INTEROP_THREADS": null,
+            "TF_ENABLE_ONEDNN_OPTS": null
+          },
+          "input_sources": [
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/100307/input/data.nii.gz",
+              "size": 1257959510,
+              "sha256": "0c146b380d873cd6987c968fdf090875f89fd5795b0d6c72564a3acab737f07c"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/100307/input/bvals",
+              "size": 1343,
+              "sha256": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/100307/input/bvecs",
+              "size": 9507,
+              "sha256": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71"
+            }
+          ],
+          "model_resources": [
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/shared/pnl_mask_runner.py",
+              "size": 5711,
+              "sha256": "99f93528f452df8f162aa4e6ccf9a4a014665fad825ffa61911829a1173a3e36"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/selected_setup_20261021/pnl-cnn-tf2.15.1/pnl-source/pipeline/dwi_masking.py",
+              "size": 33178,
+              "sha256": "de1180437804dcfdc6c4cdf697bed70c59ab8f5c196cc104be05519a1cb7d961"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer-models/brain_mask/pnl_cnn/CompNetBasicModel.json",
+              "size": 96841,
+              "sha256": "989fd5a64d9307268441c3525d59b31d59c20db864f0262ef53ad53ec495bdae"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer-models/brain_mask/pnl_cnn/IITmean_b0_256.nii.gz",
+              "size": 7830929,
+              "sha256": "2bb1a7bbe448702033a515e76164df6472828422ecef5cb4f996d91ec126dead"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer-models/brain_mask/pnl_cnn/weights-sagittal-improvement-09.h5",
+              "size": 75337792,
+              "sha256": "27aaafddac65617e0653c4da4fd0c650529fcc8150b4efd6b66135070ebc01bc"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer-models/brain_mask/pnl_cnn/weights-coronal-improvement-08.h5",
+              "size": 75337792,
+              "sha256": "248dcf90752d4e0a2e22a136c5f0ca6d3c9cb9b628d131ce869d9ef6cbea702c"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer-models/brain_mask/pnl_cnn/weights-axial-improvement-08.h5",
+              "size": 75337792,
+              "sha256": "e11d3c410769c68844109a86eed40ebedc655ea03c14f6f54f4f13749c5ead18"
+            }
+          ],
+          "limitation": "Single cold-process run; includes model loading and registration when used; not inference-only"
+        }
+      },
+      "comparison": {
+        "same_inputs": true,
+        "same_resources": true,
+        "voxel_agreement": 0.9972957754178796,
+        "different_voxels": 9893,
+        "dice": 0.9929093060609557
+      }
+    },
+    "brainmask.synthstrip": {
+      "observations": {
+        "cpu": {
+          "seconds": 18.06286229006946,
+          "device": "cpu",
+          "timing_scope": "Fresh mask generation, hashing, b0 preparation, external process and integrity QC",
+          "evidence": "fresh_same_input_device_observation",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/synthstrip_cpu/synthstrip_acceptance.json",
+            "sha256": "3306834d1b2840f7b4ba353cb92ba901e605e90a68d5eef2dfc44f6c692bc9ab"
+          },
+          "device_execution": {
+            "upstream_sha256": "d674926f56393e3ead4eeb4a53a3b41de16f822469d653e33cdfe9d69c3185a2",
+            "preserved_caller_gpu_visibility": true,
+            "scientific_code_modified": false,
+            "requested": "cpu",
+            "resolved": "cpu",
+            "torch_version": "2.4.1",
+            "cuda_version": "12.1",
+            "cuda_visible_devices": "-1"
+          },
+          "checks": {
+            "geometry_pass": true,
+            "binary": true,
+            "finite": true,
+            "brain_voxels": 164431,
+            "mask_fov_fraction": 0.2533761711045365,
+            "human_review": "pending",
+            "warnings": [
+              "Inspect brain boundaries, cerebellum and brainstem before quantitative use"
+            ]
+          },
+          "thread_environment": {
+            "OMP_NUM_THREADS": "4",
+            "MKL_NUM_THREADS": "4",
+            "OPENBLAS_NUM_THREADS": "4",
+            "TF_NUM_INTRAOP_THREADS": null,
+            "TF_NUM_INTEROP_THREADS": null,
+            "TF_ENABLE_ONEDNN_OPTS": null
+          },
+          "input_sources": [
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/data.nii.gz",
+              "size": 20733972,
+              "sha256": "3fb65f3499466f18da12e7e2958e757f796b4b32a2945eb3737fb9d50147f680"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvals",
+              "size": 152,
+              "sha256": "a55cd069a34d5ee439afd07563f503b709cf9bc5c6b559f4428fde80b2c5fca2"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvecs",
+              "size": 846,
+              "sha256": "12a7e487852d70c9736328228f3f5be4fc17e015598567e70880372750916b2f"
+            }
+          ],
+          "model_resources": [
+            {
+              "path": "/data/chengjin/software/freesurfer/bin/mri_synthstrip",
+              "size": 203,
+              "sha256": "580c3e14c8f69a00b1b1d90c61a0cda936de246f99573ef80c8180781861c8db"
+            },
+            {
+              "path": "/data/chengjin/software/freesurfer/models/synthstrip.1.pt",
+              "size": 30851709,
+              "sha256": "37417f802196186441aae3e7f385d94f8a98c64a88acaeaa2723af995c653e33"
+            },
+            {
+              "path": "/data/chengjin/software/freesurfer/python/scripts/mri_synthstrip",
+              "size": 9095,
+              "sha256": "d674926f56393e3ead4eeb4a53a3b41de16f822469d653e33cdfe9d69c3185a2"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/shared/synthstrip_mask_runner.py",
+              "size": 4481,
+              "sha256": "8114f1f5127b66e60cc1a74eb455b1dddb6c87bd2d25f67214769c8fd43114f0"
+            }
+          ],
+          "limitation": "Single cold-process run; includes model loading and registration when used; not inference-only"
+        },
+        "cuda": {
+          "seconds": 12.157378485426307,
+          "device": "cuda",
+          "timing_scope": "Fresh mask generation, hashing, b0 preparation, external process and integrity QC",
+          "evidence": "fresh_same_input_device_observation",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/synthstrip_cuda/synthstrip_acceptance.json",
+            "sha256": "2415ac92cc297b714ec1bd8a115606ade451cf8ad312e57cb6063c7887811efa"
+          },
+          "device_execution": {
+            "upstream_sha256": "d674926f56393e3ead4eeb4a53a3b41de16f822469d653e33cdfe9d69c3185a2",
+            "preserved_caller_gpu_visibility": true,
+            "scientific_code_modified": false,
+            "requested": "cuda",
+            "resolved": "cuda",
+            "torch_version": "2.4.1",
+            "cuda_version": "12.1",
+            "cuda_visible_devices": "0"
+          },
+          "checks": {
+            "geometry_pass": true,
+            "binary": true,
+            "finite": true,
+            "brain_voxels": 164430,
+            "mask_fov_fraction": 0.25337463017751477,
+            "human_review": "pending",
+            "warnings": [
+              "Inspect brain boundaries, cerebellum and brainstem before quantitative use"
+            ]
+          },
+          "thread_environment": {
+            "OMP_NUM_THREADS": "4",
+            "MKL_NUM_THREADS": "4",
+            "OPENBLAS_NUM_THREADS": "4",
+            "TF_NUM_INTRAOP_THREADS": null,
+            "TF_NUM_INTEROP_THREADS": null,
+            "TF_ENABLE_ONEDNN_OPTS": null
+          },
+          "input_sources": [
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/data.nii.gz",
+              "size": 20733972,
+              "sha256": "3fb65f3499466f18da12e7e2958e757f796b4b32a2945eb3737fb9d50147f680"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvals",
+              "size": 152,
+              "sha256": "a55cd069a34d5ee439afd07563f503b709cf9bc5c6b559f4428fde80b2c5fca2"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvecs",
+              "size": 846,
+              "sha256": "12a7e487852d70c9736328228f3f5be4fc17e015598567e70880372750916b2f"
+            }
+          ],
+          "model_resources": [
+            {
+              "path": "/data/chengjin/software/freesurfer/bin/mri_synthstrip",
+              "size": 203,
+              "sha256": "580c3e14c8f69a00b1b1d90c61a0cda936de246f99573ef80c8180781861c8db"
+            },
+            {
+              "path": "/data/chengjin/software/freesurfer/models/synthstrip.1.pt",
+              "size": 30851709,
+              "sha256": "37417f802196186441aae3e7f385d94f8a98c64a88acaeaa2723af995c653e33"
+            },
+            {
+              "path": "/data/chengjin/software/freesurfer/python/scripts/mri_synthstrip",
+              "size": 9095,
+              "sha256": "d674926f56393e3ead4eeb4a53a3b41de16f822469d653e33cdfe9d69c3185a2"
+            },
+            {
+              "path": "/data/chengjin/SlicerDDSurfer/shared/synthstrip_mask_runner.py",
+              "size": 4481,
+              "sha256": "8114f1f5127b66e60cc1a74eb455b1dddb6c87bd2d25f67214769c8fd43114f0"
+            }
+          ],
+          "limitation": "Single cold-process run; includes model loading and registration when used; not inference-only"
+        }
+      },
+      "comparison": {
+        "same_inputs": true,
+        "same_resources": true,
+        "voxel_agreement": 0.9999984590729784,
+        "different_voxels": 1,
+        "dice": 0.999996959201608
+      }
+    },
+    "preprocessing.mrtrix_fsl": {
+      "observations": {
+        "cpu": {
+          "seconds": 2537.24811238423,
+          "device": "cpu",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/preprocessing_cpu/acceptance.json",
+            "sha256": "317ce92274d23c6f1a5157c3daa05082236fcee2477189d408f317ab8eb81069"
+          },
+          "timing_scope": "Whole preprocessing acceptance including CPU denoise/Gibbs/topup, selected eddy, final mask and integrity checks; not eddy-only time",
+          "evidence": "fresh_same_input_device_observation",
+          "checks": {
+            "pipeline_completed": true,
+            "cpu_selected": true,
+            "no_cpu_retry": true,
+            "dwi_same_shape": true,
+            "dwi_same_world_grid": true,
+            "dwi_finite": true,
+            "dwi_nonempty": true,
+            "gradient_count": true,
+            "gradients_finite": true,
+            "dw_gradients_unit_norm": true,
+            "mask_native_grid": true,
+            "inputs_unchanged": true
+          },
+          "device_execution": {
+            "cuda_error_cpu_retry": false,
+            "cuda_visible_devices": "-1",
+            "eddy_binary": "eddy_cpu",
+            "launcher_sha256": "46b8cab414e5efa8ed7bf861e9b58597af7f307db1320367bc7b6816970b7c0d",
+            "python_executable": "/data/chengjin/software/mrtrix3_env/bin/python",
+            "reason": "No usable CUDA eddy in the selected external environment",
+            "requested_upstream_argv": [
+              "/data/chengjin/software/mrtrix3_env/bin/dwifslpreproc",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/02_denoise_degibbs/sub-dicom_dwi_degibbs.nii.gz",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/sub-dicom_dwi_final.nii.gz",
+              "-fslgrad",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvecs",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvals",
+              "-export_grad_fsl",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/sub-dicom_dwi_final.bvec",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/sub-dicom_dwi_final.bval",
+              "-scratch",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/03_distortion_motion/dwifslpreproc_tmp",
+              "-nocleanup",
+              "-eddy_options",
+              "--cnr_maps --residuals --nthr=4 --slm=linear",
+              "-rpe_pair",
+              "-se_epi",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/03_distortion_motion/sub-dicom_se_epi_pair.mif",
+              "-pe_dir",
+              "AP",
+              "-readout_time",
+              "0.039655"
+            ],
+            "resolved": "cpu",
+            "upstream_argv": [
+              "/data/chengjin/software/mrtrix3_env/bin/dwifslpreproc",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/02_denoise_degibbs/sub-dicom_dwi_degibbs.nii.gz",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/sub-dicom_dwi_final.nii.gz",
+              "-fslgrad",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvecs",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvals",
+              "-export_grad_fsl",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/sub-dicom_dwi_final.bvec",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/sub-dicom_dwi_final.bval",
+              "-scratch",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/03_distortion_motion/dwifslpreproc_tmp",
+              "-nocleanup",
+              "-eddy_options",
+              "--cnr_maps --residuals --nthr=4 --slm=linear",
+              "-rpe_pair",
+              "-se_epi",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cpu/preprocessing/03_distortion_motion/sub-dicom_se_epi_pair.mif",
+              "-pe_dir",
+              "AP",
+              "-readout_time",
+              "0.039655"
+            ],
+            "upstream_script_sha256": "00d9e5569a14f1bf03ab8e84f42be71487d1a42a7baaf34b6f26611ec80267c6"
+          },
+          "config": {
+            "subject_root": "ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom",
+            "subject_id": "sub-dicom",
+            "output_dir": "ignore/validation/runtime_cpu_20261024/preprocessing_cpu",
+            "mrtrix_bin_dir": "/data/chengjin/software/mrtrix3_env/bin",
+            "fsl_bin_dir": "/data/chengjin/software/slicerdsurfer-fsl-gpu/bin",
+            "phase_encoding_direction": "AP",
+            "readout_time": 0.039655,
+            "reverse_phase_b0": "/data/chengjin/SlicerDDSurfer-validation/dicom_import_publishable_20260725/reverse_phase/reverse_b0.nii.gz",
+            "eddy_slm": "linear",
+            "eddy_threads": 4,
+            "device": "cpu"
+          },
+          "source_input_hashes": {
+            "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/data.nii.gz": "3fb65f3499466f18da12e7e2958e757f796b4b32a2945eb3737fb9d50147f680",
+            "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvals": "a55cd069a34d5ee439afd07563f503b709cf9bc5c6b559f4428fde80b2c5fca2",
+            "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvecs": "12a7e487852d70c9736328228f3f5be4fc17e015598567e70880372750916b2f",
+            "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/nodif_brain_mask.nii.gz": "9d588a559ee0ca734c791450afb1f5c6d8ee4069080c03656a7aa453545f291a",
+            "/data/chengjin/SlicerDDSurfer-validation/dicom_import_publishable_20260725/reverse_phase/reverse_b0.nii.gz": "1a705571a8d952a8521ca4fcd790087ffc5d263135c658ed3be4746e6169226b"
+          },
+          "limitation": "One complete fresh run; eddy CPU/CUDA binaries are not bitwise-equivalent solvers"
+        },
+        "cuda": {
+          "seconds": 776.5481137465686,
+          "device": "cuda",
+          "source": {
+            "file": "ignore/validation/runtime_cpu_20261024/preprocessing_cuda/acceptance.json",
+            "sha256": "95ccd7d189a2d966bfc5f6236e6cda73788d7d6d851d036245188b5e96355696"
+          },
+          "timing_scope": "Whole preprocessing acceptance including CPU denoise/Gibbs/topup, selected eddy, final mask and integrity checks; not eddy-only time",
+          "evidence": "fresh_same_input_device_observation",
+          "checks": {
+            "pipeline_completed": true,
+            "cuda_selected": true,
+            "no_cpu_retry": true,
+            "dwi_same_shape": true,
+            "dwi_same_world_grid": true,
+            "dwi_finite": true,
+            "dwi_nonempty": true,
+            "gradient_count": true,
+            "gradients_finite": true,
+            "dw_gradients_unit_norm": true,
+            "mask_native_grid": true,
+            "inputs_unchanged": true
+          },
+          "device_execution": {
+            "cuda_error_cpu_retry": false,
+            "cuda_visible_devices": "0",
+            "eddy_binary": "eddy_cuda",
+            "launcher_sha256": "46b8cab414e5efa8ed7bf861e9b58597af7f307db1320367bc7b6816970b7c0d",
+            "python_executable": "/data/chengjin/software/mrtrix3_env/bin/python",
+            "reason": "CUDA eddy available",
+            "requested_upstream_argv": [
+              "/data/chengjin/software/mrtrix3_env/bin/dwifslpreproc",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/02_denoise_degibbs/sub-dicom_dwi_degibbs.nii.gz",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/sub-dicom_dwi_final.nii.gz",
+              "-fslgrad",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvecs",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvals",
+              "-export_grad_fsl",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/sub-dicom_dwi_final.bvec",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/sub-dicom_dwi_final.bval",
+              "-scratch",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/03_distortion_motion/dwifslpreproc_tmp",
+              "-nocleanup",
+              "-eddy_options",
+              "--cnr_maps --residuals --nthr=4 --slm=linear",
+              "-rpe_pair",
+              "-se_epi",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/03_distortion_motion/sub-dicom_se_epi_pair.mif",
+              "-pe_dir",
+              "AP",
+              "-readout_time",
+              "0.039655"
+            ],
+            "resolved": "cuda",
+            "upstream_argv": [
+              "/data/chengjin/software/mrtrix3_env/bin/dwifslpreproc",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/02_denoise_degibbs/sub-dicom_dwi_degibbs.nii.gz",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/sub-dicom_dwi_final.nii.gz",
+              "-fslgrad",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvecs",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvals",
+              "-export_grad_fsl",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/sub-dicom_dwi_final.bvec",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/sub-dicom_dwi_final.bval",
+              "-scratch",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/03_distortion_motion/dwifslpreproc_tmp",
+              "-nocleanup",
+              "-eddy_options",
+              "--cnr_maps --residuals --slm=linear --nthr=1",
+              "-rpe_pair",
+              "-se_epi",
+              "/data/chengjin/SlicerDDSurfer/ignore/validation/runtime_cpu_20261024/preprocessing_cuda/preprocessing/03_distortion_motion/sub-dicom_se_epi_pair.mif",
+              "-pe_dir",
+              "AP",
+              "-readout_time",
+              "0.039655"
+            ],
+            "upstream_script_sha256": "00d9e5569a14f1bf03ab8e84f42be71487d1a42a7baaf34b6f26611ec80267c6"
+          },
+          "config": {
+            "subject_root": "ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom",
+            "subject_id": "sub-dicom",
+            "output_dir": "ignore/validation/runtime_cpu_20261024/preprocessing_cuda",
+            "mrtrix_bin_dir": "/data/chengjin/software/mrtrix3_env/bin",
+            "fsl_bin_dir": "/data/chengjin/software/slicerdsurfer-fsl-gpu/bin",
+            "phase_encoding_direction": "AP",
+            "readout_time": 0.039655,
+            "reverse_phase_b0": "/data/chengjin/SlicerDDSurfer-validation/dicom_import_publishable_20260725/reverse_phase/reverse_b0.nii.gz",
+            "eddy_slm": "linear",
+            "eddy_threads": 4,
+            "device": "cuda"
+          },
+          "source_input_hashes": {
+            "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/data.nii.gz": "3fb65f3499466f18da12e7e2958e757f796b4b32a2945eb3737fb9d50147f680",
+            "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvals": "a55cd069a34d5ee439afd07563f503b709cf9bc5c6b559f4428fde80b2c5fca2",
+            "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/bvecs": "12a7e487852d70c9736328228f3f5be4fc17e015598567e70880372750916b2f",
+            "/data/chengjin/SlicerDDSurfer/ignore/validation/slicer_acceptance_20261006/science/subjects/sub-dicom/input/nodif_brain_mask.nii.gz": "9d588a559ee0ca734c791450afb1f5c6d8ee4069080c03656a7aa453545f291a",
+            "/data/chengjin/SlicerDDSurfer-validation/dicom_import_publishable_20260725/reverse_phase/reverse_b0.nii.gz": "1a705571a8d952a8521ca4fcd790087ffc5d263135c658ed3be4746e6169226b"
+          },
+          "limitation": "One complete fresh run; eddy CPU/CUDA binaries are not bitwise-equivalent solvers"
+        }
+      },
+      "comparison": {
+        "same_input_hashes": true,
+        "numerical_equivalence_claimed": false,
+        "reason": "eddy CPU and CUDA implementations have different numerical behavior; both pass integrity, not an equality claim"
+      }
+    }
+  },
+  "timing_policy": "Recorded scoped measurements only. No extrapolation, row sums, algorithm speedups or exclusive-hardware claims.",
+  "limitations": [
+    "Shared host and GPUs, including overlapping benchmark processes; not a controlled device speed-ratio study",
+    "DDSeg: one warmup per device, one CPU timed repeat at 16 threads and three CUDA repeats; other methods: one fresh run per device",
+    "Interrupted four-thread DDSeg and DDParcel runs are excluded, not extrapolated",
+    "Output agreement is not ground-truth accuracy or human anatomical acceptance"
+  ]
+}

@@ -455,17 +455,24 @@ Two columns: text left, `idea.jpg` right.
 
 ### 5.10a Run times (`#runtime`, directly before `#performance`)
 
-- Eyebrow “Run times”, H2 “Recorded run times, per module.”, then `fig-runtime-resources.png`, same markup as
+- Eyebrow “Run times”, H2 “Recorded run times, per module.”, then separate
+  `fig-runtime-resources.png` and `fig-runtime-optimizations.png` figures, same markup as
   §5.6a (the width and height attributes equal the pixel size of the file).
-- Caption: “Log scale, one scoped measurement per row; rows are not summed. Panel a: recorded run time per module on
-  Linux, GPU runs marked. Panel b: before and after seven code-path changes, one pair per row, on a shared Linux host;
-  outputs match. SAF re-filters 100,000 existing tracks (no new initial tracking); TractCloud ran on 50,000 tracks.”
-  It covers: one scoped measurement per row, log scale, rows are not summed; panel a is the recorded run time per module
-  on Linux, GPU runs marked; panel b is the run time before and after seven code-path changes, one pair per row, on a
-  shared Linux host, outputs match. The caption names no CPU or GPU model, no workstation, no macOS laptop, no EDDEN
-  subject and no memory value: the ledger's host field is the report host, not necessarily the execution host. It
-  adds that the SAF row re-filters 100,000 existing tracks (new initial tracking is not included) and that the
-  TractCloud row ran on 50,000 tracks.
+- Stage-time caption: scoped log-scale observations, seven same-input CPU/CUDA routes,
+  one baseline per algorithm and aligned CPU/CUDA value columns, shared host and different thread budgets, no summed
+  workflow total or controlled device speed ratios. Hardware in this figure's title
+  comes from actual device repeats, not an inferred report-generation host. Other
+  CPU-only rows keep their dated scopes. SAF re-filters 100,000 existing tracks;
+  TractCloud uses 50,000 tracks.
+- Optimization figure: ten timing pairs above a matching-ID, three-column table
+  (ID, computation, optimization), one line per method. Original figure typography
+  is retained: 7-point regular labels, 6.5-point values, 6-point auxiliary text,
+  inline muted scope and ample row padding. Lines join only the timing points,
+  not the left axis. Equivalence checks stay in the source records. Groups are complete model calls,
+  local computations, and reuse/data movement. Thread counts, device switches,
+  scheduling and prior-plugin-only integration fixes are not included. MK-Curve
+  is port-only, surface mapping credits upstream DDSurfer, and DWI is I/O only.
+  Captions preserve scope; overlapping gains are not added into a workflow speedup.
 
 ### 5.10b Performance (`#performance`, after `#runtime`)
 
@@ -474,6 +481,9 @@ Two columns: text left, `idea.jpg` right.
 - Inside: the intro and the two disclaimers, the filter buttons (shown by script only), the generated evidence region
   (charts, table, note, method records; written by `scripts/build_performance_site.py`), the four “levers” and the
   “boundary of the evidence” list. The headline of the old subpage (“Same methods. Less overhead.”) is not kept.
+- The catalogue contains 13 traceable measurements as of 25 October 2026, including
+  the preserved thread/scheduler/API-integration controls omitted from the figure.
+  Source-freshness review remains dated 22 October, not relabeled as a new audit.
 - Hand-written copy around the generated region (shortened 24 October 2026; the generated method records carry the
   details):
   - Lead: “Remove repeated work, keep the computation, measure only what was tested.”

@@ -16,7 +16,8 @@ class PagesPublicationTest(unittest.TestCase):
     def test_current_public_site_passes_allowlist(self):
         result = audit(ROOT)
         self.assertEqual(result["status"], "pass", result)
-        self.assertEqual(result["file_count"], 42)   # 30 + the product-map, route and run-time figures + 9 result tiles
+        self.assertEqual(result["file_count"], 43)   # Stage times and paired optimizations are independent public figures.
+        self.assertTrue((ROOT / 'docs/site/assets/img/fig-runtime-optimizations.png').is_file())
 
     def test_private_documents_and_symlinks_are_not_publishable(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -122,6 +122,76 @@ def build_evidence():
         'Output coordinates/topology and fixed-seed samples match exactly.',
         'One full-atlas substage pair, not complete WMA. The large local ratio must not be multiplied by or added to the full WMA result.',
         'Full registration-atlas length-filter substage only.')
+
+    nls = load('freewater_dispatch_slicer_20261021.json')
+    if (nls['status'] != 'passed' or not nls['source_inputs_unchanged'] or
+            not all(item['exact_raw_parameters'] and item['exact_exported_maps_and_qc'] and
+                    item['automatic_qc_passed'] for item in nls['records'])):
+        raise ValueError('Free-water NLS equivalence did not pass')
+    case = nls['records'][0]
+    add('freewater-nls', 'Free-water NLS dispatch', 'implementation', '1728-voxel ROI',
+        case['reference_median_seconds'], case['optimized_median_seconds'],
+        'Call source-qualified author NLS, residual and Jacobian bodies directly, removing repeated keyword-compatibility dispatch.',
+        'Installed original DIPY 1.12.1 serial NLS versus the same function bodies; one numerical thread in both paths.',
+        'All 13 raw parameters, exported maps, affine and QC decisions match in all three subjects.',
+        'Subject 100307 medians, three alternating repeats after warmup. ROI, not full brain. These timings precede later WLS-initialization/helper changes and cannot be added to them.',
+        'Three native 12-cubed ROIs; 288 measurements; complete ROI stage including fresh export.', evidence_date='2026-10-21')
+
+    transform = load('wma_transform_20261021.json')
+    if (transform['status'] != 'passed' or not transform['source_inputs_unchanged'] or
+            not transform['compatibility']['supported'] or
+            not all(item['exact_all_points'] and item['exact_objective_history'] and item['exact_transform']
+                    for item in transform['records'])):
+        raise ValueError('WMA transform equivalence did not pass')
+    case = transform['records'][0]
+    add('wma-transform', 'WMA point transformation', 'implementation', '1000 fibers x 15 points',
+        case['transform_author_seconds'], case['transform_optimized_seconds'],
+        'Use the same author vtkTransform with a bounded bulk point call, instead of one Python/VTK call per point.',
+        'Unmodified author point-transform loop versus bulk calls with the same float64 point order and transform.',
+        'All transformed points, complete small-optimizer trajectories and final transforms match in three subjects.',
+        'Subject 100206 median of five point-transform repeats, not full registration. Small-optimizer gains were only about 1.27-1.28x; the point-kernel ratio cannot be applied to whole WMA.',
+        'Three real-subject fixtures; explicit synthetic offset for the separate optimizer check.', evidence_date='2026-10-21')
+
+    fibers = load('wma_fibers_bounded_20261021.json')
+    if (fibers['status'] != 'passed' or not fibers['sources_unchanged'] or
+            not fibers['compatibility']['supported'] or
+            not all(item['exact_all_arrays_and_hemispheres'] and item['exact_entire_optimizer_trajectory'] and
+                    item['exact_final_transform'] for item in fibers['records'])):
+        raise ValueError('WMA array-conversion equivalence did not pass')
+    case = fibers['records'][0]
+    add('wma-fibers', 'WMA fiber-array conversion', 'implementation', '20000 fibers x 15 points',
+        case['author_seconds'], case['optimized_seconds'],
+        'Gather the same author nearest-neighbor fiber samples from VTK connectivity in bounded NumPy blocks.',
+        'Unmodified author FiberArray conversion versus equivalent bulk conversion; no interpolation or streamline reduction added.',
+        'All arrays, hemisphere flags and separate small-optimizer trajectories/transforms match in three subjects.',
+        'Subject 100206 median of five conversion repeats. Not whole WMA; small-optimizer gains were only about 1.02-1.05x. Historical source sampling failures remain failed.',
+        '20000 identical sampled fibers per subject; original nearest-neighbor rule and ordering.', evidence_date='2026-10-21')
+
+    historical = load('performance_optimizations_20261020.json')
+    comparisons = {row['id']: row for row in historical['comparisons']}
+    selected = (
+        ('wma_registration_preprocessing', 'wma-cache', 'WMA registration-input reuse', 'implementation', 'Three preparation calls',
+         'Reuse verified deterministic atlas/subject length-filter results across seeds; keep fresh author random sampling.',
+         'Three original author preparation calls versus first cache fill plus reuse, with the same input and fixed seeds.',
+         'One subject, one pair; includes initial cache construction. This overlaps WMA filtering and the full-module pair; savings cannot be added.'),
+        ('surface_four_overlay_mapping', 'surface-mapping', 'DDSurfer surface-map reuse', 'inherited', 'Four left-hemisphere overlays',
+         'Pack four overlays into one multi-frame mri_surf2surf call, sharing the same surface registration.',
+         'Four separate FreeSurfer commands versus one multi-frame command. Inherited from DDSurfer upstream c3b2d40, not plugin-original work.',
+         'One subject, command timing only; extra packing/validation excluded. Not surface reconstruction or a new FreeSurfer algorithm.'),
+        ('diffusion_three_slab_io', 'dwi-io', 'Compressed DWI block reading', 'io', 'Three slabs',
+         'Decode gzip once to temporary disk, then memory-map the same requested blocks; leave the source file unchanged.',
+         'Repeated compressed-array reads versus one sequential decode and disk-backed block reads; no indexed_gzip in this measurement.',
+         'One subject, one pair, uncontrolled OS page cache; needs temporary disk. I/O only, not model fitting; no universal storage-performance guarantee.'),
+    )
+    for key, identifier, title, category, scope, method, baseline, limitation in selected:
+        case = comparisons[key]
+        if (case['category'] not in ('same_input_stage_comparison', 'same_input_io_comparison') or
+                not case['output_check'] or not case['evidence'] or
+                not all(len(historical['evidence_records'][name]['sha256']) == 64 for name in case['evidence'])):
+            raise ValueError('Incomplete preserved paired evidence: ' + key)
+        add(identifier, title, category, scope, case['reference_seconds'], case['optimized_seconds'],
+            method, baseline, case['output_check'], limitation, case['scope'])
+
     audit = load('upstream_freshness_verified_20261022.json')
     upstream = audit['repositories']
     references = {
@@ -136,10 +206,26 @@ def build_evidence():
         'mkcurve': 'Current MATLAB reference ' + upstream['zhangfanmark/MK-Curve']['head_sha'][:12] +
             '; measured on current stable SciPy 1.18.1. This port-only comparison does not claim to outperform MATLAB or invent upstream native batching.',
         'scheduling': 'Historical plugin scheduler comparison, not a latest-upstream algorithm performance claim.',
+        'freewater-nls': 'Measured DIPY 1.12.1 in Slicer; author NLS/residual/Jacobian source hashes match the dated stable-source audit.',
+        'wma-transform': 'Author register_two_subjects.py SHA256 matches the 22 October WMA source audit; measured bulk vtkTransform path.',
+        'wma-fibers': 'Author fibers.py at 4532b911386d independently verified; native VTK array sampling, not a new registration algorithm.',
+        'wma-cache': 'Preserved same-author preparation pair. Source-qualified reuse, not a fresh latest-version benchmark.',
+        'surface-mapping': 'Optimization inherited from DDSurfer c3b2d40; no plugin-original credit or latest-FreeSurfer speed claim.',
+        'dwi-io': 'Generic compression/I/O control, not an improvement to a scientific estimator or an upstream-freshness claim.',
+    }
+    measurement_sources = {
+        'freewater': 'freewater_latest_stable_full_20261022.json',
+        'wma': 'complete_models_20261020.json', 'noddi': 'complete_models_20261020.json',
+        'mkcurve': 'mkcurve_qr_scipy1181_20261022.json', 'dki': 'dki_latest_stable_integration_20261022.json',
+        'scheduling': 'complete_models_20261020.json', 'wma-filter': 'author_wma_optimizations_20261020.json',
+        'freewater-nls': 'freewater_dispatch_slicer_20261021.json', 'wma-transform': 'wma_transform_20261021.json',
+        'wma-fibers': 'wma_fibers_bounded_20261021.json',
+        **{identifier: 'performance_optimizations_20261020.json' for _, identifier, *_ in selected},
     }
     for row in rows:
         row['upstream_reference'] = references[row['id']]
-    return dict(kind='slicerddsurfer_public_performance_evidence', version=2, reviewed_on='2026-10-22',
+        row['measurement_source'] = next(source for source in sources if source['file'] == measurement_sources[row['id']])
+    return dict(kind='slicerddsurfer_public_performance_evidence', version=3, reviewed_on='2026-10-25',
                 sources=sources, records=rows,
                 upstream_review=dict(checked_at_utc=audit['checked_at_utc'],
                     stable_versions={key: upstream[repo]['pypi']['version'] for key, repo in (
@@ -153,10 +239,12 @@ def build_evidence():
 
 
 LABELS = dict(implementation='Same-method implementation', integration='Existing upstream capability', parallel='Native threads',
-              port='Python-port computation', workflow='Workflow scheduling')
+              port='Python-port computation', workflow='Workflow scheduling', inherited='Inherited upstream optimization', io='Compressed data I/O')
 
 
 def duration(seconds):
+    if seconds < .1:
+        return f'{seconds * 1000:.3g} ms'
     return f'{seconds / 60:.2f} min' if seconds >= 180 else f'{seconds:.2f} s'
 
 
@@ -199,7 +287,7 @@ def main():
         data.parent.mkdir(parents=True, exist_ok=True)
         data.write_text(payload)
         page.write_text(expected)
-        print('Exported seven scoped measurements; private paths and runtime snapshots excluded')
+        print(f"Exported {len(evidence['records'])} scoped measurements; private paths and runtime snapshots excluded")
 
 
 if __name__ == '__main__':

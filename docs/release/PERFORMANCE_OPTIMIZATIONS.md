@@ -30,6 +30,35 @@ JSON evidence records implementation hashes and immutable snapshots.
 
 ---
 
+## 25 October: Optimization Figure Coverage
+
+The previous figure selected only seven website-summary entries, including
+threading and scheduling; it did not cover this report. The replacement shows
+**ten recorded timing pairs above a matching-ID methods table**. The table is
+one line per method; detailed equivalence checks remain in this report/data.
+No new scientific benchmark was run for this editorial expansion.
+
+| Scope | Included changes | Boundary |
+| --- | --- | --- |
+| Author full-model controls | Free-water WLS; complete WMA | Same estimators, one shared-host pair each |
+| Author local controls | Free-water NLS dispatch; WMA filtering, point transforms and fiber-array conversion | Explicit ROI/fiber scope; local ratios are not full-module ratios |
+| Repeated author preparation | WMA registration-input reuse | Includes first cache fill; overlaps filtering and complete WMA |
+| Python-port computation | MK-Curve protocol/design and LAPACK workspace reuse | Same Python port, not a MATLAB speed comparison |
+| Inherited upstream reuse | Four DDSurfer surface overlays in one mapping call | Credit remains with DDSurfer upstream; command scope only |
+| Generic data I/O | Decode compressed DWI once, then memory-map slabs | Needs temporary disk; not model fitting |
+
+Thread counts, device switching, scheduling, existing DIPY array-API integration
+and older-plugin-only ROI aggregation are excluded from the figure, not deleted
+from history. Ten operations do not mean ten scientific algorithms or ten
+original contributions. The public catalogue retains 13 classified records with
+source hashes; source freshness remains dated 22 October, not a new audit.
+
+[600-dpi figure](../figures/export/runtime_optimizations_600dpi.png) ·
+[Vector PDF](../figures/export/runtime_optimizations.pdf) ·
+[Editable SVG](../figures/runtime_optimizations.svg).
+
+---
+
 ## Upstream Freshness Audit
 
 Checked against official GitHub/PyPI metadata on **22 October 2026**, not just
