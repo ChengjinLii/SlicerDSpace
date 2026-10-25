@@ -1,5 +1,6 @@
 """Native packaging capability detection, compatibility and restart guards."""
 
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,9 @@ from shared.ui_selected_setup import python_setup_commands
 
 
 class PythonSetupTests(unittest.TestCase):
+    # The fallback is pip's own copy of packaging, so the test needs pip in the interpreter that runs it. A venv made
+    # by uv has no pip (found 2026-10-25); there the setup worker cannot install anything and reports the missing pip.
+    @unittest.skipUnless(importlib.util.find_spec("pip"), "this interpreter has no pip (e.g. a venv made by uv)")
     def test_fresh_external_python_can_use_pips_vendored_parser(self):
         with patch.dict("sys.modules", {"packaging": None, "packaging.requirements": None}):
             invalid, requirement, canonicalize = setup._packaging_api()
