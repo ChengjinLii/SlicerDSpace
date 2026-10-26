@@ -11,7 +11,9 @@ from typing import Callable, Optional
 
 from shared.external_process import text_subprocess_kwargs
 from shared.model_assets import model_asset_path
-from shared.pipeline import RegisteredDTIBundle, build_cli_environment, resolve_cli_executable
+from shared.pipeline import (RegisteredDTIBundle, build_cli_environment, resolve_cli_executable,
+                             _artifact_record, _artifacts_current, _save_artifacts,
+                             _read_manifest, _write_manifest)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -36,6 +38,7 @@ class DDParcelRegisteredConfig:
     weights_dir: Optional[Path] = None
     flip: int = 1
     device: str = "auto"
+    force_recompute: bool = False
 
 
 def _log_message(message: str, log: Optional[Callable[[str], None]] = None) -> None:
@@ -157,6 +160,22 @@ def _default_weights_dir(explicit: Optional[Path] = None) -> Path:
     return model_asset_path("parcellation/weights", repo_root=Path(__file__).resolve().parents[2])
 
 
+def _registered_task_signature(config, weights_dir):
+    bundle = config.registered_bundle
+    sources = [getattr(bundle, name) for name in bundle.__dataclass_fields__ if name.endswith('_path')]
+    sources += [config.native_mask, Path(__file__), Path(__file__).with_name('normalize.py'),
+                Path(__file__).with_name('DDSurfer_Pred.py')]
+    weights = sorted(path for path in weights_dir.rglob('*') if path.suffix in ('.pkl', '.pt', '.pth'))
+    if not weights:
+        raise FileNotFoundError(f'No DDParcel checkpoints in {weights_dir}')
+    sources += weights
+    registered_record = _read_manifest(bundle.manifest_path) or {}
+    source_inputs = registered_record.get('native_bundle', {}).get('manifest', {}).get('source_files', {})
+    return dict(version=1, subject_id=config.subject_id, flip=config.flip, device=config.device,
+                source_inputs=source_inputs,
+                inputs={str(path.resolve()): _artifact_record(path)['sha256'] for path in sources})
+
+
 def run_ddparcel_from_registered_bundle(
     config: DDParcelRegisteredConfig,
     log: Optional[Callable[[str], None]] = None,
@@ -170,6 +189,8 @@ def run_ddparcel_from_registered_bundle(
         raise ValueError("Subject ID does not match the provided registered bundle.")
     if not config.native_mask.is_file():
         raise FileNotFoundError(f"Native-space mask not found: {config.native_mask}")
+    if not config.registered_bundle.inverse_transform_path.is_file():
+        raise FileNotFoundError(f'DDParcel requires an inverse transform: {config.registered_bundle.inverse_transform_path}')
 
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -182,6 +203,18 @@ def run_ddparcel_from_registered_bundle(
 
     mgz_wmparc_reg = output_dir / f"{subject_id}-DDSurfer-wmparc-Reg.mgz"
     nii_wmparc = output_dir / f"{subject_id}-DDSurfer-wmparc.nii.gz"
+    weights_dir = _default_weights_dir(config.weights_dir)
+    signature = _registered_task_signature(config, weights_dir)
+    receipt = output_dir / 'ddparcel_preparation.json'
+    outputs = [nii_fa_reg_norm, nii_trace_reg_norm, nii_min_eig_reg_norm, nii_mid_eig_reg_norm,
+               mgz_wmparc_reg, nii_wmparc]
+    if (config.force_recompute or _read_manifest(receipt) != signature
+            or not _artifacts_current(output_dir, outputs)):
+        _write_manifest(output_dir / 'ddparcel_qc.json', {'status': 'running', 'automatic_qc_passed': False})
+        receipt.unlink(missing_ok=True)
+        for path in outputs:
+            path.unlink(missing_ok=True)
+        _log_message('[DDParcel] Inputs/settings changed or output receipt missing; rebuilding task-specific products', log)
 
     _log_message(f"[DDParcel] Starting task-specific stage from cached registered bundle for {subject_id}", log)
     _log_message(f"[DDParcel] Registered bundle: {bundle.bundle_dir}", log)
@@ -193,7 +226,6 @@ def run_ddparcel_from_registered_bundle(
         _run_normalize(bundle.mid_eig_reg_path, bundle.mask_reg_path, nii_mid_eig_reg_norm, config.flip)
 
     if not mgz_wmparc_reg.exists():
-        weights_dir = _default_weights_dir(config.weights_dir)
         _run_ddsurfer_pred(output_dir, subject_id, weights_dir, log, device=config.device)
 
     if not nii_wmparc.exists():
@@ -223,6 +255,12 @@ def run_ddparcel_from_registered_bundle(
         from .qc import validate_outputs
 
         validate_outputs(subject_id, output_dir, config.native_mask)
+        if signature != _registered_task_signature(config, weights_dir):
+            _write_manifest(output_dir / 'ddparcel_qc.json', {'status': 'failed', 'automatic_qc_passed': False,
+                'error': 'DDParcel inputs/settings changed during execution'})
+            raise RuntimeError('DDParcel inputs/settings changed during execution')
+        _save_artifacts(output_dir, outputs)
+        _write_manifest(receipt, signature)
         _log_message(f"[DDParcel] Completed successfully for {subject_id}", log)
     else:
         raise RuntimeError(f"[DDParcel] Pipeline failed for {subject_id}")

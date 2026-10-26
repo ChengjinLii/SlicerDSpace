@@ -1,10 +1,21 @@
 # SlicerDDSurfer project site: spec v2
 
+Current-copy addendum, 26 October 2026: the hero and share title use the manuscript
+title. `#idea` and its navigation entry are removed; the input layout moves to
+Get started. Workflow cards follow six paper domains. The integration table now
+lists implementation and runtime/access requirements instead of historical orange
+partial-run badges; underlying validation records stay linked. The optional
+reference-runtime row is not advertised. Get started expands the current GUI,
+environment, input and DTI-first steps, with optional CLI/cohort details.
+References [1]-[35] share one list inside the existing disclosure; the three
+separate paper cards are removed. This addendum supersedes older copy/layout
+instructions below, while keeping media integrity and publication boundaries.
+
 Integration addendum, 22 October 2026 (revised 23 October 2026): the historical one-page design below is
 retained for the overview. Measured performance evidence is now a section of the home page, `#performance`, reached
 through one closed `<details>` ("Performance evidence"). It sits at the end of the page, after `#cite` and the visible
-`#runtime` figure section, and opens by script when the URL hash is `#performance`. `performance.html` is only a stub:
-a `refresh` to `index.html#performance`, a canonical link and one visible link. The section reuses the existing design
+`#runtime` figure section, and opens by script when the URL hash is `#performance`. Runtime figures and performance
+evidence are home-page sections only; the legacy redirect page was removed on 25 October 2026. The section reuses the existing design
 and local fonts; no extra runtime service is required. `assets/data/performance.json` is the only allowlisted public
 data export. Tables are generated from verified benchmark records into `index.html` (between the
 `measured-evidence` markers); methods are collapsed by default. Full-module/ROI/substage scopes and
@@ -107,7 +118,6 @@ docs/assets/css/site.css
 docs/assets/css/performance.css   styles of the performance evidence inside `#performance`
 docs/assets/js/site.js
 docs/assets/js/performance.js     filters and method links of the performance evidence
-docs/performance.html             stub: refresh to index.html#performance, canonical link, one visible link
 docs/assets/fonts/        InterTight, Inter, IBMPlexMono as .woff2 (Latin subset) + the three OFL .txt files
 docs/assets/img/          icon-64.png, icon-180.png (from R/Resources/Icons/SlicerDDSurfer.png), poster.jpg,
                           social.jpg, idea.jpg, out-surfaces.jpg, out-tracts.jpg, out-connectome.jpg, slicer.jpg,

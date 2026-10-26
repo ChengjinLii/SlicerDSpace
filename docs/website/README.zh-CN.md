@@ -27,8 +27,8 @@
 ## 性能部分
 
 性能证据已并入主页的 `#performance` 部分：位于 `#cite` 参考文献和 `#runtime` 图之后，是一个
-默认关闭的折叠块“Performance evidence”。页脚链接和状态说明都指向它。`performance.html`
-只是跳转页（`refresh` 到 `index.html#performance`，带 canonical 链接和一个可见链接），仍属公开页面。
+默认关闭的折叠块“Performance evidence”。页脚链接和状态说明都使用主页内导航。
+运行时间、优化图表和详细证据均留在主页，不另设子页；旧跳转页已删除。
 证据分别展示等价计算实现、原生多线程、工作流调度及 Python 移植版对照，注明基线、
 测量范围、输出一致性和限制，不宣称整条工作流的加速率。
 
@@ -44,17 +44,25 @@
 
 ---
 
-## 图、状态表与参考文献
+## 首页、方法表与参考文献
+
+首页标题与论文题目一致；移除独立的“The idea”段落。Workflows 按预处理、微结构、
+解剖、纤维追踪、束分析和连接组六类组织。Get started 提供安装路径、输入准备、
+按需环境安装、方法选择及 CLI 示例。
 
 - `assets/img/fig-route-guide.png`（`#choose`），以及 `#runtime` 中独立的
   `assets/img/fig-runtime-resources.png` 和 `assets/img/fig-runtime-optimizations.png`
   由 `docs/figures/` 中可编辑的 SVG 生成，SVG 不公开发布，重建方法见 `docs/figures/README.md`。
   每个 `<img>` 的宽高与文件像素一致，并链接到原图。
-- `#workflows` 中的“What is integrated”表逐项说明接入方式和状态：“Supported”（列标题
-  “Status on Linux test subjects”给出范围）、带一条原因的“Partial”，或“Needs <工具>”。表中不得超出代码和 Linux 日期记录所能证明的范围。
-  UKF、SAF、MK-Curve（MATLAB）、稀疏输入上的 WMQL、CSD 输入上的 WMA 和 TractCloud、
-  以及标量／长度连接组权重均标为 partial。
-- `#cite` 含软件论文 [1]–[3] 和编号参考文献 [4]–[35]。只收已核对 DOI 或页面的条目。
+- WMQL 卡片改用 `assets/img/res-wmql-ukf.jpg`，与 Results 图的官方多束规则 UKF
+  素材逐字节一致，来源及哈希见 `docs/figures/src/results/wmql_sources.json`。
+  `python3 scripts/sync_wmql_site_asset.py --check` 校验同步状态，去掉 `--check` 可刷新。
+  完整侧位图按比例显示，不裁切边缘；旧 CSD/ACT AF/CST 缩略图不再发布。
+- `#workflows` 中的“What is integrated”表逐项说明实现、运行依赖和调用入口，
+  不再用某次测试的橙色状态标签概括整种方法。WMA 的推荐 UKF 输入、部分连接组权重的
+  Python API 入口及所需外部组件继续明确列出；具体测试与科学审核记录保留在原有链接中。
+- `#cite` 将软件论文与算法文献统一放入 [1]–[35] 编号列表，不再单独突出前三篇。
+  只收已核对 DOI 或页面的条目。
   新增外部链接须同步加入 `Testing/Website/check_site.py` 的 `ALLOWED_URLS`。
 
 ---

@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def audit(root=ROOT):
     site = root / "docs/site"
     required = {".nojekyll", "index.html", "404.html"}
-    allowed_top = required | {"performance.html", "assets/data/performance.json"}
+    allowed_top = required | {"assets/data/performance.json"}
     allowed_extensions = {
         "assets/css": {".css"},
         "assets/js": {".js"},

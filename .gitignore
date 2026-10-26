@@ -37,3 +37,6 @@ goal_completion_audit.md
 /anatomy/surface/weights/
 /anatomy/segmentation/weights/
 /anatomy/parcellation/weights/
+
+# Superseded local website checkout; the maintained site is docs/site/.
+/website/

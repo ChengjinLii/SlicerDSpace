@@ -548,7 +548,9 @@ def _compute_rd_map(l2_path: Path, l3_path: Path, output_path: Path) -> None:
 
 
 def _export_dti_scalar_maps(config: MicrostructureConfig, paths: dict[str, Path]) -> None:
-    if not config.force_recompute and _dti_outputs_current(config, paths):
+    # Selected FW/NODDI/DKI fits may be forced; immutable DTI prerequisites
+    # remain reusable when their own source and QC receipts still match.
+    if _dti_outputs_current(config, paths):
         return
     source_before = _dti_source_signature(config)
     native = config.native_bundle
@@ -1822,10 +1824,8 @@ def run_microstructure(
             compute_schedule=schedule,
         )
 
-    _emit(
-        f"[Microstructure] Exporting DTI scalar maps from native DTI bundle ({config.native_bundle.fit_method})",
-        log,
-    )
+    action = 'Reusing verified' if _dti_outputs_current(config, paths) else 'Exporting'
+    _emit(f"[Microstructure] {action} DTI scalar maps from native DTI bundle ({config.native_bundle.fit_method})", log)
     _export_dti_scalar_maps(config, paths)
     _remove_legacy_roi_outputs(output_dir, subject_id)
 

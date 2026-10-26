@@ -5,6 +5,25 @@ CATEGORIES = (("processing", "Preprocessing & mask", "预处理与掩膜"),
               ("execution", "Run & performance", "运行与性能"),
               ("tools", "Regions & input import", "脑区与输入导入"))
 
+BATCH_CONTROLS = ("batchModeLabel", "batchModeCheckBox", "batchRootLabel", "batchRootPath",
+                  "batchSizeLabel", "batchSizeSpinBox", "batchArrangeInputsLabel", "batchArrangeInputsComboBox")
+
+
+def enforce_single_subject_gui(node):
+    """Migrate legacy GUI state; cohort scheduling belongs to the batch CLI."""
+    if node is not None:
+        if getattr(node, "batchMode", False):
+            node.batchMode = False
+        if getattr(node, "batchSize", 1) != 1:
+            node.batchSize = 1
+
+
+def hide_batch_controls(owner):
+    for name in BATCH_CONTROLS:
+        widget = getattr(owner.ui, name, None)
+        if widget is not None:
+            widget.hide()
+
 
 def _move(owner, name, form):
     widget = getattr(owner.ui, name)
@@ -57,8 +76,7 @@ def install_advanced_categories(owner):
     rows = {
         "processing": ("preprocessingBackendComboBox", "brainMaskOptions"),
         "models": ("orchestrationDkiFitMethodComboBox", "wmqlQueryPresetComboBox", "wmqlQuerySelectionLineEdit", "wmaInputTractographyPath", "orchestrationSelectStreamlinesSpinBox"),
-        "execution": ("orchestrationRunNameLineEdit", "unifiedTorchDeviceComboBox", "parallelModelsSpinBox", "batchModeCheckBox",
-                      "batchRootPath", "batchSizeSpinBox", "batchArrangeInputsComboBox"),
+        "execution": ("orchestrationRunNameLineEdit", "unifiedTorchDeviceComboBox", "parallelModelsSpinBox"),
     }
     for key, names in rows.items():
         for name in names:
@@ -101,6 +119,7 @@ def install_advanced_categories(owner):
     owner._fitAdvancedPage = fit
     qt.QTimer.singleShot(0, fit)
     apply_advanced_language(owner)
+    hide_batch_controls(owner)
 
 
 def apply_advanced_language(owner):
@@ -118,6 +137,7 @@ def apply_advanced_language(owner):
 
 
 def refresh_advanced_categories(owner):
+    hide_batch_controls(owner)
     if not hasattr(owner, "_advancedCategorySelector"):
         return
     # The old algorithm controls remain bound for compatibility, but never

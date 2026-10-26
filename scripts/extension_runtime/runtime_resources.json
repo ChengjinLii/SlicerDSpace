@@ -64,11 +64,16 @@
     "scripts/audit_pages_site.py",
     "scripts/audit_performance_upstreams.py",
     "scripts/build_performance_site.py",
-    "scripts/generate_protocol_benchmarks.py"
+    "scripts/generate_protocol_benchmarks.py",
+    "scripts/validate_shared_surface_transform.py",
+    "scripts/make_readme_preview.py",
+    "scripts/sync_wmql_site_asset.py"
   ],
   "excluded_prefixes": [
     "docs/site",
     "docs/website",
+    "docs/paper",
+    "docs/assets/readme",
     "tractography/slicer_dmri_reference",
     "anatomy/surface/weights",
     "anatomy/surface/template",

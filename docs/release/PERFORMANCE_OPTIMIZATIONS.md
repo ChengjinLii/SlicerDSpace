@@ -30,6 +30,58 @@ JSON evidence records implementation hashes and immutable snapshots.
 
 ---
 
+## 25 October: Shared Preparation Across Products
+
+This is **workflow-level reuse**, not a faster tensor estimator. The scientific
+models and their trained preprocessing contracts remain separate.
+
+| Preparation | Reuse policy |
+| --- | --- |
+| DWI/mask detached headers | Prepared once, including scaled NIfTI payloads, for both LS and WLS consumers |
+| Native tensor and six scalars | Once per input bundle and fitting method; DDSeg retains LS, DDParcel/DDSurfer and matching microstructure routes share WLS |
+| Atlas registration/resampling | Cached independently by atlas, fit and source format; DDSurfer retains its trained 1-mm atlas and NRRD resampling sources |
+| Trained normalization and inference | Not merged: DDSeg, DDParcel and DDSurfer consume different channels, grids and models |
+| DTI scalar export and QC | Existing source/QC-verified maps survive forced optional-model runs; new or changed sources still invalidate them |
+| Free-water, NODDI and DKI | May share inputs and ordinary DTI prerequisites, not fitted parameters or model-specific initialization |
+| Tractography and bundle consumers | Existing full-source tractograms can feed several consumers; UKF conversion, WMA registration, WMQL rules and TractCloud inference remain independent |
+
+The shared layer now has OS-owned writer locks, atomic receipts and artifact
+SHA256 checks; input changes, missing/modified products and interrupted builds
+cannot qualify as cache hits. Native receipts are versioned with conversion and
+preparation code. A new DDParcel task receipt also binds normalized inputs,
+weights, settings and exports; a partial or changed task is rebuilt, rather
+than skipped because a single final file exists. Existing legacy products without
+new receipts retain their historical status, not a newly certified provenance.
+
+The common converter was checked against the pinned DDSurfer converter. Zero-b
+placeholder directions now encode zero gradients; NIfTI slope/intercept is
+materialized when needed. These are **correctness fixes for those input cases**,
+not bitwise-equivalent optimizations of previously incorrect conversion.
+
+On three real 12-cubed ROIs (100206, 149741, 877168; all 288 measurements), the
+tensor, b0 and six scalar arrays and geometries match both independent author-CLI
+controls exactly. Two WLS consumers need **one tensor call and six scalar calls**
+instead of two and twelve. The tested header/scaling, corruption, settings,
+writer-lock and surface-adapter contracts are reproducible with
+`scripts/benchmark_shared_preparation.py` and `Testing/Python/test_shared_preparation.py`.
+The fresh full-surface experiment retains a **failed independent-registration
+comparison**: both geometric QC reports pass, but independently estimated affine
+transforms produce maximum vertex differences of 1.56-3.91 mm. Repeating the
+unchanged author BRAINSFit command also changes its transform; the installed CLI
+uses random metric sampling. This is not accepted equivalence or speed evidence.
+
+A separate controlled test fixes the same reference transform, **newly resamples
+the shared native maps**, and runs actual normalization and both surface models.
+All six model-input images/affines and four white/pial surfaces/topologies match
+exactly, with **zero maximum vertex difference**. No normalized image or mesh is
+copied from the reference. The control does not make independent registrations
+deterministic, alter the author's sampling defaults or certify anatomical accuracy.
+See [frozen evidence](benchmarks/shared_preparation_20261025.json),
+`scripts/benchmark_shared_surface.py` and `scripts/validate_shared_surface_transform.py`.
+ROI times are not scaled to full brain; no whole-workflow speed ratio is claimed.
+
+---
+
 ## 25 October: Optimization Figure Coverage
 
 The previous figure selected only seven website-summary entries, including

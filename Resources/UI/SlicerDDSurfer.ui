@@ -265,7 +265,7 @@
            <string>FreeSurfer-style postprocess</string>
           </property>
           <property name="toolTip">
-           <string>Optional. Stage DDSurfer native surfaces and MRI inputs, then run the FreeSurfer-style postprocess. Requires a complete FreeSurfer installation, a valid license, and the postprocess repository. Select Surface and Parcellation too unless completed native surfaces and wmparc already exist.</string>
+           <string>Optional. Compute cortical metrics and atlas mapping with the standalone native component runtime and applicable FreeSurfer license. Select Surface too unless compatible native meshes already exist. Prepare resources under Environment and installation.</string>
           </property>
           <property name="checked">
            <bool>false</bool>
@@ -706,7 +706,7 @@
            <item>
          <widget class="QComboBox" name="brainMaskBackendComboBox">
           <property name="toolTip">
-           <string>Existing supplied masks are respected. Select how to generate a missing mask; there is no automatic fallback. Configure PNL CNN paths under Advanced &gt; Environment and models &gt; External Runtime Paths. SynthStrip reuses FreeSurfer home.</string>
+           <string>Existing supplied masks are respected. Select how to generate a missing mask. Prepare selected resources under Environment and installation; manual path overrides are under More options. Missing requirements are reported without changing the selected backend.</string>
           </property>
           <item>
            <property name="text">

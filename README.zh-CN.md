@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
 [![Slicer](https://img.shields.io/badge/3D_Slicer-5.10-58728B)](https://www.slicer.org/)
 
-[概览](#概览) | [安装](#安装) | [快速开始](#快速开始) | [文档](docs/README.zh-CN.md) | [验证状态](#验证与发布状态) | [引用](#引用) | [English](README.md)
+[概览](#概览) | [宣传视频](#宣传视频) | [安装](#安装) | [快速开始](#快速开始) | [文档](docs/README.zh-CN.md) | [验证状态](#验证与发布状态) | [引用](#引用) | [English](README.md)
 
 [项目网站](https://chengjinlii.github.io/SlicerDDSurfer/) | [网站发布与贡献记录](https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/website/README.zh-CN.md)
 
@@ -18,6 +18,17 @@ SlicerDDSurfer 在一个 Slicer 模块中组织扩散 MRI 解剖重建、微结�
 
 **科研软件。** 当前为私有预发布项目，尚未通过官方 Extensions Catalog 分发。
 任务完成不等于科学结果正确，也不构成临床诊断依据。
+
+---
+
+## 宣传视频
+
+[![SlicerDDSurfer 宣传视频动态预览](docs/assets/readme/SlicerDDSurfer_preview.gif)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4)
+
+[观看宣传视频（MP4，1 分 12 秒）](docs/site/media/SlicerDDSurfer_promo_1080p.mp4) ·
+[网页播放器与字幕](https://chengjinlii.github.io/SlicerDDSurfer/#film)
+
+动态预览采用 4 倍速；点击查看保留原声与字幕的完整视频。
 
 ---
 
@@ -93,7 +104,7 @@ python3 scripts/download_model_assets.py --profile surface \
 
 1. 在模块选择器打开 **SlicerDDSurfer**，在标题栏选择中文或英文。
 2. 填写 **Subject ID**、**Subject root**，可另选 **Output directory**。
-3. 仅勾选本次需要的分析产品。微结构、纤维追踪和束分析旁的 **选择…** 支持勾选一种或多种算法。
+3. 仅勾选本次需要的分析产品。微结构、纤维追踪和束分析旁的 **...** 支持勾选一种或多种算法。
 4. 展开 **环境与安装 > 准备所选分析环境**，确认依赖及许可；按提示重启后再次准备，已有安装会复用。详见[自动配置与离线模型](docs/setup/MANAGED_SETUP.zh-CN.md)。
 5. 点击 **Run SlicerDDSurfer**。输入不全会显示红色提示，按日志修正后重试。
 6. 成功阶段的关键结果会自动进入当前场景；在独立的 **结果与 QC** 区域检查 QC，并按需复用、替换或清除本次加载。
@@ -125,7 +136,7 @@ DWI 与掩膜须在同一体素网格，梯度数量须与 DWI 测量一致。
 也可在 **高级设置 > 预处理与掩膜** 中改选 SynthStrip、MRtrix 或仅使用已有掩膜。
 依赖不足会明确提示，不会静默换算法。详见[掩膜设置](docs/setup/brain_mask_gui_config.md)。
 
-微结构**默认仅运行 DTI**，FW、NODDI、DKI 通过该行的 **选择…** 独立启用；DTI 保留为基础步骤。
+微结构**默认仅运行 DTI**，FW、NODDI、DKI 通过该行的 **...** 独立启用；DTI 保留为基础步骤。
 DKI 在拟合前检查 b0、非零壳层、梯度方向和设计矩阵秩。
 **MK-Curve** 使用内置的作者算法 Python 移植版，不需要 MATLAB；与 DIPY WLS/OLS 是不同路线。
 MATLAB 仅保留为可选对照后端，不能把普通 MK 图称为 MK-Curve。详见[微结构说明](docs/setup/MICROSTRUCTURE.zh-CN.md)。
@@ -150,6 +161,7 @@ UKF 不套用 CSD 目标流线数。详见 [UKF 接入与默认参数](docs/setu
 | 结果、取消和 QC | [结果检查](docs/setup/GUI_RESULT_REVIEW.md) |
 | GUI/CLI 共用配置 | [配置](docs/setup/USER_CONFIG.md) |
 | 源码组织 | [目录结构](docs/architecture/REPOSITORY_LAYOUT.md) |
+| 论文与插图 | [LaTeX 源码、PDF、绘图素材与重建说明](docs/paper/README.zh-CN.md) |
 | 维护者发布验收 | [扩展准备状态](docs/release/EXTENSION_READINESS.zh-CN.md) · [发布流程](docs/release/RELEASE.md) |
 
 只检查环境，不执行算法：

@@ -156,6 +156,16 @@ async function runViewport(browser, origin, name, width, height, opts) {
   const bad = imgs.filter((i) => !i.ok).map((i) => i.src);
   record(bad.length === 0, `${tag}: all ${imgs.length} images loaded`, 'not loaded: ' + bad.join(', '));
 
+  const wmql = await page.locator('.tile-wmql img').evaluate((img) => {
+    const box = img.getBoundingClientRect();
+    return { src: img.getAttribute('src'), width: img.naturalWidth, height: img.naturalHeight,
+      fit: getComputedStyle(img).objectFit, ratio: box.width / box.height };
+  });
+  record(wmql.src === 'assets/img/res-wmql-ukf.jpg' && wmql.width === 1852 && wmql.height === 1000
+      && wmql.fit === 'contain' && Math.abs(wmql.ratio - 4 / 3) < .01,
+    `${tag}: current WMQL render fits the tile without cropping`, JSON.stringify(wmql));
+  await page.locator('.tile-wmql').screenshot({ path: path.join(OUT, `wmql-${width}.png`) });
+
   const w2 = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
   record(w2.sw <= w2.iw, `${tag}: no horizontal scroll after scrolling through`, `scrollWidth ${w2.sw} > ${w2.iw}`);
 
@@ -404,7 +414,7 @@ async function runPerformance(browser, origin, width, noJs = false) {
   await context.close();
 }
 
-// The reference list [4] to [35] is a closed <details>. A click on a #ref-n link in the integration table
+// The reference list [1] to [35] is a closed <details>. A click on a #ref-n link in the integration table
 // opens it (site.js) and shows the entry; without JS, Chrome opens it on fragment navigation.
 async function runReferenceLinks(browser, origin) {
   for (const width of [1440, 390]) {
@@ -413,9 +423,10 @@ async function runReferenceLinks(browser, origin) {
     await page.goto(origin + '/index.html', { waitUntil: 'load' });
     const closed = await page.evaluate(() => {
       const d = document.getElementById('reference-list');
-      return !!d && !d.open && !!d.querySelector('#ref-4') && !!d.querySelector('#ref-35');
+      return !!d && !d.open && !!d.querySelector('#ref-1') && !!d.querySelector('#ref-35')
+        && d.querySelectorAll('.ref-list > li').length === 35;
     });
-    record(closed, `references ${width}px: list [4] to [35] is in a closed <details>`, String(closed));
+    record(closed, `references ${width}px: unified list [1] to [35] is in a closed <details>`, String(closed));
     const link = page.locator('.int-table a[href="#ref-21"]').first();
     await link.scrollIntoViewIfNeeded();
     await link.click();
@@ -444,22 +455,22 @@ async function runReferenceLinks(browser, origin) {
   await c2.close();
 }
 
-// The old subpage is a stub that redirects to the home page section.
-async function runStubRedirect(browser, origin) {
+// Run times, optimization figures and detailed evidence all stay on the home page.
+async function runHomePerformanceNavigation(browser, origin) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.goto(origin + '/SlicerDDSurfer/performance.html', { waitUntil: 'load' });
-  const ok = await page.waitForURL(/\/index\.html#performance$/, { timeout: 8000 }).then(() => true, () => false);
-  await page.waitForFunction(() => document.getElementById('performance-evidence')?.open, null, { timeout: 5000 }).catch(() => {});
-  const opened = ok && await page.evaluate(() => document.getElementById('performance-evidence').open);
-  record(ok && opened, 'performance.html stub redirects to index.html#performance and opens the evidence', page.url());
+  await page.goto(origin + '/SlicerDDSurfer/index.html#runtime', { waitUntil: 'load' });
+  const images = page.locator('#runtime img');
+  record(await images.count() === 2,
+    'home page: stage times and optimization figures share the runtime section');
+  await page.locator('footer a[href="#performance"]').click();
+  await page.waitForFunction(() => document.getElementById('performance-evidence').open);
+  record(new URL(page.url()).pathname === '/SlicerDDSurfer/index.html' &&
+    new URL(page.url()).hash === '#performance',
+    'home page: evidence link opens the disclosure without navigating to another page', page.url());
+  const retired = await context.request.get(origin + '/SlicerDDSurfer/performance.html');
+  record(retired.status() === 404, 'retired performance page is not published', String(retired.status()));
   await context.close();
-  // The stub also carries one visible link, for readers whose browser ignores the refresh.
-  const c2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const html = await (await c2.request.get(origin + '/SlicerDDSurfer/performance.html')).text();
-  const links = html.match(/<a [^>]*href="index\.html#performance"[^>]*>[^<]+<\/a>/g) || [];
-  record(links.length === 1 && /http-equiv="refresh" content="0; url=index\.html#performance"/.test(html), 'performance.html stub has the refresh and one visible link to index.html#performance');
-  await c2.close();
 }
 
 // ---------------------------------------------------------------- main
@@ -504,7 +515,7 @@ try {
   await runReferenceLinks(browser, origin);
   for (const width of [1440, 390, 360, 320]) await runPerformance(browser, origin, width);
   await runPerformance(browser, origin, 390, true);
-  await runStubRedirect(browser, origin);
+  await runHomePerformanceNavigation(browser, origin);
 } catch (err) {
   record(false, 'browser run', String(err && err.stack || err));
 } finally {

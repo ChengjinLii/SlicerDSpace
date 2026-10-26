@@ -1925,6 +1925,8 @@ class SharedWidgetMixin:
         self._parameterNodeGuiTag = None
         if self._parameterNode:
             self._restore_common_user_settings_to_node()
+            from shared.ui_advanced_layout import enforce_single_subject_gui
+            enforce_single_subject_gui(self._parameterNode)
             self._parameterNodeGuiTag = self._parameterNode.connectGui(self.ui)
             self.addObserver(self._parameterNode, vtk.vtkCommand.ModifiedEvent, self._checkCanApply)
             self._checkCanApply()
@@ -2027,7 +2029,7 @@ class SharedWidgetMixin:
                  ("orchestrationDkiFitMethodLabel", "orchestrationDkiFitMethodComboBox")),
                 (bool(node.targetBundles), ("orchestrationBundleBackendLabel", "orchestrationBundleBackendComboBox")),
                 (bool(node.targetTractography or node.targetBundles or node.targetConnectome), ("orchestrationTractographyBackendLabel", "orchestrationTractographyBackendComboBox")),
-                (bool(node.batchMode), ("batchRootLabel", "batchRootPath", "batchSizeLabel", "batchSizeSpinBox", "batchArrangeInputsLabel", "batchArrangeInputsComboBox")),
+                (False, ("batchModeLabel", "batchModeCheckBox", "batchRootLabel", "batchRootPath", "batchSizeLabel", "batchSizeSpinBox", "batchArrangeInputsLabel", "batchArrangeInputsComboBox")),
             )
             for visible, names in groups:
                 for name in names:
@@ -2835,13 +2837,10 @@ class SharedWidgetMixin:
             self._setStatus("warning", onboarding_text(getattr(self, "_onboardingLanguage", "en"), "setup_restart_required"))
             return
         # Validate before saving settings, checking dependencies or starting a job.
-        batch_mode = bool(getattr(self._parameterNode, "batchMode", False))
-        if batch_mode:
-            batch_root = getattr(self._parameterNode, "batchRoot", "") or self._parameterNode.inputDirectory or ""
-            if not batch_root.strip():
-                self._setStatus("error", self._summarise_missing(["Batch root"]))
-                return
-        elif not self.validateInputs(manual=True):
+        from shared.ui_advanced_layout import enforce_single_subject_gui
+        enforce_single_subject_gui(self._parameterNode)
+        batch_mode = False
+        if not self.validateInputs(manual=True):
             return
         selected = self._selected_workflows()
         if not selected:

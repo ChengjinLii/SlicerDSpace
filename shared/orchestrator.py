@@ -1085,16 +1085,34 @@ def _anatomy_input_bundle(
     return resolve_preprocessed_input_bundle(raw_bundle, output_root=output_root)
 
 
-def _write_anatomy_source(path: Path, bundle) -> None:
+def _write_anatomy_source(path: Path, bundle, prepared_source=None) -> None:
+    from shared.pipeline import _cache_file_signature, _write_manifest
+    sources = {key: _cache_file_signature(getattr(bundle, key + '_path'))
+               for key in ('dwi', 'bval', 'bvec', 'mask')}
+    if prepared_source is not None and sources != prepared_source:
+        raise RuntimeError('Anatomical inputs changed after shared preparation; outputs are not reusable')
     record = {
         "kind": "anatomy_source",
-        "version": 1,
+        "version": 2,
+        "subject_id": bundle.subject_id,
         "dwi": Path(bundle.dwi_path).resolve().as_posix(),
         "mask": Path(bundle.mask_path).resolve().as_posix(),
         "preprocessed": Path(bundle.input_dir).resolve() != (Path(bundle.subject_root) / "input").resolve(),
+        "source_files": sources,
     }
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_manifest(path, record)
+
+
+def _anatomy_source_current(path, subject_root, output_root):
+    from shared.pipeline import _cache_file_signature
+    try:
+        record = _read_json(path)
+        if record.get('version') != 2 or not record.get('subject_id'):
+            return False
+        inputs = _resolve_analysis_inputs(subject_root, record['subject_id'], output_root)
+        return record.get('source_files') == {key: _cache_file_signature(value) for key, value in inputs.items()}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return False
 
 
 def _anatomy_dwi_for_check(sources: dict[str, Optional[str]]) -> Optional[Path]:
@@ -1215,6 +1233,13 @@ def _segmentation_complete(subject_root: Path, output_root: Optional[Path] = Non
         return False
     from anatomy.segmentation.orientation import ORIENTATION_CONVENTION
     from anatomy.segmentation.qc import DDSEG_QC_SCHEMA_VERSION
+    source = outputs['qc'].parent / 'ddseg_source.json'
+    if source.exists():
+        if not _anatomy_source_current(source, subject_root, output_root):
+            return False
+    elif qc.get('source_dwi'):
+        # Upgrade old executed-run records rather than blessing their path alone.
+        return False
 
     return (
         qc.get("status") == "completed"
@@ -1244,6 +1269,22 @@ def _parcellation_complete(subject_root: Path, subject_id: str, output_root: Opt
     from shared.scalar_qc import scalar_qc_current
 
     outputs = _parcellation_outputs(subject_root, subject_id, output_root)
+    source = outputs['wmparc'].parent / 'ddparcel_source.json'
+    if source.exists() and not _anatomy_source_current(source, subject_root, output_root):
+        return False
+    receipt = outputs['wmparc'].parent / 'ddparcel_preparation.json'
+    if receipt.exists():
+        from shared.pipeline import _artifact_record, _cache_file_signature
+        try:
+            record = _read_json(receipt)
+            inputs = _resolve_analysis_inputs(subject_root, subject_id, output_root)
+            if record.get('source_inputs') != {key: _cache_file_signature(path) for key, path in inputs.items()}:
+                return False
+            if not record.get('inputs') or any(_artifact_record(Path(path))['sha256'] != digest
+                    for path, digest in record['inputs'].items()):
+                return False
+        except (OSError, ValueError, TypeError, AttributeError):
+            return False
     return scalar_qc_current(outputs["wmparc"].parent / "ddparcel_qc.json", list(outputs.values()))
 
 
@@ -3340,7 +3381,7 @@ def _run_subject_products_impl(
             task_started = _start_task_timer("DDSeg", log)
             raw_bundle = _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir, selected_mask_config)
             _emit(f"[Orchestrator] DDSeg input DWI: {raw_bundle.dwi_path}", log)
-            native_bundle = ensure_native_dti_bundle(raw_bundle, fit_method="ls", reuse=bool(config.resume), log=log)
+            native_bundle = ensure_native_dti_bundle(raw_bundle, fit_method="ls", reuse=True, log=log)
             run_ddseg(
                 DDSegConfig(
                     input_mask_nii=raw_bundle.mask_path,
@@ -3352,6 +3393,8 @@ def _run_subject_products_impl(
                     source_dwi=raw_bundle.dwi_path,
                 )
             )
+            _write_anatomy_source(layout.ddseg / 'ddseg_source.json', raw_bundle,
+                                  _read_json(native_bundle.manifest_path).get('source_files'))
             _finish_task_timer("DDSeg", task_started, log)
             segmentation_outputs = _segmentation_outputs(subject_root, output_root)
             tasks.append(
@@ -3393,7 +3436,7 @@ def _run_subject_products_impl(
                 raw_bundle,
                 atlas_t2=atlas_t2,
                 fit_method="wls",
-                reuse=bool(config.resume),
+                reuse=True,
                 log=log,
             )
             run_ddparcel_from_registered_bundle(
@@ -3408,10 +3451,12 @@ def _run_subject_products_impl(
                         explicit_root=model_assets_dir,
                     ),
                     device=ddseg_device,
+                    force_recompute=not config.resume,
                 ),
                 log=log,
             )
-            _write_anatomy_source(layout.ddparcel / "ddparcel_source.json", raw_bundle)
+            _write_anatomy_source(layout.ddparcel / "ddparcel_source.json", raw_bundle,
+                _read_json(registered.manifest_path).get('native_bundle', {}).get('manifest', {}).get('source_files'))
             _finish_task_timer("DDParcel", task_started, log)
             parcellation_outputs = _parcellation_outputs(subject_root, config.subject_id, output_root)
             tasks.append(
@@ -3476,6 +3521,7 @@ def _run_subject_products_impl(
                 cpu_threads=config.surface_cpu_threads,
                 max_gpu_gib=config.surface_max_gpu_gib,
                 resume=config.resume,
+                reuse_shared_preprocessing=True,
                 execute=True,
                 input_bundle=(
                     _anatomy_input_bundle(subject_root, config.subject_id, output_root, mask_mrtrix_bin_dir, selected_mask_config)

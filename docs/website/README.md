@@ -31,9 +31,9 @@ installation instructions and are not part of the public deployment.
 
 The home page holds the performance evidence in its `#performance` section: one
 closed disclosure, "Performance evidence", after the `#cite` references and the
-`#runtime` figure. A footer link and the status notes point to it. `performance.html`
-is only a redirect stub (`refresh` to `index.html#performance`, a canonical link and
-one visible link); it stays a public page. The evidence separates equivalent
+`#runtime` figures. A footer link and the status notes navigate within the home page.
+There is no separate runtime or performance page; the legacy redirect was removed.
+The evidence separates equivalent
 implementation changes, native threads, workflow scheduling and Python-port controls.
 Each record states its reference, measurement scope, output-equivalence checks and
 limitations; no whole-workflow benefit is claimed.
@@ -55,20 +55,32 @@ was expanded on 25 October; the upstream-source audit is still dated 22 October.
 
 ## Figures, Status Table And References
 
+- The WMQL gallery tile uses `assets/img/res-wmql-ukf.jpg`, an unchanged copy of
+  the official multi-query UKF render in `docs/figures/src/results/`. Its source
+  and hash are recorded in `wmql_sources.json`. `python3 scripts/sync_wmql_site_asset.py --check`
+  verifies the copy; omit `--check` to refresh it. The full lateral view fits
+  inside the gallery tile without cropping. The earlier CSD/ACT AF/CST thumbnail is retired.
 - `assets/img/fig-route-guide.png` (section `#choose`) and
   `assets/img/fig-runtime-resources.png` and `assets/img/fig-runtime-optimizations.png`
   (two independent figures in section `#runtime`) are rasterised from the
   editable SVG sources in `docs/figures/`, which are not published. See
   [`docs/figures/README.md`](../figures/README.md) to rebuild them. Each `<img>` carries
   the pixel size of its file and links to the full-size file.
-- The "What is integrated" table in `#workflows` states, for each method, how it is
-  integrated and its status: "Supported" (the column header "Status on Linux test
-  subjects" gives the scope), "Partial" with one reason, or "Needs <tool>". It must not claim more than the code and the dated Linux
-  records show. UKF, SAF, MK-Curve (MATLAB), WMQL on sparse input, WMA and TractCloud
-  on CSD input, and scalar or length connectome weights are marked partial.
-- `#cite` holds the software papers [1] to [3] and a numbered reference list [4] to
-  [35]. Use only entries whose DOI or page was checked. Add every new external URL to
+- The "What is integrated" table in `#workflows` lists implementations and runtime
+  requirements. Historical run-specific orange status badges and the optional
+  reference-runtime row are removed. Runtime/access requirements remain explicit,
+  including the UKF reference route for WMA and Python API scalar/length summaries.
+  Detailed provenance and validation records remain linked; the table does not
+  certify every output or promote historical failed runs.
+- `#cite` holds one uniform numbered reference list [1] to [35], including the
+  DDSurfer, DDSeg and DDParcel papers. Use only entries whose DOI or page was checked. Add every new external URL to
   `ALLOWED_URLS` in `Testing/Website/check_site.py`.
+
+The hero uses the full current manuscript title; the separate Idea section is
+removed. Workflows follows the paper's six analysis domains. Get started includes
+staging, module paths, extension requirements, canonical inputs, GUI environment
+preparation and the first DTI run, with optional CLI/cohort instructions. The
+homepage retains the contributor's established theme and original media.
 
 ---
 

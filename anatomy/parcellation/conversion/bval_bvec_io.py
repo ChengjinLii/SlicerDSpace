@@ -97,10 +97,10 @@ def bvec_rotate(old_bvec_file, new_bvec_file, rot_matrix):
 
 
 def bvec_scaling(bval, bvec, b_max):
-    if bval:
-        factor = np.sqrt(bval / b_max)
-        if np.linalg.norm(bvec) != factor:
-            bvec = np.array(bvec) * factor
+    if b_max <= 0 or bval < 0:
+        raise ValueError('Expected nonnegative b-values and a positive maximum')
+    # b0 placeholder directions must not become diffusion-weighted measurements.
+    bvec = np.asarray(bvec, dtype=float) * np.sqrt(bval / b_max)
 
     # bvec= [str(np.round(x, precision)) for x in bvec]
     bvec = [str(x) for x in bvec]

@@ -164,7 +164,8 @@ class CompactUiTest(unittest.TestCase):
         self.assertEqual(validations, [{"manual": True}])
         owner._parameterNode.batchMode = True
         click(owner)
-        self.assertEqual(statuses[-1], ("error", "Waiting: Batch root"))
+        self.assertFalse(owner._parameterNode.batchMode)
+        self.assertEqual(validations, [{"manual": True}, {"manual": True}])
         owner._parameterNode.batchMode = False
         owner.validateInputs = lambda **kwargs: True
         owner._selected_workflows = lambda: []

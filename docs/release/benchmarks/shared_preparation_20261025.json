@@ -1,0 +1,566 @@
+{
+  "kind": "shared_preparation_reuse_evidence",
+  "date": "2026-10-25",
+  "classification": "Workflow reuse, not an author-estimator acceleration",
+  "sources": [
+    {
+      "file": "ignore/validation/shared_preparation_20261025_r3/summary.json",
+      "sha256": "f802fdf6b1c946a31db9c0389f55c350118fc3ed572615269b954f92b0f5913f"
+    },
+    {
+      "file": "ignore/validation/shared_surface_20261025/controlled_reference_transform/summary.json",
+      "sha256": "7166b82f00231c666cb6ca6d2d01cce15f4e60d822a4077224cccafca0c66b0a"
+    },
+    {
+      "file": "ignore/validation/shared_surface_20261025/summary.json",
+      "sha256": "abc2b6a3962a938f47760660e27e43b74d7f12ff7e765a18665886f86dbe6fd1"
+    }
+  ],
+  "native_roi": {
+    "kind": "shared_preparation_validation",
+    "passed": true,
+    "records": [
+      {
+        "subject": "100206",
+        "passed": true,
+        "crop_shape": [
+          12,
+          12,
+          12,
+          288
+        ],
+        "crop_origin": [
+          65,
+          74,
+          57
+        ],
+        "reference_seconds": 4.544217234477401,
+        "shared_build_seconds": 1.9112646169960499,
+        "checked_reuse_seconds": 0.014681918546557426,
+        "reference_tensor_calls": 2,
+        "reference_scalar_calls": 12,
+        "shared_tensor_calls": 1,
+        "shared_scalar_calls": 6,
+        "cache_hit_wrote_no_files": true,
+        "source_inputs_unchanged": true,
+        "comparisons": [
+          {
+            "tensor": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "b0": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "FractionalAnisotropy": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "Trace": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MeanDiffusivity": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MinEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MidEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MaxEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            }
+          },
+          {
+            "tensor": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "b0": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "FractionalAnisotropy": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "Trace": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MeanDiffusivity": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MinEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MidEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MaxEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            }
+          }
+        ],
+        "limitations": [
+          "Native ROI preparation, not whole brain or trained surface inference",
+          "Shared build also exports six NIfTI maps; references only tensor/scalar CLI calls",
+          "One ordered pair on a shared host; no global speed ratio claimed"
+        ]
+      },
+      {
+        "subject": "149741",
+        "passed": true,
+        "crop_shape": [
+          12,
+          12,
+          12,
+          288
+        ],
+        "crop_origin": [
+          66,
+          73,
+          62
+        ],
+        "reference_seconds": 4.383312840014696,
+        "shared_build_seconds": 1.9737768061459064,
+        "checked_reuse_seconds": 0.00791819579899311,
+        "reference_tensor_calls": 2,
+        "reference_scalar_calls": 12,
+        "shared_tensor_calls": 1,
+        "shared_scalar_calls": 6,
+        "cache_hit_wrote_no_files": true,
+        "source_inputs_unchanged": true,
+        "comparisons": [
+          {
+            "tensor": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "b0": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "FractionalAnisotropy": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "Trace": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MeanDiffusivity": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MinEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MidEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MaxEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            }
+          },
+          {
+            "tensor": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "b0": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "FractionalAnisotropy": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "Trace": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MeanDiffusivity": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MinEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MidEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MaxEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            }
+          }
+        ],
+        "limitations": [
+          "Native ROI preparation, not whole brain or trained surface inference",
+          "Shared build also exports six NIfTI maps; references only tensor/scalar CLI calls",
+          "One ordered pair on a shared host; no global speed ratio claimed"
+        ]
+      },
+      {
+        "subject": "877168",
+        "passed": true,
+        "crop_shape": [
+          12,
+          12,
+          12,
+          288
+        ],
+        "crop_origin": [
+          65,
+          77,
+          56
+        ],
+        "reference_seconds": 4.478693915531039,
+        "shared_build_seconds": 1.9627242255955935,
+        "checked_reuse_seconds": 0.014715677127242088,
+        "reference_tensor_calls": 2,
+        "reference_scalar_calls": 12,
+        "shared_tensor_calls": 1,
+        "shared_scalar_calls": 6,
+        "cache_hit_wrote_no_files": true,
+        "source_inputs_unchanged": true,
+        "comparisons": [
+          {
+            "tensor": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "b0": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "FractionalAnisotropy": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "Trace": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MeanDiffusivity": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MinEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MidEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MaxEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            }
+          },
+          {
+            "tensor": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "b0": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "FractionalAnisotropy": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "Trace": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MeanDiffusivity": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MinEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MidEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            },
+            "MaxEigenvalue": {
+              "exact_values": true,
+              "max_abs_difference": 0,
+              "geometry_equal": true
+            }
+          }
+        ],
+        "limitations": [
+          "Native ROI preparation, not whole brain or trained surface inference",
+          "Shared build also exports six NIfTI maps; references only tensor/scalar CLI calls",
+          "One ordered pair on a shared host; no global speed ratio claimed"
+        ]
+      }
+    ],
+    "code_sha256": {
+      "scripts/benchmark_shared_preparation.py": "d286c69e0f5abe0988b497665c375c4bddebcac4db799f621018ca72b5313d43",
+      "shared/pipeline.py": "a5b286d177021bf8c189ab43f77a1a123ea2827b5e1283eedb6c8b787267e3cc",
+      "anatomy/surface/pipeline.py": "3ca856dc3d050ce815cbdf649245f12d5e954b6f3e07000179ac5acb254c245d"
+    }
+  },
+  "fixed_transform_surface_control": {
+    "kind": "shared_surface_fixed_transform_control",
+    "subject": "100307",
+    "native_checks": {
+      "FractionalAnisotropy": {
+        "exact_values": true,
+        "geometry_exact": true
+      },
+      "MinEigenvalue": {
+        "exact_values": true,
+        "geometry_exact": true
+      },
+      "MidEigenvalue": {
+        "exact_values": true,
+        "geometry_exact": true
+      },
+      "MaxEigenvalue": {
+        "exact_values": true,
+        "geometry_exact": true
+      },
+      "MeanDiffusivity": {
+        "exact_values": true,
+        "geometry_exact": true
+      },
+      "Trace": {
+        "exact_values": true,
+        "geometry_exact": true
+      }
+    },
+    "normalized_maps": {
+      "FA": {
+        "exact_values": true,
+        "affine_exact": true,
+        "max_abs_difference": 0
+      },
+      "MinEigenvalue": {
+        "exact_values": true,
+        "affine_exact": true,
+        "max_abs_difference": 0
+      },
+      "MidEigenvalue": {
+        "exact_values": true,
+        "affine_exact": true,
+        "max_abs_difference": 0
+      },
+      "MaxEigenvalue": {
+        "exact_values": true,
+        "affine_exact": true,
+        "max_abs_difference": 0
+      },
+      "MD": {
+        "exact_values": true,
+        "affine_exact": true,
+        "max_abs_difference": 0
+      },
+      "brainmask_resampled": {
+        "exact_values": true,
+        "affine_exact": true,
+        "max_abs_difference": 0
+      }
+    },
+    "surfaces": {
+      "lh.white": {
+        "topology_exact": true,
+        "vertices_exact": true,
+        "max_vertex_distance_mm": 0
+      },
+      "lh.pial": {
+        "topology_exact": true,
+        "vertices_exact": true,
+        "max_vertex_distance_mm": 0
+      },
+      "rh.white": {
+        "topology_exact": true,
+        "vertices_exact": true,
+        "max_vertex_distance_mm": 0
+      },
+      "rh.pial": {
+        "topology_exact": true,
+        "vertices_exact": true,
+        "max_vertex_distance_mm": 0
+      }
+    },
+    "automatic_qc_passed": true,
+    "author_registration_repeat": {
+      "exact": false,
+      "max_abs_difference": 0.26096823051258033,
+      "fixed_parameters_exact": true
+    },
+    "controlled_surface_seconds": 72.20578704215586,
+    "reference_transform_sha256": "fb0b4d003bc0f3a884c84e491fff9af740b6cfa28f75c015387f9098bd61a283",
+    "scope": "Identical transform, newly resampled shared native features; not a timing comparison or independent registration equivalence",
+    "source_sha256": {
+      "scripts/validate_shared_surface_transform.py": "df28971dba6edac967f8a5bd2784f06a5dd81190f125519d41e585513b9c1f2a",
+      "shared/pipeline.py": "a5b286d177021bf8c189ab43f77a1a123ea2827b5e1283eedb6c8b787267e3cc",
+      "anatomy/surface/pipeline.py": "c5a1ff7e322feb248d229334a71a159ffa2f1b537d7fe73ef27dffe97e15070a"
+    },
+    "passed": true
+  },
+  "independent_registration_counterexample": {
+    "kind": "shared_surface_full_pair",
+    "subject": "100307",
+    "author_seconds": 266.57997030206025,
+    "shared_native_preparation_seconds": 136.4427471086383,
+    "shared_consumer_seconds": 85.17621457390487,
+    "maps": {
+      "FA": {
+        "exact_values": false,
+        "max_abs_difference": 4.307966470718384,
+        "affine_exact": true
+      },
+      "MinEigenvalue": {
+        "exact_values": false,
+        "max_abs_difference": 6.585476279258728,
+        "affine_exact": true
+      },
+      "MidEigenvalue": {
+        "exact_values": false,
+        "max_abs_difference": 7.0474971532821655,
+        "affine_exact": true
+      },
+      "MaxEigenvalue": {
+        "exact_values": false,
+        "max_abs_difference": 7.801565408706665,
+        "affine_exact": true
+      },
+      "MD": {
+        "exact_values": false,
+        "max_abs_difference": 7.421306490898132,
+        "affine_exact": true
+      },
+      "brainmask_resampled": {
+        "exact_values": false,
+        "max_abs_difference": 1,
+        "affine_exact": true
+      }
+    },
+    "surfaces": {
+      "lh.white": {
+        "topology_exact": true,
+        "vertices_exact": false,
+        "max_vertex_distance_mm": 2.4945435621148904
+      },
+      "lh.pial": {
+        "topology_exact": true,
+        "vertices_exact": false,
+        "max_vertex_distance_mm": 3.9109904832392055
+      },
+      "rh.white": {
+        "topology_exact": true,
+        "vertices_exact": false,
+        "max_vertex_distance_mm": 1.5563513791108974
+      },
+      "rh.pial": {
+        "topology_exact": true,
+        "vertices_exact": false,
+        "max_vertex_distance_mm": 3.3228576597524997
+      }
+    },
+    "automatic_qc": [
+      true,
+      true
+    ],
+    "code_sha256": {
+      "scripts/benchmark_shared_surface.py": "7cc1f9d248907532219690414663268a54726ba67a2c75fc9b834fdbdb98d6c6",
+      "shared/pipeline.py": "a5b286d177021bf8c189ab43f77a1a123ea2827b5e1283eedb6c8b787267e3cc",
+      "anatomy/surface/pipeline.py": "c5a1ff7e322feb248d229334a71a159ffa2f1b537d7fe73ef27dffe97e15070a"
+    },
+    "limitations": [
+      "Single subject, shared host, author first",
+      "Shared WLS preparation is separately timed",
+      "Workflow reuse, not a faster tensor estimator or a whole-workflow ratio",
+      "Automatic geometric QC is not manual anatomical review"
+    ],
+    "passed": false
+  },
+  "interpretation": {
+    "native_reuse_verified": true,
+    "conditioned_surface_equivalence_verified": true,
+    "independent_fresh_registration_bitwise_equivalence": false,
+    "independent_pair_speed_claim_rejected": true,
+    "original_inputs_modified": false,
+    "human_anatomical_review": "not certified",
+    "notes": [
+      "Three real 12-cubed ROIs, all 288 measurements; no full-brain timing extrapolation.",
+      "Full-surface control newly resamples shared native scalars with the same reference transform; it does not copy normalized inputs or surfaces.",
+      "An unchanged author BRAINSFit rerun has different transform parameters; its CLI uses Random metric sampling.",
+      "The failed independent-registration pair remains failed; its times are not accepted speedup evidence.",
+      "One subject for full-surface control, shared host; not a three-platform or all-subject scientific certification."
+    ]
+  }
+}

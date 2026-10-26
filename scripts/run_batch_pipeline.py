@@ -178,9 +178,14 @@ def _run_subject(command: list[str], subject: BatchSubject, log_dir: Path) -> Su
     stdout_log = log_dir / f"{safe_id}.stdout.log"
     stderr_log = log_dir / f"{safe_id}.stderr.log"
     started = time.time()
-    completed = subprocess.run(command, capture_output=True, **text_subprocess_kwargs())
-    stdout_log.write_text(completed.stdout, encoding="utf-8")
-    stderr_log.write_text(completed.stderr, encoding="utf-8")
+    # Stream independent logs so a long cohort does not retain every process's
+    # output in the batch driver's memory, and logs are readable during a run.
+    with stdout_log.open("w", encoding="utf-8") as stdout, stderr_log.open("w", encoding="utf-8") as stderr:
+        try:
+            completed = subprocess.run(command, stdout=stdout, stderr=stderr, **text_subprocess_kwargs())
+        except OSError as exc:
+            stderr.write(f"Could not start subject process: {exc}\n")
+            completed = subprocess.CompletedProcess(command, 127)
     return SubjectRunResult(
         subject_id=subject.subject_id,
         subject_root=subject.subject_root,
@@ -225,7 +230,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optionally create subject/input from raw files placed directly in each subject directory.",
     )
     parser.add_argument("--include-missing", action="store_true", help="Include missing subjects in the manifest instead of only skipped.")
-    parser.add_argument("--continue-on-error", action="store_true", help="Keep launching remaining subjects after failures.")
+    parser.add_argument("--continue-on-error", action="store_true", help="Keep launching remaining subjects after failures. Otherwise, finish and record active subjects, then stop.")
     parser.add_argument("--manifest", type=Path, help="Batch manifest path. Defaults under output root or batch root.")
     parser.add_argument("--log-dir", type=Path, help="Per-subject stdout/stderr log directory.")
     parser.add_argument(
@@ -252,6 +257,12 @@ def main(argv: list[str] | None = None) -> int:
         )
     except Exception as exc:
         parser.error(str(exc))
+
+    ids: dict[str, Path] = {}
+    for subject in subjects:
+        if subject.subject_id in ids:
+            parser.error(f"Duplicate subject ID {subject.subject_id!r}: {ids[subject.subject_id]} and {subject.subject_root}")
+        ids[subject.subject_id] = subject.subject_root
 
     output_base = args.output_root.expanduser().resolve() if args.output_root else args.batch_root.expanduser().resolve() / "batch_outputs"
     manifest_path = args.manifest or output_base / "00_batch_metadata" / f"batch_{time.strftime('%Y%m%d_%H%M%S')}.json"
@@ -329,11 +340,9 @@ def main(argv: list[str] | None = None) -> int:
                             "stderr_log": result.stderr_log.as_posix(),
                         }
                     )
-                if stop_submitting:
-                    for pending in future_to_subject:
-                        pending.cancel()
-                    break
-                while len(future_to_subject) < args.jobs and submit_next():
+                # Drain active processes after a failure so their outputs and
+                # exit states remain in the batch record; stop only new launches.
+                while not stop_submitting and len(future_to_subject) < args.jobs and submit_next():
                     pass
 
     payload: dict[str, object] = {
@@ -358,6 +367,9 @@ def main(argv: list[str] | None = None) -> int:
         "skipped": skipped,
         "planned_commands": planned_commands,
         "results": sorted(result_payloads, key=lambda item: str(item["subject_id"])),
+        "not_launched": [subject.subject_id for subject in runnable_subjects
+                         if subject.subject_id not in {str(item["subject_id"]) for item in result_payloads}],
+        "status": "failed" if failures else ("completed" if args.execute else "planned") if result_payloads else "empty",
         "elapsed_seconds": round(time.time() - started, 3),
         "manifest_path": "",
     }
@@ -374,7 +386,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if failures:
         return 2
-    if skipped and not subjects:
+    if not subjects:
         return 1
     return 0
 

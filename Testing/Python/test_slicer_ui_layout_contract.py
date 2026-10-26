@@ -219,8 +219,11 @@ class SlicerUiLayoutContractTest(unittest.TestCase):
         self.assertIn("does not create a complete FreeSurfer subject", _property_text(native_surface, "toolTip"))
         self.assertEqual(_property_text(postprocess, "checked"), "false")
         self.assertEqual(_property_text(postprocess, "SlicerParameterName"), "targetSurfacePostprocess")
-        self.assertIn("complete FreeSurfer installation", _property_text(postprocess, "toolTip"))
-        self.assertIn("Surface and Parcellation", _property_text(postprocess, "toolTip"))
+        tooltip = _property_text(postprocess, "toolTip")
+        self.assertIn("standalone native component runtime", tooltip)
+        self.assertIn("FreeSurfer license", tooltip)
+        self.assertIn("compatible native meshes", tooltip)
+        self.assertNotIn("complete FreeSurfer installation", tooltip)
 
     def test_surface_postprocess_target_is_restored_from_json_defaults(self) -> None:
         source = MODULE_WIDGET_PATH.read_text(encoding="utf-8")

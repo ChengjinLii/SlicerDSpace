@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
+import gzip
 import argparse
 import os, warnings, sys
 # with warnings.catch_warnings():
@@ -60,6 +61,17 @@ def nhdr_write(nifti, bval, bvec, nhdr):
         warnings.warn('nifti image is 3D, ignoring bval/bvec files')
 
     dtype = hdr.get_data_dtype()
+    payload_name = os.path.basename(nifti)
+    byteskip = -1
+    if img.dataobj.slope != 1.0 or img.dataobj.inter != 0.0:
+        payload = nhdr[:-5] + '.raw.gz'
+        data = img.get_fdata(dtype=np.float32).astype('<f4', copy=False)
+        with gzip.open(payload, 'wb') as stream:
+            stream.write(data.tobytes(order='F'))
+        dtype = np.dtype('<f4')
+        payload_name = os.path.basename(payload)
+        encoding = 'gzip'
+        byteskip = 0
     numpy_to_nrrd_dtype = {
         'int8': 'int8',
         'int16': 'short',
@@ -89,26 +101,16 @@ type: {numpy_to_nrrd_dtype[dtype.name]}\ndimension: {dim}\nspace: right-anterior
     spc_dir = hdr.get_best_affine()[0:3, 0:3]
 
     # most important key
-    print('byteskip: -1')
+    print(f'byteskip: {byteskip}')
 
-    endian = 'little' if dtype.byteorder == '<' else 'big'
+    endian = sys.byteorder if dtype.byteorder in ('=', '|') else ('little' if dtype.byteorder == '<' else 'big')
     print(f'endian: {endian}')
     print(f'encoding: {encoding}')
     print('space units: "mm" "mm" "mm"')
 
     spc_orig = hdr.get_best_affine()[0:3, 3]
     print('space origin: ({})'.format((',').join(str(x) for x in spc_orig)))
-    print(f'data file: {os.path.basename(nifti)}')
-
-    # define oldmin and oldmax when scl_slope and scl_inter are present
-    scl_slope= img.dataobj.slope
-    scl_inter= img.dataobj.inter
-    if scl_slope!=1.0 or scl_inter!=0:
-        info= np.iinfo(dtype)
-        oldmin= info.min*scl_slope+scl_inter
-        oldmax= info.max*scl_slope+scl_inter
-        print(f'old min: {oldmin}')
-        print(f'old max: {oldmax}')
+    print(f'data file: {payload_name}')
 
     # print description
     if img.header['descrip']:

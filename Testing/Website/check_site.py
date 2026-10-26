@@ -691,12 +691,9 @@ def main(argv):
         film_arg = argv[i + 1]
     idx, raw_idx = parse(INDEX)
     p404, raw_404 = parse(PAGE404)
-    performance_path = os.path.join(DOCS, 'performance.html')
-    performance, raw_performance = parse(performance_path)
-    pages = [(INDEX, idx), (PAGE404, p404), (performance_path, performance)]
+    pages = [(INDEX, idx), (PAGE404, p404)]
 
     html_basics(idx, raw_idx, p404, raw_404)
-    html_basics(performance, raw_performance, p404, raw_404)
     local_refs(pages)
     external_urls(pages)
     film_bytes(film_arg)

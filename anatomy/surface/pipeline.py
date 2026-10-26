@@ -40,6 +40,7 @@ class SurfaceConfig:
     auto_mask: bool = False
     mask_threads: int = 4
     freesurfer_home: Optional[Path] = None
+    reuse_shared_preprocessing: bool = False
 
 
 @dataclass(frozen=True)
@@ -190,6 +191,57 @@ def _run_registered(config, resources, output_dir, subject_dir):
             shutil.rmtree(path, ignore_errors=True)
 
 
+def _run_shared_raw(config, resources, output_dir, manifest, previous, log):
+    from shared.pipeline import ensure_registered_dti_bundle
+
+    raw = config.input_bundle or find_subject_root(config.subject_root, config.subject_id)
+    registered = ensure_registered_dti_bundle(raw, Path(resources['registration_atlas']),
+        fit_method='wls', reuse=True, log=log, scalar_format='nrrd')
+    paths = [getattr(registered, name) for name in registered.__dataclass_fields__
+             if name.endswith('_path')]
+    paths += [getattr(raw, name + '_path') for name in ('dwi', 'bval', 'bvec', 'mask')]
+    paths += [Path(__file__), Path(__file__).with_name('preprocessing.py'),
+              Path(__file__).with_name('prediction.py'), Path(__file__).with_name('backend_bridge.py'),
+              Path(resources['checkpoint_root']) / 'manifest.json']
+    paths += [Path(resources['checkpoint_root']) / filename for hemi in ('left', 'right')
+              for kind, filename in resources['model_config']['checkpoint_files'][hemi].items()
+              if kind == 'white' or config.predict_mode == 'all']
+    paths += [Path(resources['template_dir']) / resources['model_config']['templates'][hemi]['file']
+              for hemi in ('left', 'right')]
+    manifest['input_mode'] = 'shared_raw'
+    manifest['input_dwi'] = str(raw.dwi_path)
+    manifest['input_sha256'] = {str(path.resolve()): sha256(path) for path in paths}
+    manifest['shared_preprocessing'] = dict(registered_bundle=str(registered.bundle_dir),
+        native_bundle=json.loads(registered.manifest_path.read_text())['native_bundle']['dir'],
+        fit_method='wls', scalar_resampling_source='nrrd', atlas=resources['registration_atlas'],
+        scope='Shared native tensor/scalars; trained surface atlas and five-channel normalization remain independent')
+    keys = ('input_mode', 'input_sha256', 'subject_id', 'predict_mode', 'device', 'resolved_device',
+            'precision', 'cpu_threads', 'max_gpu_gib', 'upstream_commit', 'runtime')
+    outputs = previous.get('output_sha256', {})
+    native = output_dir / 'pred_results_SlicerDDSurfer/native' / config.subject_id
+    required = set()
+    for hemi in ('lh', 'rh'):
+        for kind in ('white', 'pial') if config.predict_mode == 'all' else ('white',):
+            token = 'wm' if kind == 'white' else 'pial'
+            required.update((str((native / f'{hemi}.{kind}.obj').resolve()),
+                             str((native / f'{config.subject_id}_predicted_{token}_{hemi}.stl').resolve())))
+    reusable = config.resume and previous.get('status') == 'completed' and required.issubset(outputs)
+    if reusable and all(previous.get(key) == manifest.get(key) for key in keys):
+        try:
+            reusable = all(sha256(path) == digest for path, digest in outputs.items())
+        except OSError:
+            reusable = False
+    else:
+        reusable = False
+    if reusable:
+        if log:
+            log('[DDSurfer] Reusing verified native surfaces and shared preprocessing')
+    else:
+        _run_registered(config, resources, output_dir, registered.bundle_dir)
+    if manifest['input_sha256'] != {str(path.resolve()): sha256(path) for path in paths}:
+        raise RuntimeError('Shared surface inputs changed during prediction')
+
+
 def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] = None) -> SurfaceResult:
     if not config.subject_id.strip() or Path(config.subject_id).name != config.subject_id or config.subject_id in ('.', '..', 'fsaverage'):
         raise ValueError('subject_id must be a nonempty directory name')
@@ -203,6 +255,10 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
     output_dir.mkdir(parents=True, exist_ok=True)
     manifest_path, qc_path = output_dir / 'surface_manifest.json', output_dir / 'surface_qc.json'
     resources = inspect_surface_resources(config)
+    try:
+        previous = json.loads(manifest_path.read_text())
+    except (OSError, ValueError):
+        previous = {}
     manifest = dict(kind='ddsurfer_surface', version=3, subject_id=config.subject_id,
         subject_root=str(config.subject_root.expanduser().resolve()), output_dir=str(output_dir),
         input_dwi=str(config.input_bundle.dwi_path) if config.input_bundle is not None else None,
@@ -237,7 +293,10 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
                         inspected = dict(mode='legacy_registered', subject_dir=str(candidate))
                         break
             native_dir = output_dir / 'pred_results_SlicerDDSurfer/native' / config.subject_id
-            if config.input_bundle is not None or inspected['mode'] == 'subject_root':
+            if (config.reuse_shared_preprocessing and not config.auto_mask
+                    and (config.input_bundle is not None or inspected['mode'] == 'subject_root')):
+                _run_shared_raw(config, resources, output_dir, manifest, previous, log)
+            elif config.input_bundle is not None or inspected['mode'] == 'subject_root':
                 manifest['input_mode'] = 'raw'
                 if config.auto_mask:
                     raw = config.input_bundle or find_subject_root(config.subject_root, config.subject_id, generate_missing_mask=False)

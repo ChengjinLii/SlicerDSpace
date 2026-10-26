@@ -36,11 +36,20 @@ class PerformanceSiteTests(unittest.TestCase):
         serialized = json.dumps(evidence)
         for private in ('/data/', '/home/', '/Users/', '/Volumes/', 'snapshot_hashes', 'source_path'):
             self.assertNotIn(private, serialized)
-        page = (ROOT / 'docs/site/index.html').read_text()
+        page = (ROOT / 'docs/site/index.html').read_text(encoding='utf-8')
         self.assertIn(render(evidence), page)
-        stub = (ROOT / 'docs/site/performance.html').read_text()
-        self.assertIn('url=index.html#performance', stub)
-        self.assertNotIn('perf-table', stub)
+
+    def test_runtime_and_optimization_evidence_live_only_on_the_home_page(self):
+        page = (ROOT / 'docs/site/index.html').read_text(encoding='utf-8')
+        self.assertIn('id="runtime"', page)
+        self.assertIn('id="performance"', page)
+        self.assertIn('id="performance-evidence"', page)
+        self.assertIn('href="#performance"', page)
+        self.assertIn('assets/img/fig-runtime-resources.png', page)
+        self.assertIn('assets/img/fig-runtime-optimizations.png', page)
+        self.assertFalse((ROOT / 'docs/site/performance.html').exists())
+        for name in ('index.html', '404.html'):
+            self.assertNotIn('performance.html', (ROOT / 'docs/site' / name).read_text(encoding='utf-8'))
 
     def test_unverified_full_brain_result_is_not_publishable(self):
         with tempfile.TemporaryDirectory() as tmp:

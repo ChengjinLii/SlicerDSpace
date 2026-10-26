@@ -4,6 +4,9 @@
 from __future__ import annotations
 
 import importlib.util
+import contextlib
+import io
+import json
 import sys
 import tempfile
 import unittest
@@ -28,6 +31,90 @@ def _write_raw_subject(subject_root: Path, *, nested_input: bool = True) -> None
 
 
 class RunBatchPipelineCliTest(unittest.TestCase):
+    FAKE_PIPELINE = '''import argparse, json, sys, time
+from pathlib import Path
+p = argparse.ArgumentParser()
+p.add_argument("--subject-root")
+p.add_argument("--subject-id")
+p.add_argument("--output-root")
+p.add_argument("--event-dir", type=Path)
+p.add_argument("--fail-first", action="store_true")
+a, extra = p.parse_known_args()
+started = time.time()
+a.event_dir.mkdir(exist_ok=True)
+(a.event_dir / (a.subject_id + ".started")).write_text(str(started))
+if a.subject_id in ("sub-01", "sub-02"):
+    deadline = time.monotonic() + 5
+    while len(list(a.event_dir.glob("*.started"))) < 2:
+        if time.monotonic() > deadline:
+            sys.exit(9)
+        time.sleep(.01)
+failed = a.fail_first and a.subject_id == "sub-01"
+time.sleep(.02 if failed else .2)
+dest = Path(a.output_root)
+dest.mkdir(parents=True)
+(dest / "receipt.json").write_text(json.dumps(dict(id=a.subject_id, start=started, end=time.time(), extra=extra)))
+print(a.subject_id)
+sys.exit(3 if failed else 0)
+'''
+
+    def run_fake_batch(self, root, *extra):
+        for subject in ("sub-01", "sub-02", "sub-03"):
+            _write_raw_subject(root / "subjects" / subject)
+        fake = root / "pipeline.py"
+        fake.write_text(self.FAKE_PIPELINE, encoding="utf-8")
+        manifest = root / "batch.json"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            status = batch_cli.main([
+                "--batch-root", str(root / "subjects"), "--output-root", str(root / "outputs"),
+                "--pipeline-script", str(fake), "--python-executable", sys.executable,
+                "--manifest", str(manifest), "--jobs", "2", "--execute",
+                "--event-dir", str(root / "events"), *extra,
+            ])
+        return status, json.loads(manifest.read_text())
+
+    def test_processes_overlap_and_forward_multiple_algorithm_choices(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            choices = ["--microstructure-stages", "dti,freewater,noddi", "--tractography-backend", "csd_act,ukf",
+                       "--bundle-backend", "wmql,tractcloud"]
+            status, manifest = self.run_fake_batch(root, *choices)
+            self.assertEqual(status, 0)
+            self.assertEqual(manifest["status"], "completed")
+            self.assertEqual(len(manifest["results"]), 3)
+            self.assertEqual(manifest["not_launched"], [])
+            rows = [json.loads((root / "outputs" / name / "receipt.json").read_text())
+                    for name in ("sub-01", "sub-02")]
+            self.assertLess(max(r["start"] for r in rows), min(r["end"] for r in rows))
+            for row in rows:
+                self.assertEqual(row["extra"][-len(choices):], choices)
+            logs = [Path(item["stdout_log"]) for item in manifest["results"]]
+            self.assertEqual(len(set(logs)), 3)
+            self.assertTrue(all(path.read_text().strip() in ("sub-01", "sub-02", "sub-03") for path in logs))
+
+    def test_fail_fast_still_records_every_already_started_process(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            status, manifest = self.run_fake_batch(Path(tmp), "--fail-first")
+            self.assertEqual(status, 2)
+            self.assertEqual(manifest["status"], "failed")
+            self.assertEqual({r["subject_id"]: r["returncode"] for r in manifest["results"]},
+                             {"sub-01": 3, "sub-02": 0})
+            self.assertEqual(manifest["not_launched"], ["sub-03"])
+
+    def test_continue_on_error_keeps_remaining_subjects(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            status, manifest = self.run_fake_batch(Path(tmp), "--fail-first", "--continue-on-error")
+            self.assertEqual(status, 2)
+            self.assertEqual(len(manifest["results"]), 3)
+            self.assertEqual(manifest["not_launched"], [])
+
+    def test_missing_python_is_logged_as_a_subject_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = batch_cli.BatchSubject("sub-01", Path(tmp), "test", "subject_root")
+            result = batch_cli._run_subject([str(Path(tmp) / "missing-python")], subject, Path(tmp) / "logs")
+            self.assertEqual(result.returncode, 127)
+            self.assertIn("Could not start", result.stderr_log.read_text())
+
     def test_default_pipeline_entry_is_shipped_in_extension(self) -> None:
         args = batch_cli.build_parser().parse_args(["--batch-root", "/tmp/batch"])
         self.assertEqual(args.pipeline_script, REPO_ROOT / "shared/run_subject_pipeline_cli.py")

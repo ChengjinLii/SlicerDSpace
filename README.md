@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
 [![Slicer](https://img.shields.io/badge/3D_Slicer-5.10-58728B)](https://www.slicer.org/)
 
-[Overview](#overview) | [Install](#installation) | [Quick Start](#quick-start) | [Documentation](docs/README.md) | [Validation](#validation-and-release-status) | [Citation](#citation) | [中文](README.zh-CN.md)
+[Overview](#overview) | [Video](#video) | [Install](#installation) | [Quick Start](#quick-start) | [Documentation](docs/README.md) | [Validation](#validation-and-release-status) | [Citation](#citation) | [中文](README.zh-CN.md)
 
 [Project Website](https://chengjinlii.github.io/SlicerDDSurfer/) | [Website Publishing](https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/website/README.md)
 
@@ -21,6 +21,17 @@ reports and execution records.
 **Research software.** Private pre-release; not currently distributed through
 the official Extensions Catalog. A completed run is not a clinical assessment
 or proof of scientific correctness.
+
+---
+
+## Video
+
+[![SlicerDDSurfer animated video preview](docs/assets/readme/SlicerDDSurfer_preview.gif)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4)
+
+[Watch the video (MP4, 1:12)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4) ·
+[Website player and transcript](https://chengjinlii.github.io/SlicerDDSurfer/#film)
+
+The preview plays at 4x speed; the full video retains its original narration and subtitles.
 
 ---
 
@@ -107,7 +118,7 @@ See [model setup](docs/assets/MODEL_ASSETS.md) and
 
 1. Select **SlicerDDSurfer** from the module selector. Choose English or Chinese in the header.
 2. Enter **Subject ID**, **Subject root** and, optionally, a separate **Output directory**.
-3. Select only the products you intend to run. Use **Select…** beside Microstructure, Tractography or Bundles to choose one or several algorithms.
+3. Select only the products you intend to run. Use **...** beside Microstructure, Tractography or Bundles to choose one or several algorithms.
 4. Open **Environment and installation > Prepare selected analysis environment**. Confirm dependencies and terms; restart if requested, then prepare again to continue. See [managed setup and offline models](docs/setup/MANAGED_SETUP.md).
 5. Click **Run SlicerDDSurfer**. Missing inputs appear in red; review the log and correct them before retrying.
 6. Key results from successful stages automatically appear in the current scene. Use the separate **Results and QC** section to inspect QC, reload, replace or clear this run's nodes.
@@ -145,7 +156,7 @@ SynthStrip, MRtrix and supplied-mask alternatives are selectable in
 never silently replaced. See [brain-mask setup](docs/setup/brain_mask_gui_config.md).
 
 Microstructure runs **DTI only by default**. Enable Free-water, NODDI or DKI
-independently with **Select…** beside Microstructure. DTI remains required preparation.
+independently with **...** beside Microstructure. DTI remains required preparation.
 DKI checks baseline measurements, nonzero shells,
 gradient directions and design rank before fitting. **MK-Curve** uses a bundled
 Python port of the author's algorithm, distinct from standard DIPY WLS/OLS.
@@ -186,6 +197,7 @@ installation test, see the [tutorial](docs/setup/QUICKSTART.md).
 | Results, cancellation and QC | [Result review](docs/setup/GUI_RESULT_REVIEW.md) |
 | Configuration and command line | [Settings](docs/setup/USER_CONFIG.md) |
 | Source organization | [Repository layout](docs/architecture/REPOSITORY_LAYOUT.md) |
+| Manuscript and artwork | [LaTeX source, PDF, figure assets and rebuild instructions](docs/paper/README.md) |
 | Maintainer release checks | [Extension readiness](docs/release/EXTENSION_READINESS.md) · [Release procedure](docs/release/RELEASE.md) |
 
 For a CLI input/environment check without running algorithms:

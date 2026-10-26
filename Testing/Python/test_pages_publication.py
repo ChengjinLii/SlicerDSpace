@@ -16,8 +16,20 @@ class PagesPublicationTest(unittest.TestCase):
     def test_current_public_site_passes_allowlist(self):
         result = audit(ROOT)
         self.assertEqual(result["status"], "pass", result)
-        self.assertEqual(result["file_count"], 43)   # Stage times and paired optimizations are independent public figures.
+        self.assertEqual(result["file_count"], 42)   # Runtime and optimization evidence share the home page.
         self.assertTrue((ROOT / 'docs/site/assets/img/fig-runtime-optimizations.png').is_file())
+
+    def test_standalone_performance_page_is_not_publishable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            site = root / "docs/site"
+            site.mkdir(parents=True)
+            for name in (".nojekyll", "index.html", "404.html"):
+                (site / name).touch()
+            (site / "performance.html").write_text("Retired standalone page")
+            result = audit(root)
+            self.assertEqual(result["status"], "fail")
+            self.assertIn("Unexpected public file: performance.html", result["findings"])
 
     def test_private_documents_and_symlinks_are_not_publishable(self):
         with tempfile.TemporaryDirectory() as directory:

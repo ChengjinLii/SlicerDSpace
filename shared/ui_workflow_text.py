@@ -64,13 +64,13 @@ WORKFLOW_TEXT = {
         "dki_fit_method": "DKI fit method",
         "dki_fit_method_tooltip": (
             "WLS/OLS are standard DKI fits. MKCURVE uses the bundled Python port without MATLAB. "
-            "MKCURVE_MATLAB is an optional author reference; configure its external paths under Advanced. "
+            "MKCURVE_MATLAB is an optional author reference; configure its paths under Environment and installation > More options. "
             "All methods require eligible multi-shell data; no silent fallback."
         ),
         "brain_mask_backend_tooltip": (
             "Existing supplied masks are respected. This choice only controls generation of a missing mask. "
-            "PNL CNN (dMRI) is the default and requires externally configured Python, official dwi_masking.py, "
-            "models and ANTs paths under Advanced > Environment and models > External Runtime Paths. "
+            "PNL CNN (dMRI) is the default. Prepare selected analysis environment manages its Python, official dwi_masking.py, "
+            "models and ANTs. Manual path overrides are under Environment and installation > More options. "
             "SynthStrip uses FreeSurfer home; MRtrix uses MRtrix3 bin dir. "
             "Provided mask only requires an existing mask. Missing dependencies or masks cause an error; "
             "there is no automatic fallback to another masking backend."
