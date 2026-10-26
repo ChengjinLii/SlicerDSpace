@@ -31,7 +31,7 @@ or proof of scientific correctness.
 [Watch the video (MP4, 1:12)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4) ·
 [Website player and transcript](https://chengjinlii.github.io/SlicerDDSurfer/#film)
 
-The preview plays at 4x speed; the full video retains its original narration and subtitles.
+The preview plays at normal speed. Open the full video for narration and subtitles.
 
 ---
 

@@ -28,7 +28,7 @@ SlicerDDSurfer 在一个 Slicer 模块中组织扩散 MRI 解剖重建、微结�
 [观看宣传视频（MP4，1 分 12 秒）](docs/site/media/SlicerDDSurfer_promo_1080p.mp4) ·
 [网页播放器与字幕](https://chengjinlii.github.io/SlicerDDSurfer/#film)
 
-动态预览采用 4 倍速；点击查看保留原声与字幕的完整视频。
+动态预览按正常速度播放，点击观看带解说与字幕的完整视频。
 
 ---
 
