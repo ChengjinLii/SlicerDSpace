@@ -70,6 +70,16 @@ def run():
         assert owner._lastEnvironmentResult.blocker_count == 0, owner._lastEnvironmentResult.to_dict()
         assert not getattr(owner, '_environmentDialog', None)
         checks.append('actual_check_updates_inline_without_modal_dialog')
+        from dataclasses import replace
+        backend_report = replace(owner._lastEnvironmentResult, tracking_backend_blockers={
+            'csd_act': {'tractography': 'preflight missing dependencies: tckgen'}, 'ukf': {}})
+        owner._show_environment_results_dialog(backend_report)
+        details = slicer.util.findChildren(owner._environmentDialog, className='QPlainTextEdit')
+        assert len(details) == 1
+        assert 'Tractography csd_act: preflight missing dependencies: tckgen' in details[0].plainText
+        assert 'Tractography ukf: dependencies available' in details[0].plainText
+        owner._environmentDialog.close()
+        checks.append('backend_specific_dependencies_visible_in_real_qt_dialog')
         owner._managedRuntimeSetupButton.click()
         wait()
         folder = Path(owner._latestEnvironmentReportDir)

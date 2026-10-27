@@ -141,6 +141,7 @@ class EnvironmentDoctorResult:
     blocker_count: int
     missing_python_packages: tuple[str, ...]
     missing_external_groups: tuple[str, ...]
+    tracking_backend_blockers: dict[str, dict[str, str]] = field(default_factory=dict)
 
     @property
     def runnable_targets(self) -> tuple[str, ...]:
@@ -188,6 +189,7 @@ class EnvironmentDoctorResult:
                 }
                 for item in self.statuses
             ],
+            "tracking_backend_blockers": self.tracking_backend_blockers,
         }
 
 
@@ -2097,14 +2099,27 @@ def _slicer_cli_statuses(targets: tuple[str, ...], python_executable: Optional[P
     return tuple(statuses)
 
 
-def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctorResult:
+def run_environment_doctor(config: EnvironmentDoctorConfig, *, _probe_cache=None) -> EnvironmentDoctorResult:
     platform_name = _effective_platform_name(config)
     host_platform = platform.system() or "unknown"
     targets = _clean_targets(config.targets)
     checked_python_path = resolve_config_python_executable(config)
     checked_python = checked_python_path.as_posix()
     specs = build_dependency_specs(config)
-    statuses = tuple(_check_spec(spec, platform_name) for spec in specs)
+    if _probe_cache is None:
+        _probe_cache = {}
+
+    def check(spec):
+        # Targets and requiredness affect reporting, not the actual probe.
+        key = replace(spec, targets=(), required=False)
+        if key not in _probe_cache:
+            _probe_cache[key] = _check_spec(spec, platform_name)
+        checked = _probe_cache[key]
+        if checked.targets == spec.targets and checked.required == spec.required:
+            return checked
+        return replace(checked, targets=spec.targets, required=spec.required)
+
+    statuses = tuple(check(spec) for spec in specs)
     if 'surface_postprocess' in targets:
         from shared.surface_runtime import inspect_surface_runtime
         surface = inspect_surface_runtime(config.postprocess_runtime, config.postprocess_freesurfer_home,
@@ -2200,6 +2215,14 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
     )
     blocker_count = sum(1 for item in statuses if item.required and item.status == "missing")
 
+    from shared.algorithm_selection import algorithms
+    tracking = algorithms(config.tractography_backend)
+    backend_blockers = {}
+    if len(tracking) > 1 and 'tractography' in targets:
+        for backend in tracking:
+            variant = run_environment_doctor(replace(config, tractography_backend=backend), _probe_cache=_probe_cache)
+            backend_blockers[backend] = blocked_target_reasons(variant)
+
     return EnvironmentDoctorResult(
         platform=platform_name,
         host_platform=host_platform,
@@ -2210,6 +2233,7 @@ def run_environment_doctor(config: EnvironmentDoctorConfig) -> EnvironmentDoctor
         blocker_count=blocker_count,
         missing_python_packages=missing_python_packages,
         missing_external_groups=missing_external_groups,
+        tracking_backend_blockers=backend_blockers,
     )
 
 
@@ -2225,6 +2249,9 @@ def summarize_environment_doctor(result: EnvironmentDoctorResult) -> str:
     for target in result.target_statuses:
         if target.missing_required:
             lines.append(f"- {target.target}: missing {', '.join(target.missing_required)}")
+    for backend, blockers in result.tracking_backend_blockers.items():
+        reason = blockers.get('tractography')
+        lines.append(f"- tractography.{backend}: {reason or 'dependencies available'}")
     return "\n".join(lines)
 
 

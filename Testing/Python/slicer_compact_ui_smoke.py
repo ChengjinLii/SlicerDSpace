@@ -85,7 +85,9 @@ def check():
             node.batchRoot = ""
         ui.runSelectedButton.click()
         assert ui.runSelectedButton.enabled and "#C62828" in ui.statusLabel.styleSheet
-        assert "批处理根目录" in ui.statusLabel.text
+        assert not node.batchMode and node.batchSize == 1
+        assert "待填写：" in ui.statusLabel.text, ui.statusLabel.text
+        assert "批处理根目录" not in ui.statusLabel.text
         with slicer.util.NodeModify(node):
             node.batchMode = False
             node.subjectId = "100307"

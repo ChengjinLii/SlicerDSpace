@@ -89,6 +89,7 @@ class ProductOrchestratorConfig:
     ukf_executable: Optional[Path] = None
     dwiconvert_executable: Optional[Path] = None
     bundle_backend: str = "wmql"
+    bundle_tractography_backend: Optional[str] = None
     wmql_query_preset: str = "official"
     wmql_query_selection: tuple[str, ...] = ()
     execute: bool = False
@@ -186,6 +187,7 @@ class ProductOrchestratorConfig:
     tractcloud_batch_size: int = 2048
     tractcloud_random_seed: int = 0
     preflight_blocked_targets: dict[str, str] = field(default_factory=dict)
+    preflight_blocked_by_backend: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -973,6 +975,49 @@ def _manifest_inputs_match(manifest_path: Path, inputs: dict[str, Path], field: 
     if not isinstance(records, dict):
         return False
     return all(_file_record_matches(records.get(key), path) for key, path in inputs.items())
+
+
+def _dti_bundle_source_current(config, manifest_path, inputs):
+    if not _manifest_inputs_match(manifest_path, inputs, 'raw_inputs'):
+        return False
+    try:
+        manifest = _read_json(manifest_path)
+        params = manifest['parameters']
+        return (manifest.get('status') == 'completed'
+                and params.get('fit_method', '').lower() == config.microstructure_fit_method.lower()
+                and params.get('tracking_method') == 'deterministic'
+                and params.get('output_format') == 'trk'
+                and params.get('max_seed_voxels') == config.select_streamlines
+                and params.get('min_length_mm') == config.dti_min_length_mm
+                and params.get('max_length_mm') == config.dti_max_length_mm)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return False
+
+
+def _dti_bundle_qc_acceptable(config, qc_path, tractogram):
+    if not _qc_completed(qc_path) or not _nonempty_file(tractogram):
+        return False
+    try:
+        qc = _read_json(qc_path)
+        return (int(qc.get('streamline_count') or 0) > 0
+                and bool(qc.get('streamlines_exists'))
+                and float(qc['length_min_mm']) + 1e-3 >= config.dti_min_length_mm
+                and float(qc['length_max_mm']) - 1e-3 <= config.dti_max_length_mm)
+    except (OSError, ValueError, TypeError, KeyError):
+        return False
+
+
+def _csd_bundle_parameters_current(config, manifest_path):
+    try:
+        params = _read_json(manifest_path)['parameters']
+        return (params.get('select_streamlines') == config.select_streamlines
+                and params.get('min_length_mm') == config.dti_min_length_mm
+                and params.get('max_length_mm') == config.dti_max_length_mm
+                and params.get('random_seed') == config.mrtrix_random_seed
+                and params.get('seeding') == config.tractography_seeding
+                and params.get('nthreads') == config.mrtrix_nthreads)
+    except (OSError, ValueError, TypeError, KeyError):
+        return False
 
 
 def _preprocessing_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
@@ -1853,11 +1898,27 @@ def _with_shared_bundle_resources(config):
     return config
 
 
+def _validate_bundle_tractography_source(config: ProductOrchestratorConfig) -> None:
+    source = config.bundle_tractography_backend
+    if not source:
+        return
+    from shared.algorithm_selection import algorithms
+    if source not in {'csd_act', 'ukf', 'dti_det'}:
+        raise ValueError('Bundle source must be csd_act, ukf, or dti_det; SAF is not a whole-brain tractogram.')
+    if source not in algorithms(config.tractography_backend):
+        raise ValueError('The bundle source must also be selected as a tractography backend.')
+    if config.wma_input_tractography is not None or config.tractcloud_input_tractography is not None:
+        raise ValueError('A bundle source backend cannot be combined with explicit WMA or TractCloud input files.')
+    if not set(config.targets).intersection({'bundles', 'wma', 'tractcloud'}) or 'tractography' not in config.targets:
+        raise ValueError('An explicit bundle source requires both a bundle target and tractography.')
+
+
 def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = True) -> RunPlanResult:
     """Build a target-level run plan without executing product algorithms."""
 
     config = _with_shared_bundle_resources(config)
     from shared.algorithm_selection import algorithms
+    _validate_bundle_tractography_source(config)
     if len(algorithms(config.tractography_backend)) > 1:
         from shared.multi_tracking import plan
         return plan(config, write=write)
@@ -1976,6 +2037,8 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
         )
     if primary_tractography_backend == 'ukf' and config.wma_input_tractography is None:
         wma_input_tractography = tractogram
+    elif config.bundle_tractography_backend:
+        wma_input_tractography = current_vtk
     tractcloud_input_tractography = _resolve_bundle_input_tractography(
         subject_root,
         config.tractcloud_input_tractography,
@@ -2338,8 +2401,11 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                     sift2_weights,
                     analysis_inputs,
                 )
+                and (not config.bundle_tractography_backend or _csd_bundle_parameters_current(config, csd_dir / 'csd_act_manifest.json'))
                 if primary_tractography_backend == "csd_act"
                 else _qc_completed(tractography_qc) and tractogram_trk.is_file()
+                and (not config.bundle_tractography_backend or (_dti_bundle_source_current(config, dti_manifest, analysis_inputs)
+                     and _dti_bundle_qc_acceptable(config, dti_qc, tractogram_trk)))
             )
             segmentation_ready = segmentation is not None or available.get("segmentation", False)
             if complete:
@@ -2357,7 +2423,10 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
             parcellation_ready = parcellation is not None or available.get("parcellation", False)
             tractogram_ready = (available.get('tractography', False) if primary_tractography_backend == 'ukf'
                                 else tractogram_trk.is_file() or available.get("tractography", False))
-            if config.resume and ukf_cached and _wmql_complete(
+            if config.bundle_tractography_backend:
+                tractogram_ready = available.get('tractography', False)
+            source_reused = any(item.target == 'tractography' and item.status == 'skipped' for item in items)
+            if config.resume and ukf_cached and (not config.bundle_tractography_backend or source_reused) and _wmql_complete(
                 wmql_outputs["qc"],
                 query_preset=config.wmql_query_preset,
                 query_selection=config.wmql_query_selection,
@@ -2404,9 +2473,13 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                                  config.wma_input_tractography is None and available.get('tractography', False))
             if primary_tractography_backend == 'ukf' and config.wma_input_tractography is None:
                 wma_input_available = ukf_cached
+            if config.bundle_tractography_backend:
+                wma_input_available = False
+                wma_input_will_run = available.get('tractography', False)
             if (
                 config.resume
                 and (ukf_cached or config.wma_input_tractography is not None)
+                and (not config.bundle_tractography_backend or any(item.target == 'tractography' and item.status == 'skipped' for item in items))
                 and _wma_complete(
                     wma_dir,
                     input_tractography=wma_input_tractography,
@@ -2466,7 +2539,10 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                      (primary_tractography_backend == 'dti_det' and _qc_completed(dti_qc)
                       and tractogram_trk.is_file()))
             )
-            if config.resume and (ukf_cached or config.tractcloud_input_tractography is not None) and _tractcloud_complete(
+            if config.bundle_tractography_backend:
+                tractcloud_input_available = False
+                tractcloud_input_will_run = available.get('tractography', False)
+            if config.resume and (ukf_cached or config.tractcloud_input_tractography is not None) and (not config.bundle_tractography_backend or any(item.target == 'tractography' and item.status == 'skipped' for item in items)) and _tractcloud_complete(
                 tractcloud_dir,
                 input_tractography=tractcloud_input_tractography,
                 random_seed=config.tractcloud_random_seed,
@@ -2619,6 +2695,8 @@ def _write_orchestration_checkpoint(
         "targets": list(targets),
         "execute": bool(config.execute),
         "run_plan_path": plan.run_plan_path.as_posix(),
+        "bundle_tractography_backend": config.bundle_tractography_backend,
+        "preflight_blocked_by_backend": config.preflight_blocked_by_backend,
         "previous_run_records": {key: value.as_posix() for key, value in previous_run_records.items()},
         "updated_at": _now_utc(),
         "tasks": [
@@ -3335,6 +3413,8 @@ def _run_subject_products_impl(
         )
     if primary_tractography_backend == 'ukf' and config.wma_input_tractography is None:
         wma_input_tractography = tractogram
+    elif config.bundle_tractography_backend:
+        wma_input_tractography = current_vtk
     tractcloud_input_tractography = _resolve_bundle_input_tractography(
         subject_root,
         config.tractcloud_input_tractography,
@@ -3971,8 +4051,11 @@ def _run_subject_products_impl(
                 sift2_weights,
                 analysis_inputs,
             )
+            and (not config.bundle_tractography_backend or _csd_bundle_parameters_current(config, csd_dir / 'csd_act_manifest.json'))
             if primary_tractography_backend == "csd_act"
             else _qc_completed(tractography_qc) and tractogram_trk.is_file()
+            and (not config.bundle_tractography_backend or (_dti_bundle_source_current(config, dti_manifest, analysis_inputs)
+                 and _dti_bundle_qc_acceptable(config, dti_qc, tractogram_trk)))
         )
         if config.resume and tractography_complete:
             tasks.append(
@@ -4117,9 +4200,26 @@ def _run_subject_products_impl(
                     )
                 )
 
+    bundle_source_invalid = False
+    if config.execute and config.bundle_tractography_backend:
+        tracking_tasks = [task for task in tasks if task.name == 'tractography.' + primary_tractography_backend]
+        bundle_source_invalid = not tracking_tasks or tracking_tasks[-1].status not in {'completed', 'skipped'}
+        if primary_tractography_backend == 'ukf':
+            bundle_source_invalid = bundle_source_invalid or ukf_upstream_invalid
+        elif primary_tractography_backend == 'dti_det':
+            bundle_source_invalid = bundle_source_invalid or not (_dti_bundle_qc_acceptable(config, dti_qc, tractogram_trk)
+                                                                  and _dti_bundle_source_current(config, dti_manifest, analysis_inputs))
+        else:
+            bundle_source_invalid = bundle_source_invalid or not _csd_act_complete(
+                csd_qc, csd_dir / 'csd_act_manifest.json', csd_tractogram,
+                csd_tractogram_trk, csd_tractogram_vtk, sift2_weights, analysis_inputs)
+            bundle_source_invalid = bundle_source_invalid or not _csd_bundle_parameters_current(config, csd_dir / 'csd_act_manifest.json')
+
     if "bundles" in run_targets:
         wmql_qc = wmql_dir / "wmql_qc.json"
-        if ukf_upstream_invalid:
+        if bundle_source_invalid:
+            tasks.append(ProductTaskRecord(name='bundles.wmql', status='blocked', reason='selected tractography did not pass current-run QC'))
+        elif ukf_upstream_invalid:
             tasks.append(ProductTaskRecord(name='bundles.wmql', status='blocked', reason='current UKF run is not QC-valid'))
         elif config.resume and _wmql_complete(
             wmql_qc,
@@ -4264,12 +4364,23 @@ def _run_subject_products_impl(
                     )
                 )
 
+    bundle_conversion_error = None
+    if (config.execute and config.bundle_tractography_backend == 'dti_det'
+            and set(run_targets).intersection({'wma', 'tractcloud'}) and not bundle_source_invalid):
+        from tractography.conversion import ensure_vtk_tractogram
+        try:
+            ensure_vtk_tractogram(tractogram_trk, current_vtk)
+        except (OSError, ValueError, RuntimeError) as exc:
+            bundle_conversion_error = 'Automatic DTI-to-VTK conversion failed: ' + str(exc)
+
     if "wma" in run_targets:
         wma_qc = wma_dir / "wma_org_atlas_qc.json"
         wma_summary = _wma_output_summary(wma_dir)
         anatomical_tract_count = int(wma_summary.get("anatomical_tract_count", 0) or 0)
         nonempty_tract_count = int(wma_summary.get("anatomical_tract_nonempty_count", 0) or 0)
-        if ukf_upstream_invalid and config.wma_input_tractography is None:
+        if bundle_source_invalid or bundle_conversion_error:
+            tasks.append(ProductTaskRecord(name='bundles.wma', status='blocked', reason=bundle_conversion_error or 'selected tractography did not pass current-run QC'))
+        elif ukf_upstream_invalid and config.wma_input_tractography is None:
             tasks.append(ProductTaskRecord(name='bundles.wma', status='blocked', reason='current UKF run is not QC-valid'))
         elif config.resume and _wma_complete(
             wma_dir,
@@ -4301,7 +4412,7 @@ def _run_subject_products_impl(
                     config.wma_input_tractography,
                     output_root=output_root,
                 )
-            elif primary_tractography_backend != 'ukf':
+            elif primary_tractography_backend != 'ukf' and not config.bundle_tractography_backend:
                 wma_input_tractography = _resolve_wma_input_tractography(
                     subject_root,
                     None,
@@ -4321,6 +4432,8 @@ def _run_subject_products_impl(
                         reason="Select --tractography-backend ukf for automatic UKF-to-WMA tracking, or optionally provide --wma-input-tractography; no silent CSD substitution",
                     )
                 )
+            elif not wma_input_tractography.is_file():
+                tasks.append(ProductTaskRecord(name='bundles.wma', status='blocked', reason='selected tractography file is missing'))
             elif (
                 wma_input_tractography.suffix.lower() == ".tck"
                 and _resolve_mrtrix_command("tckconvert", config.mrtrix_bin_dir) is None
@@ -4372,9 +4485,9 @@ def _run_subject_products_impl(
 
     if "tractcloud" in run_targets:
         tractcloud_qc = tractcloud_dir / "tractcloud_qc.json"
-        conversion_error = None
+        conversion_error = bundle_conversion_error
         if (config.execute and primary_tractography_backend == 'dti_det'
-                and config.tractcloud_input_tractography is None):
+                and config.tractcloud_input_tractography is None and not config.bundle_tractography_backend):
             if not _qc_completed(dti_qc) or not tractogram_trk.is_file():
                 conversion_error = 'Current DTI tractography is not QC-valid; no historical CSD fallback'
             else:
@@ -4391,7 +4504,9 @@ def _run_subject_products_impl(
             current_run_tractography=current_vtk,
             require_current_run=True,
         )
-        if conversion_error:
+        if bundle_source_invalid:
+            tasks.append(ProductTaskRecord(name='bundles.tractcloud', status='blocked', reason='selected tractography did not pass current-run QC'))
+        elif conversion_error:
             tasks.append(ProductTaskRecord(name='bundles.tractcloud', status='blocked', reason=conversion_error))
         elif ukf_upstream_invalid and config.tractcloud_input_tractography is None:
             tasks.append(ProductTaskRecord(name='bundles.tractcloud', status='blocked', reason='current UKF run is not QC-valid'))
@@ -4649,8 +4764,10 @@ def _run_subject_products_impl(
         },
         "archived_development_outputs": {key: value.as_posix() for key, value in archived_outputs.items()},
         "preflight_blocked_targets": preflight_blocked_targets,
+        "preflight_blocked_by_backend": config.preflight_blocked_by_backend,
         "run_name": run_name,
         "tractography_backend": config.tractography_backend,
+        "bundle_tractography_backend": config.bundle_tractography_backend,
         "ukf_parameters": config.ukf_parameters,
         "ukf_executable": str(config.ukf_executable) if config.ukf_executable else None,
         "dwiconvert_executable": str(config.dwiconvert_executable) if config.dwiconvert_executable else None,
@@ -4824,6 +4941,7 @@ def run_subject_products(
     """Run products while preserving a failed manifest if any stage raises."""
 
     try:
+        _validate_bundle_tractography_source(config)
         if config.execute:
             if not config.subject_id.strip() or config.select_streamlines <= 0:
                 raise ValueError("subject_id is required and select_streamlines must be positive")

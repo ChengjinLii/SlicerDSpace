@@ -2,16 +2,19 @@
 """Verify that the public Pages artifact cannot include private project documents."""
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+GUIDE_HAT = "assets/img/guide-bot-hat.svg"
+GUIDE_HAT_SHA256 = "3159ef890d7fd74135e39bc02a78a5371c90e4974edac3dd02e938e648bf8af4"
 
 
 def audit(root=ROOT):
     site = root / "docs/site"
     required = {".nojekyll", "index.html", "404.html"}
-    allowed_top = required | {"assets/data/performance.json"}
+    allowed_top = required | {"assets/data/performance.json", GUIDE_HAT}
     allowed_extensions = {
         "assets/css": {".css"},
         "assets/js": {".js"},
@@ -33,6 +36,8 @@ def audit(root=ROOT):
         parent = path.parent.relative_to(site).as_posix()
         if relative not in allowed_top and path.suffix.lower() not in allowed_extensions.get(parent, set()):
             problems.append("Unexpected public file: " + relative)
+        if relative == GUIDE_HAT and hashlib.sha256(path.read_bytes()).hexdigest() != GUIDE_HAT_SHA256:
+            problems.append("Unapproved guide asset: " + relative)
         files.append(relative)
         total += path.stat().st_size
     for name in required:

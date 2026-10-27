@@ -30,8 +30,8 @@ installation instructions and are not part of the public deployment.
 ## Performance Section
 
 The home page holds the performance evidence in its `#performance` section: one
-closed disclosure, "Performance evidence", after the `#cite` references and the
-`#runtime` figures. A footer link and the status notes navigate within the home page.
+closed disclosure, "Performance evidence", after the `#runtime` figures and before
+the final bibliography. A footer link navigates within the home page.
 There is no separate runtime or performance page; the legacy redirect was removed.
 The evidence separates equivalent
 implementation changes, native threads, workflow scheduling and Python-port controls.
@@ -53,31 +53,62 @@ was expanded on 25 October; the upstream-source audit is still dated 22 October.
 
 ---
 
-## Figures, Status Table And References
+## Site Guide
+
+The floating guide reproduces the mascot, motion and dialog style of Chengjin
+Bot from the local personal-site source at `d30286f`: 150 ms gaze sampling,
+per-frame 0.05 smoothing, 5 px eye range, blue pulse, blinking and seasonal hat.
+It uses locally curated,
+bilingual project answers in `docs/site/assets/js/guide-bot.js`. It makes no
+network requests, does not persist questions, and does not call an AI model. Update its
+answers alongside the relevant homepage sections when product behaviour or
+installation instructions change. Keyboard, drag, responsive, privacy and
+no-JavaScript behaviour are checked by `node Testing/Website/guide_bot_check.mjs`.
+
+---
+
+## Figures, Methods And References
+
+The integration catalogue sits immediately before References. The product map
+remains; the six example combinations and standalone In Slicer section are
+removed. Header/footer branding and browser icons are transparent PNG exports
+of `docs/figures/logo-ref.svg`. Verify them with
+`python3 scripts/sync_website_logo.py --check`.
 
 - The WMQL gallery tile uses `assets/img/res-wmql-ukf.jpg`, an unchanged copy of
   the official multi-query UKF render in `docs/figures/src/results/`. Its source
   and hash are recorded in `wmql_sources.json`. `python3 scripts/sync_wmql_site_asset.py --check`
   verifies the copy; omit `--check` to refresh it. The full lateral view fits
   inside the gallery tile without cropping. The earlier CSD/ACT AF/CST thumbnail is retired.
-- `assets/img/fig-route-guide.png` (section `#choose`) and
+- `assets/img/fig-product-map.png` (section `#choose`) and
   `assets/img/fig-runtime-resources.png` and `assets/img/fig-runtime-optimizations.png`
   (two independent figures in section `#runtime`) are rasterised from the
   editable SVG sources in `docs/figures/`, which are not published. See
   [`docs/figures/README.md`](../figures/README.md) to rebuild them. Each `<img>` carries
   the pixel size of its file and links to the full-size file.
-- The "What is integrated" table in `#workflows` lists implementations and runtime
+- The standalone "What is integrated" section (`#integrated`) lists 35 concrete
+  method/utility entries, including the available denoisers, masking alternatives,
+  anatomical and microstructural models, tracking, bundles and regional analysis.
+  Each entry identifies its implementation, runtime
   requirements. Historical run-specific orange status badges and the optional
   reference-runtime row are removed. Runtime/access requirements remain explicit,
   including the UKF reference route for WMA and Python API scalar/length summaries.
   Detailed provenance and validation records remain linked; the table does not
   certify every output or promote historical failed runs.
-- `#cite` holds one uniform numbered reference list [1] to [35], including the
-  DDSurfer, DDSeg and DDParcel papers. Use only entries whose DOI or page was checked. Add every new external URL to
-  `ALLOWED_URLS` in `Testing/Website/check_site.py`.
+- `#cite` is the last main-page section and displays the complete bibliography
+  [1] to [53] without a disclosure. Primary papers and author software/documentation
+  cover every method row. The original reference numbers remain stable.
+  `docs/website/references.json` holds the reviewed bibliography; publisher-deposited
+  metadata for the added DOI entries are retained in `reference_verification_20261026.json`.
+  `python3 scripts/build_website_catalog.py` renders the method inventory and references;
+  `--check` catches stale HTML, missing source entry points and missing citations.
+  Bibliography URLs are allowlisted from this reviewed catalogue; other external
+  links still require an explicit `ALLOWED_URLS` entry in `Testing/Website/check_site.py`.
 
-The hero uses the full current manuscript title; the separate Idea section is
-removed. Workflows follows the paper's six analysis domains. Get started includes
+The hero uses "SlicerDDSurfer" as its title, with the manuscript's descriptive
+phrase underneath. The Idea, Workflows and Status sections are removed. Subject
+identifiers stay in source records instead of repeated gallery introductions.
+Get started includes
 staging, module paths, extension requirements, canonical inputs, GUI environment
 preparation and the first DTI run, with optional CLI/cohort instructions. The
 homepage retains the contributor's established theme and original media.

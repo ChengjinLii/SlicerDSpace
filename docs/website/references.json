@@ -1,0 +1,377 @@
+{
+  "version": 1,
+  "reviewed_on": "2026-10-26",
+  "references": [
+    {
+      "id": 1,
+      "citation": "Li C, et al. DDSurfer: A Weakly-Supervised Dual-Stream Deep Learning Framework for Cortical Surface Reconstruction From Diffusion MRI. Advanced Science 13(56):e76596, 2026.",
+      "url": "https://doi.org/10.1002/advs.76596",
+      "link_label": "DOI 10.1002/advs.76596",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 2,
+      "citation": "Zhang F, et al. Deep learning based segmentation of brain tissue from diffusion MRI. NeuroImage 233:117934, 2021.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2021.117934",
+      "link_label": "DOI 10.1016/j.neuroimage.2021.117934",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 3,
+      "citation": "Zhang F, et al. DDParcel: Deep Learning Anatomical Brain Parcellation From Diffusion MRI. IEEE Transactions on Medical Imaging 43(3):1191–1202, 2024.",
+      "url": "https://doi.org/10.1109/TMI.2023.3331691",
+      "link_label": "DOI 10.1109/TMI.2023.3331691",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 4,
+      "citation": "Pasternak O, et al. Free water elimination and mapping from diffusion MRI. Magnetic Resonance in Medicine 62(3):717–730, 2009.",
+      "url": "https://doi.org/10.1002/mrm.22055",
+      "link_label": "DOI 10.1002/mrm.22055",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 5,
+      "citation": "Hoy AR, et al. Optimization of a free water elimination two-compartment model for diffusion tensor imaging. NeuroImage 103:323–333, 2014.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2014.09.053",
+      "link_label": "DOI 10.1016/j.neuroimage.2014.09.053",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 6,
+      "citation": "Henriques RN, et al. [Re] Optimization of a free water elimination two-compartment model for diffusion tensor imaging. bioRxiv preprint, not peer reviewed, 2017.",
+      "url": "https://doi.org/10.1101/108795",
+      "link_label": "DOI 10.1101/108795",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 7,
+      "citation": "Zhang H, et al. NODDI: Practical in vivo neurite orientation dispersion and density imaging of the human brain. NeuroImage 61(4):1000–1016, 2012.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2012.03.072",
+      "link_label": "DOI 10.1016/j.neuroimage.2012.03.072",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 8,
+      "citation": "Jensen JH, et al. Diffusional kurtosis imaging: The quantification of non-gaussian water diffusion by means of magnetic resonance imaging. Magnetic Resonance in Medicine 53(6):1432–1440, 2005.",
+      "url": "https://doi.org/10.1002/mrm.20508",
+      "link_label": "DOI 10.1002/mrm.20508",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 9,
+      "citation": "Zhang F, et al. MK-curve - Characterizing the relation between mean kurtosis and alterations in the diffusion MRI signal. NeuroImage 196:68–80, 2019.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2019.04.015",
+      "link_label": "DOI 10.1016/j.neuroimage.2019.04.015",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 10,
+      "citation": "Jeurissen B, et al. Multi-tissue constrained spherical deconvolution for improved analysis of multi-shell diffusion MRI data. NeuroImage 103:411–426, 2014.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2014.07.061",
+      "link_label": "DOI 10.1016/j.neuroimage.2014.07.061",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 11,
+      "citation": "Tournier JD, et al. Direct estimation of the fiber orientation density function from diffusion-weighted MRI data using spherical deconvolution. NeuroImage 23(3):1176–1185, 2004.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2004.07.037",
+      "link_label": "DOI 10.1016/j.neuroimage.2004.07.037",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 12,
+      "citation": "Dhollander T, et al. Improved white matter response function estimation for 3-tissue constrained spherical deconvolution. Proc Intl Soc Mag Reson Med (ISMRM), abstract 555, 2019.",
+      "url": "https://archive.ismrm.org/2019/0555.html",
+      "link_label": "ISMRM abstract",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 13,
+      "citation": "Dhollander T, et al. Unsupervised 3-tissue response function estimation from single-shell or multi-shell diffusion MR data without a co-registered T1 image. ISMRM Workshop on Breaking the Barriers of Diffusion MRI, 2016, 5.",
+      "url": "https://userdocs.mrtrix.org/en/latest/reference/commands/dwi2response.html#dwi2response-dhollander",
+      "link_label": "Author documentation",
+      "provenance": "Existing publication identity; author documentation link verified 2026-10-26"
+    },
+    {
+      "id": 14,
+      "citation": "Tournier JD, et al. Improved probabilistic streamlines tractography by 2nd order integration over fibre orientation distributions. Proc Intl Soc Mag Reson Med (ISMRM), abstract 1670, 2010.",
+      "url": "https://archive.ismrm.org/2010/1670.html",
+      "link_label": "ISMRM abstract",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 15,
+      "citation": "Smith RE, et al. Anatomically-constrained tractography: Improved diffusion MRI streamlines tractography through effective use of anatomical information. NeuroImage 62(3):1924–1938, 2012.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2012.06.005",
+      "link_label": "DOI 10.1016/j.neuroimage.2012.06.005",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 16,
+      "citation": "Smith RE, et al. SIFT2: Enabling dense quantitative assessment of brain white matter connectivity using streamlines tractography. NeuroImage 119:338–351, 2015.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2015.06.092",
+      "link_label": "DOI 10.1016/j.neuroimage.2015.06.092",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 17,
+      "citation": "Raffelt D, et al. Bias field correction and intensity normalisation for quantitative analysis of apparent fibre density. Proc Intl Soc Mag Reson Med (ISMRM), abstract 3541, 2017.",
+      "url": "https://archive.ismrm.org/2017/3541.html",
+      "link_label": "ISMRM abstract",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 18,
+      "citation": "Dhollander T, et al. Multi-tissue log-domain intensity and inhomogeneity normalisation for quantitative apparent fibre density. Proc Intl Soc Mag Reson Med (ISMRM), abstract 2472, 2021.",
+      "url": "https://archive.ismrm.org/2021/2472.html",
+      "link_label": "ISMRM abstract",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 19,
+      "citation": "Malcolm JG, et al. Filtered multitensor tractography. IEEE Transactions on Medical Imaging 29(9):1664–1675, 2010.",
+      "url": "https://doi.org/10.1109/TMI.2010.2048121",
+      "link_label": "DOI 10.1109/TMI.2010.2048121",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 20,
+      "citation": "Shastin D, et al. Surface-based tracking for short association fibre tractography. NeuroImage 260:119423, 2022.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2022.119423",
+      "link_label": "DOI 10.1016/j.neuroimage.2022.119423",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 21,
+      "citation": "Wassermann D, et al. The white matter query language: a novel approach for describing human white matter anatomy. Brain Structure and Function 221(9):4705–4721, 2016.",
+      "url": "https://doi.org/10.1007/s00429-015-1179-4",
+      "link_label": "DOI 10.1007/s00429-015-1179-4",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 22,
+      "citation": "Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. NeuroImage 179:429–447, 2018.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2018.06.027",
+      "link_label": "DOI 10.1016/j.neuroimage.2018.06.027",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 23,
+      "citation": "O’Donnell LJ, Westin CF. Automatic tractography segmentation using a high-dimensional white matter atlas. IEEE Transactions on Medical Imaging 26(11):1562–1575, 2007.",
+      "url": "https://doi.org/10.1109/TMI.2007.906785",
+      "link_label": "DOI 10.1109/TMI.2007.906785",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 24,
+      "citation": "O’Donnell LJ, et al. Unbiased groupwise registration of white matter tractography. MICCAI 2012, Lecture Notes in Computer Science, pp. 123–130, 2012.",
+      "url": "https://doi.org/10.1007/978-3-642-33454-2_16",
+      "link_label": "DOI 10.1007/978-3-642-33454-2_16",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 25,
+      "citation": "Xue T, et al. TractCloud: Registration-free tractography parcellation with a novel local-global streamline point cloud representation. MICCAI 2023, Lecture Notes in Computer Science, pp. 409–419, 2023.",
+      "url": "https://doi.org/10.1007/978-3-031-43993-3_40",
+      "link_label": "DOI 10.1007/978-3-031-43993-3_40",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 26,
+      "citation": "Zhang F, et al. O’Donnell Research Group (ORG) Fiber Clustering White Matter Atlas, version 1.1.1. Zenodo dataset, 2019.",
+      "url": "https://doi.org/10.5281/zenodo.2648292",
+      "link_label": "DOI 10.5281/zenodo.2648292",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 27,
+      "citation": "Fedorov A, et al. 3D Slicer as an image computing platform for the Quantitative Imaging Network. Magnetic Resonance Imaging 30(9):1323–1341, 2012.",
+      "url": "https://doi.org/10.1016/j.mri.2012.05.001",
+      "link_label": "DOI 10.1016/j.mri.2012.05.001",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 28,
+      "citation": "Zhang F, et al. SlicerDMRI: Diffusion MRI and tractography research software for brain cancer surgery planning and visualization. JCO Clinical Cancer Informatics, issue 4:299–309, 2020.",
+      "url": "https://doi.org/10.1200/CCI.19.00141",
+      "link_label": "DOI 10.1200/CCI.19.00141",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 29,
+      "citation": "Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2019.116137",
+      "link_label": "DOI 10.1016/j.neuroimage.2019.116137",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 30,
+      "citation": "Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014.",
+      "url": "https://doi.org/10.3389/fninf.2014.00008",
+      "link_label": "DOI 10.3389/fninf.2014.00008",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 31,
+      "citation": "Daducci A, et al. Accelerated Microstructure Imaging via Convex Optimization (AMICO) from diffusion MRI data. NeuroImage 105:32–44, 2015.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2014.10.026",
+      "link_label": "DOI 10.1016/j.neuroimage.2014.10.026",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 32,
+      "citation": "Hoopes A, et al. SynthStrip: skull-stripping for any brain image. NeuroImage 260:119474, 2022.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2022.119474",
+      "link_label": "DOI 10.1016/j.neuroimage.2022.119474",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 33,
+      "citation": "Fischl B. FreeSurfer. NeuroImage 62(2):774–781, 2012.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2012.01.021",
+      "link_label": "DOI 10.1016/j.neuroimage.2012.01.021",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 34,
+      "citation": "Manzano-Patron JP, et al. Denoising diffusion MRI: Considerations and implications for analysis. Imaging Neuroscience 2:imag-2-00060, 2024.",
+      "url": "https://doi.org/10.1162/imag_a_00060",
+      "link_label": "DOI 10.1162/imag_a_00060",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 35,
+      "citation": "Manzano-Patron JP, et al. EDDEN: Evaluation of Diffusion MRI DENoising. OpenNeuro dataset ds004666, version 1.0.8, 2026, CC0.",
+      "url": "https://doi.org/10.18112/openneuro.ds004666.v1.0.8",
+      "link_label": "DOI 10.18112/openneuro.ds004666.v1.0.8",
+      "provenance": "Existing checked homepage bibliography; inherited publication identity"
+    },
+    {
+      "id": 36,
+      "citation": "Li X, et al. The first step for neuroimaging data analysis: DICOM to NIfTI conversion. Journal of Neuroscience Methods 264:47-56, 2016.",
+      "url": "https://doi.org/10.1016/j.jneumeth.2016.03.001",
+      "link_label": "DOI 10.1016/j.jneumeth.2016.03.001",
+      "provenance": "https://api.crossref.org/works/10.1016%2Fj.jneumeth.2016.03.001"
+    },
+    {
+      "id": 37,
+      "citation": "Cetin-Karayumak S, et al. Harmonized diffusion MRI data and white matter measures from the Adolescent Brain Cognitive Development Study. Scientific Data 11:249, 2024.",
+      "url": "https://doi.org/10.1038/s41597-024-03058-w",
+      "link_label": "DOI 10.1038/s41597-024-03058-w",
+      "provenance": "https://api.crossref.org/works/10.1038%2Fs41597-024-03058-w"
+    },
+    {
+      "id": 38,
+      "citation": "Palanivelu S, et al. CNN based diffusion MRI brain segmentation tool. Author software and citation instructions.",
+      "url": "https://github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segmentation",
+      "link_label": "Author software",
+      "provenance": "Primary author/conference/official documentation inspected in browser"
+    },
+    {
+      "id": 39,
+      "citation": "Veraart J, et al. Denoising of diffusion MRI using random matrix theory. NeuroImage 142:394-406, 2016.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2016.08.016",
+      "link_label": "DOI 10.1016/j.neuroimage.2016.08.016",
+      "provenance": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2016.08.016"
+    },
+    {
+      "id": 40,
+      "citation": "Manjón JV, et al. Diffusion Weighted Image Denoising Using Overcomplete Local PCA. PLoS ONE 8:e73021, 2013.",
+      "url": "https://doi.org/10.1371/journal.pone.0073021",
+      "link_label": "DOI 10.1371/journal.pone.0073021",
+      "provenance": "https://api.crossref.org/works/10.1371%2Fjournal.pone.0073021"
+    },
+    {
+      "id": 41,
+      "citation": "Fadnavis S, Batson J, Garyfallidis E. Patch2Self: Denoising Diffusion MRI with Self-Supervised Learning. Advances in Neural Information Processing Systems 33, 2020.",
+      "url": "https://proceedings.neurips.cc/paper/2020/hash/bc047286b224b7bfa73d4cb02de1238d-Abstract.html",
+      "link_label": "NeurIPS paper",
+      "provenance": "Primary author/conference/official documentation inspected in browser"
+    },
+    {
+      "id": 42,
+      "citation": "Kellner E, et al. Gibbs‐ringing artifact removal based on local subvoxel‐shifts. Magnetic Resonance in Medicine 76:1574-1581, 2016.",
+      "url": "https://doi.org/10.1002/mrm.26054",
+      "link_label": "DOI 10.1002/mrm.26054",
+      "provenance": "https://api.crossref.org/works/10.1002%2Fmrm.26054"
+    },
+    {
+      "id": 43,
+      "citation": "Andersson JLR, Sotiropoulos SN. An integrated approach to correction for off-resonance effects and subject movement in diffusion MR imaging. NeuroImage 125:1063-1078, 2016.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2015.10.019",
+      "link_label": "DOI 10.1016/j.neuroimage.2015.10.019",
+      "provenance": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2015.10.019"
+    },
+    {
+      "id": 44,
+      "citation": "Andersson JLR, Skare S, Ashburner J. How to correct susceptibility distortions in spin-echo echo-planar images: application to diffusion tensor imaging. NeuroImage 20:870-888, 2003.",
+      "url": "https://doi.org/10.1016/S1053-8119(03)00336-7",
+      "link_label": "DOI 10.1016/S1053-8119(03)00336-7",
+      "provenance": "https://api.crossref.org/works/10.1016%2FS1053-8119%2803%2900336-7"
+    },
+    {
+      "id": 45,
+      "citation": "Basser PJ, Mattiello J, LeBihan D. MR diffusion tensor spectroscopy and imaging. Biophysical Journal 66:259-267, 1994.",
+      "url": "https://doi.org/10.1016/S0006-3495(94)80775-1",
+      "link_label": "DOI 10.1016/S0006-3495(94)80775-1",
+      "provenance": "https://api.crossref.org/works/10.1016%2FS0006-3495%2894%2980775-1"
+    },
+    {
+      "id": 46,
+      "citation": "Tournier JD, Calamante F, Connelly A. Robust determination of the fibre orientation distribution in diffusion MRI: Non-negativity constrained super-resolved spherical deconvolution. NeuroImage 35:1459-1472, 2007.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2007.02.016",
+      "link_label": "DOI 10.1016/j.neuroimage.2007.02.016",
+      "provenance": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2007.02.016"
+    },
+    {
+      "id": 47,
+      "citation": "Fischl B, Dale AM. Measuring the thickness of the human cerebral cortex from magnetic resonance images. Proceedings of the National Academy of Sciences 97:11050-11055, 2000.",
+      "url": "https://doi.org/10.1073/pnas.200033797",
+      "link_label": "DOI 10.1073/pnas.200033797",
+      "provenance": "https://api.crossref.org/works/10.1073%2Fpnas.200033797"
+    },
+    {
+      "id": 48,
+      "citation": "Desikan RS, et al. An automated labeling system for subdividing the human cerebral cortex on MRI scans into gyral based regions of interest. NeuroImage 31:968-980, 2006.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2006.01.021",
+      "link_label": "DOI 10.1016/j.neuroimage.2006.01.021",
+      "provenance": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2006.01.021"
+    },
+    {
+      "id": 49,
+      "citation": "Destrieux C, et al. Automatic parcellation of human cortical gyri and sulci using standard anatomical nomenclature. NeuroImage 53:1-15, 2010.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2010.06.010",
+      "link_label": "DOI 10.1016/j.neuroimage.2010.06.010",
+      "provenance": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2010.06.010"
+    },
+    {
+      "id": 50,
+      "citation": "Yeh CH, et al. Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential. NeuroImage 199:160-171, 2019.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2019.05.005",
+      "link_label": "DOI 10.1016/j.neuroimage.2019.05.005",
+      "provenance": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2019.05.005"
+    },
+    {
+      "id": 51,
+      "citation": "Johnson HJ, Harris G, Williams K. BRAINSFit: Mutual Information Registrations of Whole-Brain 3D Images, Using the Insight Toolkit. The Insight Journal, 2007; 3D Slicer module documentation.",
+      "url": "https://slicer.readthedocs.io/en/latest/user_guide/modules/brainsfit.html",
+      "link_label": "Official documentation",
+      "provenance": "Primary author/conference/official documentation inspected in browser"
+    },
+    {
+      "id": 52,
+      "citation": "Veraart J, Fieremans E, Novikov DS. Diffusion MRI noise mapping using random matrix theory. Magnetic Resonance in Medicine 76:1582-1593, 2016.",
+      "url": "https://doi.org/10.1002/mrm.26059",
+      "link_label": "DOI 10.1002/mrm.26059",
+      "provenance": "https://api.crossref.org/works/10.1002%2Fmrm.26059"
+    },
+    {
+      "id": 53,
+      "citation": "Cordero-Grande L, et al. Complex diffusion-weighted image estimation via matrix recovery under general noise models. NeuroImage 200:391-404, 2019.",
+      "url": "https://doi.org/10.1016/j.neuroimage.2019.06.039",
+      "link_label": "DOI 10.1016/j.neuroimage.2019.06.039",
+      "provenance": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2019.06.039"
+    }
+  ]
+}

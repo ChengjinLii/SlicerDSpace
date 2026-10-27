@@ -12,7 +12,7 @@ from unittest.mock import patch
 import nibabel as nib
 import numpy as np
 
-from shared.input_import import InputImportConfig, detect_import_source_kind, prepare_inputs
+from shared.input_import import InputImportConfig, detect_import_source_kind, prepare_inputs, _lossless_signed_nrrd
 
 
 class InputImportTest(unittest.TestCase):
@@ -126,6 +126,7 @@ class InputImportTest(unittest.TestCase):
             self.assertIn("NrrdToFSL", plan["command"])
             self.assertIn("--outputNiftiFile", plan["command"])
             self.assertTrue(plan["canonical_layout"]["dwi"].endswith("input/data.nii.gz"))
+            self.assertFalse((root / 'sub-01').exists(), 'Import preview must not create a subject directory')
 
     def test_nrrd_import_can_force_mrconvert(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -147,6 +148,47 @@ class InputImportTest(unittest.TestCase):
             plan = manifest["plan"]
             self.assertEqual(plan["backend"], "mrconvert")
             self.assertIn("-export_grad_fsl", plan["command"])
+            self.assertNotIn("-force", plan["command"])
+
+    def test_converter_never_overwrites_existing_inputs_without_force(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'dwi.nhdr'
+            source.write_text('NRRD0005\n')
+            input_dir = root / 'subject' / 'input'
+            input_dir.mkdir(parents=True)
+            existing = input_dir / 'bvals'
+            existing.write_text('original')
+            config = InputImportConfig(source=source, subject_root=root / 'subject', subject_id='s',
+                                       source_kind='nrrd', backend='mrconvert')
+            with patch('shared.input_import._run') as execute, self.assertRaises(FileExistsError):
+                prepare_inputs(config)
+            execute.assert_not_called()
+            self.assertEqual(existing.read_text(), 'original')
+
+    def test_unsigned_nrrd_bridge_preserves_values_and_metadata(self) -> None:
+        import nrrd
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data = np.arange(24, dtype=np.uint16).reshape(3, 2, 2, 2)
+            header = {'space': 'right-anterior-superior', 'kinds': ['list', 'domain', 'domain', 'domain'],
+                      'space directions': np.array([[np.nan] * 3, [1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+                      'space origin': np.zeros(3), 'measurement frame': np.eye(3),
+                      'DWMRI_b-value': '1000',
+                      **{f'DWMRI_gradient_{i:04d}': value for i, value in enumerate(['0 0 0', '1 0 0', '0 1 0'])}}
+            source, signed = root / 'source.nrrd', root / 'signed.nrrd'
+            nrrd.write(str(source), data, header=header)
+            receipt = _lossless_signed_nrrd(source, signed)
+            converted, info = nrrd.read(str(signed))
+            np.testing.assert_array_equal(data, converted)
+            self.assertEqual(converted.dtype, np.int16)
+            self.assertEqual(info['DWMRI_gradient_0001'], '1 0 0')
+            self.assertFalse(receipt['lossy_conversion'])
+            data[0, 0, 0, 0] = 65535
+            nrrd.write(str(source), data, header=header)
+            with self.assertRaisesRegex(ValueError, 'refusing lossy'):
+                _lossless_signed_nrrd(source, root / 'must-not-exist.nrrd')
+            self.assertFalse((root / 'must-not-exist.nrrd').exists())
 
     def test_dicom_to_compat_nrrd_uses_dwiconvert(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

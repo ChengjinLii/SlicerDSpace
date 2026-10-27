@@ -64,12 +64,15 @@
     "scripts/audit_pages_site.py",
     "scripts/audit_performance_upstreams.py",
     "scripts/build_performance_site.py",
+    "scripts/build_website_catalog.py",
     "scripts/generate_protocol_benchmarks.py",
     "scripts/validate_shared_surface_transform.py",
     "scripts/make_readme_preview.py",
+    "scripts/sync_website_logo.py",
     "scripts/sync_wmql_site_asset.py"
   ],
   "excluded_prefixes": [
+    "scripts/figures",
     "docs/site",
     "docs/website",
     "docs/paper",

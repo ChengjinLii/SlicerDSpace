@@ -22,7 +22,7 @@ SMOKES = (
     "extension_manager_install",
     "wmql_protocol",
 )
-AVAILABLE = (*SMOKES, "real_tasks", "input_preparation", "dicom_root", "tissue_review", "shutdown", "batch", "setup_tree", "model_assets", "results", "preprocessing_cache", "compact_ui", "saf_product", "bundle_products", "parallel_models", "ukf", "regions", "algorithm_labels", "selected_setup", "algorithm_picker", "environment_async", "gui_state", "log_batch", "input_inspection", "surface_runtime", "single_subject")
+AVAILABLE = (*SMOKES, "real_tasks", "input_preparation", "dicom_root", "tissue_review", "shutdown", "batch", "setup_tree", "model_assets", "results", "preprocessing_cache", "compact_ui", "saf_product", "bundle_products", "parallel_models", "ukf", "regions", "algorithm_labels", "selected_setup", "algorithm_picker", "environment_async", "gui_state", "log_batch", "input_inspection", "surface_runtime", "single_subject", "agent_install")
 
 
 def private_slicer_home(slicer, destination):
@@ -127,6 +127,7 @@ def run(args):
                    SLICERDDSURFER_EXTENSION_MODULE_DIR=str(module),
                    SLICERDDSURFER_EXTENSION_ARCHIVE=str(archive),
                    SLICERDDSURFER_ARCHIVE_INSPECTOR=str(inspector_snapshot),
+                   SLICERDDSURFER_AGENT_INSTALL_HELPER=str(ROOT / '.agents/skills/slicerddsurfer-install/scripts/enable_in_slicer.py'),
                    SLICERDDSURFER_SMOKE_SUBJECT_ROOT=str(args.subject),
                    SLICERDDSURFER_SMOKE_SUBJECT_ID="100307",
                    SLICERDDSURFER_SMOKE_RUN_NAME="acceptance_plan",

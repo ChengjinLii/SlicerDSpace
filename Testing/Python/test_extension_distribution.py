@@ -83,6 +83,8 @@ class ExtensionDistributionTest(unittest.TestCase):
                      "docs/release/benchmarks/module_runtimes_20261015.csv"):
             self.assertIn(name, selected)
         self.assertFalse(any("/tests/" in name or "/slicer_dmri_reference/" in name for name in selected))
+        self.assertFalse(any(name.startswith('scripts/figures/') for name in selected))
+        self.assertNotIn('scripts/sync_website_logo.py', selected)
         self.assertEqual([name for name in selected if "/" not in name and name.endswith(".py")], ["SlicerDDSurfer.py"])
 
     def test_gpu_and_setup_launchers_are_required_even_with_globs(self):

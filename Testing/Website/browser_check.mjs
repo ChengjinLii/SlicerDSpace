@@ -236,7 +236,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
     // A link click closes the menu and moves to the section.
     await page.keyboard.press('Enter');
     await page.waitForTimeout(150);
-    await page.locator('#site-nav a[href="#status"]').click();
+    await page.locator('#site-nav a[href="#integrated"]').click();
     // Smooth scrolling over a long page takes a while: wait until the position is stable.
     let last = -1;
     for (let i = 0; i < 40; i++) {
@@ -247,9 +247,9 @@ async function runViewport(browser, origin, name, width, height, opts) {
     }
     s = await page.evaluate(() => ({
       exp: document.getElementById('menu-btn').getAttribute('aria-expanded'),
-      top: Math.round(document.getElementById('status').getBoundingClientRect().top),
+      top: Math.round(document.getElementById('integrated').getBoundingClientRect().top),
     }));
-    record(s.exp === 'false' && s.top >= 0 && s.top < 200, `${tag}: link click closes the menu and lands on #status (top ${s.top})`, JSON.stringify(s));
+    record(s.exp === 'false' && s.top >= 0 && s.top < 200, `${tag}: link click closes the menu and lands on #integrated (top ${s.top})`, JSON.stringify(s));
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(300);
   }
@@ -397,14 +397,14 @@ async function runPerformance(browser, origin, width, noJs = false) {
     const response = await context.request.get(origin + '/SlicerDDSurfer/assets/data/performance.json');
     const data = await response.json();
     record(response.ok() && data.records.length === 13 && !JSON.stringify(data).includes('/data/chengjin/'), prefix + ': sanitized evidence download');
-    // The hash opens the evidence; a link from the status notes opens it again after it was closed.
+    // The hash opens the evidence; the footer link reopens it after it was closed.
     await page.goto(origin + '/SlicerDDSurfer/index.html#performance', { waitUntil: 'load' });
     await page.waitForFunction(() => document.getElementById('performance-evidence').open);
     record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': #performance opens the evidence');
-    await page.evaluate(() => { document.getElementById('performance-evidence').open = false; document.getElementById('performance-notes').open = true; });
-    await page.locator('#performance-notes a[href="#performance"]').click();
+    await page.evaluate(() => { document.getElementById('performance-evidence').open = false; });
+    await page.locator('footer a[href="#performance"]').click();
     await page.waitForFunction(() => document.getElementById('performance-evidence').open);
-    record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': link from the status notes opens the evidence');
+    record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': footer link reopens the evidence');
   } else {
     record(await page.locator('.perf-filters').isHidden(), prefix + ': no nonfunctional filter controls');
   }
@@ -414,19 +414,20 @@ async function runPerformance(browser, origin, width, noJs = false) {
   await context.close();
 }
 
-// The reference list [1] to [35] is a closed <details>. A click on a #ref-n link in the integration table
-// opens it (site.js) and shows the entry; without JS, Chrome opens it on fragment navigation.
+// The complete bibliography is always expanded at the end of the main page.
+// Test table-to-reference navigation on desktop, mobile and without JavaScript.
 async function runReferenceLinks(browser, origin) {
   for (const width of [1440, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 900 } });
     const page = await context.newPage();
     await page.goto(origin + '/index.html', { waitUntil: 'load' });
-    const closed = await page.evaluate(() => {
+    const expanded = await page.evaluate(() => {
       const d = document.getElementById('reference-list');
-      return !!d && !d.open && !!d.querySelector('#ref-1') && !!d.querySelector('#ref-35')
-        && d.querySelectorAll('.ref-list > li').length === 35;
+      return !!d && !d.closest('details') && !!d.querySelector('#ref-1') && !!d.querySelector('#ref-53')
+        && d.querySelectorAll('.ref-list > li').length === 53
+        && document.querySelector('main > section:last-of-type').id === 'cite';
     });
-    record(closed, `references ${width}px: unified list [1] to [35] is in a closed <details>`, String(closed));
+    record(expanded, `references ${width}px: list [1] to [53] is expanded at the page end`, String(expanded));
     const link = page.locator('.int-table a[href="#ref-21"]').first();
     await link.scrollIntoViewIfNeeded();
     await link.click();
@@ -437,21 +438,32 @@ async function runReferenceLinks(browser, origin) {
       await page.waitForTimeout(150);
       s = await page.evaluate(() => {
         const r = document.getElementById('ref-21').getBoundingClientRect();
-        return { open: document.getElementById('reference-list').open, top: Math.round(r.top), h: r.height, ih: innerHeight };
+        return { expanded: !document.getElementById('reference-list').closest('details'), top: Math.round(r.top), h: r.height, ih: innerHeight };
       });
       if (last !== null && s.top === last) break;
       last = s.top;
     }
-    record(s.open && s.h > 0 && s.top >= 0 && s.top < s.ih / 2,
-      `references ${width}px: a click on [21] in the table opens the list and shows the entry (top ${s.top})`, JSON.stringify(s));
+    record(s.expanded && s.h > 0 && s.top >= 0 && s.top < s.ih / 2,
+      `references ${width}px: a click on [21] in the table shows the matching entry (top ${s.top})`, JSON.stringify(s));
     await context.close();
   }
   const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, javaScriptEnabled: false });
   const p2 = await c2.newPage();
   await p2.goto(origin + '/index.html#ref-21', { waitUntil: 'load' });
-  await p2.waitForTimeout(300);
-  const nojs = await p2.evaluate(() => document.getElementById('reference-list').open);
-  record(nojs === true, 'references no-JS: index.html#ref-21 opens the closed list', String(nojs));
+  // Poll from Node: requestAnimationFrame-based polling is unavailable when
+  // page JavaScript is disabled. Allow native smooth scrolling to settle.
+  let nojs;
+  for (let i = 0; i < 60; i++) {
+    await p2.waitForTimeout(150);
+    nojs = await p2.evaluate(() => {
+      const entry = document.getElementById('ref-21');
+      const r = entry.getBoundingClientRect();
+      return { expanded: !entry.closest('details'), top: r.top, bottom: r.bottom, h: r.height, ih: innerHeight };
+    });
+    if (nojs.top >= 0 && nojs.bottom < nojs.ih) break;
+  }
+  record(nojs.expanded && nojs.h > 0 && nojs.top >= 0 && nojs.bottom < nojs.ih,
+    'references no-JS: index.html#ref-21 shows the visible bibliography entry', JSON.stringify(nojs));
   await c2.close();
 }
 

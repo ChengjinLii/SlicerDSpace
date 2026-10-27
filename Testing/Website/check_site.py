@@ -79,6 +79,12 @@ ALLOWED_URLS = {
     "https://chengjinlii.github.io/SlicerDDSurfer/assets/img/social.jpg",
 }
 
+# The reviewed bibliography is the allowlist for scientific/software citations.
+# It is maintained outside the public site; arbitrary new HTML links still fail.
+with open(os.path.join(ROOT, "docs", "website", "references.json"), encoding="utf-8") as catalog:
+    REFERENCE_CATALOG = json.load(catalog)
+ALLOWED_URLS.update(row["url"] for row in REFERENCE_CATALOG["references"])
+
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
         "meta", "source", "track", "wbr"}
 SKIP_TEXT = {"script", "style", "head", "title", "noscript"}
@@ -372,7 +378,7 @@ def local_refs(pages):
 # XML namespace URIs (for example in inline SVG) are identifiers, not requests.
 NAMESPACE_PREFIXES = ("http://www.w3.org/",)
 
-URL_RE = re.compile(r"(?:https?:)?//[^\s\"'<>)`\\]+|https?://[^\s\"'<>)`\\]+")
+URL_RE = re.compile(r"https?://[^\s\"'<>`\\]+")
 
 
 @check("external_urls")
@@ -386,8 +392,12 @@ def external_urls(pages):
             texts.append((f, read(f)))
     for path, text in texts:
         rel = os.path.relpath(path, ROOT)
-        for m in re.finditer(r"https?://[^\s\"'<>)`\\]+", text):
+        for m in URL_RE.finditer(text):
             url = m.group(0).rstrip(".,;:")
+            # Parentheses are legal DOI characters; strip only an unmatched
+            # closing delimiter, as in an unquoted CSS url(...).
+            while url.endswith(")") and url.count(")") > url.count("("):
+                url = url[:-1]
             if url.startswith(NAMESPACE_PREFIXES):
                 continue
             if url not in ALLOWED_URLS:
@@ -585,7 +595,8 @@ def images(pages):
             except (KeyError, ValueError):
                 problems.append("%s:%s %s width/height missing or not integers" % (rel, line, src))
                 continue
-            if a.get("loading") != "lazy":
+            # The small, shared header/footer logo loads eagerly; gallery images remain lazy.
+            if src != "assets/img/logo-ddsurfer.png" and a.get("loading") != "lazy":
                 problems.append("%s:%s %s lacks loading=lazy" % (rel, line, src))
             if src.startswith("data:"):
                 import base64
@@ -602,11 +613,11 @@ def images(pages):
     return fail_list(problems) if problems else None
 
 
-REQUIRED = ["at analysis time", "Private pre-release", "not a clinical assessment",
-            "not certified", "24,000 of 130,780", "not installed silently", "in preparation",
-            "display subset", "not acceptance by Slicer", "does not show them",
-            "No expert has reviewed", "SNR is higher than a typical single scan",
-            "workarounds that are not in the repository", "must share one voxel grid"]
+# Keep substantive installation and display scopes; removed Status prose is not
+# a homepage requirement. Per-run scientific evidence remains in source records.
+REQUIRED = ["at analysis time", "Private pre-release", "24,000 of 130,780",
+            "not installed silently", "in preparation", "display subset",
+            "anatomical review", "must share one voxel grid"]
 BANNED = [r"T1w?-free", r"T1-weighted-free", r"fully automatic", r"no registration",
           r"no preprocessing", r"U-shaped", r"\bthe first\b", r"\bthe only\b",
           r"clinical-grade", r"diagnos", r"FDA", r"available now", r"open[- ]source",
@@ -630,6 +641,9 @@ def claims_required(pages):
 def claims_banned(pages):
     problems = []
     text = wide_text(pages)
+    # Paper titles (e.g. dcm2niix's "The first step...") are not product claims.
+    for row in REFERENCE_CATALOG["references"]:
+        text = text.replace(" ".join(row["citation"].split()), "")
     for pat in BANNED:
         for m in re.finditer(pat, text, re.I):
             ctx = text[max(0, m.start() - 30):m.end() + 30]

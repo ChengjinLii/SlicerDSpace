@@ -70,6 +70,11 @@ PNL pipeline. See [implementation provenance and verification limits](docs/archi
 
 ## Installation
 
+**Installing with an Agent?** Give it the
+[SlicerDDSurfer installation skill](.agents/skills/slicerddsurfer-install/SKILL.md).
+It uses the existing installers, verifies activation in Slicer and can persist
+the module path after confirmation, without installing every backend.
+
 **Only using the plugin?** You do not need the website source or historical
 optimization reports. Runtime packages omit those materials; they stay in the
 complete repository for review and reproducibility. See

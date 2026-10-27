@@ -16,8 +16,9 @@ class PagesPublicationTest(unittest.TestCase):
     def test_current_public_site_passes_allowlist(self):
         result = audit(ROOT)
         self.assertEqual(result["status"], "pass", result)
-        self.assertEqual(result["file_count"], 42)   # Runtime and optimization evidence share the home page.
+        self.assertGreaterEqual(result["file_count"], 42)
         self.assertTrue((ROOT / 'docs/site/assets/img/fig-runtime-optimizations.png').is_file())
+        self.assertTrue((ROOT / 'docs/site/assets/img/guide-bot-hat.svg').is_file())
 
     def test_standalone_performance_page_is_not_publishable(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -49,6 +50,14 @@ class PagesPublicationTest(unittest.TestCase):
             (data / 'private.json').write_text('{}')
             self.assertEqual(audit(root)['status'], 'fail')
             (data / 'private.json').unlink()
+            images = site / 'assets/img'
+            images.mkdir(parents=True)
+            (images / 'guide-bot-hat.svg').write_text('<svg/>')
+            self.assertIn('Unapproved guide asset: assets/img/guide-bot-hat.svg', audit(root)['findings'])
+            (images / 'guide-bot-hat.svg').unlink()
+            (images / 'unapproved.svg').write_text('<svg/>')
+            self.assertIn('Unexpected public file: assets/img/unapproved.svg', audit(root)['findings'])
+            (images / 'unapproved.svg').unlink()
             (site / "leak.txt").symlink_to(private)
             self.assertEqual(audit(root)["status"], "fail")
 

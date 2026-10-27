@@ -48,4 +48,6 @@ def result_from_dict(record):
         python_executable=record['python_executable'], targets=tuple(record['targets']), statuses=statuses,
         target_statuses=targets, blocker_count=int(summary['blocker_count']),
         missing_python_packages=tuple(summary['missing_python_packages']),
-        missing_external_groups=tuple(summary['missing_external_groups']))
+        missing_external_groups=tuple(summary['missing_external_groups']),
+        tracking_backend_blockers={str(backend): dict(blockers) for backend, blockers in
+                                   record.get('tracking_backend_blockers', {}).items()})

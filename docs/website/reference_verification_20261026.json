@@ -1,0 +1,1101 @@
+{
+  "primary_metadata": [
+    {
+      "id": 36,
+      "doi": "10.1016/j.jneumeth.2016.03.001",
+      "title": "The first step for neuroimaging data analysis: DICOM to NIfTI conversion",
+      "authors": [
+        {
+          "given": "Xiangrui",
+          "family": "Li",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Paul S.",
+          "family": "Morgan",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "John",
+          "family": "Ashburner",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Jolinda",
+          "family": "Smith",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Christopher",
+          "family": "Rorden",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "Journal of Neuroscience Methods",
+      "volume": "264",
+      "pages": "47-56",
+      "year": 2016,
+      "source": "https://api.crossref.org/works/10.1016%2Fj.jneumeth.2016.03.001"
+    },
+    {
+      "id": 37,
+      "doi": "10.1038/s41597-024-03058-w",
+      "title": "Harmonized diffusion MRI data and white matter measures from the Adolescent Brain Cognitive Development Study",
+      "authors": [
+        {
+          "ORCID": "https://orcid.org/0000-0002-3315-5821",
+          "authenticated-orcid": false,
+          "given": "Suheyla",
+          "family": "Cetin-Karayumak",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "ORCID": "https://orcid.org/0000-0002-5032-6039",
+          "authenticated-orcid": false,
+          "given": "Fan",
+          "family": "Zhang",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Ryan",
+          "family": "Zurrin",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "ORCID": "https://orcid.org/0000-0002-3611-6457",
+          "authenticated-orcid": false,
+          "given": "Tashrif",
+          "family": "Billah",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Leo",
+          "family": "Zekelman",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Nikos",
+          "family": "Makris",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Steve",
+          "family": "Pieper",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "ORCID": "https://orcid.org/0000-0003-0197-7801",
+          "authenticated-orcid": false,
+          "given": "Lauren J.",
+          "family": "O’Donnell",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Yogesh",
+          "family": "Rathi",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "Scientific Data",
+      "volume": "11",
+      "pages": "249",
+      "year": 2024,
+      "source": "https://api.crossref.org/works/10.1038%2Fs41597-024-03058-w"
+    },
+    {
+      "id": 39,
+      "doi": "10.1016/j.neuroimage.2016.08.016",
+      "title": "Denoising of diffusion MRI using random matrix theory",
+      "authors": [
+        {
+          "ORCID": "https://orcid.org/0000-0003-0781-0420",
+          "authenticated-orcid": false,
+          "given": "Jelle",
+          "family": "Veraart",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Dmitry S.",
+          "family": "Novikov",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Daan",
+          "family": "Christiaens",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Benjamin",
+          "family": "Ades-aron",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Jan",
+          "family": "Sijbers",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Els",
+          "family": "Fieremans",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "NeuroImage",
+      "volume": "142",
+      "pages": "394-406",
+      "year": 2016,
+      "source": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2016.08.016"
+    },
+    {
+      "id": 40,
+      "doi": "10.1371/journal.pone.0073021",
+      "title": "Diffusion Weighted Image Denoising Using Overcomplete Local PCA",
+      "authors": [
+        {
+          "given": "José V.",
+          "family": "Manjón",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Pierrick",
+          "family": "Coupé",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Luis",
+          "family": "Concha",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Antonio",
+          "family": "Buades",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "D. Louis",
+          "family": "Collins",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Montserrat",
+          "family": "Robles",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "PLoS ONE",
+      "volume": "8",
+      "pages": "e73021",
+      "year": 2013,
+      "source": "https://api.crossref.org/works/10.1371%2Fjournal.pone.0073021"
+    },
+    {
+      "id": 42,
+      "doi": "10.1002/mrm.26054",
+      "title": "Gibbs‐ringing artifact removal based on local subvoxel‐shifts",
+      "authors": [
+        {
+          "given": "Elias",
+          "family": "Kellner",
+          "sequence": "first",
+          "affiliation": [
+            {
+              "name": "Department of Radiology Medical Physics, University Medical Center Freiburg  Germany"
+            }
+          ],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Bibek",
+          "family": "Dhital",
+          "sequence": "additional",
+          "affiliation": [
+            {
+              "name": "Department of Radiology Medical Physics, University Medical Center Freiburg  Germany"
+            },
+            {
+              "name": "German Cancer Consortium (DKTK) &amp; German Cancer Research Center (DKFZ) Heidelberg Germany."
+            }
+          ],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Valerij G.",
+          "family": "Kiselev",
+          "sequence": "additional",
+          "affiliation": [
+            {
+              "name": "Department of Radiology Medical Physics, University Medical Center Freiburg  Germany"
+            }
+          ],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Marco",
+          "family": "Reisert",
+          "sequence": "additional",
+          "affiliation": [
+            {
+              "name": "Department of Radiology Medical Physics, University Medical Center Freiburg  Germany"
+            }
+          ],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "Magnetic Resonance in Medicine",
+      "volume": "76",
+      "pages": "1574-1581",
+      "year": 2016,
+      "source": "https://api.crossref.org/works/10.1002%2Fmrm.26054"
+    },
+    {
+      "id": 43,
+      "doi": "10.1016/j.neuroimage.2015.10.019",
+      "title": "An integrated approach to correction for off-resonance effects and subject movement in diffusion MR imaging",
+      "authors": [
+        {
+          "given": "Jesper L.R.",
+          "family": "Andersson",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Stamatios N.",
+          "family": "Sotiropoulos",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "NeuroImage",
+      "volume": "125",
+      "pages": "1063-1078",
+      "year": 2016,
+      "source": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2015.10.019"
+    },
+    {
+      "id": 44,
+      "doi": "10.1016/s1053-8119(03)00336-7",
+      "title": "How to correct susceptibility distortions in spin-echo echo-planar images: application to diffusion tensor imaging",
+      "authors": [
+        {
+          "given": "Jesper L.R.",
+          "family": "Andersson",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Stefan",
+          "family": "Skare",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "John",
+          "family": "Ashburner",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "NeuroImage",
+      "volume": "20",
+      "pages": "870-888",
+      "year": 2003,
+      "source": "https://api.crossref.org/works/10.1016%2FS1053-8119%2803%2900336-7"
+    },
+    {
+      "id": 45,
+      "doi": "10.1016/s0006-3495(94)80775-1",
+      "title": "MR diffusion tensor spectroscopy and imaging",
+      "authors": [
+        {
+          "given": "P.J.",
+          "family": "Basser",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "J.",
+          "family": "Mattiello",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "D.",
+          "family": "LeBihan",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "Biophysical Journal",
+      "volume": "66",
+      "pages": "259-267",
+      "year": 1994,
+      "source": "https://api.crossref.org/works/10.1016%2FS0006-3495%2894%2980775-1"
+    },
+    {
+      "id": 46,
+      "doi": "10.1016/j.neuroimage.2007.02.016",
+      "title": "Robust determination of the fibre orientation distribution in diffusion MRI: Non-negativity constrained super-resolved spherical deconvolution",
+      "authors": [
+        {
+          "given": "J-Donald",
+          "family": "Tournier",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Fernando",
+          "family": "Calamante",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Alan",
+          "family": "Connelly",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "NeuroImage",
+      "volume": "35",
+      "pages": "1459-1472",
+      "year": 2007,
+      "source": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2007.02.016"
+    },
+    {
+      "id": 47,
+      "doi": "10.1073/pnas.200033797",
+      "title": "Measuring the thickness of the human cerebral cortex from magnetic resonance images",
+      "authors": [
+        {
+          "given": "Bruce",
+          "family": "Fischl",
+          "sequence": "first",
+          "affiliation": [
+            {
+              "name": "Nuclear Magnetic Resonance Center, Massachusetts General Hospital,\r Harvard Medical School, Building 149, 13th Street, Charlestown, MA\r 02129"
+            }
+          ],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Anders M.",
+          "family": "Dale",
+          "sequence": "additional",
+          "affiliation": [
+            {
+              "name": "Nuclear Magnetic Resonance Center, Massachusetts General Hospital,\r Harvard Medical School, Building 149, 13th Street, Charlestown, MA\r 02129"
+            }
+          ],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "Proceedings of the National Academy of Sciences",
+      "volume": "97",
+      "pages": "11050-11055",
+      "year": 2000,
+      "source": "https://api.crossref.org/works/10.1073%2Fpnas.200033797"
+    },
+    {
+      "id": 48,
+      "doi": "10.1016/j.neuroimage.2006.01.021",
+      "title": "An automated labeling system for subdividing the human cerebral cortex on MRI scans into gyral based regions of interest",
+      "authors": [
+        {
+          "given": "Rahul S.",
+          "family": "Desikan",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Florent",
+          "family": "Ségonne",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Bruce",
+          "family": "Fischl",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Brian T.",
+          "family": "Quinn",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Bradford C.",
+          "family": "Dickerson",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Deborah",
+          "family": "Blacker",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Randy L.",
+          "family": "Buckner",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Anders M.",
+          "family": "Dale",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "R. Paul",
+          "family": "Maguire",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Bradley T.",
+          "family": "Hyman",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Marilyn S.",
+          "family": "Albert",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Ronald J.",
+          "family": "Killiany",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "NeuroImage",
+      "volume": "31",
+      "pages": "968-980",
+      "year": 2006,
+      "source": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2006.01.021"
+    },
+    {
+      "id": 49,
+      "doi": "10.1016/j.neuroimage.2010.06.010",
+      "title": "Automatic parcellation of human cortical gyri and sulci using standard anatomical nomenclature",
+      "authors": [
+        {
+          "given": "Christophe",
+          "family": "Destrieux",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Bruce",
+          "family": "Fischl",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Anders",
+          "family": "Dale",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Eric",
+          "family": "Halgren",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "NeuroImage",
+      "volume": "53",
+      "pages": "1-15",
+      "year": 2010,
+      "source": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2010.06.010"
+    },
+    {
+      "id": 50,
+      "doi": "10.1016/j.neuroimage.2019.05.005",
+      "title": "Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential",
+      "authors": [
+        {
+          "given": "Chun-Hung",
+          "family": "Yeh",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Robert E.",
+          "family": "Smith",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Thijs",
+          "family": "Dhollander",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Fernando",
+          "family": "Calamante",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Alan",
+          "family": "Connelly",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "NeuroImage",
+      "volume": "199",
+      "pages": "160-171",
+      "year": 2019,
+      "source": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2019.05.005"
+    },
+    {
+      "id": 52,
+      "doi": "10.1002/mrm.26059",
+      "title": "Diffusion\n                    MRI\n                    noise mapping using random matrix theory",
+      "authors": [
+        {
+          "given": "Jelle",
+          "family": "Veraart",
+          "sequence": "first",
+          "affiliation": [
+            {
+              "name": "Center for Biomedical Imaging Department of Radiology New York University School of Medicine New York, NY USA"
+            },
+            {
+              "name": "Department of Physics iMinds‐Vision Lab, University of Antwerp Antwerp Belgium"
+            }
+          ],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Els",
+          "family": "Fieremans",
+          "sequence": "additional",
+          "affiliation": [
+            {
+              "name": "Center for Biomedical Imaging Department of Radiology New York University School of Medicine New York, NY USA"
+            }
+          ],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Dmitry S.",
+          "family": "Novikov",
+          "sequence": "additional",
+          "affiliation": [
+            {
+              "name": "Center for Biomedical Imaging Department of Radiology New York University School of Medicine New York, NY USA"
+            }
+          ],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "Magnetic Resonance in Medicine",
+      "volume": "76",
+      "pages": "1582-1593",
+      "year": 2016,
+      "source": "https://api.crossref.org/works/10.1002%2Fmrm.26059"
+    },
+    {
+      "id": 53,
+      "doi": "10.1016/j.neuroimage.2019.06.039",
+      "title": "Complex diffusion-weighted image estimation via matrix recovery under general noise models",
+      "authors": [
+        {
+          "given": "Lucilio",
+          "family": "Cordero-Grande",
+          "sequence": "first",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Daan",
+          "family": "Christiaens",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Jana",
+          "family": "Hutter",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Anthony N.",
+          "family": "Price",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        },
+        {
+          "given": "Jo V.",
+          "family": "Hajnal",
+          "sequence": "additional",
+          "affiliation": [],
+          "role": [
+            {
+              "vocabulary": "crossref",
+              "role": "author"
+            }
+          ]
+        }
+      ],
+      "journal": "NeuroImage",
+      "volume": "200",
+      "pages": "391-404",
+      "year": 2019,
+      "source": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2019.06.039"
+    }
+  ],
+  "metadata_source": "Crossref publisher deposits"
+}

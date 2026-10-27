@@ -1,0 +1,68 @@
+{
+  "status": "passed",
+  "source": "Slicer SampleData DWIVolume",
+  "source_sha256": {
+    "dwi.nhdr": "7666d83bc205382e418444ea60ab7df6dba6a0bd684933df8809da6b476b0fed",
+    "dwi.raw.gz": "cf03fd53583dc05120d3314d0a82bdf5946799b1f72f2a7f08963f3fd24ca692"
+  },
+  "shape": [
+    128,
+    128,
+    94,
+    43
+  ],
+  "voxel_values_exact_after_orientation": true,
+  "affine_max_abs_error": 0.0,
+  "gradient_count": 43,
+  "nonzero_shells": [
+    1000
+  ],
+  "scalar_summary": {
+    "FA": {
+      "minimum": 0.004226528573781252,
+      "maximum": 0.9998272061347961
+    },
+    "MD": {
+      "minimum": 1.4654181086370954e-06,
+      "maximum": 0.0032461571972817183
+    },
+    "AD": {
+      "minimum": 3.8051769024605164e-06,
+      "maximum": 0.003366622142493725
+    },
+    "RD": {
+      "minimum": 9.320256566525131e-08,
+      "maximum": 0.003197696525603533
+    },
+    "L1": {
+      "minimum": 3.8051769024605164e-06,
+      "maximum": 0.003366622142493725
+    },
+    "L2": {
+      "minimum": 1.8640513133050263e-07,
+      "maximum": 0.003249552333727479
+    },
+    "L3": {
+      "minimum": 9.996344030316351e-17,
+      "maximum": 0.003170264419168234
+    },
+    "Trace": {
+      "minimum": -0.00783957913517952,
+      "maximum": 0.009738471359014511
+    }
+  },
+  "automatic_qc_passed": true,
+  "human_review": "pending",
+  "independent_scalar_relations_checked": [
+    "AD=L1",
+    "MD=mean(L1,L2,L3)",
+    "RD=mean(L2,L3)",
+    "FA in [0,1]"
+  ],
+  "trace_clamp_boundary_voxels": 10,
+  "task_seconds": {
+    "validation": 10.656884165480733,
+    "microstructure.dti": 9.457775805145502
+  },
+  "scope": "Import geometry/voxel/gradient consistency and DTI scalar integrity on one upstream sample; no redistribution of data"
+}

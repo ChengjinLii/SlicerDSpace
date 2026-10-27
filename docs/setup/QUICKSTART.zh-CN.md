@@ -65,6 +65,28 @@ MD 使用灰度；显示设置不修改真实参数。执行完成、自动 QC �
 
 ---
 
+## 在 CLI 中选择束分析的追踪来源
+
+CLI 可以分别选择全脑追踪来源和束分析方法。例如，同时运行 CSD/ACT 和 UKF，
+但仅对 UKF 结果运行 WMQL 和 TractCloud：
+
+~~~bash
+python3 run_subject_pipeline.py --subject-root /path/to/sub-01 \
+  --targets segmentation,parcellation,tractography,bundles \
+  --tractography-backend csd_act,ukf --bundle-backend wmql,tractcloud \
+  --bundle-tractography-backend ukf --plan
+~~~
+
+检查输入和依赖后将 `--plan` 换成 `--execute`。来源可选 `ukf`、`csd_act`、
+`dti_det`，必要时会自动加入追踪任务。所有选中的束分析方法共享这一来源；
+如需不同方法使用不同来源，请使用不同的 `--run-name` 分别运行。未指定新参数时，
+保留原有逐追踪路线执行方式。不能同时指定该参数和 WMA/TractCloud 的外部输入文件。
+SAF 是短程联络纤维结果，不作为全脑来源。WMA 使用非 UKF 来源时尤其需要关注束覆盖，
+现有 QC 门槛和人工解剖审核仍然适用；能够运行不等于束覆盖合格。正式执行前可用
+`--doctor` 检查所选方法的依赖。
+
+---
+
 ## 合成安装测试
 
 在具备 NumPy/nibabel 的环境、从仓库根目录执行：
@@ -77,8 +99,9 @@ python3 -c "from pathlib import Path; from shared.demo_data import create_synthe
 这是七个测量的小型恒定张量场，**不是人体脑数据**，只检查安装与 DTI 链路，
 不能验证表面精度、NODDI 或临床有效性。
 
-旧 Demo 回调保留给测试，不是公开按钮。可再分发的真实数据教程与 Sample Data
-注册仍是后续工作，不标记为完成。
+旧 Demo 回调保留给测试，不是公开按钮。真实 DWI 入门可参考
+[Slicer DWIVolume 教程](SLICER_SAMPLE_DTI.zh-CN.md)，复用 Slicer 已有的
+Sample Data 条目，不镜像原始影像。本插件独立可再分发数据的注册仍待完成。
 
 ---
 

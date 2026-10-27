@@ -26,8 +26,8 @@
 
 ## 性能部分
 
-性能证据已并入主页的 `#performance` 部分：位于 `#cite` 参考文献和 `#runtime` 图之后，是一个
-默认关闭的折叠块“Performance evidence”。页脚链接和状态说明都使用主页内导航。
+性能证据已并入主页的 `#performance` 部分：位于 `#runtime` 图之后、页尾参考文献之前，是一个
+默认关闭的折叠块“Performance evidence”。页脚链接使用主页内导航。
 运行时间、优化图表和详细证据均留在主页，不另设子页；旧跳转页已删除。
 证据分别展示等价计算实现、原生多线程、工作流调度及 Python 移植版对照，注明基线、
 测量范围、输出一致性和限制，不宣称整条工作流的加速率。
@@ -46,11 +46,21 @@
 
 ## 首页、方法表与参考文献
 
-首页标题与论文题目一致；移除独立的“The idea”段落。Workflows 按预处理、微结构、
-解剖、纤维追踪、束分析和连接组六类组织。Get started 提供安装路径、输入准备、
+悬浮项目助手按个人主页 `d30286f` 的 Chengjin Bot 复刻头像、光晕、眨眼、眼动、
+节日帽和对话框：眼动每 150 ms 采样、每帧按 0.05 平滑，最大偏移 5 px。使用
+`docs/site/assets/js/guide-bot.js` 中的中英文预设资料在本地回答，不访问在线模型、
+不发送或持久化用户问题。安装步骤或产品功能变化时，应同步更新答案。可运行
+`node Testing/Website/guide_bot_check.mjs` 检查拖动、键盘、响应式布局及无脚本回退。
+
+首页主标题为“SlicerDDSurfer”，论文题目的说明部分作为下方副标题。移除独立的
+The idea、Workflows 和 Status 部分，结果简介不再反复强调被试编号，来源记录继续保留。
+“What is integrated” 紧邻最后的 References 之前。方法总图继续保留，六种产品组合示例
+及独立 In Slicer 区块不再展示。页眉、页脚和浏览器图标改用 `docs/figures/logo-ref.svg`
+导出的透明 PNG；`python3 scripts/sync_website_logo.py --check` 检查矢量源及导出资源。
+Get started 提供安装路径、输入准备、
 按需环境安装、方法选择及 CLI 示例。
 
-- `assets/img/fig-route-guide.png`（`#choose`），以及 `#runtime` 中独立的
+- `assets/img/fig-product-map.png`（`#choose`），以及 `#runtime` 中独立的
   `assets/img/fig-runtime-resources.png` 和 `assets/img/fig-runtime-optimizations.png`
   由 `docs/figures/` 中可编辑的 SVG 生成，SVG 不公开发布，重建方法见 `docs/figures/README.md`。
   每个 `<img>` 的宽高与文件像素一致，并链接到原图。
@@ -58,12 +68,17 @@
   素材逐字节一致，来源及哈希见 `docs/figures/src/results/wmql_sources.json`。
   `python3 scripts/sync_wmql_site_asset.py --check` 校验同步状态，去掉 `--check` 可刷新。
   完整侧位图按比例显示，不裁切边缘；旧 CSD/ACT AF/CST 缩略图不再发布。
-- `#workflows` 中的“What is integrated”表逐项说明实现、运行依赖和调用入口，
+- 独立的 `#integrated` 部分用“What is integrated”表列出 35 项具体方法及分析工具，
+  覆盖去噪、脑掩膜、解剖、微结构、追踪、束分析、连接组和选区分析，每项均有来源引用。
+  表格逐项说明实现、运行依赖和调用入口，
   不再用某次测试的橙色状态标签概括整种方法。WMA 的推荐 UKF 输入、部分连接组权重的
   Python API 入口及所需外部组件继续明确列出；具体测试与科学审核记录保留在原有链接中。
-- `#cite` 将软件论文与算法文献统一放入 [1]–[35] 编号列表，不再单独突出前三篇。
-  只收已核对 DOI 或页面的条目。
-  新增外部链接须同步加入 `Testing/Website/check_site.py` 的 `ALLOWED_URLS`。
+- `#cite` 放在主页最后，直接展开 [1]–[53] 的完整参考文献，保留原有编号。
+  `docs/website/references.json` 保存已核对的论文、作者软件或官方文档链接；新增 DOI
+  的出版者元数据保存在 `reference_verification_20261026.json`。
+  `python3 scripts/build_website_catalog.py` 统一生成方法表和文献表，`--check` 检查
+  HTML 是否过期、源码入口是否存在、方法是否缺引用。文献链接由该审核目录加入允许列表；
+  其他外部链接仍须加入 `Testing/Website/check_site.py` 的 `ALLOWED_URLS`。
 
 ---
 

@@ -61,6 +61,10 @@ Python 后端，不是重写整套 PNLpipeline。见[实现来源与验证边界
 
 ## 安装
 
+**希望让自己的 Agent 安装？** 将[安装启用 skill](.agents/skills/slicerddsurfer-install/SKILL.md)
+交给它；该技能复用现有安装器，在真实 Slicer 中验证模块启用，按需保存模块路径并
+准备所选分析的依赖，不会一次安装全部后端。
+
 **仅使用插件，无需下载网站源码和历史优化报告。** 插件安装包不包含这些材料；
 完整仓库仍保留它们，供审查和论文复现。需要源码安装但不需要完整资料时，见
 [下载方式与轻量检出](docs/setup/DOWNLOADS.zh-CN.md)。

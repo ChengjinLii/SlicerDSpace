@@ -7,7 +7,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from shared.environment import DependencyStatus, EnvironmentDoctorResult, TargetEnvironmentStatus
+from shared.environment import DependencySpec, DependencyStatus, EnvironmentDoctorConfig, EnvironmentDoctorResult, TargetEnvironmentStatus
 from shared.environment_check import check_config, config_from_dict, result_from_dict
 from shared.ui_input_defaults import subject_folder_defaults
 
@@ -54,6 +54,45 @@ class EnvironmentCheckTests(unittest.TestCase):
         self.assertEqual(decoded.blocked_targets, ('validation',))
         with self.assertRaises(ValueError):
             result_from_dict({'kind': 'other', 'version': 1})
+
+    def test_multi_tracking_checks_backends_separately_and_reuses_probes(self):
+        from shared.environment import run_environment_doctor, summarize_environment_doctor
+        from shared.multi_tracking import variants
+        from shared.orchestrator import ProductOrchestratorConfig
+
+        def specs(config):
+            backends = config.tractography_backend.split(',')
+            return tuple(DependencySpec(key=key, kind='setting', label=key, required=True,
+                                        targets=('tractography',))
+                         for key in (['shared'] + [backend for backend in backends]))
+
+        probes = []
+        def check(spec, platform):
+            probes.append(spec.key)
+            return DependencyStatus(spec.key, spec.kind, spec.label,
+                                    'missing' if spec.key == 'csd_act' else 'available',
+                                    spec.required, spec.targets)
+
+        config = EnvironmentDoctorConfig(targets=('tractography',), repo_root=Path('/repo'),
+                                         tractography_backend='csd_act,ukf')
+        with patch('shared.environment.build_dependency_specs', side_effect=specs), \
+             patch('shared.environment._check_spec', side_effect=check):
+            result = run_environment_doctor(config)
+        self.assertEqual(probes.count('shared'), 1)
+        self.assertEqual(probes.count('csd_act'), 1)
+        self.assertEqual(probes.count('ukf'), 1)
+        self.assertIn('csd_act', result.tracking_backend_blockers['csd_act']['tractography'])
+        self.assertEqual(result.tracking_backend_blockers['ukf'], {})
+        self.assertIn('tractography.ukf: dependencies available', summarize_environment_doctor(result))
+        self.assertEqual(result_from_dict(result.to_dict()), result)
+
+        orchestration = ProductOrchestratorConfig('s', Path('/subject'), ('tractography',),
+            tractography_backend='csd_act,ukf',
+            preflight_blocked_targets={'tractography': 'combined'},
+            preflight_blocked_by_backend=result.tracking_backend_blockers)
+        csd, ukf = variants(orchestration)
+        self.assertIn('tractography', csd.preflight_blocked_targets)
+        self.assertEqual(ukf.preflight_blocked_targets, {})
 
     def test_folder_picker_only_fills_empty_id_and_handles_canonical_input(self):
         with tempfile.TemporaryDirectory() as tmp:

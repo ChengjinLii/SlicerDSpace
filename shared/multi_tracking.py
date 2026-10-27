@@ -16,10 +16,16 @@ def variants(config):
     selected = algorithms(config.tractography_backend)
     for index, backend in enumerate(selected):
         targets = tuple(target for target in config.targets if
-                        (backend == "saf" or target != "saf") and (index == 0 or target not in SHARED))
+                        (backend == "saf" or target != "saf") and (index == 0 or target not in SHARED)
+                        and (not config.bundle_tractography_backend or backend == config.bundle_tractography_backend
+                             or target not in {'bundles', 'wma', 'tractcloud'}))
         if not targets:
             continue
         yield replace(config, tractography_backend=backend,
+                      preflight_blocked_targets=config.preflight_blocked_by_backend.get(
+                          backend, config.preflight_blocked_targets),
+                      bundle_tractography_backend=(config.bundle_tractography_backend
+                                                   if backend == config.bundle_tractography_backend else None),
                       run_name=normalize_run_name(config.run_name) + "__" + backend, targets=targets,
                       microstructure_run_free_water=config.microstructure_run_free_water if index == 0 else False,
                       microstructure_run_noddi=config.microstructure_run_noddi if index == 0 else False,
@@ -63,6 +69,8 @@ def run(config, *, log=None):
     payload = dict(kind="slicerddsurfer_product_orchestration", version=1, subject_id=config.subject_id,
                    subject_root=str(config.subject_root.resolve()), output_root=str(layout.outputs), run_name=name,
                    targets=list(planned.targets), tractography_backends=list(algorithms(config.tractography_backend)),
+                   bundle_tractography_backend=config.bundle_tractography_backend,
+                   preflight_blocked_by_backend=config.preflight_blocked_by_backend,
                    run_plan_path=str(planned.run_plan_path), status="running", tasks=tasks, child_runs=children,
                    execute=config.execute, started_at=datetime.now(timezone.utc).isoformat(),
                    note="Tracking variants run sequentially; shared products run once. Bundle/connectome outputs are variant-specific; QC gates are unchanged.")

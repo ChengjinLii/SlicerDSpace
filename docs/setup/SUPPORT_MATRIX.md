@@ -35,13 +35,15 @@ separately from runtime readiness.
 | --- | --- | --- | --- |
 | Resource/CMake contract | Local evidence; CI configured | CI configured; execution evidence needed | CI configured; execution evidence needed |
 | Real Slicer GUI/source install | Dated local records | Not certified | Not certified |
-| Real SDK/CTest/CPack | Requires real SDK acceptance | Requires real SDK acceptance | Requires real SDK acceptance |
+| Real SDK/CTest/CPack | Linux/Slicer 5.10 candidate verified 2026-10-22 | Requires real SDK acceptance | Requires real SDK acceptance |
 | Scientific workflows | Only recorded routes/data | Native not certified; WSL setup is not native acceptance | Not certified |
 | Advanced backends | Only recorded routes | Tool/WSL limitations | Tool-specific limitations |
 
-Resource checks are not three-platform Slicer builds. The opt-in SDK workflow
-needs separately provisioned runners and does not claim success before execution.
-See the [release gate](../release/EXTENSION_READINESS.md).
+The Linux record includes a real CPack archive and local installation with
+isolated settings; see the [official integration record](../release/OFFICIAL_SLICER_VALIDATION_20261022.md).
+It does not establish acceptance of later changes, a clean machine, online
+store installation or other platforms. Resource checks are not three-platform
+Slicer builds. See the [release gate](../release/EXTENSION_READINESS.md).
 
 ---
 
@@ -58,7 +60,7 @@ inherit Linux QC or timings.
 | DTI, deterministic tracking | SlicerDMRI route measured | Native SlicerDMRI candidate | Native SlicerDMRI candidate |
 | DDSeg/DDParcel/DDSurfer native reconstruction | Recorded data/routes and matching models | Native PyTorch/SlicerDMRI candidate with usable mask | Native CPU candidate with usable mask and matching models |
 | DIPY preprocessing, FW, NODDI | Scoped inputs measured | Native Python candidate; compatible DIPY/AMICO | Native Python candidate; architecture-compatible packages |
-| DKI/Python MK-Curve | Small real ROIs only; full-brain timing missing | Native numerical candidate; eligible multi-shell data | Native numerical candidate; eligible multi-shell data |
+| DKI/Python MK-Curve | Specified-subject full-brain checks and timing recorded; invalid voxels excluded | Native numerical candidate; eligible multi-shell data | Native numerical candidate; eligible multi-shell data |
 | PNL CNN mask | External TensorFlow/Keras/ANTs route measured; Linux x86_64 managed setup and CUDA forward/mask checks | **Unavailable in native Windows GUI**; supply a mask or explicitly select MRtrix/WSL | POSIX/ANTs/TensorFlow required; no CUDA, Metal unimplemented; unmeasured here |
 | Full FreeSurfer SynthStrip environment | CPU/CUDA measured | **Not native Windows in this wrapper**; full Linux/WSL environment needed | FreeSurfer/Python CPU candidate, unmeasured here |
 | Cortical postprocessing | Source-built native components or existing FreeSurfer; [setup](SURFACE_COMPONENTS.md) | Native source build unsupported; WSL/full-install bridge acceptance pending | Existing native FreeSurfer candidate; local source build unvalidated, not auto-provisioned |
@@ -81,6 +83,7 @@ inherit Linux QC or timings.
 - Windows setup defaults to `-Device auto`, detects the GPU inside WSL and verifies actual PyTorch CUDA allocation. Explicit CUDA errors are not retried on CPU.
 - FSL requires explicit license acceptance. Installers do not change NVIDIA drivers or install replacement Linux display drivers.
 - WSL process-tree cancellation and Windows/macOS scene reintegration require real-host acceptance. Unit/source checks do not prove every Linux descendant stops on Windows cancellation.
+- The [full-brain DKI/MK-Curve records](../release/MODULE_RUNTIMES_20261017.md) concern a specified subject; valid-voxel screening is not a full-brain MATLAB comparison or validation of all acquisitions.
 
 The legacy DDSeg entry now handles `.exe` and `Slicer.app/Contents`; macOS
 external Python removes Slicer dylib-path contamination. Details:

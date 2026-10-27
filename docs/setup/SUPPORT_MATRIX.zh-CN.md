@@ -33,12 +33,14 @@
 | --- | --- | --- | --- |
 | 资源/CMake 合同 | 有本地证据；已配置 CI | 已配置 CI，仍需运行证据 | 已配置 CI，仍需运行证据 |
 | 真实 Slicer GUI/源码安装 | 有带日期记录 | 未认证 | 未认证 |
-| 真实 SDK/CTest/CPack | 待真实 SDK 验收 | 待真实 SDK 验收 | 待真实 SDK 验收 |
+| 真实 SDK/CTest/CPack | 2026-10-22 候选版本已在 Linux/Slicer 5.10 验证 | 待真实 SDK 验收 | 待真实 SDK 验收 |
 | 科学路线 | 仅报告所列路线/数据 | 原生未认证；WSL 设置不等于原生验收 | 未认证 |
 | 高级后端 | 仅报告所列路线 | 受工具/WSL 限制 | 受工具限制 |
 
-资源检查不等于三平台 Slicer 构建。手动 SDK workflow 需要另行部署真实构建
-环境的 runner，未运行不能标记成功。详见[发布门禁](../release/EXTENSION_READINESS.zh-CN.md)。
+Linux 验证包含实际 CPack 包和隔离设置的本地扩展安装，范围与版本见
+[官方集成记录](../release/OFFICIAL_SLICER_VALIDATION_20261022.zh-CN.md)；
+不能代表当前修改、空白机器、在线商店安装或其他平台已通过。资源检查不等于
+三平台 Slicer 构建。详见[发布门禁](../release/EXTENSION_READINESS.zh-CN.md)。
 
 ---
 
@@ -54,7 +56,7 @@ WSL 是 Linux 后端，不是 Windows 原生计算；Windows/macOS 不继承 Lin
 | DTI、确定性追踪 | SlicerDMRI 路线已测 | 原生 SlicerDMRI 候选 | 原生 SlicerDMRI 候选 |
 | DDSeg/DDParcel/DDSurfer 原生重建 | 指定数据/路线已测，需匹配模型 | 原生 PyTorch/SlicerDMRI 候选，需可用掩膜 | 原生 CPU 候选，需可用掩膜及匹配模型 |
 | DIPY 预处理、FW、NODDI | 指定输入已测 | 原生 Python 候选，需兼容 DIPY/AMICO | 原生 Python 候选，需匹配架构的包 |
-| DKI/Python MK-Curve | 仅真实小 ROI 已测，全脑时间缺失 | 原生数值候选，需适用的多壳数据 | 原生数值候选，需适用的多壳数据 |
+| DKI/Python MK-Curve | 指定被试全脑已有独立检查与计时；无效体素须排除 | 原生数值候选，需适用的多壳数据 | 原生数值候选，需适用的多壳数据 |
 | PNL CNN 掩膜 | 外部路线已测；Linux x86_64 自动配置与 CUDA 前向/掩膜检查 | **Windows 原生 GUI 不支持**；提供掩膜或明确选择 MRtrix/WSL | 需 POSIX/ANTs/TensorFlow；无 CUDA，Metal 未实现，未实测 |
 | 完整 FreeSurfer SynthStrip 环境 | CPU/CUDA 已测 | **当前封装不支持原生 Windows**，需完整 Linux/WSL 环境 | FreeSurfer/Python CPU 候选，未实测 |
 | 皮层表面后处理 | 本机源码组件或已有 FreeSurfer；[配置说明](SURFACE_COMPONENTS.zh-CN.md) | 不支持原生源码构建；WSL／完整安装桥接待验收 | 已有原生 FreeSurfer 候选；源码编译未验证、不自动准备 |
@@ -77,6 +79,7 @@ WSL 是 Linux 后端，不是 Windows 原生计算；Windows/macOS 不继承 Lin
 - Windows 安装器默认 `-Device auto`，在 WSL 内检测 GPU 并验证真实 PyTorch CUDA 分配。明确 CUDA 失败不会重试 CPU。
 - FSL 安装需明确接受许可；不会修改 NVIDIA 驱动或安装替代 Linux 显卡驱动。
 - WSL 子进程取消及 Windows/macOS 场景回载仍需真机验收。源码/单元测试不能证明取消后所有 Linux 子进程都已终止。
+- 全脑 DKI 与 MK-Curve 记录见[模块计时](../release/MODULE_RUNTIMES_20261017.zh-CN.md)；全脑运行与有效体素筛查不等于全脑 MATLAB 对照或所有采集方案均已验证。
 
 旧 DDSeg 入口已识别 `.exe` 和 `Slicer.app/Contents`；macOS 外部 Python 不再继承
 Slicer dylib 路径。详见[本轮平台复核](../release/PLATFORM_AUDIT_20261015.md)、

@@ -1,0 +1,129 @@
+{
+  "kind": "slicerddsurfer_product_polish",
+  "date": "2026-10-28",
+  "candidate_base_commit": "33dddd2f9f3ba2f05de6b138216223c868b6554d",
+  "candidate": "Base commit plus working-tree changes; source hashes below identify the tested files",
+  "source_sha256": {
+    ".agents/skills/slicerddsurfer-install/SKILL.md": "0321ac70528384587e6dd5f56caf1631ad2c9d043265a845b6bd01bc8f936654",
+    ".agents/skills/slicerddsurfer-install/scripts/enable_in_slicer.py": "d058a76b6d7cfe2716c6da1b340e464e32a565d940362defe464f94ede4ce911",
+    "shared/environment.py": "cd074ac636e0a19bdd8f28b5abbbd08d3ce5af0b03ef5732e26abc02885f0bea",
+    "shared/environment_check.py": "2c38b67011d68729a45f4094cc38e37f9cda4541041b98a0d108c4a2b5cc538a",
+    "shared/input_import.py": "bbefe1043cdcceabdcd42e9bb8cc9983c39ab95e8ecfc595916679e41033f01f",
+    "shared/multi_tracking.py": "5deed455fb588d11a356a44f7cbf15143d1a9bfa8827bc1f7bfb7d2cd5d3d8ba",
+    "shared/orchestrator.py": "64410bbabebb33a4edb2bdad880f9d98efd698fc4e8bed947a3acef722be6fa9",
+    "shared/run_subject_pipeline_cli.py": "fd6bf3357188016497bb0f37ec4da17068017e8c48938482303efddd9dd4d49a",
+    "shared/ui_environment_panel.py": "4b06c5bfbe934391b731d306af38f8d8b0d3282451987bc3bbb61af72a7b28b9",
+    "microstructure/pipeline.py": "734103502c8531c7c9ef05a284ec90091816ab2cf672c57399423b76eb23eeb6",
+    "scripts/slicer_acceptance.py": "4ca684445e42a730b81d069c3e07b4a2461600910d667640497e2e622f2d90fc",
+    "scripts/extension_runtime/runtime_resources.json": "82733f455329525829d3bd66cc44dfeef5e800f6ff9d3ebbd56b9451f4794db3",
+    "Testing/Python/test_input_import.py": "1eb4557cf7184954f23c13bb0d3f9f10d5f59728470a3a120a4a30463ac05da3",
+    "Testing/Python/test_environment_check.py": "d463ec747b5ae5b29798ebff8598f7c91be29bdeb7ad280aefb15de40d544b14",
+    "Testing/Python/test_extension_distribution.py": "b767d506a12c52fc739e98c4531e12aab2a74b71d0ffffbc334233c976d0d4d6",
+    "Testing/Python/test_cli_bundle_source.py": "90623852a3f9e68ec0ccdb1e26ef4eb92161648b7831bbcf470e994ed3ae68a3",
+    "Testing/Python/slicer_environment_async_smoke.py": "e1251eeffe6f79dcf0d7137228b4b907a0ca29e059715ec614e2cb890563e1fd",
+    "Testing/Python/slicer_compact_ui_smoke.py": "a4ca551df2adc183eaec02068291b731f3fbe44184b22b5eb5ce8b42ae8ad2b8",
+    "Testing/Python/slicer_agent_install_smoke.py": "dd5324f5a12fb43c9181cba711e8669a85ada9ae9749b502fd9c3f4aa7d7f9b3",
+    "Testing/Python/audit_slicer_sample.py": "21e2eaed52ea2ff7ee172caff55a6b28feffed31bdb596e430e00ec88fa5b832"
+  },
+  "python_tests": {
+    "total": 1571,
+    "passed": 1566,
+    "skipped": 5,
+    "seconds": 80.167
+  },
+  "gui": [
+    {
+      "name": "environment_async",
+      "status": "PASS",
+      "seconds": 27.80385877005756,
+      "script_sha256": "e1251eeffe6f79dcf0d7137228b4b907a0ca29e059715ec614e2cb890563e1fd"
+    },
+    {
+      "name": "algorithm_picker",
+      "status": "PASS",
+      "seconds": 15.937893526628613,
+      "script_sha256": "18a61a682db4675d0f2e79cb041fb9fe4eb35ddfe8104fc15ddbc136f10a1cdf"
+    },
+    {
+      "name": "compact_ui",
+      "status": "PASS",
+      "seconds": 16.33738254569471,
+      "script_sha256": "a4ca551df2adc183eaec02068291b731f3fbe44184b22b5eb5ce8b42ae8ad2b8"
+    },
+    {
+      "name": "agent_install",
+      "status": "PASS",
+      "seconds": 12.03304603509605,
+      "script_sha256": "dd5324f5a12fb43c9181cba711e8669a85ada9ae9749b502fd9c3f4aa7d7f9b3"
+    }
+  ],
+  "sdk": {
+    "status": "pass",
+    "ctest_entries": 180,
+    "steps": [
+      {
+        "name": "configure",
+        "returncode": 0,
+        "seconds": 3.5195418689399958
+      },
+      {
+        "name": "build",
+        "returncode": 0,
+        "seconds": 0.7653630152344704
+      },
+      {
+        "name": "ctest",
+        "returncode": 0,
+        "seconds": 161.55366014875472
+      },
+      {
+        "name": "cpack",
+        "returncode": 0,
+        "seconds": 0.7148538399487734
+      }
+    ],
+    "package": {
+      "kind": "slicerdsurfer_package_resource_audit",
+      "status": "pass",
+      "archive": "/data/chengjin/SlicerDDSurfer/ignore/validation/product_polish_20261028/sdk_final/3838-linux-amd64-SlicerDDSurfer-git33dddd2-2026-10-26.tar.gz",
+      "source_root": "/data/chengjin/SlicerDDSurfer",
+      "archive_sha256": "8b967efda4330b4fa09260475ef726040bec5e53cded78e348434e54dad32c8f",
+      "expected_file_count": 505,
+      "module_roots": [
+        "3838-linux-amd64-SlicerDDSurfer-git33dddd2-2026-10-26/lib/Slicer-5.10/qt-scripted-modules"
+      ],
+      "missing": [],
+      "changed": [],
+      "unexpected": [],
+      "unsafe": [],
+      "scope": "Package contents only; not SDK provenance or scientific correctness"
+    },
+    "slicer_config_sha256": "aedafb79bf4f00a9603a69403bd81f4d3cc738e0decdb5e4190af760e0bb6244",
+    "development_include_path": "/data/chengjin/software/ddsurfer_postprocess_env/include",
+    "development_library_path": "/data/chengjin/software/ddsurfer_postprocess_env/lib"
+  },
+  "installation": {
+    "archive_origin": "supplied_package",
+    "archive_sha256": "8b967efda4330b4fa09260475ef726040bec5e53cded78e348434e54dad32c8f",
+    "tests": [
+      {
+        "name": "extension_manager_install",
+        "status": "PASS",
+        "seconds": 20.34318572282791,
+        "script_sha256": "ac02faa3f0dbf2320477a79b6e5606f034c375c087eb7723bb859ff696113d13"
+      },
+      {
+        "name": "agent_install",
+        "status": "PASS",
+        "seconds": 12.433005342260003,
+        "script_sha256": "dd5324f5a12fb43c9181cba711e8669a85ada9ae9749b502fd9c3f4aa7d7f9b3"
+      }
+    ],
+    "note": "Extension Manager uses the supplied CPack archive; Agent activation uses final staged resources"
+  },
+  "sample_audit": "slicer_sample_dti_20261028.json",
+  "evidence_root": "ignore/validation/product_polish_20261028/",
+  "unchanged_sessions": true,
+  "github_actions_used": false,
+  "scope": "Linux local engineering acceptance and one upstream DTI example; optional backends and human review remain separate"
+}

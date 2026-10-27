@@ -77,6 +77,33 @@ mask alternatives and external runtimes before running.
 
 ---
 
+## Select A Bundle Source In The CLI
+
+The CLI can choose the whole-brain tracking source independently of the bundle
+methods. For example, run CSD/ACT and UKF, then apply WMQL and TractCloud only
+to the UKF result:
+
+~~~bash
+python3 run_subject_pipeline.py --subject-root /path/to/sub-01 \
+  --targets segmentation,parcellation,tractography,bundles \
+  --tractography-backend csd_act,ukf --bundle-backend wmql,tractcloud \
+  --bundle-tractography-backend ukf --plan
+~~~
+
+Replace `--plan` with `--execute` after checking dependencies and inputs. The
+source can be `ukf`, `csd_act`, or `dti_det`; it is run automatically if needed.
+All selected bundle methods use that source. To use different sources for
+different bundle methods, run separate commands with distinct `--run-name` values.
+Omitting the new option preserves the existing per-tracking-variant behaviour.
+Explicit WMA/TractCloud input-file options cannot be combined with this source
+option. SAF is a short-association-fibre product, not a whole-brain source.
+WMA results from non-UKF sources require particular care: the original QC
+thresholds and anatomical review still apply, and a runnable combination is not
+a guarantee of adequate bundle coverage. Install the dependencies for the
+selected methods and use `--doctor` before execution.
+
+---
+
 ## Synthetic Installation Check
 
 From the repository root, in a runtime with NumPy and nibabel:
@@ -91,8 +118,9 @@ anatomy**. It checks installation/DTI plumbing, not surface accuracy, NODDI or
 clinical validity.
 
 The legacy Demo handler is retained for tests, not an advertised visible button.
-A redistributable real-data tutorial and Sample Data registration remain future
-milestones; neither is claimed as complete.
+For a real DWI example, use the [Slicer DWIVolume walkthrough](SLICER_SAMPLE_DTI.md).
+It uses Slicer's existing Sample Data entry without mirroring the images.
+Registration of a separately redistributable SlicerDDSurfer dataset remains pending.
 
 ---
 

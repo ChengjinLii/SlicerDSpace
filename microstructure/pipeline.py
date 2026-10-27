@@ -1956,7 +1956,7 @@ def run_microstructure(
         )
     else:
         _emit(
-            "[Microstructure] ROI label map not found. Wrote DTI, Free Water, and NODDI maps only and skipped ROI-wise statistics.",
+            "[Microstructure] No ROI label map supplied. Wrote the selected model maps; regional statistics were skipped.",
             log,
         )
         paths["roi_stats_csv"].unlink(missing_ok=True)

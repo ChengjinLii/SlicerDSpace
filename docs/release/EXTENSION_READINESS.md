@@ -115,7 +115,7 @@ source tests and already configured workstations cannot replace this test.
 | Windows/macOS native SDK and scientific workflows | Not validated |
 | Recorded source licenses and LUT notices | Conversion/BWH, FreeSurfer/MGH, DDSurfer/MIT and PyTorch3D/BSD notices restored and checked; not a blanket legal clearance |
 | Model/template and fixture redistribution | Unconfirmed groups remain excluded from public asset archives |
-| Authorized real-data tutorial and Sample Data registration | Not completed |
+| Real-data tutorial and Sample Data registration | [Upstream Slicer DWIVolume walkthrough](../setup/SLICER_SAMPLE_DTI.md) tested for DTI; custom redistributable dataset registration remains pending |
 | Related patent disclosure | Maintainer review required; no absence claim is made |
 
 The descriptor under <code>docs/release/extension-index/SlicerDDSurfer.json</code>

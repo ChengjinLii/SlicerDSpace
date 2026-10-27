@@ -510,6 +510,12 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--bundle-tractography-backend",
+        choices=("csd_act", "ukf", "dti_det"),
+        help=("Use this whole-brain tracking backend as the source for all selected bundle methods. "
+              "The source is run automatically; SAF is a short-fibre product and is not a whole-brain input."),
+    )
+    parser.add_argument(
         "--connectome-backend",
         default="python",
         choices=("python", "mrtrix"),
@@ -766,12 +772,34 @@ def main(argv: list[str] | None = None) -> int:
     args.run_noddi = "noddi" in microstructure_stages
     args.run_dki = "dki" in microstructure_stages
 
+    if args.bundle_tractography_backend:
+        from shared.algorithm_selection import algorithms
+        if args.wma_input_tractography or args.tractcloud_input_tractography:
+            parser.error("--bundle-tractography-backend cannot be combined with explicit WMA or TractCloud input files")
+        if "tractography" in _split_csv_or_repeat(args.skip_targets):
+            parser.error("--bundle-tractography-backend requires tractography; remove --skip-targets tractography")
+        try:
+            tracking = list(algorithms(args.tractography_backend))
+        except ValueError as exc:
+            parser.error(str(exc))
+        source = args.bundle_tractography_backend
+        if "tractography_backend" not in explicit_dests:
+            tracking = [source]
+        elif source not in tracking:
+            tracking.append(source)
+        args.tractography_backend = ",".join(tracking)
+
     try:
         targets = _resolve_targets(args)
     except ValueError as exc:
         parser.error(str(exc))
     if not targets:
         parser.error("No targets selected. Use --all or --targets.")
+    if args.bundle_tractography_backend:
+        if not set(targets).intersection({"bundles", "wma", "tractcloud"}):
+            parser.error("--bundle-tractography-backend requires a bundle target")
+        if "tractography" not in targets:
+            targets = (*targets, "tractography")
     unsupported = sorted(set(targets) - set(ALL_CLI_TARGETS))
     if unsupported:
         parser.error(f"Unsupported targets: {', '.join(unsupported)}")
@@ -853,6 +881,7 @@ def main(argv: list[str] | None = None) -> int:
         run_name=args.run_name,
         tractography_backend=args.tractography_backend,
         bundle_backend=args.bundle_backend,
+        bundle_tractography_backend=args.bundle_tractography_backend,
         ukf_parameters=json.loads(args.ukf_parameters),
         ukf_executable=args.ukf_executable,
         dwiconvert_executable=args.dwiconvert_executable,
@@ -941,6 +970,7 @@ def main(argv: list[str] | None = None) -> int:
         tractcloud_device=args.tractcloud_device,
         tractcloud_batch_size=args.tractcloud_batch_size,
         preflight_blocked_targets=preflight_blocked_targets,
+        preflight_blocked_by_backend=(getattr(doctor_result, 'tracking_backend_blockers', {}) if doctor_result else {}),
     )
 
     if args.plan:

@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SlicerDDSurfer: a T1-weighted-image-free 3D Slicer workflow for diffusion MRI anatomy, microstructure and connectivity analysis</title>
+<title>SlicerDDSurfer</title>
 <meta name="description" content="SlicerDDSurfer brings diffusion-MRI anatomical reconstruction, microstructural mapping and white-matter connectivity analysis into one 3D Slicer module.">
 <meta name="theme-color" content="#06080b">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
-<meta property="og:title" content="SlicerDDSurfer: a T1-weighted-image-free 3D Slicer workflow for diffusion MRI anatomy, microstructure and connectivity analysis">
+<meta property="og:title" content="SlicerDDSurfer">
 <meta property="og:description" content="SlicerDDSurfer brings diffusion-MRI anatomical reconstruction, microstructural mapping and white-matter connectivity analysis into one 3D Slicer module.">
 <meta property="og:url" content="https://chengjinlii.github.io/SlicerDDSurfer/">
 <meta property="og:image" content="https://chengjinlii.github.io/SlicerDDSurfer/assets/img/social.jpg">
@@ -20,9 +20,11 @@
 <link rel="preload" href="assets/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/css/site.css">
 <link rel="stylesheet" href="assets/css/performance.css">
+<link rel="stylesheet" href="assets/css/guide-bot.css">
 <script>document.documentElement.classList.add('js');</script>
 <script src="assets/js/site.js" defer></script>
 <script src="assets/js/performance.js" defer></script>
+<script src="assets/js/guide-bot.js" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -30,7 +32,7 @@
 <header class="site-header" id="site-header">
   <div class="header-inner">
     <a class="brand" href="#top" aria-label="SlicerDDSurfer, back to top">
-      <img src="assets/img/icon-64.png" alt="SlicerDDSurfer icon" width="28" height="28" loading="lazy">
+      <img src="assets/img/logo-ddsurfer.png" alt="SlicerDDSurfer logo" width="44" height="45">
       <span>SlicerDDSurfer</span>
     </a>
     <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">
@@ -41,11 +43,9 @@
       <ul>
         <li><a href="#film">Film</a></li>
         <li><a href="#outputs">Outputs</a></li>
-        <li><a href="#workflows">Workflows</a></li>
-        <li><a href="#slicer">In Slicer</a></li>
-        <li><a href="#status">Status</a></li>
         <li><a href="#start">Get started</a></li>
-        <li><a href="#cite">Cite</a></li>
+        <li><a href="#integrated">Methods</a></li>
+        <li><a href="#cite">References</a></li>
       </ul>
       <span class="chip chip-status"><span class="dot" aria-hidden="true"></span>Private pre-release</span>
     </nav>
@@ -57,7 +57,8 @@
 <section class="hero" id="top">
   <div class="container">
     <p class="eyebrow">3D Slicer module · Diffusion MRI</p>
-    <h1 class="paper-title">SlicerDDSurfer: a T1-weighted-image-free 3D Slicer workflow for diffusion MRI anatomy, microstructure and connectivity analysis</h1>
+    <h1 class="product-title">SlicerDDSurfer</h1>
+    <p class="subtitle">A T1-weighted-image-free 3D Slicer workflow for diffusion MRI anatomy, microstructure and connectivity analysis</p>
     <p class="lead">SlicerDDSurfer builds tissue labels, brain regions and cortical surfaces from diffusion MRI, with no T1-weighted scan at analysis time. It also maps microstructure, traces white-matter pathways and builds structural connectomes.</p>
     <div class="btn-row">
       <a class="btn btn-primary" href="#film" data-play-film>
@@ -104,15 +105,15 @@
         <li>SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer.</li>
       </ol>
     </details>
-    <p class="note">Most scenes come from one run on EDDEN sub-01 (b = 0 and b ≈ 1000 volumes). The bundles are TractCloud’s, on that run’s DTI tractogram; the 3D Slicer screenshot comes from multi-shell runs. The film names free water, NODDI and kurtosis but does not show them; Outputs below does.</p>
+    <p class="note">The film introduces anatomical reconstruction, tracking and TractCloud bundle views. Explore the gallery below for additional microstructure and connectivity results.</p>
   </div>
 </section>
 
 <section class="section section-alt reveal" id="outputs">
   <div class="container">
-    <p class="eyebrow">One subject, one space</p>
-    <h2>From one diffusion dataset to seven kinds of result.</h2>
-    <p class="intro">Data: EDDEN sub-01 (OpenNeuro ds004666, CC0), AVG_mag series. The series averages five repeated acquisitions, so its SNR is higher than a typical single scan. Six images come from the film’s run (b = 0 and b ≈ 1000; 117 of 297 volumes). The others come from runs of 23 October 2026 on the same Mac: UKF on the same input; the multi-shell methods on b = 0, 1000 and 2000 (207 of 297 volumes).</p>
+    <p class="eyebrow">Native diffusion space</p>
+    <h2>Anatomy, microstructure and connectivity.</h2>
+    <p class="intro">Representative maps, surfaces, pathways and networks from the available analysis routes. Each view highlights a different product in native diffusion space.</p>
     <div class="gallery">
       <article class="tile">
         <img src="assets/img/res-dec.jpg" width="1200" height="900" loading="lazy" alt="DEC map on an axial and a coronal plane">
@@ -235,119 +236,7 @@
         </div>
       </article>
     </div>
-    <p class="note">All images use the film’s look; colours, subsets and upsampling change the look, not the data. Automatic QC passed for every stage shown that records it, except MK-Curve. WMA also ran on the UKF tractogram but is not shown: it failed the pipeline’s sampling check (right arcuate fasciculus: 6 streamlines, minimum 20). No expert has reviewed these outputs.</p>
-  </div>
-</section>
-
-<section class="section reveal" id="workflows">
-  <div class="container">
-    <p class="eyebrow">Workflows</p>
-    <h2>Six connected analysis domains.</h2>
-    <p class="intro">From input preparation to regional connectivity, following the protocol. Select the methods your study needs; the workflow resolves their dependencies and reuses shared preparation.</p>
-    <div class="wf-grid">
-      <article class="wf-card">
-        <p class="wf-num">01</p>
-        <h3>Preprocessing</h3>
-        <dl>
-          <dt>Products</dt>
-          <dd>DICOM, NIfTI or NRRD import; gradient checks; brain mask; optional denoising and motion/distortion correction</dd>
-          <dt>Needs</dt>
-          <dd>Matched image and gradients; PNL CNN, SynthStrip, MRtrix or a supplied mask</dd>
-        </dl>
-      </article>
-      <article class="wf-card">
-        <p class="wf-num">02</p>
-        <h3>Microstructure</h3>
-        <dl>
-          <dt>Products</dt>
-          <dd>DTI FA/MD/AD/RD; optional free-water, NODDI and DKI/MK-Curve; regional summaries</dd>
-          <dt>Needs</dt>
-          <dd>Model-appropriate shell and direction sampling; the plan checks eligibility before fitting</dd>
-        </dl>
-      </article>
-      <article class="wf-card">
-        <p class="wf-num">03</p>
-        <h3>Anatomy</h3>
-        <dl>
-          <dt>Products</dt>
-          <dd>DDSeg tissues, DDParcel regions and DDSurfer white/pial meshes; optional thickness, curvature and surface atlas mapping</dd>
-          <dt>Needs</dt>
-          <dd>Model assets and PyTorch; the licensed native component runtime for surface post-processing</dd>
-        </dl>
-      </article>
-      <article class="wf-card">
-        <p class="wf-num">04</p>
-        <h3>Tractography</h3>
-        <dl>
-          <dt>Products</dt>
-          <dd>DTI deterministic, UKF or CSD/ACT tracking; optional SIFT2 weights and surface-constrained SAF</dd>
-          <dt>Needs</dt>
-          <dd>Selected backend and anatomical inputs; UKF is called through the installed UKFTractography extension</dd>
-        </dl>
-      </article>
-      <article class="wf-card">
-        <p class="wf-num">05</p>
-        <h3>Bundles</h3>
-        <dl>
-          <dt>Products</dt>
-          <dd>WMQL anatomical queries, WMA ORG-atlas clustering or TractCloud learned bundle labels</dd>
-          <dt>Needs</dt>
-          <dd>Compatible tractogram and method resources; the UKF-to-WMA handoff runs automatically</dd>
-        </dl>
-      </article>
-      <article class="wf-card">
-        <p class="wf-num">06</p>
-        <h3>Connectome</h3>
-        <dl>
-          <dt>Products</dt>
-          <dd>DDParcel node tables, streamline-count and SIFT2-weighted matrices; optional scalar/length summaries through the Python API</dd>
-          <dt>Needs</dt>
-          <dd>Matched nodes and tracks; SIFT2 weights from the corresponding CSD/FOD tractogram</dd>
-        </dl>
-      </article>
-    </div>
-    <ul class="note-row">
-      <li class="n-red"><span class="n-icon" aria-hidden="true"></span><span>Defaults: DTI, CSD/ACT and WMQL. Use ... beside each product to select one or several methods; Advanced settings holds detailed parameters.</span></li>
-      <li class="n-green"><span class="n-icon" aria-hidden="true"></span><span>Prepare selected resources under Environment and installation. External tools and model assets are not installed silently.</span></li>
-      <li class="n-blue"><span class="n-icon" aria-hidden="true"></span><span>A missing backend is reported, never silently replaced.</span></li>
-    </ul>
-    <div class="integration" id="integrated">
-      <h3>What is integrated</h3>
-      <div class="table-wrap" tabindex="0" role="region" aria-label="What is integrated, scroll horizontally on small screens">
-        <table class="int-table">
-          <caption>Methods, implementation and resources for the selected analysis routes.</caption>
-          <thead><tr><th scope="col">Stage</th><th scope="col">Method</th><th scope="col">How it is integrated</th><th scope="col">Runtime / access</th><th scope="col">Reference [n]</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">Input</th><td>DICOM, NIfTI, NRRD/NHDR</td><td>Input conversion, matched-gradient validation and geometry checks.</td><td class="st-cell">dcm2niix or DWIConvert for DICOM</td><td class="ref-cell"><span class="muted">–</span></td></tr>
-            <tr><th scope="row">Preprocessing</th><td>DIPY</td><td>Denoising, Gibbs removal and motion correction.</td><td class="st-cell">Managed Python packages</td><td class="ref-cell"><a href="#ref-30">[30]</a></td></tr>
-            <tr><th scope="row">Preprocessing</th><td>MRtrix3 / FSL</td><td>dwidenoise, mrdegibbs, topup and eddy, with acquisition-specific settings.</td><td class="st-cell">MRtrix3; FSL</td><td class="ref-cell"><a href="#ref-29">[29]</a></td></tr>
-            <tr><th scope="row">Brain mask</th><td>PNL CNN (default)</td><td>Author Python backend with model and geometry handling.</td><td class="st-cell">Managed PNL runtime and weights</td><td class="ref-cell"><span class="muted">–</span></td></tr>
-            <tr><th scope="row">Brain mask</th><td>SynthStrip</td><td>SynthStrip inference in its isolated runtime.</td><td class="st-cell">SynthStrip runtime and weights</td><td class="ref-cell"><a href="#ref-32">[32]</a></td></tr>
-            <tr><th scope="row">Brain mask</th><td>MRtrix3 dwi2mask</td><td>Native dwi2mask execution.</td><td class="st-cell">MRtrix3</td><td class="ref-cell"><a href="#ref-29">[29]</a></td></tr>
-            <tr><th scope="row">Anatomy</th><td>DDSeg</td><td>Converted PyTorch models; tissue labels and probabilities.</td><td class="st-cell">PyTorch; DDSeg weights</td><td class="ref-cell"><a href="#ref-2">[2]</a></td></tr>
-            <tr><th scope="row">Anatomy</th><td>DDParcel</td><td>Author-derived Python inference with Slicer BRAINSFit registration.</td><td class="st-cell">PyTorch; DDParcel weights and templates</td><td class="ref-cell"><a href="#ref-3">[3]</a></td></tr>
-            <tr><th scope="row">Anatomy</th><td>DDSurfer</td><td>Upstream Python/PyTorch reconstruction of white and pial surfaces.</td><td class="st-cell">PyTorch; DDSurfer weights</td><td class="ref-cell"><a href="#ref-1">[1]</a></td></tr>
-            <tr><th scope="row">Anatomy</th><td>Surface post-processing</td><td>Native FreeSurfer components for thickness, curvature and surface atlas mapping.</td><td class="st-cell">Component runtime and applicable licence; full suite optional</td><td class="ref-cell"><a href="#ref-33">[33]</a></td></tr>
-            <tr><th scope="row">Microstructure</th><td>DTI (default)</td><td>SlicerDMRI tensor fitting and scalar maps.</td><td class="st-cell">SlicerDMRI</td><td class="ref-cell"><a href="#ref-27">[27]</a> <a href="#ref-28">[28]</a></td></tr>
-            <tr><th scope="row">Microstructure</th><td>Free water</td><td>DIPY tensor model with equivalent WLS implementation optimizations.</td><td class="st-cell">DIPY; eligible multi-shell data</td><td class="ref-cell"><a href="#ref-4">[4]</a> <a href="#ref-5">[5]</a> <a href="#ref-6">[6]</a> <a href="#ref-30">[30]</a></td></tr>
-            <tr><th scope="row">Microstructure</th><td>NODDI</td><td>AMICO fitting; NDI, ODI, IsoVF and fit residuals.</td><td class="st-cell">AMICO; eligible multi-shell data</td><td class="ref-cell"><a href="#ref-7">[7]</a> <a href="#ref-31">[31]</a></td></tr>
-            <tr><th scope="row">Microstructure</th><td>DKI</td><td>DIPY WLS/OLS fitting, kurtosis maps and validity masks.</td><td class="st-cell">DIPY; shell/direction/rank preflight</td><td class="ref-cell"><a href="#ref-8">[8]</a> <a href="#ref-30">[30]</a></td></tr>
-            <tr><th scope="row">Microstructure</th><td>MK-Curve</td><td>Python implementation with correction curves, scalar maps and fit masks.</td><td class="st-cell">Bundled Python backend; DKI acquisition checks</td><td class="ref-cell"><a href="#ref-9">[9]</a></td></tr>
-            <tr><th scope="row">Tractography</th><td>CSD / ACT / SIFT2 (default)</td><td>MRtrix3 response/FOD estimation, iFOD2 tracking, DDSeg-derived tissue constraints and SIFT2 weights.</td><td class="st-cell">MRtrix3; reviewed tissue priors</td><td class="ref-cell"><a href="#ref-10">[10]</a> <a href="#ref-11">[11]</a> <a href="#ref-12">[12]</a> <a href="#ref-13">[13]</a> <a href="#ref-14">[14]</a> <a href="#ref-15">[15]</a> <a href="#ref-16">[16]</a> <a href="#ref-17">[17]</a> <a href="#ref-18">[18]</a> <a href="#ref-29">[29]</a></td></tr>
-            <tr><th scope="row">Tractography</th><td>DTI deterministic</td><td>SlicerDMRI tensor preparation and DIPY tracking.</td><td class="st-cell">SlicerDMRI; DIPY</td><td class="ref-cell"><a href="#ref-28">[28]</a> <a href="#ref-30">[30]</a></td></tr>
-            <tr><th scope="row">Tractography</th><td>UKF two-tensor</td><td>Automatic invocation of the installed official CLI and input conversion.</td><td class="st-cell">UKFTractography; SlicerDMRI</td><td class="ref-cell"><a href="#ref-19">[19]</a></td></tr>
-            <tr><th scope="row">Tractography</th><td>SAF</td><td>Python surface-constrained tracking and geometric filtering on DDSurfer meshes.</td><td class="st-cell">MRtrix3; post-processed native surfaces</td><td class="ref-cell"><a href="#ref-20">[20]</a></td></tr>
-            <tr><th scope="row">Bundles</th><td>WMQL (default)</td><td>Author tract_querier and official multi-bundle queries; optional subset selection.</td><td class="st-cell">WMQL runtime; DDParcel labels</td><td class="ref-cell"><a href="#ref-21">[21]</a></td></tr>
-            <tr><th scope="row">Bundles</th><td>WMA</td><td>Author ORG-atlas registration and clustering with equivalent bulk operations.</td><td class="st-cell">WMA; ORG atlas; UKF reference route</td><td class="ref-cell"><a href="#ref-22">[22]</a> <a href="#ref-23">[23]</a> <a href="#ref-24">[24]</a> <a href="#ref-26">[26]</a></td></tr>
-            <tr><th scope="row">Bundles</th><td>TractCloud</td><td>Author model inference and bundle export in an isolated Python backend.</td><td class="st-cell">PyTorch backend; model and centroids</td><td class="ref-cell"><a href="#ref-25">[25]</a> <a href="#ref-22">[22]</a></td></tr>
-            <tr><th scope="row">Connectome</th><td>Streamline count</td><td>Endpoint assignment to DDParcel nodes; Python or eligible MRtrix3 backend.</td><td class="st-cell">Matched parcellation and tractogram</td><td class="ref-cell"><a href="#ref-29">[29]</a></td></tr>
-            <tr><th scope="row">Connectome</th><td>SIFT2-weighted count</td><td>Matrix construction using weights from the corresponding CSD/FOD tractogram.</td><td class="st-cell">MRtrix3; matched tracks and weights</td><td class="ref-cell"><a href="#ref-16">[16]</a> <a href="#ref-29">[29]</a></td></tr>
-            <tr><th scope="row">Connectome</th><td>Scalar and length weights</td><td>Regional edge summaries using a selected scalar map or streamline lengths.</td><td class="st-cell">Python API</td><td class="ref-cell"><span class="muted">–</span></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="note">Each run checks acquisition suitability and backend-specific QC. <a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/architecture/IMPLEMENTATION_PROVENANCE.md" target="_blank" rel="noopener">Implementation details and validation records</a> retain the method provenance and individual test scopes.</p>
-    </div>
+    <p class="note">Gallery views use display subsets and colour scales for clarity. Assess each result with its recorded fit, geometry and sampling checks and anatomical review.</p>
   </div>
 </section>
 
@@ -361,89 +250,6 @@
       </a>
       <figcaption>What each method makes and what it reads. Free water, NODDI and DKI need at least two non-zero shells; DKI counts only shells up to 2500 s/mm².</figcaption>
     </figure>
-    <figure class="panel shot fig">
-      <a href="assets/img/fig-route-guide.png" target="_blank" rel="noopener" aria-label="Open the full-size route guide">
-        <img src="assets/img/fig-route-guide.png" width="2400" height="810" loading="lazy" decoding="async" alt="Route guide: six example routes, each on a small grid of the product map's five columns, with the selected products filled.">
-      </a>
-      <figcaption>Six example routes that together use every method. Built from the planner and method code and the documented dependencies; status is recorded for Linux test subjects.</figcaption>
-    </figure>
-  </div>
-</section>
-
-<section class="section section-alt reveal" id="slicer">
-  <div class="container">
-    <p class="eyebrow">In 3D Slicer</p>
-    <h2>One 3D Slicer module, with QC and a record of every run.</h2>
-    <figure class="panel shot">
-      <img src="assets/img/slicer.jpg" width="1408" height="1027" loading="lazy" decoding="async" alt="Real 3D Slicer screenshot: the SlicerDDSurfer panel with Results and QC open, free-water-corrected FA with DDParcel labels in the slice views and all TractCloud bundles in the 3D view">
-      <figcaption>A real screenshot of 3D Slicer 5.12.4 on macOS. The module loaded the multi-shell EDDEN results: DDParcel labels over free-water-corrected FA in the slice views, the run’s recorded QC in Results and QC. The 3D view shows all 42 TractCloud bundles: the module loads four, and the capture script added the others with Slicer’s own reader. The script also set the inputs, the products and the view settings; the runs were started from the command line.</figcaption>
-    </figure>
-    <div class="slicer-grid">
-      <div>
-        <h3 class="card-title">A run in six steps</h3>
-        <ol class="steps">
-          <li>Open SlicerDDSurfer and choose English or Chinese.</li>
-          <li>Enter the Subject ID, the subject root and, optionally, an output directory.</li>
-          <li>Tick only the products you need.</li>
-          <li>Use ... beside Microstructure, Tractography or Bundles to select one or several algorithms. Prepare resources in Environment and installation; set detailed parameters in Advanced settings.</li>
-          <li>Click Run SlicerDDSurfer. Missing inputs turn red; the log says what to correct.</li>
-          <li>Key results of successful stages load into the scene. Review QC, reload, replace or clear them in the separate Results and QC section.</li>
-        </ol>
-      </div>
-      <aside class="panel side-note">
-        <h3 class="card-title">From the command line</h3>
-        <p>Check inputs and environment without running anything:</p>
-        <div class="code" data-code>
-          <div class="code-head"><span>shell</span><button class="copy" type="button" hidden>Copy</button></div>
-          <pre><code>/path/to/Slicer --launch PythonSlicer run_subject_pipeline.py \
-  --no-user-config --subject-root /path/to/sub-01 --subject-id sub-01 \
-  --targets microstructure --microstructure-stages dti --doctor</code></pre>
-        </div>
-        <p>Use <code>--plan</code> instead of <code>--doctor</code> to write a run plan.</p>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="section reveal" id="status">
-  <div class="container">
-    <p class="eyebrow">Status</p>
-    <h2>Research software, stated plainly.</h2>
-    <div class="status-grid">
-      <article class="panel status-col s-green">
-        <h3>Recorded</h3>
-        <ul>
-          <li>Linux real-data and GUI records for specific checkouts, routes and datasets.</li>
-          <li>A UI validation record of the compact interface.</li>
-        </ul>
-      </article>
-      <article class="panel status-col s-orange">
-        <h3>Not certified</h3>
-        <ul>
-          <li>Native Windows and macOS scientific workflows.</li>
-          <li>Three-platform SDK builds.</li>
-        </ul>
-      </article>
-      <article class="panel status-col s-blue">
-        <h3>Not yet released</h3>
-        <ul>
-          <li>Private pre-release; not in the official Extensions Catalog.</li>
-          <li>The Extension Index JSON is a draft Tier 1 proposal: not submitted, and not acceptance by Slicer.</li>
-          <li>Public source access, third-party licence clearance and asset redistribution review remain release gates.</li>
-        </ul>
-      </article>
-    </div>
-    <div class="origins">
-      <h3 class="card-title">Implementation origins</h3>
-      <p>The <a href="#integrated">integration table</a> under Workflows says how each method is implemented: reimplemented, ported, bundled or called.</p>
-      <p><a class="link-arrow" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/architecture/IMPLEMENTATION_PROVENANCE.md" target="_blank" rel="noopener">Implementation provenance and verification limits</a></p>
-    </div>
-    <p class="panel callout callout-warn">A completed run is not a clinical assessment or proof of scientific correctness.</p>
-    <details class="transcript" id="performance-notes">
-      <summary>Performance &amp; implementation notes</summary>
-      <p>Measured changes, equivalence checks and limits, with each scope kept separate.</p>
-      <p><a href="#performance">Explore the performance evidence</a></p>
-    </details>
   </div>
 </section>
 
@@ -529,59 +335,6 @@ export SUBJECT_ROOT="/path/to/sub-01"
   </div>
 </section>
 
-<section class="section reveal" id="cite">
-  <div class="container">
-    <p class="eyebrow">Cite</p>
-    <h2>Cite the software and the methods you use.</h2>
-    <p class="intro">The protocol manuscript is in preparation. Cite the software version you used (<a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/CITATION.cff" target="_blank" rel="noopener">CITATION.cff</a>) and the methods you ran.</p>
-    <div class="references" id="references">
-      <p class="muted">The methods, software and data references share one numbered list. Reference links in the <a href="#integrated">integration table</a> open the matching entry.</p>
-      <details class="transcript ref-details" id="reference-list">
-      <summary>Reference list [1] to [35]</summary>
-      <div class="ref-body">
-      <ol class="ref-list">
-          <li id="ref-1"><span class="ref-n">[1]</span><span class="ref-text">Li C, et al. DDSurfer: A Weakly-Supervised Dual-Stream Deep Learning Framework for Cortical Surface Reconstruction From Diffusion MRI. <i>Advanced Science 13(56):e76596, 2026.</i> <a class="doi" href="https://doi.org/10.1002/advs.76596" target="_blank" rel="noopener">DOI 10.1002/advs.76596</a></span></li>
-          <li id="ref-2"><span class="ref-n">[2]</span><span class="ref-text">Zhang F, et al. Deep learning based segmentation of brain tissue from diffusion MRI. <i>NeuroImage 233:117934, 2021.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2021.117934" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2021.117934</a></span></li>
-          <li id="ref-3"><span class="ref-n">[3]</span><span class="ref-text">Zhang F, et al. DDParcel: Deep Learning Anatomical Brain Parcellation From Diffusion MRI. <i>IEEE Transactions on Medical Imaging 43(3):1191–1202, 2024.</i> <a class="doi" href="https://doi.org/10.1109/TMI.2023.3331691" target="_blank" rel="noopener">DOI 10.1109/TMI.2023.3331691</a></span></li>
-          <li id="ref-4"><span class="ref-n">[4]</span><span class="ref-text">Pasternak O, et al. Free water elimination and mapping from diffusion MRI. <i>Magnetic Resonance in Medicine 62(3):717–730, 2009.</i> <a class="doi" href="https://doi.org/10.1002/mrm.22055" target="_blank" rel="noopener">DOI 10.1002/mrm.22055</a></span></li>
-          <li id="ref-5"><span class="ref-n">[5]</span><span class="ref-text">Hoy AR, et al. Optimization of a free water elimination two-compartment model for diffusion tensor imaging. <i>NeuroImage 103:323–333, 2014.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2014.09.053" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2014.09.053</a></span></li>
-          <li id="ref-6"><span class="ref-n">[6]</span><span class="ref-text">Henriques RN, et al. [Re] Optimization of a free water elimination two-compartment model for diffusion tensor imaging. <i>bioRxiv preprint, not peer reviewed, 2017.</i> <a class="doi" href="https://doi.org/10.1101/108795" target="_blank" rel="noopener">DOI 10.1101/108795</a></span></li>
-          <li id="ref-7"><span class="ref-n">[7]</span><span class="ref-text">Zhang H, et al. NODDI: Practical in vivo neurite orientation dispersion and density imaging of the human brain. <i>NeuroImage 61(4):1000–1016, 2012.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2012.03.072" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2012.03.072</a></span></li>
-          <li id="ref-8"><span class="ref-n">[8]</span><span class="ref-text">Jensen JH, et al. Diffusional kurtosis imaging: The quantification of non-gaussian water diffusion by means of magnetic resonance imaging. <i>Magnetic Resonance in Medicine 53(6):1432–1440, 2005.</i> <a class="doi" href="https://doi.org/10.1002/mrm.20508" target="_blank" rel="noopener">DOI 10.1002/mrm.20508</a></span></li>
-          <li id="ref-9"><span class="ref-n">[9]</span><span class="ref-text">Zhang F, et al. MK-curve - Characterizing the relation between mean kurtosis and alterations in the diffusion MRI signal. <i>NeuroImage 196:68–80, 2019.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2019.04.015" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.04.015</a></span></li>
-          <li id="ref-10"><span class="ref-n">[10]</span><span class="ref-text">Jeurissen B, et al. Multi-tissue constrained spherical deconvolution for improved analysis of multi-shell diffusion MRI data. <i>NeuroImage 103:411–426, 2014.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2014.07.061" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2014.07.061</a></span></li>
-          <li id="ref-11"><span class="ref-n">[11]</span><span class="ref-text">Tournier JD, et al. Direct estimation of the fiber orientation density function from diffusion-weighted MRI data using spherical deconvolution. <i>NeuroImage 23(3):1176–1185, 2004.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2004.07.037" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2004.07.037</a></span></li>
-          <li id="ref-12"><span class="ref-n">[12]</span><span class="ref-text">Dhollander T, et al. Improved white matter response function estimation for 3-tissue constrained spherical deconvolution. <i>Proc Intl Soc Mag Reson Med (ISMRM), abstract 555, 2019.</i> <a class="doi" href="https://archive.ismrm.org/2019/0555.html" target="_blank" rel="noopener">ISMRM abstract</a></span></li>
-          <li id="ref-13"><span class="ref-n">[13]</span><span class="ref-text">Dhollander T, et al. Unsupervised 3-tissue response function estimation from single-shell or multi-shell diffusion MR data without a co-registered T1 image. <i>ISMRM Workshop on Breaking the Barriers of Diffusion MRI, 2016, 5.</i></span></li>
-          <li id="ref-14"><span class="ref-n">[14]</span><span class="ref-text">Tournier JD, et al. Improved probabilistic streamlines tractography by 2nd order integration over fibre orientation distributions. <i>Proc Intl Soc Mag Reson Med (ISMRM), abstract 1670, 2010.</i> <a class="doi" href="https://archive.ismrm.org/2010/1670.html" target="_blank" rel="noopener">ISMRM abstract</a></span></li>
-          <li id="ref-15"><span class="ref-n">[15]</span><span class="ref-text">Smith RE, et al. Anatomically-constrained tractography: Improved diffusion MRI streamlines tractography through effective use of anatomical information. <i>NeuroImage 62(3):1924–1938, 2012.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2012.06.005" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2012.06.005</a></span></li>
-          <li id="ref-16"><span class="ref-n">[16]</span><span class="ref-text">Smith RE, et al. SIFT2: Enabling dense quantitative assessment of brain white matter connectivity using streamlines tractography. <i>NeuroImage 119:338–351, 2015.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2015.06.092" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2015.06.092</a></span></li>
-          <li id="ref-17"><span class="ref-n">[17]</span><span class="ref-text">Raffelt D, et al. Bias field correction and intensity normalisation for quantitative analysis of apparent fibre density. <i>Proc Intl Soc Mag Reson Med (ISMRM), abstract 3541, 2017.</i> <a class="doi" href="https://archive.ismrm.org/2017/3541.html" target="_blank" rel="noopener">ISMRM abstract</a></span></li>
-          <li id="ref-18"><span class="ref-n">[18]</span><span class="ref-text">Dhollander T, et al. Multi-tissue log-domain intensity and inhomogeneity normalisation for quantitative apparent fibre density. <i>Proc Intl Soc Mag Reson Med (ISMRM), abstract 2472, 2021.</i> <a class="doi" href="https://archive.ismrm.org/2021/2472.html" target="_blank" rel="noopener">ISMRM abstract</a></span></li>
-          <li id="ref-19"><span class="ref-n">[19]</span><span class="ref-text">Malcolm JG, et al. Filtered multitensor tractography. <i>IEEE Transactions on Medical Imaging 29(9):1664–1675, 2010.</i> <a class="doi" href="https://doi.org/10.1109/TMI.2010.2048121" target="_blank" rel="noopener">DOI 10.1109/TMI.2010.2048121</a></span></li>
-          <li id="ref-20"><span class="ref-n">[20]</span><span class="ref-text">Shastin D, et al. Surface-based tracking for short association fibre tractography. <i>NeuroImage 260:119423, 2022.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2022.119423" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2022.119423</a></span></li>
-          <li id="ref-21"><span class="ref-n">[21]</span><span class="ref-text">Wassermann D, et al. The white matter query language: a novel approach for describing human white matter anatomy. <i>Brain Structure and Function 221(9):4705–4721, 2016.</i> <a class="doi" href="https://doi.org/10.1007/s00429-015-1179-4" target="_blank" rel="noopener">DOI 10.1007/s00429-015-1179-4</a></span></li>
-          <li id="ref-22"><span class="ref-n">[22]</span><span class="ref-text">Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. <i>NeuroImage 179:429–447, 2018.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2018.06.027" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2018.06.027</a></span></li>
-          <li id="ref-23"><span class="ref-n">[23]</span><span class="ref-text">O’Donnell LJ, Westin CF. Automatic tractography segmentation using a high-dimensional white matter atlas. <i>IEEE Transactions on Medical Imaging 26(11):1562–1575, 2007.</i> <a class="doi" href="https://doi.org/10.1109/TMI.2007.906785" target="_blank" rel="noopener">DOI 10.1109/TMI.2007.906785</a></span></li>
-          <li id="ref-24"><span class="ref-n">[24]</span><span class="ref-text">O’Donnell LJ, et al. Unbiased groupwise registration of white matter tractography. <i>MICCAI 2012, Lecture Notes in Computer Science, pp. 123–130, 2012.</i> <a class="doi" href="https://doi.org/10.1007/978-3-642-33454-2_16" target="_blank" rel="noopener">DOI 10.1007/978-3-642-33454-2_16</a></span></li>
-          <li id="ref-25"><span class="ref-n">[25]</span><span class="ref-text">Xue T, et al. TractCloud: Registration-free tractography parcellation with a novel local-global streamline point cloud representation. <i>MICCAI 2023, Lecture Notes in Computer Science, pp. 409–419, 2023.</i> <a class="doi" href="https://doi.org/10.1007/978-3-031-43993-3_40" target="_blank" rel="noopener">DOI 10.1007/978-3-031-43993-3_40</a></span></li>
-          <li id="ref-26"><span class="ref-n">[26]</span><span class="ref-text">Zhang F, et al. O’Donnell Research Group (ORG) Fiber Clustering White Matter Atlas, version 1.1.1. <i>Zenodo dataset, 2019.</i> <a class="doi" href="https://doi.org/10.5281/zenodo.2648292" target="_blank" rel="noopener">DOI 10.5281/zenodo.2648292</a></span></li>
-          <li id="ref-27"><span class="ref-n">[27]</span><span class="ref-text">Fedorov A, et al. 3D Slicer as an image computing platform for the Quantitative Imaging Network. <i>Magnetic Resonance Imaging 30(9):1323–1341, 2012.</i> <a class="doi" href="https://doi.org/10.1016/j.mri.2012.05.001" target="_blank" rel="noopener">DOI 10.1016/j.mri.2012.05.001</a></span></li>
-          <li id="ref-28"><span class="ref-n">[28]</span><span class="ref-text">Zhang F, et al. SlicerDMRI: Diffusion MRI and tractography research software for brain cancer surgery planning and visualization. <i>JCO Clinical Cancer Informatics, issue 4:299–309, 2020.</i> <a class="doi" href="https://doi.org/10.1200/CCI.19.00141" target="_blank" rel="noopener">DOI 10.1200/CCI.19.00141</a></span></li>
-          <li id="ref-29"><span class="ref-n">[29]</span><span class="ref-text">Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. <i>NeuroImage 202:116137, 2019.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2019.116137" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></span></li>
-          <li id="ref-30"><span class="ref-n">[30]</span><span class="ref-text">Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. <i>Frontiers in Neuroinformatics 8:8, 2014.</i> <a class="doi" href="https://doi.org/10.3389/fninf.2014.00008" target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></span></li>
-          <li id="ref-31"><span class="ref-n">[31]</span><span class="ref-text">Daducci A, et al. Accelerated Microstructure Imaging via Convex Optimization (AMICO) from diffusion MRI data. <i>NeuroImage 105:32–44, 2015.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2014.10.026" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2014.10.026</a></span></li>
-          <li id="ref-32"><span class="ref-n">[32]</span><span class="ref-text">Hoopes A, et al. SynthStrip: skull-stripping for any brain image. <i>NeuroImage 260:119474, 2022.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2022.119474" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2022.119474</a></span></li>
-          <li id="ref-33"><span class="ref-n">[33]</span><span class="ref-text">Fischl B. FreeSurfer. <i>NeuroImage 62(2):774–781, 2012.</i> <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2012.01.021" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2012.01.021</a></span></li>
-          <li id="ref-34"><span class="ref-n">[34]</span><span class="ref-text">Manzano-Patron JP, et al. Denoising diffusion MRI: Considerations and implications for analysis. <i>Imaging Neuroscience 2:imag-2-00060, 2024.</i> <a class="doi" href="https://doi.org/10.1162/imag_a_00060" target="_blank" rel="noopener">DOI 10.1162/imag_a_00060</a></span></li>
-          <li id="ref-35"><span class="ref-n">[35]</span><span class="ref-text">Manzano-Patron JP, et al. EDDEN: Evaluation of Diffusion MRI DENoising. <i>OpenNeuro dataset ds004666, version 1.0.8, 2026, CC0.</i> <a class="doi" href="https://doi.org/10.18112/openneuro.ds004666.v1.0.8" target="_blank" rel="noopener">DOI 10.18112/openneuro.ds004666.v1.0.8</a></span></li>
-      </ol>
-      </div>
-      </details>
-    </div>
-  </div>
-</section>
-
 <section class="section section-alt reveal" id="runtime">
   <div class="container">
     <p class="eyebrow">Run times</p>
@@ -651,13 +404,140 @@ export SUBJECT_ROOT="/path/to/sub-01"
   </div>
 </section>
 
+<section class="section reveal" id="integrated">
+  <div class="container">
+    <p class="eyebrow">Methods &amp; resources</p>
+    <h2>What is integrated</h2>
+    <p class="intro">Choose one or several methods beside each product. The workflow checks acquisition suitability, resolves dependencies and reuses shared preparation.</p>
+    <div class="integration">
+      <div class="table-wrap" tabindex="0" role="region" aria-label="What is integrated, scroll horizontally on small screens">
+        <table class="int-table">
+          <caption>Methods, implementation and resources for the selected analysis routes.</caption>
+          <thead><tr><th scope="col">Stage</th><th scope="col">Method</th><th scope="col">How it is integrated</th><th scope="col">Runtime / access</th><th scope="col">Reference [n]</th></tr></thead>
+          <tbody>
+<!-- methods-catalog:start -->
+            <tr data-method="input" class="stage-start"><th scope="row">Input</th><td>DICOM / NIfTI / NRRD</td><td>Conversion, gradient validation and spatial checks.</td><td class="st-cell">dcm2niix or Slicer DWIConvert; supplied masks accepted</td><td class="ref-cell"><a href="#ref-36" aria-label="Reference 36">[36]</a> <a href="#ref-27" aria-label="Reference 27">[27]</a> <a href="#ref-28" aria-label="Reference 28">[28]</a></td></tr>
+            <tr data-method="pnl_cnn" class="stage-start"><th scope="row">Brain mask</th><td>PNL CNN (default)</td><td>Author diffusion-CNN brain masking and registration.</td><td class="st-cell">Managed PNL runtime, weights and ANTs</td><td class="ref-cell"><a href="#ref-37" aria-label="Reference 37">[37]</a> <a href="#ref-38" aria-label="Reference 38">[38]</a></td></tr>
+            <tr data-method="synthstrip"><th scope="row">Brain mask</th><td>SynthStrip</td><td>Brain extraction with the author model.</td><td class="st-cell">Isolated runtime and weights</td><td class="ref-cell"><a href="#ref-32" aria-label="Reference 32">[32]</a></td></tr>
+            <tr data-method="dwi2mask"><th scope="row">Brain mask</th><td>MRtrix3 dwi2mask</td><td>Native diffusion-volume masking.</td><td class="st-cell">MRtrix3</td><td class="ref-cell"><a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
+            <tr data-method="mppca" class="stage-start"><th scope="row">Preprocessing</th><td>MP-PCA</td><td>Random-matrix denoising and noise estimation.</td><td class="st-cell">DIPY or MRtrix3 dwidenoise</td><td class="ref-cell"><a href="#ref-39" aria-label="Reference 39">[39]</a> <a href="#ref-52" aria-label="Reference 52">[52]</a> <a href="#ref-53" aria-label="Reference 53">[53]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
+            <tr data-method="localpca"><th scope="row">Preprocessing</th><td>Local PCA</td><td>Overcomplete local-PCA denoising.</td><td class="st-cell">DIPY; optional denoising choice</td><td class="ref-cell"><a href="#ref-40" aria-label="Reference 40">[40]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
+            <tr data-method="patch2self"><th scope="row">Preprocessing</th><td>Patch2Self</td><td>Self-supervised diffusion-volume denoising.</td><td class="st-cell">DIPY; optional denoising choice</td><td class="ref-cell"><a href="#ref-41" aria-label="Reference 41">[41]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
+            <tr data-method="gibbs"><th scope="row">Preprocessing</th><td>Gibbs removal</td><td>Local subvoxel-shift ringing correction.</td><td class="st-cell">DIPY or MRtrix3 mrdegibbs</td><td class="ref-cell"><a href="#ref-42" aria-label="Reference 42">[42]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
+            <tr data-method="motion"><th scope="row">Preprocessing</th><td>Volume registration</td><td>Between-volume motion correction and gradient rotation.</td><td class="st-cell">DIPY; does not perform FSL eddy correction</td><td class="ref-cell"><a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
+            <tr data-method="eddy"><th scope="row">Preprocessing</th><td>FSL eddy</td><td>Eddy-current and motion correction.</td><td class="st-cell">MRtrix3 dwifslpreproc; FSL</td><td class="ref-cell"><a href="#ref-43" aria-label="Reference 43">[43]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
+            <tr data-method="topup"><th scope="row">Preprocessing</th><td>FSL topup</td><td>Susceptibility-distortion estimation and correction.</td><td class="st-cell">FSL; reverse-phase data and acquisition metadata</td><td class="ref-cell"><a href="#ref-44" aria-label="Reference 44">[44]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
+            <tr data-method="dti" class="stage-start"><th scope="row">Microstructure</th><td>DTI (default)</td><td>LS/WLS tensor fitting; FA, MD, AD, RD, eigenvalues and trace.</td><td class="st-cell">SlicerDMRI</td><td class="ref-cell"><a href="#ref-45" aria-label="Reference 45">[45]</a> <a href="#ref-27" aria-label="Reference 27">[27]</a> <a href="#ref-28" aria-label="Reference 28">[28]</a></td></tr>
+            <tr data-method="freewater"><th scope="row">Microstructure</th><td>Free water</td><td>Free-water fraction and tissue-corrected FA/MD; WLS or NLS fitting.</td><td class="st-cell">DIPY; suitable multi-shell sampling</td><td class="ref-cell"><a href="#ref-4" aria-label="Reference 4">[4]</a> <a href="#ref-5" aria-label="Reference 5">[5]</a> <a href="#ref-6" aria-label="Reference 6">[6]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
+            <tr data-method="noddi"><th scope="row">Microstructure</th><td>NODDI / AMICO</td><td>NDI, ODI, IsoVF and fit residuals.</td><td class="st-cell">AMICO; suitable multi-shell sampling</td><td class="ref-cell"><a href="#ref-7" aria-label="Reference 7">[7]</a> <a href="#ref-31" aria-label="Reference 31">[31]</a></td></tr>
+            <tr data-method="dki"><th scope="row">Microstructure</th><td>DKI</td><td>WLS/OLS fitting; MK, AK, RK, KFA, MKT, RTK and validity masks.</td><td class="st-cell">DIPY; shell, direction and design-rank checks</td><td class="ref-cell"><a href="#ref-8" aria-label="Reference 8">[8]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
+            <tr data-method="mkcurve"><th scope="row">Microstructure</th><td>MK-Curve</td><td>Correction curves, corrected kurtosis maps and metric-specific validity.</td><td class="st-cell">Bundled Python backend; DKI eligibility checks</td><td class="ref-cell"><a href="#ref-9" aria-label="Reference 9">[9]</a></td></tr>
+            <tr data-method="ddseg" class="stage-start"><th scope="row">Anatomy</th><td>DDSeg</td><td>Tissue labels and probabilities from converted PyTorch models.</td><td class="st-cell">PyTorch; DDSeg weights</td><td class="ref-cell"><a href="#ref-2" aria-label="Reference 2">[2]</a></td></tr>
+            <tr data-method="ddparcel"><th scope="row">Anatomy</th><td>DDParcel</td><td>Anatomical region inference with author-derived models.</td><td class="st-cell">PyTorch; weights and registration template</td><td class="ref-cell"><a href="#ref-3" aria-label="Reference 3">[3]</a></td></tr>
+            <tr data-method="ddsurfer"><th scope="row">Anatomy</th><td>DDSurfer</td><td>Native white and pial mesh reconstruction.</td><td class="st-cell">PyTorch; DDSurfer weights</td><td class="ref-cell"><a href="#ref-1" aria-label="Reference 1">[1]</a></td></tr>
+            <tr data-method="brainsfit"><th scope="row">Anatomy</th><td>BRAINSFit registration</td><td>Template registration for eligible anatomical routes.</td><td class="st-cell">Slicer BRAINSFit / BRAINSResample</td><td class="ref-cell"><a href="#ref-51" aria-label="Reference 51">[51]</a> <a href="#ref-27" aria-label="Reference 27">[27]</a></td></tr>
+            <tr data-method="surface_postprocess"><th scope="row">Anatomy</th><td>Surface post-processing</td><td>Thickness, curvature, spherical registration and DK/Destrieux atlas mapping.</td><td class="st-cell">Licensed native component runtime; full suite optional</td><td class="ref-cell"><a href="#ref-33" aria-label="Reference 33">[33]</a> <a href="#ref-47" aria-label="Reference 47">[47]</a> <a href="#ref-48" aria-label="Reference 48">[48]</a> <a href="#ref-49" aria-label="Reference 49">[49]</a></td></tr>
+            <tr data-method="response" class="stage-start"><th scope="row">Tractography</th><td>Response estimation</td><td>Dhollander three-tissue response estimation.</td><td class="st-cell">MRtrix3</td><td class="ref-cell"><a href="#ref-12" aria-label="Reference 12">[12]</a> <a href="#ref-13" aria-label="Reference 13">[13]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
+            <tr data-method="csd"><th scope="row">Tractography</th><td>CSD / MSMT-CSD</td><td>Single- or multi-tissue fibre-orientation distributions.</td><td class="st-cell">MRtrix3; selected acquisition route</td><td class="ref-cell"><a href="#ref-11" aria-label="Reference 11">[11]</a> <a href="#ref-46" aria-label="Reference 46">[46]</a> <a href="#ref-10" aria-label="Reference 10">[10]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
+            <tr data-method="mtnormalise"><th scope="row">Tractography</th><td>Multi-tissue normalization</td><td>Log-domain intensity and inhomogeneity normalization.</td><td class="st-cell">MRtrix3 mtnormalise</td><td class="ref-cell"><a href="#ref-17" aria-label="Reference 17">[17]</a> <a href="#ref-18" aria-label="Reference 18">[18]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
+            <tr data-method="csd_act"><th scope="row">Tractography</th><td>iFOD2 / ACT (default)</td><td>Probabilistic tracking with DDSeg-derived tissue constraints.</td><td class="st-cell">MRtrix3; reviewed anatomical priors</td><td class="ref-cell"><a href="#ref-14" aria-label="Reference 14">[14]</a> <a href="#ref-15" aria-label="Reference 15">[15]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
+            <tr data-method="dti_tracking"><th scope="row">Tractography</th><td>DTI deterministic</td><td>Tensor-based direction tracking with stopping criteria.</td><td class="st-cell">SlicerDMRI; DIPY</td><td class="ref-cell"><a href="#ref-45" aria-label="Reference 45">[45]</a> <a href="#ref-28" aria-label="Reference 28">[28]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
+            <tr data-method="ukf"><th scope="row">Tractography</th><td>UKF two-tensor</td><td>Automatic invocation of the official tracking CLI.</td><td class="st-cell">UKFTractography extension; SlicerDMRI</td><td class="ref-cell"><a href="#ref-19" aria-label="Reference 19">[19]</a> <a href="#ref-28" aria-label="Reference 28">[28]</a></td></tr>
+            <tr data-method="saf"><th scope="row">Tractography</th><td>SAF</td><td>Surface-constrained short-association tracking and geometric filtering.</td><td class="st-cell">MRtrix3; post-processed native surfaces</td><td class="ref-cell"><a href="#ref-20" aria-label="Reference 20">[20]</a></td></tr>
+            <tr data-method="wmql" class="stage-start"><th scope="row">Bundles</th><td>WMQL (default)</td><td>Official multi-bundle queries with optional subset selection.</td><td class="st-cell">Author tract_querier; DDParcel labels</td><td class="ref-cell"><a href="#ref-21" aria-label="Reference 21">[21]</a></td></tr>
+            <tr data-method="wma"><th scope="row">Bundles</th><td>WMA</td><td>ORG-atlas registration and clustering; automatic UKF handoff.</td><td class="st-cell">WMA; ORG atlas; UKF reference route</td><td class="ref-cell"><a href="#ref-22" aria-label="Reference 22">[22]</a> <a href="#ref-23" aria-label="Reference 23">[23]</a> <a href="#ref-24" aria-label="Reference 24">[24]</a> <a href="#ref-26" aria-label="Reference 26">[26]</a></td></tr>
+            <tr data-method="tractcloud"><th scope="row">Bundles</th><td>TractCloud</td><td>Author learned tract parcellation and bundle export.</td><td class="st-cell">PyTorch backend; model and centroids</td><td class="ref-cell"><a href="#ref-25" aria-label="Reference 25">[25]</a> <a href="#ref-22" aria-label="Reference 22">[22]</a></td></tr>
+            <tr data-method="count" class="stage-start"><th scope="row">Connectome</th><td>Streamline count</td><td>Endpoint assignment to DDParcel nodes.</td><td class="st-cell">Python or eligible MRtrix3 backend</td><td class="ref-cell"><a href="#ref-50" aria-label="Reference 50">[50]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
+            <tr data-method="sift2"><th scope="row">Connectome</th><td>SIFT2-weighted count</td><td>FOD-informed weighting and matrix construction with matched tracks.</td><td class="st-cell">MRtrix3; corresponding tractogram and weights</td><td class="ref-cell"><a href="#ref-16" aria-label="Reference 16">[16]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a> <a href="#ref-50" aria-label="Reference 50">[50]</a></td></tr>
+            <tr data-method="scalar_length"><th scope="row">Connectome</th><td>Scalar / length summaries</td><td>Mean FA, MD, ODI or another scalar; mean and total streamline length.</td><td class="st-cell">Python API; matched maps, nodes and tracks</td><td class="ref-cell"><a href="#ref-50" aria-label="Reference 50">[50]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
+            <tr data-method="regional" class="stage-start"><th scope="row">Regional analysis</th><td>Selected-region analysis</td><td>Reuse maps for ROI statistics, filter tracks and extract node submatrices.</td><td class="st-cell">Advanced settings; workflow utility using completed outputs</td><td class="ref-cell"><a href="#ref-3" aria-label="Reference 3">[3]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a> <a href="#ref-50" aria-label="Reference 50">[50]</a></td></tr>
+<!-- methods-catalog:end -->
+          </tbody>
+        </table>
+      </div>
+      <p class="note">Defaults: DTI, CSD/ACT and WMQL. Detailed parameters are in Advanced settings; selected dependencies are prepared separately under Environment and installation. External tools and model assets are not installed silently.</p>
+      <p class="note"><a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/architecture/IMPLEMENTATION_PROVENANCE.md" target="_blank" rel="noopener">Implementation provenance and validation records</a> document the backend versions and individual test scopes.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="cite">
+  <div class="container">
+    <p class="eyebrow">References</p>
+    <h2>Cite the software and the methods you use.</h2>
+    <p class="intro">The protocol manuscript is in preparation. Cite the software version you used (<a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/CITATION.cff" target="_blank" rel="noopener">CITATION.cff</a>) and the methods you ran.</p>
+    <div class="references" id="references">
+      <p class="muted">Methods, software and data share one numbered bibliography. Links in the <a href="#integrated">integration table</a> lead directly to the corresponding entries.</p>
+      <div class="ref-body" id="reference-list">
+        <ol class="ref-list">
+<!-- references-catalog:start -->
+          <li id="ref-1"><span class="ref-n">[1]</span><span class="ref-text">Li C, et al. DDSurfer: A Weakly-Supervised Dual-Stream Deep Learning Framework for Cortical Surface Reconstruction From Diffusion MRI. Advanced Science 13(56):e76596, 2026. <a class="doi" href="https://doi.org/10.1002/advs.76596" target="_blank" rel="noopener">DOI 10.1002/advs.76596</a></span></li>
+          <li id="ref-2"><span class="ref-n">[2]</span><span class="ref-text">Zhang F, et al. Deep learning based segmentation of brain tissue from diffusion MRI. NeuroImage 233:117934, 2021. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2021.117934" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2021.117934</a></span></li>
+          <li id="ref-3"><span class="ref-n">[3]</span><span class="ref-text">Zhang F, et al. DDParcel: Deep Learning Anatomical Brain Parcellation From Diffusion MRI. IEEE Transactions on Medical Imaging 43(3):1191–1202, 2024. <a class="doi" href="https://doi.org/10.1109/TMI.2023.3331691" target="_blank" rel="noopener">DOI 10.1109/TMI.2023.3331691</a></span></li>
+          <li id="ref-4"><span class="ref-n">[4]</span><span class="ref-text">Pasternak O, et al. Free water elimination and mapping from diffusion MRI. Magnetic Resonance in Medicine 62(3):717–730, 2009. <a class="doi" href="https://doi.org/10.1002/mrm.22055" target="_blank" rel="noopener">DOI 10.1002/mrm.22055</a></span></li>
+          <li id="ref-5"><span class="ref-n">[5]</span><span class="ref-text">Hoy AR, et al. Optimization of a free water elimination two-compartment model for diffusion tensor imaging. NeuroImage 103:323–333, 2014. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2014.09.053" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2014.09.053</a></span></li>
+          <li id="ref-6"><span class="ref-n">[6]</span><span class="ref-text">Henriques RN, et al. [Re] Optimization of a free water elimination two-compartment model for diffusion tensor imaging. bioRxiv preprint, not peer reviewed, 2017. <a class="doi" href="https://doi.org/10.1101/108795" target="_blank" rel="noopener">DOI 10.1101/108795</a></span></li>
+          <li id="ref-7"><span class="ref-n">[7]</span><span class="ref-text">Zhang H, et al. NODDI: Practical in vivo neurite orientation dispersion and density imaging of the human brain. NeuroImage 61(4):1000–1016, 2012. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2012.03.072" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2012.03.072</a></span></li>
+          <li id="ref-8"><span class="ref-n">[8]</span><span class="ref-text">Jensen JH, et al. Diffusional kurtosis imaging: The quantification of non-gaussian water diffusion by means of magnetic resonance imaging. Magnetic Resonance in Medicine 53(6):1432–1440, 2005. <a class="doi" href="https://doi.org/10.1002/mrm.20508" target="_blank" rel="noopener">DOI 10.1002/mrm.20508</a></span></li>
+          <li id="ref-9"><span class="ref-n">[9]</span><span class="ref-text">Zhang F, et al. MK-curve - Characterizing the relation between mean kurtosis and alterations in the diffusion MRI signal. NeuroImage 196:68–80, 2019. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2019.04.015" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.04.015</a></span></li>
+          <li id="ref-10"><span class="ref-n">[10]</span><span class="ref-text">Jeurissen B, et al. Multi-tissue constrained spherical deconvolution for improved analysis of multi-shell diffusion MRI data. NeuroImage 103:411–426, 2014. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2014.07.061" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2014.07.061</a></span></li>
+          <li id="ref-11"><span class="ref-n">[11]</span><span class="ref-text">Tournier JD, et al. Direct estimation of the fiber orientation density function from diffusion-weighted MRI data using spherical deconvolution. NeuroImage 23(3):1176–1185, 2004. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2004.07.037" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2004.07.037</a></span></li>
+          <li id="ref-12"><span class="ref-n">[12]</span><span class="ref-text">Dhollander T, et al. Improved white matter response function estimation for 3-tissue constrained spherical deconvolution. Proc Intl Soc Mag Reson Med (ISMRM), abstract 555, 2019. <a class="doi" href="https://archive.ismrm.org/2019/0555.html" target="_blank" rel="noopener">ISMRM abstract</a></span></li>
+          <li id="ref-13"><span class="ref-n">[13]</span><span class="ref-text">Dhollander T, et al. Unsupervised 3-tissue response function estimation from single-shell or multi-shell diffusion MR data without a co-registered T1 image. ISMRM Workshop on Breaking the Barriers of Diffusion MRI, 2016, 5. <a class="doi" href="https://userdocs.mrtrix.org/en/latest/reference/commands/dwi2response.html#dwi2response-dhollander" target="_blank" rel="noopener">Author documentation</a></span></li>
+          <li id="ref-14"><span class="ref-n">[14]</span><span class="ref-text">Tournier JD, et al. Improved probabilistic streamlines tractography by 2nd order integration over fibre orientation distributions. Proc Intl Soc Mag Reson Med (ISMRM), abstract 1670, 2010. <a class="doi" href="https://archive.ismrm.org/2010/1670.html" target="_blank" rel="noopener">ISMRM abstract</a></span></li>
+          <li id="ref-15"><span class="ref-n">[15]</span><span class="ref-text">Smith RE, et al. Anatomically-constrained tractography: Improved diffusion MRI streamlines tractography through effective use of anatomical information. NeuroImage 62(3):1924–1938, 2012. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2012.06.005" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2012.06.005</a></span></li>
+          <li id="ref-16"><span class="ref-n">[16]</span><span class="ref-text">Smith RE, et al. SIFT2: Enabling dense quantitative assessment of brain white matter connectivity using streamlines tractography. NeuroImage 119:338–351, 2015. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2015.06.092" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2015.06.092</a></span></li>
+          <li id="ref-17"><span class="ref-n">[17]</span><span class="ref-text">Raffelt D, et al. Bias field correction and intensity normalisation for quantitative analysis of apparent fibre density. Proc Intl Soc Mag Reson Med (ISMRM), abstract 3541, 2017. <a class="doi" href="https://archive.ismrm.org/2017/3541.html" target="_blank" rel="noopener">ISMRM abstract</a></span></li>
+          <li id="ref-18"><span class="ref-n">[18]</span><span class="ref-text">Dhollander T, et al. Multi-tissue log-domain intensity and inhomogeneity normalisation for quantitative apparent fibre density. Proc Intl Soc Mag Reson Med (ISMRM), abstract 2472, 2021. <a class="doi" href="https://archive.ismrm.org/2021/2472.html" target="_blank" rel="noopener">ISMRM abstract</a></span></li>
+          <li id="ref-19"><span class="ref-n">[19]</span><span class="ref-text">Malcolm JG, et al. Filtered multitensor tractography. IEEE Transactions on Medical Imaging 29(9):1664–1675, 2010. <a class="doi" href="https://doi.org/10.1109/TMI.2010.2048121" target="_blank" rel="noopener">DOI 10.1109/TMI.2010.2048121</a></span></li>
+          <li id="ref-20"><span class="ref-n">[20]</span><span class="ref-text">Shastin D, et al. Surface-based tracking for short association fibre tractography. NeuroImage 260:119423, 2022. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2022.119423" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2022.119423</a></span></li>
+          <li id="ref-21"><span class="ref-n">[21]</span><span class="ref-text">Wassermann D, et al. The white matter query language: a novel approach for describing human white matter anatomy. Brain Structure and Function 221(9):4705–4721, 2016. <a class="doi" href="https://doi.org/10.1007/s00429-015-1179-4" target="_blank" rel="noopener">DOI 10.1007/s00429-015-1179-4</a></span></li>
+          <li id="ref-22"><span class="ref-n">[22]</span><span class="ref-text">Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. NeuroImage 179:429–447, 2018. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2018.06.027" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2018.06.027</a></span></li>
+          <li id="ref-23"><span class="ref-n">[23]</span><span class="ref-text">O’Donnell LJ, Westin CF. Automatic tractography segmentation using a high-dimensional white matter atlas. IEEE Transactions on Medical Imaging 26(11):1562–1575, 2007. <a class="doi" href="https://doi.org/10.1109/TMI.2007.906785" target="_blank" rel="noopener">DOI 10.1109/TMI.2007.906785</a></span></li>
+          <li id="ref-24"><span class="ref-n">[24]</span><span class="ref-text">O’Donnell LJ, et al. Unbiased groupwise registration of white matter tractography. MICCAI 2012, Lecture Notes in Computer Science, pp. 123–130, 2012. <a class="doi" href="https://doi.org/10.1007/978-3-642-33454-2_16" target="_blank" rel="noopener">DOI 10.1007/978-3-642-33454-2_16</a></span></li>
+          <li id="ref-25"><span class="ref-n">[25]</span><span class="ref-text">Xue T, et al. TractCloud: Registration-free tractography parcellation with a novel local-global streamline point cloud representation. MICCAI 2023, Lecture Notes in Computer Science, pp. 409–419, 2023. <a class="doi" href="https://doi.org/10.1007/978-3-031-43993-3_40" target="_blank" rel="noopener">DOI 10.1007/978-3-031-43993-3_40</a></span></li>
+          <li id="ref-26"><span class="ref-n">[26]</span><span class="ref-text">Zhang F, et al. O’Donnell Research Group (ORG) Fiber Clustering White Matter Atlas, version 1.1.1. Zenodo dataset, 2019. <a class="doi" href="https://doi.org/10.5281/zenodo.2648292" target="_blank" rel="noopener">DOI 10.5281/zenodo.2648292</a></span></li>
+          <li id="ref-27"><span class="ref-n">[27]</span><span class="ref-text">Fedorov A, et al. 3D Slicer as an image computing platform for the Quantitative Imaging Network. Magnetic Resonance Imaging 30(9):1323–1341, 2012. <a class="doi" href="https://doi.org/10.1016/j.mri.2012.05.001" target="_blank" rel="noopener">DOI 10.1016/j.mri.2012.05.001</a></span></li>
+          <li id="ref-28"><span class="ref-n">[28]</span><span class="ref-text">Zhang F, et al. SlicerDMRI: Diffusion MRI and tractography research software for brain cancer surgery planning and visualization. JCO Clinical Cancer Informatics, issue 4:299–309, 2020. <a class="doi" href="https://doi.org/10.1200/CCI.19.00141" target="_blank" rel="noopener">DOI 10.1200/CCI.19.00141</a></span></li>
+          <li id="ref-29"><span class="ref-n">[29]</span><span class="ref-text">Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2019.116137" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></span></li>
+          <li id="ref-30"><span class="ref-n">[30]</span><span class="ref-text">Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014. <a class="doi" href="https://doi.org/10.3389/fninf.2014.00008" target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></span></li>
+          <li id="ref-31"><span class="ref-n">[31]</span><span class="ref-text">Daducci A, et al. Accelerated Microstructure Imaging via Convex Optimization (AMICO) from diffusion MRI data. NeuroImage 105:32–44, 2015. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2014.10.026" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2014.10.026</a></span></li>
+          <li id="ref-32"><span class="ref-n">[32]</span><span class="ref-text">Hoopes A, et al. SynthStrip: skull-stripping for any brain image. NeuroImage 260:119474, 2022. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2022.119474" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2022.119474</a></span></li>
+          <li id="ref-33"><span class="ref-n">[33]</span><span class="ref-text">Fischl B. FreeSurfer. NeuroImage 62(2):774–781, 2012. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2012.01.021" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2012.01.021</a></span></li>
+          <li id="ref-34"><span class="ref-n">[34]</span><span class="ref-text">Manzano-Patron JP, et al. Denoising diffusion MRI: Considerations and implications for analysis. Imaging Neuroscience 2:imag-2-00060, 2024. <a class="doi" href="https://doi.org/10.1162/imag_a_00060" target="_blank" rel="noopener">DOI 10.1162/imag_a_00060</a></span></li>
+          <li id="ref-35"><span class="ref-n">[35]</span><span class="ref-text">Manzano-Patron JP, et al. EDDEN: Evaluation of Diffusion MRI DENoising. OpenNeuro dataset ds004666, version 1.0.8, 2026, CC0. <a class="doi" href="https://doi.org/10.18112/openneuro.ds004666.v1.0.8" target="_blank" rel="noopener">DOI 10.18112/openneuro.ds004666.v1.0.8</a></span></li>
+          <li id="ref-36"><span class="ref-n">[36]</span><span class="ref-text">Li X, et al. The first step for neuroimaging data analysis: DICOM to NIfTI conversion. Journal of Neuroscience Methods 264:47-56, 2016. <a class="doi" href="https://doi.org/10.1016/j.jneumeth.2016.03.001" target="_blank" rel="noopener">DOI 10.1016/j.jneumeth.2016.03.001</a></span></li>
+          <li id="ref-37"><span class="ref-n">[37]</span><span class="ref-text">Cetin-Karayumak S, et al. Harmonized diffusion MRI data and white matter measures from the Adolescent Brain Cognitive Development Study. Scientific Data 11:249, 2024. <a class="doi" href="https://doi.org/10.1038/s41597-024-03058-w" target="_blank" rel="noopener">DOI 10.1038/s41597-024-03058-w</a></span></li>
+          <li id="ref-38"><span class="ref-n">[38]</span><span class="ref-text">Palanivelu S, et al. CNN based diffusion MRI brain segmentation tool. Author software and citation instructions. <a class="doi" href="https://github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segmentation" target="_blank" rel="noopener">Author software</a></span></li>
+          <li id="ref-39"><span class="ref-n">[39]</span><span class="ref-text">Veraart J, et al. Denoising of diffusion MRI using random matrix theory. NeuroImage 142:394-406, 2016. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2016.08.016" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2016.08.016</a></span></li>
+          <li id="ref-40"><span class="ref-n">[40]</span><span class="ref-text">Manjón JV, et al. Diffusion Weighted Image Denoising Using Overcomplete Local PCA. PLoS ONE 8:e73021, 2013. <a class="doi" href="https://doi.org/10.1371/journal.pone.0073021" target="_blank" rel="noopener">DOI 10.1371/journal.pone.0073021</a></span></li>
+          <li id="ref-41"><span class="ref-n">[41]</span><span class="ref-text">Fadnavis S, Batson J, Garyfallidis E. Patch2Self: Denoising Diffusion MRI with Self-Supervised Learning. Advances in Neural Information Processing Systems 33, 2020. <a class="doi" href="https://proceedings.neurips.cc/paper/2020/hash/bc047286b224b7bfa73d4cb02de1238d-Abstract.html" target="_blank" rel="noopener">NeurIPS paper</a></span></li>
+          <li id="ref-42"><span class="ref-n">[42]</span><span class="ref-text">Kellner E, et al. Gibbs‐ringing artifact removal based on local subvoxel‐shifts. Magnetic Resonance in Medicine 76:1574-1581, 2016. <a class="doi" href="https://doi.org/10.1002/mrm.26054" target="_blank" rel="noopener">DOI 10.1002/mrm.26054</a></span></li>
+          <li id="ref-43"><span class="ref-n">[43]</span><span class="ref-text">Andersson JLR, Sotiropoulos SN. An integrated approach to correction for off-resonance effects and subject movement in diffusion MR imaging. NeuroImage 125:1063-1078, 2016. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2015.10.019" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2015.10.019</a></span></li>
+          <li id="ref-44"><span class="ref-n">[44]</span><span class="ref-text">Andersson JLR, Skare S, Ashburner J. How to correct susceptibility distortions in spin-echo echo-planar images: application to diffusion tensor imaging. NeuroImage 20:870-888, 2003. <a class="doi" href="https://doi.org/10.1016/S1053-8119(03)00336-7" target="_blank" rel="noopener">DOI 10.1016/S1053-8119(03)00336-7</a></span></li>
+          <li id="ref-45"><span class="ref-n">[45]</span><span class="ref-text">Basser PJ, Mattiello J, LeBihan D. MR diffusion tensor spectroscopy and imaging. Biophysical Journal 66:259-267, 1994. <a class="doi" href="https://doi.org/10.1016/S0006-3495(94)80775-1" target="_blank" rel="noopener">DOI 10.1016/S0006-3495(94)80775-1</a></span></li>
+          <li id="ref-46"><span class="ref-n">[46]</span><span class="ref-text">Tournier JD, Calamante F, Connelly A. Robust determination of the fibre orientation distribution in diffusion MRI: Non-negativity constrained super-resolved spherical deconvolution. NeuroImage 35:1459-1472, 2007. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2007.02.016" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2007.02.016</a></span></li>
+          <li id="ref-47"><span class="ref-n">[47]</span><span class="ref-text">Fischl B, Dale AM. Measuring the thickness of the human cerebral cortex from magnetic resonance images. Proceedings of the National Academy of Sciences 97:11050-11055, 2000. <a class="doi" href="https://doi.org/10.1073/pnas.200033797" target="_blank" rel="noopener">DOI 10.1073/pnas.200033797</a></span></li>
+          <li id="ref-48"><span class="ref-n">[48]</span><span class="ref-text">Desikan RS, et al. An automated labeling system for subdividing the human cerebral cortex on MRI scans into gyral based regions of interest. NeuroImage 31:968-980, 2006. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2006.01.021" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2006.01.021</a></span></li>
+          <li id="ref-49"><span class="ref-n">[49]</span><span class="ref-text">Destrieux C, et al. Automatic parcellation of human cortical gyri and sulci using standard anatomical nomenclature. NeuroImage 53:1-15, 2010. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2010.06.010" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2010.06.010</a></span></li>
+          <li id="ref-50"><span class="ref-n">[50]</span><span class="ref-text">Yeh CH, et al. Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential. NeuroImage 199:160-171, 2019. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2019.05.005" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.05.005</a></span></li>
+          <li id="ref-51"><span class="ref-n">[51]</span><span class="ref-text">Johnson HJ, Harris G, Williams K. BRAINSFit: Mutual Information Registrations of Whole-Brain 3D Images, Using the Insight Toolkit. The Insight Journal, 2007; 3D Slicer module documentation. <a class="doi" href="https://slicer.readthedocs.io/en/latest/user_guide/modules/brainsfit.html" target="_blank" rel="noopener">Official documentation</a></span></li>
+          <li id="ref-52"><span class="ref-n">[52]</span><span class="ref-text">Veraart J, Fieremans E, Novikov DS. Diffusion MRI noise mapping using random matrix theory. Magnetic Resonance in Medicine 76:1582-1593, 2016. <a class="doi" href="https://doi.org/10.1002/mrm.26059" target="_blank" rel="noopener">DOI 10.1002/mrm.26059</a></span></li>
+          <li id="ref-53"><span class="ref-n">[53]</span><span class="ref-text">Cordero-Grande L, et al. Complex diffusion-weighted image estimation via matrix recovery under general noise models. NeuroImage 200:391-404, 2019. <a class="doi" href="https://doi.org/10.1016/j.neuroimage.2019.06.039" target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.06.039</a></span></li>
+<!-- references-catalog:end -->
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
 </main>
 
 <footer class="site-footer">
   <div class="container">
     <div class="foot-grid">
       <div class="foot-col">
-        <p class="foot-brand"><img src="assets/img/icon-64.png" alt="SlicerDDSurfer icon" width="28" height="28" loading="lazy"><span>SlicerDDSurfer</span></p>
+        <p class="foot-brand"><img src="assets/img/logo-ddsurfer.png" alt="SlicerDDSurfer logo" width="44" height="45"><span>SlicerDDSurfer</span></p>
         <p>Diffusion MRI workflows in 3D Slicer.</p>
         <p><a href="#performance">Performance evidence</a></p>
         <p>© 2026 Chengjin Li and the SlicerDDSurfer contributors.</p>
@@ -669,7 +549,7 @@ export SUBJECT_ROOT="/path/to/sub-01"
       </div>
       <div class="foot-col">
         <h2 class="foot-title">About the film</h2>
-        <p>Data: EDDEN, OpenNeuro <a href="https://openneuro.org/datasets/ds004666" target="_blank" rel="noopener">ds004666</a> (CC0), Manzano-Patron et al., Imaging Neuroscience <a href="https://doi.org/10.1162/imag_a_00060" target="_blank" rel="noopener">2024</a>.</p>
+        <p>Film and gallery data include EDDEN, OpenNeuro <a href="https://openneuro.org/datasets/ds004666" target="_blank" rel="noopener">ds004666</a> (CC0), with acquisition details in the source records. <a href="#ref-34">[34]</a> <a href="#ref-35">[35]</a></p>
         <p>Run: SlicerDDSurfer a48fc95 from the command line, with 3D Slicer 5.12.4, SlicerDMRI and PyTorch on macOS (x86_64 under Rosetta, CPU only). This run is outside the Linux validation and needed local run-time workarounds that are not in the repository. Bundles and screenshot: runs of 23 October 2026 on the same Mac, from a repository checkout.</p>
         <p>Made with <a href="https://github.com/lemomo-ai/lemo-opuscar" target="_blank" rel="noopener">lemo-opuscar</a> (MIT) and three.js (MIT). Voice: Kokoro TTS (Apache-2.0). Fonts: Inter, Inter Tight, IBM Plex Mono (SIL OFL 1.1). Music and sound: original, synthesized in code.</p>
       </div>
@@ -680,6 +560,43 @@ export SUBJECT_ROOT="/path/to/sub-01"
     </div>
   </div>
 </footer>
+
+<button class="guide-bot__backdrop" type="button" hidden aria-label="Close guide"></button>
+<aside class="guide-bot" id="guide-bot" aria-label="SlicerDDSurfer site guide">
+  <button class="guide-bot__launcher" type="button" hidden aria-label="Open SlicerDDSurfer guide"
+          aria-expanded="false" aria-controls="guide-bot-panel" title="Open site guide">
+    <span class="guide-bot__hat" aria-hidden="true"></span>
+    <span class="guide-bot__face" aria-hidden="true"></span>
+  </button>
+  <section class="guide-bot__panel" id="guide-bot-panel" role="dialog" aria-labelledby="guide-bot-title" hidden>
+    <header class="guide-bot__header">
+      <div class="guide-bot__identity">
+        <span class="guide-bot__eyebrow"><span aria-hidden="true"></span>SLICERDDSURFER</span>
+        <h2 id="guide-bot-title">Ask the guide</h2>
+        <p class="guide-bot__description">A local guide to the project</p>
+      </div>
+      <div class="guide-bot__controls">
+        <button class="guide-bot__language" type="button" aria-label="Switch to Chinese">中文</button>
+        <button class="guide-bot__close" type="button" aria-label="Close guide">×</button>
+      </div>
+    </header>
+    <div class="guide-bot__messages" role="log" aria-live="polite" aria-label="Guide conversation"></div>
+    <div class="guide-bot__starters" aria-label="Suggested questions">
+      <button type="button" data-guide-question="start">Getting started</button>
+      <button type="button" data-guide-question="inputs">Inputs</button>
+      <button type="button" data-guide-question="methods">Methods</button>
+      <button type="button" data-guide-question="dependencies">Dependencies</button>
+      <button type="button" data-guide-question="results">Results &amp; QC</button>
+      <button type="button" data-guide-question="references">References</button>
+    </div>
+    <form class="guide-bot__form">
+      <label class="sr-only" for="guide-bot-input">Ask the site guide</label>
+      <input id="guide-bot-input" type="text" maxlength="240" autocomplete="off" placeholder="Ask about the workflow…">
+      <button type="submit">Ask</button>
+    </form>
+    <p class="guide-bot__privacy">Local answers · Nothing is sent</p>
+  </section>
+</aside>
 
 </body>
 </html>

@@ -461,6 +461,8 @@ def environment_detail_lines(result: Any) -> list[str]:
     ]
     if result.blocked_targets:
         lines.append("Blocked targets: " + ", ".join(result.blocked_targets))
+    for backend, blockers in getattr(result, 'tracking_backend_blockers', {}).items():
+        lines.append(f"Tractography {backend}: " + (blockers.get('tractography') or "dependencies available"))
     if result.missing_python_packages:
         lines.append("Auto-installable Python packages: " + ", ".join(result.missing_python_packages))
     if result.missing_external_groups:

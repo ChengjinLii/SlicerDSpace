@@ -100,7 +100,7 @@ staging、旧源码测试或已配置好的工作站不能替代这种验收。
 | Windows／macOS 原生 SDK 及科学流程 | 未验收 |
 | 第三方源码许可 | BWH conversion、MGH FreeSurfer、DDSurfer MIT 与 PyTorch3D BSD 声明已补齐并校验；不等于全面法律认证 |
 | 权重/模板/测试数据再分发 | 未确认组不能进入公开资产归档 |
-| 真实数据教程及 Sample Data 注册 | 未完成 |
+| 真实数据教程及 Sample Data 注册 | [Slicer DWIVolume 教程](../setup/SLICER_SAMPLE_DTI.zh-CN.md)已验证 DTI 路线；独立可再分发数据注册仍待完成 |
 | 专利披露 | 维护者需审查，不能未经确认声称不存在 |
 
 <code>docs/release/extension-index/SlicerDDSurfer.json</code> 是目录条目草稿，

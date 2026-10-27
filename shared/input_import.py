@@ -137,6 +137,63 @@ def _run(command: list[str], *, dry_run: bool, cwd: Path | None = None) -> dict[
     return result
 
 
+def _lossless_signed_nrrd(source: Path, destination: Path) -> dict[str, Any]:
+    """Bridge DWIConvert's short-only reader without enabling lossy conversion."""
+    try:
+        import nrrd
+        import numpy as np
+    except ImportError as exc:
+        raise RuntimeError('This unsigned NRRD requires NumPy and pynrrd for a checked, lossless conversion.') from exc
+    data, header = nrrd.read(str(source))
+    if data.dtype != np.dtype('uint16') or data.ndim != 4 or not data.size:
+        raise ValueError('Lossless DWIConvert compatibility requires a nonempty uint16 diffusion NRRD.')
+    maximum = int(data.max())
+    if maximum > np.iinfo(np.int16).max:
+        raise ValueError('Unsigned NRRD values exceed int16 range; refusing lossy conversion. Use a compatible converter.')
+    gradients = [key for key in header if key.startswith('DWMRI_gradient_')]
+    if not gradients or 'DWMRI_b-value' not in header:
+        raise ValueError('Diffusion gradient metadata is missing; refusing NRRD compatibility conversion.')
+    original = dict(header)
+    # A detached source's filename must not redirect writes to its raw data.
+    header.pop('data file', None)
+    header.pop('type', None)
+    nrrd.write(str(destination), data.astype(np.int16), header=header)
+    written = nrrd.read_header(str(destination))
+    for key in ('space', 'space directions', 'space origin', 'measurement frame', 'kinds',
+                'DWMRI_b-value', *gradients):
+        if key not in original:
+            continue
+        left, right = original[key], written.get(key)
+        same = (np.array_equal(left, right, equal_nan=True) if key in
+                {'space directions', 'space origin', 'measurement frame'} else
+                np.array_equal(left, right))
+        if not same:
+            raise ValueError('NRRD compatibility conversion changes metadata: ' + key)
+    return dict(source=str(source), original_dtype='uint16', converted_dtype='int16',
+                minimum=int(data.min()), maximum=maximum, source_shape=list(data.shape),
+                gradient_count=len(gradients), metadata_preserved=True, lossy_conversion=False)
+
+
+def _run_nrrd_conversion(command, source, targets, *, dry_run):
+    try:
+        return _run(command, dry_run=dry_run)
+    except RuntimeError as exc:
+        message = str(exc)
+        if 'Unsupported source pixel type' not in message or 'unsigned_short' not in message:
+            raise
+        if any(targets[key].exists() for key in ('dwi', 'bvals', 'bvecs')):
+            raise RuntimeError('Conversion left partial outputs; inspect them before retrying.') from exc
+        with tempfile.TemporaryDirectory(prefix='.signed-nrrd-', dir=targets['input_dir']) as temporary:
+            signed = Path(temporary) / 'dwi.nrrd'
+            receipt = _lossless_signed_nrrd(source, signed)
+            retry = list(command)
+            retry[retry.index('--inputVolume') + 1] = str(signed)
+            result = _run(retry, dry_run=False)
+            result['initial_failure'] = message
+            result['lossless_input_cast'] = receipt
+            return result
+
+
 def _normalize_dcm2niix_outputs(input_dir: Path, *, force: bool, dry_run: bool) -> list[dict[str, str]]:
     expected = {
         "data.bval": "bvals",
@@ -210,8 +267,9 @@ def build_import_plan(config: InputImportConfig) -> dict[str, Any]:
             targets["bvals"].as_posix(),
             "-json_export",
             targets["metadata"].as_posix(),
-            "-force",
         ]
+        if config.force:
+            command.append("-force")
     elif backend == "dwiconvert" and source_kind == "nrrd":
         command = [
             _resolve_executable(config.dwiconvert_executable, "DWIConvert"),
@@ -314,7 +372,18 @@ def prepare_inputs(config: InputImportConfig) -> dict[str, Any]:
     started = time.monotonic()
     plan = build_import_plan(config)
     targets = _canonical_targets(config.subject_root.expanduser().resolve())
-    targets["input_dir"].mkdir(parents=True, exist_ok=True)
+    if not config.dry_run and not config.force:
+        if config.output_kind == 'compat-nrrd':
+            candidates = (targets['compat_nrrd'], targets['compat_nrrd'].with_suffix('.raw.gz'))
+        else:
+            candidates = tuple(targets[key] for key in ('dwi', 'bvals', 'bvecs', 'metadata', 'mask'))
+            candidates += tuple(targets['input_dir'] / name for name in ('data.bval', 'data.bvec', 'data.json'))
+        conflicts = [path for path in candidates if path.exists() or path.is_symlink()]
+        if conflicts:
+            raise FileExistsError('Refusing to overwrite existing input files without --force: ' +
+                                  ', '.join(path.as_posix() for path in conflicts))
+    if not config.dry_run:
+        targets["input_dir"].mkdir(parents=True, exist_ok=True)
     command_result: dict[str, Any] | None = None
     source = config.source.expanduser().resolve()
     source_kind = plan["source_kind"]
@@ -330,7 +399,10 @@ def prepare_inputs(config: InputImportConfig) -> dict[str, Any]:
         if not command:
             raise ValueError(f"No import command was generated for backend={backend}.")
         cwd = targets["input_dir"] if backend == "dcm2niix" else None
-        command_result = _run(command, dry_run=config.dry_run, cwd=cwd)
+        if backend == 'dwiconvert' and source_kind == 'nrrd':
+            command_result = _run_nrrd_conversion(command, source, targets, dry_run=config.dry_run)
+        else:
+            command_result = _run(command, dry_run=config.dry_run, cwd=cwd)
         if backend == "dcm2niix":
             plan["postprocess"] = _normalize_dcm2niix_outputs(targets["input_dir"], force=config.force, dry_run=config.dry_run)
     if config.mask_path:
