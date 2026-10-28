@@ -107,7 +107,7 @@ class FastSurferModifiedNoticesTest(unittest.TestCase):
         ):
             text = (REPO_ROOT / modified_file).read_text(encoding="utf-8")
             self.assertIn(
-                "Modified by the SlicerDDSurfer project",
+                "Modified by the SlicerDSpace project",
                 text,
                 f"{modified_file} was changed from its FastSurfer original but has no Apache-2.0 4(b) notice",
             )
@@ -120,7 +120,7 @@ class FastSurferModifiedNoticesTest(unittest.TestCase):
             "anatomy/parcellation/data_loader/augmentation.py",
         ):
             text = (REPO_ROOT / unmodified_file).read_text(encoding="utf-8")
-            self.assertNotIn("Modified by the SlicerDDSurfer project", text)
+            self.assertNotIn("Modified by the SlicerDSpace project", text)
 
 
 class CMakePackagingTest(unittest.TestCase):

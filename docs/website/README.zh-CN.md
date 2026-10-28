@@ -4,7 +4,7 @@
 
 **公开网站素材与私有软件文档分开发布**
 
-[项目](../../README.zh-CN.md) | [网站](https://chengjinlii.github.io/SlicerDDSurfer/) | [原始记录](UPSTREAM_README.md) | [English](README.md)
+[项目](../../README.zh-CN.md) | [网站](https://chengjinlii.github.io/SlicerDSpace/) | [原始记录](UPSTREAM_README.md) | [English](README.md)
 
 </div>
 
@@ -56,7 +56,7 @@
 不发送或持久化用户问题。安装步骤或产品功能变化时，应同步更新答案。可运行
 `node Testing/Website/guide_bot_check.mjs` 检查拖动、键盘、响应式布局及无脚本回退。
 
-首页主标题为“SlicerDDSurfer”，论文题目的说明部分作为下方副标题。移除独立的
+首页主标题为“SlicerDSpace”，论文题目的说明部分作为下方副标题。移除独立的
 The idea、Workflows 和 Status 部分，结果简介不再反复强调被试编号，来源记录继续保留。
 “What is integrated” 紧邻最后的 References 之前。方法总图继续保留，六种产品组合示例
 及独立 In Slicer 区块不再展示。页眉、页脚和浏览器图标改用 `docs/figures/logo-ref.svg`
@@ -91,7 +91,7 @@ Get started 提供安装路径、输入准备、
 `Website` 工作流从 `main` 验证并发布**仅 `docs/site/`**，不会上传仓库根目录或
 其余 `docs/` 中的科学验证、发布审核材料。网站文件也不进入 Slicer 运行包。
 
-仓库所有者需先在 [Settings > Pages](https://github.com/ChengjinLii/SlicerDDSurfer/settings/pages)
+仓库所有者需先在 [Settings > Pages](https://github.com/ChengjinLii/SlicerDSpace/settings/pages)
 将 **Source 设为 GitHub Actions**。私有仓库需要支持 Pages 的付费计划。
 发布后网站公开，但仓库继续保持私有。当前连接可读写代码，未开放 Pages 管理
 接口；合并代码不等于已经启用 Pages。
@@ -101,7 +101,7 @@ Get started 提供安装路径、输入准备、
 不会假报已上线。启用 Pages 后，需要发布时再在 Actions 中手动运行 `Website`。
 以部署任务成功和公网地址可访问作为上线依据。
 
-预期地址为 `https://chengjinlii.github.io/SlicerDDSurfer/`。分享标签、canonical
+预期地址为 `https://chengjinlii.github.io/SlicerDSpace/`。分享标签、canonical
 URL 与 404 返回链接沿用该地址。不要设置 `main /docs`，否则会公开发布不属于
 网站的内部文档。更换域名时按原始记录同步更新这些地址。
 

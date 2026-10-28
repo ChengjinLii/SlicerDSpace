@@ -11,24 +11,24 @@ import slicer
 
 
 SUBJECT_ROOT = Path("/data/chengjin/SlicerDDSurfer-test/100307")
-OUTPUT_ROOT = Path(os.environ.get("SLICERDDSURFER_SMOKE_ROOT", "/tmp")) / "slicerdsurfer-cancel-smoke-output"
+OUTPUT_ROOT = Path(os.environ.get("SLICERDSPACE_SMOKE_ROOT", "/tmp")) / "slicerdsurfer-cancel-smoke-output"
 RUN_NAME = "cancel_smoke"
 
 
 def _module_widget():
     try:
-        return slicer.util.getModuleWidget("SlicerDDSurfer")
+        return slicer.util.getModuleWidget("SlicerDSpace")
     except Exception:
-        module = slicer.util.getModule("SlicerDDSurfer")
+        module = slicer.util.getModule("SlicerDSpace")
         return module.widgetRepresentation().self()
 
 
 def _run() -> None:
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
+        slicer.util.selectModule("SlicerDSpace")
         widget = _module_widget()
         slicer.util.infoDisplay = lambda message, *args, **kwargs: print(
-            f"SLICERDDSURFER_CANCEL_INFO={message}",
+            f"SLICERDSPACE_CANCEL_INFO={message}",
             flush=True,
         )
         widget._slicer_launcher_program = lambda: "/bin/bash"
@@ -49,7 +49,7 @@ def _run() -> None:
         qt.QTimer.singleShot(1500, widget._onCancelRunClicked)
         qt.QTimer.singleShot(6500, _check)
     except Exception as exc:
-        print(f"SLICERDDSURFER_CANCEL_ERROR={exc}", flush=True)
+        print(f"SLICERDSPACE_CANCEL_ERROR={exc}", flush=True)
         slicer.app.exit(2)
 
 
@@ -63,7 +63,7 @@ def _capture_running() -> None:
         except Exception:
             process_running = False
     widget._cancelSmokeSawRunning = process_running
-    print(f"SLICERDDSURFER_CANCEL_SAW_RUNNING={widget._cancelSmokeSawRunning}", flush=True)
+    print(f"SLICERDSPACE_CANCEL_SAW_RUNNING={widget._cancelSmokeSawRunning}", flush=True)
 
 
 def _check() -> None:
@@ -90,12 +90,12 @@ def _check() -> None:
         for row in range(table.rowCount):
             status_item = table.item(row, 1)
             statuses.append(status_item.text() if status_item else "")
-    print(f"SLICERDDSURFER_CANCEL_PROCESS_RUNNING={process_running}", flush=True)
-    print(f"SLICERDDSURFER_CANCEL_STATUS_LABEL={status_label}", flush=True)
-    print(f"SLICERDDSURFER_CANCEL_STATUS_SOURCE={status_source}", flush=True)
-    print(f"SLICERDDSURFER_CANCEL_MANIFEST_EXISTS={manifest.is_file()}", flush=True)
-    print(f"SLICERDDSURFER_CANCEL_MANIFEST_STATUS={manifest_status}", flush=True)
-    print(f"SLICERDDSURFER_CANCEL_TABLE_STATUSES={statuses}", flush=True)
+    print(f"SLICERDSPACE_CANCEL_PROCESS_RUNNING={process_running}", flush=True)
+    print(f"SLICERDSPACE_CANCEL_STATUS_LABEL={status_label}", flush=True)
+    print(f"SLICERDSPACE_CANCEL_STATUS_SOURCE={status_source}", flush=True)
+    print(f"SLICERDSPACE_CANCEL_MANIFEST_EXISTS={manifest.is_file()}", flush=True)
+    print(f"SLICERDSPACE_CANCEL_MANIFEST_STATUS={manifest_status}", flush=True)
+    print(f"SLICERDSPACE_CANCEL_TABLE_STATUSES={statuses}", flush=True)
     saw_running = bool(getattr(widget, "_cancelSmokeSawRunning", False))
     bad = (
         process_running
@@ -108,7 +108,7 @@ def _check() -> None:
 
 
 def _watchdog() -> None:
-    print("SLICERDDSURFER_CANCEL_WATCHDOG_TIMEOUT=True", flush=True)
+    print("SLICERDSPACE_CANCEL_WATCHDOG_TIMEOUT=True", flush=True)
     slicer.app.exit(3)
 
 

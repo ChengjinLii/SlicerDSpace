@@ -99,7 +99,7 @@ class ManifestParsingTest(unittest.TestCase):
         path = _write(self.root / "x_orchestration_manifest.json", {"kind": "slicerddsurfer_run_plan", "version": 1})
         with self.assertRaises(ManifestError) as ctx:
             parse_run_manifest(path)
-        self.assertIn("not a SlicerDDSurfer run manifest", str(ctx.exception))
+        self.assertIn("not a SlicerDSpace run manifest", str(ctx.exception))
         self.assertIn("00_run_metadata", str(ctx.exception))
 
     def test_unsupported_and_non_integer_versions_are_rejected(self) -> None:

@@ -162,7 +162,7 @@ class GPUExecutionPolicyTests(unittest.TestCase):
         torch = self.fake_torch(True)
         with patch.dict(sys.modules, {"tractcloud": package, "tractcloud.pipeline": pipeline, "torch": torch}), \
                 patch("runpy.run_module"), patch.object(sys, "argv", ["tractcloud", "--device", "auto"]), \
-                patch.dict(os.environ, {"SLICERDDSURFER_TRACTCLOUD_DEVICE_RECORD": ""}):
+                patch.dict(os.environ, {"SLICERDSPACE_TRACTCLOUD_DEVICE_RECORD": ""}):
             exec(TRACTCLOUD_COMPAT_BOOTSTRAP, {})
             self.assertEqual(sys.argv[-1], "cuda")
             self.assertEqual(pipeline.run_inference(None, None, None, 3, "cuda:0"), "prediction")

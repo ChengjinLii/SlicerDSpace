@@ -8,7 +8,7 @@
 
 </div>
 
-This directory contains SlicerDDSurfer's **unofficial Python port** of
+This directory contains SlicerDSpace's **unofficial Python port** of
 [Dmitri Shastin's MATLAB SAF framework](https://github.com/dmitrishastin/SAF/tree/7e2a9d152caf1cf3e6bface64e7e176faac0c14f).
 The original MIT [license](LICENSE.md) is retained. Python execution does not
 require MATLAB. NumPy, SciPy, scikit-learn, NiBabel and route-specific MRtrix

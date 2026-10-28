@@ -6,7 +6,7 @@
 
 </div>
 
-SlicerDDSurfer stores common preferences in one local JSON file shared by the
+SlicerDSpace stores common preferences in one local JSON file shared by the
 Slicer GUI and command-line interface. After the first setup, users do not need
 to repeatedly enter language, model paths, external software paths or common
 run defaults.
@@ -17,11 +17,11 @@ run defaults.
 
 | Platform | Default JSON path |
 | --- | --- |
-| Windows | `%APPDATA%\SlicerDDSurfer\user_config.json` |
-| macOS | `~/Library/Application Support/SlicerDDSurfer/user_config.json` |
-| Linux/HPC | `$XDG_CONFIG_HOME/SlicerDDSurfer/user_config.json` or `~/.config/SlicerDDSurfer/user_config.json` |
+| Windows | `%APPDATA%\SlicerDSpace\user_config.json` |
+| macOS | `~/Library/Application Support/SlicerDSpace/user_config.json` |
+| Linux/HPC | `$XDG_CONFIG_HOME/SlicerDSpace/user_config.json` or `~/.config/SlicerDSpace/user_config.json` |
 
-Set `SLICERDDSURFER_USER_CONFIG=/custom/path/user_config.json` to use another
+Set `SLICERDSPACE_USER_CONFIG=/custom/path/user_config.json` to use another
 location. This is useful for a lab-wide profile, portable test environment or
 CI job.
 
@@ -115,7 +115,7 @@ Precedence is: direct CLI option, explicit `--dependency-config` profile,
 shared user config, then built-in default. This lets a reusable project profile
 override personal dependency paths without overriding an option typed directly
 for the current command.
-When saving, SlicerDDSurfer records the final resolved target and
+When saving, SlicerDSpace records the final resolved target and
 microstructure-stage selections after applying `--all`, `--skip-targets` and
 stage expansion. GUI-only choices, such as the first-run state and automatic
 Python-package preference, are preserved.

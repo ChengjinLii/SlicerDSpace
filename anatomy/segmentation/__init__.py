@@ -1,4 +1,4 @@
-"""Segmentation workflow package for SlicerDDSurfer."""
+"""Segmentation workflow package for SlicerDSpace."""
 
 __all__ = [
     "DDSegConfig",

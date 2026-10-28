@@ -31,8 +31,8 @@ CMake 与 staging 共同读取
 ~~~bash
 python3 scripts/audit_slicer_extension_metadata.py --json
 python3 scripts/stage_slicer_extension.py --install-root ignore/release-test/install --clean --link-mode copy
-python3 scripts/package_slicer_extension.py --extension-root ignore/release-test/install/SlicerDDSurfer --output ignore/release-test/SlicerDDSurfer.tar.gz
-python3 scripts/audit_extension_package.py ignore/release-test/SlicerDDSurfer.tar.gz --report ignore/release-test/package_audit.json
+python3 scripts/package_slicer_extension.py --extension-root ignore/release-test/install/SlicerDSpace --output ignore/release-test/SlicerDSpace.tar.gz
+python3 scripts/audit_extension_package.py ignore/release-test/SlicerDSpace.tar.gz --report ignore/release-test/package_audit.json
 ~~~
 
 安装包检查核对文件及源文件哈希，报告缺失、额外或重复资源。
@@ -103,7 +103,7 @@ staging、旧源码测试或已配置好的工作站不能替代这种验收。
 | 真实数据教程及 Sample Data 注册 | [Slicer DWIVolume 教程](../setup/SLICER_SAMPLE_DTI.zh-CN.md)已验证 DTI 路线；独立可再分发数据注册仍待完成 |
 | 专利披露 | 维护者需审查，不能未经确认声称不存在 |
 
-<code>docs/release/extension-index/SlicerDDSurfer.json</code> 是目录条目草稿，
+<code>docs/release/extension-index/SlicerDSpace.json</code> 是目录条目草稿，
 不是正式提交。需与 CMake、s4ext 保持一致；仓库私有时资源 URL 不对公众可用。
 
 ---

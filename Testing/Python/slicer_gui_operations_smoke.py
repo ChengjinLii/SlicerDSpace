@@ -27,8 +27,8 @@ def run():
         from shared.result_scene import owned_nodes
         from shared.ui_setup_jobs import start_setup_job
 
-        slicer.util.selectModule("SlicerDDSurfer")
-        widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        widget = slicer.modules.slicerdspace.widgetRepresentation().self()
         widget._latestResultManifestPath = "previous-run.json"
         for button in widget._resultSceneButtons:
             button.enabled = True
@@ -125,7 +125,7 @@ def run():
                 widget.ui.configurationCollapsibleButton.collapsed = False
                 widget.ui.advancedRunCollapsibleButton.collapsed = True
                 slicer.app.processEvents()
-                capture_root = Path(os.environ.get("SLICERDDSURFER_SMOKE_ROOT", "/tmp"))
+                capture_root = Path(os.environ.get("SLICERDSPACE_SMOKE_ROOT", "/tmp"))
                 slicer.util.mainWindow().grab().save(str(capture_root / "gui.png"))
                 widget._runStatusPanel.grab().save(str(capture_root / "result-panel.png"))
                 slicer.app.exit(0)

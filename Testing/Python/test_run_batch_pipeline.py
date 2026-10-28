@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the SlicerDDSurfer batch CLI helpers."""
+"""Tests for the SlicerDSpace batch CLI helpers."""
 
 from __future__ import annotations
 

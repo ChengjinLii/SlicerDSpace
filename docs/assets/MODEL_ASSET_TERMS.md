@@ -7,7 +7,7 @@
 </div>
 
 This file records the release-facing status of model weights, templates and
-validation fixtures used by SlicerDDSurfer. It separates local availability
+validation fixtures used by SlicerDSpace. It separates local availability
 checks from redistribution and DOI-archive permission.
 
 ---

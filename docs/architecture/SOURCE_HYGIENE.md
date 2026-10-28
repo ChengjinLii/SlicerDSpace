@@ -30,7 +30,7 @@ upstream source files were not removed or rewritten.
 
 Older files can still serve an active contract:
 
-- `SlicerDDSurfer.py`, `SlicerDDSurfer.s4ext`, `CMakeLists.txt` and `Resources/`
+- `SlicerDSpace.py`, `SlicerDSpace.s4ext`, `CMakeLists.txt` and `Resources/`
   are the Slicer module, extension metadata, packaging configuration and UI.
 - `shared/` and the domain packages contain current GUI and pipeline code.
   Moving them all into `src/` is a separate compatibility migration, not a

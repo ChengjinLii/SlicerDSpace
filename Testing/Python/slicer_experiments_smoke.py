@@ -8,7 +8,7 @@ import traceback
 import qt
 import slicer
 
-ROOT = Path(os.environ['SLICERDDSURFER_SMOKE_ROOT'])
+ROOT = Path(os.environ['SLICERDSPACE_SMOKE_ROOT'])
 
 
 def wait_until(predicate, seconds=40):
@@ -25,8 +25,8 @@ def run():
     from unittest.mock import patch
     checks = []
     try:
-        slicer.util.selectModule('SlicerDDSurfer')
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule('SlicerDSpace')
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         node = owner._parameterNode
         from shared.ui_experiments import preview, request_and_plan, apply_native_route
         owner._advancedSettingsPanel.collapsed = False

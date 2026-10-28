@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Modified by the SlicerDDSurfer project (see THIRD_PARTY_NOTICES.md /
+# Modified by the SlicerDSpace project (see THIRD_PARTY_NOTICES.md /
 # licenses/NOTICE-FastSurfer.txt): replaced sys.exit()/exit() calls on
 # invalid input with raised ValueError exceptions, and re-raise the
 # original exception after logging it in several dataset __init__

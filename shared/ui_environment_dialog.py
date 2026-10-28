@@ -1,4 +1,4 @@
-"""Qt builders for the SlicerDDSurfer environment-results dialog."""
+"""Qt builders for the SlicerDSpace environment-results dialog."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ def show_environment_results_dialog(
             pass
 
     dialog = qt.QDialog(slicer.util.mainWindow())
-    dialog.setWindowTitle("SlicerDDSurfer Environment Dependencies")
+    dialog.setWindowTitle("SlicerDSpace Environment Dependencies")
     dialog.resize(900, 640)
     dialog.setStyleSheet(ENVIRONMENT_RESULTS_DIALOG_STYLE)
     owner._environmentDialog = dialog

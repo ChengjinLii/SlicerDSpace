@@ -1,4 +1,4 @@
-"""Common scripted-module widget glue for SlicerDDSurfer."""
+"""Common scripted-module widget glue for SlicerDSpace."""
 
 from __future__ import annotations
 
@@ -158,7 +158,7 @@ ENVIRONMENT_DEPENDENCY_PATHS = UI_DEPENDENCY_PATHS
 
 
 class SharedWidgetMixin:
-    """Shared UI helpers used across the unified SlicerDDSurfer widget."""
+    """Shared UI helpers used across the unified SlicerDSpace widget."""
 
     def _connect_common_ui(self) -> None:
         slicer.app.connect("aboutToQuit()", self.cleanup)
@@ -449,7 +449,7 @@ class SharedWidgetMixin:
             headline.setMinimumWidth(80)
         logo_label = getattr(self.ui, "logoLabel", None)
         if logo_label:
-            logo_path = self.resourcePath("Icons/SlicerDDSurfer.png")
+            logo_path = self.resourcePath("Icons/SlicerDSpace.png")
             if os.path.exists(logo_path):
                 logo_label.setPixmap(QPixmap(logo_path))
 
@@ -471,7 +471,7 @@ class SharedWidgetMixin:
             "environmentCollapsibleButton": "Advanced: Dependency profile",
             "configurationCollapsibleButton": "1. Inputs",
             "advancedRunCollapsibleButton": "Analysis settings",
-            "runSelectedButton": "Run SlicerDDSurfer",
+            "runSelectedButton": "Run SlicerDSpace",
         }
         for widget_name, text in text_updates.items():
             widget = getattr(self.ui, widget_name, None)
@@ -514,7 +514,7 @@ class SharedWidgetMixin:
         cancel_button.setObjectName("cancelRunButton")
         cancel_button.enabled = False
         cancel_button.visible = False
-        cancel_button.setToolTip("Stop the background SlicerDDSurfer pipeline process and write a cancellation manifest.")
+        cancel_button.setToolTip("Stop the background SlicerDSpace pipeline process and write a cancellation manifest.")
         cancel_button.connect("clicked()", self._onCancelRunClicked)
         actions_layout.addWidget(cancel_button)
         try:
@@ -542,10 +542,10 @@ class SharedWidgetMixin:
                 widget.visible = False
 
     def _environment_settings_key(self, dependency_id: str) -> str:
-        return f"SlicerDDSurfer/ExternalDependencies/{dependency_id}"
+        return f"SlicerDSpace/ExternalDependencies/{dependency_id}"
 
     def _user_settings_key(self, name: str) -> str:
-        return f"SlicerDDSurfer/UserSettings/{name}"
+        return f"SlicerDSpace/UserSettings/{name}"
 
     def _common_user_setting_specs(self) -> tuple[tuple[str, type], ...]:
         return common_user_setting_specs() + (("brainMaskBackend", str), ("brainMaskDevice", str), ("device", str),
@@ -875,13 +875,13 @@ class SharedWidgetMixin:
                     "合成示例数据已准备完成。\n\n"
                     f"Subject root: {subject_root}\n\n"
                     "将使用 DTI microstructure + dti_det tractography 轻量流程。关闭此提示后，"
-                    "SlicerDDSurfer 会自动执行 preflight 并开始运行。"
+                    "SlicerDSpace 会自动执行 preflight 并开始运行。"
                 )
             else:
                 message = (
                     "Synthetic demo subject is ready.\n\n"
                     f"Subject root: {subject_root}\n\n"
-                    "SlicerDDSurfer will run the lightweight DTI microstructure + dti_det tractography workflow. "
+                    "SlicerDSpace will run the lightweight DTI microstructure + dti_det tractography workflow. "
                     "Close this message to start preflight and execution automatically."
                 )
             slicer.util.infoDisplay(
@@ -892,7 +892,7 @@ class SharedWidgetMixin:
         except Exception as exc:
             self._show_actionable_error(
                 title="Demo Setup Failed",
-                what="SlicerDDSurfer could not prepare the synthetic demo subject.",
+                what="SlicerDSpace could not prepare the synthetic demo subject.",
                 why="The temporary directory may be unavailable, or required Python packages such as nibabel/numpy are missing.",
                 next_step="Run Check environment dependencies, install missing Python packages, then try Demo again.",
                 auto_fix="No external software or model files were modified.",
@@ -905,7 +905,7 @@ class SharedWidgetMixin:
             qt.QApplication.clipboard().setText(report)
             slicer.util.infoDisplay("Diagnostic report copied to clipboard.", parent=self.parent)
         except Exception:
-            slicer.util.infoDisplay(report, windowTitle="SlicerDDSurfer diagnostic report", parent=self.parent)
+            slicer.util.infoDisplay(report, windowTitle="SlicerDSpace diagnostic report", parent=self.parent)
 
     def _on_open_user_config_clicked(self) -> None:
         path = default_user_config_path().expanduser()
@@ -972,7 +972,7 @@ class SharedWidgetMixin:
     def _on_show_model_asset_provenance_clicked(self) -> None:
         slicer.util.infoDisplay(
             model_assets_provenance_text(Path(__file__).resolve().parent.parent),
-            windowTitle="SlicerDDSurfer model asset provenance",
+            windowTitle="SlicerDSpace model asset provenance",
             parent=self.parent,
         )
 
@@ -1035,7 +1035,7 @@ class SharedWidgetMixin:
         except Exception as exc:
             self._show_actionable_error(
                 title="Model Asset Status Failed",
-                what="SlicerDDSurfer could not verify the model asset manifest.",
+                what="SlicerDSpace could not verify the model asset manifest.",
                 why="The checkout is missing the manifest, Git LFS metadata is unavailable, or the manifest profile is invalid.",
                 next_step="Set Model assets root or run scripts/download_model_assets.sh --profile core --asset-root <asset-root>, then check status again.",
                 auto_fix="Use the Verify core button for local verification; large downloads are not started by Check status.",
@@ -1063,7 +1063,7 @@ class SharedWidgetMixin:
         except Exception as exc:
             self._show_actionable_error(
                 title="Core Model Asset Verification Failed",
-                what="SlicerDDSurfer could not verify the core model assets.",
+                what="SlicerDSpace could not verify the core model assets.",
                 why="The manifest or Git LFS file list could not be read.",
                 next_step="Set Model assets root or run scripts/download_model_assets.sh --profile core --asset-root <asset-root> and retry.",
                 auto_fix="This button verifies existing files only; it does not download large Git LFS objects.",
@@ -1099,7 +1099,7 @@ class SharedWidgetMixin:
     def _on_write_model_asset_lockfile_clicked(self) -> None:
         selected = qt.QFileDialog.getSaveFileName(
             slicer.util.mainWindow(),
-            "Write SlicerDDSurfer model asset lockfile",
+            "Write SlicerDSpace model asset lockfile",
             str(Path.home() / "model_assets_core_lock.json"),
             "JSON files (*.json)",
         )
@@ -1152,7 +1152,7 @@ class SharedWidgetMixin:
             elif output_root is not None:
                 report_dir = output_root / "00_run_metadata" / "environment"
             else:
-                report_dir = Path(str(slicer.app.temporaryPath)) / "SlicerDDSurfer" / "00_run_metadata" / "environment"
+                report_dir = Path(str(slicer.app.temporaryPath)) / "SlicerDSpace" / "00_run_metadata" / "environment"
             self._latestEnvironmentReportDir = report_dir
         except Exception:
             self._latestEnvironmentReportDir = None
@@ -1178,7 +1178,7 @@ class SharedWidgetMixin:
     def _on_export_dependency_config_clicked(self) -> None:
         selected = qt.QFileDialog.getSaveFileName(
             slicer.util.mainWindow(),
-            "Export SlicerDDSurfer dependency config",
+            "Export SlicerDSpace dependency config",
             str(Path.home() / "slicerdsurfer-deps.json"),
             "JSON files (*.json)",
         )
@@ -1196,7 +1196,7 @@ class SharedWidgetMixin:
     def _on_import_dependency_config_clicked(self) -> None:
         selected = qt.QFileDialog.getOpenFileName(
             slicer.util.mainWindow(),
-            "Import SlicerDDSurfer dependency config",
+            "Import SlicerDSpace dependency config",
             str(Path.home()),
             "JSON files (*.json)",
         )
@@ -1211,9 +1211,9 @@ class SharedWidgetMixin:
         except Exception as exc:
             self._show_actionable_error(
                 title="Dependency Config Import Failed",
-                what="SlicerDDSurfer could not read or apply the selected dependency profile.",
+                what="SlicerDSpace could not read or apply the selected dependency profile.",
                 why="The file is not valid JSON, does not contain external_dependencies, or contains incompatible values.",
-                next_step="Select a SlicerDDSurfer dependency profile JSON exported by this module, then rerun the environment scan.",
+                next_step="Select a SlicerDSpace dependency profile JSON exported by this module, then rerun the environment scan.",
                 auto_fix="Not available for malformed config files.",
                 details=exc,
             )
@@ -1357,7 +1357,7 @@ class SharedWidgetMixin:
         except Exception as exc:
             self._show_actionable_error(
                 title="Input Import Preview Failed",
-                what="SlicerDDSurfer could not build an input import plan.",
+                what="SlicerDSpace could not build an input import plan.",
                 why="The selected source path, sidecars, source type, backend, or destination subject root is invalid.",
                 next_step="Check the source path and sidecar paths, or set Source type explicitly instead of auto.",
                 auto_fix="Not available. The preview does not mutate files.",
@@ -1365,7 +1365,7 @@ class SharedWidgetMixin:
             )
             return
         self.appendLog("[Prepare Inputs] Dry-run plan:\n" + json.dumps(manifest, indent=2, sort_keys=True))
-        slicer.util.infoDisplay("Input import plan created. See the SlicerDDSurfer log for details.", parent=self.parent)
+        slicer.util.infoDisplay("Input import plan created. See the SlicerDSpace log for details.", parent=self.parent)
 
     def _on_prepare_inputs_clicked(self) -> None:
         try:
@@ -1374,7 +1374,7 @@ class SharedWidgetMixin:
         except Exception as exc:
             self._show_actionable_error(
                 title="Input Import Failed",
-                what="SlicerDDSurfer could not prepare the selected external inputs.",
+                what="SlicerDSpace could not prepare the selected external inputs.",
                 why="The import backend failed, sidecar files are missing, or the destination already contains files without overwrite enabled.",
                 next_step="Review the selected paths and backend. Enable overwrite only if replacing the destination input files is intended.",
                 auto_fix="Not available. External converters such as dcm2niix, MRtrix3 mrconvert, and SlicerDMRI DWIConvert must be installed separately.",
@@ -1880,7 +1880,7 @@ class SharedWidgetMixin:
         """Handle navigation button clicks."""
         if target == "DDSeg":
             try:
-                slicer.util.selectModule("SlicerDDSurfer")
+                slicer.util.selectModule("SlicerDSpace")
                 panel = getattr(self.ui, "ddsegCollapsibleButton", None)
                 if panel:
                     panel.collapsed = False
@@ -1891,7 +1891,7 @@ class SharedWidgetMixin:
             return
         if target == "LOCAL_DDSURFER":
             try:
-                slicer.util.selectModule("SlicerDDSurfer")
+                slicer.util.selectModule("SlicerDSpace")
                 if hasattr(self, "ui") and getattr(self.ui, "configurationCollapsibleButton", None):
                     self.ui.configurationCollapsibleButton.collapsed = False
             except Exception:
@@ -1901,7 +1901,7 @@ class SharedWidgetMixin:
 
         if target == "LOCAL_MICROSTRUCTURE":
             try:
-                slicer.util.selectModule("SlicerDDSurfer")
+                slicer.util.selectModule("SlicerDSpace")
                 panel = getattr(self.ui, "microstructureCollapsibleButton", None)
                 if panel:
                     panel.collapsed = False
@@ -2314,7 +2314,7 @@ class SharedWidgetMixin:
         if getattr(self, "_backgroundProcess", None) is not None:
             process = self._backgroundProcess
             if qprocess_is_running(process):
-                slicer.util.infoDisplay("A SlicerDDSurfer job is already running.", parent=self.parent)
+                slicer.util.infoDisplay("A SlicerDSpace job is already running.", parent=self.parent)
                 return
 
         process = qt.QProcess(self.parent)
@@ -2373,7 +2373,7 @@ class SharedWidgetMixin:
         if getattr(self, "_backgroundProcess", None) is not None:
             process = self._backgroundProcess
             if qprocess_is_running(process):
-                slicer.util.infoDisplay("A SlicerDDSurfer job is already running.", parent=self.parent)
+                slicer.util.infoDisplay("A SlicerDSpace job is already running.", parent=self.parent)
                 return
 
         process = qt.QProcess(self.parent)
@@ -2823,7 +2823,7 @@ class SharedWidgetMixin:
             self.appendLog(f"Environment check failed: {exc}")
             self._show_actionable_error(
                 title="Environment Check Failed",
-                what="SlicerDDSurfer could not complete the dependency preflight scan.",
+                what="SlicerDSpace could not complete the dependency preflight scan.",
                 why="A configured path, Python executable, environment variable, or external probe raised an exception.",
                 next_step="Check the External Runtime Paths values, clear stale paths, then run Check environment dependencies again.",
                 auto_fix="Python packages can be installed on demand after a successful scan; external tools are never changed silently.",
@@ -2846,13 +2846,13 @@ class SharedWidgetMixin:
                 return subject_layout(Path(subject_root).expanduser().resolve(), output_root=output_root).run_metadata / "environment"
             if output_root is not None:
                 return Path(output_root).expanduser().resolve() / "00_run_metadata" / "environment"
-            return Path(str(slicer.app.temporaryPath)) / "SlicerDDSurfer" / "00_run_metadata" / "environment"
+            return Path(str(slicer.app.temporaryPath)) / "SlicerDSpace" / "00_run_metadata" / "environment"
         except Exception:
             return None
 
     def _install_missing_python_before_run(self, doctor_result, doctor_kwargs: dict, doctor_signature: tuple):
         self._install_python_packages_from_environment_dialog(tuple(doctor_result.missing_python_packages))
-        self.appendLog("[Setup] After installation, review dependencies and click Run SlicerDDSurfer again.")
+        self.appendLog("[Setup] After installation, review dependencies and click Run SlicerDSpace again.")
         return None
 
     def _onRunSelectedClicked(self) -> None:
@@ -3005,7 +3005,7 @@ class SharedWidgetMixin:
             self.appendLog(f"Run planning failed: {exc}")
             self._show_actionable_error(
                 title="Run Planning Failed",
-                what="SlicerDDSurfer could not build the selected product run plan.",
+                what="SlicerDSpace could not build the selected product run plan.",
                 why="The selected targets, backend choices, or input/output paths are inconsistent.",
                 next_step="Review Subject Setup, selected products, backend choices, and the output directory, then run the plan again.",
                 auto_fix="Not available for invalid run configuration.",
@@ -3046,7 +3046,7 @@ class SharedWidgetMixin:
 
     def _show_partial_run_notice(self, blockers: dict[str, str], runnable_targets: tuple[str, ...]) -> None:
         message = partial_run_notice_text(blockers, runnable_targets)
-        slicer.util.infoDisplay(message, windowTitle="SlicerDDSurfer partial run", parent=self.parent)
+        slicer.util.infoDisplay(message, windowTitle="SlicerDSpace partial run", parent=self.parent)
 
     def _setStatus(self, kind: str, message: str) -> None:
         self._statusMessageSource = str(message or "")
@@ -3271,7 +3271,7 @@ class SharedWidgetMixin:
             slicer.util.infoDisplay("No manual setup items are missing.", parent=self.parent)
             return
         message = "\n\n".join(self._environment_item_text(item) for item in missing)
-        slicer.util.infoDisplay(message, windowTitle="SlicerDDSurfer manual setup notes", parent=self.parent)
+        slicer.util.infoDisplay(message, windowTitle="SlicerDSpace manual setup notes", parent=self.parent)
 
     def _show_environment_install_notes_for_item(self, item) -> None:
         slicer.util.infoDisplay(
@@ -3352,7 +3352,7 @@ class SharedWidgetMixin:
         default_root = configured if isinstance(configured, Path) and str(configured) else module.configured_model_assets_root()
         selected = qt.QFileDialog.getExistingDirectory(
             slicer.util.mainWindow(),
-            "Choose SlicerDDSurfer model asset root",
+            "Choose SlicerDSpace model asset root",
             default_root.expanduser().as_posix(),
         )
         selected_text = str(selected or "").strip()

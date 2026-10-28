@@ -28,7 +28,7 @@ def main():
         assert manifest['status'] == 'completed' and qc['automatic_qc_passed'], run
         assert manifest['precision'] == 'fp32', run
         values = {}
-        native = directory / 'pred_results_SlicerDDSurfer/native' / args.subject
+        native = directory / 'pred_results_SlicerDSpace/native' / args.subject
         for hemi in ('lh', 'rh'):
             for kind in ('white', 'pial'):
                 name = f'{hemi}.{kind}'

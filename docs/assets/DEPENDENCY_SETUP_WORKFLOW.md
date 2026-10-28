@@ -6,7 +6,7 @@
 
 </div>
 
-SlicerDDSurfer treats Python packages, external software and model assets as
+SlicerDSpace treats Python packages, external software and model assets as
 different resource classes. They can all be assisted by scripts, but the path
 fields mean different things.
 
@@ -24,7 +24,7 @@ fields mean different things.
 
 ## Recommended UI Flow
 
-1. Open SlicerDDSurfer from a staged extension or installed module.
+1. Open SlicerDSpace from a staged extension or installed module.
 2. Use the header language selector for English/Chinese.
 3. Open **Advanced settings > Environment and models**; Beginner controls and the automatic wizard are hidden.
 4. Choose a `Model assets root`, download or verify

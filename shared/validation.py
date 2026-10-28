@@ -1,4 +1,4 @@
-"""Input validation and lightweight QC for SlicerDDSurfer subject roots."""
+"""Input validation and lightweight QC for SlicerDSpace subject roots."""
 
 from __future__ import annotations
 

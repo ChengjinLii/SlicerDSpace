@@ -9,9 +9,9 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-TITLE = "SlicerDDSurfer"
+TITLE = "SlicerDSpace"
 SUBTITLE = ("A T1-weighted-image-free 3D Slicer workflow for diffusion MRI "
-            "anatomy, microstructure and connectivity analysis")
+            "anatomical priors, microstructure and connectivity analysis")
 
 
 class WebsiteEditorialCopyTests(unittest.TestCase):
@@ -136,10 +136,10 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
         self.assertIn('show me the plan before execution', section)
         self.assertIn('website guide bot provides curated information', section)
         self.assertNotIn('<details', section)
-        for relative in ('.agents/skills/slicerddsurfer-install/SKILL.md',
-                         '.agents/skills/slicerddsurfer-install/references/usage.md',
+        for relative in ('.agents/skills/slicerdspace-install/SKILL.md',
+                         '.agents/skills/slicerdspace-install/references/usage.md',
                          'docs/setup/CLI_TEMPLATES.md'):
-            self.assertIn('href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/' + relative + '"', section)
+            self.assertIn('href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/' + relative + '"', section)
             self.assertTrue((ROOT / relative).is_file())
 
     def test_both_readmes_promote_installation_and_use_skills(self):
@@ -148,8 +148,8 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
                 text = (ROOT / name).read_text(encoding='utf-8')
                 self.assertIn('[Agent Skills](#agent-skills)', text)
                 content = text.split('## Agent Skills\n', 1)[1].split('\n---\n', 1)[0]
-                self.assertIn('.agents/skills/slicerddsurfer-install/SKILL.md', content)
-                self.assertIn('.agents/skills/slicerddsurfer-install/references/usage.md', content)
+                self.assertIn('.agents/skills/slicerdspace-install/SKILL.md', content)
+                self.assertIn('.agents/skills/slicerdspace-install/references/usage.md', content)
                 self.assertIn('docs/setup/' + templates, content)
                 self.assertIn('/path/to/sub-01', content)
                 self.assertIn('QC', content)

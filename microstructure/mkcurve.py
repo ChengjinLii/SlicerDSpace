@@ -1,6 +1,6 @@
 # Python translation of MK-Curve/run_MKCurve.m and abnormal_voxel_detection.m.
 # MK-Curve Contribution and Software License Agreement, BWH, June 2019.
-# See licenses/MK-Curve-LICENSE.txt. Modified for SlicerDDSurfer, 2026.
+# See licenses/MK-Curve-LICENSE.txt. Modified for SlicerDSpace, 2026.
 """Native Python MK-Curve port, distinct from standard DIPY DKI maps."""
 
 from datetime import datetime, timezone

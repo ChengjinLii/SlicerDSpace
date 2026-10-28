@@ -1,4 +1,4 @@
-"""Microstructure workflow package for SlicerDDSurfer."""
+"""Microstructure workflow package for SlicerDSpace."""
 
 from __future__ import annotations
 

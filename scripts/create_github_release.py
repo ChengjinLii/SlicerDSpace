@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create the SlicerDDSurfer GitHub Release page and upload release artifacts.
+"""Create the SlicerDSpace GitHub Release page and upload release artifacts.
 
 The script uses the GitHub REST API directly so maintainers do not need the
 GitHub CLI. It intentionally defaults to a draft release because model-asset
@@ -23,9 +23,9 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_REPOSITORY = "ChengjinLii/SlicerDDSurfer"
+DEFAULT_REPOSITORY = "ChengjinLii/SlicerDSpace"
 DEFAULT_TAG = "v0.1.0"
-DEFAULT_TITLE = "SlicerDDSurfer v0.1.0"
+DEFAULT_TITLE = "SlicerDSpace v0.1.0"
 DEFAULT_NOTES = REPO_ROOT / "docs" / "release" / "GITHUB_RELEASE_DRAFT_v0.1.0.md"
 DEFAULT_ARTIFACT_NAMES = (
     "model_assets_core_lock.json",
@@ -147,7 +147,7 @@ def _api_request(
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {token}",
         "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "SlicerDDSurfer-release-script",
+        "User-Agent": "SlicerDSpace-release-script",
     }
     request_data = data
     if payload is not None:
@@ -240,7 +240,7 @@ def delete_release_asset(asset: dict[str, Any], *, token: str) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Create the SlicerDDSurfer GitHub Release and upload artifacts.")
+    parser = argparse.ArgumentParser(description="Create the SlicerDSpace GitHub Release and upload artifacts.")
     parser.add_argument("--repository", default=DEFAULT_REPOSITORY, help="GitHub repository in owner/name form.")
     parser.add_argument("--tag", default=DEFAULT_TAG, help="Release tag. Defaults to v0.1.0.")
     parser.add_argument("--title", default=DEFAULT_TITLE, help="Release title.")

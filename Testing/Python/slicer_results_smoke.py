@@ -11,11 +11,11 @@ import qt
 import slicer
 from vtk.util.numpy_support import vtk_to_numpy
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
-REPORT = Path(os.environ["SLICERDDSURFER_RESULTS_REPORT"])
-config_path = os.environ.get("SLICERDDSURFER_TASKS_CONFIG")
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
+REPORT = Path(os.environ["SLICERDSPACE_RESULTS_REPORT"])
+config_path = os.environ.get("SLICERDSPACE_TASKS_CONFIG")
 CONFIG = json.loads(Path(config_path).read_text()) if config_path else {}
-EXPECTED_CASES = int(os.environ.get("SLICERDDSURFER_RESULTS_EXPECTED_CASES", len(CONFIG.get("cases", []))))
+EXPECTED_CASES = int(os.environ.get("SLICERDSPACE_RESULTS_EXPECTED_CASES", len(CONFIG.get("cases", []))))
 if EXPECTED_CASES < 1:
     raise ValueError("Specify the expected case count or a scientific task configuration")
 STATE = {"done": set(), "records": [], "started": time.monotonic()}
@@ -85,8 +85,8 @@ def poll():
 
 
 def start():
-    slicer.util.selectModule("SlicerDDSurfer")
-    STATE["widget"] = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+    slicer.util.selectModule("SlicerDSpace")
+    STATE["widget"] = slicer.modules.slicerdspace.widgetRepresentation().self()
     poll()
 
 

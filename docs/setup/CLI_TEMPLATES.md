@@ -16,10 +16,10 @@
 | --- | --- |
 | Import DICOM, NIfTI or NRRD | [Input preparation](#input-preparation) |
 | Generate masks or correct DWI | [Masks and preprocessing](#masks-and-preprocessing) |
-| DDSeg, DDParcel, DDSurfer or cortical postprocessing | [Anatomy](#anatomy) |
+| DDSeg, DDParcel, DDSurfer or cortical postprocessing | [Anatomical prior](#anatomy) |
 | DTI, FW, NODDI, DKI or MK-Curve | [Microstructure](#microstructure) |
 | DTI, UKF, CSD/ACT or SAF | [Tractography](#tractography) |
-| WMQL, WMA, TractCloud and source selection | [Bundles](#bundles-and-explicit-sources) |
+| WMQL, WMA, TractCloud and source selection | [Fiber bundles](#bundles-and-explicit-sources) |
 | Connectivity or a combined route | [Connectome](#connectome-and-combined-routes) |
 | Cohorts or parameter comparisons | [Experiments](#cohorts-and-parameter-experiments) |
 | Regional analysis or reports | [Results](#regional-analysis-and-reports) |
@@ -32,7 +32,7 @@ containing `shared/` and `scripts/`. Use the real Slicer launcher.
 <!-- cli-setup: bash -->
 ```bash
 export SLICER="/path/to/Slicer"
-export REPO="/path/to/SlicerDDSurfer"
+export REPO="/path/to/SlicerDSpace"
 export SUBJECT="/path/to/prepared/sub-01"
 export SUBJECT_ID="sub-01"
 export OUTPUTS="/path/to/analysis/sub-01"
@@ -167,7 +167,7 @@ preprocessed images. Review the analysis-input paths recorded in the plan/run.
 
 ---
 
-## Anatomy
+## Anatomical prior
 
 Model assets and compatible PyTorch are required. Shared native DTI preparation
 is handled by the workflow. Choose only the products needed by the study.
@@ -293,7 +293,7 @@ pipeline tracks_ukf --targets validation,tractography --tractography-backend ukf
   --brain-mask-backend provided --ukf-parameters '{"numThreads":8}' --plan
 ```
 
-CSD/ACT requires MRtrix and compatible anatomy; it also computes matching
+CSD/ACT requires MRtrix and compatible anatomical priors; it also computes matching
 SIFT2 weights:
 
 <!-- cli-template: tract-csd -->
@@ -327,7 +327,7 @@ other backends.
 
 ---
 
-## Bundles And Explicit Sources
+## Fiber bundles And Explicit Sources
 
 UKF is generated automatically for the examples below. Whole-brain input,
 bundle method and atlas/resource requirements are distinct selections.
@@ -373,7 +373,7 @@ pipeline bundles_compare --targets validation,parcellation,tractography,bundles 
 All selected bundle methods in the last recipe use UKF; the separate CSD route
 does not receive bundle jobs. To compare a different source, change
 `--bundle-tractography-backend` and use a new run name. WMA coverage on a
-non-UKF source needs its own review. Sparse/empty bundles stay visible in QC.
+non-UKF source needs its own review. Sparse/empty fiber bundles stay visible in QC.
 SAF is not a whole-brain bundle source.
 
 Advanced reuse of an existing compatible whole-brain VTK/VTP input:
@@ -411,7 +411,7 @@ pipeline connectome_sift2 --targets validation,segmentation,parcellation,tractog
   --brain-mask-backend provided --select-streamlines 1000000 --plan
 ```
 
-A combined anatomy/microstructure/UKF/WMQL/Python-connectome route:
+A combined anatomical priors/microstructure/UKF/WMQL/Python-connectome route:
 
 <!-- cli-template: combined -->
 ```bash
@@ -512,7 +512,7 @@ before choosing PNL, MRtrix/FSL, SAF or native postprocessing.
 <!-- cli-setup: powershell -->
 ```powershell
 $Slicer = 'C:\Apps\Slicer\Slicer.exe'
-$Repo = 'C:\work\SlicerDDSurfer'
+$Repo = 'C:\work\SlicerDSpace'
 $Subject = 'D:\study\sub-01'
 $SubjectId = 'sub-01'
 $Outputs = 'D:\analysis\sub-01'
@@ -527,7 +527,7 @@ function Invoke-DDSurfer {
         --subject-root $Subject --subject-id $SubjectId `
         --output-root (Join-Path $Outputs $Run) --run-name $Run `
         --model-assets-dir $Assets @DependencyArgs @RouteArgs
-    if ($LASTEXITCODE -ne 0) { throw "SlicerDDSurfer exited with $LASTEXITCODE" }
+    if ($LASTEXITCODE -ne 0) { throw "SlicerDSpace exited with $LASTEXITCODE" }
 }
 
 Invoke-DDSurfer -Run 'dti_light' -RouteArgs @(

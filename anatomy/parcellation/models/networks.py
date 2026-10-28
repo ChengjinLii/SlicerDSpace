@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Modified by the SlicerDDSurfer project (see THIRD_PARTY_NOTICES.md /
+# Modified by the SlicerDSpace project (see THIRD_PARTY_NOTICES.md /
 # licenses/NOTICE-FastSurfer.txt): backbone-checkpoint torch.load() calls
 # now pass an explicit map_location and weights_only=True, restricting
 # unpickling to a safe allow-list instead of arbitrary pickle execution.

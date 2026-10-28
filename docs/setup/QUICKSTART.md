@@ -33,7 +33,7 @@ See [managed setup](MANAGED_SETUP.md) for coverage and platform limits.
 MRtrix3, FSL and FreeSurfer are not needed just to try a DTI-only route.
 Missing dependencies are reported, not silently replaced by a different method.
 
-The Microstructure, Tractography and Bundles rows show the current algorithm
+The Microstructure, Tractography and Fiber bundles rows show the current algorithm
 selection: **DTI**, **MRtrix3 CSD / ACT** and **WMQL** by default. These labels
 update when settings change; they describe the configuration, not completed or
 QC-approved results. Click **...** beside each of these three products to
@@ -42,7 +42,7 @@ DKI are independent options. Advanced settings uses categories, showing
 only the selected category's parameters. Environment installation is separate.
 
 Multiple tracking methods run sequentially as separate `<run>__<backend>`
-variants. Shared anatomy/microstructure runs once; selected bundle methods and
+variants. Shared anatomical priors/microstructure runs once; selected bundle methods and
 connectomes are computed for each tracking variant. Streamlines are not combined;
 dependency checks and QC gates still apply. More methods require more time and disk space.
 
@@ -55,7 +55,7 @@ dependency checks and QC gates still apply. More methods require more time and d
    resolves to the subject root. An empty output directory uses `<subject>/outputs/`.
 2. Select **Microstructure** and uncheck all other products, including preprocessing.
 3. Click **...** beside Microstructure and retain only DTI.
-4. Click **Run SlicerDDSurfer** and inspect the log. Necessary preflight checks
+4. Click **Run SlicerDSpace** and inspect the log. Necessary preflight checks
    run in the background. Missing dependencies stop submission and open the
    Environment section; prepare them and retry rather than silently omitting products.
 5. FA/MD automatically load as successful stages finish. In the separate **Results and QC** section, select the completed run to inspect QC or use **Load** again without duplicating nodes.
@@ -121,13 +121,13 @@ python3 -c "from pathlib import Path; from shared.demo_data import create_synthe
 
 Use the resulting <code>ignore/demo/slicerdsurfer-demo</code> as Subject root.
 This is a small constant tensor field with seven measurements, **not human
-anatomy**. It checks installation/DTI plumbing, not surface accuracy, NODDI or
+anatomical priors**. It checks installation/DTI plumbing, not surface accuracy, NODDI or
 clinical validity.
 
 The legacy Demo handler is retained for tests, not an advertised visible button.
 For a real DWI example, use the [Slicer DWIVolume walkthrough](SLICER_SAMPLE_DTI.md).
 It uses Slicer's existing Sample Data entry without mirroring the images.
-Registration of a separately redistributable SlicerDDSurfer dataset remains pending.
+Registration of a separately redistributable SlicerDSpace dataset remains pending.
 
 ---
 

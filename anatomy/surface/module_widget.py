@@ -1,4 +1,4 @@
-"""Surface workflow widget glue for SlicerDDSurfer."""
+"""Surface workflow widget glue for SlicerDSpace."""
 
 from __future__ import annotations
 
@@ -165,14 +165,14 @@ class SurfaceWidgetMixin:
             slicer.util.showStatusMessage("Input validation failed. See log for details.", 5000)
             return
 
-        slicer.util.showStatusMessage("SlicerDDSurfer pipeline running...", 0)
-        with slicer.util.tryWithErrorDisplay("SlicerDDSurfer processing failed.", waitCursor=True):
+        slicer.util.showStatusMessage("SlicerDSpace pipeline running...", 0)
+        with slicer.util.tryWithErrorDisplay("SlicerDSpace processing failed.", waitCursor=True):
             self._setPipelineActive(True)
             try:
-                self.appendLog("Starting SlicerDDSurfer pipeline...")
+                self.appendLog("Starting SlicerDSpace pipeline...")
                 self.logic.process(self._parameterNode, logCallback=self.appendLog)
-                self.appendLog("SlicerDDSurfer pipeline completed.")
-                slicer.util.showStatusMessage("SlicerDDSurfer pipeline completed.", 5000)
+                self.appendLog("SlicerDSpace pipeline completed.")
+                slicer.util.showStatusMessage("SlicerDSpace pipeline completed.", 5000)
             finally:
                 self._setPipelineActive(False)
 
@@ -239,7 +239,7 @@ class SurfaceWidgetMixin:
             if update_status:
                 self._setStatus("error" if show_errors else "waiting", status_message)
             if hasattr(self.ui, "applyButton"):
-                tooltip = "Run the SlicerDDSurfer pipeline" if ok else "Waiting: " + ", ".join(missing)
+                tooltip = "Run the SlicerDSpace pipeline" if ok else "Waiting: " + ", ".join(missing)
                 self.ui.applyButton.setToolTip(tooltip)
 
         if hasattr(self.ui, "applyButton"):

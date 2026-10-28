@@ -1,4 +1,4 @@
-"""Validate an extension-like SlicerDDSurfer staged install in real Slicer."""
+"""Validate an extension-like SlicerDSpace staged install in real Slicer."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import qt
 import slicer
 
 
-MODULE_DIR = Path(os.environ.get("SLICERDDSURFER_EXTENSION_MODULE_DIR", ""))
+MODULE_DIR = Path(os.environ.get("SLICERDSPACE_EXTENSION_MODULE_DIR", ""))
 FORBIDDEN_MODULES = (
     "workflow_catalog",
     "run_subject_pipeline",
@@ -58,16 +58,16 @@ def _run() -> None:
                 and all(staged_root == path or staged_root in path.parents for path in ddseg_runtime_paths)
             )
         except Exception as exc:
-            print(f"SLICERDDSURFER_EXTENSION_DDSEG_IMPORT_ERROR={exc}", flush=True)
+            print(f"SLICERDSPACE_EXTENSION_DDSEG_IMPORT_ERROR={exc}", flush=True)
         # Prevent the automatic first-run dialog from blocking headless UI
         # automation. The wizard is opened and inspected explicitly below.
         if slicer.util.mainWindow() is not None:
             from shared.user_config import update_user_config
 
             update_user_config({"ui": {"first_run_wizard_shown": True}})
-            slicer.util.selectModule("SlicerDDSurfer")
-        module = slicer.util.getModule("SlicerDDSurfer")
-        target_registered = _module_registered("SlicerDDSurfer") or module is not None
+            slicer.util.selectModule("SlicerDSpace")
+        module = slicer.util.getModule("SlicerDSpace")
+        target_registered = _module_registered("SlicerDSpace") or module is not None
         widget = module.widgetRepresentation().self()
         logic_ready = bool(getattr(widget, "logic", None))
         parameter_node_ready = bool(getattr(widget, "_parameterNode", None))
@@ -137,7 +137,7 @@ def _run() -> None:
                 # PythonQt string conversion differs between Slicer/Qt builds
                 # for non-ASCII text.  Verify that the translated (non-English)
                 # headline is active without depending on a particular codec.
-                language_switch_ready = "SlicerDDSurfer" in headline_text and "workbench" not in headline_text.lower()
+                language_switch_ready = "SlicerDSpace" in headline_text and "workbench" not in headline_text.lower()
                 examples_label = onboarding_widgets.get("examples")
                 examples_text = str(examples_label.text if examples_label else "")
                 if os.name == "nt":
@@ -223,37 +223,37 @@ def _run() -> None:
         finally:
             slicer.util.infoDisplay = original_info_display
             widget._onRunSelectedClicked = original_run_selected
-        module_file = MODULE_DIR / "SlicerDDSurfer.py"
+        module_file = MODULE_DIR / "SlicerDSpace.py"
         module_file_is_symlink = module_file.is_symlink()
-        print(f"SLICERDDSURFER_EXTENSION_MODULE_DIR={MODULE_DIR}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_TOP_LEVEL_PY={top_level_py}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_TARGET_REGISTERED={target_registered}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_FORBIDDEN_REGISTERED={forbidden_registered}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_DDSEG_RUNTIME_PATHS={ddseg_runtime_paths}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_DDSEG_RUNTIME_IMPORT_READY={ddseg_runtime_import_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_MODULE_FILE_SYMLINK={module_file_is_symlink}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_LOGIC_READY={logic_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_PARAMETER_NODE_READY={parameter_node_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_RUN_PANEL_READY={run_panel_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_WMA_INPUT_READY={wma_input_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_ENV_PATHS_READY={env_paths_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_PREPARE_INPUTS_READY={prepare_inputs_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_MODEL_ASSETS_READY={model_assets_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_ONBOARDING_READY={onboarding_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_LANGUAGE_SWITCH_READY={language_switch_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_LANGUAGE_JSON_READY={language_json_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_PLATFORM_EXAMPLES_READY={platform_examples_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_STATEFUL_WIZARD_READY={stateful_wizard_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_SHARED_TARGETS_JSON_READY={shared_targets_json_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_COMMON_SETTINGS_AUTO_SAVE_READY={common_settings_auto_save_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_SELECTION_SUMMARY_READY={selection_summary_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_LOG_BLOCK_LIMIT={log_block_limit}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_CONFIGURED_LOG_LIMIT={configured_log_limit}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_ENV_CACHE_TTL={environment_cache_ttl}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_DEMO_READY={demo_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTENSION_DEMO_AUTO_DISPATCH_READY={demo_auto_dispatch_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_MODULE_DIR={MODULE_DIR}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_TOP_LEVEL_PY={top_level_py}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_TARGET_REGISTERED={target_registered}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_FORBIDDEN_REGISTERED={forbidden_registered}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_DDSEG_RUNTIME_PATHS={ddseg_runtime_paths}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_DDSEG_RUNTIME_IMPORT_READY={ddseg_runtime_import_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_MODULE_FILE_SYMLINK={module_file_is_symlink}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_LOGIC_READY={logic_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_PARAMETER_NODE_READY={parameter_node_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_RUN_PANEL_READY={run_panel_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_WMA_INPUT_READY={wma_input_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_ENV_PATHS_READY={env_paths_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_PREPARE_INPUTS_READY={prepare_inputs_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_MODEL_ASSETS_READY={model_assets_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_ONBOARDING_READY={onboarding_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_LANGUAGE_SWITCH_READY={language_switch_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_LANGUAGE_JSON_READY={language_json_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_PLATFORM_EXAMPLES_READY={platform_examples_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_STATEFUL_WIZARD_READY={stateful_wizard_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_SHARED_TARGETS_JSON_READY={shared_targets_json_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_COMMON_SETTINGS_AUTO_SAVE_READY={common_settings_auto_save_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_SELECTION_SUMMARY_READY={selection_summary_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_LOG_BLOCK_LIMIT={log_block_limit}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_CONFIGURED_LOG_LIMIT={configured_log_limit}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_ENV_CACHE_TTL={environment_cache_ttl}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_DEMO_READY={demo_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_DEMO_AUTO_DISPATCH_READY={demo_auto_dispatch_ready}", flush=True)
         bad = (
-            top_level_py != ["SlicerDDSurfer.py"]
+            top_level_py != ["SlicerDSpace.py"]
             or not target_registered
             or forbidden_registered
             or not ddseg_runtime_import_ready
@@ -283,7 +283,7 @@ def _run() -> None:
             slicer.app.processEvents()
         slicer.app.exit(2 if bad else 0)
     except Exception as exc:
-        print(f"SLICERDDSURFER_EXTENSION_INSTALL_ERROR={exc}", flush=True)
+        print(f"SLICERDSPACE_EXTENSION_INSTALL_ERROR={exc}", flush=True)
         slicer.app.exit(2)
 
 

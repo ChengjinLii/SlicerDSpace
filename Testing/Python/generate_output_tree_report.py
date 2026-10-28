@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate an annotated HTML tree for a SlicerDDSurfer outputs directory."""
+"""Generate an annotated HTML tree for a SlicerDSpace outputs directory."""
 
 from __future__ import annotations
 
@@ -16,11 +16,11 @@ from shared import write_output_tree_report
 
 
 DEFAULT_OUTPUT_ROOT = Path("/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs")
-DEFAULT_DEST = REPO_ROOT / "ignore" / "local_reports" / "SlicerDDSurfer_100307_release_candidate_output_tree.html"
+DEFAULT_DEST = REPO_ROOT / "ignore" / "local_reports" / "SlicerDSpace_100307_release_candidate_output_tree.html"
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate a static annotated SlicerDDSurfer output-tree HTML report.")
+    parser = argparse.ArgumentParser(description="Generate a static annotated SlicerDSpace output-tree HTML report.")
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT, help="outputs directory to scan.")
     parser.add_argument("--dest", type=Path, default=DEFAULT_DEST, help="HTML report destination.")
     parser.add_argument("--latest-dest", type=Path, help="Optional latest-report destination to write the same HTML.")

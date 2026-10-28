@@ -1,4 +1,4 @@
-"""Connectome workflow package for SlicerDDSurfer."""
+"""Connectome workflow package for SlicerDSpace."""
 
 from __future__ import annotations
 

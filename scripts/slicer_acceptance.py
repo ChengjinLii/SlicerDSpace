@@ -78,11 +78,11 @@ def run(args):
     subprocess.run([sys.executable, str(ROOT / "scripts/stage_slicer_extension.py"),
                     "--install-root", str(report / "install"), "--slicer-version", "Slicer-5.10",
                     "--link-mode", "copy"], check=True)
-    extension = report / "install/SlicerDDSurfer"
+    extension = report / "install/SlicerDSpace"
     module = extension / "lib/Slicer-5.10/qt-scripted-modules"
     archive = getattr(args, 'extension_archive', None)
     if archive is None:
-        archive = report / "packages/SlicerDDSurfer.tar.gz"
+        archive = report / "packages/SlicerDSpace.tar.gz"
         subprocess.run([sys.executable, str(ROOT / "scripts/package_slicer_extension.py"),
                         "--extension-root", str(extension), "--output", str(archive)], check=True)
         archive_origin = 'staging_helper'
@@ -119,32 +119,32 @@ def run(args):
         config.write_text(json.dumps({"ui": {"first_run_wizard_shown": True},
                                       "external_dependencies": {"model_assets_dir": str(args.assets)}}))
         env = dict(os.environ, XDG_CONFIG_HOME=str(dest / "settings"), TMPDIR=str(dest / "temp"),
-                   SLICERDDSURFER_USER_CONFIG=str(config),
-                   SLICERDDSURFER_SMOKE_ROOT=str(dest),
-                   SLICERDDSURFER_TEST_SCRIPT=str(script_snapshot),
-                   SLICERDDSURFER_PRIVATE_SLICER_HOME=str(runtime_home),
-                   SLICERDDSURFER_MODEL_ASSETS_DIR=str(args.assets),
-                   SLICERDDSURFER_EXTENSION_MODULE_DIR=str(module),
-                   SLICERDDSURFER_EXTENSION_ARCHIVE=str(archive),
-                   SLICERDDSURFER_ARCHIVE_INSPECTOR=str(inspector_snapshot),
-                   SLICERDDSURFER_AGENT_INSTALL_HELPER=str(ROOT / '.agents/skills/slicerddsurfer-install/scripts/enable_in_slicer.py'),
-                   SLICERDDSURFER_SMOKE_SUBJECT_ROOT=str(args.subject),
-                   SLICERDDSURFER_SMOKE_SUBJECT_ID="100307",
-                   SLICERDDSURFER_SMOKE_RUN_NAME="acceptance_plan",
-                   SLICERDDSURFER_SMOKE_MICROSTRUCTURE_STAGES="dti",
-                   SLICERDDSURFER_SMOKE_PLAN_ONLY="1",
+                   SLICERDSPACE_USER_CONFIG=str(config),
+                   SLICERDSPACE_SMOKE_ROOT=str(dest),
+                   SLICERDSPACE_TEST_SCRIPT=str(script_snapshot),
+                   SLICERDSPACE_PRIVATE_SLICER_HOME=str(runtime_home),
+                   SLICERDSPACE_MODEL_ASSETS_DIR=str(args.assets),
+                   SLICERDSPACE_EXTENSION_MODULE_DIR=str(module),
+                   SLICERDSPACE_EXTENSION_ARCHIVE=str(archive),
+                   SLICERDSPACE_ARCHIVE_INSPECTOR=str(inspector_snapshot),
+                   SLICERDSPACE_AGENT_INSTALL_HELPER=str(ROOT / '.agents/skills/slicerdspace-install/scripts/enable_in_slicer.py'),
+                   SLICERDSPACE_SMOKE_SUBJECT_ROOT=str(args.subject),
+                   SLICERDSPACE_SMOKE_SUBJECT_ID="100307",
+                   SLICERDSPACE_SMOKE_RUN_NAME="acceptance_plan",
+                   SLICERDSPACE_SMOKE_MICROSTRUCTURE_STAGES="dti",
+                   SLICERDSPACE_SMOKE_PLAN_ONLY="1",
                    QT_AUTO_SCREEN_SCALE_FACTOR="0", QT_SCALE_FACTOR="1",
                    XDG_CACHE_HOME=str(dest / "cache"),
                    OMP_NUM_THREADS="4", OPENBLAS_NUM_THREADS="4",
                    PATH=str(args.xvfb.parent) + os.pathsep + os.environ.get("PATH", ""))
         if args.tasks_config:
-            env["SLICERDDSURFER_TASKS_CONFIG"] = str(args.tasks_config.resolve())
+            env["SLICERDSPACE_TASKS_CONFIG"] = str(args.tasks_config.resolve())
         if args.dicom_fixture:
-            env["SLICERDDSURFER_DICOM_FIXTURE"] = str(args.dicom_fixture.resolve())
+            env["SLICERDSPACE_DICOM_FIXTURE"] = str(args.dicom_fixture.resolve())
         if args.results_report:
-            env["SLICERDDSURFER_RESULTS_REPORT"] = str(args.results_report.resolve())
+            env["SLICERDSPACE_RESULTS_REPORT"] = str(args.results_report.resolve())
         if args.results_expected_cases:
-            env["SLICERDDSURFER_RESULTS_EXPECTED_CASES"] = str(args.results_expected_cases)
+            env["SLICERDSPACE_RESULTS_EXPECTED_CASES"] = str(args.results_expected_cases)
         command = [str(args.xvfb), "-a", str(args.slicer), "--no-splash", "--ignore-slicerrc",
                    "--launcher-ignore-user-additional-settings",
                    "--launcher-additional-settings", str(launcher_settings)]

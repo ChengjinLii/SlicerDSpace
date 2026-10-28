@@ -76,7 +76,7 @@ def upstream_code(script: Path):
             # Known upstream startup bug: undefined DEVICE_ID_LIST silently
             # disables CUDA. Replace only this device-selection try/except,
             # not the CNN, registration, aggregation or cleanup code.
-            replacement = ast.parse("print('PNL device managed by SlicerDDSurfer launcher', flush=True)").body[0]
+            replacement = ast.parse("print('PNL device managed by SlicerDSpace launcher', flush=True)").body[0]
             tree.body[index] = ast.copy_location(replacement, node)
             repaired += 1
     if repaired > 1:

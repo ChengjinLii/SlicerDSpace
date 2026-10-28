@@ -21,7 +21,7 @@ REQUIRED_TOP_LEVEL_FILES = (
     ".zenodo.json",
     "docs/assets/MODEL_ASSETS.md",
     "docs/release/RELEASE.md",
-    "docs/release/extension-index/SlicerDDSurfer.json",
+    "docs/release/extension-index/SlicerDSpace.json",
 )
 REQUIRED_HELP_TERMS = (
     "diffusion",
@@ -100,9 +100,9 @@ def parse_module_metadata(path: Path) -> dict[str, Any]:
 
 def audit(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
     findings: list[AuditFinding] = []
-    s4ext_path = repo_root / "SlicerDDSurfer.s4ext"
+    s4ext_path = repo_root / "SlicerDSpace.s4ext"
     cmake_path = repo_root / "CMakeLists.txt"
-    module_path = repo_root / "SlicerDDSurfer.py"
+    module_path = repo_root / "SlicerDSpace.py"
     readme_path = repo_root / "README.md"
 
     for relative in REQUIRED_TOP_LEVEL_FILES:
@@ -119,7 +119,7 @@ def audit(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
             AuditFinding(
                 "extension_dependencies",
                 "error",
-                f"SlicerDDSurfer.s4ext depends {s4ext_depends!r} does not match CMake EXTENSION_DEPENDS {cmake_depends!r}",
+                f"SlicerDSpace.s4ext depends {s4ext_depends!r} does not match CMake EXTENSION_DEPENDS {cmake_depends!r}",
             )
         )
     for dependency in REQUIRED_EXTENSION_DEPENDS:
@@ -130,7 +130,7 @@ def audit(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
         if not s4ext.get(key, [""])[0]:
             findings.append(AuditFinding(f"s4ext:{key}", "error", f"Missing .s4ext field: {key}"))
 
-    catalog_path = repo_root / "docs/release/extension-index/SlicerDDSurfer.json"
+    catalog_path = repo_root / "docs/release/extension-index/SlicerDSpace.json"
     if catalog_path.is_file():
         try:
             catalog = json.loads(_read(catalog_path))
@@ -165,13 +165,13 @@ def audit(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
             findings.append(AuditFinding("cmake:" + key, "error", f"CMake/s4ext mismatch: {key}"))
     for key in ("iconurl", "screenshoturls"):
         for url in s4ext.get(key, [""])[0].split():
-            prefix = "https://raw.githubusercontent.com/ChengjinLii/SlicerDDSurfer/main/"
+            prefix = "https://raw.githubusercontent.com/ChengjinLii/SlicerDSpace/main/"
             if not url.startswith(prefix) or not (repo_root / url[len(prefix):]).is_file():
                 findings.append(AuditFinding(key, "error", f"Raw URL has no matching source image: {url}"))
 
     metadata = parse_module_metadata(module_path)
-    if metadata.get("title") != "SlicerDDSurfer":
-        findings.append(AuditFinding("module:title", "error", "Module title should be SlicerDDSurfer"))
+    if metadata.get("title") != "SlicerDSpace":
+        findings.append(AuditFinding("module:title", "error", "Module title should be SlicerDSpace"))
     if "Diffusion" not in metadata.get("categories", ""):
         findings.append(AuditFinding("module:categories", "error", "Module should appear under the Diffusion category"))
     if metadata.get("dependencies", "").strip():

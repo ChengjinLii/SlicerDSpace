@@ -20,14 +20,14 @@ def digest(path):
 
 
 def run():
-    root = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+    root = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
     try:
-        fixture = Path(os.environ["SLICERDDSURFER_DICOM_FIXTURE"]) / "dicom_source/ap"
+        fixture = Path(os.environ["SLICERDSPACE_DICOM_FIXTURE"]) / "dicom_source/ap"
         source = root / "subject"
         shutil.copytree(fixture, source)
         before = {str(path.relative_to(source)): digest(path) for path in source.rglob("*") if path.is_file()}
-        slicer.util.selectModule("SlicerDDSurfer")
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         owner._parameterNode.subjectId = "subject"
         owner.ui.inputDirectoryPath.currentPath = str(source)
         assert owner.validateInputs(manual=True)

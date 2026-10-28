@@ -1,4 +1,4 @@
-"""Parcellation workflow package for SlicerDDSurfer."""
+"""Parcellation workflow package for SlicerDSpace."""
 
 from __future__ import annotations
 

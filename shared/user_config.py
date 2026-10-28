@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from shared.dependency_config import DEPENDENCY_CONFIG_KEYS
+from shared.branding import LEGACY_ENV_PREFIX, reuse_legacy_path
 
 
 USER_CONFIG_KIND = "slicerdsurfer_user_config"
 USER_CONFIG_VERSION = 1
-USER_CONFIG_ENV = "SLICERDDSURFER_USER_CONFIG"
+USER_CONFIG_ENV = "SLICERDSPACE_USER_CONFIG"
 
 RUN_DEFAULTS = {
     "run_name": "Test1",
@@ -69,7 +70,7 @@ def default_user_config_path(
     """Return the user-local JSON configuration path for one platform."""
 
     env = dict(os.environ if environ is None else environ)
-    explicit = str(env.get(USER_CONFIG_ENV) or "").strip()
+    explicit = str(env.get(USER_CONFIG_ENV) or env.get(LEGACY_ENV_PREFIX + 'USER_CONFIG') or "").strip()
     if explicit:
         return Path(explicit).expanduser()
     resolved_home = (home or Path.home()).expanduser()
@@ -80,7 +81,7 @@ def default_user_config_path(
         base = resolved_home / "Library" / "Application Support"
     else:
         base = Path(env.get("XDG_CONFIG_HOME") or resolved_home / ".config")
-    return base / "SlicerDDSurfer" / "user_config.json"
+    return reuse_legacy_path(base / "SlicerDSpace" / "user_config.json")
 
 
 def empty_user_config() -> dict[str, Any]:
@@ -153,12 +154,12 @@ def load_user_config(path: Path | None = None, *, missing_ok: bool = True) -> di
     if not resolved.is_file():
         if missing_ok:
             return empty_user_config()
-        raise FileNotFoundError(f"SlicerDDSurfer user config not found: {resolved}")
+        raise FileNotFoundError(f"SlicerDSpace user config not found: {resolved}")
     payload = json.loads(resolved.read_text(encoding="utf-8"))
     if not isinstance(payload, Mapping):
-        raise ValueError(f"SlicerDDSurfer user config must contain a JSON object: {resolved}")
+        raise ValueError(f"SlicerDSpace user config must contain a JSON object: {resolved}")
     if payload.get("kind") not in {None, USER_CONFIG_KIND}:
-        raise ValueError(f"Unsupported SlicerDDSurfer user config kind: {payload.get('kind')}")
+        raise ValueError(f"Unsupported SlicerDSpace user config kind: {payload.get('kind')}")
     return normalize_user_config(payload)
 
 

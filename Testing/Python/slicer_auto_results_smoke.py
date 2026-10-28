@@ -9,8 +9,8 @@ import traceback
 import qt
 import slicer
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
-SOURCE = Path(os.environ["SLICERDDSURFER_AUTO_RESULT_MANIFESTS"])
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
+SOURCE = Path(os.environ["SLICERDSPACE_AUTO_RESULT_MANIFESTS"])
 
 
 def start():
@@ -18,8 +18,8 @@ def start():
     try:
         from shared.auto_results import automatic_result_candidates
         from shared.result_scene import owned_nodes
-        slicer.util.selectModule("SlicerDDSurfer")
-        widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        widget = slicer.modules.slicerdspace.widgetRepresentation().self()
         widget._runProgressStartedAt = None
         for value in json.loads(SOURCE.read_text(encoding="utf-8")):
             path = Path(value).resolve()
@@ -80,7 +80,7 @@ def start():
                         stream.readline()
                         assert b"SPACE=RAS" in stream.readline(), "Legacy VTK preview must declare RAS in its header"
                     assert Path(node.GetAttribute("SlicerDDSurfer.DisplayPreviewProvenancePath")).is_file()
-                    if os.environ.get("SLICERDDSURFER_REQUIRE_NATIVE_DMRI") == "1":
+                    if os.environ.get("SLICERDSPACE_REQUIRE_NATIVE_DMRI") == "1":
                         assert node.IsA("vtkMRMLFiberBundleNode"), "SlicerDMRI preview fell back to generic Model"
                     import numpy as np
                     import vtk

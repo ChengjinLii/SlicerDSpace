@@ -1,6 +1,6 @@
-# SlicerDDSurfer v0.1.0 Release Notes
+# SlicerDSpace v0.1.0 Release Notes
 
-SlicerDDSurfer v0.1.0 is the first code/documentation release candidate for the
+SlicerDSpace v0.1.0 is the first code/documentation release candidate for the
 integrated 3D Slicer workflow for diffusion MRI-derived anatomical
 reconstruction, tractography, bundle analysis, connectome construction and
 provenance capture.
@@ -33,7 +33,7 @@ Checks run locally before tagging:
 make test-fast
 python3 scripts/download_model_assets.py --profile core --verify-only
 python3 scripts/audit_slicer_extension_metadata.py --json
-SLICERDDSURFER_RELEASE_SUBJECT_ROOT=/data/chengjin/SlicerDDSurfer-test/100307-release-candidate make release-check
+SLICERDSPACE_RELEASE_SUBJECT_ROOT=/data/chengjin/SlicerDDSurfer-test/100307-release-candidate make release-check
 ```
 
 Results:

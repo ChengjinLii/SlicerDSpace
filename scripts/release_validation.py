@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the SlicerDDSurfer release-validation evidence chain.
+"""Run the SlicerDSpace release-validation evidence chain.
 
 The default mode is conservative: it plans the scientific workflows and runs
 the inexpensive repository/report checks, then writes one JSON report. Use
@@ -62,14 +62,14 @@ def _slicer_smoke_command(
 ) -> tuple[str, ...]:
     command = [
         "env",
-        f"SLICERDDSURFER_EXTENSION_MODULE_DIR={module_dir.as_posix()}",
-        f"SLICERDDSURFER_EXTENSION_ARCHIVE={(args.report_dir / 'packages' / 'SlicerDDSurfer.tar.gz').as_posix()}",
-        f"SLICERDDSURFER_SMOKE_SUBJECT_ROOT={args.subject_root.expanduser().resolve().as_posix()}",
-        f"SLICERDDSURFER_SMOKE_SUBJECT_ID={_subject_id(args.subject_root, args.subject_id)}",
-        f"SLICERDDSURFER_SMOKE_RUN_NAME={args.run_name}",
-        "SLICERDDSURFER_SMOKE_MICROSTRUCTURE_STAGES=dti",
-        "SLICERDDSURFER_SMOKE_PLAN_ONLY=1",
-        "SLICERDDSURFER_DEMO_EXPECT_NODE_TYPE=model",
+        f"SLICERDSPACE_EXTENSION_MODULE_DIR={module_dir.as_posix()}",
+        f"SLICERDSPACE_EXTENSION_ARCHIVE={(args.report_dir / 'packages' / 'SlicerDSpace.tar.gz').as_posix()}",
+        f"SLICERDSPACE_SMOKE_SUBJECT_ROOT={args.subject_root.expanduser().resolve().as_posix()}",
+        f"SLICERDSPACE_SMOKE_SUBJECT_ID={_subject_id(args.subject_root, args.subject_id)}",
+        f"SLICERDSPACE_SMOKE_RUN_NAME={args.run_name}",
+        "SLICERDSPACE_SMOKE_MICROSTRUCTURE_STAGES=dti",
+        "SLICERDSPACE_SMOKE_PLAN_ONLY=1",
+        "SLICERDSPACE_DEMO_EXPECT_NODE_TYPE=model",
         f"PATH={args.xvfb_run.parent.as_posix()}:{os.environ.get('PATH', '')}",
         args.xvfb_run.as_posix(),
         "-a",
@@ -370,7 +370,7 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
             )
     else:
         install_root = report_dir / "slicer_extension_install"
-        module_dir = install_root / "SlicerDDSurfer" / "lib" / "Slicer-5.10" / "qt-scripted-modules"
+        module_dir = install_root / "SlicerDSpace" / "lib" / "Slicer-5.10" / "qt-scripted-modules"
         cmake_executable = os.environ.get("CMAKE_EXECUTABLE", "").strip() or shutil.which("cmake")
         if cmake_executable and Path(cmake_executable).is_file():
             steps.append(
@@ -411,8 +411,8 @@ def build_validation_steps(args: argparse.Namespace, forwarded_args: list[str]) 
                 required=False,
             )
         )
-        extension_root = install_root / "SlicerDDSurfer"
-        extension_archive = report_dir / "packages" / "SlicerDDSurfer.tar.gz"
+        extension_root = install_root / "SlicerDSpace"
+        extension_archive = report_dir / "packages" / "SlicerDSpace.tar.gz"
         steps.append(
             ValidationStep(
                 "package_slicer_extension",
@@ -706,8 +706,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--subject-root",
         type=Path,
-        default=_env_path("SLICERDDSURFER_RELEASE_SUBJECT_ROOT"),
-        help="Subject-root fixture for release validation. Can also be set with SLICERDDSURFER_RELEASE_SUBJECT_ROOT.",
+        default=_env_path("SLICERDSPACE_RELEASE_SUBJECT_ROOT"),
+        help="Subject-root fixture for release validation. Can also be set with SLICERDSPACE_RELEASE_SUBJECT_ROOT.",
     )
     parser.add_argument("--subject-id")
     parser.add_argument("--output-root", type=Path)
@@ -737,14 +737,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--slicer-launcher",
         type=Path,
-        default=_env_path("SLICERDDSURFER_SLICER_LAUNCHER"),
-        help="Optional Slicer launcher for GUI smoke. Can also be set with SLICERDDSURFER_SLICER_LAUNCHER.",
+        default=_env_path("SLICERDSPACE_SLICER_LAUNCHER"),
+        help="Optional Slicer launcher for GUI smoke. Can also be set with SLICERDSPACE_SLICER_LAUNCHER.",
     )
     parser.add_argument(
         "--xvfb-run",
         type=Path,
-        default=_env_path("SLICERDDSURFER_XVFB_RUN"),
-        help="Optional xvfb-run for headless GUI smoke. Can also be set with SLICERDDSURFER_XVFB_RUN.",
+        default=_env_path("SLICERDSPACE_XVFB_RUN"),
+        help="Optional xvfb-run for headless GUI smoke. Can also be set with SLICERDSPACE_XVFB_RUN.",
     )
     parser.add_argument("--timeout-seconds", type=int, default=900)
     parser.add_argument("--warn-only", action="store_true", help="Always exit 0 after writing the report.")
@@ -755,7 +755,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args, forwarded_args = parser.parse_known_args(argv)
     if args.subject_root is None:
-        parser.error("Release validation requires --subject-root or SLICERDDSURFER_RELEASE_SUBJECT_ROOT.")
+        parser.error("Release validation requires --subject-root or SLICERDSPACE_RELEASE_SUBJECT_ROOT.")
     subject_root = args.subject_root.expanduser().resolve()
     output_root = args.output_root.expanduser().resolve() if args.output_root else subject_root / "outputs"
     if args.report_dir is None:

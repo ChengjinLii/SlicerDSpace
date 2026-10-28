@@ -1,4 +1,4 @@
-"""Qt builders for the SlicerDDSurfer environment-path settings panel."""
+"""Qt builders for the SlicerDSpace environment-path settings panel."""
 
 from __future__ import annotations
 
@@ -151,7 +151,7 @@ def add_dependency_config_buttons(owner: Any, form_layout: Any) -> None:
 
     config_buttons = qt.QHBoxLayout()
     import_button = qt.QPushButton("Import dependency config")
-    import_button.setToolTip("Load a SlicerDDSurfer dependency config JSON and save the external paths into Slicer settings.")
+    import_button.setToolTip("Load a SlicerDSpace dependency config JSON and save the external paths into Slicer settings.")
     import_button.connect("clicked()", owner._on_import_dependency_config_clicked)
     export_button = qt.QPushButton("Export dependency config")
     export_button.setToolTip("Save the currently configured external paths as a CLI-compatible JSON config.")

@@ -393,7 +393,7 @@ def _build_html(
     symlink_count: int,
     postprocess_summary: dict[str, Any],
 ) -> str:
-    title = f"SlicerDDSurfer {subject_id or 'subject'} 输出文件树"
+    title = f"SlicerDSpace {subject_id or 'subject'} 输出文件树"
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>

@@ -6,7 +6,7 @@
 
 </div>
 
-SlicerDDSurfer keeps the code repository lightweight by storing large
+SlicerDSpace keeps the code repository lightweight by storing large
 model/template files outside the main source tree. The preferred external
 source is the independent `SlicerDDSurfer-models` repository. The manifest and
 downloader verify every asset by size and SHA256 checksum before use.
@@ -37,12 +37,12 @@ the Slicer extension checkout:
 
 | Platform | Default asset root |
 | --- | --- |
-| Linux | `$XDG_DATA_HOME/SlicerDDSurfer/model-assets` or `~/.local/share/SlicerDDSurfer/model-assets` |
-| macOS | `~/Library/Application Support/SlicerDDSurfer/model-assets` |
-| Windows | `%LOCALAPPDATA%\\SlicerDDSurfer\\model-assets` |
+| Linux | `$XDG_DATA_HOME/SlicerDSpace/model-assets` or `~/.local/share/SlicerDSpace/model-assets` |
+| macOS | `~/Library/Application Support/SlicerDSpace/model-assets` |
+| Windows | `%LOCALAPPDATA%\\SlicerDSpace\\model-assets` |
 
 Users can override this with the Slicer UI `Model assets root` field, the
-`SLICERDDSURFER_MODEL_ASSETS_DIR` environment variable, or `--asset-root`.
+`SLICERDSPACE_MODEL_ASSETS_DIR` environment variable, or `--asset-root`.
 Only the per-user default above is ever scanned automatically; any other
 location (e.g. a shared cache on a multi-user cluster) must be explicit --
 callers do not silently trust well-known/guessable shared paths:
@@ -69,12 +69,12 @@ in `models/assets_manifest.json`:
   environment doctor surface as a status message rather than letting it
   abort module load or the whole doctor scan.
 - An **explicitly configured** root -- via `--asset-root`, the Slicer UI's
-  `Model assets root` field, or the `SLICERDDSURFER_MODEL_ASSETS_DIR`
+  `Model assets root` field, or the `SLICERDSPACE_MODEL_ASSETS_DIR`
   environment variable -- is used as-is, **without** this sha256 check.
-  Pointing SlicerDDSurfer at an explicit root is treated as the user's own
+  Pointing SlicerDSpace at an explicit root is treated as the user's own
   informed choice; a tampered or stale file there is not caught until you
   explicitly run `--verify-only` (or the Slicer UI's `Verify` action)
-  yourself. Setting `SLICERDDSURFER_MODEL_ASSETS_DIR` therefore comes with
+  yourself. Setting `SLICERDSPACE_MODEL_ASSETS_DIR` therefore comes with
   the same responsibility as passing `--asset-root` directly -- only point
   it at a location you trust or have verified.
 
@@ -160,8 +160,8 @@ offline archive or mirror.
 For a fast clone followed by a targeted model download:
 
 ```bash
-GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
-cd SlicerDDSurfer
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/ChengjinLii/SlicerDSpace.git
+cd SlicerDSpace
 scripts/download_model_assets.sh --profile core
 ```
 

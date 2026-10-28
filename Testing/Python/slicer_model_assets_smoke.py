@@ -9,7 +9,7 @@ import traceback
 import qt
 import slicer
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
 STATE = {"errors": [], "beats": 0}
 
 
@@ -73,8 +73,8 @@ def poll():
 
 def start():
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
-        widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        widget = slicer.modules.slicerdspace.widgetRepresentation().self()
         STATE["widget"] = widget
         widget._show_actionable_error = lambda **kwargs: STATE["errors"].append(str(kwargs))
         timer = qt.QTimer()

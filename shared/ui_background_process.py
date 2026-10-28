@@ -1,4 +1,4 @@
-"""Small background-process helpers for the SlicerDDSurfer widget."""
+"""Small background-process helpers for the SlicerDSpace widget."""
 
 from __future__ import annotations
 

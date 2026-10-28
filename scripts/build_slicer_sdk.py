@@ -50,7 +50,7 @@ def build(args):
             unit_python = Path(unit_python).expanduser().absolute()
             if not unit_python.is_file():
                 raise FileNotFoundError(f'Backend test Python not found: {unit_python}')
-            commands[0].append(f'-DSLICERDDSURFER_UNIT_TEST_PYTHON={unit_python}')
+            commands[0].append(f'-DSLICERDSPACE_UNIT_TEST_PYTHON={unit_python}')
             evidence['backend_unit_test_python'] = str(unit_python)
         for name, command in zip(("configure", "build", "ctest", "cpack"), commands):
             log = output / f"sdk-{name}.log"

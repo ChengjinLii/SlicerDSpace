@@ -38,11 +38,11 @@ WMQL 查询、WSL 辅助文件及模型资源清单不会因此删除。
 sparse checkout 的 Git。Bash、Git Bash 或 PowerShell 均可执行：
 
 ```bash
-git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDDSurfer.git
-cd SlicerDDSurfer
+git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDSpace.git
+cd SlicerDSpace
 git show HEAD:scripts/extension_runtime/runtime_checkout.txt | git sparse-checkout set --no-cone --stdin
 git checkout
-python3 scripts/stage_slicer_extension.py --install-root ~/SlicerDDSurfer-extension --link-mode copy --clean
+python3 scripts/stage_slicer_extension.py --install-root ~/SlicerDSpace-extension --link-mode copy --clean
 ```
 
 Windows 若没有 `python3` 命令，可用 `python`。根据实际 Slicer 版本设置
@@ -79,8 +79,8 @@ Slicer Extension Manager 的安装文件。经过对应验收的 CPack 扩展包
 
 ```bash
 python3 scripts/stage_slicer_extension.py --install-root /path/to/staging --link-mode copy --clean
-python3 scripts/package_slicer_extension.py --extension-root /path/to/staging/SlicerDDSurfer --output /path/to/packages/SlicerDDSurfer.tar.gz
-python3 scripts/audit_extension_package.py /path/to/packages/SlicerDDSurfer.tar.gz
+python3 scripts/package_slicer_extension.py --extension-root /path/to/staging/SlicerDSpace --output /path/to/packages/SlicerDSpace.tar.gz
+python3 scripts/audit_extension_package.py /path/to/packages/SlicerDSpace.tar.gz
 ```
 
 CMake 与 staging 共用 `scripts/extension_runtime/runtime_resources.json`，

@@ -35,7 +35,7 @@ from shared.ui_run_state import (
 from shared.ui_run_status_panel import fit_table_height
 
 
-RUN_HISTORY_SETTING = "SlicerDDSurfer/UserSettings/runHistoryDirectories"
+RUN_HISTORY_SETTING = "SlicerDSpace/UserSettings/runHistoryDirectories"
 PROGRESS_POLL_INTERVAL_MS = 2000
 ADD_RUN_FOLDER_TEXT = "Add a run folder…"
 ADD_RUN_FOLDER_TOOLTIP = (
@@ -667,8 +667,8 @@ def browse_run_directory(owner: Any) -> None:
         )
         show_actionable_error_dialog(
             parent=owner.parent,
-            title="No SlicerDDSurfer run found",
-            what=f"{directory} does not contain a loadable SlicerDDSurfer run.",
+            title="No SlicerDSpace run found",
+            what=f"{directory} does not contain a loadable SlicerDSpace run.",
             why=why,
             next_step=(
                 "Choose the subject's output folder (it contains 00_run_metadata/<run>_orchestration_manifest.json), "

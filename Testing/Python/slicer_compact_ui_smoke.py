@@ -8,13 +8,13 @@ import traceback
 import qt
 import slicer
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
 
 
 def check():
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         ui = owner.ui
         advanced = owner._advancedSettingsPanel
         assert ui.gettingStartedCollapsibleButton.isHidden()
@@ -65,7 +65,7 @@ def check():
             combo = owner._onboardingWidgets["language_combo"]
             combo.setCurrentIndex(combo.findData(lang))
             assert owner._onboardingLanguage == lang
-            assert ui.runSelectedButton.text == ("Run SlicerDDSurfer" if lang == "en" else "运行 SlicerDDSurfer")
+            assert ui.runSelectedButton.text == ("Run SlicerDSpace" if lang == "en" else "运行 SlicerDSpace")
             ui.runSelectedButton.click()
             assert ui.runSelectedButton.enabled and "#C62828" in ui.statusLabel.styleSheet
             assert "Waiting:" in ui.statusLabel.text if lang == "en" else "待填写：" in ui.statusLabel.text
@@ -91,7 +91,7 @@ def check():
         with slicer.util.NodeModify(node):
             node.batchMode = False
             node.subjectId = "100307"
-            node.inputDirectory = os.environ["SLICERDDSURFER_SMOKE_SUBJECT_ROOT"]
+            node.inputDirectory = os.environ["SLICERDSPACE_SMOKE_SUBJECT_ROOT"]
         assert owner.validateInputs()
         assert "#63727D" in ui.statusLabel.styleSheet
         assert "点击运行时将检查依赖" in ui.statusLabel.text

@@ -1,8 +1,8 @@
 {
-  "title": "SlicerDDSurfer: an integrated 3D Slicer workflow for anatomical reconstruction and connectivity analysis from diffusion MRI",
+  "title": "SlicerDSpace: an integrated 3D Slicer workflow for anatomical reconstruction and connectivity analysis from diffusion MRI",
   "upload_type": "software",
   "version": "0.1.0",
-  "description": "SlicerDDSurfer is a 3D Slicer scripted module and command-line workflow for diffusion MRI-derived anatomical reconstruction, connectivity analysis, quality-control review, and provenance capture.",
+  "description": "SlicerDSpace is a 3D Slicer scripted module and command-line workflow for diffusion MRI-derived anatomical reconstruction, connectivity analysis, quality-control review, and provenance capture.",
   "creators": [
     {
       "name": "Li, Chengjin"

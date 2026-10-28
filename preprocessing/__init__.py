@@ -1,4 +1,4 @@
-"""Optional DWI preprocessing workflow for SlicerDDSurfer."""
+"""Optional DWI preprocessing workflow for SlicerDSpace."""
 
 from .pipeline import (
     DwiPreprocessingConfig,

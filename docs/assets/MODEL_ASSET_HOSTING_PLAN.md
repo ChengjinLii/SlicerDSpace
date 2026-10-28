@@ -6,7 +6,7 @@
 
 </div>
 
-This plan separates SlicerDDSurfer source code from large model weights,
+This plan separates SlicerDSpace source code from large model weights,
 templates and validation fixtures. The current Git LFS objects remain a
 compatibility source, but the release-facing route should move to an independent
 asset host after redistribution terms are confirmed.
@@ -15,7 +15,7 @@ asset host after redistribution terms are confirmed.
 
 ## Target Layout
 
-- Code repository: `ChengjinLii/SlicerDDSurfer`
+- Code repository: `ChengjinLii/SlicerDSpace`
 - Asset repository or record: `ChengjinLii/SlicerDDSurfer-models`, Hugging Face,
   Zenodo, OSF, Figshare or institutional object storage
 - Source of truth for paths, sizes and checksums:
@@ -62,7 +62,7 @@ python3 scripts/export_model_asset_mirror.py \
 9. Validate from a clean checkout:
 
 ```bash
-GIT_LFS_SKIP_SMUDGE=1 git clone git@github.com:ChengjinLii/SlicerDDSurfer.git /tmp/slicerdsurfer-url-smoke
+GIT_LFS_SKIP_SMUDGE=1 git clone git@github.com:ChengjinLii/SlicerDSpace.git /tmp/slicerdsurfer-url-smoke
 cd /tmp/slicerdsurfer-url-smoke
 python3 scripts/download_model_assets.py \
   --profile core \

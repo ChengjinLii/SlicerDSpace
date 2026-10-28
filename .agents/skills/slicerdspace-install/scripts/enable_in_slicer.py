@@ -11,28 +11,28 @@ def activate(module_directory, *, persist=False):
     import slicer
 
     directory = Path(module_directory).expanduser().resolve()
-    entry = directory / 'SlicerDDSurfer.py'
+    entry = directory / 'SlicerDSpace.py'
     if not entry.is_file():
-        raise ValueError('The staged module directory does not contain SlicerDDSurfer.py')
+        raise ValueError('The staged module directory does not contain SlicerDSpace.py')
     settings = slicer.app.userSettings()
     existing = settings.value('Modules/AdditionalPaths', []) or []
     existing = [existing] if isinstance(existing, str) else list(existing)
     for path in existing:
         other = Path(str(path)).expanduser()
-        if (other / 'SlicerDDSurfer.py').is_file() and other.resolve() != directory:
-            raise RuntimeError('A different SlicerDDSurfer installation is configured: ' + str(other))
+        if any((other / name).is_file() for name in ('SlicerDSpace.py', 'SlicerDDSurfer.py')) and other.resolve() != directory:
+            raise RuntimeError('A different SlicerDSpace installation is configured: ' + str(other))
     factory = slicer.app.moduleManager().factoryManager()
-    if not factory.isRegistered('SlicerDDSurfer'):
+    if not factory.isRegistered('SlicerDSpace'):
         factory.registerModule(qt.QFileInfo(str(entry)))
-    factory.loadModules(['SlicerDDSurfer'])
-    module = importlib.import_module('SlicerDDSurfer')
+    factory.loadModules(['SlicerDSpace'])
+    module = importlib.import_module('SlicerDSpace')
     if Path(module.__file__).resolve() != entry:
         raise RuntimeError('Slicer loaded a different module; restart after reviewing the configured paths.')
-    slicer.util.selectModule('SlicerDDSurfer')
-    widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+    slicer.util.selectModule('SlicerDSpace')
+    widget = slicer.modules.slicerdspace.widgetRepresentation().self()
     if getattr(widget, '_parameterNode', None) is None:
-        raise RuntimeError('The SlicerDDSurfer widget did not initialize')
-    check = slicer.selfTests.get('SlicerDDSurfer')
+        raise RuntimeError('The SlicerDSpace widget did not initialize')
+    check = slicer.selfTests.get('SlicerDSpace')
     if check is None:
         raise RuntimeError('The installed module did not register its native Self Tests')
     before = slicer.mrmlScene.GetNumberOfNodes()
@@ -54,14 +54,19 @@ def activate(module_directory, *, persist=False):
 
 
 def main():
-    receipt = os.environ.get('SLICERDDSURFER_AGENT_RECEIPT')
+    # Existing Agent launch configurations remain usable after the rename.
+    for suffix in ('MODULE_DIR', 'RECEIPT', 'PERSIST', 'EXIT'):
+        previous = os.environ.get('SLICERDDSURFER_AGENT_' + suffix)
+        if previous is not None:
+            os.environ.setdefault('SLICERDSPACE_AGENT_' + suffix, previous)
+    receipt = os.environ.get('SLICERDSPACE_AGENT_RECEIPT')
     result = {}
     code = 0
     try:
-        directory = os.environ.get('SLICERDDSURFER_AGENT_MODULE_DIR')
+        directory = os.environ.get('SLICERDSPACE_AGENT_MODULE_DIR')
         if not directory or not receipt:
-            raise ValueError('Set SLICERDDSURFER_AGENT_MODULE_DIR and SLICERDDSURFER_AGENT_RECEIPT')
-        result = activate(directory, persist=os.environ.get('SLICERDDSURFER_AGENT_PERSIST') == '1')
+            raise ValueError('Set SLICERDSPACE_AGENT_MODULE_DIR and SLICERDSPACE_AGENT_RECEIPT')
+        result = activate(directory, persist=os.environ.get('SLICERDSPACE_AGENT_PERSIST') == '1')
     except Exception as exc:
         result = dict(status='failed', error=str(exc))
         code = 1
@@ -70,7 +75,7 @@ def main():
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(result), flush=True)
-    if os.environ.get('SLICERDDSURFER_AGENT_EXIT') == '1':
+    if os.environ.get('SLICERDSPACE_AGENT_EXIT') == '1':
         import slicer
         slicer.app.exit(code)
     return code

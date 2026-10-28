@@ -201,7 +201,7 @@ def apply_compact_language(owner: Any, language: str) -> None:
     advanced_hint = getattr(owner, "_advancedSettingsHintLabel", None)
     if advanced_hint is not None:
         advanced_hint.setText(onboarding_text(language, "compact_advanced_hint"))
-    owner.ui.headlineLabel.setText("SlicerDDSurfer")
+    owner.ui.headlineLabel.setText("SlicerDSpace")
     owner._onboardingWidgets["language_combo"].setToolTip(onboarding_text(language, "language"))
     prepare_inputs = (getattr(owner, "_prepareInputWidgets", {}) or {}).get("panel")
     if prepare_inputs is not None:

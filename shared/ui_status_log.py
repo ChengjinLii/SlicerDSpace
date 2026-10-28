@@ -1,4 +1,4 @@
-"""Status, log and report-path helpers for the SlicerDDSurfer widget."""
+"""Status, log and report-path helpers for the SlicerDSpace widget."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from time import monotonic
 from typing import Any
 
 from shared.ui_run_state import log_line_html
-from shared.ui_styles import RUN_STATUS_TABLE_STYLE, SLICERDDSURFER_UI_STYLE, run_summary_label_style
+from shared.ui_styles import RUN_STATUS_TABLE_STYLE, SLICERDSPACE_UI_STYLE, run_summary_label_style
 
 
 STATUS_COLORS = {
@@ -45,15 +45,15 @@ def configure_log_widget(widget: Any, *, line_limit: int) -> None:
 
 
 def apply_widget_styles(owner: Any) -> None:
-    """Apply global SlicerDDSurfer widget styles."""
+    """Apply global SlicerDSpace widget styles."""
 
     root_widget = getattr(owner, "_uiWidget", None)
     try:
         if root_widget:
-            root_widget.setStyleSheet(SLICERDDSURFER_UI_STYLE)
+            root_widget.setStyleSheet(SLICERDSPACE_UI_STYLE)
     except Exception:
         try:
-            owner.parent.setStyleSheet(SLICERDDSURFER_UI_STYLE)
+            owner.parent.setStyleSheet(SLICERDSPACE_UI_STYLE)
         except Exception:
             pass
     table = getattr(owner, "_runStatusTable", None)

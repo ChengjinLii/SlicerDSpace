@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Aggregate SlicerDDSurfer manifests into publication-oriented benchmark tables and figures."""
+"""Aggregate SlicerDSpace manifests into publication-oriented benchmark tables and figures."""
 
 from __future__ import annotations
 
@@ -595,7 +595,7 @@ def _plot_figures(
 def generate_benchmark_report(inputs: list[Path], output_dir: Path) -> dict[str, Any]:
     manifests = discover_manifests(inputs)
     if not manifests:
-        raise FileNotFoundError("No SlicerDDSurfer orchestration manifests were found in the supplied inputs.")
+        raise FileNotFoundError("No SlicerDSpace orchestration manifests were found in the supplied inputs.")
     run_rows: list[dict[str, Any]] = []
     task_rows: list[dict[str, Any]] = []
     directory_rows: list[dict[str, Any]] = []
@@ -664,7 +664,7 @@ def generate_benchmark_report(inputs: list[Path], output_dir: Path) -> dict[str,
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate Nature Protocols-oriented SlicerDDSurfer benchmark CSVs and figures.")
+    parser = argparse.ArgumentParser(description="Generate Nature Protocols-oriented SlicerDSpace benchmark CSVs and figures.")
     parser.add_argument("--input", action="append", required=True, type=Path, help="Manifest file or output tree. May be repeated.")
     parser.add_argument("--output-dir", required=True, type=Path, help="Destination for CSV, JSON, PNG and SVG outputs.")
     return parser

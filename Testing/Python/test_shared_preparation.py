@@ -198,7 +198,7 @@ class SharedPreparationTests(unittest.TestCase):
                 self.assertEqual(prepare.call_args.kwargs['scalar_format'], 'nrrd')
                 self.assertTrue(prepare.call_args.kwargs['reuse'])
                 predict.assert_called_once_with(config, resources, config.output_dir, bundle.bundle_dir)
-                native = config.output_dir / 'pred_results_SlicerDDSurfer/native/x'
+                native = config.output_dir / 'pred_results_SlicerDSpace/native/x'
                 native.mkdir(parents=True)
                 outputs = []
                 for hemi in ('lh', 'rh'):

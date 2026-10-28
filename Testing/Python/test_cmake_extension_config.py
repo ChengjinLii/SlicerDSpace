@@ -22,7 +22,7 @@ class CMakeExtensionConfigTest(unittest.TestCase):
     def test_sdk_prerequisites_are_requested_before_project(self):
         content = (REPO_ROOT / 'CMakeLists.txt').read_text(encoding='utf-8')
         self.assertLess(content.index('find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)'),
-                        content.index('project(SlicerDDSurfer)'))
+                        content.index('project(SlicerDSpace)'))
 
     def test_extension_configures_with_slicer_cmake_contract(self) -> None:
         cmake = _cmake_executable()
@@ -91,9 +91,9 @@ class CMakeExtensionConfigTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
             module_contract = (build / "scripted-module.txt").read_text(encoding="utf-8")
             package_contract = (build / "extension-cpack.txt").read_text(encoding="utf-8")
-            self.assertIn("SlicerDDSurfer", module_contract)
-            self.assertIn("SlicerDDSurfer.py", module_contract)
-            self.assertIn("SlicerDDSurfer", package_contract)
+            self.assertIn("SlicerDSpace", module_contract)
+            self.assertIn("SlicerDSpace.py", module_contract)
+            self.assertIn("SlicerDSpace", package_contract)
             self.assertIn("SlicerDMRI", package_contract)
             self.assertIn("PyTorch", package_contract)
             registered = (build / "Testing/Python/CTestTestfile.cmake").read_text(encoding="utf-8")

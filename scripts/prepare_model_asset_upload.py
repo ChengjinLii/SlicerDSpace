@@ -36,7 +36,7 @@ def build_upload_plan(*, mirror_dir: Path, target: str, release_tag: str, reposi
         commands = [
             f"huggingface-cli repo create {hf_repo} --type dataset",
             f"cd {root.as_posix()} && git init && git lfs install",
-            "git add . && git commit -m 'Add SlicerDDSurfer model assets'",
+            "git add . && git commit -m 'Add SlicerDSpace model assets'",
             f"git remote add origin https://huggingface.co/datasets/{hf_repo}",
             f"git tag {release_tag} && git push origin HEAD:main --tags",
         ]

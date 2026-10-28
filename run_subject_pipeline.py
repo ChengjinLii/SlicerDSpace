@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repository-root wrapper for the packaged SlicerDDSurfer subject CLI."""
+"""Repository-root wrapper for the packaged SlicerDSpace subject CLI."""
 
 from __future__ import annotations
 

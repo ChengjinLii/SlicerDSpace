@@ -1,4 +1,4 @@
-"""Environment doctor and install-plan helpers for SlicerDDSurfer."""
+"""Environment doctor and install-plan helpers for SlicerDSpace."""
 
 from __future__ import annotations
 
@@ -511,19 +511,19 @@ def _env_command_dirs(group: str) -> tuple[tuple[Path, str], ...]:
         candidates.append(((path / child).resolve() if child else path, f"env:{env_name}"))
 
     if group == "mrtrix":
-        for env_name in ("SLICERDDSURFER_MRTRIX_BIN_DIR", "MRTRIX_BIN_DIR"):
+        for env_name in ("SLICERDSPACE_MRTRIX_BIN_DIR", "MRTRIX_BIN_DIR"):
             add_dir(env_name)
-        for env_name in ("SLICERDDSURFER_MRTRIX_HOME", "MRTRIX_HOME", "MRTRIX3_HOME"):
+        for env_name in ("SLICERDSPACE_MRTRIX_HOME", "MRTRIX_HOME", "MRTRIX3_HOME"):
             add_dir(env_name, child="bin")
     elif group == "fsl":
-        for env_name in ("SLICERDDSURFER_FSL_BIN_DIR", "FSL_BIN_DIR"):
+        for env_name in ("SLICERDSPACE_FSL_BIN_DIR", "FSL_BIN_DIR"):
             add_dir(env_name)
         add_dir("FSLDIR", child="bin")
     elif group == "freesurfer":
-        for env_name in ("SLICERDDSURFER_FREESURFER_HOME", "FREESURFER_HOME"):
+        for env_name in ("SLICERDSPACE_FREESURFER_HOME", "FREESURFER_HOME"):
             add_dir(env_name, child="bin")
     elif group == "wma":
-        for env_name in ("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT"):
+        for env_name in ("SLICERDSPACE_WMA_ROOT", "WMA_ROOT"):
             add_dir(env_name, child="bin")
             add_dir(env_name, child="utilities")
     return tuple(candidates)
@@ -620,7 +620,7 @@ def _is_freesurfer_home(path: Path) -> bool:
 
 def _resolve_freesurfer_home_with_source(platform_name: Optional[str] = None) -> tuple[Optional[Path], str, list[str]]:
     checked: list[str] = []
-    for env_name in ("SLICERDDSURFER_FREESURFER_HOME", "FREESURFER_HOME"):
+    for env_name in ("SLICERDSPACE_FREESURFER_HOME", "FREESURFER_HOME"):
         value = os.environ.get(env_name)
         if not value:
             continue
@@ -1227,7 +1227,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     target=target,
                     key="freesurfer_home",
                     label="FREESURFER_HOME",
-                    env_vars=("SLICERDDSURFER_FREESURFER_HOME", "FREESURFER_HOME"),
+                    env_vars=("SLICERDSPACE_FREESURFER_HOME", "FREESURFER_HOME"),
                     group="freesurfer",
                     required=config.postprocess_freesurfer_home is None,
                     notes="Can also be supplied with --postprocess-freesurfer-home.",
@@ -1289,7 +1289,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             tract_querier_root = _resolve_path(config.tract_querier_root)
             if tract_querier_root is None:
                 tract_querier_root, tract_querier_root_source = _env_path_with_source(
-                    "SLICERDDSURFER_TRACT_QUERIER_ROOT",
+                    "SLICERDSPACE_TRACT_QUERIER_ROOT",
                     "TRACT_QUERIER_ROOT",
                 )
             if tract_querier_root is None:
@@ -1359,7 +1359,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             slicer_executable = _resolve_path(config.slicer_executable)
             if slicer_executable is None:
                 slicer_executable, slicer_executable_source = _env_path_with_source(
-                    "SLICERDDSURFER_SLICER_EXECUTABLE",
+                    "SLICERDSPACE_SLICER_EXECUTABLE",
                 )
             if slicer_executable is None:
                 slicer_executable, _ = _first_existing_path(_common_slicer_executables(platform_name), kind="file")
@@ -1386,7 +1386,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             wma_root_source = "user setting"
             wma_root = _resolve_path(config.wma_root)
             if wma_root is None:
-                wma_root, wma_root_source = _env_path_with_source("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT")
+                wma_root, wma_root_source = _env_path_with_source("SLICERDSPACE_WMA_ROOT", "WMA_ROOT")
             if wma_root is None:
                 wma_root, _ = _first_existing_path(
                     (*_repo_checkout_roots(config.repo_root, "wma"), *_common_checkout_roots("wma", platform_name)),
@@ -1399,7 +1399,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 target=target,
                 key="wma_root",
                 label="WhiteMatterAnalysis checkout",
-                env_vars=("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT"),
+                env_vars=("SLICERDSPACE_WMA_ROOT", "WMA_ROOT"),
                 group="wma",
                 required=False,
                 notes="Can also be supplied with --wma-root or by putting wm_apply_ORG_atlas_to_subject.sh on PATH.",
@@ -1428,7 +1428,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             wma_atlas_dir = _resolve_path(config.wma_atlas_dir)
             if wma_atlas_dir is None:
                 wma_atlas_dir, wma_atlas_dir_source = _env_path_with_source(
-                    "SLICERDDSURFER_WMA_ATLAS_DIR",
+                    "SLICERDSPACE_WMA_ATLAS_DIR",
                     "WMA_ATLAS_DIR",
                 )
             if wma_atlas_dir is None:
@@ -1475,7 +1475,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 target=target,
                 key="slicer_executable",
                 label="Slicer executable for WMA",
-                env_vars=("SLICERDDSURFER_SLICER_EXECUTABLE",),
+                env_vars=("SLICERDSPACE_SLICER_EXECUTABLE",),
                 group="slicer",
                 required=config.slicer_executable is None,
                 notes="Can also be supplied with --slicer-executable.",
@@ -1498,7 +1498,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             fiber_cli = _resolve_path(config.fiber_tract_measurements_cli)
             if fiber_cli is None:
                 fiber_cli, fiber_cli_source = _env_path_with_source(
-                    "SLICERDDSURFER_FIBER_TRACT_MEASUREMENTS_CLI",
+                    "SLICERDSPACE_FIBER_TRACT_MEASUREMENTS_CLI",
                 )
             if fiber_cli is not None:
                 _path(
@@ -1521,7 +1521,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             tractcloud_root = _resolve_path(config.tractcloud_root)
             if tractcloud_root is None:
                 tractcloud_root, tractcloud_root_source = _env_path_with_source(
-                    "SLICERDDSURFER_TRACTCLOUD_ROOT",
+                    "SLICERDSPACE_TRACTCLOUD_ROOT",
                     "TRACTCLOUD_ROOT",
                 )
             if tractcloud_root is None:
@@ -1535,7 +1535,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             tractcloud_python = _resolve_interpreter(config.tractcloud_python_executable)
             if tractcloud_python is None:
                 tractcloud_python, tractcloud_python_source = _env_path_with_source(
-                    "SLICERDDSURFER_TRACTCLOUD_PYTHON_EXECUTABLE",
+                    "SLICERDSPACE_TRACTCLOUD_PYTHON_EXECUTABLE",
                     "TRACTCLOUD_PYTHON_EXECUTABLE",
                     resolve=False,
                 )
@@ -1555,7 +1555,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 target=target,
                 key="tractcloud_root",
                 label="TractCloud checkout/package",
-                env_vars=("SLICERDDSURFER_TRACTCLOUD_ROOT", "TRACTCLOUD_ROOT"),
+                env_vars=("SLICERDSPACE_TRACTCLOUD_ROOT", "TRACTCLOUD_ROOT"),
                 group="tractcloud",
                 required=False,
                 notes="Can also be supplied with --tractcloud-root.",
@@ -1602,7 +1602,7 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             tractcloud_data_dir = _resolve_path(config.tractcloud_data_dir)
             if tractcloud_data_dir is None:
                 tractcloud_data_dir, tractcloud_data_dir_source = _env_path_with_source(
-                    "SLICERDDSURFER_TRACTCLOUD_DATA_DIR",
+                    "SLICERDSPACE_TRACTCLOUD_DATA_DIR",
                     "TRACTCLOUD_DATA_DIR",
                 )
             if tractcloud_data_dir is None:
@@ -1659,13 +1659,13 @@ def _install_hint(spec: DependencySpec, platform_name: str) -> str:
     if spec.install_group == "freesurfer":
         return "Install FreeSurfer, set FREESURFER_HOME, source SetUpFreeSurfer.sh, and provide a FreeSurfer license."
     if spec.install_group == "wma":
-        return "Install/configure external WhiteMatterAnalysis and ORG atlas; pass --wma-root/--wma-atlas-dir or set SLICERDDSURFER_WMA_ROOT."
+        return "Install/configure external WhiteMatterAnalysis and ORG atlas; pass --wma-root/--wma-atlas-dir or set SLICERDSPACE_WMA_ROOT."
     if spec.install_group == "tractcloud":
         return "Install/configure external TractCloud package/check-out and model data; pass --tractcloud-root/--tractcloud-data-dir."
     if spec.install_group == "model-resources":
         return "Choose a model asset root in the Slicer UI, or run scripts/download_model_assets.py --profile core --asset-root <path>."
     if spec.install_group == "slicer":
-        return "Pass --slicer-executable or set SLICERDDSURFER_SLICER_EXECUTABLE to the local Slicer executable."
+        return "Pass --slicer-executable or set SLICERDSPACE_SLICER_EXECUTABLE to the local Slicer executable."
     if spec.install_group == "slicer-dmri":
         return "Install SlicerDMRI in Slicer and point to the required CLI if this optional export is enabled."
     if spec.install_group == 'ukf':
@@ -2336,7 +2336,7 @@ def write_environment_report(result: EnvironmentDoctorResult, output_dir: Path) 
         if item.status == "missing" and item.kind != "python"
     ]
     note_lines = [
-        "# SlicerDDSurfer External Tool Install Notes",
+        "# SlicerDSpace External Tool Install Notes",
         "",
         "These items cannot be installed safely without user/platform-specific choices such as admin access, license files, model data, or conda/container policy.",
         "",

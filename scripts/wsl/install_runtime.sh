@@ -74,7 +74,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$REPO_ROOT" || ! -f "$REPO_ROOT/scripts/wsl/requirements-runtime.txt" ]]; then
-  echo "--repo-root must identify the SlicerDDSurfer checkout" >&2
+  echo "--repo-root must identify the SlicerDSpace checkout" >&2
   exit 2
 fi
 if [[ $EUID -eq 0 ]]; then
@@ -410,7 +410,7 @@ echo "[7/8] Installing FreeSurfer ${FREESURFER_VERSION}"
 if [[ $SKIP_FREESURFER -eq 0 ]]; then
   if [[ -x "$FREESURFER_HOME/bin/recon-all" ]] &&
      [[ "$(cat "$FREESURFER_HOME/.slicerdsurfer-version" 2>/dev/null || true)" != "$FREESURFER_VERSION" ]]; then
-    echo "Existing FreeSurfer root has no matching SlicerDDSurfer version marker: $FREESURFER_HOME" >&2
+    echo "Existing FreeSurfer root has no matching SlicerDSpace version marker: $FREESURFER_HOME" >&2
     exit 7
   fi
   if [[ ! -x "$FREESURFER_HOME/bin/recon-all" ]]; then
@@ -552,5 +552,5 @@ payload = {
 }
 state_file = Path(os.environ["STATE_FILE"])
 state_file.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-print(f"SLICERDDSURFER_STATE_FILE={state_file}")
+print(f"SLICERDSPACE_STATE_FILE={state_file}")
 PY

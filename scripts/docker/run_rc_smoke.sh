@@ -6,7 +6,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 IMAGE_NAME="${IMAGE_NAME:-slicerddsurfer-rc-smoke:ubuntu22.04}"
 DEFAULT_REPO_URL="$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || true)"
-REPO_URL="${REPO_URL:-${DEFAULT_REPO_URL:-https://github.com/ChengjinLii/SlicerDDSurfer.git}}"
+REPO_URL="${REPO_URL:-${DEFAULT_REPO_URL:-https://github.com/ChengjinLii/SlicerDSpace.git}}"
 REPO_REF="${REPO_REF:-main}"
 HOST_SOFTWARE_ROOT="${HOST_SOFTWARE_ROOT:-/data/chengjin/software}"
 HOST_SLICER_LAUNCHER="${HOST_SLICER_LAUNCHER:-$HOST_SOFTWARE_ROOT/run-slicer.sh}"
@@ -227,12 +227,12 @@ echo "[container] asset_profile=$SMOKE_ASSET_PROFILE"
 echo "[container] model_asset_root=$SMOKE_MODEL_ASSET_ROOT"
 test -x "$HOST_SLICER_LAUNCHER"
 test -x "$HOST_MRTRIX_BIN/mrconvert"
-if [[ -d /work/src/SlicerDDSurfer/.git ]]; then
-  echo "[container] Reusing existing checkout: /work/src/SlicerDDSurfer"
+if [[ -d /work/src/SlicerDSpace/.git ]]; then
+  echo "[container] Reusing existing checkout: /work/src/SlicerDSpace"
 else
-  GIT_LFS_SKIP_SMUDGE=1 git clone --filter=blob:none "$REPO_URL" /work/src/SlicerDDSurfer
+  GIT_LFS_SKIP_SMUDGE=1 git clone --filter=blob:none "$REPO_URL" /work/src/SlicerDSpace
 fi
-cd /work/src/SlicerDDSurfer
+cd /work/src/SlicerDSpace
 if [[ -f .git/index.lock ]]; then
   echo "[container] Removing stale git lock: .git/index.lock"
   rm -f .git/index.lock
@@ -263,7 +263,7 @@ case "$SMOKE_LFS_MODE" in
       2>&1 | tee /work/logs/model_assets_plan.json
     {
       if [[ -n "${CONTAINER_ASSET_SEED_REPO:-}" && -d "${CONTAINER_ASSET_SEED_REPO}" ]]; then
-        python3 - "$SMOKE_ASSET_PROFILE" "$CONTAINER_ASSET_SEED_REPO" "$SMOKE_MODEL_ASSET_ROOT" "/work/src/SlicerDDSurfer" <<'PY'
+        python3 - "$SMOKE_ASSET_PROFILE" "$CONTAINER_ASSET_SEED_REPO" "$SMOKE_MODEL_ASSET_ROOT" "/work/src/SlicerDSpace" <<'PY'
 import json
 import shutil
 import sys
@@ -337,16 +337,16 @@ case "$SMOKE_STAGE" in
       --install-root /work/install \
       --clean \
       --link-mode copy | tee /work/logs/stage_slicer_extension.json
-    MODULE_DIR=/work/install/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules
-    test -f "$MODULE_DIR/SlicerDDSurfer.py"
+    MODULE_DIR=/work/install/SlicerDSpace/lib/Slicer-5.10/qt-scripted-modules
+    test -f "$MODULE_DIR/SlicerDSpace.py"
     env \
-      SLICERDDSURFER_EXTENSION_MODULE_DIR="$MODULE_DIR" \
+      SLICERDSPACE_EXTENSION_MODULE_DIR="$MODULE_DIR" \
       PYTHONUNBUFFERED=1 \
       PATH=/usr/bin:/bin \
       stdbuf -oL -eL xvfb-run -a -s "-screen 0 1280x1024x24" \
       "$HOST_SLICER_LAUNCHER" --no-splash \
       --additional-module-paths "$MODULE_DIR" \
-      --python-script /work/src/SlicerDDSurfer/Testing/Python/slicer_extension_install_smoke.py \
+      --python-script /work/src/SlicerDSpace/Testing/Python/slicer_extension_install_smoke.py \
       2>&1 | tee /work/logs/slicer_extension_install_smoke.log
     echo "[container] RC_SMOKE_OK"
     ;;
@@ -383,7 +383,7 @@ print(f"[quick-gate] Seeded {seeded} cache subtree(s) from {seed_root}")
 PY
     fi
     QUICK_GATE_ARGS=(
-      /work/src/SlicerDDSurfer/run_subject_pipeline.py
+      /work/src/SlicerDSpace/run_subject_pipeline.py
       --subject-root "$SUBJECT_ROOT"
       --subject-id "$SMOKE_SUBJECT_ID"
       --output-root "$OUTPUT_ROOT"

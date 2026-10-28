@@ -35,7 +35,7 @@
 
 旧 `author`、`ddparcel_act`、`published_endpoints` 仅保留显式 CLI 历史复现和审计能力，
 不作为 GUI 选项或推荐预设。已保存的 GUI 默认值迁移为 `official`；载入的旧场景
-将原值记在 `SlicerDDSurfer.LegacyWMQLPreset`，既有运行记录不会重写。
+将原值记在 `SlicerDSpace.LegacyWMQLPreset`，既有运行记录不会重写。
 
 ---
 

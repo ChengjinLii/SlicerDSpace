@@ -1,4 +1,4 @@
-"""Small UI error-dialog helpers for SlicerDDSurfer widgets."""
+"""Small UI error-dialog helpers for SlicerDSpace widgets."""
 
 from __future__ import annotations
 

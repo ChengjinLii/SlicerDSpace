@@ -24,7 +24,7 @@ The launch-time guard prevents older child manifests from being displayed.
 
 Independent product limits select FA/MD/AD/RD, FWF/free-water FA/MD, NDI/ODI/IsoVF, categorical
 DDSeg/DDParcel labels, all four DDSurfer STL surfaces, one representative per
-tractography/SAF backend, AF/CST/CC bundles, connectivity matrices/node tables,
+tractography/SAF backend, AF/CST/CC fiber bundles, connectivity matrices/node tables,
 and declared statistics tables. DKI selects six MK/AK/RK/KFA/MKT/RTK maps and,
 when present, three distinct MK-Curve-corrected maps. Preprocessing can show a declared
 brain mask and mean b0, never the full 4D DWI as a 3D scalar. There is no global automatic 12-item or

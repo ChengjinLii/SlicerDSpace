@@ -461,7 +461,7 @@ def _resolve_slicer_executable(config: ProductOrchestratorConfig) -> Optional[Pa
     explicit = _resolve_optional_path(config.slicer_executable)
     if explicit is not None:
         return explicit if explicit.is_file() else None
-    env_value = Path(os.environ["SLICERDDSURFER_SLICER_EXECUTABLE"]).expanduser().resolve() if os.environ.get("SLICERDDSURFER_SLICER_EXECUTABLE") else None
+    env_value = Path(os.environ["SLICERDSPACE_SLICER_EXECUTABLE"]).expanduser().resolve() if os.environ.get("SLICERDSPACE_SLICER_EXECUTABLE") else None
     if env_value is not None and env_value.is_file():
         return env_value
     candidates = [
@@ -672,7 +672,7 @@ def _resolve_mrtrix_command(command: str, bin_dir: Optional[Path]) -> Optional[P
     candidate_dirs: list[Path] = []
     if bin_dir is not None:
         candidate_dirs.append(bin_dir.expanduser())
-    for env_name in ("SLICERDDSURFER_MRTRIX_BIN_DIR", "MRTRIX_BIN_DIR"):
+    for env_name in ("SLICERDSPACE_MRTRIX_BIN_DIR", "MRTRIX_BIN_DIR"):
         value = os.environ.get(env_name)
         if value:
             candidate_dirs.append(Path(value).expanduser())
@@ -1334,7 +1334,7 @@ def _parcellation_complete(subject_root: Path, subject_id: str, output_root: Opt
 
 
 def _surface_outputs(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> dict[str, Path]:
-    native_dir = subject_layout(subject_root, output_root=output_root).anatomy_input_dir("ddsurfer") / "pred_results_SlicerDDSurfer" / "native" / subject_id
+    native_dir = subject_layout(subject_root, output_root=output_root).anatomy_input_dir("ddsurfer") / "pred_results_SlicerDSpace" / "native" / subject_id
     return {
         "white_lh": native_dir / f"{subject_id}_predicted_wm_lh.stl",
         "white_rh": native_dir / f"{subject_id}_predicted_wm_rh.stl",
@@ -1376,7 +1376,7 @@ def _surface_complete(subject_root: Path, subject_id: str, output_root: Optional
             if Path(path).is_symlink() or sha256(path) != digest:
                 return False
         required = set(map(str, _surface_outputs(subject_root, subject_id, output_root).values()))
-        native = surface_root / 'pred_results_SlicerDDSurfer/native' / subject_id
+        native = surface_root / 'pred_results_SlicerDSpace/native' / subject_id
         required.update(str(native / f'{hemi}.{kind}.obj') for hemi in ('lh', 'rh') for kind in ('white', 'pial'))
         if not required.issubset(outputs):
             return False
@@ -1392,7 +1392,7 @@ def _surface_postprocess_native_dir(
 ) -> Path:
     return (
         subject_layout(subject_root, output_root=output_root).anatomy_input_dir("ddsurfer")
-        / "pred_results_SlicerDDSurfer"
+        / "pred_results_SlicerDSpace"
         / "native"
         / subject_id
     )

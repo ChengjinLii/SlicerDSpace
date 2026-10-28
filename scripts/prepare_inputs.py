@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare DICOM, NIfTI or NRRD diffusion inputs for SlicerDDSurfer."""
+"""Prepare DICOM, NIfTI or NRRD diffusion inputs for SlicerDSpace."""
 
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ from shared.input_import import InputImportConfig, detect_import_source_kind, pr
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Normalize external diffusion inputs into the SlicerDDSurfer subject-root layout: "
+            "Normalize external diffusion inputs into the SlicerDSpace subject-root layout: "
             "input/data.nii.gz, input/bvals, input/bvecs, optional input/dwi.json and optional mask."
         )
     )
     parser.add_argument("--source", required=True, type=Path, help="DICOM folder, DWI NIfTI, NRRD/NHDR, or canonical subject root.")
-    parser.add_argument("--subject-root", required=True, type=Path, help="Destination SlicerDDSurfer subject root.")
+    parser.add_argument("--subject-root", required=True, type=Path, help="Destination SlicerDSpace subject root.")
     parser.add_argument("--subject-id", required=True, help="Subject identifier recorded in the import manifest.")
     parser.add_argument("--source-kind", choices=("auto", "canonical", "dicom", "nifti", "nrrd"), default="auto")
     parser.add_argument("--backend", choices=("auto", "copy", "dcm2niix", "mrconvert", "dwiconvert"), default="auto")

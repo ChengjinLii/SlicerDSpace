@@ -1,6 +1,6 @@
 BSD 3-Clause License
 
-Copyright (c) 2026, Chengjin Li and the SlicerDDSurfer contributors
+Copyright (c) 2026, Chengjin Li and the SlicerDSpace contributors
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT INCLUDING NEGLIGENCE OR OTHERWISE ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-This license applies to the SlicerDDSurfer source code unless a file or bundled
+This license applies to the SlicerDSpace source code unless a file or bundled
 third-party component states different terms. Model weights, templates,
 example neuroimaging data, external tools, and Git LFS-managed assets may have
 separate source, redistribution, citation, or access restrictions. See

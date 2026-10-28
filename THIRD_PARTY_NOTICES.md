@@ -6,7 +6,7 @@
 
 </div>
 
-SlicerDDSurfer's own source code is licensed under the BSD 3-Clause license
+SlicerDSpace's own source code is licensed under the BSD 3-Clause license
 in [LICENSE.txt](LICENSE.txt). This file documents bundled third-party code, data,
 and reference material that carries different terms, and states honestly
 where asset permissions still need separate review. License texts and their
@@ -134,7 +134,7 @@ and are subject to the following terms and conditions:
 
 This is a **modified integration**, not an unmodified upstream distribution:
 imports, lazy exports, input/gradient validation and file handling have been
-adapted for SlicerDDSurfer. DDSurfer's derived helpers in
+adapted for SlicerDSpace. DDSurfer's derived helpers in
 `anatomy/surface/ddsurfer_backend/preprocessing/conversion/` retain these terms
 as well. Preserve the agreement and notices when distributing source/binaries
 and documentation; fixture/data permissions are assessed separately.
@@ -235,6 +235,6 @@ the upstream DKI routines, Copyright (c) 2017 New York University and
 University of Antwerp, under MPL-2.0. The full license is preserved in
 `licenses/MK-Curve-DKI-MPL-2.0.txt`. These modified files remain MPL-2.0
 source, shipped with the extension; the rest of the extension is not
-relicensed. The translation is maintained by SlicerDDSurfer and is not
+relicensed. The translation is maintained by SlicerDSpace and is not
 an official author-endorsed Python implementation. MATLAB I/O utilities
 and the proprietary MathWorks helper are not redistributed.

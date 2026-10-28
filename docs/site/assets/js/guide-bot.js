@@ -20,13 +20,13 @@
     en: {
       title: 'Ask the guide', description: 'A local guide to the project',
       placeholder: 'Ask about the workflow…', ask: 'Ask', close: 'Close guide',
-      open: 'Open SlicerDDSurfer guide', switchLanguage: 'Switch to Chinese',
+      open: 'Open SlicerDSpace guide', switchLanguage: 'Switch to Chinese',
       privacy: 'Local answers · Nothing is sent', conversation: 'Guide conversation',
       suggestions: 'Suggested questions', link: 'Explore this section',
       questions: { start: 'Getting started', inputs: 'Inputs', methods: 'Methods',
         dependencies: 'Dependencies', results: 'Results & QC', references: 'References' },
       answers: {
-        welcome: { text: 'Hello! I can help you explore SlicerDDSurfer. Choose a topic or ask a question about the project. I use a small, curated set of answers from this website.' },
+        welcome: { text: 'Hello! I can help you explore SlicerDSpace. Choose a topic or ask a question about the project. I use a small, curated set of answers from this website.' },
         start: { text: 'Start with 3D Slicer, stage the module, and add its module path in Slicer. In the GUI, enter the subject details, choose products, and prepare the selected environment before running. The repository is currently private; access is required.', href: '#start' },
         skills: { text: 'We provide an install-and-use Agent Skill. Give its SKILL.md to your local Agent for installation, input preparation, method selection, plan review, requested analyses or batch experiments, and result/QC inspection. The Agent Skills section includes the files and a sample prompt.', href: '#skills' },
         inputs: { text: 'The workflow accepts diffusion MRI in DICOM, NIfTI or NRRD/NHDR formats. Prepared NIfTI inputs need matched b-values and b-vectors; a compatible brain mask can be supplied or generated. Use the input-import controls when conversion is needed.', href: '#start' },
@@ -41,15 +41,15 @@
       }
     },
     zh: {
-      title: '问问项目助手', description: 'SlicerDDSurfer 本地导览',
+      title: '问问项目助手', description: 'SlicerDSpace 本地导览',
       placeholder: '输入有关使用流程的问题…', ask: '提问', close: '关闭助手',
-      open: '打开 SlicerDDSurfer 助手', switchLanguage: 'Switch to English',
+      open: '打开 SlicerDSpace 助手', switchLanguage: 'Switch to English',
       privacy: '本地回答 · 不会发送输入', conversation: '助手对话',
       suggestions: '推荐问题', link: '查看相关内容',
       questions: { start: '如何开始', inputs: '输入数据', methods: '分析方法',
         dependencies: '环境依赖', results: '结果与 QC', references: '参考文献' },
       answers: {
-        welcome: { text: '你好！我是 SlicerDDSurfer 项目助手。可以选择下方问题，或输入有关项目的问题。我根据本网页整理的内容回答。' },
+        welcome: { text: '你好！我是 SlicerDSpace 项目助手。可以选择下方问题，或输入有关项目的问题。我根据本网页整理的内容回答。' },
         start: { text: '先安装 3D Slicer，部署插件并添加模块路径。在界面中填写被试信息、选择分析产品，然后准备所选环境并运行。仓库目前为私有状态，需要获得访问权限。', href: '#start' },
         skills: { text: '我们提供安装与使用 Agent Skill。将 SKILL.md 交给自己的本地 Agent，可按指南完成安装、输入准备、方法选择、计划检查、按请求分析或批量实验，以及结果与 QC 检查。Agent Skills 区域提供文件入口和示例指令。', href: '#skills' },
         inputs: { text: '支持 DICOM、NIfTI 和 NRRD/NHDR 格式的扩散影像。准备好的 NIfTI 需要配套 b 值和 b 向量；脑掩膜可自行提供或生成。需要格式转换时，可使用输入导入功能。', href: '#start' },

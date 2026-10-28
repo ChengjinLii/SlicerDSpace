@@ -65,7 +65,7 @@ def run():
                 assert np.allclose(restored, points, atol=1e-5)
                 slicer.mrmlScene.RemoveNode(node)
                 slicer.mrmlScene.RemoveNode(reloaded)
-        print("SLICERDDSURFER_SURFACE_COORDINATE_ROUNDTRIP=True", flush=True)
+        print("SLICERDSPACE_SURFACE_COORDINATE_ROUNDTRIP=True", flush=True)
         slicer.app.exit(0)
     except Exception:
         traceback.print_exc()

@@ -40,7 +40,7 @@ def inspect_archive_layout(archive: Path):
             development.append(name)
         if "qt-scripted-modules" in path.parts:
             index = path.parts.index("qt-scripted-modules")
-            if path.parts[index + 1:] == ("SlicerDDSurfer.py",):
+            if path.parts[index + 1:] == ("SlicerDSpace.py",):
                 module_roots.add("/".join(path.parts[:index + 1]))
     # CPack chooses a revision/platform-prefixed top directory; compiled Python
     # bytecode is a normal Slicer build product, not proof of a dirty checkout.

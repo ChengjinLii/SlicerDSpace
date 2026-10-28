@@ -1,6 +1,6 @@
 <div align="center">
 
-# SlicerDDSurfer Product Architecture
+# SlicerDSpace Product Architecture
 
 [Project](../../README.md) | [Documentation](../README.md) | [Dependencies](../setup/EXTERNAL_DEPENDENCIES.md) | [Release](../release/EXTENSION_READINESS.md) | [中文](PRODUCT_ARCHITECTURE.zh-CN.md)
 
@@ -10,7 +10,7 @@
 
 ## Slicer Client, Verified Backends
 
-SlicerDDSurfer is a Slicer-native workflow client, not a replacement implementation
+SlicerDSpace is a Slicer-native workflow client, not a replacement implementation
 of every external scientific tool. The scripted module owns Qt controls, MRML
 parameters, task execution, cancellation, logs, run-scoped result loading and
 scene review. Support packages own the scientific routes and their provenance.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate or execute SlicerDDSurfer dependency install plans.
+"""Generate or execute SlicerDSpace dependency install plans.
 
 This script intentionally installs Python packages only when --execute is
 provided. External tools such as MRtrix3, FSL, FreeSurfer, WMA, and
@@ -174,7 +174,7 @@ def _install_python_packages(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Check and optionally install Python dependencies for selected SlicerDDSurfer targets. "
+            "Check and optionally install Python dependencies for selected SlicerDSpace targets. "
             "External software is reported in install_external_tools.md."
         )
     )

@@ -15,12 +15,12 @@ not a multi-shell NODDI/DKI or anatomical reconstruction benchmark.
 
 ## In Slicer
 
-1. Install SlicerDDSurfer and SlicerDMRI. Open **Sample Data** and download
+1. Install SlicerDSpace and SlicerDMRI. Open **Sample Data** and download
    **DWIVolume**. If the button is not visible, the Python console command is
    `import SampleData; SampleData.downloadSample('DWIVolume')`.
 2. Save the downloaded DWI node as a diffusion NRRD using Slicer's **Save** dialog.
    Use a new working folder, keeping the original download unchanged.
-3. Open SlicerDDSurfer. Under **Advanced settings > Regions & input import >
+3. Open SlicerDSpace. Under **Advanced settings > Regions & input import >
    Input import / conversion**, select the saved NRRD and a new subject folder.
    Preview the plan, then prepare inputs with Dry run cleared.
 4. Set Subject root to the prepared subject folder. Select only **Microstructure**
@@ -30,7 +30,7 @@ not a multi-shell NODDI/DKI or anatomical reconstruction benchmark.
    an explicitly chosen MRtrix mask instead needs MRtrix. Under **Advanced settings
    > Preprocessing & mask**, choose a method you have prepared. This recorded
    example uses MRtrix; methods are not substituted after errors.
-6. Click **Run SlicerDDSurfer**. Successful FA/MD maps load automatically. Inspect
+6. Click **Run SlicerDSpace**. Successful FA/MD maps load automatically. Inspect
    the brain mask, orientation, scalar contrast and **Results and QC** before
    accepting results. There is no regional statistics table without a label map.
 

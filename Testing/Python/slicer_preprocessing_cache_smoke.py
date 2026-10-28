@@ -10,7 +10,7 @@ from dataclasses import replace
 import qt
 import slicer
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
 
 
 def digest(path):
@@ -21,14 +21,14 @@ def digest(path):
 def start():
     record = {"kind": "real_preprocessing_cache_refresh", "passed": False}
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
+        slicer.util.selectModule("SlicerDSpace")
         from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing
         from preprocessing.pipeline import (
             _planned_paths, _preprocessing_cache_key, inspect_preprocessing_backend,
         )
         from shared.pipeline import find_subject_root
 
-        config = json.loads(Path(os.environ["SLICERDDSURFER_TASKS_CONFIG"]).read_text())
+        config = json.loads(Path(os.environ["SLICERDSPACE_TASKS_CONFIG"]).read_text())
         case = next(c for c in config["cases"] if c["name"] == "fsl_preprocessing")
         deps = config["external_dependencies"]
         settings = DwiPreprocessingConfig(

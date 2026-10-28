@@ -58,13 +58,13 @@ def verified_resource_directory(profile, *, asset_root=None):
 def resolve_wma_atlas_directory(explicit=None, *, asset_root=None):
     """Keep explicit/legacy paths authoritative; use the shared atlas otherwise."""
     import os
-    value = explicit or os.environ.get("SLICERDDSURFER_WMA_ATLAS_DIR") or os.environ.get("WMA_ATLAS_DIR")
+    value = explicit or os.environ.get("SLICERDSPACE_WMA_ATLAS_DIR") or os.environ.get("WMA_ATLAS_DIR")
     return Path(value).expanduser().absolute() if value else verified_resource_directory("wma", asset_root=asset_root)
 
 
 def resolve_tractcloud_data_directory(explicit=None, *, asset_root=None):
     import os
-    value = explicit or os.environ.get("SLICERDDSURFER_TRACTCLOUD_DATA_DIR") or os.environ.get("TRACTCLOUD_DATA_DIR")
+    value = explicit or os.environ.get("SLICERDSPACE_TRACTCLOUD_DATA_DIR") or os.environ.get("TRACTCLOUD_DATA_DIR")
     return Path(value).expanduser().absolute() if value else verified_resource_directory("tractcloud", asset_root=asset_root)
 
 

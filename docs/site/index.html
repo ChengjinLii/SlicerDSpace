@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SlicerDDSurfer</title>
-<meta name="description" content="SlicerDDSurfer brings diffusion-MRI anatomical reconstruction, microstructural mapping and white-matter connectivity analysis into one 3D Slicer module.">
+<title>SlicerDSpace</title>
+<meta name="description" content="SlicerDSpace brings diffusion-MRI anatomical reconstruction, microstructural mapping and white-matter connectivity analysis into one 3D Slicer module.">
 <meta name="theme-color" content="#06080b">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
-<meta property="og:title" content="SlicerDDSurfer">
-<meta property="og:description" content="SlicerDDSurfer brings diffusion-MRI anatomical reconstruction, microstructural mapping and white-matter connectivity analysis into one 3D Slicer module.">
-<meta property="og:url" content="https://chengjinlii.github.io/SlicerDDSurfer/">
-<meta property="og:image" content="https://chengjinlii.github.io/SlicerDDSurfer/assets/img/social.jpg">
+<meta property="og:title" content="SlicerDSpace">
+<meta property="og:description" content="SlicerDSpace brings diffusion-MRI anatomical reconstruction, microstructural mapping and white-matter connectivity analysis into one 3D Slicer module.">
+<meta property="og:url" content="https://chengjinlii.github.io/SlicerDSpace/">
+<meta property="og:image" content="https://chengjinlii.github.io/SlicerDSpace/assets/img/social.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="canonical" href="https://chengjinlii.github.io/SlicerDDSurfer/">
+<link rel="canonical" href="https://chengjinlii.github.io/SlicerDSpace/">
 <link rel="icon" type="image/png" href="assets/img/icon-64.png">
 <link rel="apple-touch-icon" href="assets/img/icon-180.png">
 <link rel="preload" href="assets/fonts/InterTight.woff2" as="font" type="font/woff2" crossorigin>
@@ -31,9 +31,9 @@
 
 <header class="site-header" id="site-header">
   <div class="header-inner">
-    <a class="brand" href="#top" aria-label="SlicerDDSurfer, back to top">
-      <img src="assets/img/logo-ddsurfer.png" alt="SlicerDDSurfer logo" width="44" height="45">
-      <span>SlicerDDSurfer</span>
+    <a class="brand" href="#top" aria-label="SlicerDSpace, back to top">
+      <img src="assets/img/logo-ddsurfer.png" alt="SlicerDSpace logo" width="44" height="45">
+      <span>SlicerDSpace</span>
     </a>
     <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">
       <span class="menu-icon" aria-hidden="true"></span>
@@ -58,9 +58,9 @@
 <section class="hero" id="top">
   <div class="container">
     <p class="eyebrow">3D Slicer module · Diffusion MRI</p>
-    <h1 class="product-title">SlicerDDSurfer</h1>
-    <p class="subtitle">A T1-weighted-image-free 3D Slicer workflow for diffusion MRI anatomy, microstructure and connectivity analysis</p>
-    <p class="lead">SlicerDDSurfer builds tissue labels, brain regions and cortical surfaces from diffusion MRI, with no T1-weighted scan at analysis time. It also maps microstructure, traces white-matter pathways and builds structural connectomes.</p>
+    <h1 class="product-title">SlicerDSpace</h1>
+    <p class="subtitle">A T1-weighted-image-free 3D Slicer workflow for diffusion MRI anatomical priors, microstructure and connectivity analysis</p>
+    <p class="lead">SlicerDSpace builds tissue labels, brain regions and cortical surfaces from diffusion MRI, with no T1-weighted scan at analysis time. It also maps microstructure, traces white-matter pathways and builds structural connectomes.</p>
     <div class="btn-row">
       <a class="btn btn-primary" href="#film" data-play-film>
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>
@@ -78,7 +78,7 @@
   <div class="container">
     <div class="film-wrap">
       <div class="film-frame" id="film-frame">
-        <video id="film-video" controls playsinline preload="metadata" poster="assets/img/poster.jpg" width="1920" height="1080" aria-label="SlicerDDSurfer film, 72 seconds, narrated, with subtitles in the picture">
+        <video id="film-video" controls playsinline preload="metadata" poster="assets/img/poster.jpg" width="1920" height="1080" aria-label="SlicerDSpace film, 72 seconds, narrated, with subtitles in the picture">
           <source src="media/SlicerDDSurfer_promo_1080p.mp4" type="video/mp4">
           <a href="media/SlicerDDSurfer_promo_1080p.mp4" download>Download the film (MP4)</a>
         </video>
@@ -87,24 +87,24 @@
     <p class="meta-row">
       <span>72.0 s · 1920 × 1080 · narrated · subtitles in the picture</span>
       <a href="media/SlicerDDSurfer_promo_1080p.mp4" download>Download MP4 (48 MB)</a>
-      <a href="media/SlicerDDSurfer.en.srt" download>Subtitles (.srt)</a>
+      <a href="media/SlicerDSpace.en.srt" download>Subtitles (.srt)</a>
     </p>
     <details class="transcript" id="transcript">
       <summary>Transcript</summary>
       <ol>
         <li>Diffusion MRI records how water moves through the living brain.</li>
-        <li>Mapping anatomy has usually meant a second, T1-weighted scan, registered into diffusion space.</li>
-        <li>SlicerDDSurfer reconstructs anatomy directly from diffusion MRI, without a T1-weighted scan.</li>
+        <li>Mapping anatomical priors has usually meant a second, T1-weighted scan, registered into diffusion space.</li>
+        <li>SlicerDSpace reconstructs anatomical priors directly from diffusion MRI, without T1-weighted images.</li>
         <li>It maps microstructure, from DTI to free water, NODDI and kurtosis.</li>
         <li>Tissue labels.</li>
         <li>Brain regions.</li>
         <li>White and pial surfaces,</li>
         <li>all in native diffusion space.</li>
         <li>Whole-brain tractography, traced in the same native space.</li>
-        <li>White-matter bundles, from the same tractogram.</li>
-        <li>And structural connectomes, built on the same anatomy.</li>
+        <li>White-matter fiber bundles, from the same tractogram.</li>
+        <li>And structural connectomes, built on the same anatomical priors.</li>
         <li>One 3D Slicer module, with automatic QC and a record of every run.</li>
-        <li>SlicerDDSurfer. Brain anatomy from diffusion MRI, inside 3D Slicer.</li>
+        <li>SlicerDSpace. Brain anatomical priors from diffusion MRI, inside 3D Slicer.</li>
       </ol>
     </details>
     <p class="note">The film introduces anatomical reconstruction, tracking and TractCloud bundle views. Explore the gallery below for additional microstructure and connectivity results.</p>
@@ -114,7 +114,7 @@
 <section class="section section-alt reveal" id="outputs">
   <div class="container">
     <p class="eyebrow">Native diffusion space</p>
-    <h2>Anatomy, microstructure and connectivity.</h2>
+    <h2>Anatomical prior, microstructure and connectivity.</h2>
     <p class="intro">Representative maps, surfaces, pathways and networks from the available analysis routes. Each view highlights a different product in native diffusion space.</p>
     <div class="gallery">
       <article class="tile">
@@ -208,7 +208,7 @@
       <article class="tile tile-wmql">
         <img src="assets/img/res-wmql-ukf.jpg" width="1852" height="1000" loading="lazy" alt="Official WMQL multi-bundle queries on UKF tractography">
         <div class="tile-body">
-          <p class="chip"><span class="chip-name">WMQL</span> · <span class="chip-q">bundles</span></p>
+          <p class="chip"><span class="chip-name">WMQL</span> · <span class="chip-q">fiber bundles</span></p>
           <h3>Multi-bundle query results</h3>
           <p>Official WMQL queries on UKF tractography. Colours distinguish query families; a display subset is shown.</p>
         </div>
@@ -216,7 +216,7 @@
       <article class="tile">
         <img src="assets/img/res-tc-ukf.jpg" width="1200" height="900" loading="lazy" alt="TractCloud bundles">
         <div class="tile-body">
-          <p class="chip"><span class="chip-name">TractCloud</span> · <span class="chip-q">bundles</span></p>
+          <p class="chip"><span class="chip-name">TractCloud</span> · <span class="chip-q">fiber bundles</span></p>
           <h3>42 white-matter tracts</h3>
           <p>TractCloud on the UKF tractogram: 84,356 streamlines classified; 9,321 shown.</p>
         </div>
@@ -259,7 +259,7 @@
   <div class="container">
     <p class="eyebrow">Agent Skills</p>
     <h2 id="skills-title">Install, run and review with your Agent.</h2>
-    <p class="intro">We provide an install-and-use Skill for SlicerDDSurfer. Give its SKILL.md to your local Agent to follow the project's setup, analysis and result-review workflow.</p>
+    <p class="intro">We provide an install-and-use Skill for SlicerDSpace. Give its SKILL.md to your local Agent to follow the project's setup, analysis and result-review workflow.</p>
     <div class="skills-grid">
       <dl class="skill-capabilities">
         <div><dt>Install &amp; enable</dt><dd>Locate Slicer, verify module activation and prepare only the dependencies you need.</dd></div>
@@ -270,8 +270,8 @@
         <h3>Ask your Agent</h3>
         <div class="code" data-code>
           <div class="code-head"><span>Agent prompt</span><button class="copy" type="button" hidden>Copy</button></div>
-          <pre><code>Read .agents/skills/slicerddsurfer-install/SKILL.md.
-Install and enable SlicerDDSurfer if needed,
+          <pre><code>Read .agents/skills/slicerdspace-install/SKILL.md.
+Install and enable SlicerDSpace if needed,
 then plan a DTI analysis for /path/to/sub-01.
 Prepare only the required dependencies and
 show me the plan before execution.</code></pre>
@@ -280,9 +280,9 @@ show me the plan before execution.</code></pre>
       </div>
     </div>
     <ul class="doc-links">
-      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/.agents/skills/slicerddsurfer-install/SKILL.md" target="_blank" rel="noopener">Open Skill</a></li>
-      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/.agents/skills/slicerddsurfer-install/references/usage.md" target="_blank" rel="noopener">Agent usage guide</a></li>
-      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/setup/CLI_TEMPLATES.md" target="_blank" rel="noopener">CLI templates</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace-install/SKILL.md" target="_blank" rel="noopener">Open Skill</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace-install/references/usage.md" target="_blank" rel="noopener">Agent usage guide</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/setup/CLI_TEMPLATES.md" target="_blank" rel="noopener">CLI templates</a></li>
     </ul>
   </div>
 </section>
@@ -299,10 +299,10 @@ show me the plan before execution.</code></pre>
           <p>Start with 3D Slicer; the protocol reference is version 5.10. Clone the source and create a separate extension installation:</p>
           <div class="code" data-code>
             <div class="code-head"><span>bash</span><button class="copy" type="button" hidden>Copy</button></div>
-            <pre><code>git clone https://github.com/ChengjinLii/SlicerDDSurfer.git
-cd SlicerDDSurfer
+            <pre><code>git clone https://github.com/ChengjinLii/SlicerDSpace.git
+cd SlicerDSpace
 python3 scripts/stage_slicer_extension.py \
-  --install-root ~/SlicerDDSurfer-extension --slicer-version 5.10 \
+  --install-root ~/SlicerDSpace-extension --slicer-version 5.10 \
   --link-mode copy</code></pre>
           </div>
           <p>Replace <code>5.10</code> with the major/minor version shown in Slicer’s About dialog. The script stages the module and reports its installation directory.</p>
@@ -311,8 +311,8 @@ python3 scripts/stage_slicer_extension.py \
       <li class="start-step">
         <div class="start-body">
           <h3>Add the module path</h3>
-          <p>Open Edit › Application Settings › Modules › Additional module paths. Add the expanded absolute path of <code>~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules</code>, matching the version you staged.</p>
-          <p>Install SlicerDMRI and PyTorch from Slicer’s Extension Manager. Add the separate UKFTractography extension if you plan to use UKF. Restart Slicer, then open Modules › Diffusion › SlicerDDSurfer.</p>
+          <p>Open Edit › Application Settings › Modules › Additional module paths. Add the expanded absolute path of <code>~/SlicerDSpace-extension/SlicerDSpace/lib/Slicer-5.10/qt-scripted-modules</code>, matching the version you staged.</p>
+          <p>Install SlicerDMRI and PyTorch from Slicer’s Extension Manager. Add the separate UKFTractography extension if you plan to use UKF. Restart Slicer, then open Modules › Diffusion › SlicerDSpace.</p>
         </div>
       </li>
       <li class="start-step">
@@ -340,7 +340,7 @@ python3 scripts/stage_slicer_extension.py \
       <li class="start-step">
         <div class="start-body">
           <h3>Run and inspect</h3>
-          <p>Click Run SlicerDDSurfer. Missing fields are highlighted, and the log reports progress or a specific correction. Successful key products load automatically; DTI supplies FA and MD for inspection.</p>
+          <p>Click Run SlicerDSpace. Missing fields are highlighted, and the log reports progress or a specific correction. Successful key products load automatically; DTI supplies FA and MD for inspection.</p>
           <p>In Results and QC, select the run to inspect its checks and reload or replace products without duplicating scene nodes. Review mask coverage, alignment and method-specific QC before accepting results.</p>
         </div>
       </li>
@@ -361,10 +361,10 @@ export SUBJECT_ROOT="/path/to/sub-01"
       <p>For independent subjects, use <code>scripts/run_batch_pipeline.py --batch-root /path/to/study --jobs 2</code> with your chosen analysis options. The GUI processes the current subject; the batch CLI manages separate outputs and logs.</p>
     </details>
     <ul class="doc-links">
-      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/setup/QUICKSTART.md" target="_blank" rel="noopener">Quick Start</a></li>
-      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/setup/SUPPORT_MATRIX.md" target="_blank" rel="noopener">Support matrix</a></li>
-      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/assets/MODEL_ASSET_TERMS.md" target="_blank" rel="noopener">Model asset terms</a></li>
-      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer" target="_blank" rel="noopener">Repository</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/setup/QUICKSTART.md" target="_blank" rel="noopener">Quick Start</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/setup/SUPPORT_MATRIX.md" target="_blank" rel="noopener">Support matrix</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/assets/MODEL_ASSET_TERMS.md" target="_blank" rel="noopener">Model asset terms</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace" target="_blank" rel="noopener">Repository</a></li>
     </ul>
   </div>
 </section>
@@ -423,7 +423,7 @@ export SUBJECT_ROOT="/path/to/sub-01"
           <article><span class="perf-kind port">Python-port control</span><h4>Name the real reference.</h4><p>MK-Curve port changes are compared with earlier Python code, not the author’s MATLAB.</p></article>
         </div>
         <div class="perf-limits">
-          <div><div class="perf-block-head"><p class="eyebrow">Still open</p><h3>The boundary of the evidence.</h3></div><p class="muted">These measurements cover specific Linux inputs and settings. They do not replace independent scientific review.</p><p><a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/release/PERFORMANCE_OPTIMIZATIONS.md" target="_blank" rel="noopener">Read the complete optimization report</a></p><p class="small muted">The JSON is a limited public summary, not private logs or subject data.</p></div>
+          <div><div class="perf-block-head"><p class="eyebrow">Still open</p><h3>The boundary of the evidence.</h3></div><p class="muted">These measurements cover specific Linux inputs and settings. They do not replace independent scientific review.</p><p><a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/release/PERFORMANCE_OPTIMIZATIONS.md" target="_blank" rel="noopener">Read the complete optimization report</a></p><p class="small muted">The JSON is a limited public summary, not private logs or subject data.</p></div>
           <ul class="perf-open-items">
             <li><strong>Whole workflow</strong><span>No matched end-to-end comparison. Do not add savings or multiply ratios across overlapping stages.</span></li>
             <li><strong>Generalization</strong><span>Single pairs, no confidence interval; more subjects and hardware are needed.</span></li>
@@ -466,11 +466,11 @@ export SUBJECT_ROOT="/path/to/sub-01"
             <tr data-method="noddi"><th scope="row">Microstructure</th><td>NODDI / AMICO</td><td>NDI, ODI, IsoVF and fit residuals.</td><td class="st-cell">AMICO; suitable multi-shell sampling</td><td class="ref-cell"><a href="#ref-7" aria-label="Reference 7">[7]</a> <a href="#ref-31" aria-label="Reference 31">[31]</a></td></tr>
             <tr data-method="dki"><th scope="row">Microstructure</th><td>DKI</td><td>WLS/OLS fitting; MK, AK, RK, KFA, MKT, RTK and validity masks.</td><td class="st-cell">DIPY; shell, direction and design-rank checks</td><td class="ref-cell"><a href="#ref-8" aria-label="Reference 8">[8]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
             <tr data-method="mkcurve"><th scope="row">Microstructure</th><td>MK-Curve</td><td>Correction curves, corrected kurtosis maps and metric-specific validity.</td><td class="st-cell">Bundled Python backend; DKI eligibility checks</td><td class="ref-cell"><a href="#ref-9" aria-label="Reference 9">[9]</a></td></tr>
-            <tr data-method="ddseg" class="stage-start"><th scope="row">Anatomy</th><td>DDSeg</td><td>Tissue labels and probabilities from converted PyTorch models.</td><td class="st-cell">PyTorch; DDSeg weights</td><td class="ref-cell"><a href="#ref-2" aria-label="Reference 2">[2]</a></td></tr>
-            <tr data-method="ddparcel"><th scope="row">Anatomy</th><td>DDParcel</td><td>Anatomical region inference with author-derived models.</td><td class="st-cell">PyTorch; weights and registration template</td><td class="ref-cell"><a href="#ref-3" aria-label="Reference 3">[3]</a></td></tr>
-            <tr data-method="ddsurfer"><th scope="row">Anatomy</th><td>DDSurfer</td><td>Native white and pial mesh reconstruction.</td><td class="st-cell">PyTorch; DDSurfer weights</td><td class="ref-cell"><a href="#ref-1" aria-label="Reference 1">[1]</a></td></tr>
-            <tr data-method="brainsfit"><th scope="row">Anatomy</th><td>BRAINSFit registration</td><td>Template registration for eligible anatomical routes.</td><td class="st-cell">Slicer BRAINSFit / BRAINSResample</td><td class="ref-cell"><a href="#ref-51" aria-label="Reference 51">[51]</a> <a href="#ref-27" aria-label="Reference 27">[27]</a></td></tr>
-            <tr data-method="surface_postprocess"><th scope="row">Anatomy</th><td>Surface post-processing</td><td>Thickness, curvature, spherical registration and DK/Destrieux atlas mapping.</td><td class="st-cell">Licensed native component runtime; full suite optional</td><td class="ref-cell"><a href="#ref-33" aria-label="Reference 33">[33]</a> <a href="#ref-47" aria-label="Reference 47">[47]</a> <a href="#ref-48" aria-label="Reference 48">[48]</a> <a href="#ref-49" aria-label="Reference 49">[49]</a></td></tr>
+            <tr data-method="ddseg" class="stage-start"><th scope="row">Anatomical prior</th><td>DDSeg</td><td>Tissue labels and probabilities from converted PyTorch models.</td><td class="st-cell">PyTorch; DDSeg weights</td><td class="ref-cell"><a href="#ref-2" aria-label="Reference 2">[2]</a></td></tr>
+            <tr data-method="ddparcel"><th scope="row">Anatomical prior</th><td>DDParcel</td><td>Anatomical region inference with author-derived models.</td><td class="st-cell">PyTorch; weights and registration template</td><td class="ref-cell"><a href="#ref-3" aria-label="Reference 3">[3]</a></td></tr>
+            <tr data-method="ddsurfer"><th scope="row">Anatomical prior</th><td>DDSurfer</td><td>Native white and pial mesh reconstruction.</td><td class="st-cell">PyTorch; DDSurfer weights</td><td class="ref-cell"><a href="#ref-1" aria-label="Reference 1">[1]</a></td></tr>
+            <tr data-method="brainsfit"><th scope="row">Anatomical prior</th><td>BRAINSFit registration</td><td>Template registration for eligible anatomical routes.</td><td class="st-cell">Slicer BRAINSFit / BRAINSResample</td><td class="ref-cell"><a href="#ref-51" aria-label="Reference 51">[51]</a> <a href="#ref-27" aria-label="Reference 27">[27]</a></td></tr>
+            <tr data-method="surface_postprocess"><th scope="row">Anatomical prior</th><td>Surface post-processing</td><td>Thickness, curvature, spherical registration and DK/Destrieux atlas mapping.</td><td class="st-cell">Licensed native component runtime; full suite optional</td><td class="ref-cell"><a href="#ref-33" aria-label="Reference 33">[33]</a> <a href="#ref-47" aria-label="Reference 47">[47]</a> <a href="#ref-48" aria-label="Reference 48">[48]</a> <a href="#ref-49" aria-label="Reference 49">[49]</a></td></tr>
             <tr data-method="response" class="stage-start"><th scope="row">Tractography</th><td>Response estimation</td><td>Dhollander three-tissue response estimation.</td><td class="st-cell">MRtrix3</td><td class="ref-cell"><a href="#ref-12" aria-label="Reference 12">[12]</a> <a href="#ref-13" aria-label="Reference 13">[13]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
             <tr data-method="csd"><th scope="row">Tractography</th><td>CSD / MSMT-CSD</td><td>Single- or multi-tissue fibre-orientation distributions.</td><td class="st-cell">MRtrix3; selected acquisition route</td><td class="ref-cell"><a href="#ref-11" aria-label="Reference 11">[11]</a> <a href="#ref-46" aria-label="Reference 46">[46]</a> <a href="#ref-10" aria-label="Reference 10">[10]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
             <tr data-method="mtnormalise"><th scope="row">Tractography</th><td>Multi-tissue normalization</td><td>Log-domain intensity and inhomogeneity normalization.</td><td class="st-cell">MRtrix3 mtnormalise</td><td class="ref-cell"><a href="#ref-17" aria-label="Reference 17">[17]</a> <a href="#ref-18" aria-label="Reference 18">[18]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
@@ -478,9 +478,9 @@ export SUBJECT_ROOT="/path/to/sub-01"
             <tr data-method="dti_tracking"><th scope="row">Tractography</th><td>DTI deterministic</td><td>Tensor-based direction tracking with stopping criteria.</td><td class="st-cell">SlicerDMRI; DIPY</td><td class="ref-cell"><a href="#ref-45" aria-label="Reference 45">[45]</a> <a href="#ref-28" aria-label="Reference 28">[28]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
             <tr data-method="ukf"><th scope="row">Tractography</th><td>UKF two-tensor</td><td>Automatic invocation of the official tracking CLI.</td><td class="st-cell">UKFTractography extension; SlicerDMRI</td><td class="ref-cell"><a href="#ref-19" aria-label="Reference 19">[19]</a> <a href="#ref-28" aria-label="Reference 28">[28]</a></td></tr>
             <tr data-method="saf"><th scope="row">Tractography</th><td>SAF</td><td>Surface-constrained short-association tracking and geometric filtering.</td><td class="st-cell">MRtrix3; post-processed native surfaces</td><td class="ref-cell"><a href="#ref-20" aria-label="Reference 20">[20]</a></td></tr>
-            <tr data-method="wmql" class="stage-start"><th scope="row">Bundles</th><td>WMQL (default)</td><td>Official multi-bundle queries with optional subset selection.</td><td class="st-cell">Author tract_querier; DDParcel labels</td><td class="ref-cell"><a href="#ref-21" aria-label="Reference 21">[21]</a></td></tr>
-            <tr data-method="wma"><th scope="row">Bundles</th><td>WMA</td><td>ORG-atlas registration and clustering; automatic UKF handoff.</td><td class="st-cell">WMA; ORG atlas; UKF reference route</td><td class="ref-cell"><a href="#ref-22" aria-label="Reference 22">[22]</a> <a href="#ref-23" aria-label="Reference 23">[23]</a> <a href="#ref-24" aria-label="Reference 24">[24]</a> <a href="#ref-26" aria-label="Reference 26">[26]</a></td></tr>
-            <tr data-method="tractcloud"><th scope="row">Bundles</th><td>TractCloud</td><td>Author learned tract parcellation and bundle export.</td><td class="st-cell">PyTorch backend; model and centroids</td><td class="ref-cell"><a href="#ref-25" aria-label="Reference 25">[25]</a> <a href="#ref-22" aria-label="Reference 22">[22]</a></td></tr>
+            <tr data-method="wmql" class="stage-start"><th scope="row">Fiber bundles</th><td>WMQL (default)</td><td>Official multi-bundle queries with optional subset selection.</td><td class="st-cell">Author tract_querier; DDParcel labels</td><td class="ref-cell"><a href="#ref-21" aria-label="Reference 21">[21]</a></td></tr>
+            <tr data-method="wma"><th scope="row">Fiber bundles</th><td>WMA</td><td>ORG-atlas registration and clustering; automatic UKF handoff.</td><td class="st-cell">WMA; ORG atlas; UKF reference route</td><td class="ref-cell"><a href="#ref-22" aria-label="Reference 22">[22]</a> <a href="#ref-23" aria-label="Reference 23">[23]</a> <a href="#ref-24" aria-label="Reference 24">[24]</a> <a href="#ref-26" aria-label="Reference 26">[26]</a></td></tr>
+            <tr data-method="tractcloud"><th scope="row">Fiber bundles</th><td>TractCloud</td><td>Author learned tract parcellation and bundle export.</td><td class="st-cell">PyTorch backend; model and centroids</td><td class="ref-cell"><a href="#ref-25" aria-label="Reference 25">[25]</a> <a href="#ref-22" aria-label="Reference 22">[22]</a></td></tr>
             <tr data-method="count" class="stage-start"><th scope="row">Connectome</th><td>Streamline count</td><td>Endpoint assignment to DDParcel nodes.</td><td class="st-cell">Python or eligible MRtrix3 backend</td><td class="ref-cell"><a href="#ref-50" aria-label="Reference 50">[50]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a></td></tr>
             <tr data-method="sift2"><th scope="row">Connectome</th><td>SIFT2-weighted count</td><td>FOD-informed weighting and matrix construction with matched tracks.</td><td class="st-cell">MRtrix3; corresponding tractogram and weights</td><td class="ref-cell"><a href="#ref-16" aria-label="Reference 16">[16]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a> <a href="#ref-50" aria-label="Reference 50">[50]</a></td></tr>
             <tr data-method="scalar_length"><th scope="row">Connectome</th><td>Scalar / length summaries</td><td>Mean FA, MD, ODI or another scalar; mean and total streamline length.</td><td class="st-cell">Python API; matched maps, nodes and tracks</td><td class="ref-cell"><a href="#ref-50" aria-label="Reference 50">[50]</a> <a href="#ref-29" aria-label="Reference 29">[29]</a> <a href="#ref-30" aria-label="Reference 30">[30]</a></td></tr>
@@ -490,7 +490,7 @@ export SUBJECT_ROOT="/path/to/sub-01"
         </table>
       </div>
       <p class="note">Defaults: DTI, CSD/ACT and WMQL. Detailed parameters are in Advanced settings; selected dependencies are prepared separately under Environment and installation. External tools and model assets are not installed silently.</p>
-      <p class="note"><a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/architecture/IMPLEMENTATION_PROVENANCE.md" target="_blank" rel="noopener">Implementation provenance and validation records</a> document the backend versions and individual test scopes.</p>
+      <p class="note"><a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/architecture/IMPLEMENTATION_PROVENANCE.md" target="_blank" rel="noopener">Implementation provenance and validation records</a> document the backend versions and individual test scopes.</p>
     </div>
   </div>
 </section>
@@ -499,7 +499,7 @@ export SUBJECT_ROOT="/path/to/sub-01"
   <div class="container">
     <p class="eyebrow">References</p>
     <h2>Cite the software and the methods you use.</h2>
-    <p class="intro">The protocol manuscript is in preparation. Cite the software version you used (<a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/CITATION.cff" target="_blank" rel="noopener">CITATION.cff</a>) and the methods you ran.</p>
+    <p class="intro">The protocol manuscript is in preparation. Cite the software version you used (<a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/CITATION.cff" target="_blank" rel="noopener">CITATION.cff</a>) and the methods you ran.</p>
     <div class="references" id="references">
       <p class="muted">Methods, software and data share one numbered bibliography. Links in the <a href="#integrated">integration table</a> lead directly to the corresponding entries.</p>
       <div class="ref-body" id="reference-list">
@@ -571,20 +571,20 @@ export SUBJECT_ROOT="/path/to/sub-01"
   <div class="container">
     <div class="foot-grid">
       <div class="foot-col">
-        <p class="foot-brand"><img src="assets/img/logo-ddsurfer.png" alt="SlicerDDSurfer logo" width="44" height="45"><span>SlicerDDSurfer</span></p>
+        <p class="foot-brand"><img src="assets/img/logo-ddsurfer.png" alt="SlicerDSpace logo" width="44" height="45"><span>SlicerDSpace</span></p>
         <p>Diffusion MRI workflows in 3D Slicer.</p>
         <p><a href="#performance">Performance evidence</a></p>
-        <p>© 2026 Chengjin Li and the SlicerDDSurfer contributors.</p>
+        <p>© 2026 Chengjin Li and the SlicerDSpace contributors.</p>
       </div>
       <div class="foot-col">
         <h2 class="foot-title">Licence</h2>
         <p>Project code: BSD-3-Clause. Bundled components keep their own licences and notices. Model weights, templates and subject-derived data are not relicensed by the project licence.</p>
-        <p class="foot-links"><a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/LICENSE.txt" target="_blank" rel="noopener">LICENSE.txt</a> <a href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">Third-party notices</a></p>
+        <p class="foot-links"><a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/LICENSE.txt" target="_blank" rel="noopener">LICENSE.txt</a> <a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">Third-party notices</a></p>
       </div>
       <div class="foot-col">
         <h2 class="foot-title">About the film</h2>
         <p>Film and gallery data include EDDEN, OpenNeuro <a href="https://openneuro.org/datasets/ds004666" target="_blank" rel="noopener">ds004666</a> (CC0), with acquisition details in the source records. <a href="#ref-34">[34]</a> <a href="#ref-35">[35]</a></p>
-        <p>Run: SlicerDDSurfer a48fc95 from the command line, with 3D Slicer 5.12.4, SlicerDMRI and PyTorch on macOS (x86_64 under Rosetta, CPU only). This run is outside the Linux validation and needed local run-time workarounds that are not in the repository. Bundles and screenshot: runs of 23 October 2026 on the same Mac, from a repository checkout.</p>
+        <p>Run: SlicerDSpace a48fc95 from the command line, with 3D Slicer 5.12.4, SlicerDMRI and PyTorch on macOS (x86_64 under Rosetta, CPU only). This run is outside the Linux validation and needed local run-time workarounds that are not in the repository. Fiber bundles and screenshot: runs of 23 October 2026 on the same Mac, from a repository checkout.</p>
         <p>Made with <a href="https://github.com/lemomo-ai/lemo-opuscar" target="_blank" rel="noopener">lemo-opuscar</a> (MIT) and three.js (MIT). Voice: Kokoro TTS (Apache-2.0). Fonts: Inter, Inter Tight, IBM Plex Mono (SIL OFL 1.1). Music and sound: original, synthesized in code.</p>
       </div>
     </div>
@@ -596,8 +596,8 @@ export SUBJECT_ROOT="/path/to/sub-01"
 </footer>
 
 <button class="guide-bot__backdrop" type="button" hidden aria-label="Close guide"></button>
-<aside class="guide-bot" id="guide-bot" aria-label="SlicerDDSurfer site guide">
-  <button class="guide-bot__launcher" type="button" hidden aria-label="Open SlicerDDSurfer guide"
+<aside class="guide-bot" id="guide-bot" aria-label="SlicerDSpace site guide">
+  <button class="guide-bot__launcher" type="button" hidden aria-label="Open SlicerDSpace guide"
           aria-expanded="false" aria-controls="guide-bot-panel" title="Open site guide">
     <span class="guide-bot__hat" aria-hidden="true"></span>
     <span class="guide-bot__face" aria-hidden="true"></span>
@@ -605,7 +605,7 @@ export SUBJECT_ROOT="/path/to/sub-01"
   <section class="guide-bot__panel" id="guide-bot-panel" role="dialog" aria-labelledby="guide-bot-title" hidden>
     <header class="guide-bot__header">
       <div class="guide-bot__identity">
-        <span class="guide-bot__eyebrow"><span aria-hidden="true"></span>SLICERDDSURFER</span>
+        <span class="guide-bot__eyebrow"><span aria-hidden="true"></span>SLICERDSPACE</span>
         <h2 id="guide-bot-title">Ask the guide</h2>
         <p class="guide-bot__description">A local guide to the project</p>
       </div>

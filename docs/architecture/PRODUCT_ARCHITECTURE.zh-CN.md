@@ -1,6 +1,6 @@
 <div align="center">
 
-# SlicerDDSurfer 产品架构
+# SlicerDSpace 产品架构
 
 [项目](../../README.zh-CN.md) | [文档](../README.zh-CN.md) | [外部依赖](../setup/EXTERNAL_DEPENDENCIES.md) | [发布](../release/EXTENSION_READINESS.zh-CN.md) | [English](PRODUCT_ARCHITECTURE.md)
 

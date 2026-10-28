@@ -11,11 +11,11 @@ import slicer
 
 
 def run():
-    root = Path(os.environ['SLICERDDSURFER_SMOKE_ROOT'])
+    root = Path(os.environ['SLICERDSPACE_SMOKE_ROOT'])
     checks = []
     try:
-        slicer.util.selectModule('SlicerDDSurfer')
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule('SlicerDSpace')
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         owner._onboardingWidgets['language_combo'].setCurrentIndex(0)
         node = owner._parameterNode
         with slicer.util.NodeModify(node):

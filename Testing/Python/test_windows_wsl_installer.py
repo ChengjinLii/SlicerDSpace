@@ -81,7 +81,7 @@ class WindowsWslInstallerContractTest(unittest.TestCase):
         self.assertIn("SKIP_LARGE_DOWNLOADS", bash)
         self.assertIn("--freesurfer-license", bash)
         self.assertIn("slicerdsurfer_windows_wsl_install_state", bash)
-        self.assertIn("SlicerDDSurfer\\user_config.json", powershell)
+        self.assertIn("SlicerDSpace\\user_config.json", powershell)
         self.assertIn("[switch]$SkipUserConfigUpdate", powershell)
         self.assertIn('(Join-Path $mrtrixBridge "$command.exe")', powershell)
         self.assertIn("preprocessing_fsl_bin_dir", powershell)

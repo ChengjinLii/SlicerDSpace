@@ -1,4 +1,4 @@
-"""Segmentation workflow logic glue for SlicerDDSurfer."""
+"""Segmentation workflow logic glue for SlicerDSpace."""
 
 from __future__ import annotations
 

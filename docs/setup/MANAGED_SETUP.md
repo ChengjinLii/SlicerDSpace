@@ -82,7 +82,7 @@ downloading their data. See [optional resources and offline import](../assets/EX
 External-path fields in Environment and installation remain available for existing installations, offline
 environments and administrator-managed clusters. Managed setup is opt-in and does
 not silently replace an explicitly configured environment while an analysis runs.
-User-local defaults live alongside model assets under `SlicerDDSurfer/runtimes`.
+User-local defaults live alongside model assets under `SlicerDSpace/runtimes`.
 
 ---
 
@@ -131,6 +131,6 @@ only after the final readiness check succeeds.
 `scripts/setup_managed_runtime.py` plans by default; `--execute` performs setup.
 FSL requires `--accept-fsl-license`; PNL requires `--accept-pnl-terms`.
 `--repair` explicitly reinstalls owned selected prefixes. `--root` and
-`SLICERDDSURFER_RUNTIME_ROOT` support isolated test environments. The worker returns
+`SLICERDSPACE_RUNTIME_ROOT` support isolated test environments. The worker returns
 verified settings; the GUI applies them only after successful completion.
 It never modifies the user's shell, GPU driver or an unmanaged Conda prefix.

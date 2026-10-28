@@ -92,9 +92,9 @@ python scripts/run_subject_pipeline.py \
 ```
 
 WMA 的图谱与环境参数仍按原方式传入。GUI 自动发现 UKF 并向后台传递路径；
-独立命令行可指定 `--ukf-executable` 或 `SLICERDDSURFER_UKF_EXECUTABLE`。
+独立命令行可指定 `--ukf-executable` 或 `SLICERDSPACE_UKF_EXECUTABLE`。
 DWIConvert 自动从 Slicer 发现，完全独立的环境也可指定
-`--dwiconvert-executable` 或 `SLICERDDSURFER_DWICONVERT_EXECUTABLE`。调整参数使用
+`--dwiconvert-executable` 或 `SLICERDSPACE_DWICONVERT_EXECUTABLE`。调整参数使用
 `--ukf-parameters '{"seedsPerVoxel":2,"numThreads":8}'`，修改与默认值一起记录，
 无需训练或复制 UKF 源码。
 

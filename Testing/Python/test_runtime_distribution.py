@@ -92,11 +92,11 @@ class RuntimeDistributionTest(unittest.TestCase):
             root = Path(tmp)
             staged = stage_extension(root / "staged", slicer_version="Slicer-5.10",
                                      clean=True, link_mode="copy")
-            archive_path = root / "SlicerDDSurfer.tar.gz"
+            archive_path = root / "SlicerDSpace.tar.gz"
             package_extension(Path(str(staged["extension_root"])), archive_path)
             with tarfile.open(archive_path, "r:gz") as archive:
                 names = set(archive.getnames())
-            prefix = "SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules/"
+            prefix = "SlicerDSpace/lib/Slicer-5.10/qt-scripted-modules/"
             for relative in runtime_files(ROOT):
                 self.assertIn(prefix + relative, names)
             for relative in OMITTED:

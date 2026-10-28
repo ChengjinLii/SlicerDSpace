@@ -114,7 +114,7 @@ def export_asset_mirror(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Export verified SlicerDDSurfer model assets into a directory that can be uploaded "
+            "Export verified SlicerDSpace model assets into a directory that can be uploaded "
             "to SlicerDDSurfer-models, Hugging Face, Zenodo, OSF, Figshare, or object storage."
         )
     )

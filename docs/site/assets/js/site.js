@@ -1,4 +1,4 @@
-/* SlicerDDSurfer project site. Small vanilla script. Everything here is an enhancement:
+/* SlicerDSpace project site. Small vanilla script. Everything here is an enhancement:
    the page is complete without it. */
 (function () {
   'use strict';
@@ -93,7 +93,7 @@
 
     function show(text) {
       label.textContent = text;
-      btn.setAttribute('aria-label', text + ' (SlicerDDSurfer film)');
+      btn.setAttribute('aria-label', text + ' (SlicerDSpace film)');
       btn.hidden = false;
     }
     function start() {

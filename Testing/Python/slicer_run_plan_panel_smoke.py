@@ -9,34 +9,34 @@ import qt
 import slicer
 
 
-SUBJECT_ROOT = Path(os.environ.get("SLICERDDSURFER_SMOKE_SUBJECT_ROOT", "/data/chengjin/SlicerDDSurfer-test/100307"))
-SUBJECT_ID = os.environ.get("SLICERDDSURFER_SMOKE_SUBJECT_ID", SUBJECT_ROOT.name)
-RUN_NAME = os.environ.get("SLICERDDSURFER_SMOKE_RUN_NAME", "csd_act")
-TRACTOGRAPHY_BACKEND = os.environ.get("SLICERDDSURFER_SMOKE_TRACTOGRAPHY_BACKEND", "saf")
-BUNDLE_BACKEND = os.environ.get("SLICERDDSURFER_SMOKE_BUNDLE_BACKEND", "all")
-MICROSTRUCTURE_STAGES = os.environ.get("SLICERDDSURFER_SMOKE_MICROSTRUCTURE_STAGES", "dti,freewater,noddi")
-PLAN_ONLY = os.environ.get("SLICERDDSURFER_SMOKE_PLAN_ONLY", "").strip().lower() in {"1", "true", "yes"}
+SUBJECT_ROOT = Path(os.environ.get("SLICERDSPACE_SMOKE_SUBJECT_ROOT", "/data/chengjin/SlicerDDSurfer-test/100307"))
+SUBJECT_ID = os.environ.get("SLICERDSPACE_SMOKE_SUBJECT_ID", SUBJECT_ROOT.name)
+RUN_NAME = os.environ.get("SLICERDSPACE_SMOKE_RUN_NAME", "csd_act")
+TRACTOGRAPHY_BACKEND = os.environ.get("SLICERDSPACE_SMOKE_TRACTOGRAPHY_BACKEND", "saf")
+BUNDLE_BACKEND = os.environ.get("SLICERDSPACE_SMOKE_BUNDLE_BACKEND", "all")
+MICROSTRUCTURE_STAGES = os.environ.get("SLICERDSPACE_SMOKE_MICROSTRUCTURE_STAGES", "dti,freewater,noddi")
+PLAN_ONLY = os.environ.get("SLICERDSPACE_SMOKE_PLAN_ONLY", "").strip().lower() in {"1", "true", "yes"}
 
 
 def _module_widget():
     try:
-        return slicer.util.getModuleWidget("SlicerDDSurfer")
+        return slicer.util.getModuleWidget("SlicerDSpace")
     except Exception:
-        module = slicer.util.getModule("SlicerDDSurfer")
+        module = slicer.util.getModule("SlicerDSpace")
         return module.widgetRepresentation().self()
 
 
 def _run() -> None:
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
+        slicer.util.selectModule("SlicerDSpace")
         widget = _module_widget()
         slicer.util.infoDisplay = lambda message, *args, **kwargs: print(
-            f"SLICERDDSURFER_RUN_PANEL_INFO={message}",
+            f"SLICERDSPACE_RUN_PANEL_INFO={message}",
             flush=True,
         )
         if PLAN_ONLY:
             widget._startBackgroundPipeline = lambda common_run_kwargs, external_paths, selected: print(
-                f"SLICERDDSURFER_RUN_PANEL_PLAN_ONLY_TARGETS={selected}",
+                f"SLICERDSPACE_RUN_PANEL_PLAN_ONLY_TARGETS={selected}",
                 flush=True,
             )
         node = widget._parameterNode
@@ -62,7 +62,7 @@ def _run() -> None:
         widget.ui.runSelectedButton.click()
         _poll(0)
     except Exception as exc:
-        print(f"SLICERDDSURFER_RUN_PANEL_ERROR={exc}", flush=True)
+        print(f"SLICERDSPACE_RUN_PANEL_ERROR={exc}", flush=True)
         slicer.app.exit(2)
 
 
@@ -134,17 +134,17 @@ def _check() -> None:
     latest_report = getattr(widget, "_latestReportPath", None)
     manifest = SUBJECT_ROOT / "outputs" / "00_run_metadata" / f"{RUN_NAME}_orchestration_manifest.json"
     plan = SUBJECT_ROOT / "outputs" / "00_run_metadata" / f"{RUN_NAME}_run_plan.json"
-    print(f"SLICERDDSURFER_RUN_PANEL_STATUS_LABEL={status_label}", flush=True)
-    print(f"SLICERDDSURFER_RUN_PANEL_HINT={hint_text}", flush=True)
-    print(f"SLICERDDSURFER_RUN_PANEL_SUMMARY={summary_text}", flush=True)
-    print(f"SLICERDDSURFER_RUN_PANEL_AUTO_LOAD_LIMIT={auto_load_limit}", flush=True)
-    print(f"SLICERDDSURFER_RUN_PANEL_ROW_COUNT={row_count}", flush=True)
-    print(f"SLICERDDSURFER_RUN_PANEL_TARGETS={targets}", flush=True)
-    print(f"SLICERDDSURFER_RUN_PANEL_STATUSES={statuses}", flush=True)
-    print(f"SLICERDDSURFER_RUN_PANEL_MANIFEST_EXISTS={manifest.is_file()}", flush=True)
-    print(f"SLICERDDSURFER_RUN_PANEL_PLAN_EXISTS={plan.is_file()}", flush=True)
-    print(f"SLICERDDSURFER_RUN_PANEL_REPORT_BUTTON_ENABLED={bool(report_button and report_button.enabled)}", flush=True)
-    print(f"SLICERDDSURFER_RUN_PANEL_LATEST_REPORT={latest_report}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_STATUS_LABEL={status_label}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_HINT={hint_text}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_SUMMARY={summary_text}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_AUTO_LOAD_LIMIT={auto_load_limit}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_ROW_COUNT={row_count}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_TARGETS={targets}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_STATUSES={statuses}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_MANIFEST_EXISTS={manifest.is_file()}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_PLAN_EXISTS={plan.is_file()}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_REPORT_BUTTON_ENABLED={bool(report_button and report_button.enabled)}", flush=True)
+    print(f"SLICERDSPACE_RUN_PANEL_LATEST_REPORT={latest_report}", flush=True)
     bad = (
         row_count < 4
         or (not PLAN_ONLY and status_label == "Ready to run.")

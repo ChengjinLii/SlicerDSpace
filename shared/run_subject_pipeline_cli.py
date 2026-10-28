@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unified CLI entrypoint for subject-root SlicerDDSurfer execution."""
+"""Unified CLI entrypoint for subject-root SlicerDSpace execution."""
 
 from __future__ import annotations
 
@@ -366,7 +366,7 @@ def _make_sigterm_handler(manifest_path: Path, *, subject_id: str, run_name: str
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Run SlicerDDSurfer from one subject-root entrypoint. "
+            "Run SlicerDSpace from one subject-root entrypoint. "
             "Use --all for the full product tree, or --targets/--skip-targets to customize."
         )
     )
@@ -382,8 +382,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--user-config",
         type=Path,
         help=(
-            "Shared GUI/CLI user configuration JSON. Defaults to the platform-specific SlicerDDSurfer config path "
-            "or $SLICERDDSURFER_USER_CONFIG."
+            "Shared GUI/CLI user configuration JSON. Defaults to the platform-specific SlicerDSpace config path "
+            "or $SLICERDSPACE_USER_CONFIG."
         ),
     )
     parser.add_argument("--no-user-config", action="store_true", help="Do not load saved GUI/CLI defaults.")

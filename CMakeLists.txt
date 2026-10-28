@@ -2,16 +2,16 @@ cmake_minimum_required(VERSION 3.20.6...3.22.6 FATAL_ERROR)
 
 # Inherit the SDK's macOS architecture/sysroot before project() enables compilers.
 find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)
-project(SlicerDDSurfer)
+project(SlicerDSpace)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "https://github.com/ChengjinLii/SlicerDDSurfer")
+set(EXTENSION_HOMEPAGE "https://github.com/ChengjinLii/SlicerDSpace")
 set(EXTENSION_CATEGORY "Diffusion")
 set(EXTENSION_CONTRIBUTORS "Chengjin Li")
 set(EXTENSION_DESCRIPTION "Integrated diffusion MRI workflows for anatomical reconstruction, tractography, bundle analysis, and structural connectivity.")
-set(EXTENSION_ICONURL "https://raw.githubusercontent.com/ChengjinLii/SlicerDDSurfer/main/Resources/Icons/SlicerDDSurfer.png")
-set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/ChengjinLii/SlicerDDSurfer/main/docs/images/slicerdds-compact-en.png")
+set(EXTENSION_ICONURL "https://raw.githubusercontent.com/ChengjinLii/SlicerDSpace/main/Resources/Icons/SlicerDSpace.png")
+set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/ChengjinLii/SlicerDSpace/main/docs/images/slicerdds-compact-en.png")
 set(EXTENSION_DEPENDS SlicerDMRI PyTorch)
 
 #-----------------------------------------------------------------------------
@@ -20,7 +20,7 @@ find_package(Slicer REQUIRED)
 include(${Slicer_USE_FILE})
 
 #-----------------------------------------------------------------------------
-set(MODULE_NAME SlicerDDSurfer)
+set(MODULE_NAME SlicerDSpace)
 
 #-----------------------------------------------------------------------------
 include("${CMAKE_CURRENT_SOURCE_DIR}/scripts/extension_runtime/RuntimeResources.cmake")

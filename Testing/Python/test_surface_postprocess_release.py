@@ -204,10 +204,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 if [[ "$nested" = "0" ]]; then
-  structural_root="${outputs_dir}/${SLICERDDSURFER_ANATOMY_DIRNAME:-03_structural}/ddsurfer/postprocess"
+  structural_root="${outputs_dir}/${SLICERDSPACE_ANATOMY_DIRNAME:-03_structural}/ddsurfer/postprocess"
   stats_root="${outputs_dir}/05_statistics/ddsurfer/postprocess/stats"
 else
-  structural_root="${outputs_dir}/${subject_id}/${SLICERDDSURFER_ANATOMY_DIRNAME:-03_structural}/ddsurfer/postprocess"
+  structural_root="${outputs_dir}/${subject_id}/${SLICERDSPACE_ANATOMY_DIRNAME:-03_structural}/ddsurfer/postprocess"
   stats_root="${outputs_dir}/${subject_id}/05_statistics/ddsurfer/postprocess/stats"
 fi
 mkdir -p "${structural_root}/surf" "${structural_root}/label" "${stats_root}"
@@ -255,7 +255,7 @@ printf '{"status":"completed"}' > "${structural_root}/qc.json"
             root = Path(tmp)
             subject_root = root / "100307"
             output_root = subject_root / "outputs"
-            native_dir = output_root / "03_structural" / "ddsurfer" / "pred_results_SlicerDDSurfer" / "native" / "100307"
+            native_dir = output_root / "03_structural" / "ddsurfer" / "pred_results_SlicerDSpace" / "native" / "100307"
             mri_dir = output_root / "03_structural" / "ddparcel"
             dti_dir = output_root / "02_microstructure" / "dti"
             backend_root = root / "backend"

@@ -139,7 +139,7 @@ def _wma_script_path(root: Path) -> Path:
 def resolve_configured_wma_root() -> Path:
     """Resolve WMA from environment variables or PATH."""
 
-    for env_name in ("SLICERDDSURFER_WMA_ROOT", "WMA_ROOT"):
+    for env_name in ("SLICERDSPACE_WMA_ROOT", "WMA_ROOT"):
         env_value = os.environ.get(env_name)
         if env_value:
             return Path(env_value).expanduser().resolve()
@@ -153,9 +153,9 @@ def resolve_configured_wma_root() -> Path:
 
     raise FileNotFoundError(
         "WMA ORG atlas script was not found. Configure WMA by passing wma_root, "
-        "setting SLICERDDSURFER_WMA_ROOT or WMA_ROOT, or adding "
+        "setting SLICERDSPACE_WMA_ROOT or WMA_ROOT, or adding "
         f"{WMA_APPLY_ORG_SCRIPT_NAME} to PATH. WMA is an optional external backend; "
-        "it is not bundled inside SlicerDDSurfer."
+        "it is not bundled inside SlicerDSpace."
     )
 
 
@@ -167,7 +167,7 @@ def resolve_wma_root(wma_root: Optional[Path] = None, module_dir: Optional[Path]
         raise FileNotFoundError(
             f"WMA ORG atlas script not found: {script}. "
             "Configure an external WhiteMatterAnalysis checkout with wma_root, "
-            "SLICERDDSURFER_WMA_ROOT, WMA_ROOT, or PATH."
+            "SLICERDSPACE_WMA_ROOT, WMA_ROOT, or PATH."
         )
     return candidate
 
@@ -296,7 +296,7 @@ def _resolve_slicer_runtime(slicer_executable: Path) -> Path:
 
 
 def _resolve_runtime_display() -> Optional[str]:
-    for env_name in ("SLICERDDSURFER_DISPLAY", "DISPLAY"):
+    for env_name in ("SLICERDSPACE_DISPLAY", "DISPLAY"):
         value = os.environ.get(env_name)
         if value:
             return value
@@ -609,7 +609,7 @@ def _resolve_tckconvert(config: WMAOrgAtlasConfig) -> Optional[Path]:
     configured_dirs: list[Path] = []
     if config.mrtrix_bin_dir is not None:
         configured_dirs.append(config.mrtrix_bin_dir.expanduser())
-    for env_name in ("SLICERDDSURFER_MRTRIX_BIN_DIR", "MRTRIX_BIN_DIR"):
+    for env_name in ("SLICERDSPACE_MRTRIX_BIN_DIR", "MRTRIX_BIN_DIR"):
         value = os.environ.get(env_name)
         if value:
             configured_dirs.append(Path(value).expanduser())
@@ -634,7 +634,7 @@ def validate_wma_org_inputs(config: WMAOrgAtlasConfig) -> None:
     if input_suffix == ".tck" and _resolve_tckconvert(config) is None:
         raise RuntimeError(
             "TCK input requires MRtrix3 tckconvert. Configure mrtrix_bin_dir, "
-            "SLICERDDSURFER_MRTRIX_BIN_DIR, MRTRIX_BIN_DIR, or PATH."
+            "SLICERDSPACE_MRTRIX_BIN_DIR, MRTRIX_BIN_DIR, or PATH."
         )
     if not config.atlas_dir.expanduser().is_dir():
         raise FileNotFoundError(f"WMA ORG atlas directory not found: {config.atlas_dir}")

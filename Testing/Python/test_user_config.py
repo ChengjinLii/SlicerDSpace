@@ -41,15 +41,15 @@ class UserConfigTest(unittest.TestCase):
         home = Path("/home/tester")
         self.assertEqual(
             default_user_config_path(system="Linux", home=home, environ={}),
-            home / ".config" / "SlicerDDSurfer" / "user_config.json",
+            home / ".config" / "SlicerDSpace" / "user_config.json",
         )
         self.assertEqual(
             default_user_config_path(system="Darwin", home=home, environ={}),
-            home / "Library" / "Application Support" / "SlicerDDSurfer" / "user_config.json",
+            home / "Library" / "Application Support" / "SlicerDSpace" / "user_config.json",
         )
         self.assertEqual(
             default_user_config_path(system="Windows", home=home, environ={"APPDATA": "C:/Users/test/AppData/Roaming"}),
-            Path("C:/Users/test/AppData/Roaming") / "SlicerDDSurfer" / "user_config.json",
+            Path("C:/Users/test/AppData/Roaming") / "SlicerDSpace" / "user_config.json",
         )
 
     def test_roundtrip_and_merge(self) -> None:

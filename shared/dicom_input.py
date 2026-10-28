@@ -69,7 +69,7 @@ def _sha(path):
 
 
 def converter_path(explicit=None):
-    explicit = explicit or os.environ.get("SLICERDDSURFER_DWICONVERT_EXECUTABLE")
+    explicit = explicit or os.environ.get("SLICERDSPACE_DWICONVERT_EXECUTABLE")
     if explicit:
         path = Path(explicit).expanduser()
         if not path.is_file() or not os.access(path, os.X_OK):

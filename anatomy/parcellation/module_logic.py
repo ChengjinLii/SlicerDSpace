@@ -1,4 +1,4 @@
-"""Parcellation workflow logic glue for SlicerDDSurfer."""
+"""Parcellation workflow logic glue for SlicerDSpace."""
 
 from __future__ import annotations
 

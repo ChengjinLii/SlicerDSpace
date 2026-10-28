@@ -23,7 +23,7 @@
 | 两者都没有 | 查找与上游构建配方匹配的用户缓存 |
 
 在 **环境与安装 > 更多选项 > 高级路径** 中填写可选组件目录及个人激活文件。
-要沿用已有 FreeSurfer，可清空组件目录。环境变量 `SLICERDDSURFER_SURFACE_RUNTIME`
+要沿用已有 FreeSurfer，可清空组件目录。环境变量 `SLICERDSPACE_SURFACE_RUNTIME`
 也可选择本机组件；`FS_LICENSE` 指向个人激活文件。显式选择的组件不完整或损坏时
 明确报错，不静默换用其他算法或安装。
 

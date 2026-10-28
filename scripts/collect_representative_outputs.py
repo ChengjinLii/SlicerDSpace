@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Collect representative output evidence for release/manuscript review.
 
-The collector is intentionally metadata-only. It scans a SlicerDDSurfer output
+The collector is intentionally metadata-only. It scans a SlicerDSpace output
 tree for representative product files, QC/provenance records, and timing values
 that can support manuscript figures or release validation without copying
 restricted neuroimaging data into the repository.

@@ -6,7 +6,7 @@ The framework follows a series of processing steps that result in a filtered sho
 
 ## Surface space
 
-The workflow accepts cortical surfaces that are already expressed in native diffusion space. The bundled SlicerDDSurfer backend does not register T1w/FreeSurfer surfaces to diffusion data. DDSurfer postprocess outputs are the recommended surface source.
+The workflow accepts cortical surfaces that are already expressed in native diffusion space. The bundled SlicerDSpace backend does not register T1w/FreeSurfer surfaces to dMRI data. DDSurfer postprocess outputs are the recommended surface source.
 
 ## Tractography
 

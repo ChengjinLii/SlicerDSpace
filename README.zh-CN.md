@@ -1,6 +1,6 @@
 <div align="center">
 
-# SlicerDDSurfer
+# SlicerDSpace
 
 **3D Slicer 中的扩散 MRI 解剖、微结构与连接分析**
 
@@ -14,18 +14,22 @@
 [![DIPY](https://img.shields.io/badge/Microstructure-DIPY-287D8E)](#技术栈)
 [![MRtrix3](https://img.shields.io/badge/Optional-MRtrix3-4C9A8A)](#技术栈)
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Install_%2B_Use-576B95)](#agent-skills)
-[![Website](https://img.shields.io/badge/Website-Project_home-334155)](https://chengjinlii.github.io/SlicerDDSurfer/)
+[![Website](https://img.shields.io/badge/Website-Project_home-334155)](https://chengjinlii.github.io/SlicerDSpace/)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
 
 [概览](#概览) | [宣传视频](#宣传视频) | [技术栈](#技术栈) | [Agent Skills](#agent-skills) | [安装](#安装) | [快速开始](#快速开始) | [CLI](#命令行) | [文档](#文档) | [引用](#引用) | [English](README.md)
 
-[项目网站](https://chengjinlii.github.io/SlicerDDSurfer/) | [使用指南](docs/README.zh-CN.md) | [发布状态](#验证与发布状态)
+[项目网站](https://chengjinlii.github.io/SlicerDSpace/) | [使用指南](docs/README.zh-CN.md) | [发布状态](#验证与发布状态)
 
 </div>
 
-SlicerDDSurfer 将无需 T1 加权影像的解剖重建、微结构定量和白质分析整合到
+SlicerDSpace 将无需 T1 加权影像的解剖重建、微结构定量和白质分析整合到
 一个 3D Slicer 模块中。选择算法、准备所需环境，即可在同一场景检查结果。
 GUI、CLI 和 Agent Skill 共用工作流配置与执行记录。
+
+SlicerDSpace 是新的产品及模块名称，旧设置、场景和模型缓存仍可读取。
+独立资源仓库保留现有名称与下载地址；升级已有安装时，请将 Slicer 的旧模块
+搜索路径替换为新安装路径。
 
 **从扩散 MRI 出发，获得解剖、微结构与脑连接结果。**
 
@@ -35,10 +39,10 @@ GUI、CLI 和 Agent Skill 共用工作流配置与执行记录。
 
 ## 宣传视频
 
-[![SlicerDDSurfer 宣传视频动态预览](docs/assets/readme/SlicerDDSurfer_preview.gif)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4)
+[![SlicerDSpace 宣传视频动态预览](docs/assets/readme/SlicerDDSurfer_preview.gif)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4)
 
 [观看完整视频（MP4，1 分 12 秒）](docs/site/media/SlicerDDSurfer_promo_1080p.mp4) ·
-[网页播放器与字幕](https://chengjinlii.github.io/SlicerDDSurfer/#film)
+[网页播放器与字幕](https://chengjinlii.github.io/SlicerDSpace/#film)
 
 ---
 
@@ -95,15 +99,15 @@ MATLAB 方法的非官方 Python 移植；PNL CNN 掩膜调用作者已有的 Py
 | 规划与运行 | 准备输入、选择算法及追踪/束来源、检查计划，按请求执行分析或批量实验 |
 | 检查与复用 | 检查输出、日志与 QC，复用匹配结果并保留无关场景节点 |
 
-[查看 Skill](.agents/skills/slicerddsurfer-install/SKILL.md) ·
-[Agent 使用指南](.agents/skills/slicerddsurfer-install/references/usage.md) ·
+[查看 Skill](.agents/skills/slicerdspace-install/SKILL.md) ·
+[Agent 使用指南](.agents/skills/slicerdspace-install/references/usage.md) ·
 [命令行模板](docs/setup/CLI_TEMPLATES.zh-CN.md)
 
 在已有访问权限的仓库中，可以对支持 `SKILL.md` 的 Agent 说：
 
 ```text
-读取 .agents/skills/slicerddsurfer-install/SKILL.md，按需安装并启用
-SlicerDDSurfer，为 /path/to/sub-01 规划 DTI 分析。
+读取 .agents/skills/slicerdspace-install/SKILL.md，按需安装并启用
+SlicerDSpace，为 /path/to/sub-01 规划 DTI 分析。
 只准备所需依赖，执行前先给我查看运行计划。
 ```
 
@@ -120,12 +124,12 @@ Skill 由用户自己的 Agent 执行，下载、许可和重启按提示确认�
 开发测试与科研材料保留在完整仓库中。
 
 ```bash
-git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDDSurfer.git
-cd SlicerDDSurfer
+git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDSpace.git
+cd SlicerDSpace
 git show HEAD:scripts/extension_runtime/runtime_checkout.txt | git sparse-checkout set --no-cone --stdin
 git checkout
 python3 scripts/stage_slicer_extension.py \
-  --install-root ~/SlicerDDSurfer-extension --slicer-version Slicer-5.10 \
+  --install-root ~/SlicerDSpace-extension --slicer-version Slicer-5.10 \
   --link-mode copy
 ```
 
@@ -133,7 +137,7 @@ Slicer 5.10 用户在 **Edit > Application Settings > Modules > Additional modul
 中加入以下路径（展开为绝对路径），然后重启：
 
 ```text
-~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules
+~/SlicerDSpace-extension/SlicerDSpace/lib/Slicer-5.10/qt-scripted-modules
 ```
 
 `--slicer-version` 应与实际安装版本一致。更新源码后重新部署并重启 Slicer。
@@ -153,7 +157,7 @@ SlicerDMRI、PyTorch 及可选的 UKFTractography 扩展按路线准备。
 
 ```bash
 python3 scripts/download_model_assets.py --profile surface \
-  --asset-root ~/SlicerDDSurfer-model-assets --source url \
+  --asset-root ~/SlicerDSpace-model-assets --source url \
   --source-id slicerdsurfer_models_git
 ```
 
@@ -164,10 +168,10 @@ python3 scripts/download_model_assets.py --profile surface \
 
 ## 快速开始
 
-1. 打开 **Modules > Diffusion > SlicerDDSurfer**，在标题栏选择中文或英文。
+1. 打开 **Modules > Diffusion > SlicerDSpace**，在标题栏选择中文或英文。
 2. 设置 **Subject root**、**Subject ID**，按需另选 **Output directory**。
 3. 首次 DTI 分析仅勾选 **Microstructure**，在旁边 **...** 中保留 **DTI**。
-4. 准备所选环境后，点击 **Run SlicerDDSurfer**。
+4. 准备所选环境后，点击 **Run SlicerDSpace**。
 5. 在场景中检查 FA/MD，通过 **结果与 QC** 查看本次运行的检查、日志及加载操作。
 
 准备好的输入采用以下结构：
@@ -284,8 +288,8 @@ python3 scripts/audit_slicer_extension_metadata.py --json
 [DDSurfer](https://doi.org/10.1002/advs.76596)、
 [DDSeg](https://doi.org/10.1016/j.neuroimage.2021.117934)、
 [DDParcel](https://doi.org/10.1109/TMI.2023.3331691)。
-其他集成方法见[主页参考文献](https://chengjinlii.github.io/SlicerDDSurfer/#cite)。
-SlicerDDSurfer 协议论文仍在准备中。
+其他集成方法见[主页参考文献](https://chengjinlii.github.io/SlicerDSpace/#cite)。
+SlicerDSpace 协议论文仍在准备中。
 
 ---
 

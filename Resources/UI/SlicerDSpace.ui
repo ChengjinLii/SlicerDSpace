@@ -35,7 +35,7 @@
          </size>
         </property>
         <property name="pixmap">
-         <pixmap>../Icons/SlicerDDSurfer.png</pixmap>
+         <pixmap>../Icons/SlicerDSpace.png</pixmap>
         </property>
         <property name="scaledContents">
          <bool>true</bool>
@@ -48,7 +48,7 @@
          <item>
           <widget class="QLabel" name="headlineLabel">
            <property name="text">
-            <string>SlicerDDSurfer</string>
+            <string>SlicerDSpace</string>
            </property>
           </widget>
          </item>
@@ -370,7 +370,7 @@
         <item row="7" column="0">
          <widget class="QLabel" name="targetBundlesLabel">
           <property name="text">
-           <string>Bundles</string>
+           <string>Fiber bundles</string>
           </property>
          </widget>
         </item>
@@ -609,7 +609,7 @@
         <item row="3" column="1">
          <widget class="QComboBox" name="orchestrationBundleBackendComboBox">
           <property name="toolTip">
-           <string>WMQL runs AF/CST rule-based bundle queries. WMA and TractCloud use optional external backends. all expands Bundles into all available backend tasks; missing backends are blocked without stopping other targets.</string>
+           <string>WMQL uses the official multi-bundle rule set. WMA and TractCloud use optional external backends. Select one or more fiber-bundle methods; unavailable backends are reported without stopping other targets.</string>
           </property>
           <property name="SlicerParameterName" stdset="0">
            <string>orchestrationBundleBackend</string>
@@ -1033,7 +1033,7 @@
         <item>
          <widget class="QPushButton" name="runSelectedButton">
           <property name="text">
-           <string>Run SlicerDDSurfer</string>
+           <string>Run SlicerDSpace</string>
           </property>
           <property name="toolTip">
            <string>Run enabled products from the shared subject root. The module checks dependencies first, installs missing Python packages only when enabled, then starts a monitored background job.</string>
@@ -1122,7 +1122,7 @@
            <string>Install missing Python packages before running</string>
           </property>
           <property name="toolTip">
-           <string>Missing Python packages are installed in the background. Review setup, then click Run SlicerDDSurfer again. External tools are not installed silently.</string>
+           <string>Missing Python packages are installed in the background. Review setup, then click Run SlicerDSpace again. External tools are not installed silently.</string>
           </property>
           <property name="checked">
            <bool>true</bool>

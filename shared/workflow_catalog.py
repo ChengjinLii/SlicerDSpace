@@ -1,4 +1,4 @@
-"""Product-level workflow catalog for the SlicerDDSurfer extension.
+"""Product-level workflow catalog for the SlicerDSpace extension.
 
 This shared catalog keeps workflow taxonomy and navigation metadata in one
 place while implementation code lives under product packages.

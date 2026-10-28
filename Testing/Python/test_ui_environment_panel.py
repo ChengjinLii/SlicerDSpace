@@ -125,7 +125,7 @@ class UIEnvironmentPanelTest(unittest.TestCase):
 
         self.assertIn("/repo/models/assets_manifest.json", text)
         self.assertIn("/repo/docs/assets/MODEL_ASSET_TERMS.md", text)
-        self.assertIn("SLICERDDSURFER_MODEL_ASSETS_DIR", text)
+        self.assertIn("SLICERDSPACE_MODEL_ASSETS_DIR", text)
         self.assertIn("--write-lockfile", text)
         self.assertIn("DOI-archive rights", text)
 
@@ -314,7 +314,7 @@ class UIEnvironmentPanelTest(unittest.TestCase):
 
         self.assertIn("Unified source expected", missing_text)
         self.assertIn("Default root:", present_text)
-        self.assertIn("SLICERDDSURFER_MODEL_ASSETS_DIR", present_text)
+        self.assertIn("SLICERDSPACE_MODEL_ASSETS_DIR", present_text)
 
 
 if __name__ == "__main__":

@@ -8,14 +8,14 @@ import traceback
 import qt
 import slicer
 
-ROOT = Path(os.environ['SLICERDDSURFER_SMOKE_ROOT'])
+ROOT = Path(os.environ['SLICERDSPACE_SMOKE_ROOT'])
 
 
 def run():
     checks = []
     try:
-        slicer.util.selectModule('SlicerDDSurfer')
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule('SlicerDSpace')
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         from shared.ui_algorithm_picker import choose_algorithms, selected_algorithms
         combo = owner._onboardingWidgets['language_combo']
         combo.setCurrentIndex(combo.findData('en'))

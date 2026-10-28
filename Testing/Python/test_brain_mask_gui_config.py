@@ -90,7 +90,7 @@ class FakeCombo:
 
 class BrainMaskGuiConfigTest(unittest.TestCase):
     def test_parameter_node_default_and_choices(self):
-        tree = ast.parse((ROOT / "SlicerDDSurfer.py").read_text(encoding="utf-8"))
+        tree = ast.parse((ROOT / "SlicerDSpace.py").read_text(encoding="utf-8"))
         node = next(item for item in ast.walk(tree) if isinstance(item, ast.AnnAssign)
                     and isinstance(item.target, ast.Name) and item.target.id == "brainMaskBackend")
         self.assertEqual(ast.literal_eval(node.value), "pnl_cnn")
@@ -99,7 +99,7 @@ class BrainMaskGuiConfigTest(unittest.TestCase):
         self.assertEqual(ast.literal_eval(choice.args[0]), list(BACKENDS))
 
     def test_selector_lives_in_analysis_parameters_not_products_or_inputs(self):
-        root = ET.parse(ROOT / "Resources/UI/SlicerDDSurfer.ui").getroot()
+        root = ET.parse(ROOT / "Resources/UI/SlicerDSpace.ui").getroot()
         section = root.find(".//widget[@name='parametersCollapsibleButton']")
         combo = section.find(".//widget[@name='brainMaskBackendComboBox']")
         self.assertIsNotNone(combo)
@@ -221,9 +221,9 @@ class BrainMaskGuiConfigTest(unittest.TestCase):
             calls.append((target, value))
             raise Synced
 
-        source = ast.parse((ROOT / "SlicerDDSurfer.py").read_text(encoding="utf-8"))
+        source = ast.parse((ROOT / "SlicerDSpace.py").read_text(encoding="utf-8"))
         definition = next(item for item in source.body if isinstance(item, ast.ClassDef)
-                          and item.name == "SlicerDDSurferParameterNode")
+                          and item.name == "SlicerDSpaceParameterNode")
         defaults = {item.target.id: ast.literal_eval(item.value) for item in definition.body
                     if isinstance(item, ast.AnnAssign)}
         owner = SimpleNamespace(ui=SimpleNamespace(brainMaskBackendComboBox=combo),

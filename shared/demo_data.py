@@ -57,7 +57,7 @@ def create_synthetic_demo_subject(root: Path, *, subject_id: str = DEMO_SUBJECT_
         encoding="utf-8",
     )
     (input_dir / "README.txt").write_text(
-        "Synthetic SlicerDDSurfer demo DWI. This is generated test data, not human subject data.\n",
+        "Synthetic SlicerDSpace demo DWI. This is generated test data, not human subject data.\n",
         encoding="utf-8",
     )
     return subject_root

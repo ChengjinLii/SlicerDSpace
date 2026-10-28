@@ -13,7 +13,7 @@ the runtime installer rerun to obtain this change. Linux cleanup tests and C#
 compilation are not a completed native WSL cancellation acceptance test.
 See [current bundle/platform follow-up](../release/BUNDLE_QC_20261015.md).
 
-SlicerDDSurfer provides Windows Slicer/Python setup and Ubuntu WSL 2 command
+SlicerDSpace provides Windows Slicer/Python setup and Ubuntu WSL 2 command
 bridges for Linux backends. Native Windows scientific workflows and complete
 SDK/CPack acceptance remain unverified; installer plans are not that evidence.
 Use the minimal DTI tutorial before considering the optional full WSL runtime.
@@ -46,11 +46,11 @@ Plan mode performs no WSL, package, registry or Slicer changes. It is also safe
 to use before WSL has been installed.
 
 ```powershell
-Set-Location D:\SlicerDDSurfer
+Set-Location D:\SlicerDSpace
 .\scripts\install_deps_windows.ps1 `
   -Distro Ubuntu `
   -PlanOnly `
-  -PlanOutput D:\SlicerDDSurfer-test\windows-install-plan.json
+  -PlanOutput D:\SlicerDSpace-test\windows-install-plan.json
 ```
 
 The plan records every pinned version, source commit, resource URL and digest.
@@ -93,20 +93,20 @@ This command really executes the following idempotent operations:
    existing `model_assets_dir` in `user_config.json` is reused; otherwise the
    assets are stored below the Windows install root.
 9. Compiles native Windows-to-WSL command bridges and writes a dependency JSON
-   that the SlicerDDSurfer environment panel and CLI can consume.
-10. Merges the bridge paths into `%APPDATA%\SlicerDDSurfer\user_config.json` so
+   that the SlicerDSpace environment panel and CLI can consume.
+10. Merges the bridge paths into `%APPDATA%\SlicerDSpace\user_config.json` so
    subsequent Slicer sessions discover them without re-entering paths.
 11. Downloads Windows wheels for Slicer's exact Python ABI through the managed
     WSL runtime, records their SHA-256 values, installs them into PythonSlicer
     offline, and requires the final environment doctor to pass.
 
 The default Linux root is `~/.local/share/slicerdsurfer`. The default Windows
-bridge/config root is `%LOCALAPPDATA%\SlicerDDSurfer\wsl-runtime`. Re-running
+bridge/config root is `%LOCALAPPDATA%\SlicerDSpace\wsl-runtime`. Re-running
 the command verifies caches, pinned commits and versions instead of blindly
 duplicating them.
 
 The installer refuses to adopt an existing Miniforge or FreeSurfer directory
-that has no matching SlicerDDSurfer provenance marker. Preserve that directory
+that has no matching SlicerDSpace provenance marker. Preserve that directory
 and choose a clean managed location instead, for example
 `-WslInstallRoot ~/.local/share/slicerdsurfer-managed`.
 
@@ -167,7 +167,7 @@ Equivalent override pairs are available for `TractCloudTrainUrl` /
 The installer writes:
 
 ```text
-%LOCALAPPDATA%\SlicerDDSurfer\wsl-runtime\dependency-config.json
+%LOCALAPPDATA%\SlicerDSpace\wsl-runtime\dependency-config.json
 ```
 
 For command-line runs, pass it explicitly:
@@ -176,7 +176,7 @@ For command-line runs, pass it explicitly:
 python -m shared.run_subject_pipeline_cli `
   --subject-root D:\data\sub-01 `
   --targets tractography,wma,tractcloud,connectome `
-  --dependency-config "$env:LOCALAPPDATA\SlicerDDSurfer\wsl-runtime\dependency-config.json" `
+  --dependency-config "$env:LOCALAPPDATA\SlicerDSpace\wsl-runtime\dependency-config.json" `
   --execute
 ```
 
@@ -198,12 +198,12 @@ installer:
 ```powershell
 python scripts\download_model_assets.py `
   --profile core `
-  --asset-root D:\SlicerDDSurfer-model-assets `
+  --asset-root D:\SlicerDSpace-model-assets `
   --source url `
   --source-id slicerdsurfer_models_git
 ```
 
-Set `Model assets root` to the same directory in SlicerDDSurfer. Existing
+Set `Model assets root` to the same directory in SlicerDSpace. Existing
 verified assets are reused.
 
 ---
@@ -221,7 +221,7 @@ D:\data\sub-01\
     nodif_brain_mask.nii.gz
 ```
 
-In SlicerDDSurfer, set the subject ID and subject root, then run `Check
+In SlicerDSpace, set the subject ID and subject root, then run `Check
 environment dependencies`. If a stage is still blocked, include the generated
 environment report and install plan when reporting the issue.
 

@@ -46,7 +46,7 @@ def main():
         comparison_sha256=sha256(comparison_file),
         adapter_sha256=sha256(ROOT / 'anatomy/surface/postprocess_release.py'),
         backend_pipeline_sha256=sha256(BACKEND_ROOT / 'postprocessing/pipeline.py'),
-        scope='Fresh SlicerDDSurfer adapter execution against an existing full-FreeSurfer reference; no speedup or population-wide accuracy claim')
+        scope='Fresh SlicerDSpace adapter execution against an existing full-FreeSurfer reference; no speedup or population-wide accuracy claim')
     (args.output / 'acceptance.json').write_text(json.dumps(record, indent=2) + '\n')
     print(json.dumps(record, indent=2))
     return int(record['status'] != 'passed')

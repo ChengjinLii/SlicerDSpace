@@ -19,7 +19,7 @@
     "slicerdsurfer_models_git": {
       "kind": "url-template",
       "status": "active",
-      "description": "Independent Git LFS asset repository preserving SlicerDDSurfer-relative paths.",
+      "description": "Independent Git LFS asset repository preserving SlicerDSpace-relative paths.",
       "base_url": "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main",
       "url_template": "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main/{path_urlencoded}"
     },

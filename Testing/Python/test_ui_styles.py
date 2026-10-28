@@ -10,20 +10,20 @@ from shared.ui_styles import (
     ENVIRONMENT_READY_LABEL_STYLE,
     ENVIRONMENT_RESULTS_DIALOG_STYLE,
     RUN_STATUS_TABLE_STYLE,
-    SLICERDDSURFER_UI_STYLE,
+    SLICERDSPACE_UI_STYLE,
     run_summary_label_style,
 )
 
 
 class UIStylesTest(unittest.TestCase):
     def test_main_stylesheet_contains_key_panels(self) -> None:
-        self.assertIn("QFrame#headerFrame", SLICERDDSURFER_UI_STYLE)
-        self.assertIn("QWidget#externalBackendsGroup", SLICERDDSURFER_UI_STYLE)
-        self.assertIn("QPushButton#runSelectedButton", SLICERDDSURFER_UI_STYLE)
-        self.assertIn("QPlainTextEdit#logPlainTextEdit", SLICERDDSURFER_UI_STYLE)
-        self.assertNotIn("border-left", SLICERDDSURFER_UI_STYLE)
-        self.assertNotIn("qlineargradient", SLICERDDSURFER_UI_STYLE)
-        self.assertNotIn("font-size: 18px", SLICERDDSURFER_UI_STYLE)
+        self.assertIn("QFrame#headerFrame", SLICERDSPACE_UI_STYLE)
+        self.assertIn("QWidget#externalBackendsGroup", SLICERDSPACE_UI_STYLE)
+        self.assertIn("QPushButton#runSelectedButton", SLICERDSPACE_UI_STYLE)
+        self.assertIn("QPlainTextEdit#logPlainTextEdit", SLICERDSPACE_UI_STYLE)
+        self.assertNotIn("border-left", SLICERDSPACE_UI_STYLE)
+        self.assertNotIn("qlineargradient", SLICERDSPACE_UI_STYLE)
+        self.assertNotIn("font-size: 18px", SLICERDSPACE_UI_STYLE)
 
     def test_run_status_table_style_contains_header_and_selection_rules(self) -> None:
         self.assertIn("QTableWidget", RUN_STATUS_TABLE_STYLE)
@@ -50,7 +50,7 @@ class UIStylesTest(unittest.TestCase):
     def _rule_for(self, selector: str) -> str:
         """Return the declaration block of the rule whose selector list names ``selector``."""
 
-        for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", SLICERDDSURFER_UI_STYLE):
+        for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", SLICERDSPACE_UI_STYLE):
             if selector in [part.strip() for part in selectors.split(",")]:
                 return body
         self.fail(f"no rule for {selector}")

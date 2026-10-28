@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download and verify SlicerDDSurfer model assets from a manifest."""
+"""Download and verify SlicerDSpace model assets from a manifest."""
 
 from __future__ import annotations
 
@@ -614,7 +614,7 @@ def _download_url_to_path(
         resumed=bool(resume_from),
         source_id=source_id,
     )
-    headers = {"User-Agent": "SlicerDDSurfer-model-asset-downloader"}
+    headers = {"User-Agent": "SlicerDSpace-model-asset-downloader"}
     if resume_from:
         headers["Range"] = f"bytes={resume_from}-"
     request = urllib.request.Request(url, headers=headers)
@@ -876,7 +876,7 @@ def download_asset_plan_from_git_lfs(repo_root: Path, plan: AssetPlan) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Download and verify SlicerDDSurfer model weights and templates.")
+    parser = argparse.ArgumentParser(description="Download and verify SlicerDSpace model weights and templates.")
     parser.add_argument("--profile", "-p", help="Asset profile to download. Defaults to manifest default_profile.")
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST, help="Asset manifest JSON path.")
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT, help="Repository root. Defaults to this checkout.")
@@ -885,7 +885,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help=(
             "Directory where model assets are downloaded and verified. Defaults to "
-            f"${MODEL_ASSETS_ENV} or a per-user SlicerDDSurfer model-assets directory."
+            f"${MODEL_ASSETS_ENV} or a per-user SlicerDSpace model-assets directory."
         ),
     )
     parser.add_argument("--source", choices=("auto", "git-lfs", "url"), default="auto", help="Download backend. Defaults to Git LFS with URL fallback when configured.")

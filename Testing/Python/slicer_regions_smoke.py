@@ -13,7 +13,7 @@ import numpy as np
 import qt
 import slicer
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
 STATE = {"phase": "start", "ticks": 0, "started": time.monotonic()}
 
 
@@ -96,8 +96,8 @@ def heartbeat():
 def tick():
     try:
         if STATE["phase"] == "start":
-            slicer.util.selectModule("SlicerDDSurfer")
-            owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+            slicer.util.selectModule("SlicerDSpace")
+            owner = slicer.modules.slicerdspace.widgetRepresentation().self()
             STATE["owner"] = owner
             widgets = owner._regionWidgets
             assert widgets["panel"].collapsed and owner._advancedSettingsPanel.collapsed

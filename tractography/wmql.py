@@ -193,7 +193,7 @@ def _resolve_python(python_executable: Optional[Path]) -> Path:
         if not candidate.is_file():
             raise FileNotFoundError(f"Python executable not found: {candidate}")
         return candidate
-    for env_name in ("SLICERDDSURFER_WMQL_PYTHON", "TRACT_QUERIER_PYTHON"):
+    for env_name in ("SLICERDSPACE_WMQL_PYTHON", "TRACT_QUERIER_PYTHON"):
         env_value = os.environ.get(env_name)
         if env_value:
             candidate = Path(env_value).expanduser().absolute()
@@ -237,7 +237,7 @@ def inspect_wmql_backend(
     python_path = _resolve_python(python_executable)
     root = tract_querier_root.expanduser().resolve() if tract_querier_root is not None else None
     explicit_cli = tract_querier_executable.expanduser().resolve() if tract_querier_executable is not None else None
-    env_cli = os.environ.get("SLICERDDSURFER_WMQL_EXECUTABLE") or os.environ.get("TRACT_QUERIER_EXECUTABLE")
+    env_cli = os.environ.get("SLICERDSPACE_WMQL_EXECUTABLE") or os.environ.get("TRACT_QUERIER_EXECUTABLE")
     cli_path: Optional[Path] = None
     if explicit_cli is not None:
         cli_path = explicit_cli

@@ -15,7 +15,7 @@ The default `official` protocol uses the unmodified author repository's
 license ship in the extension; the Tract Querier engine is a managed dependency.
 
 The script declares **48 output queries**, including left/right association,
-projection and commissural bundles. It does not force every input streamline
+projection and commissural fiber bundles. It does not force every input streamline
 into a class. Queries can overlap, and the author CLI does not write empty results.
 No DDParcel-specific AF override, fallback query or threshold relaxation is used.
 
@@ -44,7 +44,7 @@ Other required upstream inputs/dependencies still apply. Deprecated `author`,
 `ddparcel_act` and `published_endpoints` CLI values remain solely for explicit
 historical reproduction; they are not GUI choices or automatic fallback routes.
 Saved GUI defaults migrate to `official`; migrated scene parameters retain the
-previous preset in `SlicerDDSurfer.LegacyWMQLPreset`. Run records are not rewritten.
+previous preset in `SlicerDSpace.LegacyWMQLPreset`. Run records are not rewritten.
 
 ---
 
@@ -61,7 +61,7 @@ Numeric compatibility is not a check of spatial or anatomical accuracy.
 Each query receives an explicit status: `not_extracted`, `empty`, `invalid`,
 `insufficient_sampling` (<20 streamlines), or `anatomical_review_pending`.
 The 20-streamline policy is a local sampling sanity check, not an author default
-or a statistical-power guarantee. All bundles remain ineligible for accepted
+or a statistical-power guarantee. All fiber bundles remain ineligible for accepted
 quantification until anatomical review. Damaged geometry or a broken invocation
 fails the run; partial coverage can complete extraction with a visible QC warning
 and `automatic_qc_passed=false`. This is not an all-bundle scientific pass.

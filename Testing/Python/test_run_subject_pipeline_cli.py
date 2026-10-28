@@ -33,16 +33,16 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self._user_config_temp = tempfile.TemporaryDirectory()
-        self._previous_user_config = os.environ.get("SLICERDDSURFER_USER_CONFIG")
-        os.environ["SLICERDDSURFER_USER_CONFIG"] = str(
+        self._previous_user_config = os.environ.get("SLICERDSPACE_USER_CONFIG")
+        os.environ["SLICERDSPACE_USER_CONFIG"] = str(
             Path(self._user_config_temp.name) / "isolated-user-config.json"
         )
 
     def tearDown(self) -> None:
         if self._previous_user_config is None:
-            os.environ.pop("SLICERDDSURFER_USER_CONFIG", None)
+            os.environ.pop("SLICERDSPACE_USER_CONFIG", None)
         else:
-            os.environ["SLICERDDSURFER_USER_CONFIG"] = self._previous_user_config
+            os.environ["SLICERDSPACE_USER_CONFIG"] = self._previous_user_config
         self._user_config_temp.cleanup()
 
     def test_shared_user_config_reuses_subject_and_resolved_defaults(self) -> None:
@@ -543,7 +543,7 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
             subject_root = Path(tmp) / "subjectA"
             subject_root.mkdir(parents=True)
             missing_wma_root = Path(tmp) / "missing-wma"
-            env = {key: value for key, value in os.environ.items() if "WMA" not in key and "SLICERDDSURFER_WMA" not in key}
+            env = {key: value for key, value in os.environ.items() if "WMA" not in key and "SLICERDSPACE_WMA" not in key}
 
             completed = subprocess.run(
                 [
@@ -575,7 +575,7 @@ class RunSubjectPipelineCliTest(unittest.TestCase):
             subject_root = Path(tmp) / "subjectA"
             subject_root.mkdir(parents=True)
             missing_wma_root = Path(tmp) / "missing-wma"
-            env = {key: value for key, value in os.environ.items() if "WMA" not in key and "SLICERDDSURFER_WMA" not in key}
+            env = {key: value for key, value in os.environ.items() if "WMA" not in key and "SLICERDSPACE_WMA" not in key}
 
             completed = subprocess.run(
                 [

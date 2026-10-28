@@ -13,12 +13,12 @@ import vtk
 
 
 def run():
-    root = Path(os.environ['SLICERDDSURFER_SMOKE_ROOT'])
+    root = Path(os.environ['SLICERDSPACE_SMOKE_ROOT'])
     try:
         from shared.result_scene import clear_run, register_node
         from shared.run_history import SUBJECT_MANIFEST_KIND
         from shared.segmentation_review import editable_tissue_copy
-        slicer.util.selectModule('SlicerDDSurfer')
+        slicer.util.selectModule('SlicerDSpace')
         source = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLabelMapVolumeNode', 'synthetic_tissue')
         labels = np.zeros((5, 6, 7), dtype=np.uint8)
         labels[1, 1:4, 1:4], labels[2, 1:4, 1:4], labels[3, 1:4, 1:4] = 1, 2, 3
@@ -41,11 +41,11 @@ def run():
         run_id = str(manifest.resolve())
         register_node(slicer, source, run_id, 'synthetic', 'Test1', 'segmentation.ddseg', str(file))
         copy = editable_tissue_copy(slicer, source)
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         owner._latestResultManifestPath = str(manifest)
         owner._manage_result_scene('edit_tissue')
         assert slicer.modules.segmenteditor.widgetRepresentation().self().editor.segmentationNode().GetID() == copy.GetID()
-        slicer.util.selectModule('SlicerDDSurfer')
+        slicer.util.selectModule('SlicerDSpace')
         assert copy.IsA('vtkMRMLSegmentationNode')
         assert copy.GetTransformNodeID() == parent.GetID()
         assert copy.GetSegmentation().GetNumberOfSegments() == 3

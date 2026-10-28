@@ -60,7 +60,7 @@ def choose_algorithms(owner, family):
         boxes[value] = box
         layout.addWidget(box)
     note = qt.QLabel(("每种方法分别输出流线；束分析和连接组按方法分别计算。" if zh else
-                     "Each method writes its own tractogram. Bundles and connectomes are computed for each method separately.")
+                     "Each method writes its own tractogram. Fiber bundles and connectomes are computed for each method separately.")
                     if family == "tractography" else
                     ("可在高级设置调整参数；不改变各算法的数据条件或 QC 门槛。" if zh else
                      "Adjust parameters in Advanced settings. Acquisition requirements and QC gates are unchanged."))

@@ -39,7 +39,7 @@ LFS_REQUIRED_SUFFIXES = (
 )
 FORBIDDEN_TRACKED_PREFIXES = (
     "third_party/",
-    "SlicerDDSurfer-test/",
+    "SlicerDSpace-test/",
     "outputs/",
 )
 FORBIDDEN_STATUS_PARTS = (
@@ -210,7 +210,7 @@ def _runtime_packaging_issues(root: Path, cmake_text: str) -> list[AuditIssue]:
         if "slicer_dmri_reference" in parts or "third_party" in parts:
             issues.append(AuditIssue("blocker", "cmake_packaging", relative,
                                      "Reference-only or third-party source must not be packaged."))
-        if len(parts) == 1 and relative.endswith(".py") and relative != "SlicerDDSurfer.py":
+        if len(parts) == 1 and relative.endswith(".py") and relative != "SlicerDSpace.py":
             issues.append(AuditIssue("blocker", "cmake_packaging", relative,
                                      "Top-level Python helpers can be scanned as Slicer modules."))
     return issues
@@ -304,13 +304,13 @@ def audit_repository(*, large_file_mb: float = 20.0) -> dict[str, object]:
                 )
             )
 
-    s4ext_text = _read_text_if_exists(REPO_ROOT / "SlicerDDSurfer.s4ext")
+    s4ext_text = _read_text_if_exists(REPO_ROOT / "SlicerDSpace.s4ext")
     if not s4ext_text:
         issues.append(
             AuditIssue(
                 severity="blocker",
                 category="extension_descriptor",
-                path="SlicerDDSurfer.s4ext",
+                path="SlicerDSpace.s4ext",
                 message="Slicer extension descriptor is missing or unreadable.",
             )
         )
@@ -330,7 +330,7 @@ def audit_repository(*, large_file_mb: float = 20.0) -> dict[str, object]:
                     AuditIssue(
                         severity="blocker",
                         category="extension_descriptor",
-                        path="SlicerDDSurfer.s4ext",
+                        path="SlicerDSpace.s4ext",
                         message=f"Missing required .s4ext entry containing: {token}",
                     )
                 )

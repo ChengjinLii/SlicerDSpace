@@ -23,7 +23,7 @@ def resolve_surface_runtime(runtime=None, freesurfer_home=None):
     if freesurfer_home is not None:
         home = Path(freesurfer_home).expanduser().resolve()
         return ('native' if (home / 'runtime.json').is_file() else 'freesurfer'), home
-    selected = os.environ.get('SLICERDDSURFER_SURFACE_RUNTIME')
+    selected = os.environ.get('SLICERDSPACE_SURFACE_RUNTIME')
     if selected:
         return 'native', Path(selected).expanduser().resolve()
     from shared.environment import resolve_freesurfer_home

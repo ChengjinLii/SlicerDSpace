@@ -37,7 +37,7 @@ def main():
             first = work / f'raw/upstream/{subject}/.cache/predictions/mni/{subject}' / name
             second = work / f'reference_predictions/mni/{subject}' / name
             result['inference_parity'][name] = mesh_difference(first, second)
-            slicer = work / f'slicer_registered/pred_results_SlicerDDSurfer/mni/{subject}' / name
+            slicer = work / f'slicer_registered/pred_results_SlicerDSpace/mni/{subject}' / name
             if slicer.is_file():
                 result['slicer_runtime_comparison'][name] = mesh_difference(first, slicer)
                 reference = work / f'reference_slicer_predictions/mni/{subject}' / name

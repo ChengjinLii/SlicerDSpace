@@ -1470,7 +1470,7 @@ def _audit_structural(manifest: dict[str, Any], checks: list[dict[str, Any]]) ->
                     {"wm": "white", "pial": "pial"}[surface] + f"_{hemi}"
                 )
                 or surface_dir
-                / "pred_results_SlicerDDSurfer"
+                / "pred_results_SlicerDSpace"
                 / "native"
                 / subject_id
                 / f"{subject_id}_predicted_{surface}_{hemi}.stl"

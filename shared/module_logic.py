@@ -1,4 +1,4 @@
-"""Common scripted-module logic glue for SlicerDDSurfer."""
+"""Common scripted-module logic glue for SlicerDSpace."""
 
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ def _ensure_torch_via_extension(
 
         if _release_version(torch.__version__) < _release_version(min_version):
             raise RuntimeError(
-                f"PyTorch {torch.__version__} is installed, but SlicerDDSurfer requires torch>={min_version}. "
+                f"PyTorch {torch.__version__} is installed, but SlicerDSpace requires torch>={min_version}. "
                 "Upgrade torch with the Slicer PyTorch extension and restart Slicer before running inference."
             )
         _log(f"PyTorch detected (version {torch.__version__})")
@@ -146,7 +146,7 @@ class SharedLogicMixin:
         env = os.environ.copy()
         resolved_requirement = requirement
         if requirement == "git+https://github.com/demianw/tract_querier.git":
-            for env_name in ("SLICERDDSURFER_TRACT_QUERIER_ROOT", "TRACT_QUERIER_ROOT"):
+            for env_name in ("SLICERDSPACE_TRACT_QUERIER_ROOT", "TRACT_QUERIER_ROOT"):
                 value = os.environ.get(env_name)
                 if not value:
                     continue
@@ -168,7 +168,7 @@ class SharedLogicMixin:
 
             if hasattr(slicer_packaging, "pip_ensure"):
                 self.log(f"[Environment] Ensuring Python requirement with slicer.packaging: {resolved_requirement}")
-                slicer_packaging.pip_ensure(resolved_requirement, requester="SlicerDDSurfer")
+                slicer_packaging.pip_ensure(resolved_requirement, requester="SlicerDSpace")
                 return
             if hasattr(slicer_packaging, "pip_install"):
                 self.log(f"[Environment] Installing Python requirement with slicer.packaging: {resolved_requirement}")
@@ -225,7 +225,7 @@ class SharedLogicMixin:
             postprocessing = importlib.import_module("anatomy.surface.postprocessing")
         except ImportError as exc:  # pragma: no cover - surfaced at runtime
             raise RuntimeError(
-                "Failed to import SlicerDDSurfer surface workflow code. Ensure surface preprocessing, prediction, and postprocessing modules are available."
+                "Failed to import SlicerDSpace surface workflow code. Ensure surface preprocessing, prediction, and postprocessing modules are available."
             ) from exc
 
         self._pipeline_modules = {
@@ -449,7 +449,7 @@ class SharedLogicMixin:
         elif output_root is not None:
             report_dir = output_root.expanduser().resolve() / "00_run_metadata" / "environment"
         else:
-            report_dir = Path(str(slicer.app.temporaryPath)) / "SlicerDDSurfer" / "00_run_metadata" / "environment"
+            report_dir = Path(str(slicer.app.temporaryPath)) / "SlicerDSpace" / "00_run_metadata" / "environment"
 
         result = run_environment_doctor(
             EnvironmentDoctorConfig(
@@ -979,7 +979,7 @@ class SharedLogicMixin:
                     staged = Path(temporary) / preview_path.name
                     writer = vtk.vtkPolyDataWriter()
                     writer.SetFileName(str(staged))
-                    writer.SetHeader("SlicerDDSurfer display preview. SPACE=RAS")
+                    writer.SetHeader("SlicerDSpace display preview. SPACE=RAS")
                     writer.SetInputData(poly_data)
                     writer.SetFileTypeToBinary()
                     if writer.Write() != 1:

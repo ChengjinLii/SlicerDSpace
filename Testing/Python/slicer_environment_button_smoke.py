@@ -13,16 +13,16 @@ TIMER = None
 
 def _module_widget():
     try:
-        return slicer.util.getModuleWidget("SlicerDDSurfer")
+        return slicer.util.getModuleWidget("SlicerDSpace")
     except Exception:
-        module = slicer.util.getModule("SlicerDDSurfer")
+        module = slicer.util.getModule("SlicerDSpace")
         return module.widgetRepresentation().self()
 
 
 def _run() -> None:
     global START, TIMER
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
+        slicer.util.selectModule("SlicerDSpace")
         widget = _module_widget()
         widget.ui.environmentCollapsibleButton.collapsed = False
         START = time.monotonic()
@@ -34,7 +34,7 @@ def _run() -> None:
         assert time.monotonic() - START < 1, 'Check blocked the Qt thread'
         qt.QTimer.singleShot(100, _poll)
     except Exception as exc:
-        print(f"SLICERDDSURFER_ENV_CLICK_ERROR={exc}", flush=True)
+        print(f"SLICERDSPACE_ENV_CLICK_ERROR={exc}", flush=True)
         slicer.app.exit(2)
 
 
@@ -108,24 +108,24 @@ def _check() -> None:
         and python_target_label.isVisible()
         and "Python install target: current Slicer Python environment" in python_target_label.text
     )
-    print(f"SLICERDDSURFER_ENV_CLICK_STATUS={status}", flush=True)
-    print(f"SLICERDDSURFER_ENV_RESULT_LABEL={environment_label}", flush=True)
-    print(f"SLICERDDSURFER_ENV_PATH_WIDGET_COUNT={len(path_widgets)}", flush=True)
-    print(f"SLICERDDSURFER_ENV_PATH_STATUS_COUNT={len(status_widgets)}", flush=True)
-    print(f"SLICERDDSURFER_ENV_PATH_STATUSES={status_texts}", flush=True)
-    print(f"SLICERDDSURFER_RUN_STATUS_TABLE_PRESENT={bool(run_status_table)}", flush=True)
-    print(f"SLICERDDSURFER_RUN_STATUS_PANEL_PRESENT={bool(run_status_panel)}", flush=True)
-    print(f"SLICERDDSURFER_ENV_ADVANCED_COLLAPSED={advanced_collapsed}", flush=True)
-    print(f"SLICERDDSURFER_ENV_SETTINGS_ROUNDTRIP={settings_roundtrip_ok}", flush=True)
-    print(f"SLICERDDSURFER_ENV_DIALOG_VISIBLE={dialog_visible}", flush=True)
-    print(f"SLICERDDSURFER_ENV_DIALOG_BUTTONS={dialog_button_texts}", flush=True)
-    print(f"SLICERDDSURFER_ENV_DIALOG_BUTTON_NAMES={dialog_button_names}", flush=True)
-    print(f"SLICERDDSURFER_ENV_PER_ITEM_ACTION_REQUIRED={per_item_action_required}", flush=True)
-    print(f"SLICERDDSURFER_ENV_WIDGET_BUTTONS={widget_button_texts}", flush=True)
-    print(f"SLICERDDSURFER_ENV_PYTHON_TARGET_VISIBLE={python_target_visible}", flush=True)
-    print("SLICERDDSURFER_ENV_CLICK_LOG_TAIL_BEGIN", flush=True)
+    print(f"SLICERDSPACE_ENV_CLICK_STATUS={status}", flush=True)
+    print(f"SLICERDSPACE_ENV_RESULT_LABEL={environment_label}", flush=True)
+    print(f"SLICERDSPACE_ENV_PATH_WIDGET_COUNT={len(path_widgets)}", flush=True)
+    print(f"SLICERDSPACE_ENV_PATH_STATUS_COUNT={len(status_widgets)}", flush=True)
+    print(f"SLICERDSPACE_ENV_PATH_STATUSES={status_texts}", flush=True)
+    print(f"SLICERDSPACE_RUN_STATUS_TABLE_PRESENT={bool(run_status_table)}", flush=True)
+    print(f"SLICERDSPACE_RUN_STATUS_PANEL_PRESENT={bool(run_status_panel)}", flush=True)
+    print(f"SLICERDSPACE_ENV_ADVANCED_COLLAPSED={advanced_collapsed}", flush=True)
+    print(f"SLICERDSPACE_ENV_SETTINGS_ROUNDTRIP={settings_roundtrip_ok}", flush=True)
+    print(f"SLICERDSPACE_ENV_DIALOG_VISIBLE={dialog_visible}", flush=True)
+    print(f"SLICERDSPACE_ENV_DIALOG_BUTTONS={dialog_button_texts}", flush=True)
+    print(f"SLICERDSPACE_ENV_DIALOG_BUTTON_NAMES={dialog_button_names}", flush=True)
+    print(f"SLICERDSPACE_ENV_PER_ITEM_ACTION_REQUIRED={per_item_action_required}", flush=True)
+    print(f"SLICERDSPACE_ENV_WIDGET_BUTTONS={widget_button_texts}", flush=True)
+    print(f"SLICERDSPACE_ENV_PYTHON_TARGET_VISIBLE={python_target_visible}", flush=True)
+    print("SLICERDSPACE_ENV_CLICK_LOG_TAIL_BEGIN", flush=True)
     print(log[-3000:], flush=True)
-    print("SLICERDDSURFER_ENV_CLICK_LOG_TAIL_END", flush=True)
+    print("SLICERDSPACE_ENV_CLICK_LOG_TAIL_END", flush=True)
     bad = (
         "Subject ID and subject directory are required" in log
         or "Validation failed" in status

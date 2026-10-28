@@ -23,7 +23,7 @@ def install_prepare_inputs_panel(owner: Any, configuration_layout: Any) -> None:
     except Exception:
         panel = qt.QGroupBox("Prepare Inputs")
     panel.setObjectName("prepareInputsPanel")
-    panel.setToolTip("Normalize DICOM, NRRD/NHDR, or NIfTI+bval/bvec inputs into a SlicerDDSurfer subject root.")
+    panel.setToolTip("Normalize DICOM, NRRD/NHDR, or NIfTI+bval/bvec inputs into a SlicerDSpace subject root.")
     register_ui_language_binding(owner, panel, "text", "prepare_inputs")
     register_ui_language_binding(owner, panel, "tooltip", "prepare_inputs_tooltip")
     panel.setStyleSheet(

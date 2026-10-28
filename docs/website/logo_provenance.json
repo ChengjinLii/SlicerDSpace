@@ -1,22 +1,22 @@
 {
   "source": "docs/figures/logo-ref.svg",
-  "source_sha256": "d1222250ca9d686977e170b1f9353423709ba99d7d688f6de28c633375c8bf11",
+  "source_sha256": "cc584e1ce0be0ddb32ecf1be9ad62cb9d57ae0f2ae4b584418386db95aeee0d2",
   "transform": "Remove only the white page background; preserve all vector artwork and aspect ratio",
   "outputs": {
     "logo-ddsurfer.png": {
       "width": 770,
       "height": 782,
-      "sha256": "0b9666e0274f86c0b78aa368ce012a2ec706a7ff4832eb8e570615ca2c0239e3"
+      "sha256": "aa3c81273209fe663a6bfd9ed54c49f14a702c35668d58f76df52063e262e092"
     },
     "icon-64.png": {
       "width": 64,
       "height": 64,
-      "sha256": "d32fb6886a998b9772bce183d5bada0eda5c86dc95ffa24d9ab3fdcb4e786623"
+      "sha256": "8557fed793d5ea2a386ea07cdda5ec81d7d09b9dbc23abff7b55e823e10e6dc5"
     },
     "icon-180.png": {
       "width": 180,
       "height": 180,
-      "sha256": "d38219f79db4c6bc6cb364733974f836253d201665d39c695a0fa3e8c8bba1b4"
+      "sha256": "5796002ea79220a4aedba4b90601abba3f1a7291d8047f14a319ea5812be90cc"
     }
   }
 }

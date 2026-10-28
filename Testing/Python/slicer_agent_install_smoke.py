@@ -11,12 +11,12 @@ import slicer
 
 
 def run():
-    root = Path(os.environ['SLICERDDSURFER_SMOKE_ROOT'])
+    root = Path(os.environ['SLICERDSPACE_SMOKE_ROOT'])
     checks = []
     code = 0
     try:
-        helper = runpy.run_path(os.environ['SLICERDDSURFER_AGENT_INSTALL_HELPER'])
-        module = Path(os.environ['SLICERDDSURFER_EXTENSION_MODULE_DIR'])
+        helper = runpy.run_path(os.environ['SLICERDSPACE_AGENT_INSTALL_HELPER'])
+        module = Path(os.environ['SLICERDSPACE_EXTENSION_MODULE_DIR'])
         settings = slicer.app.userSettings()
         other = root / 'other-extension'
         other.mkdir(exist_ok=True)
@@ -33,12 +33,12 @@ def run():
         checks.append('activation_does_not_claim_scientific_or_dependency_readiness')
         wrong = root / 'another-install'
         wrong.mkdir(exist_ok=True)
-        (wrong / 'SlicerDDSurfer.py').write_text('# conflict fixture\n')
+        (wrong / 'SlicerDSpace.py').write_text('# conflict fixture\n')
         settings.setValue('Modules/AdditionalPaths', [str(other), str(wrong)])
         try:
             helper['activate'](module, persist=True)
         except RuntimeError as exc:
-            assert 'different SlicerDDSurfer installation' in str(exc)
+            assert 'different SlicerDSpace installation' in str(exc)
         else:
             raise AssertionError('Conflicting installation was accepted')
         assert list(settings.value('Modules/AdditionalPaths')) == [str(other), str(wrong)]

@@ -17,14 +17,14 @@ class ArchiveLayoutTest(unittest.TestCase):
             base = "test-cpack-style-root/lib/Slicer-5.10/qt-scripted-modules/"
             tgz = root / "fixture.tar.gz"
             with tarfile.open(tgz, "w:gz") as stream:
-                item = tarfile.TarInfo(base + "SlicerDDSurfer.py")
+                item = tarfile.TarInfo(base + "SlicerDSpace.py")
                 item.size = 1
                 stream.addfile(item, io.BytesIO(b"x"))
             self.assertEqual(inspect_archive_layout(tgz)["status"], "pass")
             archive = root / "fixture.zip"
             with zipfile.ZipFile(archive, "w") as stream:
-                stream.writestr(base + "SlicerDDSurfer.py", "x")
-                stream.writestr(base + "SlicerDDSurfer.pyc", "compiled fixture")
+                stream.writestr(base + "SlicerDSpace.py", "x")
+                stream.writestr(base + "SlicerDSpace.pyc", "compiled fixture")
             result = inspect_archive_layout(archive)
             self.assertEqual(result["status"], "pass")
             self.assertEqual(result["bytecode_count"], 1)
@@ -33,8 +33,8 @@ class ArchiveLayoutTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             archive = Path(directory) / "fixture.zip"
             with zipfile.ZipFile(archive, "w") as stream:
-                for name in ("one/qt-scripted-modules/SlicerDDSurfer.py",
-                             "two/qt-scripted-modules/SlicerDDSurfer.py", "../escape"):
+                for name in ("one/qt-scripted-modules/SlicerDSpace.py",
+                             "two/qt-scripted-modules/SlicerDSpace.py", "../escape"):
                     stream.writestr(name, "x")
             result = inspect_archive_layout(archive)
             self.assertEqual(result["status"], "fail")
@@ -44,7 +44,7 @@ class ArchiveLayoutTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             archive = Path(directory) / "fixture.zip"
             with zipfile.ZipFile(archive, "w") as stream:
-                stream.writestr("lib/qt-scripted-modules/SlicerDDSurfer.py", "x")
+                stream.writestr("lib/qt-scripted-modules/SlicerDSpace.py", "x")
                 stream.writestr("lib/qt-scripted-modules/tests/test_fixture.py", "x")
             self.assertEqual(inspect_archive_layout(archive)["status"], "fail")
             with zipfile.ZipFile(archive, "w") as stream:

@@ -40,7 +40,7 @@ class BrainMaskTest(unittest.TestCase):
             subject_root = make_subject(root)
             input_dir = subject_root / "input"
 
-            with patch.dict("os.environ", {"SLICERDDSURFER_MRTRIX_BIN_DIR": bin_dir.as_posix()}):
+            with patch.dict("os.environ", {"SLICERDSPACE_MRTRIX_BIN_DIR": bin_dir.as_posix()}):
                 raw = find_subject_root(subject_root, "sub-01", brain_mask_config=BrainMaskConfig(backend="mrtrix"))
 
             self.assertTrue(raw.mask_path.is_file())
@@ -76,7 +76,7 @@ class BrainMaskTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = make_subject(Path(tmp))
 
-            with patch.dict("os.environ", {"SLICERDDSURFER_MRTRIX_BIN_DIR": "/missing"}, clear=False):
+            with patch.dict("os.environ", {"SLICERDSPACE_MRTRIX_BIN_DIR": "/missing"}, clear=False):
                 with self.assertRaisesRegex(FileNotFoundError, "MRtrix3 dwi2mask"):
                     find_subject_root(subject_root, "sub-01", brain_mask_config=BrainMaskConfig(backend="mrtrix"))
 
@@ -90,7 +90,7 @@ class BrainMaskTest(unittest.TestCase):
             subject_root = make_subject(root)
             input_dir = subject_root / "input"
 
-            with patch.dict("os.environ", {"SLICERDDSURFER_MRTRIX_BIN_DIR": bin_dir.as_posix()}):
+            with patch.dict("os.environ", {"SLICERDSPACE_MRTRIX_BIN_DIR": bin_dir.as_posix()}):
                 result = validate_subject_inputs(
                     InputValidationConfig(
                         subject_id="sub-01", input_root=subject_root, dependency_groups=(),
@@ -110,7 +110,7 @@ class BrainMaskTest(unittest.TestCase):
             root = Path(tmp)
             tool = write_fake_mrtrix(root / "bin")
             subject = make_subject(root)
-            with patch.dict(os.environ, {"SLICERDDSURFER_MRTRIX_BIN_DIR": str(tool.parent)}):
+            with patch.dict(os.environ, {"SLICERDSPACE_MRTRIX_BIN_DIR": str(tool.parent)}):
                 with self.assertRaisesRegex(FileNotFoundError, "pnl_cnn unavailable"):
                     find_subject_root(subject, "sub-01")
                 result = validate_subject_inputs(InputValidationConfig(

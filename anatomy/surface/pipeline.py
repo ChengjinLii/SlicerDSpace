@@ -178,16 +178,16 @@ def _run_registered(config, resources, output_dir, subject_dir):
     for hemi in ('left', 'right'):
         predict_subject(PredictionStageConfig(config.subject_id, hemi, config.predict_mode,
             config.device, 0.02, 2, 3, Path(resources['template_dir']), Path(resources['checkpoint_root']),
-            prepared.preprocessed_dir.parent, output_dir / 'pred_results_SlicerDDSurfer',
+            prepared.preprocessed_dir.parent, output_dir / 'pred_results_SlicerDSpace',
             precision=config.precision, python_bin=config.python_bin,
             cpu_threads=config.cpu_threads, max_gpu_gib=config.max_gpu_gib))
     run_backend([BACKEND_ROOT / 'inference/native.py', '--subject', config.subject_id,
-        '--data-root', prepared.preprocessed_dir.parent, '--pred-root', output_dir / 'pred_results_SlicerDDSurfer',
+        '--data-root', prepared.preprocessed_dir.parent, '--pred-root', output_dir / 'pred_results_SlicerDSpace',
         '--predict-mode', config.predict_mode, '--output-dir',
-        output_dir / 'pred_results_SlicerDDSurfer/native' / config.subject_id], python_bin=config.python_bin)
+        output_dir / 'pred_results_SlicerDSpace/native' / config.subject_id], python_bin=config.python_bin)
     if config.cleanup_intermediates:
         for path in (prepared.raw_dir, prepared.preprocessed_dir,
-                     output_dir / 'pred_results_SlicerDDSurfer/mni' / config.subject_id):
+                     output_dir / 'pred_results_SlicerDSpace/mni' / config.subject_id):
             shutil.rmtree(path, ignore_errors=True)
 
 
@@ -218,7 +218,7 @@ def _run_shared_raw(config, resources, output_dir, manifest, previous, log):
     keys = ('input_mode', 'input_sha256', 'subject_id', 'predict_mode', 'device', 'resolved_device',
             'precision', 'cpu_threads', 'max_gpu_gib', 'upstream_commit', 'runtime')
     outputs = previous.get('output_sha256', {})
-    native = output_dir / 'pred_results_SlicerDDSurfer/native' / config.subject_id
+    native = output_dir / 'pred_results_SlicerDSpace/native' / config.subject_id
     required = set()
     for hemi in ('lh', 'rh'):
         for kind in ('white', 'pial') if config.predict_mode == 'all' else ('white',):
@@ -292,7 +292,7 @@ def run_surface(config: SurfaceConfig, *, log: Optional[Callable[[str], None]] =
                     if all(p.is_file() for p in required):
                         inspected = dict(mode='legacy_registered', subject_dir=str(candidate))
                         break
-            native_dir = output_dir / 'pred_results_SlicerDDSurfer/native' / config.subject_id
+            native_dir = output_dir / 'pred_results_SlicerDSpace/native' / config.subject_id
             if (config.reuse_shared_preprocessing and not config.auto_mask
                     and (config.input_bundle is not None or inspected['mode'] == 'subject_root')):
                 _run_shared_raw(config, resources, output_dir, manifest, previous, log)

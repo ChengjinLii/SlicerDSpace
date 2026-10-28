@@ -125,7 +125,7 @@ class AnatomyLayoutCompatibilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             layout = subject_layout(Path(tmp))
             old = layout.outputs / '03_structural/ddsurfer'
-            (old / 'pred_results_SlicerDDSurfer/native/s').mkdir(parents=True)
+            (old / 'pred_results_SlicerDSpace/native/s').mkdir(parents=True)
             (old / 'postprocess').mkdir()
             self.assertTrue(all(path.is_relative_to(old) for path in _surface_outputs(layout.subject_root, 's').values()))
             post = _surface_postprocess_outputs(layout.subject_root, 's')

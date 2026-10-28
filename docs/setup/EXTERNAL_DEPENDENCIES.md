@@ -1,12 +1,12 @@
 <div align="center">
 
-# SlicerDDSurfer 外部环境与配置说明
+# SlicerDSpace 外部环境与配置说明
 
 [Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
 
 </div>
 
-本文档说明运行 SlicerDDSurfer 需要用户本地安装或配置哪些外部环境。原则是：**不要把所有后端都视为必装项**。很多功能是可选后端，只有选择对应 target 或 backend 时才需要安装。
+本文档说明运行 SlicerDSpace 需要用户本地安装或配置哪些外部环境。原则是：**不要把所有后端都视为必装项**。很多功能是可选后端，只有选择对应 target 或 backend 时才需要安装。
 
 Slicer GUI 的 Linux x86_64 用户可先用[插件内自动配置](MANAGED_SETUP.zh-CN.md)：
 按需安装 MRtrix/FSL，成功后自动填写路径，无需终端或手动激活环境。
@@ -205,7 +205,7 @@ planner。
 
 ## 0.2 用户设备与 Python 环境
 
-SlicerDDSurfer 需要区分三件事：
+SlicerDSpace 需要区分三件事：
 
 - Slicer GUI 使用的是 Slicer Python。
 - `run_subject_pipeline.py` 默认检查和运行的是当前 shell 的 Python。
@@ -226,7 +226,7 @@ python3 run_subject_pipeline.py \
 
 ```bash
 /path/to/Slicer --launch PythonSlicer \
-  /path/to/SlicerDDSurfer/run_subject_pipeline.py \
+  /path/to/SlicerDSpace/run_subject_pipeline.py \
   --subject-root /path/to/subject \
   --targets validation,preprocessing,segmentation,parcellation,surface,microstructure,tractography,bundles,connectome \
   --execute
@@ -245,19 +245,19 @@ python3 run_subject_pipeline.py \
 
 MRtrix3 特别说明：
 
-- MRtrix3 仍作为外部 backend，不打包进 SlicerDDSurfer。
+- MRtrix3 仍作为外部 backend，不打包进 SlicerDSpace。
 - `dwi2response` 等 MRtrix Python 脚本通过 `#!/usr/bin/env python` 启动；如果继承 Slicer 的 `PYTHONHOME` / `PYTHONPATH`，会在 `PythonSlicer` 里出现 Python 标准库冲突。
-- SlicerDDSurfer 的 MRtrix CSD/ACT backend 会在执行 MRtrix 命令前隔离这些 Slicer Python 变量，并把用户配置的 MRtrix `bin` 放到 `PATH` 最前面。
-- 用户仍需要通过 `--mrtrix-bin-dir`、`SLICERDDSURFER_MRTRIX_BIN_DIR` 或 `PATH` 提供本机 MRtrix3。
+- SlicerDSpace 的 MRtrix CSD/ACT backend 会在执行 MRtrix 命令前隔离这些 Slicer Python 变量，并把用户配置的 MRtrix `bin` 放到 `PATH` 最前面。
+- 用户仍需要通过 `--mrtrix-bin-dir`、`SLICERDSPACE_MRTRIX_BIN_DIR` 或 `PATH` 提供本机 MRtrix3。
 
 ---
 
 ## 0.3 外部路径发现顺序
 
-SlicerDDSurfer 不要求用户“上传依赖”。外部软件和数据采用以下发现顺序：
+SlicerDSpace 不要求用户“上传依赖”。外部软件和数据采用以下发现顺序：
 
 1. 用户保存的路径：Slicer UI 中 `Environment & Dependencies` 的路径输入框，或 CLI 的 `--dependency-config`。
-2. 环境变量：例如 `SLICERDDSURFER_MRTRIX_BIN_DIR`、`FSLDIR`、`FREESURFER_HOME`。
+2. 环境变量：例如 `SLICERDSPACE_MRTRIX_BIN_DIR`、`FSLDIR`、`FREESURFER_HOME`。
 3. `PATH`：适用于 `mrconvert`、`tckgen`、`eddy`、`recon-all` 等命令。
 4. 常见系统路径：Linux、macOS 和 Windows/WSL 的 MRtrix3、FSL、FreeSurfer、Slicer、WMA、TractCloud 常见安装位置。
 
@@ -271,7 +271,7 @@ SlicerDDSurfer 不要求用户“上传依赖”。外部软件和数据采用�
 - `details.resolved`: 实际命中的命令路径。
 - `details.checked_locations`: 对命令类依赖检查过的显式路径。
 
-Slicer UI 中的路径输入框会保存到 Slicer user settings，下次打开 SlicerDDSurfer 会自动恢复。
+Slicer UI 中的路径输入框会保存到 Slicer user settings，下次打开 SlicerDSpace 会自动恢复。
 
 CLI 可保存和复用同样的外部路径配置：
 
@@ -299,7 +299,7 @@ python3 run_subject_pipeline.py \
 
 - 3D Slicer
   - 推荐使用 Slicer 5.10 系列；本机验证路径为 `/data/chengjin/software/Slicer-5.10.0-linux-amd64`。
-  - GUI 加载插件时不要把整个仓库根目录直接作为 Slicer module path；开发 smoke 应使用只包含 `SlicerDDSurfer.py` 和 `Resources/` 的临时 module 目录。
+  - GUI 加载插件时不要把整个仓库根目录直接作为 Slicer module path；开发 smoke 应使用只包含 `SlicerDSpace.py` 和 `Resources/` 的临时 module 目录。
 - Slicer PyTorch Extension
   - DDSurfer / DDParcel / DDSeg 的深度学习推理依赖 PyTorch。
   - 插件代码会通过 Slicer 的 `PyTorchUtils` 检查/安装 `torch>=2.0.0`，但用户仍需要先在 Slicer Extension Manager 安装 PyTorch 扩展。
@@ -378,12 +378,12 @@ SAF 只接受已经位于原生 dMRI 空间的表面。DDSurfer postprocess 是�
 统一 orchestrator 和 WMA wrapper 可通过以下方式找到 Slicer：
 
 - CLI 参数：`--slicer-executable /path/to/Slicer`
-- 环境变量：`SLICERDDSURFER_SLICER_EXECUTABLE=/path/to/Slicer`
+- 环境变量：`SLICERDSPACE_SLICER_EXECUTABLE=/path/to/Slicer`
 
 本机例子：
 
 ```bash
-export SLICERDDSURFER_SLICER_EXECUTABLE=/data/chengjin/software/Slicer-5.10.0-linux-amd64/Slicer
+export SLICERDSPACE_SLICER_EXECUTABLE=/data/chengjin/software/Slicer-5.10.0-linux-amd64/Slicer
 ```
 
 ### 3.2 SlicerDMRI
@@ -451,7 +451,7 @@ python3 run_subject_pipeline.py \
 或使用环境变量：
 
 ```bash
-export SLICERDDSURFER_MRTRIX_BIN_DIR=/path/to/mrtrix3/bin
+export SLICERDSPACE_MRTRIX_BIN_DIR=/path/to/mrtrix3/bin
 export MRTRIX_BIN_DIR=/path/to/mrtrix3/bin
 ```
 
@@ -543,7 +543,7 @@ FreeSurfer-style subject 目录。
 ### 6.3 配置方式
 
 可在 Slicer 的环境与安装中配置表面组件目录和激活文件，也可使用
-`--postprocess-runtime`、`--postprocess-license-file`，或 `SLICERDDSURFER_SURFACE_RUNTIME`
+`--postprocess-runtime`、`--postprocess-license-file`，或 `SLICERDSPACE_SURFACE_RUNTIME`
 与 `FS_LICENSE`。缺少组件时明确确认后可后台编译；环境检查和分析本身不会下载或编译。
 
 已有完整安装可继续配置：
@@ -569,7 +569,7 @@ python3 run_subject_pipeline.py \
 ## 7. SAF 表面空间约束
 
 SAF 的白质面和软脑膜面必须已经与 FOD、掩膜和待分析 tractogram 位于同一
-原生 dMRI 空间。SlicerDDSurfer 不再提供 ANTs 驱动的 T1w/FreeSurfer 到 dMRI
+原生 dMRI 空间。SlicerDSpace 不再提供 ANTs 驱动的 T1w/FreeSurfer 到 dMRI
 配准分支，也不会扫描或安装 ANTs。使用外部表面时，应在导入前验证空间一致性；
 推荐直接使用 DDSurfer postprocess 输出。
 
@@ -598,7 +598,7 @@ WMA 是可选外部 bundle backend，插件不把 WMA 作为内置运行依赖�
 配置方式任选其一：
 
 - CLI：`--wma-root /path/to/whitematteranalysis`
-- 环境变量：`SLICERDDSURFER_WMA_ROOT=/path/to/whitematteranalysis`
+- 环境变量：`SLICERDSPACE_WMA_ROOT=/path/to/whitematteranalysis`
 - 环境变量：`WMA_ROOT=/path/to/whitematteranalysis`
 - 把 `wm_apply_ORG_atlas_to_subject.sh` 加入 `PATH`
 
@@ -646,7 +646,7 @@ Advanced 可选束子集；空束和低采样束单独记录，不宣称全束�
 可通过以下方式指定：
 
 - CLI：`--tract-querier-root /path/to/tract_querier`
-- 环境变量：`SLICERDDSURFER_TRACT_QUERIER_ROOT=/path/to/tract_querier`
+- 环境变量：`SLICERDSPACE_TRACT_QUERIER_ROOT=/path/to/tract_querier`
 - 环境变量：`TRACT_QUERIER_ROOT=/path/to/tract_querier`
 
 如果 `tract_querier` 已经在当前 Python 和 `PATH` 中可用，可以不额外配置。
@@ -669,11 +669,11 @@ TractCloud 是可选外部 deep-learning bundle backend。
 - CLI：`--tractcloud-root /path/to/TractCloud`
 - CLI：`--tractcloud-python-executable /path/to/python`
 - CLI：`--tractcloud-data-dir /path/to/model-data`
-- 环境变量：`SLICERDDSURFER_TRACTCLOUD_ROOT`
+- 环境变量：`SLICERDSPACE_TRACTCLOUD_ROOT`
 - 环境变量：`TRACTCLOUD_ROOT`
-- 环境变量：`SLICERDDSURFER_TRACTCLOUD_PYTHON_EXECUTABLE`
+- 环境变量：`SLICERDSPACE_TRACTCLOUD_PYTHON_EXECUTABLE`
 - 环境变量：`TRACTCLOUD_PYTHON_EXECUTABLE`
-- 环境变量：`SLICERDDSURFER_TRACTCLOUD_DATA_DIR`
+- 环境变量：`SLICERDSPACE_TRACTCLOUD_DATA_DIR`
 - 环境变量：`TRACTCLOUD_DATA_DIR`
 
 示例：
@@ -748,22 +748,22 @@ scripts/download_model_assets.sh --profile parcellation
 | `DDSURFER_TEMPLATE_DIR` | DDSurfer template 目录 |
 | `DDSURFER_CHECKPOINT_DIR` | DDSurfer checkpoint 根目录 |
 | `DDSURFER_REGISTRATION_ATLAS` | DDSurfer/DDParcel 注册 atlas |
-| `SLICERDDSURFER_SLICER_EXECUTABLE` | Slicer executable |
-| `SLICERDDSURFER_MRTRIX_BIN_DIR` / `MRTRIX_BIN_DIR` | MRtrix3 `bin` 目录 |
-| `SLICERDDSURFER_MRTRIX_HOME` / `MRTRIX_HOME` / `MRTRIX3_HOME` | MRtrix3 安装根目录 |
-| `SLICERDDSURFER_FSL_BIN_DIR` / `FSL_BIN_DIR` / `FSLDIR` | FSL 安装或 `bin` 目录 |
-| `SLICERDDSURFER_FREESURFER_HOME` / `FREESURFER_HOME` | FreeSurfer 安装目录 |
-| `SLICERDDSURFER_SURFACE_RUNTIME` | 可选本机源码编译的表面组件目录 |
+| `SLICERDSPACE_SLICER_EXECUTABLE` | Slicer executable |
+| `SLICERDSPACE_MRTRIX_BIN_DIR` / `MRTRIX_BIN_DIR` | MRtrix3 `bin` 目录 |
+| `SLICERDSPACE_MRTRIX_HOME` / `MRTRIX_HOME` / `MRTRIX3_HOME` | MRtrix3 安装根目录 |
+| `SLICERDSPACE_FSL_BIN_DIR` / `FSL_BIN_DIR` / `FSLDIR` | FSL 安装或 `bin` 目录 |
+| `SLICERDSPACE_FREESURFER_HOME` / `FREESURFER_HOME` | FreeSurfer 安装目录 |
+| `SLICERDSPACE_SURFACE_RUNTIME` | 可选本机源码编译的表面组件目录 |
 | `FS_LICENSE` | 本机组件或完整安装使用的个人激活文件 |
 | `FREESURFER_LICENSE` | FreeSurfer license |
-| `SLICERDDSURFER_WMA_ROOT` / `WMA_ROOT` | WhiteMatterAnalysis checkout |
-| `SLICERDDSURFER_WMA_ATLAS_DIR` / `WMA_ATLAS_DIR` | WMA ORG atlas 目录 |
-| `SLICERDDSURFER_FIBER_TRACT_MEASUREMENTS_CLI` | SlicerDMRI FiberTractMeasurements CLI |
-| `SLICERDDSURFER_DISPLAY` / `DISPLAY` | WMA/Slicer headless GUI display |
-| `SLICERDDSURFER_TRACT_QUERIER_ROOT` / `TRACT_QUERIER_ROOT` | TractQuerier checkout |
-| `SLICERDDSURFER_TRACTCLOUD_ROOT` / `TRACTCLOUD_ROOT` | TractCloud checkout |
-| `SLICERDDSURFER_TRACTCLOUD_PYTHON_EXECUTABLE` / `TRACTCLOUD_PYTHON_EXECUTABLE` | TractCloud Python |
-| `SLICERDDSURFER_TRACTCLOUD_DATA_DIR` / `TRACTCLOUD_DATA_DIR` | TractCloud 模型/数据目录 |
+| `SLICERDSPACE_WMA_ROOT` / `WMA_ROOT` | WhiteMatterAnalysis checkout |
+| `SLICERDSPACE_WMA_ATLAS_DIR` / `WMA_ATLAS_DIR` | WMA ORG atlas 目录 |
+| `SLICERDSPACE_FIBER_TRACT_MEASUREMENTS_CLI` | SlicerDMRI FiberTractMeasurements CLI |
+| `SLICERDSPACE_DISPLAY` / `DISPLAY` | WMA/Slicer headless GUI display |
+| `SLICERDSPACE_TRACT_QUERIER_ROOT` / `TRACT_QUERIER_ROOT` | TractQuerier checkout |
+| `SLICERDSPACE_TRACTCLOUD_ROOT` / `TRACTCLOUD_ROOT` | TractCloud checkout |
+| `SLICERDSPACE_TRACTCLOUD_PYTHON_EXECUTABLE` / `TRACTCLOUD_PYTHON_EXECUTABLE` | TractCloud Python |
+| `SLICERDSPACE_TRACTCLOUD_DATA_DIR` / `TRACTCLOUD_DATA_DIR` | TractCloud 模型/数据目录 |
 
 ---
 
@@ -798,7 +798,7 @@ scripts/download_model_assets.sh --profile parcellation
 1. 先安装 Slicer、PyTorch Extension、Git LFS 和公共 Python 包。
 2. 拉取模型权重，确认 DDSurfer/DDParcel/DDSeg 资源完整。
 3. 如需 Microstructure，安装 DIPY 和 AMICO。
-4. 如需 CSD/ACT/SAF/connectome MRtrix 后端，安装 MRtrix3 并配置 `SLICERDDSURFER_MRTRIX_BIN_DIR`。
+4. 如需 CSD/ACT/SAF/connectome MRtrix 后端，安装 MRtrix3 并配置 `SLICERDSPACE_MRTRIX_BIN_DIR`。
 5. 如需高质量 preprocessing，安装 FSL 并配置 FSL bin。
 6. 如需 DDSurfer postprocess，可按[组件指南](SURFACE_COMPONENTS.zh-CN.md)准备本机组件及个人激活文件；已有 FreeSurfer 仍可使用，历史 STL/shell 路线有额外依赖。
 7. 如需 bundle 后端，再分别安装 WMA / Tract Querier / TractCloud。

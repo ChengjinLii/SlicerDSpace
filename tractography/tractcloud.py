@@ -32,7 +32,7 @@ MIN_BUNDLE_SAMPLING_SCREEN = 20  # Local sanity screen, not an author accuracy g
 VALID_TRACTCLOUD_DEVICES = {"auto", "cpu", "cuda"}
 TRACTCLOUD_COMPAT_BOOTSTRAP = (
     "import json, logging, os, random, runpy, sys; import numpy as np; import torch; "
-    "seed = int(os.environ.get('SLICERDDSURFER_TRACTCLOUD_SEED', '0')); "
+    "seed = int(os.environ.get('SLICERDSPACE_TRACTCLOUD_SEED', '0')); "
     "random.seed(seed); np.random.seed(seed); torch.manual_seed(seed); "
     "torch.cuda.manual_seed_all(seed); import tractcloud.pipeline as pipeline; "
     "pipeline.__dict__.setdefault('logging', logging); "
@@ -47,7 +47,7 @@ TRACTCLOUD_COMPAT_BOOTSTRAP = (
     "    sys.argv[sys.argv.index('--device') + 1] = resolved\n"
     "record = {'requested': requested, 'resolved': resolved, 'torch_version': str(torch.__version__)}\n"
     "print('TractCloud device: ' + json.dumps(record), flush=True)\n"
-    "record_path = os.environ.get('SLICERDDSURFER_TRACTCLOUD_DEVICE_RECORD')\n"
+    "record_path = os.environ.get('SLICERDSPACE_TRACTCLOUD_DEVICE_RECORD')\n"
     "if record_path:\n"
     "    with open(record_path, 'w') as stream:\n"
     "        json.dump(record, stream)\n"
@@ -136,9 +136,9 @@ def resolve_tractcloud_python(python_executable: Optional[Path] = None) -> Path:
         return candidate
 
     env_value = (
-        os.environ.get("SLICERDDSURFER_TRACTCLOUD_PYTHON_EXECUTABLE")
+        os.environ.get("SLICERDSPACE_TRACTCLOUD_PYTHON_EXECUTABLE")
         or os.environ.get("TRACTCLOUD_PYTHON_EXECUTABLE")
-        or os.environ.get("SLICERDDSURFER_TRACTCLOUD_PYTHON")
+        or os.environ.get("SLICERDSPACE_TRACTCLOUD_PYTHON")
         or os.environ.get("TRACTCLOUD_PYTHON")
     )
     if env_value:
@@ -160,7 +160,7 @@ def resolve_tractcloud_root(tractcloud_root: Optional[Path] = None) -> Optional[
 
     candidate_value = tractcloud_root
     if candidate_value is None:
-        env_value = os.environ.get("SLICERDDSURFER_TRACTCLOUD_ROOT") or os.environ.get("TRACTCLOUD_ROOT")
+        env_value = os.environ.get("SLICERDSPACE_TRACTCLOUD_ROOT") or os.environ.get("TRACTCLOUD_ROOT")
         candidate_value = Path(env_value) if env_value else None
     if candidate_value is None:
         return None
@@ -213,8 +213,8 @@ def _tractcloud_env(config: "TractCloudConfig", backend_status: Optional[dict[st
         env["PYTHONPATH"] = root_value
     if config.data_dir is not None:
         env["TRACTCLOUD_DATA_DIR"] = config.data_dir.expanduser().resolve().as_posix()
-    env['SLICERDDSURFER_TRACTCLOUD_SEED'] = str(config.random_seed)
-    env['SLICERDDSURFER_TRACTCLOUD_DEVICE_RECORD'] = str(config.output_dir.expanduser().resolve() / 'tractcloud_device.json')
+    env['SLICERDSPACE_TRACTCLOUD_SEED'] = str(config.random_seed)
+    env['SLICERDSPACE_TRACTCLOUD_DEVICE_RECORD'] = str(config.output_dir.expanduser().resolve() / 'tractcloud_device.json')
     return env
 
 

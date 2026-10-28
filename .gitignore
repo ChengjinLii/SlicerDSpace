@@ -26,7 +26,7 @@ LOCAL_RELEASE_VALIDATION_*.md
 goal.md
 goal_completion_audit.md
 
-# Downloaded model/template assets. Keep them in SlicerDDSurfer-models and
+# Downloaded model/template assets. Keep them in SlicerDSpace-models and
 # restore them with scripts/download_model_assets.py when needed.
 /Resources/Data/
 /surface/template/

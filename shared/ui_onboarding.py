@@ -1,4 +1,4 @@
-"""Beginner-facing onboarding helpers for the SlicerDDSurfer UI."""
+"""Beginner-facing onboarding helpers for the SlicerDSpace UI."""
 
 from __future__ import annotations
 
@@ -21,8 +21,8 @@ from shared.ui_workflow_text import (
 )
 
 
-LANGUAGE_SETTING = "SlicerDDSurfer/UserSettings/language"
-FIRST_RUN_SETTING = "SlicerDDSurfer/UserSettings/firstRunWizardShown"
+LANGUAGE_SETTING = "SlicerDSpace/UserSettings/language"
+FIRST_RUN_SETTING = "SlicerDSpace/UserSettings/firstRunWizardShown"
 
 TRANSLATIONS = {
     "en": {
@@ -39,14 +39,14 @@ TRANSLATIONS = {
         "dashboard_waiting": "Run Check environment dependencies to see what is runnable on this computer.",
         "path_examples": (
             "Examples: Subject root /Users/name/data/sub-01 | Output /Users/name/data/sub-01/outputs | "
-            "Model assets /Users/name/SlicerDDSurfer-model-assets | MRtrix bin /opt/mrtrix3/bin"
+            "Model assets /Users/name/SlicerDSpace-model-assets | MRtrix bin /opt/mrtrix3/bin"
         ),
-        "headline": "SlicerDDSurfer",
+        "headline": "SlicerDSpace",
         "subtitle": (
             "Prepare inputs. Choose analyses. Review results."
         ),
         "check_env": "Check environment dependencies",
-        "preflight_run": "Run SlicerDDSurfer",
+        "preflight_run": "Run SlicerDSpace",
         "status_waiting": "Waiting for input",
         "status_waiting_ellipsis": "Waiting for input...",
         "environment_section": "Advanced: Dependency profile",
@@ -83,7 +83,7 @@ TRANSLATIONS = {
         "microstructure_option": "DTI maps; optional FW / NODDI / DKI in Advanced",
         "tractography": "Tractography",
         "tractography_option": "DTI or CSD / ACT tractogram",
-        "bundles": "Bundles",
+        "bundles": "Fiber bundles",
         "bundles_option": "WMQL / WMA / TractCloud",
         "connectome": "Connectome",
         "connectome_option": "Connectivity matrices",
@@ -116,7 +116,7 @@ TRANSLATIONS = {
         "logs": "Logs",
         "cancel_job": "Cancel running job",
         "prepare_inputs": "Prepare Inputs",
-        "prepare_inputs_tooltip": "Normalize DICOM, NRRD/NHDR, or NIfTI+bval/bvec inputs into a SlicerDDSurfer subject root.",
+        "prepare_inputs_tooltip": "Normalize DICOM, NRRD/NHDR, or NIfTI+bval/bvec inputs into a SlicerDSpace subject root.",
         "prepare_summary": (
             "Use this when inputs are not already organized as input/data.nii.gz, input/bvals and input/bvecs. "
             "The import writes input/input_import_manifest.json and the workflow continues from the canonical subject root."
@@ -167,7 +167,7 @@ TRANSLATIONS = {
         "env_using_saved_path": "using saved path",
         "config": "Config",
         "import_dependency_config": "Import dependency config",
-        "import_dependency_config_tooltip": "Load a SlicerDDSurfer dependency config JSON and save the external paths into Slicer settings.",
+        "import_dependency_config_tooltip": "Load a SlicerDSpace dependency config JSON and save the external paths into Slicer settings.",
         "export_dependency_config": "Export dependency config",
         "export_dependency_config_tooltip": "Save the currently configured external paths as a CLI-compatible JSON config.",
         "open_environment_report": "Open environment report",
@@ -231,12 +231,12 @@ TRANSLATIONS = {
         "dashboard_waiting": "点击“检查环境依赖”后，这里会显示这台电脑现在能跑什么、还缺什么。",
         "path_examples": (
             "路径示例：Subject root /Users/name/data/sub-01 | Output /Users/name/data/sub-01/outputs | "
-            "模型权重 /Users/name/SlicerDDSurfer-model-assets | MRtrix bin /opt/mrtrix3/bin"
+            "模型权重 /Users/name/SlicerDSpace-model-assets | MRtrix bin /opt/mrtrix3/bin"
         ),
-        "headline": "SlicerDDSurfer 运行工作台",
+        "headline": "SlicerDSpace 运行工作台",
         "subtitle": "准备一个 subject root，检查依赖环境，并从同一个监控流程运行可复用的 dMRI 分析产品。",
         "check_env": "检查环境依赖",
-        "preflight_run": "运行 SlicerDDSurfer",
+        "preflight_run": "运行 SlicerDSpace",
         "status_waiting": "等待输入",
         "status_waiting_ellipsis": "等待输入…",
         "environment_section": "高级：依赖配置",
@@ -306,7 +306,7 @@ TRANSLATIONS = {
         "logs": "日志",
         "cancel_job": "取消正在运行的任务",
         "prepare_inputs": "准备输入",
-        "prepare_inputs_tooltip": "将 DICOM、NRRD/NHDR 或 NIfTI+bval/bvec 输入规范化为 SlicerDDSurfer 受试者根目录。",
+        "prepare_inputs_tooltip": "将 DICOM、NRRD/NHDR 或 NIfTI+bval/bvec 输入规范化为 SlicerDSpace 受试者根目录。",
         "prepare_summary": "当输入尚未整理为 input/data.nii.gz、input/bvals 和 input/bvecs 时使用此功能。导入过程会写入 input/input_import_manifest.json，工作流随后从规范受试者根目录继续。",
         "source_type": "来源类型",
         "source_type_tooltip": "通常使用 auto；仅在需要强制指定来源类型时修改。",
@@ -351,7 +351,7 @@ TRANSLATIONS = {
         "env_using_saved_path": "使用已保存路径",
         "config": "配置",
         "import_dependency_config": "导入依赖配置",
-        "import_dependency_config_tooltip": "加载 SlicerDDSurfer 依赖配置 JSON，并将外部路径保存到 Slicer 设置。",
+        "import_dependency_config_tooltip": "加载 SlicerDSpace 依赖配置 JSON，并将外部路径保存到 Slicer 设置。",
         "export_dependency_config": "导出依赖配置",
         "export_dependency_config_tooltip": "将当前外部路径保存为兼容 CLI 的 JSON 配置。",
         "open_environment_report": "打开环境报告",
@@ -459,7 +459,7 @@ ENVIRONMENT_DEPENDENCY_TEXT = {
         ),
         "model_assets_dir": (
             "Model assets root",
-            "Optional. Root directory for downloaded SlicerDDSurfer model assets. Defaults to SLICERDDSURFER_MODEL_ASSETS_DIR or a per-user data directory.",
+            "Optional. Root directory for downloaded SlicerDSpace model assets. Defaults to SLICERDSPACE_MODEL_ASSETS_DIR or a per-user data directory.",
         ),
         "mrtrix_bin_dir": (
             "MRtrix3 bin dir",
@@ -527,7 +527,7 @@ ENVIRONMENT_DEPENDENCY_TEXT = {
         "python_executable": ("Python 可执行文件", "可选。用于依赖检查和 Python 包安装；默认使用当前 Slicer Python。"),
         "python_environment": ("Python/conda 环境", "可选。Conda 环境名称或 Python 可执行文件路径；显式 Python 路径优先。"),
         "conda_executable": ("conda/mamba 可执行文件", "可选。当 Python/conda 环境填写环境名称时，用它解析该环境。"),
-        "model_assets_dir": ("模型资源根目录", "可选。下载的 SlicerDDSurfer 模型资源根目录；默认使用 SLICERDDSURFER_MODEL_ASSETS_DIR 或用户数据目录。"),
+        "model_assets_dir": ("模型资源根目录", "可选。下载的 SlicerDSpace 模型资源根目录；默认使用 SLICERDSPACE_MODEL_ASSETS_DIR 或用户数据目录。"),
         "mrtrix_bin_dir": ("MRtrix3 bin 目录", "可选。包含 mrconvert、dwi2response、dwi2fod、tckgen、tcksift2 的目录。"),
         "preprocessing_fsl_bin_dir": ("FSL bin 目录", "可选。包含 MRtrix/FSL 预处理所需 eddy 和 topup 的目录。"),
         "postprocess_freesurfer_home": ("FreeSurfer 主目录（可选）", "可选已有 FreeSurfer 安装根目录；表面后处理可改用本机编译组件，SynthStrip 仍需单独配置；检测 FREESURFER_HOME。"),
@@ -866,17 +866,17 @@ def platform_path_examples(language: str, *, system: str | None = None) -> str:
     if system_name.startswith("win"):
         subject = r"C:\Users\name\data\sub-01"
         output = r"C:\Users\name\data\sub-01\outputs"
-        models = r"C:\Users\name\SlicerDDSurfer-model-assets"
+        models = r"C:\Users\name\SlicerDSpace-model-assets"
         mrtrix = r"C:\Tools\MRtrix3\bin"
     elif system_name == "darwin":
         subject = "/Users/name/data/sub-01"
         output = "/Users/name/data/sub-01/outputs"
-        models = "/Users/name/Library/Application Support/SlicerDDSurfer/model-assets"
+        models = "/Users/name/Library/Application Support/SlicerDSpace/model-assets"
         mrtrix = "/opt/homebrew/bin"
     else:
         subject = "/home/name/data/sub-01"
         output = "/home/name/data/sub-01/outputs"
-        models = "/home/name/.local/share/SlicerDDSurfer/model-assets"
+        models = "/home/name/.local/share/SlicerDSpace/model-assets"
         mrtrix = "/opt/mrtrix3/bin"
     if normalized_language(language) == "zh":
         return (
@@ -1254,7 +1254,7 @@ def maybe_show_first_run_wizard(owner: Any) -> None:
     import qt
     import slicer
 
-    if os.environ.get("SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD") == "1":
+    if os.environ.get("SLICERDSPACE_DISABLE_FIRST_RUN_WIZARD") == "1":
         return
     settings = slicer.app.userSettings()
     try:
@@ -1501,7 +1501,7 @@ def prepare_demo_for_owner(owner: Any) -> Path:
 
     import slicer
 
-    demo_root = Path(str(slicer.app.temporaryPath)) / "SlicerDDSurfer" / "demo"
+    demo_root = Path(str(slicer.app.temporaryPath)) / "SlicerDSpace" / "demo"
     subject_root = create_synthetic_demo_subject(demo_root, subject_id=DEMO_SUBJECT_ID, overwrite=True)
     node = getattr(owner, "_parameterNode", None)
     if node:

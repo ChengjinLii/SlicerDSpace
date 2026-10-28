@@ -34,7 +34,7 @@ ASSET_EXCLUSION_PATTERNS = (
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Build release metadata artifacts for SlicerDDSurfer.")
+    parser = argparse.ArgumentParser(description="Build release metadata artifacts for SlicerDSpace.")
     parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "ignore" / "releases" / "v0.1.0")
     parser.add_argument("--profile", default="core", help="Model asset profile to describe.")
     parser.add_argument("--release-validation-report", type=Path, help="Optional release_validation_report.json to copy.")

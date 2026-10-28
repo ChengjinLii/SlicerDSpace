@@ -129,12 +129,12 @@ class WorldQCRecordTest(unittest.TestCase):
 
 
 @unittest.skipUnless(
-    os.environ.get("SLICERDDSURFER_HEAVY_DDSEG_QC"),
-    "heavy: set SLICERDDSURFER_HEAVY_DDSEG_QC=<ddseg_dir>:<wmparc> to check a real DDSeg run",
+    os.environ.get("SLICERDSPACE_HEAVY_DDSEG_QC"),
+    "heavy: set SLICERDSPACE_HEAVY_DDSEG_QC=<ddseg_dir>:<wmparc> to check a real DDSeg run",
 )
 class RealSubjectWorldQCTest(unittest.TestCase):
     def test_real_ddseg_meets_acceptance_target(self) -> None:
-        ddseg_dir, wmparc = os.environ["SLICERDDSURFER_HEAVY_DDSEG_QC"].split(":", 1)
+        ddseg_dir, wmparc = os.environ["SLICERDSPACE_HEAVY_DDSEG_QC"].split(":", 1)
         record = evaluate_ddseg_world_qc(Path(ddseg_dir) / "SegmentationMap_GMWMCSF.nii.gz", Path(wmparc))
         self.assertGreaterEqual(record["metrics"]["wm_dice"], 0.80)
 

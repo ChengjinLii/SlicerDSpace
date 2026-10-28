@@ -18,7 +18,7 @@ import qt
 import slicer
 
 
-TEMP_ROOT = Path(os.environ.get("SLICERDDSURFER_SMOKE_ROOT", "/tmp/slicerdsurfer-dependency-workflow-smoke")) / "dependencies"
+TEMP_ROOT = Path(os.environ.get("SLICERDSPACE_SMOKE_ROOT", "/tmp/slicerdsurfer-dependency-workflow-smoke")) / "dependencies"
 MODEL_ROOT = TEMP_ROOT / "model-assets"
 MRTRIX_ROOT = TEMP_ROOT / "mrtrix" / "bin"
 
@@ -59,9 +59,9 @@ class FakeEnvironmentResult:
 
 def _module_widget():
     try:
-        return slicer.util.getModuleWidget("SlicerDDSurfer")
+        return slicer.util.getModuleWidget("SlicerDSpace")
     except Exception:
-        module = slicer.util.getModule("SlicerDDSurfer")
+        module = slicer.util.getModule("SlicerDSpace")
         return module.widgetRepresentation().self()
 
 
@@ -128,7 +128,7 @@ def _run() -> None:
         MRTRIX_ROOT.mkdir(parents=True, exist_ok=True)
         (MRTRIX_ROOT / "dwi2fod").write_text("#!/bin/sh\n", encoding="utf-8")
 
-        slicer.util.selectModule("SlicerDDSurfer")
+        slicer.util.selectModule("SlicerDSpace")
         widget = _module_widget()
         original_model_path = widget._read_environment_path_setting("model_assets_dir")
         original_mrtrix_path = widget._read_environment_path_setting("mrtrix_bin_dir")
@@ -222,17 +222,17 @@ def _run() -> None:
         json_clear_ready = "mrtrix_bin_dir" not in load_user_config().get("external_dependencies", {})
         widget._save_environment_path_setting("mrtrix_bin_dir", MRTRIX_ROOT.as_posix())
 
-        print(f"SLICERDDSURFER_DEP_MODEL_SAVED={model_saved}", flush=True)
-        print(f"SLICERDDSURFER_DEP_MODEL_LINE_EDIT={model_line_text}", flush=True)
-        print(f"SLICERDDSURFER_DEP_MODEL_ASSET_FILE={model_asset_file.is_file()}", flush=True)
-        print(f"SLICERDDSURFER_DEP_MRTRIX_SAVED={mrtrix_saved}", flush=True)
-        print(f"SLICERDDSURFER_DEP_MRTRIX_LINE_EDIT={mrtrix_line_text}", flush=True)
-        print(f"SLICERDDSURFER_DEP_RESTORED_MODEL={restored_model}", flush=True)
-        print(f"SLICERDDSURFER_DEP_RESTORED_MRTRIX={restored_mrtrix}", flush=True)
-        print(f"SLICERDDSURFER_DEP_SELECTED_SETUP_DISPATCH={bulk_selected_dispatch}", flush=True)
-        print(f"SLICERDDSURFER_DEP_JSON_MODEL={json_model}", flush=True)
-        print(f"SLICERDDSURFER_DEP_JSON_MRTRIX={json_mrtrix}", flush=True)
-        print(f"SLICERDDSURFER_DEP_JSON_CLEAR_READY={json_clear_ready}", flush=True)
+        print(f"SLICERDSPACE_DEP_MODEL_SAVED={model_saved}", flush=True)
+        print(f"SLICERDSPACE_DEP_MODEL_LINE_EDIT={model_line_text}", flush=True)
+        print(f"SLICERDSPACE_DEP_MODEL_ASSET_FILE={model_asset_file.is_file()}", flush=True)
+        print(f"SLICERDSPACE_DEP_MRTRIX_SAVED={mrtrix_saved}", flush=True)
+        print(f"SLICERDSPACE_DEP_MRTRIX_LINE_EDIT={mrtrix_line_text}", flush=True)
+        print(f"SLICERDSPACE_DEP_RESTORED_MODEL={restored_model}", flush=True)
+        print(f"SLICERDSPACE_DEP_RESTORED_MRTRIX={restored_mrtrix}", flush=True)
+        print(f"SLICERDSPACE_DEP_SELECTED_SETUP_DISPATCH={bulk_selected_dispatch}", flush=True)
+        print(f"SLICERDSPACE_DEP_JSON_MODEL={json_model}", flush=True)
+        print(f"SLICERDSPACE_DEP_JSON_MRTRIX={json_mrtrix}", flush=True)
+        print(f"SLICERDSPACE_DEP_JSON_CLEAR_READY={json_clear_ready}", flush=True)
 
         ok = (
             bulk_selected_dispatch
@@ -249,7 +249,7 @@ def _run() -> None:
         )
         slicer.app.exit(0 if ok else 2)
     except Exception as exc:
-        print(f"SLICERDDSURFER_DEP_WORKFLOW_ERROR={exc}", flush=True)
+        print(f"SLICERDSPACE_DEP_WORKFLOW_ERROR={exc}", flush=True)
         slicer.app.exit(2)
     finally:
         if original_start_job is not None:

@@ -18,7 +18,7 @@ and force-stopped after a grace period. Already installed packages are not
 rolled back. Model partial files are retained for downloader resume. After
 installation, check dependencies again; restart Slicer if an imported package
 was updated. Preflight-triggered installation does not automatically start
-scientific analysis: review setup and click **Run SlicerDDSurfer** again.
+scientific analysis: review setup and click **Run SlicerDSpace** again.
 
 PyTorch installation remains an explicit Slicer PyTorch extension operation;
 the setup UI does not silently replace its runtime with a generic pip build.
@@ -36,7 +36,7 @@ scanned for automatic display. Actual batch children are taken from execution
 records; a planned subject list is not evidence that those subjects ran.
 
 Anatomical labels, bilateral white/pial surfaces, representative parameter
-maps, a whole-brain tractogram/SAF preview, representative bundles and numerical
+maps, a whole-brain tractogram/SAF preview, representative fiber bundles and numerical
 connectome tables are selected where declared. TCK/TRK streamlines are converted
 to a reproducible **RAS-mm VTK display preview** with at most 30,000 streamlines.
 The full tractogram is untouched and remains the input to quantitative analysis.
@@ -110,7 +110,7 @@ not remove this manual copy. Save the revision separately with Slicer's normal
 Save dialog. It does not overwrite model output, change QC to passed or silently
 replace the inputs to regional statistics or downstream analysis.
 
-Scene bundles (`.mrb`) can retain loaded volumes, tables and editable copies even
+Scene fiber bundles (`.mrb`) can retain loaded volumes, tables and editable copies even
 after the original files move. Source paths are provenance, not a promise that
 the original processing files or environment are included in the bundle.
 

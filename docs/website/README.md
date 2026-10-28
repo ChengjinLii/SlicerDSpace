@@ -4,7 +4,7 @@
 
 **Static public assets, separate from private software documentation**
 
-[Project](../../README.md) | [Website](https://chengjinlii.github.io/SlicerDDSurfer/) | [Original Notes](UPSTREAM_README.md) | [中文](README.zh-CN.md)
+[Project](../../README.md) | [Website](https://chengjinlii.github.io/SlicerDSpace/) | [Original Notes](UPSTREAM_README.md) | [中文](README.zh-CN.md)
 
 </div>
 
@@ -94,7 +94,7 @@ of `docs/figures/logo-ref.svg`. Verify them with
   the pixel size of its file and links to the full-size file.
 - The standalone "What is integrated" section (`#integrated`) lists 35 concrete
   method/utility entries, including the available denoisers, masking alternatives,
-  anatomical and microstructural models, tracking, bundles and regional analysis.
+  anatomical and microstructural models, tracking, fiber bundles and regional analysis.
   Each entry identifies its implementation, runtime
   requirements. Historical run-specific orange status badges and the optional
   reference-runtime row are removed. Runtime/access requirements remain explicit,
@@ -111,7 +111,7 @@ of `docs/figures/logo-ref.svg`. Verify them with
   Bibliography URLs are allowlisted from this reviewed catalogue; other external
   links still require an explicit `ALLOWED_URLS` entry in `Testing/Website/check_site.py`.
 
-The hero uses "SlicerDDSurfer" as its title, with the manuscript's descriptive
+The hero uses "SlicerDSpace" as its title, with the manuscript's descriptive
 phrase underneath. The Idea, Workflows and Status sections are removed. Subject
 identifiers stay in source records instead of repeated gallery introductions.
 Get started includes
@@ -133,7 +133,7 @@ permits only this exact public path, byte count and SHA256, not arbitrary large
 videos or model files. Any replacement needs a separately reviewed update.
 
 The repository owner must first open
-[Settings > Pages](https://github.com/ChengjinLii/SlicerDDSurfer/settings/pages)
+[Settings > Pages](https://github.com/ChengjinLii/SlicerDSpace/settings/pages)
 and set **Source: GitHub Actions**. Publishing from a private repository needs
 an eligible paid plan. The website is public; the source repository stays private.
 The current connector can read/write repository content but does not expose the
@@ -147,7 +147,7 @@ from the Actions page when publication is wanted.
 A deployment is accepted only after the deploy job succeeds and the
 public URL responds successfully.
 
-Expected URL: `https://chengjinlii.github.io/SlicerDDSurfer/`. The canonical URL,
+Expected URL: `https://chengjinlii.github.io/SlicerDSpace/`. The canonical URL,
 share tags and 404 home link assume this address. Review the original notes
 before changing it. Do not configure `main /docs`: that would expose documents
 outside the intended public website.

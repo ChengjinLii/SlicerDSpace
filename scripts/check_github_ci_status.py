@@ -17,7 +17,7 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_REPOSITORY = "ChengjinLii/SlicerDDSurfer"
+DEFAULT_REPOSITORY = "ChengjinLii/SlicerDSpace"
 EXPECTED_REQUIRED_CHECK = "CI / fast-checks"
 STALE_REQUIRED_CHECK_TOKENS = (
     "fresh-clone-smoke",
@@ -66,7 +66,7 @@ def _request_json(url: str, *, token: str | None) -> dict[str, Any]:
     headers = {
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "SlicerDDSurfer-ci-status-check",
+        "User-Agent": "SlicerDSpace-ci-status-check",
     }
     if token:
         headers["Authorization"] = f"Bearer {token}"

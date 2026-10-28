@@ -12,12 +12,12 @@ import slicer
 
 
 def run():
-    root = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+    root = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
     records = []
     originals = []
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         import shared.ui_selected_setup as setup
         installed, loaded = setup.extension_states(slicer.app.extensionsManagerModel(), slicer.modules)
         assert set(loaded) <= set(installed)

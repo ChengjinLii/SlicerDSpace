@@ -1,4 +1,4 @@
-"""Local DDSurfer postprocess backend bundled inside SlicerDDSurfer."""
+"""Local DDSurfer postprocess backend bundled inside SlicerDSpace."""
 
 from __future__ import annotations
 
@@ -146,7 +146,7 @@ def _resolve_native_dir(config: DDSurferPostprocessConfig, subject_root: Path) -
     if config.native_dir is not None:
         return config.native_dir.expanduser().resolve()
     layout = subject_layout(subject_root, output_root=config.output_root)
-    return (layout.anatomy_input_dir("ddsurfer") / "pred_results_SlicerDDSurfer" / "native" / config.subject_id).resolve()
+    return (layout.anatomy_input_dir("ddsurfer") / "pred_results_SlicerDSpace" / "native" / config.subject_id).resolve()
 
 
 def _resolve_wmparc_path(subject_id: str, mri_dir: Path) -> Path:
@@ -377,7 +377,7 @@ def run_ddsurfer_postprocess(
 
     _emit("[DDSurfer Postprocess] Running: " + " ".join(cmd), log)
     env = merged_startup_environment()
-    env["SLICERDDSURFER_ANATOMY_DIRNAME"] = ANATOMY_OUTPUT_NAME
+    env["SLICERDSPACE_ANATOMY_DIRNAME"] = ANATOMY_OUTPUT_NAME
     process = subprocess.Popen(
         cmd,
         cwd=str(backend_root),

@@ -672,7 +672,7 @@ exit 0
 
         with mock.patch.dict(os.environ, {"DISPLAY": ":99"}, clear=True):
             self.assertEqual(_resolve_runtime_display(), ":99")
-        with mock.patch.dict(os.environ, {"DISPLAY": ":99", "SLICERDDSURFER_DISPLAY": ":88"}, clear=True):
+        with mock.patch.dict(os.environ, {"DISPLAY": ":99", "SLICERDSPACE_DISPLAY": ":88"}, clear=True):
             self.assertEqual(_resolve_runtime_display(), ":88")
 
     def test_summarize_wma_outputs_includes_registration_progress(self) -> None:

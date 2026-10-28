@@ -61,8 +61,8 @@ class ExtensionDistributionTest(unittest.TestCase):
             self.skipTest("CMake unavailable; real SDK validation remains required")
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "files.txt"
-            subprocess.run([cmake, f"-DSLICERDDSURFER_RESOURCE_ROOT={ROOT}",
-                            f"-DSLICERDDSURFER_RESOURCE_OUTPUT={output}",
+            subprocess.run([cmake, f"-DSLICERDSPACE_RESOURCE_ROOT={ROOT}",
+                            f"-DSLICERDSPACE_RESOURCE_OUTPUT={output}",
                             "-P", str(ROOT / "scripts/extension_runtime/RuntimeResources.cmake")], check=True)
             self.assertEqual(output.read_text().splitlines(), runtime_files(ROOT))
 
@@ -85,7 +85,7 @@ class ExtensionDistributionTest(unittest.TestCase):
         self.assertFalse(any("/tests/" in name or "/slicer_dmri_reference/" in name for name in selected))
         self.assertFalse(any(name.startswith('scripts/figures/') for name in selected))
         self.assertNotIn('scripts/sync_website_logo.py', selected)
-        self.assertEqual([name for name in selected if "/" not in name and name.endswith(".py")], ["SlicerDDSurfer.py"])
+        self.assertEqual([name for name in selected if "/" not in name and name.endswith(".py")], ["SlicerDSpace.py"])
 
     def test_gpu_and_setup_launchers_are_required_even_with_globs(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -104,7 +104,7 @@ class ExtensionDistributionTest(unittest.TestCase):
     def test_staging_rejects_source_overwrite(self):
         # The checkout's actual directory name must not determine test behavior.
         with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / "SlicerDDSurfer"
+            source = Path(directory) / "SlicerDSpace"
             source.mkdir()
             sentinel = source / "sentinel.txt"
             sentinel.write_text("source must remain intact", encoding="utf-8")
@@ -120,7 +120,7 @@ class ExtensionDistributionTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             install = stage_extension(root / "install", slicer_version="Slicer-5.10", clean=True, link_mode="copy")
-            archive = root / "SlicerDDSurfer.tar.gz"
+            archive = root / "SlicerDSpace.tar.gz"
             package_extension(Path(install["extension_root"]), archive)
             self.assertEqual(audit_package(archive, ROOT)["status"], "pass")
             module = Path(install["module_dir"])
@@ -162,8 +162,8 @@ class ExtensionDistributionTest(unittest.TestCase):
             root = Path(directory)
             archive = root / "unsafe.tar.gz"
             with tarfile.open(archive, "w:gz") as stream:
-                for name in ("one/lib/Slicer-5.10/qt-scripted-modules/SlicerDDSurfer.py",
-                             "two/lib/Slicer-5.10/qt-scripted-modules/SlicerDDSurfer.py",
+                for name in ("one/lib/Slicer-5.10/qt-scripted-modules/SlicerDSpace.py",
+                             "two/lib/Slicer-5.10/qt-scripted-modules/SlicerDSpace.py",
                              "../escape.txt"):
                     item = tarfile.TarInfo(name)
                     item.size = 1

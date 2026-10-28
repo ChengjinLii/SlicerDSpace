@@ -1,6 +1,6 @@
 # Derived from dipy/reconst/fwdti.py::wls_iter, DIPY 1.11.0/1.12.1.
 # Copyright (c) 2008-2025, dipy developers. All rights reserved.
-# Modified for SlicerDDSurfer, 2026: avoid a dense diagonal weight matrix.
+# Modified for SlicerDSpace, 2026: avoid a dense diagonal weight matrix.
 # BSD-3-Clause; see licenses/DIPY.txt. Not an upstream DIPY release.
 """Author WLS with identical arithmetic after a diagonal-free column scaling."""
 

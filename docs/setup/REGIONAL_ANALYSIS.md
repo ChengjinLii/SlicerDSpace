@@ -105,7 +105,7 @@ Zero matching lines produce an explicit zero count and no fabricated tractogram.
 Source/QC files are fingerprinted before and after processing; changes invalidate
 the result. Existing output folders are not overwritten. A cancelled/incomplete
 job is not accepted as completed. **Postprocessing consistency is not new upstream
-fit validation or human anatomical approval.** Coverage and anatomy still require review.
+fit validation or human anatomical approval.** Coverage and anatomical priors still require review.
 
 ---
 

@@ -6,7 +6,7 @@ from shared.user_config import canonical_microstructure_stages
 
 
 def sync_parameter_node_to_ui(widget) -> None:
-    """Synchronize common SlicerDDSurfer parameter-node values into Qt widgets."""
+    """Synchronize common SlicerDSpace parameter-node values into Qt widgets."""
 
     node = widget._parameterNode
     if not node:

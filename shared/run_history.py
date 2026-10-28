@@ -1,4 +1,4 @@
-"""Pure helpers for discovering and describing SlicerDDSurfer run manifests.
+"""Pure helpers for discovering and describing SlicerDSpace run manifests.
 
 Every way of starting a run (the Slicer GUI, ``run_subject_pipeline.py`` on
 the command line, or ``scripts/run_batch_pipeline.py``) leaves a JSON manifest
@@ -38,7 +38,7 @@ FAILED_TASK_STATES = frozenset({"failed", "partial_failed"})
 
 
 class ManifestError(ValueError):
-    """Raised when a file is not a loadable SlicerDDSurfer run manifest.
+    """Raised when a file is not a loadable SlicerDSpace run manifest.
 
     The message is written for end users: it says what is wrong and what to
     pick instead.
@@ -215,13 +215,13 @@ def validate_manifest_payload(payload: Any, path: Path) -> tuple[str, int]:
 
     if not isinstance(payload, dict):
         raise ManifestError(
-            f"{path.name} is not a SlicerDDSurfer run manifest (expected a JSON object). "
+            f"{path.name} is not a SlicerDSpace run manifest (expected a JSON object). "
             "Choose a run folder that contains 00_run_metadata/<run>_orchestration_manifest.json."
         )
     kind = payload.get("kind")
     if kind not in SUPPORTED_MANIFEST_VERSIONS:
         raise ManifestError(
-            f"{path.name} has kind {kind!r}, which is not a SlicerDDSurfer run manifest. "
+            f"{path.name} has kind {kind!r}, which is not a SlicerDSpace run manifest. "
             f"Expected {SUBJECT_MANIFEST_KIND!r} (single subject) or {BATCH_MANIFEST_KIND!r} (batch). "
             "Choose the run's 00_run_metadata folder or its *_orchestration_manifest.json file."
         )
@@ -235,7 +235,7 @@ def validate_manifest_payload(payload: Any, path: Path) -> tuple[str, int]:
     if version not in supported:
         supported_text = ", ".join(str(item) for item in sorted(supported))
         raise ManifestError(
-            f"{path.name} uses manifest version {version}; this SlicerDDSurfer build reads version(s) "
+            f"{path.name} uses manifest version {version}; this SlicerDSpace build reads version(s) "
             f"{supported_text}. Update the extension to load runs written by a newer release."
         )
     return str(kind), version

@@ -61,7 +61,7 @@ def _tractogram_node_classes() -> list[str]:
 
 def _poll(widget, demo_root: Path) -> None:
     if monotonic() - state["started_at"] > TIMEOUT_SECONDS:
-        _finish(2, "SLICERDDSURFER_DEMO_E2E_ERROR=timed out waiting for the background run")
+        _finish(2, "SLICERDSPACE_DEMO_E2E_ERROR=timed out waiting for the background run")
         return
     if not state["submitted"] or getattr(widget, "_backgroundProcess", None) is not None:
         qt.QTimer.singleShot(250, lambda: _poll(widget, demo_root))
@@ -69,7 +69,7 @@ def _poll(widget, demo_root: Path) -> None:
 
     manifest_path = demo_root / "outputs" / "00_run_metadata" / "Demo_orchestration_manifest.json"
     if not manifest_path.is_file():
-        _finish(2, f"SLICERDDSURFER_DEMO_E2E_ERROR=missing manifest: {manifest_path}")
+        _finish(2, f"SLICERDSPACE_DEMO_E2E_ERROR=missing manifest: {manifest_path}")
         return
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     statuses = {str(item.get("name")): str(item.get("status")) for item in manifest.get("tasks", [])}
@@ -77,7 +77,7 @@ def _poll(widget, demo_root: Path) -> None:
     tractogram_node_classes = _tractogram_node_classes()
     fa_loaded = any(path.endswith("_dti_FA.nii.gz") for path in loaded_paths)
     tractogram_loaded = any(path.endswith(".trk") for path in loaded_paths)
-    expected_node_type = os.environ.get("SLICERDDSURFER_DEMO_EXPECT_NODE_TYPE", "any").strip().lower()
+    expected_node_type = os.environ.get("SLICERDSPACE_DEMO_EXPECT_NODE_TYPE", "any").strip().lower()
     node_type_ready = (
         expected_node_type == "any"
         or (expected_node_type == "fiber" and "vtkMRMLFiberBundleNode" in tractogram_node_classes)
@@ -88,30 +88,30 @@ def _poll(widget, demo_root: Path) -> None:
         "microstructure.dti": "completed",
         "tractography.dti_det": "completed",
     }
-    print(f"SLICERDDSURFER_DEMO_E2E_MANIFEST={manifest_path}", flush=True)
-    print(f"SLICERDDSURFER_DEMO_E2E_TASK_STATUSES={statuses}", flush=True)
-    print(f"SLICERDDSURFER_DEMO_E2E_FA_LOADED={fa_loaded}", flush=True)
-    print(f"SLICERDDSURFER_DEMO_E2E_TRACTOGRAM_LOADED={tractogram_loaded}", flush=True)
-    print(f"SLICERDDSURFER_DEMO_E2E_TRACTOGRAM_NODE_CLASSES={tractogram_node_classes}", flush=True)
-    print(f"SLICERDDSURFER_DEMO_E2E_EXPECTED_NODE_TYPE={expected_node_type}", flush=True)
-    print(f"SLICERDDSURFER_DEMO_E2E_SCENE_PATH_COUNT={len(loaded_paths)}", flush=True)
+    print(f"SLICERDSPACE_DEMO_E2E_MANIFEST={manifest_path}", flush=True)
+    print(f"SLICERDSPACE_DEMO_E2E_TASK_STATUSES={statuses}", flush=True)
+    print(f"SLICERDSPACE_DEMO_E2E_FA_LOADED={fa_loaded}", flush=True)
+    print(f"SLICERDSPACE_DEMO_E2E_TRACTOGRAM_LOADED={tractogram_loaded}", flush=True)
+    print(f"SLICERDSPACE_DEMO_E2E_TRACTOGRAM_NODE_CLASSES={tractogram_node_classes}", flush=True)
+    print(f"SLICERDSPACE_DEMO_E2E_EXPECTED_NODE_TYPE={expected_node_type}", flush=True)
+    print(f"SLICERDSPACE_DEMO_E2E_SCENE_PATH_COUNT={len(loaded_paths)}", flush=True)
     if state["errors"]:
-        print(f"SLICERDDSURFER_DEMO_E2E_UI_ERRORS={state['errors']}", flush=True)
+        print(f"SLICERDSPACE_DEMO_E2E_UI_ERRORS={state['errors']}", flush=True)
     _finish(
         0 if task_status_ready and fa_loaded and tractogram_loaded and node_type_ready and not state["errors"] else 2,
-        "SLICERDDSURFER_DEMO_E2E_DONE=1",
+        "SLICERDSPACE_DEMO_E2E_DONE=1",
     )
 
 
 def _start() -> None:
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
-        module = slicer.util.getModule("SlicerDDSurfer")
+        slicer.util.selectModule("SlicerDSpace")
+        module = slicer.util.getModule("SlicerDSpace")
         widget = module.widgetRepresentation().self()
-        isolated_root = os.environ.get("SLICERDDSURFER_SMOKE_ROOT")
+        isolated_root = os.environ.get("SLICERDSPACE_SMOKE_ROOT")
         if isolated_root:
             slicer.app.temporaryPath = str(Path(isolated_root) / "temp")
-        demo_root = Path(str(slicer.app.temporaryPath)) / "SlicerDDSurfer" / "demo" / "slicerdsurfer-demo"
+        demo_root = Path(str(slicer.app.temporaryPath)) / "SlicerDSpace" / "demo" / "slicerdsurfer-demo"
         if demo_root.exists():
             shutil.rmtree(demo_root)
         state["original_info"] = slicer.util.infoDisplay
@@ -122,7 +122,7 @@ def _start() -> None:
         state["submitted"] = True
         qt.QTimer.singleShot(250, lambda: _poll(widget, demo_root))
     except Exception as exc:
-        _finish(2, f"SLICERDDSURFER_DEMO_E2E_ERROR={exc}")
+        _finish(2, f"SLICERDSPACE_DEMO_E2E_ERROR={exc}")
 
 
 qt.QTimer.singleShot(6000, _start)

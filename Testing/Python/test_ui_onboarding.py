@@ -164,7 +164,7 @@ class OnboardingHelpersTest(unittest.TestCase):
         apply_onboarding_language(owner, "zh")
 
         self.assertEqual(owner._onboardingLanguage, "zh")
-        self.assertEqual(owner.ui.headlineLabel.value, "SlicerDDSurfer 运行工作台")
+        self.assertEqual(owner.ui.headlineLabel.value, "SlicerDSpace 运行工作台")
         self.assertEqual(owner.ui.subjectIdLabel.value, "受试者 ID")
         self.assertEqual(owner.ui.targetSurfaceLabel.value, "表面重建（原生）")
         self.assertEqual(owner.ui.targetSurfacePostprocessLabel.value, "表面后处理")
@@ -174,7 +174,7 @@ class OnboardingHelpersTest(unittest.TestCase):
         self.assertIn("有效许可证", owner.ui.targetSurfacePostprocessCheckBox.tooltip)
         self.assertIn("无需强制运行 DDParcel", owner.ui.targetSurfacePostprocessCheckBox.tooltip)
         self.assertEqual(owner.ui.targetBundlesLabel.value, "纤维束")
-        self.assertEqual(owner.ui.runSelectedButton.value, "运行 SlicerDDSurfer")
+        self.assertEqual(owner.ui.runSelectedButton.value, "运行 SlicerDSpace")
         self.assertEqual(owner.ui.statusLabel.value, "等待输入")
         self.assertEqual(owner.ui.configurationCollapsibleButton.value, "1. 输入")
         self.assertEqual(owner.ui.resultsCollapsibleButton.value, "5. 结果")
@@ -185,7 +185,7 @@ class OnboardingHelpersTest(unittest.TestCase):
         apply_onboarding_language(owner, "en")
 
         self.assertEqual(owner._onboardingLanguage, "en")
-        self.assertEqual(owner.ui.headlineLabel.value, "SlicerDDSurfer")
+        self.assertEqual(owner.ui.headlineLabel.value, "SlicerDSpace")
         self.assertEqual(owner.ui.subjectIdLabel.value, "Subject ID")
         self.assertEqual(owner.ui.targetSurfaceLabel.value, "Surface (native)")
         self.assertEqual(owner.ui.targetSurfacePostprocessLabel.value, "Surface postprocess")
@@ -194,8 +194,8 @@ class OnboardingHelpersTest(unittest.TestCase):
         self.assertIn("full FreeSurfer installation is optional", owner.ui.targetSurfacePostprocessCheckBox.tooltip)
         self.assertIn("your own valid license", owner.ui.targetSurfacePostprocessCheckBox.tooltip)
         self.assertIn("DDParcel is optional", owner.ui.targetSurfacePostprocessCheckBox.tooltip)
-        self.assertEqual(owner.ui.targetBundlesLabel.value, "Bundles")
-        self.assertEqual(owner.ui.runSelectedButton.value, "Run SlicerDDSurfer")
+        self.assertEqual(owner.ui.targetBundlesLabel.value, "Fiber bundles")
+        self.assertEqual(owner.ui.runSelectedButton.value, "Run SlicerDSpace")
         self.assertEqual(owner.ui.statusLabel.value, "Waiting for input")
         self.assertEqual(owner.ui.configurationCollapsibleButton.value, "1. Inputs")
         self.assertEqual(owner.ui.targetsCollapsibleButton.value, "2. Products")
@@ -392,7 +392,7 @@ class OnboardingHelpersTest(unittest.TestCase):
             app=types.SimpleNamespace(temporaryPath="/tmp"),
             util=types.SimpleNamespace(NodeModify=lambda _node: nullcontext()),
         )
-        subject_root = Path("/tmp/SlicerDDSurfer/demo/slicerdsurfer-demo")
+        subject_root = Path("/tmp/SlicerDSpace/demo/slicerdsurfer-demo")
         with (
             patch.dict("sys.modules", {"slicer": fake_slicer}),
             patch("shared.ui_onboarding.create_synthetic_demo_subject", return_value=subject_root),

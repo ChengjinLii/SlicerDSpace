@@ -39,7 +39,7 @@ class ModelAssetsTest(unittest.TestCase):
             if previous is not None:
                 os.environ[MODEL_ASSETS_ENV] = previous
 
-        self.assertIn("SlicerDDSurfer", root.as_posix())
+        self.assertIn("SlicerDSpace", root.as_posix())
         self.assertNotEqual(root, REPO_ROOT)
 
     def test_explicit_model_asset_root_wins(self) -> None:
@@ -640,13 +640,13 @@ class ModelAssetRootSecurityTest(unittest.TestCase):
 
         self.assertEqual(roots, (self.model_assets_module.default_user_model_assets_root(),))
         removed_literal_roots = (
-            Path("/data/shared/SlicerDDSurfer-model-assets"),
+            Path("/data/shared/SlicerDSpace-model-assets"),
             Path("/data/shared/SlicerDDSurfer-models"),
             Path("/data/chengjin/SlicerDDSurfer-model-assets"),
             Path("/data/chengjin/SlicerDDSurfer-models"),
-            Path("/opt/SlicerDDSurfer/model-assets"),
-            Path("/usr/local/share/SlicerDDSurfer/model-assets"),
-            Path("/Users/Shared/SlicerDDSurfer/model-assets"),
+            Path("/opt/SlicerDSpace/model-assets"),
+            Path("/usr/local/share/SlicerDSpace/model-assets"),
+            Path("/Users/Shared/SlicerDSpace/model-assets"),
         )
         for removed in removed_literal_roots:
             self.assertNotIn(removed, roots)

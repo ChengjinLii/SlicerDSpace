@@ -1009,7 +1009,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertIn("*_orig.stl", missing_surface["surface_postprocess"].reason)
 
             layout = subject_layout(subject_root)
-            native_dir = layout.ddsurfer / "pred_results_SlicerDDSurfer" / "native" / "100307"
+            native_dir = layout.ddsurfer / "pred_results_SlicerDSpace" / "native" / "100307"
             native_dir.mkdir(parents=True)
             for surface in ("wm", "pial"):
                 for hemisphere in ("lh", "rh"):
@@ -1098,7 +1098,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             (post_dir / "surf" / "lh.curv").unlink()
             self.assertNotEqual(plan_subject_products(resume_config).items[0].status, "skipped")
 
-            native_dir = layout.ddsurfer / "pred_results_SlicerDDSurfer" / "native" / "100307"
+            native_dir = layout.ddsurfer / "pred_results_SlicerDSpace" / "native" / "100307"
             native_dir.mkdir(parents=True)
             for hemisphere in ("lh", "rh"):
                 for surface in ("wm", "pial"):
@@ -1175,7 +1175,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             conn_dir = layout.connectome / run_name
             seg_dir = layout.ddseg
             parcel_dir = layout.ddparcel
-            surface_dir = layout.ddsurfer / "pred_results_SlicerDDSurfer" / "native" / "100307"
+            surface_dir = layout.ddsurfer / "pred_results_SlicerDSpace" / "native" / "100307"
             for directory in (csd_dir, tract_dir, wmql_dir, conn_dir, seg_dir, parcel_dir, surface_dir):
                 directory.mkdir(parents=True)
             for name in (
@@ -1610,7 +1610,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                     for path in _parcellation_outputs(subject_root, "100307", output_root).values()},
             }))
 
-            surface_dir = layout.ddsurfer / "pred_results_SlicerDDSurfer" / "native" / "100307"
+            surface_dir = layout.ddsurfer / "pred_results_SlicerDSpace" / "native" / "100307"
             surface_dir.mkdir(parents=True)
             for name in (
                 "100307_predicted_wm_lh.stl",

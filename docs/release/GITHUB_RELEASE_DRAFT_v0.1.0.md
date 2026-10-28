@@ -1,4 +1,4 @@
-# GitHub Release Draft: SlicerDDSurfer v0.1.0
+# GitHub Release Draft: SlicerDSpace v0.1.0
 
 Use this draft when creating the GitHub Release page for the existing
 `v0.1.0` tag. Do not move the tag silently. If post-tag changes on `main`
@@ -9,7 +9,7 @@ should be included in the release, create a new tag such as `v0.1.1` or
 
 - Tag: `v0.1.0`
 - Target: existing `v0.1.0` tag
-- Title: `SlicerDDSurfer v0.1.0`
+- Title: `SlicerDSpace v0.1.0`
 - Release type: code/documentation release
 - Draft: recommended until the DOI boundary and asset terms are reviewed
 - Pre-release: recommended if the manuscript-linked validation scope is still
@@ -17,7 +17,7 @@ should be included in the release, create a new tag such as `v0.1.1` or
 
 ## Body
 
-SlicerDDSurfer v0.1.0 is the first code/documentation release candidate for an
+SlicerDSpace v0.1.0 is the first code/documentation release candidate for an
 integrated 3D Slicer workflow covering diffusion MRI-derived anatomical
 reconstruction, segmentation, parcellation, microstructure outputs,
 tractography, bundle analysis, connectome construction, quality-control review
@@ -104,7 +104,7 @@ the latest commit and branch protection with:
 ```bash
 GITHUB_TOKEN=<token> \
   python3 scripts/check_github_ci_status.py \
-  --repository ChengjinLii/SlicerDDSurfer \
+  --repository ChengjinLii/SlicerDSpace \
   --ref $(git rev-parse HEAD) \
   --branch main
 ```
@@ -138,8 +138,8 @@ If GitHub CLI is available on a maintainer machine:
 
 ```bash
 gh release create v0.1.0 \
-  --repo ChengjinLii/SlicerDDSurfer \
-  --title "SlicerDDSurfer v0.1.0" \
+  --repo ChengjinLii/SlicerDSpace \
+  --title "SlicerDSpace v0.1.0" \
   --notes-file docs/release/GITHUB_RELEASE_DRAFT_v0.1.0.md \
   --draft \
   ignore/releases/v0.1.0/model_assets_core_lock.json \

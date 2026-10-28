@@ -1,6 +1,6 @@
 # Python translation of lib/DKI/{dki_fit,dki_mk_only,dki_parameters}.m
 # Copyright (c) 2017 New York University and University of Antwerp.
-# Modifications: Python translation for SlicerDDSurfer, 2026.
+# Modifications: Python translation for SlicerDSpace, 2026.
 # This file and mkcurve_directions.json are covered by MPL-2.0.
 # See licenses/MK-Curve-DKI-MPL-2.0.txt. Not an official upstream Python release.
 """Unconstrained author-style WLLS and numerical kurtosis integration."""

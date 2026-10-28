@@ -68,10 +68,10 @@ class SubjectReportingTest(unittest.TestCase):
             self.assertEqual(qc_summary["summary"]["status"], "completed")
             self.assertEqual(qc_summary["qc_files"][0]["status"], "completed")
             report_html = paths.report_html.read_text(encoding="utf-8")
-            self.assertIn("SlicerDDSurfer Report", report_html)
+            self.assertIn("SlicerDSpace Report", report_html)
             self.assertIn("Task Status", report_html)
             self.assertIn("Key Outputs", report_html)
-            self.assertIn("SlicerDDSurfer Run Summary", paths.summary_md.read_text(encoding="utf-8"))
+            self.assertIn("SlicerDSpace Run Summary", paths.summary_md.read_text(encoding="utf-8"))
 
     def test_planned_manifest_reports_planned_overall_status(self) -> None:
         from shared import subject_layout, write_subject_reports

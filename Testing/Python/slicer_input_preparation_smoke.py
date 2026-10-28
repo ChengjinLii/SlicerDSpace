@@ -11,14 +11,14 @@ import numpy as np
 import qt
 import slicer
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
-FIXTURE = Path(os.environ["SLICERDDSURFER_DICOM_FIXTURE"])
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
+FIXTURE = Path(os.environ["SLICERDSPACE_DICOM_FIXTURE"])
 
 
 def run():
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
-        widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        widget = slicer.modules.slicerdspace.widgetRepresentation().self()
         slicer.app.temporaryPath = str(ROOT / "temp")
         slicer.util.infoDisplay = lambda message, *args, **kwargs: print(str(message), flush=True)
         errors = []

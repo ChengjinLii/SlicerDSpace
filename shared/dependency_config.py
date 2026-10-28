@@ -49,7 +49,7 @@ DEPENDENCY_CONFIG_HELP = {
     "python_executable": "Python executable used for Python dependency checks and pip installs.",
     "python_environment": "Conda environment name or Python executable path used for Python dependency checks and pip installs.",
     "conda_executable": "conda or mamba executable used to resolve --python-environment names.",
-    "model_assets_dir": "Directory containing downloaded SlicerDDSurfer model weights and templates.",
+    "model_assets_dir": "Directory containing downloaded SlicerDSpace model weights and templates.",
     "mrtrix_bin_dir": "Directory containing MRtrix3 commands for tractography/connectome routes.",
     "preprocessing_mrtrix_bin_dir": "Directory containing MRtrix3 commands for MRtrix/FSL preprocessing.",
     "preprocessing_fsl_bin_dir": "Directory containing FSL commands for MRtrix/FSL preprocessing.",
@@ -101,7 +101,7 @@ UI_DEPENDENCY_PATHS: tuple[dict[str, str], ...] = (
         "label": "Model assets root",
         "section": "model-assets",
         "mode": "dir",
-        "tooltip": "Optional. Root directory for downloaded SlicerDDSurfer model assets. Defaults to SLICERDDSURFER_MODEL_ASSETS_DIR or a per-user data directory.",
+        "tooltip": "Optional. Root directory for downloaded SlicerDSpace model assets. Defaults to SLICERDSPACE_MODEL_ASSETS_DIR or a per-user data directory.",
     },
     {
         "id": "mrtrix_bin_dir",

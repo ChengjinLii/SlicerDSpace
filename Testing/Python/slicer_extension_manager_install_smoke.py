@@ -12,16 +12,16 @@ import qt
 import slicer
 
 
-TEMP_ROOT = Path(os.environ.get("SLICERDDSURFER_SMOKE_ROOT", "/tmp/slicerdsurfer-extension-manager-install-smoke")) / "extension-manager"
+TEMP_ROOT = Path(os.environ.get("SLICERDSPACE_SMOKE_ROOT", "/tmp/slicerdsurfer-extension-manager-install-smoke")) / "extension-manager"
 
 
 def _run() -> None:
     try:
-        archive_path = Path(os.environ["SLICERDDSURFER_EXTENSION_ARCHIVE"]).expanduser().resolve()
+        archive_path = Path(os.environ["SLICERDSPACE_EXTENSION_ARCHIVE"]).expanduser().resolve()
         shutil.rmtree(TEMP_ROOT, ignore_errors=True)
         TEMP_ROOT.mkdir(parents=True)
         # Load only this stdlib inspector, not scientific modules from the checkout.
-        inspector_path = os.environ.get("SLICERDDSURFER_ARCHIVE_INSPECTOR") or str(
+        inspector_path = os.environ.get("SLICERDSPACE_ARCHIVE_INSPECTOR") or str(
             Path(__file__).resolve().parents[2] / "scripts/extension_runtime/archive_layout.py")
         inspector = runpy.run_path(inspector_path)
         layout = inspector["inspect_archive_layout"](archive_path)
@@ -40,9 +40,9 @@ def _run() -> None:
         manager.setInteractive(False)
         # Switching settings does not invalidate the manager's installed-item cache.
         manager.updateModel()
-        assert not manager.isExtensionInstalled("SlicerDDSurfer"), "Private install root is not empty"
+        assert not manager.isExtensionInstalled("SlicerDSpace"), "Private install root is not empty"
         metadata = {
-            "extensionname": "SlicerDDSurfer",
+            "extensionname": "SlicerDSpace",
             "depends": "SlicerDMRI PyTorch",
             "slicer_revision": str(manager.slicerRevision),
             "os": str(manager.slicerOs),
@@ -50,23 +50,23 @@ def _run() -> None:
         }
         installed = bool(
             manager.installExtension(
-                "SlicerDDSurfer",
+                "SlicerDSpace",
                 metadata,
                 archive_path.as_posix(),
                 False,
                 True,
             )
         )
-        manager_reports_installed = bool(manager.isExtensionInstalled("SlicerDDSurfer"))
-        module_paths = tuple(str(path) for path in manager.extensionModulePaths("SlicerDDSurfer"))
-        module_files = [Path(path) / "SlicerDDSurfer.py" for path in module_paths]
+        manager_reports_installed = bool(manager.isExtensionInstalled("SlicerDSpace"))
+        module_paths = tuple(str(path) for path in manager.extensionModulePaths("SlicerDSpace"))
+        module_files = [Path(path) / "SlicerDSpace.py" for path in module_paths]
         installed_module = next((path for path in module_files if path.is_file()), None)
 
         factory = slicer.app.moduleManager().factoryManager()
         if installed_module:
             factory.registerModule(qt.QFileInfo(installed_module.as_posix()))
-        registered = bool(factory.isRegistered("SlicerDDSurfer"))
-        loaded = bool(registered and factory.loadModules(["SlicerDDSurfer"]))
+        registered = bool(factory.isRegistered("SlicerDSpace"))
+        loaded = bool(registered and factory.loadModules(["SlicerDSpace"]))
         module_available = hasattr(slicer.modules, "slicerddsurfer")
         top_level_python = []
         runtime_resources_ready = False
@@ -97,21 +97,21 @@ def _run() -> None:
             if loaded and installed_imports_ready:
                 # Exercise the official Self Tests registration on the installed package.
                 nodes_before = slicer.mrmlScene.GetNumberOfNodes()
-                slicer.selfTests['SlicerDDSurfer'](msec=0)
+                slicer.selfTests['SlicerDSpace'](msec=0)
                 self_tests_passed = slicer.mrmlScene.GetNumberOfNodes() == nodes_before
 
-        print(f"SLICERDDSURFER_EXTMGR_ARCHIVE_ROOTED={archive_rooted}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_ARCHIVE_CLEAN={archive_clean}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_INSTALL_RETURNED={installed}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_REPORTS_INSTALLED={manager_reports_installed}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_MODULE_PATHS={module_paths}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_MODULE_REGISTERED={registered}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_MODULE_LOADED={loaded}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_MODULE_AVAILABLE={module_available}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_TOP_LEVEL_PY={top_level_python}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_RUNTIME_RESOURCES_READY={runtime_resources_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_INSTALLED_IMPORTS_READY={installed_imports_ready}", flush=True)
-        print(f"SLICERDDSURFER_EXTMGR_SELF_TESTS_PASSED={self_tests_passed}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_ARCHIVE_ROOTED={archive_rooted}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_ARCHIVE_CLEAN={archive_clean}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_INSTALL_RETURNED={installed}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_REPORTS_INSTALLED={manager_reports_installed}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_MODULE_PATHS={module_paths}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_MODULE_REGISTERED={registered}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_MODULE_LOADED={loaded}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_MODULE_AVAILABLE={module_available}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_TOP_LEVEL_PY={top_level_python}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_RUNTIME_RESOURCES_READY={runtime_resources_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_INSTALLED_IMPORTS_READY={installed_imports_ready}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_SELF_TESTS_PASSED={self_tests_passed}", flush=True)
         ready = (
             archive_rooted
             and archive_clean
@@ -121,7 +121,7 @@ def _run() -> None:
             and registered
             and loaded
             and module_available
-            and top_level_python == ["SlicerDDSurfer.py"]
+            and top_level_python == ["SlicerDSpace.py"]
             and runtime_resources_ready
             and installed_imports_ready
             and self_tests_passed
@@ -137,7 +137,7 @@ def _run() -> None:
         }, indent=2) + '\n')
         slicer.app.exit(0 if ready else 2)
     except Exception as exc:
-        print(f"SLICERDDSURFER_EXTMGR_ERROR={exc}", flush=True)
+        print(f"SLICERDSPACE_EXTMGR_ERROR={exc}", flush=True)
         slicer.app.exit(2)
 
 

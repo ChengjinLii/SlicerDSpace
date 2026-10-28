@@ -1,6 +1,6 @@
 <div align="center">
 
-# SlicerDDSurfer Release and Archive Checklist
+# SlicerDSpace Release and Archive Checklist
 
 [Project](../../README.md) | [Documentation](../README.md) | [Quick Start](../setup/QUICKSTART.md) | [Release](../release/EXTENSION_READINESS.md) | [中文索引](../README.zh-CN.md)
 
@@ -24,7 +24,7 @@ The [download guide](../setup/DOWNLOADS.md) distinguishes validated CPack
 packages, local staging packages and optional lightweight source checkouts.
 Do not label GitHub's automatic source archive as an installable extension.
 
-SlicerDDSurfer release artifacts are split into three classes:
+SlicerDSpace release artifacts are split into three classes:
 
 1. Source code and documentation in this repository.
 2. Manifest-managed model weights and templates in the independent
@@ -34,7 +34,7 @@ SlicerDDSurfer release artifacts are split into three classes:
    SlicerDMRI, MRtrix3, FSL, FreeSurfer-compatible tools, WMA, TractQuerier,
    and TractCloud.
 
-The top-level BSD-3-Clause license applies to SlicerDDSurfer source code unless
+The top-level BSD-3-Clause license applies to SlicerDSpace source code unless
 a file or bundled third-party component states different terms. It does not
 grant redistribution rights for external tools, model weights, templates, or
 subject-derived data whose terms must be reviewed separately.
@@ -56,8 +56,8 @@ python3 scripts/release_audit.py
 python3 scripts/download_model_assets.py --profile core --asset-root /path/to/model-assets --verify-only
 python3 scripts/download_model_assets.py --profile all --asset-root /path/to/model-assets --verify-only
 SMOKE_ASSET_MODE=download scripts/smoke_fresh_clone.sh
-SLICERDDSURFER_RELEASE_SUBJECT_ROOT=/path/to/subject-root \
-  SLICERDDSURFER_RELEASE_ARGS="--skip-slicer-smoke --warn-only --asset-mirror-dir /path/to/core-mirror --all-asset-mirror-dir /path/to/all-mirror" \
+SLICERDSPACE_RELEASE_SUBJECT_ROOT=/path/to/subject-root \
+  SLICERDSPACE_RELEASE_ARGS="--skip-slicer-smoke --warn-only --asset-mirror-dir /path/to/core-mirror --all-asset-mirror-dir /path/to/all-mirror" \
   make release-plan
 ```
 
@@ -74,16 +74,16 @@ release.
 If Slicer is available, also run:
 
 ```bash
-SLICERDDSURFER_SLICER_LAUNCHER=/path/to/Slicer \
-SLICERDDSURFER_XVFB_RUN=/path/to/xvfb-run \
+SLICERDSPACE_SLICER_LAUNCHER=/path/to/Slicer \
+SLICERDSPACE_XVFB_RUN=/path/to/xvfb-run \
   make test-slicer
 ```
 
 On a workstation or VNC session that already has a display server, use:
 
 ```bash
-SLICERDDSURFER_SLICER_LAUNCHER=/path/to/Slicer \
-SLICERDDSURFER_USE_EXISTING_DISPLAY=1 \
+SLICERDSPACE_SLICER_LAUNCHER=/path/to/Slicer \
+SLICERDSPACE_USE_EXISTING_DISPLAY=1 \
   make test-slicer
 ```
 
@@ -105,7 +105,7 @@ protection, run:
 ```bash
 GITHUB_TOKEN=<token> \
   python3 scripts/check_github_ci_status.py \
-  --repository ChengjinLii/SlicerDDSurfer \
+  --repository ChengjinLii/SlicerDSpace \
   --ref $(git rev-parse HEAD) \
   --branch main
 ```
@@ -148,7 +148,7 @@ Use a semantic or manuscript-linked tag after the code, documentation, and
 validation route are frozen:
 
 ```bash
-git tag -a vX.Y.Z -m "SlicerDDSurfer vX.Y.Z"
+git tag -a vX.Y.Z -m "SlicerDSpace vX.Y.Z"
 git push origin vX.Y.Z
 ```
 

@@ -13,11 +13,11 @@ def main():
     from shared.module_logic import SharedLogicMixin
     import trimesh
     root = Path(os.environ['DDSURFER_SYNC_VALIDATION_ROOT'])
-    assets = Path(os.environ['SLICERDDSURFER_MODEL_ASSETS_DIR'])
+    assets = Path(os.environ['SLICERDSPACE_MODEL_ASSETS_DIR'])
     resources = inspect_surface_resources(SurfaceConfig('100307', root, root, model_assets_dir=assets))
     if not resources['available']:
         raise ValueError(resources['missing'])
-    native = root / 'raw/pred_results_SlicerDDSurfer/native/100307'
+    native = root / 'raw/pred_results_SlicerDSpace/native/100307'
     bounds = {}
     logic = SharedLogicMixin()
     for hemi in ('lh', 'rh'):
@@ -34,7 +34,7 @@ def main():
                 if error > 0.001:
                     raise ValueError(f'RAS/LPS loading error: {path}: {error} mm')
                 bounds[path.name] = dict(max_bounds_error_mm=error, points=node.GetPolyData().GetNumberOfPoints())
-    report = dict(passed=True, upstream_commit=resources['upstream_commit'], module_available=bool(slicer.modules.slicerddsurfer), loaded=bounds)
+    report = dict(passed=True, upstream_commit=resources['upstream_commit'], module_available=bool(slicer.modules.slicerdspace), loaded=bounds)
     (root / 'slicer_scene_smoke.json').write_text(json.dumps(report, indent=2) + '\n')
 
 

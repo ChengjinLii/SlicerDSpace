@@ -31,7 +31,7 @@
 <!-- cli-setup: bash -->
 ```bash
 export SLICER="/path/to/Slicer"
-export REPO="/path/to/SlicerDDSurfer"
+export REPO="/path/to/SlicerDSpace"
 export SUBJECT="/path/to/prepared/sub-01"
 export SUBJECT_ID="sub-01"
 export OUTPUTS="/path/to/analysis/sub-01"
@@ -480,7 +480,7 @@ PNL、MRtrix/FSL、SAF 和原生表面后处理需先核对平台支持。
 <!-- cli-setup: powershell -->
 ```powershell
 $Slicer = 'C:\Apps\Slicer\Slicer.exe'
-$Repo = 'C:\work\SlicerDDSurfer'
+$Repo = 'C:\work\SlicerDSpace'
 $Subject = 'D:\study\sub-01'
 $SubjectId = 'sub-01'
 $Outputs = 'D:\analysis\sub-01'
@@ -495,7 +495,7 @@ function Invoke-DDSurfer {
         --subject-root $Subject --subject-id $SubjectId `
         --output-root (Join-Path $Outputs $Run) --run-name $Run `
         --model-assets-dir $Assets @DependencyArgs @RouteArgs
-    if ($LASTEXITCODE -ne 0) { throw "SlicerDDSurfer exited with $LASTEXITCODE" }
+    if ($LASTEXITCODE -ne 0) { throw "SlicerDSpace exited with $LASTEXITCODE" }
 }
 
 Invoke-DDSurfer -Run 'dti_light' -RouteArgs @(

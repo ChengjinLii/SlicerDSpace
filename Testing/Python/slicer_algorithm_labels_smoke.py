@@ -10,12 +10,12 @@ import slicer
 
 
 def run():
-    output = Path(os.environ.get("SLICERDDSURFER_UI_EVIDENCE") or os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+    output = Path(os.environ.get("SLICERDSPACE_UI_EVIDENCE") or os.environ["SLICERDSPACE_SMOKE_ROOT"])
     output.mkdir(parents=True, exist_ok=True)
     checks = []
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
-        widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        widget = slicer.modules.slicerdspace.widgetRepresentation().self()
         node = widget._parameterNode
         ui = widget.ui
         language = widget._onboardingWidgets["language_combo"]

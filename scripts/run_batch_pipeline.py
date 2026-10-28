@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Batch runner for SlicerDDSurfer subject-root workflows."""
+"""Batch runner for SlicerDSpace subject-root workflows."""
 
 from __future__ import annotations
 
@@ -207,7 +207,7 @@ def _write_manifest(path: Path, payload: dict[str, object]) -> Path:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Run SlicerDDSurfer over a directory of subject roots. Unknown options are forwarded "
+            "Run SlicerDSpace over a directory of subject roots. Unknown options are forwarded "
             "unchanged to every subject CLI, for example --all, --targets, --brain-mask-backend, "
             "--pnl-mask-python, --pnl-mask-script, --pnl-mask-model-dir, --pnl-mask-ants-bin-dir, "
             "--postprocess-freesurfer-home, or other external paths."

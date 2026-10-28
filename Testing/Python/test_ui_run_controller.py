@@ -96,7 +96,7 @@ class UIRunControllerTest(unittest.TestCase):
                 "Surface / DDSurfer native STL",
                 "Surface postprocess",
                 "Parcellation / DDParcel",
-                "Bundles",
+                "Fiber bundles",
             ],
         )
         self.assertEqual(

@@ -1,4 +1,4 @@
-"""Tractography workflow package for SlicerDDSurfer."""
+"""Tractography workflow package for SlicerDSpace."""
 
 from __future__ import annotations
 

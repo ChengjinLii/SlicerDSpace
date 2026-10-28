@@ -11,7 +11,7 @@ import slicer
 
 MANIFEST_PATH = Path(
     os.environ.get(
-        "SLICERDDSURFER_OUTPUT_TREE_MANIFEST",
+        "SLICERDSPACE_OUTPUT_TREE_MANIFEST",
         "/data/chengjin/SlicerDDSurfer-test/100307-release-candidate/outputs/00_run_metadata/rc_csd_act_orchestration_manifest.json",
     )
 )
@@ -19,18 +19,18 @@ MANIFEST_PATH = Path(
 
 def _module_widget():
     try:
-        return slicer.util.getModuleWidget("SlicerDDSurfer")
+        return slicer.util.getModuleWidget("SlicerDSpace")
     except Exception:
-        module = slicer.util.getModule("SlicerDDSurfer")
+        module = slicer.util.getModule("SlicerDSpace")
         return module.widgetRepresentation().self()
 
 
 def _run() -> None:
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
+        slicer.util.selectModule("SlicerDSpace")
         widget = _module_widget()
         if not MANIFEST_PATH.is_file():
-            print(f"SLICERDDSURFER_OUTPUT_TREE_ERROR=missing manifest: {MANIFEST_PATH}", flush=True)
+            print(f"SLICERDSPACE_OUTPUT_TREE_ERROR=missing manifest: {MANIFEST_PATH}", flush=True)
             slicer.app.exit(2)
             return
 
@@ -41,11 +41,11 @@ def _run() -> None:
             widget._load_background_manifest_result(MANIFEST_PATH)
             button = getattr(widget, "_runOutputTreeButton", None)
             path = getattr(widget, "_latestOutputTreePath", None)
-            print(f"SLICERDDSURFER_OUTPUT_TREE_BUTTON_ENABLED={bool(button and button.enabled)}", flush=True)
-            print(f"SLICERDDSURFER_OUTPUT_TREE_PATH={path}", flush=True)
+            print(f"SLICERDSPACE_OUTPUT_TREE_BUTTON_ENABLED={bool(button and button.enabled)}", flush=True)
+            print(f"SLICERDSPACE_OUTPUT_TREE_PATH={path}", flush=True)
             if button and button.enabled:
                 button.click()
-            print(f"SLICERDDSURFER_OUTPUT_TREE_OPENED_URLS={opened_urls}", flush=True)
+            print(f"SLICERDSPACE_OUTPUT_TREE_OPENED_URLS={opened_urls}", flush=True)
             ok = bool(
                 button
                 and button.enabled
@@ -57,7 +57,7 @@ def _run() -> None:
         finally:
             qt.QDesktopServices.openUrl = original_open
     except Exception as exc:
-        print(f"SLICERDDSURFER_OUTPUT_TREE_ERROR={exc}", flush=True)
+        print(f"SLICERDSPACE_OUTPUT_TREE_ERROR={exc}", flush=True)
         slicer.app.exit(2)
         return
     slicer.app.exit(0 if ok else 2)

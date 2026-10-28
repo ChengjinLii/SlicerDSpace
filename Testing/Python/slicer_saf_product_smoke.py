@@ -14,10 +14,10 @@ from vtk.util.numpy_support import vtk_to_numpy
 
 
 def run():
-    report = Path(os.environ.get('SLICERDDSURFER_SAF_VALIDATION_REPORT',
-                                str(Path(os.environ.get('SLICERDDSURFER_SMOKE_ROOT', '.')) / 'saf_product.json')))
+    report = Path(os.environ.get('SLICERDSPACE_SAF_VALIDATION_REPORT',
+                                str(Path(os.environ.get('SLICERDSPACE_SMOKE_ROOT', '.')) / 'saf_product.json')))
     try:
-        module_dir = Path(os.environ.get('SLICERDDSURFER_EXTENSION_MODULE_DIR') or os.environ['SLICERDDSURFER_STAGED_MODULE_DIR'])
+        module_dir = Path(os.environ.get('SLICERDSPACE_EXTENSION_MODULE_DIR') or os.environ['SLICERDSPACE_STAGED_MODULE_DIR'])
         sys.path.insert(0, str(module_dir))
         from tractography.saf_backend.provenance import IMPLEMENTATION_REVISION
         from tractography.saf_backend.Filters.streamlineXmesh.endpoint_vertices import closest_endpoint_vertices
@@ -30,7 +30,7 @@ def run():
                   np.array([[10., 1., .1], [11., .02, .1]])]
         paired = closest_endpoint_vertices(vertices, faces, tracks, np.array([[np.nan, 1], [0, 1]]))
         assert np.array_equal(paired, [[0, 6], [2, 5]])
-        directory = Path(os.environ['SLICERDDSURFER_SAF_VALIDATION_DIR'])
+        directory = Path(os.environ['SLICERDSPACE_SAF_VALIDATION_DIR'])
         source = directory / 'SAF.vtk'
         qc = json.loads((directory / 'saf_qc.json').read_text())
         reader = vtk.vtkPolyDataReader()

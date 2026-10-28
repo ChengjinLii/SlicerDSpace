@@ -56,7 +56,7 @@ The framework is run as a MATLAB script and it is designed to make use of parall
 
 ## Examples
 
-Bare minimum run, assumes structural and diffusion data are co-registered:
+Bare minimum run, assumes structural and dMRI data are co-registered:
 ```
 fs_dir = 'path/to/subjects/FreeSurfer/folder';
 fod = 'path/to/subjects/fod/file';

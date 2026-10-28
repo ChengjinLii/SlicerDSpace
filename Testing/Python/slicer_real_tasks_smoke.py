@@ -14,8 +14,8 @@ import traceback
 import qt
 import slicer
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
-CONFIG = json.loads(Path(os.environ["SLICERDDSURFER_TASKS_CONFIG"]).read_text())
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
+CONFIG = json.loads(Path(os.environ["SLICERDSPACE_TASKS_CONFIG"]).read_text())
 RESULT = {"kind": "real_slicer_tasks", "cases": [], "human_anatomical_review": "pending"}
 STATE = {"index": 0}
 TARGETS = {
@@ -142,8 +142,8 @@ def poll():
 
 def start():
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
-        widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        widget = slicer.modules.slicerdspace.widgetRepresentation().self()
         STATE["widget"] = widget
         original_log = widget.appendLog
         def log(message):

@@ -16,7 +16,7 @@ runs; it does not assert author endorsement or clinical validation.
 
 ## Implementation Map
 
-| Component | Original implementation | SlicerDDSurfer execution | Correct description |
+| Component | Original implementation | SlicerDSpace execution | Correct description |
 | --- | --- | --- | --- |
 | DDSeg | [Author MATLAB pipeline and trained U-Nets](https://github.com/zhangfanmark/DDSeg) | `anatomy/segmentation/`: Python preprocessing/inference and converted PyTorch/TorchScript networks | **MATLAB-to-Python/PyTorch reimplementation**, not a newly trained tissue model |
 | SAF | [Author MATLAB framework](https://github.com/dmitrishastin/SAF/tree/7e2a9d152caf1cf3e6bface64e7e176faac0c14f) | `tractography/saf_backend/`: NumPy/SciPy/scikit-learn, NiBabel and external MRtrix | **Unofficial Python port**, restricted to already co-registered native diffusion surfaces, with documented corrections |

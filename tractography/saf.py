@@ -1,7 +1,7 @@
 """SAF short association fibre workflow facade.
 
 The implementation keeps the translated SAF algorithm bundled under
-``tractography/saf_backend`` and exposes a SlicerDDSurfer-style wrapper with
+``tractography/saf_backend`` and exposes a SlicerDSpace-style wrapper with
 input validation, backend checks, manifest/QC output, and explicit execution.
 """
 
@@ -121,7 +121,7 @@ def _file_info(path: Optional[Path]) -> dict[str, object]:
 def _configured_mrtrix_bin_dir(mrtrix_bin_dir: Optional[Path] = None) -> Optional[Path]:
     if mrtrix_bin_dir is not None:
         return mrtrix_bin_dir.expanduser().resolve()
-    env_value = os.environ.get("SLICERDDSURFER_MRTRIX_BIN") or os.environ.get("MRTRIX_BIN")
+    env_value = os.environ.get("SLICERDSPACE_MRTRIX_BIN") or os.environ.get("MRTRIX_BIN")
     if env_value:
         return Path(env_value).expanduser().resolve()
     return None

@@ -64,7 +64,7 @@ PNL 模型/模板、TractCloud 推理参考、SynthStrip 权重和 WMA ORG 图�
 
 已有软件、离线部署或集群管理员管理的环境仍可在高级路径设置中配置。
 自动安装是明确发起的操作，不会在科学分析过程中静默替换已有环境。
-默认环境目录位于模型资源旁的 `SlicerDDSurfer/runtimes`。
+默认环境目录位于模型资源旁的 `SlicerDSpace/runtimes`。
 
 ---
 
@@ -105,6 +105,6 @@ CUDA wheel 的库和工具仅对该 Python 子进程可见，不修改全局 PAT
 `scripts/setup_managed_runtime.py` 默认只生成计划；`--execute` 才执行安装，
 FSL 另需 `--accept-fsl-license`，PNL 另需 `--accept-pnl-terms`，
 `--repair` 显式重装所选受管环境。
-`--root` 或 `SLICERDDSURFER_RUNTIME_ROOT` 用于隔离测试。
+`--root` 或 `SLICERDSPACE_RUNTIME_ROOT` 用于隔离测试。
 后台 worker 成功后返回经过校验的设置，GUI 再保存路径。
 不修改用户 shell、GPU 驱动或非插件管理的 Conda 目录。

@@ -69,7 +69,7 @@ class WslPreprocessingBridgeTest(unittest.TestCase):
     def bridge(self, name, argument, distro="Ubuntu"):
         path = self.root / name
         path.write_bytes(b"MZ fixture, never executed")
-        Path(str(path) + ".slicerdsurfer-owner").write_text("SlicerDDSurfer WSL bridge v1")
+        Path(str(path) + ".slicerdsurfer-owner").write_text("SlicerDSpace WSL bridge v1")
         Path(str(path) + ".conf").write_text(
             f"distribution={distro}\ntarget=/home/user/bin/run-in-runtime\narg={argument}\n", encoding="utf-8-sig")
         return path

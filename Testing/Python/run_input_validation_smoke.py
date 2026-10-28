@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the shared SlicerDDSurfer input validation/QC layer on a subject root."""
+"""Run the shared SlicerDSpace input validation/QC layer on a subject root."""
 
 from __future__ import annotations
 

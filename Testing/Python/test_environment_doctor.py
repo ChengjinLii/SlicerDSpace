@@ -207,8 +207,8 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             tmp_path = Path(tmp).resolve()
             user_bin = self._make_mrtrix_bin(tmp_path / "user")
             env_bin = self._make_mrtrix_bin(tmp_path / "env")
-            old_env = os.environ.get("SLICERDDSURFER_MRTRIX_BIN_DIR")
-            os.environ["SLICERDDSURFER_MRTRIX_BIN_DIR"] = env_bin.as_posix()
+            old_env = os.environ.get("SLICERDSPACE_MRTRIX_BIN_DIR")
+            os.environ["SLICERDSPACE_MRTRIX_BIN_DIR"] = env_bin.as_posix()
             try:
                 result = run_environment_doctor(
                     EnvironmentDoctorConfig(
@@ -220,9 +220,9 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
                 )
             finally:
                 if old_env is None:
-                    os.environ.pop("SLICERDDSURFER_MRTRIX_BIN_DIR", None)
+                    os.environ.pop("SLICERDSPACE_MRTRIX_BIN_DIR", None)
                 else:
-                    os.environ["SLICERDDSURFER_MRTRIX_BIN_DIR"] = old_env
+                    os.environ["SLICERDSPACE_MRTRIX_BIN_DIR"] = old_env
 
             mrconvert = next(item for item in result.statuses if item.key == "command:mrconvert")
             self.assertEqual(mrconvert.status, "available")
@@ -329,8 +329,8 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
     def test_environment_path_source_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_bin = self._make_mrtrix_bin(Path(tmp))
-            old_env = os.environ.get("SLICERDDSURFER_MRTRIX_BIN_DIR")
-            os.environ["SLICERDDSURFER_MRTRIX_BIN_DIR"] = env_bin.as_posix()
+            old_env = os.environ.get("SLICERDSPACE_MRTRIX_BIN_DIR")
+            os.environ["SLICERDSPACE_MRTRIX_BIN_DIR"] = env_bin.as_posix()
             try:
                 result = run_environment_doctor(
                     EnvironmentDoctorConfig(
@@ -341,20 +341,20 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
                 )
             finally:
                 if old_env is None:
-                    os.environ.pop("SLICERDDSURFER_MRTRIX_BIN_DIR", None)
+                    os.environ.pop("SLICERDSPACE_MRTRIX_BIN_DIR", None)
                 else:
-                    os.environ["SLICERDDSURFER_MRTRIX_BIN_DIR"] = old_env
+                    os.environ["SLICERDSPACE_MRTRIX_BIN_DIR"] = old_env
 
             mrconvert = next(item for item in result.statuses if item.key == "command:mrconvert")
             self.assertEqual(mrconvert.status, "available")
-            self.assertEqual(mrconvert.details["detected_source"], "env:SLICERDDSURFER_MRTRIX_BIN_DIR")
+            self.assertEqual(mrconvert.details["detected_source"], "env:SLICERDSPACE_MRTRIX_BIN_DIR")
 
     def test_path_source_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path_bin = self._make_mrtrix_bin(Path(tmp))
             old_path = os.environ.get("PATH", "")
-            old_env = os.environ.get("SLICERDDSURFER_MRTRIX_BIN_DIR")
-            os.environ.pop("SLICERDDSURFER_MRTRIX_BIN_DIR", None)
+            old_env = os.environ.get("SLICERDSPACE_MRTRIX_BIN_DIR")
+            os.environ.pop("SLICERDSPACE_MRTRIX_BIN_DIR", None)
             os.environ["PATH"] = path_bin.as_posix() + os.pathsep + old_path
             try:
                 result = run_environment_doctor(
@@ -367,7 +367,7 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             finally:
                 os.environ["PATH"] = old_path
                 if old_env is not None:
-                    os.environ["SLICERDDSURFER_MRTRIX_BIN_DIR"] = old_env
+                    os.environ["SLICERDSPACE_MRTRIX_BIN_DIR"] = old_env
 
             mrconvert = next(item for item in result.statuses if item.key == "command:mrconvert")
             self.assertEqual(mrconvert.status, "available")
@@ -524,11 +524,11 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
             old_home = os.environ.get("HOME")
             old_user = os.environ.get("USER")
             old_fs_home = os.environ.get("FREESURFER_HOME")
-            old_slicer_fs_home = os.environ.get("SLICERDDSURFER_FREESURFER_HOME")
+            old_slicer_fs_home = os.environ.get("SLICERDSPACE_FREESURFER_HOME")
             os.environ["HOME"] = tmp_path.as_posix()
             os.environ["USER"] = "slicerddsurfer-test-user"
             os.environ.pop("FREESURFER_HOME", None)
-            os.environ.pop("SLICERDDSURFER_FREESURFER_HOME", None)
+            os.environ.pop("SLICERDSPACE_FREESURFER_HOME", None)
             try:
                 # Verify local discovery independently of /opt or PATH on this host.
                 self.assertIn(freesurfer_home, _common_freesurfer_homes())
@@ -557,9 +557,9 @@ class EnvironmentDoctorDiscoveryTest(unittest.TestCase):
                 else:
                     os.environ["FREESURFER_HOME"] = old_fs_home
                 if old_slicer_fs_home is None:
-                    os.environ.pop("SLICERDDSURFER_FREESURFER_HOME", None)
+                    os.environ.pop("SLICERDSPACE_FREESURFER_HOME", None)
                 else:
-                    os.environ["SLICERDDSURFER_FREESURFER_HOME"] = old_slicer_fs_home
+                    os.environ["SLICERDSPACE_FREESURFER_HOME"] = old_slicer_fs_home
 
             freesurfer_env = next(item for item in result.statuses if item.key == "env:freesurfer_home")
             surface_mapping = next(item for item in result.statuses if item.key == "command:mri_surf2surf")

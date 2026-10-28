@@ -93,7 +93,7 @@ def summarize(campaign, roi, concurrency, output):
         completed_variants=[],roi_evidence=regions,concurrency_evidence=overlap,evidence=evidence,
         limitations=['ROI measurements are never extrapolated to full brain',
                      'Concurrent scheduling is not an original-algorithm speedup',
-                     'No whole SlicerDDSurfer matched end-to-end pair completed by this summary',
+                     'No whole SlicerDSpace matched end-to-end pair completed by this summary',
                      'Shared Linux host; single complete-model pair, no confidence interval',
                      'Scientific validity/excluded voxels and human anatomical review remain separate'])
     if current:

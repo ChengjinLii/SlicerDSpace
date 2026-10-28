@@ -60,8 +60,8 @@ function(slicerdsurfer_runtime_resources source_root output_variable)
 endfunction()
 
 # Standalone export is useful without an installed Slicer SDK.
-if(DEFINED SLICERDDSURFER_RESOURCE_ROOT AND DEFINED SLICERDDSURFER_RESOURCE_OUTPUT)
-  slicerdsurfer_runtime_resources("${SLICERDDSURFER_RESOURCE_ROOT}" files)
+if(DEFINED SLICERDSPACE_RESOURCE_ROOT AND DEFINED SLICERDSPACE_RESOURCE_OUTPUT)
+  slicerdsurfer_runtime_resources("${SLICERDSPACE_RESOURCE_ROOT}" files)
   string(REPLACE ";" "\n" files "${files}")
-  file(WRITE "${SLICERDDSURFER_RESOURCE_OUTPUT}" "${files}\n")
+  file(WRITE "${SLICERDSPACE_RESOURCE_OUTPUT}" "${files}\n")
 endif()

@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 
-namespace SlicerDDSurfer.WslBridge
+namespace SlicerDSpace.WslBridge
 {
     internal sealed class BridgeConfig
     {
@@ -282,7 +282,7 @@ namespace SlicerDDSurfer.WslBridge
             }
             catch (Exception error)
             {
-                Console.Error.WriteLine("SlicerDDSurfer WSL bridge failed: " + error.Message);
+                Console.Error.WriteLine("SlicerDSpace WSL bridge failed: " + error.Message);
                 return 125;
             }
             finally

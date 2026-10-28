@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Normalize one subject output tree into the canonical SlicerDDSurfer layout."""
+"""Normalize one subject output tree into the canonical SlicerDSpace layout."""
 
 from __future__ import annotations
 

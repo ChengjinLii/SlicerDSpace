@@ -1,4 +1,4 @@
-"""Qt helpers for the SlicerDDSurfer run-status panel."""
+"""Qt helpers for the SlicerDSpace run-status panel."""
 
 from __future__ import annotations
 

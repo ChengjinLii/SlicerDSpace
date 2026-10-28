@@ -65,7 +65,7 @@ def ensure_vtk_tractogram(source, target):
         staged = Path(temporary) / target.name
         writer = vtk.vtkPolyDataWriter()
         writer.SetFileName(str(staged))
-        writer.SetHeader('SlicerDDSurfer geometric conversion. SPACE=RAS')
+        writer.SetHeader('SlicerDSpace geometric conversion. SPACE=RAS')
         writer.SetInputData(poly)
         writer.SetFileTypeToBinary()
         if writer.Write() != 1 or polydata_streamline_count(staged) != len(tracks):

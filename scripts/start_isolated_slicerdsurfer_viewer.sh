@@ -66,17 +66,17 @@ def open_module():
             "\n".join(sorted(names)),
             encoding="utf-8",
         )
-        if "SlicerDDSurfer" in names:
-            slicer.util.selectModule("SlicerDDSurfer")
+        if "SlicerDSpace" in names:
+            slicer.util.selectModule("SlicerDSpace")
             slicer.app.processEvents()
-            READY.write_text("SLICERDDSURFER_GUI_READY=1\n", encoding="utf-8")
+            READY.write_text("SLICERDSPACE_GUI_READY=1\n", encoding="utf-8")
             return
     except Exception as exc:
         Path("/tmp/slicerdsurfer_iso_error.txt").write_text(str(exc), encoding="utf-8")
     if state["n"] < 40:
         qt.QTimer.singleShot(1000, open_module)
     else:
-        READY.write_text("SLICERDDSURFER_GUI_TIMEOUT=1\n", encoding="utf-8")
+        READY.write_text("SLICERDSPACE_GUI_TIMEOUT=1\n", encoding="utf-8")
 
 
 qt.QTimer.singleShot(4000, open_module)
@@ -103,7 +103,7 @@ LD_LIBRARY_PATH=/opt/pcre2 \
   /opt/Slicer-5.10.0-linux-amd64/Slicer \
   --no-splash \
   --disable-cli-modules \
-  --additional-module-path /work/install/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules \
+  --additional-module-path /work/install/SlicerDSpace/lib/Slicer-5.10/qt-scripted-modules \
   --python-script /work/select/slicerdsurfer_select_iso.py \
   >/tmp/slicerdsurfer_iso.log 2>&1 &
 wait -n
@@ -134,15 +134,15 @@ done
 
 if [[ -d "${HOST_TRACT_QUERIER_ROOT}" ]]; then
   DOCKER_MOUNTS+=(-v "${HOST_TRACT_QUERIER_ROOT}:${HOST_TRACT_QUERIER_ROOT}:ro")
-  DOCKER_ENVS+=(-e "SLICERDDSURFER_TRACT_QUERIER_ROOT=${HOST_TRACT_QUERIER_ROOT}")
+  DOCKER_ENVS+=(-e "SLICERDSPACE_TRACT_QUERIER_ROOT=${HOST_TRACT_QUERIER_ROOT}")
 fi
 if [[ -d "${HOST_WMA_ROOT}" ]]; then
   DOCKER_MOUNTS+=(-v "${HOST_WMA_ROOT}:${HOST_WMA_ROOT}:ro")
-  DOCKER_ENVS+=(-e "SLICERDDSURFER_WMA_ROOT=${HOST_WMA_ROOT}")
+  DOCKER_ENVS+=(-e "SLICERDSPACE_WMA_ROOT=${HOST_WMA_ROOT}")
 fi
 if [[ -d "${HOST_TRACTCLOUD_ROOT}" ]]; then
   DOCKER_MOUNTS+=(-v "${HOST_TRACTCLOUD_ROOT}:${HOST_TRACTCLOUD_ROOT}:ro")
-  DOCKER_ENVS+=(-e "SLICERDDSURFER_TRACTCLOUD_ROOT=${HOST_TRACTCLOUD_ROOT}")
+  DOCKER_ENVS+=(-e "SLICERDSPACE_TRACTCLOUD_ROOT=${HOST_TRACTCLOUD_ROOT}")
 fi
 
 docker run -d \
@@ -164,26 +164,26 @@ while (( SECONDS < deadline )); do
     exit 3
   fi
   READY_STATE=$(docker exec "${CONTAINER_NAME}" bash -lc 'cat /tmp/slicerdsurfer_iso_ready.txt 2>/dev/null || true')
-  if [[ "${READY_STATE}" == "SLICERDDSURFER_GUI_READY=1" ]]; then
+  if [[ "${READY_STATE}" == "SLICERDSPACE_GUI_READY=1" ]]; then
     break
   fi
   sleep "${POLL_INTERVAL_SECONDS}"
 done
 
-if [[ "${READY_STATE}" != "SLICERDDSURFER_GUI_READY=1" ]]; then
-  echo "SlicerDDSurfer did not report ready. Current state: ${READY_STATE:-<empty>}" >&2
+if [[ "${READY_STATE}" != "SLICERDSPACE_GUI_READY=1" ]]; then
+  echo "SlicerDSpace did not report ready. Current state: ${READY_STATE:-<empty>}" >&2
   docker exec "${CONTAINER_NAME}" bash -lc '
     echo ---error---;
     cat /tmp/slicerdsurfer_iso_error.txt 2>/dev/null || true;
     echo ---names---;
-    grep -n "^SlicerDDSurfer$" /tmp/slicerdsurfer_iso_names.txt 2>/dev/null || true;
+    grep -n "^SlicerDSpace$" /tmp/slicerdsurfer_iso_names.txt 2>/dev/null || true;
     echo ---tail---;
     tail -n 120 /tmp/slicerdsurfer_iso.log 2>/dev/null || true
   ' || true
   exit 4
 fi
 
-echo "SLICERDDSURFER_GUI_READY=1"
+echo "SLICERDSPACE_GUI_READY=1"
 echo "Container: ${CONTAINER_NAME}"
 echo "Mounted software roots: ${SOFTWARE_ROOTS}"
 if [[ -d "${HOST_TRACT_QUERIER_ROOT}" ]]; then

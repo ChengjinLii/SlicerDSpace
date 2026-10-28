@@ -1,7 +1,7 @@
 # Adapted from WMA FiberArray.convert_from_polydata and _calculate_line_indices.
 # Copyright (c) 2009-2011, Brigham and Women's Hospital. All rights reserved.
 # Copyright (c) 2009-2011, The Slicer Community. All rights reserved.
-# Modified for SlicerDDSurfer, 2026: bounded bulk copying, same sampled points.
+# Modified for SlicerDSpace, 2026: bounded bulk copying, same sampled points.
 # See licenses/WMA.txt for the complete upstream agreement.
 """Preserve author nearest-neighbor parameterization, without point-call loops."""
 

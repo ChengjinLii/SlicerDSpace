@@ -15,12 +15,12 @@
 The default tractography route remains **MRtrix CSD/ACT/SIFT2**. To use UKF,
 install **UKFTractography** and **SlicerDMRI** through Extension Manager,
 restart Slicer, and click **...** beside Tractography to choose **UKF**.
-Click **...** beside Bundles to choose **WMA** for automatic
+Click **...** beside Fiber bundles to choose **WMA** for automatic
 UKF → WMA processing. The ORG atlas and WMA runtime remain separate dependencies.
 UKF parameters are under **Advanced settings > Model parameters**. If other
 tracking methods are selected too, each produces a separate run variant.
 
-SlicerDDSurfer invokes the installed author CLI; it does not vendor or rewrite
+SlicerDSpace invokes the installed author CLI; it does not vendor or rewrite
 UKF. Missing dependencies block that route, without silently changing algorithms.
 An existing tractogram can still be selected as an optional Advanced WMA input.
 UKF itself does not require DDSeg, DDParcel or a cortical surface; WMQL and
@@ -106,10 +106,10 @@ python scripts/run_subject_pipeline.py \
 ```
 
 Usual WMA atlas/runtime arguments still apply. Headless environments can provide
-`--ukf-executable /path/to/UKFTractography` or `SLICERDDSURFER_UKF_EXECUTABLE`.
+`--ukf-executable /path/to/UKFTractography` or `SLICERDSPACE_UKF_EXECUTABLE`.
 The GUI resolves the installed extension automatically and forwards its path.
 `DWIConvert` is discovered from Slicer; fully standalone environments can set
-`SLICERDDSURFER_DWICONVERT_EXECUTABLE`. Optional overrides use, for example,
+`SLICERDSPACE_DWICONVERT_EXECUTABLE`. Optional overrides use, for example,
 `--ukf-parameters '{"seedsPerVoxel":2,"numThreads":8}'` and are recorded verbatim
 alongside resolved defaults. No extra training or copying UKF source is required.
 
@@ -129,5 +129,5 @@ Isolated Slicer 5.10 GUI and compact-layout checks passed. An actual author-sour
 UKF binary, supplied explicitly, processed a synthetic floating-point tensor
 field with otherwise-default settings and two CPU threads: 1,728 streamlines,
 100% mask overlap, requested FA/tensor arrays, complete VTK/TRK coordinate
-verification and native SlicerDMRI loading. This is not a human-anatomy/WMA
+verification and native SlicerDMRI loading. This is not a human-anatomical priors/WMA
 acceptance test, a new marketplace installation test, or a cross-platform claim.

@@ -2,7 +2,7 @@
 """Run a small SAF smoke test against a FastSurfer/FreeSurfer directory.
 
 The script can run in normal Python through ``tractography.run_saf`` or inside
-Slicer through ``SlicerDDSurferLogic.runSAFPipeline``. It creates a tiny
+Slicer through ``SlicerDSpaceLogic.runSAFPipeline``. It creates a tiny
 synthetic .tck tractogram from cortex surface vertices so the SAF backend can be
 exercised without MRtrix3 tractography. Input surfaces must already be in native
 dMRI space.
@@ -98,9 +98,9 @@ def main() -> int:
     _write_dummy_brain_t1(output_dir)
 
     if args.use_slicer_logic:
-        from SlicerDDSurfer import SlicerDDSurferLogic
+        from SlicerDSpace import SlicerDSpaceLogic
 
-        logic = SlicerDDSurferLogic()
+        logic = SlicerDSpaceLogic()
         result = logic.runSAFPipeline(
             subject_id=args.subject_id,
             input_root=subject_root,

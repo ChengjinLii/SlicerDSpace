@@ -1,8 +1,8 @@
 <div align="center">
 
-# SlicerDDSurfer
+# SlicerDSpace
 
-**Diffusion MRI anatomy, microstructure and connectivity in 3D Slicer**
+**Diffusion MRI anatomical priors, microstructure and connectivity in 3D Slicer**
 
 [![Python](https://img.shields.io/badge/Language-Python-3776AB?logo=python&logoColor=white)](#technology-stack)
 [![3D Slicer](https://img.shields.io/badge/App-3D_Slicer_5.10-58728B)](#installation)
@@ -14,22 +14,27 @@
 [![DIPY](https://img.shields.io/badge/Microstructure-DIPY-287D8E)](#technology-stack)
 [![MRtrix3](https://img.shields.io/badge/Optional-MRtrix3-4C9A8A)](#technology-stack)
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-Install_%2B_Use-576B95)](#agent-skills)
-[![Website](https://img.shields.io/badge/Website-Project_home-334155)](https://chengjinlii.github.io/SlicerDDSurfer/)
+[![Website](https://img.shields.io/badge/Website-Project_home-334155)](https://chengjinlii.github.io/SlicerDSpace/)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
 
 [Overview](#overview) | [Video](#video) | [Technology](#technology-stack) | [Agent Skills](#agent-skills) | [Install](#installation) | [Quick Start](#quick-start) | [CLI](#command-line) | [Documentation](#documentation) | [Citation](#citation) | [中文](README.zh-CN.md)
 
-[Project Website](https://chengjinlii.github.io/SlicerDDSurfer/) | [User Guides](docs/README.md) | [Release Status](#validation-and-release-status)
+[Project Website](https://chengjinlii.github.io/SlicerDSpace/) | [User Guides](docs/README.md) | [Release Status](#validation-and-release-status)
 
 </div>
 
-SlicerDDSurfer combines T1-weighted-image-free anatomical reconstruction,
+SlicerDSpace combines T1-weighted-image-free anatomical reconstruction,
 microstructural mapping and white-matter analysis in one 3D Slicer module.
 Choose your methods, prepare their environment and inspect the results in the
 same scene. The GUI, CLI and Agent Skill share the workflow's configuration
 and execution records.
 
-**Diffusion MRI in. Anatomy, microstructure and connectivity out.**
+SlicerDSpace is the new product and module name. Existing settings, scenes and
+model caches remain readable; the separate asset repository retains its current
+name and download addresses. Replace the old module search path when upgrading
+an existing Slicer installation.
+
+**Diffusion MRI in. Anatomical prior, microstructure and connectivity out.**
 
 Research software · Private pre-release · Not yet listed in the official Extensions Catalog.
 
@@ -37,10 +42,10 @@ Research software · Private pre-release · Not yet listed in the official Exten
 
 ## Video
 
-[![SlicerDDSurfer animated video preview](docs/assets/readme/SlicerDDSurfer_preview.gif)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4)
+[![SlicerDSpace animated video preview](docs/assets/readme/SlicerDDSurfer_preview.gif)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4)
 
 [Watch the video (MP4, 1:12)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4) ·
-[Website player and transcript](https://chengjinlii.github.io/SlicerDDSurfer/#film)
+[Website player and transcript](https://chengjinlii.github.io/SlicerDSpace/#film)
 
 ---
 
@@ -50,9 +55,9 @@ Research software · Private pre-release · Not yet listed in the official Exten
 | --- | --- |
 | Input preparation | DICOM, NIfTI and NRRD/NHDR import; gradient checks, brain masking and optional DWI correction |
 | Microstructure | DTI FA/MD/AD/RD; optional Free-water, NODDI, DKI and Python MK-Curve |
-| Anatomy | DDSeg tissue labels, DDParcel regions, DDSurfer white/pial surfaces; optional cortical postprocessing |
+| Anatomical prior | DDSeg tissue labels, DDParcel regions, DDSurfer white/pial surfaces; optional cortical postprocessing |
 | Tractography | DTI deterministic, UKF, CSD/ACT with SIFT2, and SAF short association fibres |
-| Bundles | Official WMQL queries, WMA atlas classification and TractCloud |
+| Fiber bundles | Official WMQL queries, WMA atlas classification and TractCloud |
 | Connectome | Streamline-count and scalar-weighted matrices; eligible SIFT2-weighted connectivity |
 
 Key products load into Slicer as successful stages finish. Run-scoped loading
@@ -104,15 +109,15 @@ analysis and result review.
 | Plan and run | Prepare inputs, choose algorithms and tracking/bundle sources, review plans and run requested analyses or batch experiments |
 | Review and reuse | Inspect outputs, logs and QC; reuse compatible results and preserve unrelated scene nodes |
 
-[Open the Skill](.agents/skills/slicerddsurfer-install/SKILL.md) ·
-[Agent usage guide](.agents/skills/slicerddsurfer-install/references/usage.md) ·
+[Open the Skill](.agents/skills/slicerdspace-install/SKILL.md) ·
+[Agent usage guide](.agents/skills/slicerdspace-install/references/usage.md) ·
 [CLI templates](docs/setup/CLI_TEMPLATES.md)
 
 From an authorized checkout, ask an Agent that supports `SKILL.md`:
 
 ```text
-Read .agents/skills/slicerddsurfer-install/SKILL.md. Install and enable
-SlicerDDSurfer if needed, then plan a DTI analysis for /path/to/sub-01.
+Read .agents/skills/slicerdspace-install/SKILL.md. Install and enable
+SlicerDSpace if needed, then plan a DTI analysis for /path/to/sub-01.
 Prepare only the required dependencies and show me the plan before execution.
 ```
 
@@ -130,12 +135,12 @@ source installation omits the website and historical reports; a full checkout
 retains development tests and research materials.
 
 ```bash
-git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDDSurfer.git
-cd SlicerDDSurfer
+git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDSpace.git
+cd SlicerDSpace
 git show HEAD:scripts/extension_runtime/runtime_checkout.txt | git sparse-checkout set --no-cone --stdin
 git checkout
 python3 scripts/stage_slicer_extension.py \
-  --install-root ~/SlicerDDSurfer-extension --slicer-version Slicer-5.10 \
+  --install-root ~/SlicerDSpace-extension --slicer-version Slicer-5.10 \
   --link-mode copy
 ```
 
@@ -143,7 +148,7 @@ For Slicer 5.10, add the expanded absolute path below in **Edit > Application
 Settings > Modules > Additional module paths**, then restart:
 
 ```text
-~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules
+~/SlicerDSpace-extension/SlicerDSpace/lib/Slicer-5.10/qt-scripted-modules
 ```
 
 Match `--slicer-version` to your installation. After a source update, restage
@@ -166,7 +171,7 @@ For explicit CLI surface-model preparation:
 
 ```bash
 python3 scripts/download_model_assets.py --profile surface \
-  --asset-root ~/SlicerDDSurfer-model-assets --source url \
+  --asset-root ~/SlicerDSpace-model-assets --source url \
   --source-id slicerdsurfer_models_git
 ```
 
@@ -177,10 +182,10 @@ Other profiles and offline import are documented in [model setup](docs/assets/MO
 
 ## Quick Start
 
-1. Open **Modules > Diffusion > SlicerDDSurfer** and choose English or Chinese.
+1. Open **Modules > Diffusion > SlicerDSpace** and choose English or Chinese.
 2. Set **Subject root**, **Subject ID** and, optionally, an **Output directory**.
 3. For a first DTI run, select only **Microstructure** and retain **DTI** in its **...** selector.
-4. Prepare the selected environment, then click **Run SlicerDDSurfer**.
+4. Prepare the selected environment, then click **Run SlicerDSpace**.
 5. Inspect FA/MD in the scene and open **Results and QC** for the run's checks, logs and loading controls.
 
 Prepared inputs use this layout:
@@ -206,9 +211,9 @@ The [first-workflow tutorial](docs/setup/QUICKSTART.md) includes a synthetic ins
 | Missing brain mask | PNL diffusion CNN; valid supplied masks are reused | SynthStrip, MRtrix, DIPY median-Otsu, supplied mask only |
 | Microstructure | DTI | Add Free-water, NODDI and/or DKI; select WLS/OLS or Python MK-Curve for DKI |
 | Tractography | MRtrix3 CSD/ACT | DTI deterministic, UKF, SAF |
-| Bundles | Official WMQL multi-bundle queries | WMQL subset selection, WMA, TractCloud |
+| Fiber bundles | Official WMQL multi-bundle queries | WMQL subset selection, WMA, TractCloud |
 
-Use **...** beside Microstructure, Tractography and Bundles to select one or
+Use **...** beside Microstructure, Tractography and Fiber bundles to select one or
 several methods. **Advanced settings** groups masking, model parameters,
 performance, regional analysis/input import and experiments. Environment
 installation remains separate.
@@ -218,7 +223,7 @@ Multiple tracking methods produce separate `<run>__<backend>` variants.
 The full quantitative tractogram is retained alongside a capped VTK display preview.
 
 NODDI/DKI require eligible acquisitions. Inspect fit-validity masks, sparse
-bundles, alignment and anatomy before accepting results. Method details:
+fiber bundles, alignment and anatomical priors before accepting results. Method details:
 [microstructure](docs/setup/MICROSTRUCTURE.md) · [UKF](docs/setup/UKF.md) · [WMQL](docs/setup/WMQL.md).
 
 ---
@@ -240,7 +245,7 @@ export SLICER="/path/to/Slicer"
 Keep the same arguments and replace `--doctor` with `--plan` to inspect the plan,
 then `--execute` to run. This example expects an existing reviewed mask.
 
-The [CLI templates](docs/setup/CLI_TEMPLATES.md) cover imports, masking, anatomy,
+The [CLI templates](docs/setup/CLI_TEMPLATES.md) cover imports, masking, anatomical priors,
 all microstructure and tracking routes, explicit bundle sources, connectomes,
 PowerShell and reports. [Experiments](docs/setup/EXPERIMENTS.md) covers
 named parameter variants and concurrent subjects in both CLI and Advanced settings.
@@ -305,8 +310,8 @@ Cite the software version through [CITATION.cff](CITATION.cff) and the methods
 used in your analysis: [DDSurfer](https://doi.org/10.1002/advs.76596),
 [DDSeg](https://doi.org/10.1016/j.neuroimage.2021.117934) and
 [DDParcel](https://doi.org/10.1109/TMI.2023.3331691).
-Additional integrated methods are listed in the [website bibliography](https://chengjinlii.github.io/SlicerDDSurfer/#cite).
-The SlicerDDSurfer protocol manuscript is in preparation.
+Additional integrated methods are listed in the [website bibliography](https://chengjinlii.github.io/SlicerDSpace/#cite).
+The SlicerDSpace protocol manuscript is in preparation.
 
 ---
 

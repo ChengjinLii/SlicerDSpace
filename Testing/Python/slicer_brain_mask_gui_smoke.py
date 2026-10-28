@@ -11,8 +11,8 @@ import qt
 import slicer
 
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"]).resolve()
-PHASE = os.environ.get("SLICERDDSURFER_BRAIN_MASK_SMOKE_PHASE", "select")
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"]).resolve()
+PHASE = os.environ.get("SLICERDSPACE_BRAIN_MASK_SMOKE_PHASE", "select")
 BACKENDS = ("pnl_cnn", "synthstrip", "mrtrix", "provided")
 CHECKS = []
 
@@ -24,8 +24,8 @@ def require(condition, message):
 
 
 def isolated_settings():
-    config = Path(os.environ["SLICERDDSURFER_USER_CONFIG"]).resolve()
-    private_home = Path(os.environ["SLICERDDSURFER_PRIVATE_SLICER_HOME"]).resolve()
+    config = Path(os.environ["SLICERDSPACE_USER_CONFIG"]).resolve()
+    private_home = Path(os.environ["SLICERDSPACE_PRIVATE_SLICER_HOME"]).resolve()
     require(config.is_relative_to(ROOT), "Private shared user JSON")
     for name, settings, parent in (
         ("user", slicer.app.userSettings(), ROOT / "settings"),
@@ -98,7 +98,7 @@ def verify_languages(owner):
 
 def finish_select():
     try:
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         verify_saved(owner, "provided")
         from shared.user_config import load_user_config
         saved = load_user_config()["run_defaults"]
@@ -106,7 +106,7 @@ def finish_select():
         require(saved["dki_fit_method"] == "MKCURVE", "Python MK-Curve method saved")
         require(not owner._pipelineActive, "No pipeline started")
         verify_languages(owner)
-        if os.environ.get("SLICERDDSURFER_RUNTIME_ROOT"):
+        if os.environ.get("SLICERDSPACE_RUNTIME_ROOT"):
             verify_managed_runtime_setup(owner)
         else:
             finish()
@@ -156,7 +156,7 @@ def verify_managed_runtime_setup(owner):
                 return
             from shared.user_config import load_user_config
             saved = load_user_config()["external_dependencies"]
-            expected = str(Path(os.environ["SLICERDDSURFER_RUNTIME_ROOT"]) / "mrtrix-3.0.8/bin")
+            expected = str(Path(os.environ["SLICERDSPACE_RUNTIME_ROOT"]) / "mrtrix-3.0.8/bin")
             require(saved.get("mrtrix_bin_dir") == expected, "Verified MRtrix path saved automatically")
             require(saved.get("preprocessing_mrtrix_bin_dir") == expected, "Preprocessing path saved automatically")
             require(owner._environmentPathLineEdits["mrtrix_bin_dir"].text == expected, "GUI path populated automatically")
@@ -171,8 +171,8 @@ def verify_managed_runtime_setup(owner):
 def check():
     try:
         isolated_settings()
-        slicer.util.selectModule("SlicerDDSurfer")
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         from shared.user_config import load_user_config
 
         node = owner._parameterNode

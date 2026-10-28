@@ -20,7 +20,7 @@ an official Extensions Catalog entry or an available public release package.
 
 | Purpose | Recommended route | Contents |
 | --- | --- | --- |
-| Use SlicerDDSurfer | Maintainer-provided extension package with corresponding acceptance evidence | Runtime, UI, queries, licenses, user guides and required reference files |
+| Use SlicerDSpace | Maintainer-provided extension package with corresponding acceptance evidence | Runtime, UI, queries, licenses, user guides and required reference files |
 | Install source with repository access | Lightweight checkout below, then staging | Updatable runtime source without website, tests or historical optimization reports |
 | Develop or reproduce research | Complete source checkout | Tests, performance evidence, release tools, website source and documentation |
 | Inspect performance evidence | Browse the authenticated GitHub repository | No need to copy reports into the plugin installation |
@@ -40,11 +40,11 @@ Use a **new checkout**, authorized access to the private repository, and Git
 with partial-clone/sparse-checkout support. Bash, Git Bash and PowerShell:
 
 ```bash
-git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDDSurfer.git
-cd SlicerDDSurfer
+git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDSpace.git
+cd SlicerDSpace
 git show HEAD:scripts/extension_runtime/runtime_checkout.txt | git sparse-checkout set --no-cone --stdin
 git checkout
-python3 scripts/stage_slicer_extension.py --install-root ~/SlicerDDSurfer-extension --link-mode copy --clean
+python3 scripts/stage_slicer_extension.py --install-root ~/SlicerDSpace-extension --link-mode copy --clean
 ```
 
 On Windows, use `python` if `python3` is unavailable. Set `--slicer-version`
@@ -84,8 +84,8 @@ can also generate a clearly labeled local pre-release staging package:
 
 ```bash
 python3 scripts/stage_slicer_extension.py --install-root /path/to/staging --link-mode copy --clean
-python3 scripts/package_slicer_extension.py --extension-root /path/to/staging/SlicerDDSurfer --output /path/to/packages/SlicerDDSurfer.tar.gz
-python3 scripts/audit_extension_package.py /path/to/packages/SlicerDDSurfer.tar.gz
+python3 scripts/package_slicer_extension.py --extension-root /path/to/staging/SlicerDSpace --output /path/to/packages/SlicerDSpace.tar.gz
+python3 scripts/audit_extension_package.py /path/to/packages/SlicerDSpace.tar.gz
 ```
 
 CMake and staging share `scripts/extension_runtime/runtime_resources.json`;

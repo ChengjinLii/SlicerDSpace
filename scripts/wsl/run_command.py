@@ -59,7 +59,7 @@ def supervise(command, heartbeat, timeout_seconds=15.0, grace_seconds=3.0):
             except OSError:
                 expired = True
             if expired:
-                print('SlicerDDSurfer: Windows bridge stopped; cancelling owned WSL task.', flush=True)
+                print('SlicerDSpace: Windows bridge stopped; cancelling owned WSL task.', flush=True)
                 return 130
             time.sleep(0.1)
         return process.returncode if process.returncode >= 0 else 128 - process.returncode

@@ -72,7 +72,7 @@ by the launcher. SynthStrip's old fixed physical-GPU-0 assignment is likewise
 suppressed in memory. Neither adjustment changes weights, CNN operations,
 registration or cleanup. The pinned DDSurfer snapshot remains unmodified;
 the facade supplies its generated native mask explicitly so its standalone
-CPU-only SynthStrip helper is not used by SlicerDDSurfer.
+CPU-only SynthStrip helper is not used by SlicerDSpace.
 
 ---
 
@@ -88,7 +88,7 @@ FreeSurfer script/weights are used. Known unvalidated old-CUDA/new-GPU combinati
 are blocked before model processing; they do not silently select CPU.
 
 MRtrix `dwifslpreproc` itself normally retries CPU after a CUDA error; the
-SlicerDDSurfer launcher prevents that retry. CPU-only discovery is allowed when
+SlicerDSpace launcher prevents that retry. CPU-only discovery is allowed when
 there is no CUDA eddy backend. Official CUDA eddy 2602.0 was installed in a separate
 local FSL environment and passed a real 31-volume preprocessing acceptance.
 The preceding CPU-only FSL environment is unchanged. Managed Linux setup can now

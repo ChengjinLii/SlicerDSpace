@@ -1,4 +1,4 @@
-"""Surface workflow package for SlicerDDSurfer.
+"""Surface workflow package for SlicerDSpace.
 
 This package is imported by the Slicer GUI at module discovery time. Keep heavy
 model dependencies, especially torch/CUDA, out of import-time code paths.

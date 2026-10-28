@@ -39,11 +39,11 @@ AFFINE = np.array([[1.5, 0, 0, -7], [0, 2, 0, 11], [0, 0, 2.5, 3], [0, 0, 0, 1]]
 ANTS_COMMANDS = ("antsRegistrationSyNQuick.sh", "antsApplyTransforms", "ImageMath")
 ISOLATED_ENV = {
     "PATH": str(Path(sys.executable).parent),
-    "SLICERDDSURFER_MRTRIX_BIN_DIR": "",
+    "SLICERDSPACE_MRTRIX_BIN_DIR": "",
     "MRTRIX_BIN_DIR": "",
-    "SLICERDDSURFER_PNL_MASK_PYTHON": "",
-    "SLICERDDSURFER_PNL_MASK_SCRIPT": "",
-    "SLICERDDSURFER_PNL_MASK_MODEL_DIR": "",
+    "SLICERDSPACE_PNL_MASK_PYTHON": "",
+    "SLICERDSPACE_PNL_MASK_SCRIPT": "",
+    "SLICERDSPACE_PNL_MASK_MODEL_DIR": "",
     "ANTSPATH": "",
     "FREESURFER_HOME": "",
 }
@@ -256,7 +256,7 @@ class BrainMaskBackendsTest(unittest.TestCase):
         self.assertTrue(any("POSIX external runtime" in item for item in result["missing_required"]))
 
     def test_missing_default_pnl_never_falls_through_to_available_mrtrix(self) -> None:
-        with patch.dict(os.environ, {"SLICERDDSURFER_MRTRIX_BIN_DIR": str(self.mrtrix.parent)}):
+        with patch.dict(os.environ, {"SLICERDSPACE_MRTRIX_BIN_DIR": str(self.mrtrix.parent)}):
             self.assertTrue(inspect_brain_mask_backend(self.mrtrix_config)["available"])
             inspected = inspect_brain_mask_backend()
             self.assertEqual(inspected["backend"], "pnl_cnn")
@@ -358,7 +358,7 @@ class BrainMaskBackendsTest(unittest.TestCase):
         for source in ("config", "environment"):
             with self.subTest(source=source):
                 selected = replace(config, pnl_mask_python=python if source == "config" else None)
-                with patch.dict(os.environ, {"SLICERDDSURFER_PNL_MASK_PYTHON": str(python)}):
+                with patch.dict(os.environ, {"SLICERDSPACE_PNL_MASK_PYTHON": str(python)}):
                     inspected = inspect_brain_mask_backend(selected)
                     self.assertTrue(inspected["available"])
                     self.assertEqual(inspected["tool_paths"]["pnl_mask_python"], str(python))

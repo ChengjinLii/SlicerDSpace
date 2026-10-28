@@ -6,7 +6,7 @@
 
 </div>
 
-This page is for users who want to run SlicerDDSurfer from 3D Slicer on macOS.
+This page is for users who want to run SlicerDSpace from 3D Slicer on macOS.
 Use the Slicer UI first; use Terminal only when troubleshooting.
 
 Native macOS scientific execution and real SDK packaging are not certified.
@@ -21,7 +21,7 @@ external-tool requirements and explicitly unavailable features.
 
 Download and install 3D Slicer from <https://www.slicer.org/>.
 
-Install the module following the project README, open SlicerDDSurfer, then use
+Install the module following the project README, open SlicerDSpace, then use
 **Environment and installation**. No automatic wizard is shown.
 
 ---
@@ -31,7 +31,7 @@ Install the module following the project README, open SlicerDDSurfer, then use
 Recommended example:
 
 ```text
-/Users/yourname/SlicerDDSurfer-model-assets
+/Users/yourname/SlicerDSpace-model-assets
 ```
 
 Command-line equivalent:
@@ -39,7 +39,7 @@ Command-line equivalent:
 ```bash
 python3 scripts/download_model_assets.py \
   --profile core \
-  --asset-root /Users/yourname/SlicerDDSurfer-model-assets \
+  --asset-root /Users/yourname/SlicerDSpace-model-assets \
   --source url \
   --source-id slicerdsurfer_models_git
 ```
@@ -59,7 +59,7 @@ Recommended layout:
     nodif_brain_mask.nii.gz
 ```
 
-In SlicerDDSurfer:
+In SlicerDSpace:
 
 1. Set `Subject ID` to `sub-01`.
 2. Set `Subject root` to `/Users/yourname/data/sub-01`.
@@ -72,7 +72,7 @@ In SlicerDDSurfer:
 MRtrix3, FSL, FreeSurfer, WMA and TractCloud are optional depending on selected
 targets. Install them using your lab's preferred method, Homebrew, conda or the
 official project instructions. Then select the installed path in
-SlicerDDSurfer.
+SlicerDSpace.
 
 The Linux-only managed MRtrix/FSL setup button does not install macOS packages.
 WMA path discovery now accepts `Slicer.app/Contents` libraries and installed
@@ -104,6 +104,6 @@ FreeSurfer home: /Applications/freesurfer
 
 ## 5. If Something Fails
 
-Click `Copy diagnostic report` in SlicerDDSurfer and paste it into your support
+Click `Copy diagnostic report` in SlicerDSpace and paste it into your support
 message. Include the exact target you tried to run.
 

@@ -38,11 +38,11 @@ def package_extension(extension_root: Path, output_path: Path) -> dict[str, obje
     root = extension_root.expanduser().resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"Staged extension root does not exist: {root}")
-    module_files = sorted(root.glob("lib/Slicer-*/qt-scripted-modules/SlicerDDSurfer.py"))
+    module_files = sorted(root.glob("lib/Slicer-*/qt-scripted-modules/SlicerDSpace.py"))
     if len(module_files) != 1:
-        raise ValueError(f"Expected exactly one staged SlicerDDSurfer.py, found {len(module_files)}")
-    if not (root / "SlicerDDSurfer.s4ext").is_file():
-        raise FileNotFoundError(f"Extension metadata is missing: {root / 'SlicerDDSurfer.s4ext'}")
+        raise ValueError(f"Expected exactly one staged SlicerDSpace.py, found {len(module_files)}")
+    if not (root / "SlicerDSpace.s4ext").is_file():
+        raise FileNotFoundError(f"Extension metadata is missing: {root / 'SlicerDSpace.s4ext'}")
 
     output = output_path.expanduser().resolve()
     output.parent.mkdir(parents=True, exist_ok=True)

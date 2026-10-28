@@ -21,7 +21,7 @@ numerical accuracy for every acquisition or platform.
 | Minimal DTI | Tensor scalars, optional deterministic tracks | SlicerDMRI or supported DTI route and Python packages |
 | Anatomical models | DDSurfer/DDSeg/DDParcel | PyTorch, matching assets, route-specific preparation |
 | Microstructure | DTI/FW/NODDI/DKI/MK-Curve | Configured numerical packages and eligible acquisition; DTI is default |
-| Advanced pathways | CSD/ACT/SIFT2/SAF/bundles | External backend only as selected |
+| Advanced pathways | CSD/ACT/SIFT2/SAF/fiber bundles | External backend only as selected |
 | Connectome | Regional matrices, scene QC | Tractogram/parcellation; weights only for weighted routes |
 
 Install only selected dependencies. Review external-tool and model terms

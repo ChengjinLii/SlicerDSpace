@@ -15,19 +15,19 @@
 
 ## GUI 操作
 
-1. 安装 SlicerDDSurfer 和 SlicerDMRI。在 **Sample Data** 下载 **DWIVolume**。
+1. 安装 SlicerDSpace 和 SlicerDMRI。在 **Sample Data** 下载 **DWIVolume**。
    若当前版本没有显示该按钮，可在 Python 控制台执行
    `import SampleData; SampleData.downloadSample('DWIVolume')`。
 2. 通过 Slicer 的 **Save** 对话框，把下载的 DWI 节点保存为扩散 NRRD。
    使用新的工作目录，保留原下载文件。
-3. 打开 SlicerDDSurfer 的 **高级设置 > 脑区与输入导入 > 输入导入/转换**，
+3. 打开 SlicerDSpace 的 **高级设置 > 脑区与输入导入 > 输入导入/转换**，
    选择该 NRRD 和新的被试目录。先预览计划，再取消 Dry run 并准备输入。
 4. Subject root 指向准备好的被试目录。只勾选 **Microstructure**，在旁边的
    **...** 中只保留 **DTI**；本例取消预处理及其他产品。
 5. 准备所选环境。默认 PNL 掩膜需要相应模型及运行时；明确改选 MRtrix 掩膜时
    则需要 MRtrix。在 **高级设置 > 预处理与掩膜** 选择已准备好的方法。
    本次记录使用 MRtrix；出错不会自动更换算法。
-6. 点击 **Run SlicerDDSurfer**。FA/MD 成功后自动加载。检查脑掩膜、方向、
+6. 点击 **Run SlicerDSpace**。FA/MD 成功后自动加载。检查脑掩膜、方向、
    参数图及 **结果与 QC**。没有脑区标签时不生成区域统计表。
 
 ---

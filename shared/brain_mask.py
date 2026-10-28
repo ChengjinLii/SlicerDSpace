@@ -77,7 +77,7 @@ def _fingerprint(path: Path) -> dict[str, Any]:
 
 
 def resolve_dwi2mask(explicit_bin_dir: Optional[Path] = None) -> Optional[Path]:
-    for folder in (explicit_bin_dir, os.environ.get("SLICERDDSURFER_MRTRIX_BIN_DIR"), os.environ.get("MRTRIX_BIN_DIR")):
+    for folder in (explicit_bin_dir, os.environ.get("SLICERDSPACE_MRTRIX_BIN_DIR"), os.environ.get("MRTRIX_BIN_DIR")):
         if folder:
             candidate = Path(folder).expanduser().resolve() / "dwi2mask"
             if candidate.is_file() and os.access(candidate, os.X_OK):
@@ -102,9 +102,9 @@ def inspect_brain_mask_backend(config: BrainMaskConfig | None = None, *, system:
         resources.append(Path(__file__).with_name("pnl_mask_runner.py"))
         # Resolving a venv's Python symlink would select the base interpreter
         # and lose that environment's TensorFlow and conversion packages.
-        python = _path(config.pnl_mask_python, "SLICERDDSURFER_PNL_MASK_PYTHON", resolve=False)
-        script = _path(config.pnl_mask_script, "SLICERDDSURFER_PNL_MASK_SCRIPT")
-        models = _path(config.pnl_mask_model_dir, "SLICERDDSURFER_PNL_MASK_MODEL_DIR")
+        python = _path(config.pnl_mask_python, "SLICERDSPACE_PNL_MASK_PYTHON", resolve=False)
+        script = _path(config.pnl_mask_script, "SLICERDSPACE_PNL_MASK_SCRIPT")
+        models = _path(config.pnl_mask_model_dir, "SLICERDSPACE_PNL_MASK_MODEL_DIR")
         if models is None:
             from shared.optional_assets import verified_resource_directory
             models = verified_resource_directory("pnl-cnn", asset_root=config.model_assets_dir)
@@ -170,9 +170,9 @@ def inspect_brain_mask_backend(config: BrainMaskConfig | None = None, *, system:
             else:
                 missing.append("FreeSurfer models/synthstrip.1.pt")
             tools["freesurfer_home"] = str(home)
-            python = _path(config.synthstrip_python, "SLICERDDSURFER_SYNTHSTRIP_PYTHON", resolve=False) or home / "bin/fspython"
+            python = _path(config.synthstrip_python, "SLICERDSPACE_SYNTHSTRIP_PYTHON", resolve=False) or home / "bin/fspython"
             script = home / "python/scripts/mri_synthstrip"
-            if (config.synthstrip_python or os.environ.get("SLICERDDSURFER_SYNTHSTRIP_PYTHON")) and (
+            if (config.synthstrip_python or os.environ.get("SLICERDSPACE_SYNTHSTRIP_PYTHON")) and (
                     not python.is_file() or not os.access(python, os.X_OK)):
                 missing.append("executable configured synthstrip_python")
             if python.is_file() and script.is_file():

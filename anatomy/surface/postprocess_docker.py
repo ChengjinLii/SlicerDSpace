@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Docker postprocessing implementation for SlicerDDSurfer surfaces.
+Docker postprocessing implementation for SlicerDSpace surfaces.
 
 This script stages the required inputs (MRI + predicted STL surfaces) into the
 postprocess-release repository and calls its docker/run_container.sh helper to
@@ -63,7 +63,7 @@ def stage_subject_inputs(
     if not stl_paths:
         raise FileNotFoundError(
             f"No STL files matching '{pattern}' under {native_dir}. "
-            "Ensure SlicerDDSurfer prediction completed successfully."
+            "Ensure SlicerDSpace prediction completed successfully."
         )
     for stl in stl_paths:
         copy_file(stl, surf_dir / stl.name)
@@ -160,11 +160,11 @@ def run_postprocess(
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Stage SlicerDDSurfer outputs and run postprocess-release inside Docker.",
+        description="Stage SlicerDSpace outputs and run postprocess-release inside Docker.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("subject_id", help="Subject identifier (e.g., 877168)")
-    parser.add_argument("native_dir", help="Path to SlicerDDSurfer native output directory (contains *_orig.stl)")
+    parser.add_argument("native_dir", help="Path to SlicerDSpace native output directory (contains *_orig.stl)")
     parser.add_argument("mri_dir", help="Path to MRI directory holding brain.mgz and DDSurfer-wmparc.nii.gz")
     parser.add_argument("--postprocess-repo", default="/data/chengjin/postprocess-release", help="postprocess-release repository root")
     parser.add_argument("--mode", choices=["left", "right", "whole"], default="whole", help="Hemisphere mode for postprocess run.sh")

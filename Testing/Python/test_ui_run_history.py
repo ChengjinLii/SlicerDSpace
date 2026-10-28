@@ -364,7 +364,7 @@ class AlgorithmDialogTest(unittest.TestCase):
 
     def test_tractography_note_is_short_and_the_buttons_have_room(self) -> None:
         for language, text in (
-            ("en", "Each method writes its own tractogram. Bundles and connectomes are computed for each method separately."),
+            ("en", "Each method writes its own tractogram. Fiber bundles and connectomes are computed for each method separately."),
             ("zh", "每种方法分别输出流线；束分析和连接组按方法分别计算。"),
         ):
             with self.subTest(language=language):

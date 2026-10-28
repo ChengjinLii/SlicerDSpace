@@ -31,8 +31,8 @@ def _hash(path: Path) -> str:
 
 def inspect_mkcurve_backend(matlab_executable=None, mkcurve_root=None) -> dict:
     """Check configuration without invoking MATLAB or accepting a license."""
-    executable = matlab_executable or os.environ.get("SLICERDDSURFER_MKCURVE_MATLAB")
-    root_value = mkcurve_root or os.environ.get("SLICERDDSURFER_MKCURVE_ROOT")
+    executable = matlab_executable or os.environ.get("SLICERDSPACE_MKCURVE_MATLAB")
+    root_value = mkcurve_root or os.environ.get("SLICERDSPACE_MKCURVE_ROOT")
     if executable:
         executable = shutil.which(str(executable)) or str(Path(executable).expanduser())
     else:

@@ -13,7 +13,7 @@ import qt
 import slicer
 
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
 
 
 def raw(root):
@@ -54,8 +54,8 @@ def run():
         from shared.pipeline import inspect_subject_directory
         from shared.ui_input_inspection import InputInspectionCache
 
-        slicer.util.selectModule("SlicerDDSurfer")
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         owner._onboardingWidgets["language_combo"].setCurrentIndex(0)
         dicom_root = ROOT / "fixtures/dicom"
         series = dicom_root / "series"

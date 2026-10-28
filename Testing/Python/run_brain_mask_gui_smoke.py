@@ -35,14 +35,14 @@ def main():
     # Discover only the product module, not repository CLI/helper scripts.
     module_dir = report / "module"
     module_dir.mkdir()
-    for name in ("SlicerDDSurfer.py", "Resources", "anatomy", "microstructure", "preprocessing",
+    for name in ("SlicerDSpace.py", "Resources", "anatomy", "microstructure", "preprocessing",
                  "shared", "tractography", "connectome"):
         source = REPO / name
         (module_dir / name).symlink_to(source, target_is_directory=source.is_dir())
     env = dict(os.environ, XDG_CONFIG_HOME=str(report / "settings"), XDG_CACHE_HOME=str(report / "cache"),
-               TMPDIR=str(report / "temp"), SLICERDDSURFER_USER_CONFIG=str(config),
-               SLICERDDSURFER_SMOKE_ROOT=str(report), SLICERDDSURFER_PRIVATE_SLICER_HOME=str(report / "runtime"),
-               SLICERDDSURFER_DISABLE_FIRST_RUN_WIZARD="1", QT_AUTO_SCREEN_SCALE_FACTOR="0", QT_SCALE_FACTOR="1",
+               TMPDIR=str(report / "temp"), SLICERDSPACE_USER_CONFIG=str(config),
+               SLICERDSPACE_SMOKE_ROOT=str(report), SLICERDSPACE_PRIVATE_SLICER_HOME=str(report / "runtime"),
+               SLICERDSPACE_DISABLE_FIRST_RUN_WIZARD="1", QT_AUTO_SCREEN_SCALE_FACTOR="0", QT_SCALE_FACTOR="1",
                PATH=str(args.xvfb.resolve().parent) + os.pathsep + os.environ.get("PATH", ""))
     command = [str(args.xvfb.resolve()), "-a", str(args.slicer.resolve()), "--no-splash", "--ignore-slicerrc",
                "--disable-cli-modules",
@@ -50,7 +50,7 @@ def main():
                "--additional-module-paths", str(module_dir), "--python-script",
                str(REPO / "Testing/Python/slicer_brain_mask_gui_smoke.py")]
     for phase in ("select", "restore"):
-        env["SLICERDDSURFER_BRAIN_MASK_SMOKE_PHASE"] = phase
+        env["SLICERDSPACE_BRAIN_MASK_SMOKE_PHASE"] = phase
         with (report / f"slicer_{phase}.log").open("w") as log:
             process = subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
             try:

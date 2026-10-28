@@ -23,7 +23,7 @@ from shared.model_asset_integrity import (
 )
 
 
-MODEL_ASSETS_ENV = "SLICERDDSURFER_MODEL_ASSETS_DIR"
+MODEL_ASSETS_ENV = "SLICERDSPACE_MODEL_ASSETS_DIR"
 
 # In-process cache of verified sha256 digests, lazily loaded from and
 # persisted to disk (see _sha256_cache()) so a file is only re-hashed when
@@ -67,13 +67,14 @@ def _load_asset_manifest_records(repo_root: Path | None) -> dict[str, Any]:
 def default_user_model_assets_root() -> Path:
     """Return the per-user default model-asset root."""
 
+    from shared.branding import reuse_legacy_path
     system = platform.system()
     if system == "Windows":
         base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
-        return base / "SlicerDDSurfer" / "model-assets"
+        return reuse_legacy_path(base / "SlicerDSpace" / "model-assets")
     if system == "Darwin":
-        return Path.home() / "Library" / "Application Support" / "SlicerDDSurfer" / "model-assets"
-    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "SlicerDDSurfer" / "model-assets"
+        return reuse_legacy_path(Path.home() / "Library" / "Application Support" / "SlicerDSpace" / "model-assets")
+    return reuse_legacy_path(Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "SlicerDSpace" / "model-assets")
 
 
 def configured_model_assets_root(explicit: Path | None = None) -> Path:
@@ -88,7 +89,7 @@ def configured_model_assets_root(explicit: Path | None = None) -> Path:
 
 
 def legacy_repo_asset_roots(repo_root: Path) -> tuple[Path, ...]:
-    """Return checkout-relative roots used by older SlicerDDSurfer installs."""
+    """Return checkout-relative roots used by older SlicerDSpace installs."""
 
     root = repo_root.expanduser().resolve()
     return (root,)
@@ -105,7 +106,7 @@ def common_model_asset_roots() -> tuple[Path, ...]:
     have it picked up and loaded as a trusted model checkpoint. Only the
     current user's own configured default is checked automatically; any
     other location must be explicit (``--asset-root`` /
-    ``SLICERDDSURFER_MODEL_ASSETS_DIR``) or the extension's own checkout
+    ``SLICERDSPACE_MODEL_ASSETS_DIR``) or the extension's own checkout
     (see :func:`legacy_repo_asset_roots`), and even those are still
     sha256-verified against the manifest before being trusted (see
     :func:`resolve_model_assets_root`).
@@ -208,7 +209,7 @@ def model_asset_path(relative: str, *, repo_root: Path, explicit_root: Path | No
     """Return the best existing, verified path for one model asset, or its default target.
 
     An explicitly user-supplied root (``explicit_root`` or the
-    ``SLICERDDSURFER_MODEL_ASSETS_DIR`` env var) is the user's own informed
+    ``SLICERDSPACE_MODEL_ASSETS_DIR`` env var) is the user's own informed
     choice and is returned as-is, unverified -- same as
     :func:`resolve_model_assets_root`. Otherwise, an existing candidate that
     fails sha256 verification against ``models/assets_manifest.json`` raises

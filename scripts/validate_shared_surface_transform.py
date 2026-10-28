@@ -90,8 +90,8 @@ def main():
     surfaces = {}
     for hemi in ('lh', 'rh'):
         for kind in ('white', 'pial'):
-            a = trimesh.load(root / 'author/pred_results_SlicerDDSurfer/native' / stem / f'{hemi}.{kind}.obj', process=False)
-            b = trimesh.load(controlled / 'surface/pred_results_SlicerDDSurfer/native' / stem / f'{hemi}.{kind}.obj', process=False)
+            a = trimesh.load(root / 'author/pred_results_SlicerDSpace/native' / stem / f'{hemi}.{kind}.obj', process=False)
+            b = trimesh.load(controlled / 'surface/pred_results_SlicerDSpace/native' / stem / f'{hemi}.{kind}.obj', process=False)
             surfaces[f'{hemi}.{kind}'] = dict(topology_exact=bool(np.array_equal(a.faces, b.faces)),
                 vertices_exact=bool(np.array_equal(a.vertices, b.vertices)),
                 max_vertex_distance_mm=float(np.max(np.linalg.norm(a.vertices - b.vertices, axis=1))))

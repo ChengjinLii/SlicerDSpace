@@ -1,4 +1,4 @@
-# Using SlicerDDSurfer With An Agent
+# Using SlicerDSpace With An Agent
 
 Use this reference after installation or when a user requests an analysis.
 Read project files from the authorized checkout/runtime root. The detailed

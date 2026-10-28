@@ -10,15 +10,15 @@ import qt
 import slicer
 
 
-ROOT = Path(os.environ['SLICERDDSURFER_SMOKE_ROOT'])
+ROOT = Path(os.environ['SLICERDSPACE_SMOKE_ROOT'])
 
 
 def run():
     checks = {}
     try:
         from shared.user_config import update_user_config
-        slicer.util.selectModule('SlicerDDSurfer')
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule('SlicerDSpace')
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         owner._onboardingWidgets['language_combo'].setCurrentIndex(0)
         with slicer.util.NodeModify(owner._parameterNode):
             owner._parameterNode.subjectId = 'scene-subject'
@@ -31,7 +31,7 @@ def run():
         settings.setValue(owner._user_settings_key('subjectId'), 'different-recent-subject')
         settings.setValue(owner._user_settings_key('maxParallelModels'), 1)
         slicer.util.selectModule('Welcome')
-        slicer.util.selectModule('SlicerDDSurfer')
+        slicer.util.selectModule('SlicerDSpace')
         checks['module_return_preserves_unsaved_scene_parameters'] = (
             owner._parameterNode.subjectId == 'scene-subject'
             and owner._parameterNode.orchestrationTractographyBackend == 'ukf'
@@ -48,9 +48,9 @@ def run():
                             'run_defaults': {'tractography_backend': 'csd_act'}})
         slicer.mrmlScene.Clear(0)
         slicer.util.loadScene(str(scene_file))
-        assert slicer.mrmlScene.GetSingletonNode('SlicerDDSurfer', 'vtkMRMLScriptedModuleNode') is not None
+        assert slicer.mrmlScene.GetSingletonNode('SlicerDSpace', 'vtkMRMLScriptedModuleNode') is not None
         slicer.util.selectModule('Welcome')
-        slicer.util.selectModule('SlicerDDSurfer')
+        slicer.util.selectModule('SlicerDSpace')
         checks['loaded_scene_wins_over_global_recent_settings'] = (
             owner._parameterNode.subjectId == 'saved-scene-subject'
             and owner._parameterNode.orchestrationTractographyBackend == 'ukf'
@@ -73,6 +73,22 @@ def run():
         owner._update_environment_status(SimpleNamespace(blocker_count=0, runnable_targets=(),
                                                         blocked_targets=(), statuses=()))
         checks['ready_environment_does_not_claim_inputs_are_ready'] = 'Waiting:' in owner.ui.statusLabel.text
+
+        # Reopen a pre-rename parameter singleton without resetting study options.
+        from shared.branding import LEGACY_NAME
+        from SlicerDSpace import SlicerDSpaceLogic
+        slicer.util.selectModule('Welcome')
+        owner.setParameterNode(None)
+        canonical = slicer.mrmlScene.GetSingletonNode('SlicerDSpace', 'vtkMRMLScriptedModuleNode')
+        canonical.SetSingletonTag(LEGACY_NAME)
+        canonical.SetAttribute('ModuleName', LEGACY_NAME)
+        canonical.SetParameter('subjectId', 'legacy-study')
+        canonical.SetParameter('maxParallelModels', '2')
+        migrated = SlicerDSpaceLogic().getParameterNode()
+        checks['legacy_scene_parameters_are_reused_after_rename'] = (
+            migrated.subjectId == 'legacy-study' and migrated.maxParallelModels == 2
+            and slicer.mrmlScene.GetSingletonNode('SlicerDSpace', 'vtkMRMLScriptedModuleNode') == canonical)
+        owner.setParameterNode(migrated)
         payload = {'status': 'passed' if all(checks.values()) else 'failed', 'checks': checks,
                    'scope': 'Real Slicer GUI and synthetic scene; no scientific accuracy claim'}
     except Exception:

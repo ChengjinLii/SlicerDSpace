@@ -2,7 +2,7 @@
 param(
     [string]$Distro = "Ubuntu",
     [string]$WslInstallRoot = "~/.local/share/slicerdsurfer",
-    [string]$WindowsInstallRoot = (Join-Path $env:LOCALAPPDATA "SlicerDDSurfer\wsl-runtime"),
+    [string]$WindowsInstallRoot = (Join-Path $env:LOCALAPPDATA "SlicerDSpace\wsl-runtime"),
     [string]$SlicerExecutable,
     [string]$FreeSurferLicensePath,
     [string]$ModelAssetsDir,
@@ -140,10 +140,10 @@ function Resolve-PythonExecutable([string]$ResolvedSlicer) {
 $ResolvedSlicer = Resolve-SlicerExecutable $SlicerExecutable
 $ResolvedPython = Resolve-PythonExecutable $ResolvedSlicer
 $UserConfigPath = $(
-    if (-not [string]::IsNullOrWhiteSpace($env:SLICERDDSURFER_USER_CONFIG)) {
-        [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($env:SLICERDDSURFER_USER_CONFIG))
+    if (-not [string]::IsNullOrWhiteSpace($env:SLICERDSPACE_USER_CONFIG)) {
+        [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($env:SLICERDSPACE_USER_CONFIG))
     } else {
-        Join-Path $env:APPDATA "SlicerDDSurfer\user_config.json"
+        Join-Path $env:APPDATA "SlicerDSpace\user_config.json"
     }
 )
 $WindowsInstallRoot = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($WindowsInstallRoot))
@@ -413,7 +413,7 @@ function Install-BridgeExecutable(
     [IO.Directory]::CreateDirectory($parent) | Out-Null
     $ownerMarker = "$TargetPath.slicerdsurfer-owner"
     if ($ProtectExisting -and (Test-Path -LiteralPath $TargetPath) -and -not (Test-Path -LiteralPath $ownerMarker)) {
-        throw "Refusing to overwrite an existing executable not owned by SlicerDDSurfer: $TargetPath"
+        throw "Refusing to overwrite an existing executable not owned by SlicerDSpace: $TargetPath"
     }
     Copy-Item -LiteralPath $BridgeBinary -Destination $TargetPath -Force
     $configLines = @("distribution=$Distro", "target=$LinuxTarget")
@@ -422,7 +422,7 @@ function Install-BridgeExecutable(
     foreach ($argument in $PrefixArguments) { $configLines += "arg=$argument" }
     foreach ($mapping in $Mappings) { $configLines += "map=$mapping" }
     [IO.File]::WriteAllLines("$TargetPath.conf", $configLines, (New-Object Text.UTF8Encoding($false)))
-    [IO.File]::WriteAllText($ownerMarker, "SlicerDDSurfer WSL bridge v1`n", (New-Object Text.UTF8Encoding($false)))
+    [IO.File]::WriteAllText($ownerMarker, "SlicerDSpace WSL bridge v1`n", (New-Object Text.UTF8Encoding($false)))
 }
 
 $BridgeBinary = Build-BridgeBinary
@@ -573,7 +573,7 @@ if (-not $SkipUserConfigUpdate) {
         try {
             $userConfig = Get-Content -Raw -LiteralPath $UserConfigPath | ConvertFrom-Json
         } catch {
-            throw "Existing SlicerDDSurfer user config is not valid JSON; refusing to overwrite it: $UserConfigPath"
+            throw "Existing SlicerDSpace user config is not valid JSON; refusing to overwrite it: $UserConfigPath"
         }
     } else {
         $userConfig = [pscustomobject][ordered]@{
@@ -598,12 +598,12 @@ if (-not $SkipUserConfigUpdate) {
         }
     }
     if ($null -eq $userConfig -or $userConfig -is [Array] -or $userConfig -is [string] -or $userConfig -is [ValueType]) {
-        throw "SlicerDDSurfer user config must contain a JSON object: $UserConfigPath"
+        throw "SlicerDSpace user config must contain a JSON object: $UserConfigPath"
     }
     if (($userConfig.PSObject.Properties.Name -contains "kind") -and
         $null -ne $userConfig.kind -and
         $userConfig.kind -ne "slicerdsurfer_user_config") {
-        throw "Unsupported SlicerDDSurfer user config kind '$($userConfig.kind)'; refusing to overwrite $UserConfigPath"
+        throw "Unsupported SlicerDSpace user config kind '$($userConfig.kind)'; refusing to overwrite $UserConfigPath"
     }
     $mergedExternal = [ordered]@{}
     if ($userConfig.PSObject.Properties.Name -contains "external_dependencies" -and

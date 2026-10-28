@@ -37,8 +37,8 @@ Validate metadata and package contents:
 ~~~bash
 python3 scripts/audit_slicer_extension_metadata.py --json
 python3 scripts/stage_slicer_extension.py --install-root ignore/release-test/install --clean --link-mode copy
-python3 scripts/package_slicer_extension.py --extension-root ignore/release-test/install/SlicerDDSurfer --output ignore/release-test/SlicerDDSurfer.tar.gz
-python3 scripts/audit_extension_package.py ignore/release-test/SlicerDDSurfer.tar.gz --report ignore/release-test/package_audit.json
+python3 scripts/package_slicer_extension.py --extension-root ignore/release-test/install/SlicerDSpace --output ignore/release-test/SlicerDSpace.tar.gz
+python3 scripts/audit_extension_package.py ignore/release-test/SlicerDSpace.tar.gz --report ignore/release-test/package_audit.json
 ~~~
 
 The package audit compares declared files and source hashes, including missing,
@@ -118,7 +118,7 @@ source tests and already configured workstations cannot replace this test.
 | Real-data tutorial and Sample Data registration | [Upstream Slicer DWIVolume walkthrough](../setup/SLICER_SAMPLE_DTI.md) tested for DTI; custom redistributable dataset registration remains pending |
 | Related patent disclosure | Maintainer review required; no absence claim is made |
 
-The descriptor under <code>docs/release/extension-index/SlicerDDSurfer.json</code>
+The descriptor under <code>docs/release/extension-index/SlicerDSpace.json</code>
 is a schema-compatible draft, not a submitted catalog entry. Its source,
 category, dependencies and screenshot metadata must remain aligned with
 CMake and the legacy s4ext. URLs will not be publicly usable while the repo is private.

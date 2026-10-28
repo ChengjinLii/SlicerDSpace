@@ -1,4 +1,4 @@
-"""Pure run-controller helpers for the SlicerDDSurfer UI."""
+"""Pure run-controller helpers for the SlicerDSpace UI."""
 
 from __future__ import annotations
 
@@ -180,7 +180,7 @@ def selected_workflows(flags: ProductTargetFlags) -> list[str]:
     if flags.tractography:
         selected.append("Tractography")
     if flags.bundles:
-        selected.append("Bundles")
+        selected.append("Fiber bundles")
     if flags.connectome:
         selected.append("Connectome")
     return selected
@@ -1012,6 +1012,6 @@ def cancelled_manifest_path_and_payload(
         "targets": list(context.get("targets") or []),
         "started_at": context.get("started_at"),
         "cancelled_at": cancelled_at,
-        "reason": "User cancelled the background SlicerDDSurfer job from the UI.",
+        "reason": "User cancelled the background SlicerDSpace job from the UI.",
     }
     return manifest_path, payload

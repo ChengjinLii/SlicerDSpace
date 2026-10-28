@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static checks for the SlicerDDSurfer project site (SPEC section 7.1).
+"""Static checks for the SlicerDSpace project site (SPEC section 7.1).
 
 Run from the repository root: python3 -I Testing/Website/check_site.py [--film PATH]
 Python 3 standard library only. ffprobe is optional.
@@ -22,10 +22,10 @@ DOCS = os.path.join(ROOT, "docs", "site")
 INDEX = os.path.join(DOCS, "index.html")
 PAGE404 = os.path.join(DOCS, "404.html")
 FILM = os.path.join(DOCS, "media", "SlicerDDSurfer_promo_1080p.mp4")
-SRT = os.path.join(DOCS, "media", "SlicerDDSurfer.en.srt")
+SRT = os.path.join(DOCS, "media", "SlicerDSpace.en.srt")
 FILM_BYTES = 47838648
 
-REPO = "https://github.com/ChengjinLii/SlicerDDSurfer"
+REPO = "https://github.com/ChengjinLii/SlicerDSpace"
 BLOB = REPO + "/blob/main/"
 ALLOWED_URLS = {
     REPO,
@@ -34,8 +34,8 @@ ALLOWED_URLS = {
     BLOB + "LICENSE.txt",
     BLOB + "THIRD_PARTY_NOTICES.md",
     BLOB + "docs/setup/QUICKSTART.md",
-    BLOB + ".agents/skills/slicerddsurfer-install/SKILL.md",
-    BLOB + ".agents/skills/slicerddsurfer-install/references/usage.md",
+    BLOB + ".agents/skills/slicerdspace-install/SKILL.md",
+    BLOB + ".agents/skills/slicerdspace-install/references/usage.md",
     BLOB + "docs/setup/CLI_TEMPLATES.md",
     BLOB + "docs/setup/SUPPORT_MATRIX.md",
     BLOB + "docs/assets/MODEL_ASSET_TERMS.md",
@@ -78,8 +78,8 @@ ALLOWED_URLS = {
     "https://doi.org/10.18112/openneuro.ds004666.v1.0.8",
     "https://doi.org/10.3389/fninf.2014.00008",
     "https://doi.org/10.5281/zenodo.2648292",
-    "https://chengjinlii.github.io/SlicerDDSurfer/",
-    "https://chengjinlii.github.io/SlicerDDSurfer/assets/img/social.jpg",
+    "https://chengjinlii.github.io/SlicerDSpace/",
+    "https://chengjinlii.github.io/SlicerDSpace/assets/img/social.jpg",
 }
 
 # The reviewed bibliography is the allowlist for scientific/software citations.
@@ -625,7 +625,7 @@ BANNED = [r"T1w?-free", r"T1-weighted-free", r"fully automatic", r"no registrati
           r"no preprocessing", r"U-shaped", r"\bthe first\b", r"\bthe only\b",
           r"clinical-grade", r"diagnos", r"FDA", r"available now", r"open[- ]source",
           r"\bfaster\b", r"\baccura(te|cy)\b", r"state[- ]of[- ]the[- ]art", r"cross-platform",
-          r"(install|get|download)\w*\s+(SlicerDDSurfer|it)\b.{0,40}Extensions? (Manager|Catalog|Index)",
+          r"(install|get|download)\w*\s+(SlicerDSpace|it)\b.{0,40}Extensions? (Manager|Catalog|Index)",
           r"(?<!not )(available )?(in|from|through) the (official )?Extensions? (Manager|Catalog)",
           # Opus code review r1 B1: the SlicerDDSurfer-models repository is public
           # (R/docs/release/VALIDATION_20260816.md:36), so the page must not call it private.

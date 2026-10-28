@@ -28,13 +28,13 @@ route; the default compact interface has no automatic first-run wizard.
 For a personal workstation:
 
 ```text
-~/SlicerDDSurfer-model-assets
+~/SlicerDSpace-model-assets
 ```
 
 For shared HPC storage:
 
 ```text
-/shared/software/SlicerDDSurfer-model-assets
+/shared/software/SlicerDSpace-model-assets
 ```
 
 Command-line equivalent:
@@ -42,7 +42,7 @@ Command-line equivalent:
 ```bash
 python3 scripts/download_model_assets.py \
   --profile core \
-  --asset-root /shared/software/SlicerDDSurfer-model-assets \
+  --asset-root /shared/software/SlicerDSpace-model-assets \
   --source url \
   --source-id slicerdsurfer_models_git
 ```
@@ -67,7 +67,7 @@ Recommended layout:
 ## 4. External Tools
 
 External tools are usually managed by the system, conda, Spack or environment
-modules. SlicerDDSurfer scans saved paths, environment variables, `PATH` and
+modules. SlicerDSpace scans saved paths, environment variables, `PATH` and
 common install locations.
 
 Common examples:
@@ -107,7 +107,7 @@ Do not submit a long job until preflight says the selected targets are runnable.
 
 ## 6. If Something Fails
 
-Click `Copy diagnostic report` in SlicerDDSurfer, or attach the generated
+Click `Copy diagnostic report` in SlicerDSpace, or attach the generated
 `environment_doctor.json` from:
 
 ```text

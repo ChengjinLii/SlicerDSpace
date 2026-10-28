@@ -1,4 +1,4 @@
-"""Microstructure workflow widget glue for SlicerDDSurfer."""
+"""Microstructure workflow widget glue for SlicerDSpace."""
 
 from __future__ import annotations
 

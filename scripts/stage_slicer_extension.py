@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage SlicerDDSurfer in an extension-like layout for RC smoke tests."""
+"""Stage SlicerDSpace in an extension-like layout for RC smoke tests."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ except ModuleNotFoundError:
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_ENTRIES = (
-    "SlicerDDSurfer.py",
+    "SlicerDSpace.py",
     "docs",
     "models",
     "Resources",
@@ -51,7 +51,7 @@ def _copy_or_link_file(src: Path, dst: Path, *, link_mode: str) -> None:
 
 def stage_extension(install_root: Path, *, slicer_version: str, clean: bool, link_mode: str) -> dict[str, object]:
     files = runtime_files(REPO_ROOT)
-    extension_root = install_root.expanduser().resolve() / "SlicerDDSurfer"
+    extension_root = install_root.expanduser().resolve() / "SlicerDSpace"
     source_root = REPO_ROOT.resolve()
     if extension_root == source_root or extension_root in source_root.parents:
         raise ValueError("Staging must not replace the source checkout or its parent directories")
@@ -68,9 +68,9 @@ def stage_extension(install_root: Path, *, slicer_version: str, clean: bool, lin
     for relative in files:
         _copy_or_link_file(REPO_ROOT / relative, module_dir / relative, link_mode=link_mode)
 
-    s4ext = REPO_ROOT / "SlicerDDSurfer.s4ext"
+    s4ext = REPO_ROOT / "SlicerDSpace.s4ext"
     if s4ext.is_file():
-        _copy_or_link_file(s4ext, extension_root / "SlicerDDSurfer.s4ext", link_mode=link_mode)
+        _copy_or_link_file(s4ext, extension_root / "SlicerDSpace.s4ext", link_mode=link_mode)
 
     top_level_py = sorted(path.name for path in module_dir.glob("*.py"))
     manifest = {
@@ -81,7 +81,7 @@ def stage_extension(install_root: Path, *, slicer_version: str, clean: bool, lin
         "slicer_version": slicer_version,
         "link_mode": link_mode,
         "top_level_python_files": top_level_py,
-        "top_level_python_ok": top_level_py == ["SlicerDDSurfer.py"],
+        "top_level_python_ok": top_level_py == ["SlicerDSpace.py"],
         "runtime_entries": list(RUNTIME_ENTRIES),
         "runtime_files": files,
         "resource_manifest": "scripts/extension_runtime/runtime_resources.json",
@@ -99,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--install-root",
         required=True,
         type=Path,
-        help="Directory where an extension-like SlicerDDSurfer install tree will be staged.",
+        help="Directory where an extension-like SlicerDSpace install tree will be staged.",
     )
     parser.add_argument("--slicer-version", default="Slicer-5.10")
     parser.add_argument("--clean", action="store_true", help="Remove the existing staged extension before staging.")

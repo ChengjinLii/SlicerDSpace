@@ -10,8 +10,8 @@ import slicer
 
 
 def main():
-    root = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"]).resolve()
-    private_home = Path(os.environ["SLICERDDSURFER_PRIVATE_SLICER_HOME"]).resolve()
+    root = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"]).resolve()
+    private_home = Path(os.environ["SLICERDSPACE_PRIVATE_SLICER_HOME"]).resolve()
     stores = {}
     for name, settings, parent in (
         ("user", slicer.app.userSettings(), root / "settings"),
@@ -27,7 +27,7 @@ def main():
     (root / "settings_isolation.json").write_text(json.dumps(record, indent=2) + "\n")
     if not record["passed"]:
         raise RuntimeError(f"Slicer settings are not isolated/writable: {record}")
-    runpy.run_path(os.environ["SLICERDDSURFER_TEST_SCRIPT"], run_name="__main__")
+    runpy.run_path(os.environ["SLICERDSPACE_TEST_SCRIPT"], run_name="__main__")
 
 
 try:

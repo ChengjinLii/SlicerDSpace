@@ -77,9 +77,9 @@ def parameters(values=None):
 def resolve_executable(explicit=None, name="UKFTractography"):
     candidate = explicit
     if not candidate and name == "UKFTractography":
-        candidate = os.environ.get("SLICERDDSURFER_UKF_EXECUTABLE")
+        candidate = os.environ.get("SLICERDSPACE_UKF_EXECUTABLE")
     if not candidate and name == "DWIConvert":
-        candidate = os.environ.get("SLICERDDSURFER_DWICONVERT_EXECUTABLE")
+        candidate = os.environ.get("SLICERDSPACE_DWICONVERT_EXECUTABLE")
     if candidate:
         path = Path(candidate).expanduser().resolve()
         if path.is_file():

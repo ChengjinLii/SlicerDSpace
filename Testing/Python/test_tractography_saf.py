@@ -704,14 +704,14 @@ class SAFIntegrationTest(unittest.TestCase):
     def test_mrtrix_env_bin_dir_is_used_for_backend_discovery(self) -> None:
         from tractography import inspect_saf_backend
 
-        old_value = os.environ.get("SLICERDDSURFER_MRTRIX_BIN")
+        old_value = os.environ.get("SLICERDSPACE_MRTRIX_BIN")
         with tempfile.TemporaryDirectory() as tmp:
             bin_dir = Path(tmp) / "mrtrix-env-bin"
             bin_dir.mkdir()
             mrconvert = bin_dir / "mrconvert"
             mrconvert.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
             mrconvert.chmod(0o755)
-            os.environ["SLICERDDSURFER_MRTRIX_BIN"] = bin_dir.as_posix()
+            os.environ["SLICERDSPACE_MRTRIX_BIN"] = bin_dir.as_posix()
             try:
                 status = inspect_saf_backend(
                     require_mrconvert=True,
@@ -720,9 +720,9 @@ class SAFIntegrationTest(unittest.TestCase):
                 )
             finally:
                 if old_value is None:
-                    os.environ.pop("SLICERDDSURFER_MRTRIX_BIN", None)
+                    os.environ.pop("SLICERDSPACE_MRTRIX_BIN", None)
                 else:
-                    os.environ["SLICERDDSURFER_MRTRIX_BIN"] = old_value
+                    os.environ["SLICERDSPACE_MRTRIX_BIN"] = old_value
             self.assertEqual(status["mrtrix_required"]["mrconvert"], mrconvert.resolve().as_posix())
             self.assertEqual(status["missing_required"], [])
 

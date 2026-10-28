@@ -243,7 +243,7 @@ class DDSurferSyncTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / 'x'
             surface = subject_layout(root).ddsurfer
-            native = surface / 'pred_results_SlicerDDSurfer/native/x'
+            native = surface / 'pred_results_SlicerDSpace/native/x'
             native.mkdir(parents=True)
             for hemi in ('lh', 'rh'):
                 for kind in ('white', 'pial'):
@@ -309,7 +309,7 @@ class DDSurferSyncTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / 'x'
             layout = subject_layout(root)
-            native = layout.ddsurfer / 'pred_results_SlicerDDSurfer/native/x'
+            native = layout.ddsurfer / 'pred_results_SlicerDSpace/native/x'
             native.mkdir(parents=True)
             for hemi in ('lh', 'rh'):
                 for kind in ('white', 'pial'):

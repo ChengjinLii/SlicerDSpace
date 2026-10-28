@@ -1,4 +1,4 @@
-"""Open SlicerDDSurfer in a real Slicer GUI session and keep Slicer running."""
+"""Open SlicerDSpace in a real Slicer GUI session and keep Slicer running."""
 
 from __future__ import annotations
 
@@ -26,22 +26,22 @@ def _open_module() -> None:
     module_manager = slicer.app.moduleManager()
     factory_manager = module_manager.factoryManager() if module_manager else None
     module_names = set(factory_manager.instantiatedModuleNames()) if factory_manager else set()
-    if "SlicerDDSurfer" in module_names:
-        slicer.util.selectModule("SlicerDDSurfer")
+    if "SlicerDSpace" in module_names:
+        slicer.util.selectModule("SlicerDSpace")
         slicer.app.processEvents()
-        READY_MARKER.write_text("SLICERDDSURFER_GUI_READY=1\n", encoding="utf-8")
-        print("SLICERDDSURFER_GUI_READY=1", flush=True)
+        READY_MARKER.write_text("SLICERDSPACE_GUI_READY=1\n", encoding="utf-8")
+        print("SLICERDSPACE_GUI_READY=1", flush=True)
         return
 
     print(
-        f"SLICERDDSURFER_GUI_WAIT attempt={_attempt} module_loaded={'SlicerDDSurfer' in module_names}",
+        f"SLICERDSPACE_GUI_WAIT attempt={_attempt} module_loaded={'SlicerDSpace' in module_names}",
         flush=True,
     )
     if _attempt < MAX_ATTEMPTS:
         qt.QTimer.singleShot(RETRY_MS, _open_module)
     else:
-        READY_MARKER.write_text("SLICERDDSURFER_GUI_TIMEOUT=1\n", encoding="utf-8")
-        print("SLICERDDSURFER_GUI_TIMEOUT=1", flush=True)
+        READY_MARKER.write_text("SLICERDSPACE_GUI_TIMEOUT=1\n", encoding="utf-8")
+        print("SLICERDSPACE_GUI_TIMEOUT=1", flush=True)
 
 
 READY_MARKER.unlink(missing_ok=True)

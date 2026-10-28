@@ -1,4 +1,4 @@
-"""Prepare external DWI inputs into the SlicerDDSurfer subject-root layout."""
+"""Prepare external DWI inputs into the SlicerDSpace subject-root layout."""
 
 from __future__ import annotations
 

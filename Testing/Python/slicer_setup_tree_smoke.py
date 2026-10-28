@@ -10,7 +10,7 @@ import traceback
 import qt
 import slicer
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
 STATE = {}
 
 
@@ -48,8 +48,8 @@ def poll(count=0):
 
 def start():
     from shared.ui_setup_jobs import start_setup_job
-    slicer.util.selectModule("SlicerDDSurfer")
-    widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+    slicer.util.selectModule("SlicerDSpace")
+    widget = slicer.modules.slicerdspace.widgetRepresentation().self()
     owner = SimpleNamespace(parent=slicer.util.mainWindow(), _latestEnvironmentReportDir=ROOT,
                             _pipelineActive=False, appendLog=print)
     owner._setPipelineActive = lambda active: setattr(owner, "_pipelineActive", active)

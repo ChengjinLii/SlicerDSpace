@@ -23,7 +23,7 @@ class StageSlicerExtensionTest(unittest.TestCase):
                             "anatomy/parcellation/models/losses.py", "anatomy/parcellation/models/organize_weights.sh",
                             "docs/archive/legacy-copy-20260523"):
                 self.assertFalse((module_dir / retired).exists(), retired)
-            self.assertEqual(sorted(path.name for path in module_dir.glob("*.py")), ["SlicerDDSurfer.py"])
+            self.assertEqual(sorted(path.name for path in module_dir.glob("*.py")), ["SlicerDSpace.py"])
             self.assertTrue((module_dir / "tractography" / "saf_backend").is_dir())
             for excluded in ("docs/site", "docs/website", "website", "Testing",
                              "docs/release/PERFORMANCE_OPTIMIZATIONS.md",

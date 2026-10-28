@@ -21,7 +21,8 @@ LEGACY_PACKAGE_NAMES = (
     "microstructurepipeline",
 )
 SCAN_ROOTS = (
-    "SlicerDDSurfer.py",
+    "SlicerDSpace.py",
+    "Slicer" + "DDSurfer.py",  # Source-only legacy import compatibility.
     "shared",
     "anatomy",
     "microstructure",
@@ -41,8 +42,9 @@ ALLOWED_ROOT_FILES = {
     "Makefile",
     "README.md",
     "README.zh-CN.md",
-    "SlicerDDSurfer.py",
-    "SlicerDDSurfer.s4ext",
+    "SlicerDSpace.py",
+    "Slicer" + "DDSurfer.py",  # Source-only legacy import compatibility.
+    "SlicerDSpace.s4ext",
     "codemeta.json",
     "pyproject.toml",
     "run_postprocess_docker.py",

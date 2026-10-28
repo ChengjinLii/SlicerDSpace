@@ -1,9 +1,9 @@
-"""Stylesheets shared by the SlicerDDSurfer Qt UI."""
+"""Stylesheets shared by the SlicerDSpace Qt UI."""
 
 from __future__ import annotations
 
 
-SLICERDDSURFER_UI_STYLE = """
+SLICERDSPACE_UI_STYLE = """
 QFrame#headerFrame {
   background: transparent;
   border: none;

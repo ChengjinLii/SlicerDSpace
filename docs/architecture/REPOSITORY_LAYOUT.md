@@ -19,8 +19,8 @@ GitHub and because 3D Slicer scans top-level scripted-module files.
 
 Keep only:
 
-- `SlicerDDSurfer.py`: the Slicer scripted-module entry point.
-- `SlicerDDSurfer.s4ext`: Slicer extension metadata.
+- `SlicerDSpace.py`: the Slicer scripted-module entry point.
+- `SlicerDSpace.s4ext`: Slicer extension metadata.
 - `CMakeLists.txt`: extension packaging.
 - `README.md` and `README.zh-CN.md`: short user entry points.
 - `LICENSE.txt`, `THIRD_PARTY_NOTICES.md`, `CITATION.cff`, `codemeta.json`,

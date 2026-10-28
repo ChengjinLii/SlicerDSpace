@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-UI_PATH = REPO_ROOT / "Resources" / "UI" / "SlicerDDSurfer.ui"
+UI_PATH = REPO_ROOT / "Resources" / "UI" / "SlicerDSpace.ui"
 MODULE_WIDGET_PATH = REPO_ROOT / "shared" / "module_widget.py"
 
 
@@ -123,7 +123,7 @@ class SlicerUiLayoutContractTest(unittest.TestCase):
         self.assertEqual(ordered, [name for name, _ in expected])
         for name, text in expected:
             self.assertEqual(_property_text(_widget(root, name), "text"), text)
-        self.assertEqual(_property_text(_widget(root, "runSelectedButton"), "text"), "Run SlicerDDSurfer")
+        self.assertEqual(_property_text(_widget(root, "runSelectedButton"), "text"), "Run SlicerDSpace")
         self.assertEqual(_property_text(_widget(root, "runSelectedButton"), "styleSheet"), "")
 
     def test_run_and_log_are_plain_frames_without_extra_section_headers(self) -> None:

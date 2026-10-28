@@ -7,8 +7,8 @@ import slicer
 
 def run():
     try:
-        slicer.util.selectModule('SlicerDDSurfer')
-        widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule('SlicerDSpace')
+        widget = slicer.modules.slicerdspace.widgetRepresentation().self()
         node = widget._parameterNode
         combo = widget.ui.wmqlQueryPresetComboBox
         assert node.orchestrationWmqlPreset == 'official'

@@ -33,13 +33,13 @@ class CompactUiTest(unittest.TestCase):
                                 _advancedSettingsHintLabel=Text(),
                                 _onboardingWidgets={"language_combo": Text()},
                                 _prepareInputWidgets={"panel": Text()})
-        for language, advanced, run, log in (("en", "Advanced settings", "Run SlicerDDSurfer", "Log"),
-                                           ("zh", "高级设置", "运行 SlicerDDSurfer", "日志")):
+        for language, advanced, run, log in (("en", "Advanced settings", "Run SlicerDSpace", "Log"),
+                                           ("zh", "高级设置", "运行 SlicerDSpace", "日志")):
             apply_compact_language(owner, language)
             self.assertEqual(owner._advancedSettingsPanel.text, advanced)
             self.assertEqual(ui.runSelectedButton.text, run)
             self.assertEqual(ui.logHintLabel.text, log)
-            self.assertEqual(ui.headlineLabel.text, "SlicerDDSurfer")
+            self.assertEqual(ui.headlineLabel.text, "SlicerDSpace")
             self.assertIn("import" if language == "en" else "导入", owner._prepareInputWidgets["panel"].text)
             self.assertTrue(ui.targetSurfaceCheckBox.checked)
             self.assertEqual(node.orchestrationSelectStreamlines, 1000000)

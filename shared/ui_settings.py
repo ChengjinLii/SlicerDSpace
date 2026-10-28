@@ -1,4 +1,4 @@
-"""User-settings helpers for the SlicerDDSurfer widget."""
+"""User-settings helpers for the SlicerDSpace widget."""
 
 from __future__ import annotations
 

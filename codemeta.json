@@ -1,9 +1,9 @@
 {
   "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
   "@type": "SoftwareSourceCode",
-  "name": "SlicerDDSurfer",
+  "name": "SlicerDSpace",
   "description": "3D Slicer workflow for diffusion MRI-derived anatomical reconstruction, connectivity analysis, quality-control review, and provenance capture.",
-  "codeRepository": "https://github.com/ChengjinLii/SlicerDDSurfer",
+  "codeRepository": "https://github.com/ChengjinLii/SlicerDSpace",
   "license": "https://spdx.org/licenses/BSD-3-Clause.html",
   "programmingLanguage": [
     "Python",

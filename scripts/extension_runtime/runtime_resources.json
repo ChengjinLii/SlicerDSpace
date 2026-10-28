@@ -1,7 +1,7 @@
 {
   "version": 1,
   "files": [
-    "SlicerDDSurfer.py",
+    "SlicerDSpace.py",
     "README.md",
     "README.zh-CN.md",
     "CITATION.cff",
@@ -9,8 +9,8 @@
     "THIRD_PARTY_NOTICES.md",
     "models/assets_manifest.json",
     "models/external_assets_manifest.json",
-    "Resources/Icons/SlicerDDSurfer.png",
-    "Resources/UI/SlicerDDSurfer.ui",
+    "Resources/Icons/SlicerDSpace.png",
+    "Resources/UI/SlicerDSpace.ui",
     "anatomy/parcellation/conversion/data/FreeSurferColorLUT.txt",
     "anatomy/surface/ddsurfer_backend/CITATION.cff",
     "anatomy/surface/ddsurfer_backend/utils/LICENSE.pytorch3d",

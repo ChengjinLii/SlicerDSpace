@@ -9,15 +9,15 @@ import traceback
 import qt
 import slicer
 
-ROOT = Path(os.environ['SLICERDDSURFER_SMOKE_ROOT'])
+ROOT = Path(os.environ['SLICERDSPACE_SMOKE_ROOT'])
 
 
 def run():
     checks = []
     try:
         from shared.selected_setup import build_setup_plan
-        slicer.util.selectModule('SlicerDDSurfer')
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule('SlicerDSpace')
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         owner._onboardingWidgets['language_combo'].setCurrentIndex(0)
         node = owner._parameterNode
         with slicer.util.NodeModify(node):
@@ -38,8 +38,8 @@ def run():
                 qt.QTimer.singleShot(50, loop.quit)
                 loop.exec_()
 
-        set_path('postprocess_runtime', os.environ['SLICERDDSURFER_TEST_SURFACE_RUNTIME'])
-        set_path('postprocess_license_file', os.environ['SLICERDDSURFER_TEST_SURFACE_LICENSE'])
+        set_path('postprocess_runtime', os.environ['SLICERDSPACE_TEST_SURFACE_RUNTIME'])
+        set_path('postprocess_license_file', os.environ['SLICERDSPACE_TEST_SURFACE_LICENSE'])
         owner.ui.validateButton.click()
         wait()
         statuses = {item.key: item for item in owner._lastEnvironmentResult.statuses}

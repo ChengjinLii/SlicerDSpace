@@ -47,7 +47,7 @@ def amico_config_version(path):
 
 def fetch(url, optional=False):
     try:
-        with urlopen(Request(url, headers={'User-Agent': 'SlicerDDSurfer-upstream-audit'}), timeout=45) as response:
+        with urlopen(Request(url, headers={'User-Agent': 'SlicerDSpace-upstream-audit'}), timeout=45) as response:
             return response.read()
     except HTTPError as exc:
         if optional and exc.code == 404:

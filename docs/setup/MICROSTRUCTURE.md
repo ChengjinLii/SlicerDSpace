@@ -46,7 +46,7 @@ measurements at a nominal-shell boundary. The selected upper b-value
 and any excluded measurements are recorded in the DKI manifest; high-b data
 can bias the truncated cumulant expansion. These gates check identifiability,
 not adequate SNR or independent biological correctness. Inspect preprocessing,
-signal residuals and anatomy before interpreting results.
+signal residuals and anatomical priors before interpreting results.
 
 The fit does not add smoothing, resampling, denoising or spatial hole filling.
 Quantitative `*_raw.nii.gz` maps preserve unbounded estimates. Separate display

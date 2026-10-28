@@ -1,4 +1,7 @@
-"""Shared subject-root pipeline helpers for SlicerDDSurfer."""
+"""Shared subject-root pipeline helpers for SlicerDSpace."""
+
+from .branding import mirror_environment
+mirror_environment()
 
 from .pipeline import (
     RawInputBundle,

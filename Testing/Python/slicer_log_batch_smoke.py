@@ -15,10 +15,10 @@ import slicer
 
 
 def run():
-    root = Path(os.environ['SLICERDDSURFER_SMOKE_ROOT'])
+    root = Path(os.environ['SLICERDSPACE_SMOKE_ROOT'])
     try:
         from shared.ui_status_log import append_log, configure_log_widget
-        reference = Path(os.environ['SLICERDDSURFER_LOG_REFERENCE'])
+        reference = Path(os.environ['SLICERDSPACE_LOG_REFERENCE'])
         original = runpy.run_path(str(reference))['append_log']
         functions = {'original': original, 'batched': append_log}
         widgets = {name: qt.QPlainTextEdit() for name in functions}

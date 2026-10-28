@@ -13,8 +13,8 @@ import nibabel as nib
 import qt
 import slicer
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
-CONFIG = json.loads(Path(os.environ["SLICERDDSURFER_TASKS_CONFIG"]).read_text())
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
+CONFIG = json.loads(Path(os.environ["SLICERDSPACE_TASKS_CONFIG"]).read_text())
 STATE = {"errors": [], "beats": 0}
 
 
@@ -67,8 +67,8 @@ def poll():
 
 def start():
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
-        widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        widget = slicer.modules.slicerdspace.widgetRepresentation().self()
         STATE["widget"] = widget
         original_log = widget.appendLog
         def log(message):
@@ -107,7 +107,7 @@ def start():
         STATE["started"] = time.monotonic()
         widget._checkCanApply()
         assert widget.ui.runSelectedButton.enabled
-        module_root = Path(slicer.modules.slicerddsurfer.path).resolve().parent
+        module_root = Path(slicer.modules.slicerdspace.path).resolve().parent
         STATE["manifest"] = ROOT / "batch_manifest.json"
         command = [widget._slicer_launcher_program(), "--launch", "PythonSlicer",
                    str(module_root / "scripts/run_batch_pipeline.py"),

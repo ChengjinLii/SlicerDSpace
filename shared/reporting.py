@@ -1,4 +1,4 @@
-"""Subject-level report/provenance generation for SlicerDDSurfer outputs."""
+"""Subject-level report/provenance generation for SlicerDSpace outputs."""
 
 from __future__ import annotations
 
@@ -233,7 +233,7 @@ def _task_family(name: str) -> str:
         "surface": "Surface",
         "microstructure": "Microstructure",
         "tractography": "Tractography",
-        "bundles": "Bundles",
+        "bundles": "Fiber bundles",
         "connectome": "Connectome",
     }.get(prefix, prefix.replace("_", " ").title())
 
@@ -642,7 +642,7 @@ def _build_markdown_summary(
     slowest_tasks = qc_summary.get("performance_slowest_tasks", [])
     largest_top_dirs = qc_summary.get("performance_largest_top_dirs", [])
     lines = [
-        f"# SlicerDDSurfer Run Summary: {manifest.get('subject_id') or 'subject'}",
+        f"# SlicerDSpace Run Summary: {manifest.get('subject_id') or 'subject'}",
         "",
         f"- Status: {summary.get('status')} - {summary.get('interpretation')}",
         f"- Run name: `{manifest.get('run_name') or ''}`",
@@ -714,7 +714,7 @@ def _build_html_report(
     largest_task_outputs = qc_summary.get("performance_largest_task_outputs", [])
     largest_top_dirs = qc_summary.get("performance_largest_top_dirs", [])
     status = str(summary.get("status") or "unknown")
-    title = f"SlicerDDSurfer Report - {manifest.get('subject_id') or 'subject'}"
+    title = f"SlicerDSpace Report - {manifest.get('subject_id') or 'subject'}"
     return f"""<!doctype html>
 <html lang=\"en\">
 <head>
@@ -865,7 +865,7 @@ def _build_html_report(
   </section>
 
   <div class=\"footer\">
-    SlicerDDSurfer keeps detailed manifests and QC JSON for reproducibility. This HTML report intentionally summarizes the run first; use the JSON files for exhaustive paths and raw task metadata.
+    SlicerDSpace keeps detailed manifests and QC JSON for reproducibility. This HTML report intentionally summarizes the run first; use the JSON files for exhaustive paths and raw task metadata.
   </div>
 </main>
 </body>

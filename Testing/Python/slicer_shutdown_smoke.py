@@ -9,7 +9,7 @@ import traceback
 import qt
 import slicer
 
-ROOT = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+ROOT = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
 STATE = {}
 
 
@@ -44,7 +44,7 @@ def poll(count=0):
         # Also exercise Cancel followed by Quit after the launcher has exited,
         # before the GUI's delayed child force-kill timer can run.
         slicer.app.connect("aboutToQuit()", inspect_shutdown)
-        if os.environ.get("SLICERDDSURFER_CANCEL_BEFORE_QUIT") == "1":
+        if os.environ.get("SLICERDSPACE_CANCEL_BEFORE_QUIT") == "1":
             STATE["widget"]._onCancelRunClicked()
             qt.QTimer.singleShot(500, quit_after_cancel)
         else:
@@ -66,8 +66,8 @@ def quit_after_cancel(count=0):
 
 def run():
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
-        widget = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        widget = slicer.modules.slicerdspace.widgetRepresentation().self()
         STATE["widget"] = widget
         code = ("import subprocess,sys,time; from pathlib import Path; "
                 "p=subprocess.Popen([sys.executable,'-c',"

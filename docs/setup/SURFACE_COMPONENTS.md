@@ -26,7 +26,7 @@ replacement for the complete FreeSurfer suite. Postprocessing remains optional.
 Use **Environment and installation > More options > advanced paths** to set
 the optional component directory and your personal activation file. Keep the
 component path empty to use an existing FreeSurfer installation instead.
-`SLICERDDSURFER_SURFACE_RUNTIME` also selects a local runtime; `FS_LICENSE`
+`SLICERDSPACE_SURFACE_RUNTIME` also selects a local runtime; `FS_LICENSE`
 selects a personal activation file. An explicitly selected incomplete/corrupt
 runtime is an error, not a reason to fall back silently.
 

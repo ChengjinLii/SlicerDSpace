@@ -16,12 +16,12 @@ from vtk.util.numpy_support import vtk_to_numpy
 
 
 def run():
-    destination = Path(os.environ['SLICERDDSURFER_SMOKE_ROOT'])
+    destination = Path(os.environ['SLICERDSPACE_SMOKE_ROOT'])
     try:
-        sys.path.insert(0, os.environ['SLICERDDSURFER_EXTENSION_MODULE_DIR'])
+        sys.path.insert(0, os.environ['SLICERDSPACE_EXTENSION_MODULE_DIR'])
         from shared.module_logic import SharedLogicMixin
         from shared.pipeline import find_subject_root, ensure_native_dti_bundle
-        configuration = json.loads(Path(os.environ['SLICERDDSURFER_TASKS_CONFIG']).read_text())
+        configuration = json.loads(Path(os.environ['SLICERDSPACE_TASKS_CONFIG']).read_text())
         class ReaderLogic(SharedLogicMixin):
             log = staticmethod(print)
         logic = ReaderLogic()
@@ -126,7 +126,7 @@ def run():
                                 subject_id=case['subject_id'], runtime_seconds=time.monotonic() - started,
                                 files=len(paths), streamlines=lines, point_coordinates_exact=maximum_delta == 0.,
                                 maximum_coordinate_delta_mm=maximum_delta, coordinate_tolerance_mm=.001,
-                                scope='SlicerDDSurfer FiberBundle loader plus independent reader comparison; excludes Slicer startup and tract extraction'))
+                                scope='SlicerDSpace FiberBundle loader plus independent reader comparison; excludes Slicer startup and tract extraction'))
         if configuration.get('preview_cst'):
             slicer.app.layoutManager().setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
             bounds = []

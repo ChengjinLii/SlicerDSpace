@@ -7,8 +7,8 @@ import traceback
 
 def run():
     try:
-        slicer.util.selectModule('SlicerDDSurfer')
-        widget=slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule('SlicerDSpace')
+        widget=slicer.modules.slicerdspace.widgetRepresentation().self()
         node=widget._parameterNode
         control=widget.ui.parallelModelsSpinBox
         assert node.maxParallelModels==1

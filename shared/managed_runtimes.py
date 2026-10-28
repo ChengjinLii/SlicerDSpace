@@ -38,7 +38,7 @@ PROFILES = {
 
 
 def runtime_root():
-    return Path(os.environ.get("SLICERDDSURFER_RUNTIME_ROOT") or
+    return Path(os.environ.get("SLICERDSPACE_RUNTIME_ROOT") or
                 default_user_model_assets_root().parent / "runtimes").expanduser().resolve()
 
 

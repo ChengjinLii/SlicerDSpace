@@ -1,4 +1,4 @@
-"""Canonical subject I/O layout for SlicerDDSurfer outputs.
+"""Canonical subject I/O layout for SlicerDSpace outputs.
 
 Pipeline code should use this module for default locations while still honoring
 explicit user-provided output paths for backward compatibility. Generated
@@ -426,7 +426,7 @@ def materialize_canonical_output_tree(
     mode: str = "symlink",
     archive_legacy: bool = False,
 ) -> dict[str, Path]:
-    """Create canonical output-tree views for known legacy SlicerDDSurfer outputs.
+    """Create canonical output-tree views for known legacy SlicerDSpace outputs.
 
     ``mode`` controls how existing legacy files are exposed in the canonical tree:
     ``symlink`` avoids duplicating large neuroimaging files, while ``copy`` creates

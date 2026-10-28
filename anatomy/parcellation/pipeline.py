@@ -1,4 +1,4 @@
-"""DDParcel preprocessing pipeline adapted for SlicerDDSurfer."""
+"""DDParcel preprocessing pipeline adapted for SlicerDSpace."""
 
 from __future__ import annotations
 

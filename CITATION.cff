@@ -1,26 +1,32 @@
 cff-version: 1.2.0
-message: "If you use SlicerDDSurfer, please cite the tagged software release and the relevant component-method papers."
-title: "SlicerDDSurfer: an integrated 3D Slicer workflow for anatomical reconstruction and connectivity analysis from diffusion MRI"
+message: "If you use SlicerDSpace, please cite the tagged software release and the relevant component-method papers."
+title: "SlicerDSpace: an integrated 3D Slicer workflow for anatomical reconstruction and connectivity analysis from diffusion MRI"
 type: software
 authors:
   - family-names: Li
     given-names: Chengjin
-repository-code: "https://github.com/ChengjinLii/SlicerDDSurfer"
-url: "https://github.com/ChengjinLii/SlicerDDSurfer"
+repository-code: "https://github.com/ChengjinLii/SlicerDSpace"
+url: "https://github.com/ChengjinLii/SlicerDSpace"
 license: BSD-3-Clause
 version: "0.1.0"
 date-released: "2026-06-24"
 abstract: >-
-  SlicerDDSurfer is a 3D Slicer scripted module and command-line workflow for
+  SlicerDSpace is a 3D Slicer scripted module and command-line workflow for
   diffusion MRI-derived anatomical reconstruction, segmentation, parcellation,
   microstructure analysis, tractography, bundle analysis, connectome
   construction, quality-control review, and provenance capture.
 preferred-citation:
   type: article
-  title: "SlicerDDSurfer: an integrated 3D Slicer workflow for anatomical reconstruction and connectivity analysis from diffusion MRI"
+  title: "SlicerDSpace: a T1-weighted-image-free 3D Slicer workflow for diffusion MRI anatomical priors, microstructure and connectivity analysis"
   authors:
     - family-names: Li
       given-names: Chengjin
+    - family-names: Zhang
+      given-names: Wei
+    - family-names: Ji
+      given-names: Wenjun
+    - family-names: Zhang
+      given-names: Fan
   year: 2026
   notes: "Manuscript in preparation; replace this entry with the final publication metadata after acceptance."
 references:

@@ -222,7 +222,7 @@ def worker(args):
     save(output/'measurement.json',dict(status='completed',stage=args.stage,variant=args.variant,
         runtime_seconds=elapsed,inputs_sha256=before,inputs_unchanged=unchanged,files=files,
         qc=qc,threads=os.environ.get('OMP_NUM_THREADS'), environment=numerical_environment(),
-        scope='Complete model call including preparation, fitting, QC and output; not whole SlicerDDSurfer'))
+        scope='Complete model call including preparation, fitting, QC and output; not whole SlicerDSpace'))
 
 
 def compare(left,right,stage):

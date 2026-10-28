@@ -288,7 +288,7 @@ class CliTemplatesTest(unittest.TestCase):
                 self.assertNotIn('--execute', call)
 
     def test_powershell_wrapper_syntax_when_available(self):
-        pwsh = os.environ.get('SLICERDDSURFER_TEST_PWSH') or shutil.which('pwsh')
+        pwsh = os.environ.get('SLICERDSPACE_TEST_PWSH') or shutil.which('pwsh')
         if not pwsh:
             self.skipTest('PowerShell not installed')
         code = blocks(GUIDES[0], 'setup')['powershell']

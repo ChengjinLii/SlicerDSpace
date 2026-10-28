@@ -22,9 +22,9 @@ and explicitly apply the lighter preset:
 | Brain mask | DIPY median-Otsu on mean b0 | None; no weights |
 | Optional preprocessing | DIPY | None |
 | DTI / FW / NODDI / Python DKI | Selected models in Slicer's Python | None; model-specific Python packages as needed |
-| Anatomy | DDSeg / DDParcel / DDSurfer | PyTorch extension, Python packages and downloaded assets |
+| Anatomical prior | DDSeg / DDParcel / DDSurfer | PyTorch extension, Python packages and downloaded assets |
 | Tracking | DTI deterministic | SlicerDMRI and compatible Python packages |
-| Bundles | WMQL | Python implementation and queries |
+| Fiber bundles | WMQL | Python implementation and queries |
 | Connectome | Python | Compatible Python packages |
 | Optional surface postprocessing | Licensed native components | Small component runtime; no full FreeSurfer |
 
@@ -53,7 +53,7 @@ and [Slicer Python documentation](https://slicer.readthedocs.io/en/latest/develo
    sequentially; different subjects may run concurrently and share GPU memory.
 5. Enter optional CLI overrides and named variants. Precedence is GUI settings,
    then common overrides, then the variant's arguments.
-6. Use **Preview experiments**, then **Run SlicerDDSurfer** and confirm the job
+6. Use **Preview experiments**, then **Run SlicerDSpace** and confirm the job
    count/output path. Preview validates parameters and paths; each job checks
    its own dependencies before execution.
 
@@ -70,7 +70,7 @@ With Microstructure selected, compare two DTI estimators:
 ]
 ```
 
-With Bundles selected, compare the current route with UKF feeding WMA:
+With Fiber bundles selected, compare the current route with UKF feeding WMA:
 
 ```json
 [

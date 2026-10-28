@@ -1,4 +1,4 @@
-// Headless Chrome checks for the SlicerDDSurfer project site (SPEC section 7.2).
+// Headless Chrome checks for the SlicerDSpace project site (SPEC section 7.2).
 //
 // Run from the branch root:
 //   npm ci --prefix Testing/Website
@@ -40,7 +40,7 @@ const MIME = {
 function serve() {
   const server = http.createServer((req, res) => {
     let urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    if (urlPath.startsWith('/SlicerDDSurfer/')) urlPath = urlPath.slice('/SlicerDDSurfer'.length);
+    if (urlPath.startsWith('/SlicerDSpace/')) urlPath = urlPath.slice('/SlicerDSpace'.length);
     if (urlPath.endsWith('/')) urlPath += 'index.html';
     const file = path.resolve(DOCS, '.' + urlPath);
     if (!file.startsWith(DOCS + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
@@ -360,7 +360,7 @@ async function runPerformance(browser, origin, width, noJs = false) {
   });
   page.on('request', (request) => { const u = new URL(request.url()); if (u.origin !== origin && u.protocol !== 'data:' && u.protocol !== 'blob:' && u.protocol !== 'about:') errors.push('External request: ' + request.url()); });
   page.on('response', (response) => { if (response.status() >= 400) errors.push('HTTP ' + response.status() + ': ' + response.url()); });
-  await page.goto(origin + '/SlicerDDSurfer/index.html', { waitUntil: 'load' });
+  await page.goto(origin + '/SlicerDSpace/index.html', { waitUntil: 'load' });
   await page.evaluate(() => document.fonts.ready);
   const prefix = `performance ${width}px${noJs ? ' no JS' : ''}`;
   const evidence = page.locator('#performance-evidence');
@@ -394,11 +394,11 @@ async function runPerformance(browser, origin, width, noJs = false) {
     await page.locator('.perf-table a[href="#method-freewater"]').click();
     await page.waitForFunction(() => document.getElementById('method-freewater').open);
     record(await page.locator('#method-freewater').getAttribute('open') !== null, prefix + ': same-fragment link reopens method');
-    const response = await context.request.get(origin + '/SlicerDDSurfer/assets/data/performance.json');
+    const response = await context.request.get(origin + '/SlicerDSpace/assets/data/performance.json');
     const data = await response.json();
     record(response.ok() && data.records.length === 13 && !JSON.stringify(data).includes('/data/chengjin/'), prefix + ': sanitized evidence download');
     // The hash opens the evidence; the footer link reopens it after it was closed.
-    await page.goto(origin + '/SlicerDDSurfer/index.html#performance', { waitUntil: 'load' });
+    await page.goto(origin + '/SlicerDSpace/index.html#performance', { waitUntil: 'load' });
     await page.waitForFunction(() => document.getElementById('performance-evidence').open);
     record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': #performance opens the evidence');
     await page.evaluate(() => { document.getElementById('performance-evidence').open = false; });
@@ -471,16 +471,16 @@ async function runReferenceLinks(browser, origin) {
 async function runHomePerformanceNavigation(browser, origin) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.goto(origin + '/SlicerDDSurfer/index.html#runtime', { waitUntil: 'load' });
+  await page.goto(origin + '/SlicerDSpace/index.html#runtime', { waitUntil: 'load' });
   const images = page.locator('#runtime img');
   record(await images.count() === 2,
     'home page: stage times and optimization figures share the runtime section');
   await page.locator('footer a[href="#performance"]').click();
   await page.waitForFunction(() => document.getElementById('performance-evidence').open);
-  record(new URL(page.url()).pathname === '/SlicerDDSurfer/index.html' &&
+  record(new URL(page.url()).pathname === '/SlicerDSpace/index.html' &&
     new URL(page.url()).hash === '#performance',
     'home page: evidence link opens the disclosure without navigating to another page', page.url());
-  const retired = await context.request.get(origin + '/SlicerDDSurfer/performance.html');
+  const retired = await context.request.get(origin + '/SlicerDSpace/performance.html');
   record(retired.status() === 404, 'retired performance page is not published', String(retired.status()));
   await context.close();
 }

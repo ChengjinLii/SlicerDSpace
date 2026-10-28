@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate SlicerDDSurfer subject report artifacts from a run manifest."""
+"""Generate SlicerDSpace subject report artifacts from a run manifest."""
 
 from __future__ import annotations
 

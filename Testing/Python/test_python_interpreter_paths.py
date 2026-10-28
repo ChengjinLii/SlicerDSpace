@@ -130,7 +130,7 @@ class OrchestratorInterpreterPathTests(VenvLinkCase):
 
         root = self.tmp / "x"
         surface = subject_layout(root).ddsurfer
-        native = surface / "pred_results_SlicerDDSurfer/native/x"
+        native = surface / "pred_results_SlicerDSpace/native/x"
         native.mkdir(parents=True)
         for hemi in ("lh", "rh"):
             for kind in ("white", "pial"):

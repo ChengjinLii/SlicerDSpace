@@ -11,8 +11,8 @@ import slicer
 
 def run():
     try:
-        slicer.util.selectModule("SlicerDDSurfer")
-        owner = slicer.modules.slicerddsurfer.widgetRepresentation().self()
+        slicer.util.selectModule("SlicerDSpace")
+        owner = slicer.modules.slicerdspace.widgetRepresentation().self()
         node, ui = owner._parameterNode, owner.ui
         assert node.orchestrationTractographyBackend == "csd_act"
         with slicer.util.NodeModify(node):
@@ -78,7 +78,7 @@ def run():
         assert "--ukf-parameters" in args
         if handoff['dwiconvert_executable'] is not None:
             assert args[args.index('--dwiconvert-executable') + 1] == str(handoff['dwiconvert_executable'])
-        destination = Path(os.environ["SLICERDDSURFER_SMOKE_ROOT"])
+        destination = Path(os.environ["SLICERDSPACE_SMOKE_ROOT"])
         owner._uiWidget.grab().save(str(destination / "ukf_advanced.png"))
         if handoff["ukf_executable"] is not None:
             actual_cli_smoke(destination, handoff["ukf_executable"], handoff['dwiconvert_executable'])
