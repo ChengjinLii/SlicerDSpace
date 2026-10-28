@@ -197,6 +197,8 @@ Three method papers, exactly as CITATION.cff gives them (R/CITATION.cff:32-111):
 
 ## 9. Promo film facts
 
+Rename render of 28 October 2026: `P/out/SlicerDSpace_promo_1080p.mp4` (47,767,254 bytes, SHA-256 4ead178f6d1165b98d0c5b61b1c94e250ac53d7893c5fae2d7847d6cdd1e13b5; 72.000 s, 2160 frames, -14.0 LUFS, LRA 3.1 LU, true peak -1.1 dBFS) and `P/out/SlicerDSpace.en.srt` (13 cues, 1,131 B). Only the name changed: on-screen and spoken "SlicerDDSurfer" became "SlicerDSpace" (spoken "Slicer D Space"), shot 11 shows a new capture of the renamed module, and the end-card icon is the SlicerDSpace logo. Cue 13 ends at 1:11.649. The facts below describe the 24 October render; in the narration, read SlicerDSpace for SlicerDDSurfer.
+
 File `P/out/SlicerDDSurfer_promo_1080p.mp4`, render of 24 October 2026 (72.0 s, 2160 frames). Earlier deliveries: the first cut (64.8 s, 41,070,370 bytes, 1944 frames, 12 cues) and the 23 October render (72.0 s, 50,757,754 bytes). Re-measured on 24 October 2026 with the commands below.
 
 | Fact | Value | Source |

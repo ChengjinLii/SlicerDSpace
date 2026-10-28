@@ -21,9 +21,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DOCS = os.path.join(ROOT, "docs", "site")
 INDEX = os.path.join(DOCS, "index.html")
 PAGE404 = os.path.join(DOCS, "404.html")
-FILM = os.path.join(DOCS, "media", "SlicerDDSurfer_promo_1080p.mp4")
+FILM = os.path.join(DOCS, "media", "SlicerDSpace_promo_1080p.mp4")
 SRT = os.path.join(DOCS, "media", "SlicerDSpace.en.srt")
-FILM_BYTES = 47838648
+FILM_BYTES = 47767254
 
 REPO = "https://github.com/ChengjinLii/SlicerDSpace"
 BLOB = REPO + "/blob/main/"

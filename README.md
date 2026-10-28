@@ -42,9 +42,9 @@ Research software · Private pre-release · Not yet listed in the official Exten
 
 ## Video
 
-[![SlicerDSpace animated video preview](docs/assets/readme/SlicerDDSurfer_preview.gif)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4)
+[![SlicerDSpace animated video preview](docs/assets/readme/SlicerDSpace_preview.gif)](docs/site/media/SlicerDSpace_promo_1080p.mp4)
 
-[Watch the video (MP4, 1:12)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4) ·
+[Watch the video (MP4, 1:12)](docs/site/media/SlicerDSpace_promo_1080p.mp4) ·
 [Website player and transcript](https://chengjinlii.github.io/SlicerDSpace/#film)
 
 ---

@@ -39,9 +39,9 @@ SlicerDSpace 是新的产品及模块名称，旧设置、场景和模型缓存�
 
 ## 宣传视频
 
-[![SlicerDSpace 宣传视频动态预览](docs/assets/readme/SlicerDDSurfer_preview.gif)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4)
+[![SlicerDSpace 宣传视频动态预览](docs/assets/readme/SlicerDSpace_preview.gif)](docs/site/media/SlicerDSpace_promo_1080p.mp4)
 
-[观看完整视频（MP4，1 分 12 秒）](docs/site/media/SlicerDDSurfer_promo_1080p.mp4) ·
+[观看完整视频（MP4，1 分 12 秒）](docs/site/media/SlicerDSpace_promo_1080p.mp4) ·
 [网页播放器与字幕](https://chengjinlii.github.io/SlicerDSpace/#film)
 
 ---

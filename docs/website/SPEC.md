@@ -125,8 +125,8 @@ docs/assets/img/          icon-64.png, icon-180.png (from R/Resources/Icons/Slic
                           `docs/figures/*.svg`, which is not served), and twelve result tiles: res-dec.jpg, res-fw.jpg,
                           res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tissue.jpg, res-parcel.jpg, res-tr-ukf.jpg,
                           res-tr-csd.jpg, res-wmql-csd.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
-docs/media/SlicerDDSurfer_promo_1080p.mp4   copy of P/out/SlicerDDSurfer_promo_1080p.mp4 (47,838,648 bytes)
-docs/media/SlicerDDSurfer.en.srt            copy of P/out/SlicerDDSurfer.en.srt
+docs/media/SlicerDSpace_promo_1080p.mp4     copy of P/out/SlicerDSpace_promo_1080p.mp4 (47,767,254 bytes)
+docs/media/SlicerDSpace.en.srt              copy of P/out/SlicerDSpace.en.srt
 ```
 
 ## 3. Images (film frames, the cover, the two figures of §5.6a and §5.10a, twelve result tiles and the screenshot)
@@ -232,14 +232,14 @@ Links: “Film” `#film`, “Idea” `#idea`, “Outputs” `#outputs`, “Work
 
 - A wide frame (max 1200px, 16:9, `--radius`, 1px `--line-2`, soft DEC glow) holding:
   `<video id="film-video" controls playsinline preload="metadata" poster="assets/img/poster.jpg" width="1920"
-  height="1080" aria-label="SlicerDDSurfer film, 72 seconds, narrated, with subtitles in the picture">` with
-  `<source src="media/SlicerDDSurfer_promo_1080p.mp4" type="video/mp4">` and a fallback link “Download the film (MP4)”.
+  height="1080" aria-label="SlicerDSpace film, 72 seconds, narrated, with subtitles in the picture">` with
+  `<source src="media/SlicerDSpace_promo_1080p.mp4" type="video/mp4">` and a fallback link “Download the film (MP4)”.
 - Progressive enhancement: JS removes `controls` at start and shows a centred play button (round, 88px, glass,
   triangle icon, label “Play film · 1:12”). Click/Enter/Space: hide the button, add `controls`, `play()` with sound.
   On `ended`: show the button again (label “Play again”). Without JS the native controls stay.
 - Meta row under the frame (mono, small): “72.0 s · 1920 × 1080 · narrated · subtitles in the picture” and links
-  “Download MP4 (48 MB)” `media/SlicerDDSurfer_promo_1080p.mp4` (`download`), “Subtitles (.srt)”
-  `media/SlicerDDSurfer.en.srt` (`download`). [F9]
+  “Download MP4 (48 MB)” `media/SlicerDSpace_promo_1080p.mp4` (`download`), “Subtitles (.srt)”
+  `media/SlicerDSpace.en.srt` (`download`). [F9]
 - `<details>` “Transcript”: an ordered list of the 13 narration lines, verbatim from the `.srt`, in order [F9]:
   1. Diffusion MRI records how water moves through the living brain.
   2. Mapping anatomy has usually meant a second, T1-weighted scan, registered into diffusion space.
@@ -572,11 +572,11 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 3. `external_urls`: every absolute URL in `docs/` (HTML, CSS, JS) is in the §6 set; `<link>`, `<script>`, `<img>`,
    `<source>`, `<video>` and CSS `url()`/`@import` never point to another host, except `<link rel="canonical">` with
    the §6 Pages URL. Inline SVG carries no `xmlns` (or namespace URIs are exempt).
-4. `film_bytes`: `docs/media/SlicerDDSurfer_promo_1080p.mp4` is 47,838,648 bytes and, when `--film` is given, equal in
+4. `film_bytes`: `docs/media/SlicerDSpace_promo_1080p.mp4` is 47,767,254 bytes and, when `--film` is given, equal in
    SHA-256 to that file.
 5. `film_faststart`: top-level MP4 boxes: `ftyp` first, `moov` before `mdat` (pure Python box scan).
 6. `film_probe`: with `ffprobe` on PATH: h264 1920×1080 yuv420p, aac, duration 72.0 ± 0.05 s. `SKIP` without ffprobe.
-7. `transcript_matches_srt`: the transcript list equals the 13 cue texts of `docs/media/SlicerDDSurfer.en.srt`, in order.
+7. `transcript_matches_srt`: the transcript list equals the 13 cue texts of `docs/media/SlicerDSpace.en.srt`, in order.
 8. `sizes`: no file in `docs/` is over 50 MB; `docs/` is under 100 MB in total.
 9. `images`: every `<img>` has non-empty `alt`, integer `width` and `height`; each image file's pixel size matches its
    attributes' aspect ratio within 2% (PNG/JPEG header parse, stdlib only).

@@ -4,11 +4,11 @@ Diffusion MRI records how water moves through the living brain.
 
 2
 00:00:05,000 --> 00:00:11,550
-Mapping anatomical priors has usually meant a second, T1-weighted scan, registered into diffusion space.
+Mapping anatomy has usually meant a second, T1-weighted scan, registered into diffusion space.
 
 3
 00:00:12,100 --> 00:00:19,250
-SlicerDSpace reconstructs anatomical priors directly from diffusion MRI, without T1-weighted images.
+SlicerDSpace reconstructs anatomy directly from diffusion MRI, without a T1-weighted scan.
 
 4
 00:00:19,300 --> 00:00:24,350
@@ -36,16 +36,16 @@ Whole-brain tractography, traced in the same native space.
 
 10
 00:00:46,000 --> 00:00:49,224
-White-matter fiber bundles, from the same tractogram.
+White-matter bundles, from the same tractogram.
 
 11
 00:00:50,800 --> 00:00:54,531
-And structural connectomes, built on the same anatomical priors.
+And structural connectomes, built on the same anatomy.
 
 12
 00:00:55,800 --> 00:01:01,300
 One 3D Slicer module, with automatic QC and a record of every run.
 
 13
-00:01:05,400 --> 00:01:11,950
-SlicerDSpace. Brain anatomical priors from diffusion MRI, inside 3D Slicer.
+00:01:05,400 --> 00:01:11,649
+SlicerDSpace. Brain anatomy from diffusion MRI, inside 3D Slicer.

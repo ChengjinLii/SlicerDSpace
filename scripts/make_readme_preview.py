@@ -21,8 +21,8 @@ def main():
         parser.error("Set --ffmpeg to an installed FFmpeg executable")
     if not math.isfinite(args.speed) or args.speed <= 0:
         parser.error("--speed must be finite and positive")
-    source = ROOT / "docs/site/media/SlicerDDSurfer_promo_1080p.mp4"
-    target = ROOT / "docs/assets/readme/SlicerDDSurfer_preview.gif"
+    source = ROOT / "docs/site/media/SlicerDSpace_promo_1080p.mp4"
+    target = ROOT / "docs/assets/readme/SlicerDSpace_preview.gif"
     target.parent.mkdir(parents=True, exist_ok=True)
     filters = (f"setpts=PTS/{args.speed:g},fps=6,scale=640:-2:flags=lanczos,split[a][b];"
                "[a]palettegen=max_colors=128:stats_mode=diff[p];"
