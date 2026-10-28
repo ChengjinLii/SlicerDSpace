@@ -1,4 +1,4 @@
 interface:
-  display_name: "Install SlicerDDSurfer"
-  short_description: "Install and verify SlicerDDSurfer with a local Agent"
-  default_prompt: "Use $slicerddsurfer-install to install and enable SlicerDDSurfer, verify activation, and prepare only the analyses I choose."
+  display_name: "Install and Use SlicerDDSurfer"
+  short_description: "Install, configure, run and review SlicerDDSurfer analyses"
+  default_prompt: "Use $slicerddsurfer-install to check my setup, prepare only the dependencies I need, plan my chosen analysis or experiments, and run and review the outputs I request."

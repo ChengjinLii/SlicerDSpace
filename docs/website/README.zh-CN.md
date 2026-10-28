@@ -46,6 +46,10 @@
 
 ## 首页、方法表与参考文献
 
+首页 `#skills` 区域和导航介绍安装与使用 Agent Skill，提供 Skill、使用指南、CLI 模板
+链接及可复制指令；中英文根 README 同样设有 Agent Skills 专区。Skill 文件留在仓库中，
+私有预发布阶段需要仓库访问权限。Skill 由用户自己的 Agent 执行，与网页本地导览分开。
+
 悬浮项目助手按个人主页 `d30286f` 的 Chengjin Bot 复刻头像、光晕、眨眼、眼动、
 节日帽和对话框：眼动每 150 ms 采样、每帧按 0.05 平滑，最大偏移 5 px。使用
 `docs/site/assets/js/guide-bot.js` 中的中英文预设资料在本地回答，不访问在线模型、

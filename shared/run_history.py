@@ -170,6 +170,8 @@ def manifest_timestamp(manifest: dict[str, Any], path: Path) -> Optional[datetim
 
 
 def _batch_status(manifest: dict[str, Any]) -> str:
+    if manifest.get('experiment') and manifest.get('status') in {'planned', 'running', 'cancelled', 'failed', 'completed'}:
+        return manifest['status']
     results = [item for item in manifest.get("results") or () if isinstance(item, dict)]
     if not manifest.get("execute", True) and not results:
         return "planned"

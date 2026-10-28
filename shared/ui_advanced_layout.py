@@ -3,7 +3,8 @@
 CATEGORIES = (("processing", "Preprocessing & mask", "预处理与掩膜"),
               ("models", "Model parameters", "模型参数"),
               ("execution", "Run & performance", "运行与性能"),
-              ("tools", "Regions & input import", "脑区与输入导入"))
+              ("tools", "Regions & input import", "脑区与输入导入"),
+              ("experiments", "Experiments & batch", "实验与批处理"))
 
 BATCH_CONTROLS = ("batchModeLabel", "batchModeCheckBox", "batchRootLabel", "batchRootPath",
                   "batchSizeLabel", "batchSizeSpinBox", "batchArrangeInputsLabel", "batchArrangeInputsComboBox")
@@ -117,6 +118,8 @@ def install_advanced_categories(owner):
     if hasattr(owner, '_ukfGroup'):
         owner._ukfGroup.toggled.connect(lambda *_: qt.QTimer.singleShot(0, fit))
     owner._fitAdvancedPage = fit
+    from shared.ui_experiments import install
+    install(owner, stack.widget(4))
     qt.QTimer.singleShot(0, fit)
     apply_advanced_language(owner)
     hide_batch_controls(owner)
@@ -134,6 +137,8 @@ def apply_advanced_language(owner):
         selector.addItem(chinese if zh else en, key)
     selector.setCurrentIndex(max(0, previous))
     selector.blockSignals(blocked)
+    from shared.ui_experiments import apply_language
+    apply_language(owner)
 
 
 def refresh_advanced_categories(owner):
@@ -147,3 +152,5 @@ def refresh_advanced_categories(owner):
                  "orchestrationMicrostructureStagesLabel", "orchestrationMicrostructureStageOptions"):
         getattr(owner.ui, name).hide()
     owner._fitAdvancedPage()
+    from shared.ui_experiments import sync
+    sync(owner)

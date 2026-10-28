@@ -38,7 +38,7 @@ selection: **DTI**, **MRtrix3 CSD / ACT** and **WMQL** by default. These labels
 update when settings change; they describe the configuration, not completed or
 QC-approved results. Click **...** beside each of these three products to
 choose one or several methods. DTI remains required preparation; FW, NODDI and
-DKI are independent options. Advanced settings uses four categories, showing
+DKI are independent options. Advanced settings uses categories, showing
 only the selected category's parameters. Environment installation is separate.
 
 Multiple tracking methods run sequentially as separate `<run>__<backend>`
@@ -78,6 +78,13 @@ mask alternatives and external runtimes before running.
 ---
 
 ## Select A Bundle Source In The CLI
+
+For all routes, Bash/PowerShell launchers, masks, postprocessing, optional models,
+cohorts and reports, use the [command-line templates](CLI_TEMPLATES.md).
+
+For GUI parameter overrides and named variants across subjects, see
+[Lightweight setup and experiments](EXPERIMENTS.md). Default GUI runs remain
+single-subject; experiments are opt-in under Advanced settings.
 
 The CLI can choose the whole-brain tracking source independently of the bundle
 methods. For example, run CSD/ACT and UKF, then apply WMQL and TractCloud only

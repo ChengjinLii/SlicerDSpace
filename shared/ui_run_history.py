@@ -220,6 +220,22 @@ def poll_run_progress(owner: Any) -> None:
     path = getattr(owner, "_runProgressManifestPath", None)
     if path is None:
         return
+    record = {}
+    if (getattr(owner, '_backgroundRunContext', {}) or {}).get('experiment_manifest_path'):
+        try:
+            record = json.loads(Path(path).read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            pass
+    if record.get('kind') == 'slicerdsurfer_batch_run' and record.get('experiment'):
+        from shared.ui_run_controller import rows_from_batch_manifest
+        total, done = len(record.get('subjects', [])), len(record.get('results', []))
+        progress = getattr(owner, '_runProgressBar', None)
+        if progress is not None and total:
+            progress.setRange(0, total)
+            progress.setValue(done)
+            progress.setFormat(progress_bar_format(done, total))
+        owner._set_run_status_table_rows(rows_from_batch_manifest(Path(path), record)[0])
+        return
     snapshot = progress_from_manifest(path, not_before=getattr(owner, "_runProgressStartedAt", None))
     if snapshot is not None:
         apply_progress_snapshot(owner, snapshot)
@@ -576,7 +592,7 @@ def show_record(owner: Any, record: RunRecord, manifest: dict[str, Any]) -> None
         owner._set_latest_report_path(None)
         owner._set_latest_output_tree_path(None)
         owner._set_run_summary_message(
-            f"{status_label(record.status).capitalize()} · {counts['total']} subjects\n"
+            f"{status_label(record.status).capitalize()} · {counts['total']} {'experiment jobs' if manifest.get('experiment') else 'subjects'}\n"
             f"{counts['completed']} completed · {counts['failed']} failed · {counts['skipped']} skipped",
             "failed" if counts["failed"] else "completed",
         )

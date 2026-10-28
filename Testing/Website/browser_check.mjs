@@ -485,6 +485,34 @@ async function runHomePerformanceNavigation(browser, origin) {
   await context.close();
 }
 
+async function runSkills(browser, origin) {
+  for (const width of [1440, 390, 320]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(origin + '/index.html#skills', { waitUntil: 'load' });
+    const skills = page.locator('#skills');
+    await skills.scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => getComputedStyle(document.getElementById('skills')).opacity === '1');
+    record(await skills.locator('h2').innerText() === 'Install, run and review with your Agent.',
+      `skills ${width}px: visible install-and-use introduction`);
+    record(await skills.locator('.doc-links a').count() === 3 &&
+      await page.locator('#site-nav a[href="#skills"]').count() === 1,
+      `skills ${width}px: navigation, Skill, usage and CLI template links`);
+    const fit = await page.evaluate(() => {
+      const el = document.querySelector('#skills .code pre');
+      return el.scrollWidth <= el.clientWidth && document.documentElement.scrollWidth <= innerWidth;
+    });
+    record(fit, `skills ${width}px: prompt wraps without horizontal overflow`);
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await skills.locator('.copy').click();
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    record(copied === await skills.locator('pre code').innerText(),
+      `skills ${width}px: sample Agent prompt copies intact`);
+    await skills.screenshot({ path: path.join(OUT, `skills-${width}.png`) });
+    await context.close();
+  }
+}
+
 // ---------------------------------------------------------------- main
 const server = await serve();
 const origin = `http://127.0.0.1:${server.address().port}`;
@@ -524,6 +552,7 @@ try {
     await ctx.close();
   }
   await run404AndNoJs(browser, origin);
+  await runSkills(browser, origin);
   await runReferenceLinks(browser, origin);
   for (const width of [1440, 390, 360, 320]) await runPerformance(browser, origin, width);
   await runPerformance(browser, origin, 390, true);

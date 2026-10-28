@@ -21,6 +21,9 @@ lightweight source checkout or complete development/research repository.
 | Guide | Purpose |
 | --- | --- |
 | [Quick Start](setup/QUICKSTART.md) | Minimal DTI workflow and synthetic installation check |
+| [CLI templates](setup/CLI_TEMPLATES.md) | Copyable routes, explicit tracking/bundle sources, PowerShell, regional analysis and reports |
+| [Experiments](setup/EXPERIMENTS.md) | Advanced parameter overrides, named variants and cohort concurrency |
+| [Agent skill](../.agents/skills/slicerddsurfer-install/SKILL.md) | Installation, input preparation, requested analyses and result review |
 | [Output layout](setup/OUTPUT_LAYOUT.md) | New `03_anatomy` products and read-only compatibility with historical `03_structural` results |
 | [Capabilities and platforms](setup/SUPPORT_MATRIX.md) | Configure only the selected backend |
 | [Result review](setup/GUI_RESULT_REVIEW.md) | Run-scoped loading, cancellation and QC |

@@ -1,13 +1,27 @@
 ---
 name: slicerddsurfer-install
-description: Install, enable and verify SlicerDDSurfer for a user through their local Agent, using an authorized checkout and existing 3D Slicer. Use for first installation or an explicitly requested upgrade, not for diagnosing scientific results.
+description: Install, enable and use SlicerDDSurfer through a local Agent. Prepare diffusion inputs, select analysis routes, validate CLI plans, run requested analyses or experiments, and inspect recorded results and QC. Installation alone does not authorize scientific runs or certify anatomical correctness.
 ---
 
-# Install And Enable SlicerDDSurfer
+# Install And Use SlicerDDSurfer
 
 Use the project's installer and Slicer's own APIs. Keep installation, dependency
 readiness and scientific QC as three distinct outcomes. The verified reference
 version is Slicer 5.10 on Linux; consult the support matrix for other platforms.
+
+## Choose The Requested Mode
+
+- **Install/upgrade:** follow the installation steps below. Stop after activation
+  and requested dependency preparation unless analysis is also requested.
+- **Use/analyze:** if the module already works, do not reinstall it. Read
+  [the usage workflow](references/usage.md), then the relevant recipes in the
+  checkout's `docs/setup/CLI_TEMPLATES.md` (or its `.zh-CN.md` counterpart).
+- **Compare/batch:** use the same usage workflow and
+  `docs/setup/EXPERIMENTS.md`; freeze per-variant settings before submitting.
+
+Project-relative paths below refer to the authorized checkout or installed
+runtime root containing `shared/` and `scripts/`, not this skill's directory.
+Keep the skill name `slicerddsurfer-install` for existing users and invocations.
 
 ## Inspect First
 
@@ -72,6 +86,12 @@ Inspect its JSON receipt; launching a process alone is not proof of installation
 
 ## Prepare Only Requested Analyses
 
+If the user prioritizes fewer external environments, read
+`docs/setup/EXPERIMENTS.md` and offer the explicit Slicer-native preset before
+preparing dependencies. It selects different masking/tracking methods; explain
+that tradeoff and do not change PNL/CSD selections without approval. Existing
+valid supplied masks avoid automatic extraction altogether.
+
 In Slicer, select the intended products, then use **Environment and installation
 > Prepare selected analysis environment**. The plugin discovers installed
 extensions and prepares supported dependencies/resources. Ask for the user's
@@ -82,7 +102,7 @@ Start with the user's chosen route, or offer DTI as a minimal installation check
 Do not default to installing every backend. CLI checks use the same selections:
 
 ```bash
-/path/to/Slicer --launch PythonSlicer /path/to/repo/run_subject_pipeline.py \
+/path/to/Slicer --launch PythonSlicer /path/to/runtime/shared/run_subject_pipeline_cli.py \
   --no-user-config --subject-root /path/to/subject \
   --targets validation,microstructure --microstructure-stages dti --doctor
 ```
@@ -90,12 +110,23 @@ Do not default to installing every backend. CLI checks use the same selections:
 `--doctor` reports readiness; it is not an instruction to run patient data.
 Use `--plan` before an explicitly requested analysis. See
 `docs/setup/MANAGED_SETUP.md` for repair/offline import and
-`docs/setup/QUICKSTART.md` for bundle-source and model-concurrency options.
+`docs/setup/CLI_TEMPLATES.md` for full route commands, source selection,
+model concurrency, batch execution and result inspection.
+
+## Use After Installation
+
+Follow [references/usage.md](references/usage.md) for input staging, route
+selection, device/resource planning, GUI/CLI execution, cancellation and review.
+The project's templates default to `--plan`. Retain identical scientific
+arguments for `--doctor`, `--plan` and the authorized `--execute` run. Preserve
+the selected method when dependencies or acquisition checks fail; explain the
+specific blocker instead of substituting a method or relaxing QC thresholds.
 
 ## Finish Or Stop
 
-Report the checkout revision, Slicer version, install path, activation receipt,
-whether settings persist, and remaining dependency/restart actions. Link the
-receipt and logs. If a helper fails, preserve its report and fix the specific
+For installation, report the checkout revision, Slicer version, install path,
+activation receipt, persistence and remaining dependency/restart actions.
+For analyses, report methods, output/run/report paths, QC and review items as
+described in the usage workflow. If a helper fails, preserve its report and fix the specific
 cause; do not repeatedly reinstall, delete unrelated environments or substitute
 algorithms. If runtime readiness or real-data QC was not checked, say so plainly.

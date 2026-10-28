@@ -178,6 +178,43 @@ def _resolve_targets(args: argparse.Namespace) -> tuple[str, ...]:
     )
 
 
+def resolve_analysis_options(args, *, explicit_dests=()):
+    """Pure CLI/GUI experiment validation before any job writes outputs."""
+    microstructure_stages = _resolve_microstructure_stages(args)
+    args.run_free_water = 'freewater' in microstructure_stages
+    args.run_noddi = 'noddi' in microstructure_stages
+    args.run_dki = 'dki' in microstructure_stages
+    if args.bundle_tractography_backend:
+        from shared.algorithm_selection import algorithms
+        if args.wma_input_tractography or args.tractcloud_input_tractography:
+            raise ValueError('--bundle-tractography-backend cannot be combined with explicit WMA or TractCloud input files')
+        if 'tractography' in _split_csv_or_repeat(args.skip_targets):
+            raise ValueError('--bundle-tractography-backend requires tractography; remove --skip-targets tractography')
+        tracking = list(algorithms(args.tractography_backend))
+        source = args.bundle_tractography_backend
+        if 'tractography_backend' not in explicit_dests:
+            tracking = [source]
+        elif source not in tracking:
+            tracking.append(source)
+        args.tractography_backend = ','.join(tracking)
+    from tractography.ukf import parameters
+    from tractography.wmql_protocol import canonical_wmql_selection
+    parameters(json.loads(args.ukf_parameters))
+    canonical_wmql_selection(args.wmql_query_selection)
+    targets = _resolve_targets(args)
+    if not targets:
+        raise ValueError('No targets selected. Use --all or --targets.')
+    if args.bundle_tractography_backend:
+        if not set(targets).intersection({'bundles', 'wma', 'tractcloud'}):
+            raise ValueError('--bundle-tractography-backend requires a bundle target')
+        if 'tractography' not in targets:
+            targets = (*targets, 'tractography')
+    unsupported = sorted(set(targets) - set(ALL_CLI_TARGETS))
+    if unsupported:
+        raise ValueError(f'Unsupported targets: {", ".join(unsupported)}')
+    return targets
+
+
 def _environment_config_from_args(
     args: argparse.Namespace,
     *,
@@ -765,44 +802,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Dependency config written: {written_config}", file=sys.stderr)
 
     try:
-        microstructure_stages = _resolve_microstructure_stages(args)
+        targets = resolve_analysis_options(args, explicit_dests=explicit_dests)
     except ValueError as exc:
         parser.error(str(exc))
-    args.run_free_water = "freewater" in microstructure_stages
-    args.run_noddi = "noddi" in microstructure_stages
-    args.run_dki = "dki" in microstructure_stages
-
-    if args.bundle_tractography_backend:
-        from shared.algorithm_selection import algorithms
-        if args.wma_input_tractography or args.tractcloud_input_tractography:
-            parser.error("--bundle-tractography-backend cannot be combined with explicit WMA or TractCloud input files")
-        if "tractography" in _split_csv_or_repeat(args.skip_targets):
-            parser.error("--bundle-tractography-backend requires tractography; remove --skip-targets tractography")
-        try:
-            tracking = list(algorithms(args.tractography_backend))
-        except ValueError as exc:
-            parser.error(str(exc))
-        source = args.bundle_tractography_backend
-        if "tractography_backend" not in explicit_dests:
-            tracking = [source]
-        elif source not in tracking:
-            tracking.append(source)
-        args.tractography_backend = ",".join(tracking)
-
-    try:
-        targets = _resolve_targets(args)
-    except ValueError as exc:
-        parser.error(str(exc))
-    if not targets:
-        parser.error("No targets selected. Use --all or --targets.")
-    if args.bundle_tractography_backend:
-        if not set(targets).intersection({"bundles", "wma", "tractcloud"}):
-            parser.error("--bundle-tractography-backend requires a bundle target")
-        if "tractography" not in targets:
-            targets = (*targets, "tractography")
-    unsupported = sorted(set(targets) - set(ALL_CLI_TARGETS))
-    if unsupported:
-        parser.error(f"Unsupported targets: {', '.join(unsupported)}")
 
     subject_root = args.subject_root.expanduser().resolve()
     subject_id = (args.subject_id or _infer_subject_id(subject_root)).strip()
@@ -817,7 +819,7 @@ def main(argv: list[str] | None = None) -> int:
             language=args.language or str((user_config or {}).get("ui", {}).get("language") or "en"),
             base_config=user_config,
             resolved_targets=targets,
-            resolved_stages=microstructure_stages,
+            resolved_stages=_resolve_microstructure_stages(args),
         )
         written = write_user_config(saved_payload, save_path)
         print(f"User config written: {written}", file=sys.stderr)

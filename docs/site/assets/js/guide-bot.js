@@ -28,6 +28,7 @@
       answers: {
         welcome: { text: 'Hello! I can help you explore SlicerDDSurfer. Choose a topic or ask a question about the project. I use a small, curated set of answers from this website.' },
         start: { text: 'Start with 3D Slicer, stage the module, and add its module path in Slicer. In the GUI, enter the subject details, choose products, and prepare the selected environment before running. The repository is currently private; access is required.', href: '#start' },
+        skills: { text: 'We provide an install-and-use Agent Skill. Give its SKILL.md to your local Agent for installation, input preparation, method selection, plan review, requested analyses or batch experiments, and result/QC inspection. The Agent Skills section includes the files and a sample prompt.', href: '#skills' },
         inputs: { text: 'The workflow accepts diffusion MRI in DICOM, NIfTI or NRRD/NHDR formats. Prepared NIfTI inputs need matched b-values and b-vectors; a compatible brain mask can be supplied or generated. Use the input-import controls when conversion is needed.', href: '#start' },
         methods: { text: 'The module combines DDSeg, DDParcel and DDSurfer with microstructure, tractography, bundle identification and connectome analyses. DTI is the default microstructure model; use the selectors beside products to choose one or more available methods.', href: '#integrated' },
         dependencies: { text: 'Install SlicerDMRI and PyTorch in Slicer. UKF also needs the separate UKFTractography extension. Other tools, models and licences depend on the selected route; use Environment and installation to prepare and check them.', href: '#start' },
@@ -50,6 +51,7 @@
       answers: {
         welcome: { text: '你好！我是 SlicerDDSurfer 项目助手。可以选择下方问题，或输入有关项目的问题。我根据本网页整理的内容回答。' },
         start: { text: '先安装 3D Slicer，部署插件并添加模块路径。在界面中填写被试信息、选择分析产品，然后准备所选环境并运行。仓库目前为私有状态，需要获得访问权限。', href: '#start' },
+        skills: { text: '我们提供安装与使用 Agent Skill。将 SKILL.md 交给自己的本地 Agent，可按指南完成安装、输入准备、方法选择、计划检查、按请求分析或批量实验，以及结果与 QC 检查。Agent Skills 区域提供文件入口和示例指令。', href: '#skills' },
         inputs: { text: '支持 DICOM、NIfTI 和 NRRD/NHDR 格式的扩散影像。准备好的 NIfTI 需要配套 b 值和 b 向量；脑掩膜可自行提供或生成。需要格式转换时，可使用输入导入功能。', href: '#start' },
         methods: { text: '插件将 DDSeg、DDParcel 和 DDSurfer 与微结构、纤维追踪、纤维束识别及连接组分析结合。微结构默认使用 DTI；可通过产品旁的选择按钮选择一种或多种可用方法。', href: '#integrated' },
         dependencies: { text: '在 Slicer 中安装 SlicerDMRI 和 PyTorch。UKF 还需要独立的 UKFTractography 扩展。其他工具、模型及许可取决于所选路线，可在 Environment and installation 中准备和检查。', href: '#start' },
@@ -170,6 +172,7 @@
   function match(text) {
     var q = text.toLowerCase();
     var rules = [
+      ['skills', /\b(skills?|skill\.md)\b|技能|agent.*安装|安装.*agent/],
       ['identity', /\b(who are you|what are you|bot|assistant|ai)\b|你是谁|你是(什么|谁)|助手|机器人/],
       ['references', /\b(reference|references|citation|citations|paper|papers|cite)\b|引用|参考文献|论文/],
       ['performance', /\b(performance|speed|benchmark|runtime|optimization)\b|性能|速度|耗时|加速|优化/],

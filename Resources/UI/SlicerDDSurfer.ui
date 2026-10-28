@@ -728,6 +728,11 @@
             <string>Provided mask only</string>
            </property>
           </item>
+          <item>
+           <property name="text">
+            <string>DIPY median-Otsu (lightweight)</string>
+           </property>
+          </item>
          </widget>
            </item>
            <item>

@@ -1,0 +1,9 @@
+{
+  "source_manifest": "/absolute/path/to/run_orchestration_manifest.json",
+  "selected_labels": [1024, 2024],
+  "metrics": ["fa", "md"],
+  "tractogram": null,
+  "connectome": null,
+  "tract_rule": "through_any",
+  "output_dir": "/absolute/path/to/new_region_results"
+}

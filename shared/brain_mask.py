@@ -19,7 +19,7 @@ from typing import Any, Callable, Optional
 from shared.external_process import external_python_environment, text_subprocess_kwargs
 
 
-BRAIN_MASK_BACKENDS = ("pnl_cnn", "synthstrip", "mrtrix", "provided")
+BRAIN_MASK_BACKENDS = ("pnl_cnn", "synthstrip", "mrtrix", "provided", "dipy")
 BRAIN_MASK_DEVICES = ("auto", "cpu", "cuda")
 
 
@@ -97,6 +97,7 @@ def inspect_brain_mask_backend(config: BrainMaskConfig | None = None, *, system:
         raise ValueError("Mask b0 threshold must be finite/nonnegative and threads must be positive")
     missing = []
     tools, resources = {}, []
+    settings = {}
     if config.backend == "pnl_cnn":
         resources.append(Path(__file__).with_name("pnl_mask_runner.py"))
         # Resolving a venv's Python symlink would select the base interpreter
@@ -179,6 +180,18 @@ def inspect_brain_mask_backend(config: BrainMaskConfig | None = None, *, system:
                 resources.extend((script, Path(__file__).with_name("synthstrip_mask_runner.py")))
             elif config.brain_mask_device != "cpu":
                 missing.append("SynthStrip fspython and python/scripts/mri_synthstrip for auto/CUDA device discovery (or explicitly select CPU)")
+    elif config.backend == "dipy":
+        from importlib.metadata import PackageNotFoundError, version
+        try:
+            implementation = version('dipy')
+        except PackageNotFoundError:
+            implementation = 'not installed'
+        # Python-package availability is checked in the selected interpreter by
+        # Dependency Doctor; no external executable or model is required here.
+        settings = dict(implementation='dipy.segment.mask.median_otsu',
+                        implementation_version=implementation, median_radius=4,
+                        numpass=4, dilate=1, autocrop=False)
+        resources.append(Path(__file__))
     elif config.backend == "mrtrix":
         executable = resolve_dwi2mask(config.mrtrix_bin_dir)
         if executable is None:
@@ -190,7 +203,8 @@ def inspect_brain_mask_backend(config: BrainMaskConfig | None = None, *, system:
             "tool_paths": tools, "resources": [str(p) for p in resources],
             "settings": {"b0_threshold": config.b0_threshold, "threads": config.threads,
                          "pnl_percentile": 99, "pnl_cleanup": "official_fill_holes_no_optional_filter",
-                         "device": config.brain_mask_device if config.backend in ("pnl_cnn", "synthstrip") else "cpu"},
+                         "device": config.brain_mask_device if config.backend in ("pnl_cnn", "synthstrip") else "cpu",
+                         **settings},
             "note": "File discovery is not runtime/model compatibility or anatomical QC"}
 
 
@@ -319,7 +333,9 @@ def generate_brain_mask(dwi_path: Path, bval_path: Path, bvec_path: Path, output
         prepend = []
         env_extra = {"OMP_NUM_THREADS": str(config.threads), "MKL_NUM_THREADS": str(config.threads),
                      "OPENBLAS_NUM_THREADS": str(config.threads), "PYTHONUNBUFFERED": "1"}
-        if config.backend == "pnl_cnn":
+        if config.backend == "dipy":
+            command = []
+        elif config.backend == "pnl_cnn":
             models = work / "models"
             models.symlink_to(tools["model_dir"], target_is_directory=True)
             listing = work / "b0_list.txt"
@@ -352,9 +368,26 @@ def generate_brain_mask(dwi_path: Path, bval_path: Path, bvec_path: Path, output
             from shared.managed_pnl import pnl_python_environment
             env = pnl_python_environment(tools["pnl_mask_python"], env_extra, path_prepend=prepend)
         phase_started = time.monotonic()
-        tail = _run(command, env, log)
-        phase_seconds["external_process"] = time.monotonic() - phase_started
-        device = json.loads(device_record.read_text(encoding="utf-8")) if config.backend == "pnl_cnn" or "synthstrip_python" in tools else None
+        if config.backend == 'dipy':
+            import nibabel as nib
+            import numpy as np
+            from dipy.segment.mask import median_otsu
+            baseline_image = nib.load(baseline)
+            _, mask = median_otsu(np.asarray(baseline_image.dataobj), median_radius=4,
+                                  numpass=4, dilate=1, autocrop=False)
+            header = baseline_image.header.copy()
+            header.set_data_dtype(np.uint8)
+            nib.save(nib.Nifti1Image(mask.astype(np.uint8), baseline_image.affine, header), candidate)
+            tail = 'DIPY median_otsu: mean b0, radius=4, passes=4, dilation=1, native grid'
+            if log:
+                log('[Brain mask] ' + tail)
+            phase_seconds['native_python_mask'] = time.monotonic() - phase_started
+            device = dict(requested=config.brain_mask_device, resolved='cpu',
+                          reason='DIPY median_otsu is a CPU algorithm')
+        else:
+            tail = _run(command, env, log)
+            phase_seconds["external_process"] = time.monotonic() - phase_started
+            device = json.loads(device_record.read_text(encoding="utf-8")) if config.backend == "pnl_cnn" or "synthstrip_python" in tools else None
         if not candidate.is_file():
             raise RuntimeError(f"{config.backend} returned success but did not create its declared mask")
         phase_started = time.monotonic()

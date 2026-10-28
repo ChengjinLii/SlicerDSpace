@@ -58,6 +58,7 @@ WSL 是 Linux 后端，不是 Windows 原生计算；Windows/macOS 不继承 Lin
 | DIPY 预处理、FW、NODDI | 指定输入已测 | 原生 Python 候选，需兼容 DIPY/AMICO | 原生 Python 候选，需匹配架构的包 |
 | DKI/Python MK-Curve | 指定被试全脑已有独立检查与计时；无效体素须排除 | 原生数值候选，需适用的多壳数据 | 原生数值候选，需适用的多壳数据 |
 | PNL CNN 掩膜 | 外部路线已测；Linux x86_64 自动配置与 CUDA 前向/掩膜检查 | **Windows 原生 GUI 不支持**；提供掩膜或明确选择 MRtrix/WSL | 需 POSIX/ANTs/TensorFlow；无 CUDA，Metal 未实现，未实测 |
+| DIPY median-Otsu 掩膜 | 已测纯 Python 掩膜生成及 DTI 示例 | 原生 Python 候选，不需 POSIX 工具；未实测 | 原生 Python 候选，未实测 |
 | 完整 FreeSurfer SynthStrip 环境 | CPU/CUDA 已测 | **当前封装不支持原生 Windows**，需完整 Linux/WSL 环境 | FreeSurfer/Python CPU 候选，未实测 |
 | 皮层表面后处理 | 本机源码组件或已有 FreeSurfer；[配置说明](SURFACE_COMPONENTS.zh-CN.md) | 不支持原生源码构建；WSL／完整安装桥接待验收 | 已有原生 FreeSurfer 候选；源码编译未验证、不自动准备 |
 | MRtrix/FSL 预处理 | CPU、CUDA 有记录 | WSL 2 桥接；设备策略在实际 WSL Python 内运行 | 原生 CPU MRtrix/FSL 候选；**不能使用 CUDA eddy** |
@@ -74,7 +75,7 @@ WSL 是 Linux 后端，不是 Windows 原生计算；Windows/macOS 不继承 Lin
 ## 使用边界
 
 - 各平台优先保留已有、人工检查过的原生掩膜，后端失败不会静默换算法。
-- Linux 默认 PNL 生成掩膜。显式 WSL 安装器创建的新 Windows 配置默认 MRtrix 掩膜；已有默认设置不变。无 WSL 时，可提供已核验掩膜运行最小路线。
+- Linux 默认 PNL 生成掩膜。显式 WSL 安装器创建的新 Windows 配置默认 MRtrix 掩膜；已有默认设置不变。无 WSL 时，可提供已核验掩膜，或明确选择纯 Python 的 DIPY 掩膜候选路线。见[轻量路线](EXPERIMENTS.zh-CN.md)。
 - PyTorch Auto 只选择 CUDA 或 CPU。**Apple MPS 尚未实现/验证**，并不是 Mac 没有 GPU。PNL 不将未验证的 TensorFlow Metal 标记成 CUDA。
 - Windows 安装器默认 `-Device auto`，在 WSL 内检测 GPU 并验证真实 PyTorch CUDA 分配。明确 CUDA 失败不会重试 CPU。
 - FSL 安装需明确接受许可；不会修改 NVIDIA 驱动或安装替代 Linux 显卡驱动。

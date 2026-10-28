@@ -36,6 +36,8 @@
     "scripts/setup_managed_runtime.py",
     "docs/README.md",
     "docs/README.zh-CN.md",
+    "docs/setup/examples/dti_experiments.json",
+    "docs/setup/examples/region_request.json",
     "docs/release/RELEASE.md",
     "docs/release/RELEASE_CANDIDATE_VALIDATION.md",
     "docs/release/RELEASE_NOTES_v0.1.0.md",

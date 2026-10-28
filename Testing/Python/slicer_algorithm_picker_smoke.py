@@ -24,7 +24,8 @@ def run():
         assert not owner._advancedSettingsPanel.isAncestorOf(owner.ui.resultsCollapsibleButton)
         # Results and QC sat in the collapsed Advanced panel (hidden by it) before it moved to the main column.
         assert not owner.ui.resultsCollapsibleButton.isHidden() and owner.ui.resultsCollapsibleButton.visible
-        assert owner._advancedCategorySelector.count == 4
+        from shared.ui_advanced_layout import CATEGORIES
+        assert owner._advancedCategorySelector.count == len(CATEGORIES)
         checks.append('three_pickers_and_independent_environment')
         for button in owner._algorithmButtons.values():
             assert button.text == '...' and button.width == 28 and button.height == 22
@@ -109,7 +110,7 @@ def run():
         slicer.app.processEvents()
         slicer.util.mainWindow().grab().save(str(ROOT / 'main_multiselect.png'))
         owner._advancedSettingsPanel.collapsed = False
-        for index in range(4):
+        for index in range(len(CATEGORIES)):
             owner._advancedCategorySelector.setCurrentIndex(index)
             slicer.app.processEvents()
             owner._fitAdvancedPage()
@@ -126,7 +127,7 @@ def run():
                 assert owner._ukfControls['Rs'].visible
                 assert owner._advancedCategoryStack.height > 250
                 group.collapsed = True
-        checks.append('four_compact_parameter_categories')
+        checks.append('compact_parameter_categories_and_opt_in_experiments')
         combo.setCurrentIndex(combo.findData('zh'))
         assert all(button.text == '...' and button.width == 28 and '选择' in button.accessibleName
                    and '可多选' in button.toolTip for button in owner._algorithmButtons.values())

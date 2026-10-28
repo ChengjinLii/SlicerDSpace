@@ -19,6 +19,9 @@
 | --- | --- |
 | [下载范围](setup/DOWNLOADS.zh-CN.md) | 精简插件包、可选轻量源码与完整研究仓库的区别 |
 | [快速开始](setup/QUICKSTART.zh-CN.md) | 最小 DTI 工作流与合成安装测试 |
+| [CLI 模板](setup/CLI_TEMPLATES.zh-CN.md) | 各路线命令、追踪/束来源、PowerShell、脑区分析和报告 |
+| [批量实验](setup/EXPERIMENTS.zh-CN.md) | 高级参数覆盖、命名组合与被试并发 |
+| [Agent skill](../.agents/skills/slicerddsurfer-install/SKILL.md) | 安装、输入准备、按请求分析和结果检查 |
 | [输出目录](setup/OUTPUT_LAYOUT.zh-CN.md) | 新 `03_anatomy` 产品及旧 `03_structural` 结果的只读兼容 |
 | [能力与平台](setup/SUPPORT_MATRIX.zh-CN.md) | 按路线配置依赖 |
 | [结果检查](setup/GUI_RESULT_REVIEW.md) | 按运行加载结果、取消任务与 QC |

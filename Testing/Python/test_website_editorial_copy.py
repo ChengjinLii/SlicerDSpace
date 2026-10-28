@@ -127,6 +127,33 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
             self.assertIn(requirement, start)
         self.assertNotIn("Advanced settings › Results and QC", self.source)
 
+    def test_skills_are_discoverable_and_link_to_existing_guides(self):
+        section = self.section('skills')
+        self.assertIn('href="#skills">Agent Skills</a>', self.source)
+        self.assertIn('id="skills-title"', section)
+        self.assertIn('Plan &amp; run', section)
+        self.assertIn('Review &amp; reuse', section)
+        self.assertIn('show me the plan before execution', section)
+        self.assertIn('website guide bot provides curated information', section)
+        self.assertNotIn('<details', section)
+        for relative in ('.agents/skills/slicerddsurfer-install/SKILL.md',
+                         '.agents/skills/slicerddsurfer-install/references/usage.md',
+                         'docs/setup/CLI_TEMPLATES.md'):
+            self.assertIn('href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/' + relative + '"', section)
+            self.assertTrue((ROOT / relative).is_file())
+
+    def test_both_readmes_promote_installation_and_use_skills(self):
+        for name, templates in (('README.md', 'CLI_TEMPLATES.md'), ('README.zh-CN.md', 'CLI_TEMPLATES.zh-CN.md')):
+            with self.subTest(readme=name):
+                text = (ROOT / name).read_text(encoding='utf-8')
+                self.assertIn('[Agent Skills](#agent-skills)', text)
+                content = text.split('## Agent Skills\n', 1)[1].split('\n---\n', 1)[0]
+                self.assertIn('.agents/skills/slicerddsurfer-install/SKILL.md', content)
+                self.assertIn('.agents/skills/slicerddsurfer-install/references/usage.md', content)
+                self.assertIn('docs/setup/' + templates, content)
+                self.assertIn('/path/to/sub-01', content)
+                self.assertIn('QC', content)
+
 
 if __name__ == "__main__":
     unittest.main()

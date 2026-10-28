@@ -98,7 +98,7 @@ class SlicerDDSurferParameterNode:
     microstructureForceRecompute: bool = False
     targetPreprocessing: bool = True
     preprocessingBackend: Annotated[str, Choice(["dipy", "mrtrix_fsl"])] = "dipy"
-    brainMaskBackend: Annotated[str, Choice(["pnl_cnn", "synthstrip", "mrtrix", "provided"])] = "pnl_cnn"
+    brainMaskBackend: Annotated[str, Choice(["pnl_cnn", "synthstrip", "mrtrix", "provided", "dipy"])] = "pnl_cnn"
     brainMaskDevice: Annotated[str, Choice(["auto", "cpu", "cuda"])] = "auto"
     # Topup / distortion correction for the MRtrix3/FSL route. Empty/0 means
     # "not set", so nothing is forwarded and dwifslpreproc defaults apply.
@@ -126,6 +126,12 @@ class SlicerDDSurferParameterNode:
     batchRoot: str = ""
     batchSize: int = 1
     batchArrangeInputs: Annotated[str, Choice(["none", "symlink", "copy"])] = "none"
+    experimentsEnabled: bool = False
+    experimentScope: Annotated[str, Choice(["subject", "cohort"])] = "subject"
+    experimentRoot: str = ""
+    experimentJobs: Annotated[int, WithinRange(1, 8)] = 1
+    experimentCliOptions: str = ""
+    experimentVariants: str = '[{"name": "baseline", "args": []}]'
     connectomeBackend: Annotated[str, Choice(["python", "mrtrix"])] = "python"
     connectomeCompressMrtrixDense: bool = False
     autoInstallPythonDependencies: bool = True

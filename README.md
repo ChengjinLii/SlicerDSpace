@@ -2,25 +2,36 @@
 
 # SlicerDDSurfer
 
-**Diffusion MRI workflows in 3D Slicer**
+**Diffusion MRI anatomy, microstructure and connectivity in 3D Slicer**
 
+[![Python](https://img.shields.io/badge/Language-Python-3776AB?logo=python&logoColor=white)](#technology-stack)
+[![3D Slicer](https://img.shields.io/badge/App-3D_Slicer_5.10-58728B)](#installation)
+[![Qt](https://img.shields.io/badge/GUI-Qt_%2B_PythonQt-41CD52?logo=qt&logoColor=white)](#technology-stack)
+[![PyTorch](https://img.shields.io/badge/Inference-PyTorch-EE4C2C?logo=pytorch&logoColor=white)](#technology-stack)
+[![NumPy](https://img.shields.io/badge/Numerics-NumPy-013243?logo=numpy&logoColor=white)](#technology-stack)
+[![SimpleITK](https://img.shields.io/badge/Imaging-SimpleITK-0098A9)](#technology-stack)
+[![SlicerDMRI](https://img.shields.io/badge/Diffusion-SlicerDMRI-4D7EB3)](#technology-stack)
+[![DIPY](https://img.shields.io/badge/Microstructure-DIPY-287D8E)](#technology-stack)
+[![MRtrix3](https://img.shields.io/badge/Optional-MRtrix3-4C9A8A)](#technology-stack)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-Install_%2B_Use-576B95)](#agent-skills)
+[![Website](https://img.shields.io/badge/Website-Project_home-334155)](https://chengjinlii.github.io/SlicerDDSurfer/)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-4D7587)](LICENSE.txt)
-[![Slicer](https://img.shields.io/badge/3D_Slicer-5.10-58728B)](https://www.slicer.org/)
 
-[Overview](#overview) | [Video](#video) | [Install](#installation) | [Quick Start](#quick-start) | [Documentation](docs/README.md) | [Validation](#validation-and-release-status) | [Citation](#citation) | [中文](README.zh-CN.md)
+[Overview](#overview) | [Video](#video) | [Technology](#technology-stack) | [Agent Skills](#agent-skills) | [Install](#installation) | [Quick Start](#quick-start) | [CLI](#command-line) | [Documentation](#documentation) | [Citation](#citation) | [中文](README.zh-CN.md)
 
-[Project Website](https://chengjinlii.github.io/SlicerDDSurfer/) | [Website Publishing](https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/website/README.md)
+[Project Website](https://chengjinlii.github.io/SlicerDDSurfer/) | [User Guides](docs/README.md) | [Release Status](#validation-and-release-status)
 
 </div>
 
-SlicerDDSurfer brings diffusion-MRI anatomical reconstruction, microstructural
-mapping and white-matter connectivity analysis into one Slicer module. Select
-the products you need, run a traceable workflow, and review its images, QC
-reports and execution records.
+SlicerDDSurfer combines T1-weighted-image-free anatomical reconstruction,
+microstructural mapping and white-matter analysis in one 3D Slicer module.
+Choose your methods, prepare their environment and inspect the results in the
+same scene. The GUI, CLI and Agent Skill share the workflow's configuration
+and execution records.
 
-**Research software.** Private pre-release; not currently distributed through
-the official Extensions Catalog. A completed run is not a clinical assessment
-or proof of scientific correctness.
+**Diffusion MRI in. Anatomy, microstructure and connectivity out.**
+
+Research software · Private pre-release · Not yet listed in the official Extensions Catalog.
 
 ---
 
@@ -31,58 +42,92 @@ or proof of scientific correctness.
 [Watch the video (MP4, 1:12)](docs/site/media/SlicerDDSurfer_promo_1080p.mp4) ·
 [Website player and transcript](https://chengjinlii.github.io/SlicerDDSurfer/#film)
 
-The preview plays at normal speed. Open the full video for narration and subtitles.
-
 ---
 
 ## Overview
 
-One module, five workflow families:
+| Workflow | Methods and products |
+| --- | --- |
+| Input preparation | DICOM, NIfTI and NRRD/NHDR import; gradient checks, brain masking and optional DWI correction |
+| Microstructure | DTI FA/MD/AD/RD; optional Free-water, NODDI, DKI and Python MK-Curve |
+| Anatomy | DDSeg tissue labels, DDParcel regions, DDSurfer white/pial surfaces; optional cortical postprocessing |
+| Tractography | DTI deterministic, UKF, CSD/ACT with SIFT2, and SAF short association fibres |
+| Bundles | Official WMQL queries, WMA atlas classification and TractCloud |
+| Connectome | Streamline-count and scalar-weighted matrices; eligible SIFT2-weighted connectivity |
 
-| Workflow | Products | Main prerequisites |
+Key products load into Slicer as successful stages finish. Run-scoped loading
+reuses scene nodes, while logs, parameters and QC stay with each run.
+Optional [regional analysis](docs/setup/REGIONAL_ANALYSIS.md) reuses completed
+maps, full tractograms and matrices for selected DDParcel regions.
+
+Shared preparation and compatible cached outputs are reused. Independent
+microstructure models and separate subjects can run concurrently within the
+configured resource budget. See [experiments](docs/setup/EXPERIMENTS.md) and
+[measured optimizations](docs/release/PERFORMANCE_OPTIMIZATIONS.md).
+
+---
+
+## Technology Stack
+
+| Layer | Components | Role |
 | --- | --- | --- |
-| Input preparation | DICOM/NIfTI/NRRD import, gradient validation, optional mask generation and preprocessing | Appropriate import/preprocessing backend |
-| Anatomical reconstruction | DDSeg tissue labels, DDParcel regions, DDSurfer white/pial surfaces | Matching model assets, PyTorch and SlicerDMRI for the selected route |
-| Microstructural analysis | DTI FA/MD/AD/RD, optional Free-water, NODDI and DKI, regional summaries | Route-specific packages and acquisition suitability checks |
-| White-matter pathways | DTI/CSD tractography, ACT/SIFT2, SAF, WMQL/WMA/TractCloud bundles | Backend-specific tools and assets |
-| Structural connectivity | Regional matrices, Slicer scene inspection, QC and provenance | Compatible parcellation and tractogram; SIFT2 weights for weighted routes |
+| Slicer interface | 3D Slicer, Qt/PythonQt, CTK, MRML | Product selection, native scene loading and result review |
+| Scientific Python | Python, NumPy, SciPy, nibabel, SimpleITK | Images, geometry, numerical fitting and data exchange |
+| Neural inference | PyTorch, DDSeg/DDParcel/DDSurfer models | Tissue, regional and surface reconstruction |
+| Microstructure | DIPY, AMICO, Python MK-Curve | Tensor, free-water, neurite and kurtosis models |
+| Diffusion tools | SlicerDMRI, optional UKFTractography, MRtrix3 and FSL | DTI preparation, tracking and selected correction routes |
+| Optional backends | PNL CNN/ANTs, native FreeSurfer components, WMQL, WMA, TractCloud | Masking, cortical postprocessing and bundle identification |
+| Automation | Python CLI, JSON run plans, batch runner, Agent Skill | Reproducible commands, parameter variants and cohort scheduling |
 
-Install dependencies **for the selected route**, not for every possible product.
-MRtrix3, FSL, FreeSurfer and advanced bundle backends are optional and are not
-silently installed. See the [capability and platform matrix](docs/setup/SUPPORT_MATRIX.md).
+Dependencies follow the selected route. The default CSD/ACT route needs MRtrix3;
+a DTI-only route with a supplied mask avoids PNL, FSL and FreeSurfer.
+The explicit Slicer-native preset offers fewer external environments.
+See the [capability/platform matrix](docs/setup/SUPPORT_MATRIX.md).
 
-Optional cortical postprocessing can use **locally compiled original FreeSurfer
-components without the full installation**, or reuse an existing installation.
-Preparation is explicit; a personal activation file is still required.
-See [surface component setup](docs/setup/SURFACE_COMPONENTS.md).
+**Implementation origins:** DDSeg uses converted Python/PyTorch models; SAF
+and MK-Curve are unofficial Python ports of author MATLAB methods. PNL CNN
+masking calls the author's existing Python backend. Optional surface
+postprocessing uses original FreeSurfer components and a personal activation
+file. Details: [provenance](docs/architecture/IMPLEMENTATION_PROVENANCE.md) ·
+[surface components](docs/setup/SURFACE_COMPONENTS.md).
 
-Large weights, templates and inference atlases are managed separately from code.
-The selected-environment preparation downloads only required resource groups,
-verifies SHA256 and saves their paths; existing and offline resources are reused.
-See [resource layout, licensing and download policy](docs/assets/EXTERNAL_RESOURCES.md).
+---
 
-**Implementation origins.** DDSeg is a MATLAB-to-Python/PyTorch reimplementation;
-SAF and MK-Curve are unofficial Python ports of author MATLAB methods. PNL CNN
-masking invokes the author's existing Python backend, not a rewritten entire
-PNL pipeline. See [implementation provenance and verification limits](docs/architecture/IMPLEMENTATION_PROVENANCE.md).
+## Agent Skills
+
+Our **install-and-use Agent Skill** guides a local Agent through setup,
+analysis and result review.
+
+| Task | What the Skill covers |
+| --- | --- |
+| Install and enable | Find Slicer, stage the module, verify activation and prepare selected dependencies |
+| Plan and run | Prepare inputs, choose algorithms and tracking/bundle sources, review plans and run requested analyses or batch experiments |
+| Review and reuse | Inspect outputs, logs and QC; reuse compatible results and preserve unrelated scene nodes |
+
+[Open the Skill](.agents/skills/slicerddsurfer-install/SKILL.md) ·
+[Agent usage guide](.agents/skills/slicerddsurfer-install/references/usage.md) ·
+[CLI templates](docs/setup/CLI_TEMPLATES.md)
+
+From an authorized checkout, ask an Agent that supports `SKILL.md`:
+
+```text
+Read .agents/skills/slicerddsurfer-install/SKILL.md. Install and enable
+SlicerDDSurfer if needed, then plan a DTI analysis for /path/to/sub-01.
+Prepare only the required dependencies and show me the plan before execution.
+```
+
+The Skill works through your Agent. Confirm downloads, licenses and restarts
+when requested; the website guide bot provides navigation and curated answers.
 
 ---
 
 ## Installation
 
-**Installing with an Agent?** Give it the
-[SlicerDDSurfer installation skill](.agents/skills/slicerddsurfer-install/SKILL.md).
-It uses the existing installers, verifies activation in Slicer and can persist
-the module path after confirmation, without installing every backend.
+### Stage The Extension
 
-**Only using the plugin?** You do not need the website source or historical
-optimization reports. Runtime packages omit those materials; they stay in the
-complete repository for review and reproducibility. See
-[download options and lightweight source installation](docs/setup/DOWNLOADS.md).
-This does not imply an available public release or official Catalog listing.
-
-Use an authorized checkout while the repository is private. The following is
-a **lightweight source/staging installation**, not an official CPack release:
+Use an authorized checkout while the repository is private. This lightweight
+source installation omits the website and historical reports; a full checkout
+retains development tests and research materials.
 
 ```bash
 git clone --filter=blob:none --no-checkout --depth 1 https://github.com/ChengjinLii/SlicerDDSurfer.git
@@ -90,20 +135,34 @@ cd SlicerDDSurfer
 git show HEAD:scripts/extension_runtime/runtime_checkout.txt | git sparse-checkout set --no-cone --stdin
 git checkout
 python3 scripts/stage_slicer_extension.py \
-  --install-root ~/SlicerDDSurfer-extension --link-mode copy --clean
+  --install-root ~/SlicerDDSurfer-extension --slicer-version Slicer-5.10 \
+  --link-mode copy
 ```
 
-In **Edit > Application Settings > Modules**, add the expanded absolute path
-`~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules`
-to **Additional module paths**, then restart Slicer. Set `--slicer-version`
-to your actual Slicer version when staging. Local GUI validation uses Slicer 5.10.
+For Slicer 5.10, add the expanded absolute path below in **Edit > Application
+Settings > Modules > Additional module paths**, then restart:
 
-Install **SlicerDMRI** and **PyTorch** from Slicer's Extension Manager for routes
-that need them. Updating the source requires restaging and restarting.
+```text
+~/SlicerDDSurfer-extension/SlicerDDSurfer/lib/Slicer-5.10/qt-scripted-modules
+```
 
-Model files live outside the code checkout. Choose a writable model-assets
-directory in the separate **Environment and installation** section. Download only the
-required profile after reviewing [asset terms](docs/assets/MODEL_ASSET_TERMS.md):
+Match `--slicer-version` to your installation. After a source update, restage
+the extension and restart Slicer. More options: [download and installation guide](docs/setup/DOWNLOADS.md).
+
+### Prepare The Selected Environment
+
+In the module, select products, then open **Environment and installation >
+Prepare selected analysis environment**. Confirm required tools and model terms;
+restart if requested and select Prepare again to continue. SlicerDMRI,
+PyTorch and the optional UKFTractography extension are prepared as needed.
+
+Weights, templates and atlases live separately in **SlicerDDSurfer-models**.
+The setup checks SHA256, caches downloads and saves paths. Existing installations,
+offline models and repair are available under **More options**.
+See [managed setup](docs/setup/MANAGED_SETUP.md) and
+[resource terms](docs/assets/MODEL_ASSET_TERMS.md).
+
+For explicit CLI surface-model preparation:
 
 ```bash
 python3 scripts/download_model_assets.py --profile surface \
@@ -111,35 +170,20 @@ python3 scripts/download_model_assets.py --profile surface \
   --source-id slicerdsurfer_models_git
 ```
 
-The broader anatomical profile is available with
-`scripts/download_model_assets.sh --profile core`.
-Availability and SHA256 verification do **not** establish redistribution rights.
-See [model setup](docs/assets/MODEL_ASSETS.md) and
-[dependency setup](docs/assets/DEPENDENCY_SETUP_WORKFLOW.md).
+For all anatomical model groups, use `scripts/download_model_assets.sh --profile core`.
+Other profiles and offline import are documented in [model setup](docs/assets/MODEL_ASSETS.md).
 
 ---
 
 ## Quick Start
 
-1. Select **SlicerDDSurfer** from the module selector. Choose English or Chinese in the header.
-2. Enter **Subject ID**, **Subject root** and, optionally, a separate **Output directory**.
-3. Select only the products you intend to run. Use **...** beside Microstructure, Tractography or Bundles to choose one or several algorithms.
-4. Open **Environment and installation > Prepare selected analysis environment**. Confirm dependencies and terms; restart if requested, then prepare again to continue. See [managed setup and offline models](docs/setup/MANAGED_SETUP.md).
-5. Click **Run SlicerDDSurfer**. Missing inputs appear in red; review the log and correct them before retrying.
-6. Key results from successful stages automatically appear in the current scene. Use the separate **Results and QC** section to inspect QC, reload, replace or clear this run's nodes.
+1. Open **Modules > Diffusion > SlicerDDSurfer** and choose English or Chinese.
+2. Set **Subject root**, **Subject ID** and, optionally, an **Output directory**.
+3. For a first DTI run, select only **Microstructure** and retain **DTI** in its **...** selector.
+4. Prepare the selected environment, then click **Run SlicerDDSurfer**.
+5. Inspect FA/MD in the scene and open **Results and QC** for the run's checks, logs and loading controls.
 
-There is no visible Beginner section or automatic first-run wizard in the
-default interface. Advanced settings shows one category at a time:
-**Preprocessing & mask**, **Model parameters**, **Run & performance**, or
-**Regions & input import**. Input conversion is in the last category; ordinary
-prepared inputs do not need conversion again. Installation is separate from these parameters.
-
-**Advanced settings > Regions & input import > Regional analysis (optional)** lets you select DDParcel
-regions and reuse completed maps, full tractograms and connectivity matrices for
-regional statistics, ROI streamline selection and local connectivity. It does
-not refit models or alter the default workflow. See [regional analysis](docs/setup/REGIONAL_ANALYSIS.md).
-
-Canonical input layout:
+Prepared inputs use this layout:
 
 ```text
 sub-01/
@@ -147,48 +191,60 @@ sub-01/
     data.nii.gz
     bvals
     bvecs
-    nodif_brain_mask.nii.gz   # optional; generation needs a supported backend
+    nodif_brain_mask.nii.gz   # optional; supply or generate
 ```
 
-DWI and mask must share a voxel grid. Gradient files must match the DWI
-measurements. Corrected gradients must accompany motion-corrected DWI.
-An existing input mask is retained. When a mask must be generated, the default
-is the **PNL diffusion CNN masking** backend, not the entire PNL preprocessing
-pipeline. On Linux x86_64, preparation can install its separate Python/model/ANTs
-runtime; existing runtimes remain configurable in Environment and installation.
-SynthStrip, MRtrix and supplied-mask alternatives are selectable in
-**Advanced settings > Preprocessing & mask**. A missing backend is reported,
-never silently replaced. See [brain-mask setup](docs/setup/brain_mask_gui_config.md).
+The mask shares the DWI voxel grid. Gradients match the DWI volume count;
+motion-corrected data use the corresponding rotated gradients.
+DICOM/NRRD import is under **Advanced settings > Regions & input import**.
+The [first-workflow tutorial](docs/setup/QUICKSTART.md) includes a synthetic installation check.
 
-Microstructure runs **DTI only by default**. Enable Free-water, NODDI or DKI
-independently with **...** beside Microstructure. DTI remains required preparation.
-DKI checks baseline measurements, nonzero shells,
-gradient directions and design rank before fitting. **MK-Curve** uses a bundled
-Python port of the author's algorithm, distinct from standard DIPY WLS/OLS.
-MATLAB is only an optional reference backend. See [microstructure routes](docs/setup/MICROSTRUCTURE.md).
-Automatic tractography display uses a capped VTK preview, preserving the full
-TCK/TRK source; a preview is not the analysis tractogram.
-Tractography defaults to CSD/ACT. Select **UKFTractography** beside Tractography to invoke
-the installed official Slicer extension, which can feed WMA automatically. Its
-author-default parameters are editable only under Advanced; no UKF source is
-vendored and no CSD streamline budget is applied to UKF. See [UKF setup and defaults](docs/setup/UKF.md).
-Tracking methods can be multi-selected. They run sequentially in separate
-`<run>__<backend>` variants, reusing the shared anatomical/microstructure stages.
-Selected bundle methods and connectomes run for each tracking variant, without
-combining streamlines or relaxing QC. Multiple methods increase runtime and disk use.
-WMQL defaults to the **unmodified official multi-bundle rules**: all 48 output
-queries in the pinned author's `freesurfer_queries.qry`. Under **Advanced > Model
-parameters > WMQL bundles**, leave empty for all, or enter a subset such as
-`AF,CST,UF,cc_4`. Rules and label aliases ship with the extension; no query editing
-is needed. Numeric DDParcel/DK label compatibility is checked, but does not prove
-FreeSurfer wmparc equivalence. Missing/sparse bundles are listed individually and
-excluded from quantitative acceptance; successful execution is not all-bundle QC.
-Historical adapted protocols are not offered in the GUI. See [WMQL protocol](docs/setup/WMQL.md).
-WMA reports per-tract sampling, and MK-Curve summaries use per-metric validity.
-See [root causes and one-pass cohort validation](docs/release/WORKFLOW_GENERALIZATION_20261017.md)
-for actual evidence and remaining limitations, not an all-results-passed claim.
-For a minimal DTI-only walkthrough and a clearly identified synthetic
-installation test, see the [tutorial](docs/setup/QUICKSTART.md).
+### Default Methods And Alternatives
+
+| Part | Default | Other choices |
+| --- | --- | --- |
+| Missing brain mask | PNL diffusion CNN; valid supplied masks are reused | SynthStrip, MRtrix, DIPY median-Otsu, supplied mask only |
+| Microstructure | DTI | Add Free-water, NODDI and/or DKI; select WLS/OLS or Python MK-Curve for DKI |
+| Tractography | MRtrix3 CSD/ACT | DTI deterministic, UKF, SAF |
+| Bundles | Official WMQL multi-bundle queries | WMQL subset selection, WMA, TractCloud |
+
+Use **...** beside Microstructure, Tractography and Bundles to select one or
+several methods. **Advanced settings** groups masking, model parameters,
+performance, regional analysis/input import and experiments. Environment
+installation remains separate.
+
+UKF runs automatically through its installed extension and can feed WMA directly.
+Multiple tracking methods produce separate `<run>__<backend>` variants.
+The full quantitative tractogram is retained alongside a capped VTK display preview.
+
+NODDI/DKI require eligible acquisitions. Inspect fit-validity masks, sparse
+bundles, alignment and anatomy before accepting results. Method details:
+[microstructure](docs/setup/MICROSTRUCTURE.md) · [UKF](docs/setup/UKF.md) · [WMQL](docs/setup/WMQL.md).
+
+---
+
+## Command Line
+
+Use Slicer's Python to check a prepared DTI route:
+
+```bash
+export SLICER="/path/to/Slicer"
+"$SLICER" --launch PythonSlicer shared/run_subject_pipeline_cli.py \
+  --no-user-config --strict-environment \
+  --subject-root /path/to/sub-01 --subject-id sub-01 \
+  --output-root /path/to/analysis/sub-01/dti --run-name dti \
+  --targets validation,microstructure --microstructure-stages dti \
+  --brain-mask-backend provided --doctor
+```
+
+Keep the same arguments and replace `--doctor` with `--plan` to inspect the plan,
+then `--execute` to run. This example expects an existing reviewed mask.
+
+The [CLI templates](docs/setup/CLI_TEMPLATES.md) cover imports, masking, anatomy,
+all microstructure and tracking routes, explicit bundle sources, connectomes,
+PowerShell and reports. [Experiments](docs/setup/EXPERIMENTS.md) covers
+named parameter variants and concurrent subjects in both CLI and Advanced settings.
+Start with one concurrency level and budget combined RAM/VRAM use.
 
 ---
 
@@ -196,89 +252,67 @@ installation test, see the [tutorial](docs/setup/QUICKSTART.md).
 
 | Task | Guide |
 | --- | --- |
-| First workflow | [Quick Start](docs/setup/QUICKSTART.md) |
-| Dependency and platform support | [Support matrix](docs/setup/SUPPORT_MATRIX.md) · [Linux](docs/setup/LINUX_HPC.md) · [Windows](docs/setup/WINDOWS.md) · [macOS](docs/setup/MACOS.md) |
-| Model setup | [Assets](docs/assets/MODEL_ASSETS.md) · [Terms](docs/assets/MODEL_ASSET_TERMS.md) |
-| Results, cancellation and QC | [Result review](docs/setup/GUI_RESULT_REVIEW.md) |
-| Configuration and command line | [Settings](docs/setup/USER_CONFIG.md) |
-| Source organization | [Repository layout](docs/architecture/REPOSITORY_LAYOUT.md) |
-| Manuscript and artwork | [LaTeX source, PDF, figure assets and rebuild instructions](docs/paper/README.md) |
-| Maintainer release checks | [Extension readiness](docs/release/EXTENSION_READINESS.md) · [Release procedure](docs/release/RELEASE.md) |
-
-For a CLI input/environment check without running algorithms:
-
-```bash
-python3 run_subject_pipeline.py --subject-root /path/to/sub-01 \
-  --targets validation,microstructure --microstructure-stages dti --doctor
-```
-
-Use `--plan` instead of `--doctor` to write a run plan. Execution that needs
-Slicer CLI modules must use Slicer or its `PythonSlicer` environment.
+| First analysis | [Quick Start](docs/setup/QUICKSTART.md) |
+| Commands and batch experiments | [CLI templates](docs/setup/CLI_TEMPLATES.md) · [Experiments](docs/setup/EXPERIMENTS.md) · [Example request](docs/setup/examples/dti_experiments.json) |
+| Dependencies and platforms | [Support matrix](docs/setup/SUPPORT_MATRIX.md) · [Linux](docs/setup/LINUX_HPC.md) · [Windows](docs/setup/WINDOWS.md) · [macOS](docs/setup/MACOS.md) |
+| Models and offline resources | [Assets](docs/assets/MODEL_ASSETS.md) · [Resource policy](docs/assets/EXTERNAL_RESOURCES.md) |
+| Results and selected regions | [Result review](docs/setup/GUI_RESULT_REVIEW.md) · [Regional analysis](docs/setup/REGIONAL_ANALYSIS.md) |
+| Settings and output layout | [Shared settings](docs/setup/USER_CONFIG.md) · [Output layout](docs/setup/OUTPUT_LAYOUT.md) |
+| Manuscript and artwork | [LaTeX, PDF, figure sources and rebuild instructions](docs/paper/README.md) |
+| Developer and release guides | [Repository layout](docs/architecture/REPOSITORY_LAYOUT.md) · [Extension readiness](docs/release/EXTENSION_READINESS.md) |
 
 ---
 
 ## Validation And Release Status
 
-Linux real-data and GUI evidence is documented in the
-[acceptance campaign](docs/release/SLICER_ACCEPTANCE_20261007.md);
-the compact interface has a separate
-[UI validation record](docs/release/UI_SIMPLIFICATION_20261008.md).
-These records describe specific checkouts, routes and datasets, not all
-future configurations.
+| Area | Current scope |
+| --- | --- |
+| Reference environment | Linux and Slicer 5.10; Windows/macOS availability is route-specific |
+| Validation | Recorded Linux SDK/CPack, GUI and selected real-data workflows; coverage is tied to the documented revision and inputs |
+| Distribution | Private pre-release; Extension Index entry remains a Tier 1 proposal |
+| Licensing | BSD-3-Clause project code; third-party source and model assets retain separate terms and release gates |
 
-The [16 October follow-up](docs/release/QC_FOLLOWUP_20261016.md) records the
-new CSD/WMA checks and real Linux SDK/CPack installation acceptance, including
-the remaining WMQL sampling failure and human-review boundaries.
-Validation is run locally during development. GitHub Actions, including website
-deployment, are manual-only and do not run on pushes or pull requests.
+Execution status, automatic QC and human review are recorded or assessed separately.
+Review [validation records](docs/README.md#validation-records),
+[platform support](docs/setup/SUPPORT_MATRIX.md) and
+[release readiness](docs/release/EXTENSION_READINESS.md) for scope and outstanding checks.
+The software is for research use, not clinical diagnosis.
 
-New anatomical products use `outputs/03_anatomy/`, with `ddseg/`, `ddparcel/`
-and `ddsurfer/` subdirectories. Existing `03_structural/` products remain readable
-without being moved or rewritten. See [output layout](docs/setup/OUTPUT_LAYOUT.md).
+Development checks require a full checkout:
 
-Current release boundaries:
+```bash
+make test-fast
+python3 scripts/audit_slicer_extension_metadata.py --json
+```
 
-- CMake and staging now use one runtime resource manifest; package audits check file inclusion and source hashes.
-- Fast CI and local installation checks are not substitutes for a real SDK/CTest/CPack build.
-- Linux SDK/CPack, private Extension Manager installation and selected cached-DTI/bundle loading have passed; this is not a blank-machine full scientific workflow.
-- Native Windows/macOS scientific workflows and three-platform SDK builds are not certified.
-- The Extension Index JSON is a **Tier 1 proposal**, not acceptance by Slicer.
-- Public source access, third-party licensing clearance and asset redistribution review remain release gates.
-
-Development checks require a complete checkout, not the lightweight installation.
-Run `make test-fast` and
-`python3 scripts/audit_slicer_extension_metadata.py --json` for development
-checks. SDK builds and independent clean installation are described in
-[Extension readiness](docs/release/EXTENSION_READINESS.md).
+Validation is local during development. GitHub Actions and website publication
+remain manual-only.
 
 ---
 
 ## Support
 
-Use **Advanced settings > Copy diagnostic report** to collect diagnostics.
-When reporting an issue, include the Slicer version, OS, selected route,
-failure message and redacted log. Remove patient identifiers and private paths.
-Reports remain local unless you choose to share them; dependency and model
-downloads require network access.
+Report the Slicer version, OS, selected methods, failure message and redacted
+logs. Remove subject identifiers and private paths before sharing.
+Use the [result-review guide](docs/setup/GUI_RESULT_REVIEW.md) for run records
+and the [managed-setup guide](docs/setup/MANAGED_SETUP.md) for dependency repair.
 
 ---
 
 ## Citation
 
-The SlicerDDSurfer protocol manuscript is in preparation. Cite the tested
-software version using [CITATION.cff](CITATION.cff), together with the methods
-actually used: [DDSurfer](https://doi.org/10.1002/advs.76596),
-[DDSeg](https://doi.org/10.1016/j.neuroimage.2021.117934), and
+Cite the software version through [CITATION.cff](CITATION.cff) and the methods
+used in your analysis: [DDSurfer](https://doi.org/10.1002/advs.76596),
+[DDSeg](https://doi.org/10.1016/j.neuroimage.2021.117934) and
 [DDParcel](https://doi.org/10.1109/TMI.2023.3331691).
+Additional integrated methods are listed in the [website bibliography](https://chengjinlii.github.io/SlicerDDSurfer/#cite).
+The SlicerDDSurfer protocol manuscript is in preparation.
 
 ---
 
 ## License
 
-Project code is **BSD-3-Clause**: [LICENSE.txt](LICENSE.txt), the single
-project license file. Bundled components retain their own licenses and notices.
-Bundled third-party code has separate terms:
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-Model weights, templates and subject-derived data are not relicensed by the
-project license. Some component permissions remain unresolved; do not publish
-asset-inclusive archives until those permissions are documented.
+Project code: **BSD-3-Clause**, [LICENSE.txt](LICENSE.txt).
+Bundled components retain the terms in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Weights, templates and subject data are governed separately; review
+[asset permissions](docs/assets/MODEL_ASSET_TERMS.md) before redistribution.

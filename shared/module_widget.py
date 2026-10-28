@@ -347,13 +347,15 @@ class SharedWidgetMixin:
             button.enabled = False
             return
         validation = validation or self._topup_validation()
+        cohort_experiments = bool(getattr(node, 'experimentsEnabled', False) and
+                                  getattr(node, 'experimentScope', 'subject') == 'cohort')
         state = run_button_state(
             pipeline_active=bool(getattr(self, "_pipelineActive", False)),
             selected_targets=self._selected_product_targets(),
-            batch_mode=bool(getattr(node, "batchMode", False)),
+            batch_mode=cohort_experiments or bool(getattr(node, "batchMode", False)),
             subject_id=node.subjectId or "",
             subject_root_text=node.inputDirectory or "",
-            batch_root_text=getattr(node, "batchRoot", "") or "",
+            batch_root_text=(getattr(node, 'experimentRoot', '') if cohort_experiments else getattr(node, "batchRoot", "")) or "",
             topup_errors=validation.errors,
         )
         button.enabled = state.enabled
@@ -2305,6 +2307,9 @@ class SharedWidgetMixin:
         common_run_kwargs: dict[str, Any],
         external_paths: dict[str, Optional[Path]],
         selected_workflows: list[str],
+        *,
+        launch_args: Optional[list[str]] = None,
+        run_context: Optional[dict] = None,
     ) -> None:
         if getattr(self, "_backgroundProcess", None) is not None:
             process = self._backgroundProcess
@@ -2324,7 +2329,7 @@ class SharedWidgetMixin:
         process.connect("errorOccurred(QProcess::ProcessError)", self._onBackgroundProcessError)
 
         program = self._slicer_launcher_program()
-        args = self._build_background_cli_args(common_run_kwargs, external_paths)
+        args = launch_args if launch_args is not None else self._build_background_cli_args(common_run_kwargs, external_paths)
         # Run the CLI in its own process group so Cancel can kill the whole
         # descendant tree (MRtrix, FreeSurfer, dcm2niix, ...), not just the
         # launcher process. See shared/process_group.py.
@@ -2337,6 +2342,7 @@ class SharedWidgetMixin:
         self._backgroundManifestPath = None
         self._backgroundCancelRequested = False
         self._backgroundRunContext = build_background_run_context(common_run_kwargs, selected_workflows)
+        self._backgroundRunContext.update(run_context or {})
         self.appendLog("[Background] Starting: " + program + " " + " ".join(args))
         self._setPipelineActive(True)
         self._set_run_progress_message("Background execution submitted.")
@@ -2518,7 +2524,14 @@ class SharedWidgetMixin:
             return
         if manifest.get("kind") == "slicerdsurfer_batch_run":
             self._load_background_batch_manifest_result(manifest_path, manifest)
-            self._auto_load_key_results(manifest_path)
+            if manifest.get('experiment'):
+                successful = [result['run_manifest_path'] for result in manifest.get('results', [])
+                              if result.get('returncode') == 0 and result.get('run_manifest_path')]
+                if successful:
+                    self._auto_load_key_results(Path(successful[-1]))
+                    self.appendLog('[Experiments] Showing one completed run. Browse individual run records to review other variants.')
+            else:
+                self._auto_load_key_results(manifest_path)
             self._tableShowsLiveRun = False
             set_run_state(self, "failed" if rows_from_batch_manifest(manifest_path, manifest)[1]["failed"] else "completed")
             self._refresh_run_history(select_path=manifest_path)
@@ -2659,11 +2672,12 @@ class SharedWidgetMixin:
         completed = counts["completed"]
         skipped = counts["skipped"]
         total = counts["total"]
+        unit = 'experiment job(s)' if manifest.get('experiment') else 'subject(s)'
         self._set_run_status_table_rows(rows)
         if failed:
-            self._setStatus("error", f"Batch failed: {failed} subject(s)")
+            self._setStatus("error", f"Batch failed: {failed} {unit}")
         else:
-            self._setStatus("ready", "Batch completed")
+            self._setStatus("warning", "Execution completed; review individual runs and QC")
         self._set_latest_report_path(None)
         self._set_latest_output_tree_path(None)
         self._set_run_progress_message(f"Batch finished. Manifest: {manifest_path}")
@@ -2681,6 +2695,18 @@ class SharedWidgetMixin:
 
     def _write_cancelled_manifest(self) -> Path:
         context = getattr(self, "_backgroundRunContext", {}) or {}
+        experiment_path = context.get('experiment_manifest_path')
+        if experiment_path and Path(experiment_path).is_file():
+            try:
+                path = Path(experiment_path)
+                payload = json.loads(path.read_text(encoding='utf-8'))
+                if payload.get('experiment') and payload.get('kind') == 'slicerdsurfer_batch_run':
+                    from scripts.run_experiments import write_record
+                    payload.update(status='cancelled', ended_at=datetime.now(timezone.utc).isoformat())
+                    write_record(path, payload)
+                    return path
+            except (OSError, ValueError) as exc:
+                self.appendLog('[Experiments] Could not update cancellation record: ' + str(exc))
         manifest_path, payload = cancelled_manifest_path_and_payload(
             context,
             cancelled_at=datetime.utcnow().isoformat(timespec="seconds") + "Z",
@@ -2835,6 +2861,10 @@ class SharedWidgetMixin:
             return
         if getattr(self, "_setupRestartRequired", False):
             self._setStatus("warning", onboarding_text(getattr(self, "_onboardingLanguage", "en"), "setup_restart_required"))
+            return
+        if getattr(self._parameterNode, 'experimentsEnabled', False):
+            from shared.ui_experiments import submit
+            submit(self)
             return
         # Validate before saving settings, checking dependencies or starting a job.
         from shared.ui_advanced_layout import enforce_single_subject_gui
@@ -3384,6 +3414,9 @@ class SharedWidgetMixin:
 
     def _setPipelineActive(self, active: bool, *, preserve_status: bool = False) -> None:
         self._pipelineActive = active
+        if getattr(self, '_experimentWidgets', None):
+            for key in ('enabled', 'scope', 'root', 'jobs', 'options', 'variants', 'preview', 'export'):
+                self._experimentWidgets[key].enabled = not active
         for button in getattr(self, '_algorithmButtons', {}).values():
             button.enabled = not active
         self._refresh_run_button_state()

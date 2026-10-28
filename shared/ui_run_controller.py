@@ -664,15 +664,22 @@ def rows_from_batch_manifest(manifest_path: Path, manifest: dict[str, Any]) -> t
         counts[status] += 1
         rows.append(
             {
-                "target": str(result.get("subject_id") or ""),
+                "target": str(result.get("subject_id") or "") + (" / " + result['variant'] if result.get('variant') else ''),
                 "status": status,
-                "reason": f"return code {returncode}",
-                "manifest_path": str(manifest_path),
+                "reason": str(result.get('reason') or f"return code {returncode}"),
+                "manifest_path": str(result.get('run_manifest_path') or manifest_path),
                 "qc_path": "",
                 "logs_dir": str(Path(str(result.get("stdout_log") or "")).parent) if result.get("stdout_log") else "",
             }
         )
     skipped = manifest.get("skipped", []) or []
+    if manifest.get('experiment'):
+        finished = {item.get('job_id') for item in manifest.get('results', [])}
+        for job in manifest.get('subjects', []):
+            if job.get('job_id') not in finished:
+                rows.append(dict(target=job.get('subject_id', '') + ' / ' + job.get('variant', ''),
+                                 status='cancelled' if manifest.get('status') == 'cancelled' else job.get('status', 'pending'),
+                                 reason='', manifest_path=job.get('run_manifest_path', ''), qc_path='', logs_dir=''))
     counts["skipped"] = len(skipped)
     for item in skipped:
         if not isinstance(item, dict):

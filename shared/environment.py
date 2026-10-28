@@ -1055,6 +1055,10 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
     repo_root = _resource_root(config)
     platform_name = _effective_platform_name(config)
 
+    if config.brain_mask_required and config.brain_mask_backend == 'dipy':
+        for target in targets:
+            _add_dipy_stack(specs, target)
+
     for target in targets:
         if target == "validation":
             _add_core_python(specs, target)

@@ -44,7 +44,7 @@ from shared.user_config import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
-BACKENDS = ("pnl_cnn", "synthstrip", "mrtrix", "provided")
+BACKENDS = ("pnl_cnn", "synthstrip", "mrtrix", "provided", "dipy")
 PNL_MODES = {
     "pnl_mask_python": "file",
     "pnl_mask_script": "file",
@@ -205,7 +205,7 @@ class BrainMaskGuiConfigTest(unittest.TestCase):
             self.assertIsNone(owner._lastEnvironmentResult)
             self.assertIsNone(owner._lastEnvironmentSignature)
         changed(owner, -1)
-        self.assertEqual(len(updates), 4)
+        self.assertEqual(len(updates), len(BACKENDS))
         specs = widget_method("_common_user_setting_specs", common_user_setting_specs=common_user_setting_specs)(owner)
         self.assertIn(("brainMaskBackend", str), specs)
 

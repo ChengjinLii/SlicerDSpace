@@ -1,0 +1,20 @@
+{
+  "kind": "slicerddsurfer_experiment_request",
+  "version": 1,
+  "scope": "cohort",
+  "subject_root": "",
+  "subject_id": "",
+  "cohort_root": "/absolute/path/to/prepared_study",
+  "output_root": "/absolute/path/to/new_campaign",
+  "jobs": 1,
+  "base_args": [
+    "--targets", "validation,microstructure",
+    "--microstructure-stages", "dti",
+    "--brain-mask-backend", "provided"
+  ],
+  "options": [],
+  "variants": [
+    {"name": "dti_wls", "args": ["--micro-fit-method", "wls"]},
+    {"name": "dti_ls", "args": ["--micro-fit-method", "ls"]}
+  ]
+}

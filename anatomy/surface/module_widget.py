@@ -181,6 +181,10 @@ class SurfaceWidgetMixin:
         if not node:
             return False, ["Parameter node unavailable"]
 
+        if getattr(node, 'experimentsEnabled', False) and getattr(node, 'experimentScope', 'subject') == 'cohort':
+            root = str(getattr(node, 'experimentRoot', '')).strip()
+            return (True, []) if root and Path(root).expanduser().is_dir() else (False, ['Cohort root'])
+
         missing: List[str] = []
         subject_id = node.subjectId.strip()
         input_dir_str = node.inputDirectory.strip()

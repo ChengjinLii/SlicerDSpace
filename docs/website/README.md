@@ -55,6 +55,12 @@ was expanded on 25 October; the upstream-source audit is still dated 22 October.
 
 ## Site Guide
 
+The homepage's `#skills` section and navigation introduce the project's
+install-and-use Agent Skill, its usage reference, CLI recipes and a copyable
+prompt. Both root READMEs also have an Agent Skills section. Skill files stay in
+the repository: links require repository access during private pre-release.
+The Skill runs through the user's Agent; it is separate from the local site guide.
+
 The floating guide reproduces the mascot, motion and dialog style of Chengjin
 Bot from the local personal-site source at `d30286f`: 150 ms gaze sampling,
 per-frame 0.05 smoothing, 5 px eye range, blue pulse, blinking and seasonal hat.

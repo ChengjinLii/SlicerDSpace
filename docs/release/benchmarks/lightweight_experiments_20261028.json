@@ -1,0 +1,296 @@
+{
+  "kind": "slicerddsurfer_lightweight_experiments",
+  "date": "2026-10-28",
+  "base_commit": "f6b5f9b80441ba82180224793aab452af946c191",
+  "tested_source_sha256": {
+    "SlicerDDSurfer.py": "fa8430c23f7e1e2d11c23173ff8a28cf9f2705768e21a410167f3a8c6e1d9bb6",
+    "Resources/UI/SlicerDDSurfer.ui": "19c310aedaa333dbdd2b2326f4a983c3702cd2ccc16fd2d82324d83a4c50636f",
+    "shared/brain_mask.py": "3415099b6bc56307533f156b69ade0f302337d63ac2ac0a8693117bfdb63fe58",
+    "shared/experiments.py": "24f36edbddde1fb6f08b93b8c02c315e9e50a229c10660608e0c594dfea2e985",
+    "shared/ui_experiments.py": "da33bfb93a46af39e1ca36e46ac9ace85c790c67010db4d4149778ae471da66d",
+    "scripts/run_experiments.py": "c4ccb82fb681558ec15a501cebbde31089e0d463a1cbae1df0e7f48bb727c0d1",
+    "shared/run_subject_pipeline_cli.py": "4cb8a6d5c660d1b517dce90b65696417fbe90667df92ae5eebc2ceb9bb394bc1",
+    "shared/module_widget.py": "6afac14441af218188060a8e67a67bdedb1d464b96467a31ba82d02d62804822",
+    "shared/ui_advanced_layout.py": "54ebad3dae7e7dbe5a3c6e6c45d62284d00b65dd98364bca691623c178604716",
+    "shared/ui_run_history.py": "1eec1fcfff189c828434bce8c63f46e6ebe1129dcf517a2b84265505dc35819f",
+    "shared/ui_run_controller.py": "faa8c0ef00dcc8e4be84325a41342a566595b2f201ef1433c0d1b124f17a0655",
+    "Testing/Python/test_experiments.py": "2cfc45034c59c4990e6ebb2bacf1d1191823e9bec0596b93684d8475689092df",
+    "Testing/Python/test_dipy_mask.py": "e03308e4526854d0f991831f2d988be68f2f53493370b54ccc86d28043e0ebd1",
+    "Testing/Python/slicer_experiments_smoke.py": "f98fb00f2e82e16680796feae05cbe3a594525e072f37aa089db3baf28547c24"
+  },
+  "python_tests": {
+    "total": 1583,
+    "passed": 1578,
+    "skipped": 5,
+    "seconds": 83.822
+  },
+  "gui": [
+    {
+      "name": "experiments",
+      "status": "PASS",
+      "seconds": 21.746820071712136
+    },
+    {
+      "name": "algorithm_picker",
+      "status": "PASS",
+      "seconds": 16.4456489328295
+    },
+    {
+      "name": "compact_ui",
+      "status": "PASS",
+      "seconds": 16.894783549010754
+    },
+    {
+      "name": "environment_async",
+      "status": "PASS",
+      "seconds": 26.515011137351394
+    }
+  ],
+  "package_install": [
+    {
+      "name": "extension_manager_install",
+      "status": "PASS",
+      "seconds": 17.69119568914175
+    }
+  ],
+  "sdk_status": "pass",
+  "ctest_entries": 182,
+  "package": {
+    "kind": "slicerdsurfer_package_resource_audit",
+    "status": "pass",
+    "archive": "/data/chengjin/SlicerDDSurfer/ignore/validation/native_experiments_20261028/sdk_final_package/3838-linux-amd64-SlicerDDSurfer-gitf6b5f9b-2026-10-28.tar.gz",
+    "source_root": "/data/chengjin/SlicerDDSurfer",
+    "archive_sha256": "f2b5da084c26f7799f07945a9bcdedb28154cca0a4a7927200f73cb01ee42796",
+    "expected_file_count": 510,
+    "module_roots": [
+      "3838-linux-amd64-SlicerDDSurfer-gitf6b5f9b-2026-10-28/lib/Slicer-5.10/qt-scripted-modules"
+    ],
+    "missing": [],
+    "changed": [],
+    "unexpected": [],
+    "unsafe": [],
+    "scope": "Package contents only; not SDK provenance or scientific correctness"
+  },
+  "real_dti_campaigns": [
+    {
+      "request": "real_sample_request.json",
+      "status": "completed",
+      "seconds": 66.37624833546579,
+      "runs": [
+        {
+          "subject_copy": "replica-a",
+          "variant": "wls",
+          "seconds": 53.96182460896671,
+          "returncode": 0,
+          "automatic_dti_qc": true,
+          "human_review": "pending",
+          "tasks": [
+            {
+              "name": "validation",
+              "status": "passed",
+              "seconds": 39.04227897897363
+            },
+            {
+              "name": "microstructure.dti",
+              "status": "completed",
+              "seconds": 10.246897170320153
+            }
+          ]
+        },
+        {
+          "subject_copy": "replica-b",
+          "variant": "wls",
+          "seconds": 54.55322158150375,
+          "returncode": 0,
+          "automatic_dti_qc": true,
+          "human_review": "pending",
+          "tasks": [
+            {
+              "name": "validation",
+              "status": "passed",
+              "seconds": 39.6434853002429
+            },
+            {
+              "name": "microstructure.dti",
+              "status": "completed",
+              "seconds": 10.202618408948183
+            }
+          ]
+        },
+        {
+          "subject_copy": "replica-a",
+          "variant": "ls",
+          "seconds": 12.011824045330286,
+          "returncode": 0,
+          "automatic_dti_qc": true,
+          "human_review": "pending",
+          "tasks": [
+            {
+              "name": "validation",
+              "status": "passed",
+              "seconds": 0.10811939835548401
+            },
+            {
+              "name": "microstructure.dti",
+              "status": "completed",
+              "seconds": 8.322433030232787
+            }
+          ]
+        },
+        {
+          "subject_copy": "replica-b",
+          "variant": "ls",
+          "seconds": 11.811871396377683,
+          "returncode": 0,
+          "automatic_dti_qc": true,
+          "human_review": "pending",
+          "tasks": [
+            {
+              "name": "validation",
+              "status": "passed",
+              "seconds": 0.10485338792204857
+            },
+            {
+              "name": "microstructure.dti",
+              "status": "completed",
+              "seconds": 8.296152960509062
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "request": "verified_request.json",
+      "status": "completed",
+      "seconds": 14.7287920974195,
+      "runs": [
+        {
+          "subject_copy": "replica-a",
+          "variant": "wls",
+          "seconds": 8.409668136388063,
+          "returncode": 0,
+          "automatic_dti_qc": true,
+          "human_review": "pending",
+          "tasks": [
+            {
+              "name": "validation",
+              "status": "passed",
+              "seconds": 0.5738646499812603
+            },
+            {
+              "name": "microstructure.dti",
+              "status": "completed",
+              "seconds": 2.2706321589648724
+            }
+          ]
+        },
+        {
+          "subject_copy": "replica-b",
+          "variant": "wls",
+          "seconds": 8.509308760985732,
+          "returncode": 0,
+          "automatic_dti_qc": true,
+          "human_review": "pending",
+          "tasks": [
+            {
+              "name": "validation",
+              "status": "passed",
+              "seconds": 0.5680120401084423
+            },
+            {
+              "name": "microstructure.dti",
+              "status": "completed",
+              "seconds": 2.440410602837801
+            }
+          ]
+        },
+        {
+          "subject_copy": "replica-a",
+          "variant": "ls",
+          "seconds": 5.107095481827855,
+          "returncode": 0,
+          "automatic_dti_qc": true,
+          "human_review": "pending",
+          "tasks": [
+            {
+              "name": "validation",
+              "status": "passed",
+              "seconds": 0.10153830796480179
+            },
+            {
+              "name": "microstructure.dti",
+              "status": "completed",
+              "seconds": 1.709021631628275
+            }
+          ]
+        },
+        {
+          "subject_copy": "replica-b",
+          "variant": "ls",
+          "seconds": 6.207697089761496,
+          "returncode": 0,
+          "automatic_dti_qc": true,
+          "human_review": "pending",
+          "tasks": [
+            {
+              "name": "validation",
+              "status": "passed",
+              "seconds": 0.10124225914478302
+            },
+            {
+              "name": "microstructure.dti",
+              "status": "completed",
+              "seconds": 2.7018297035247087
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "scalar_equality_across_replicas": {
+    "real_sample_request.json:wls:FA": true,
+    "real_sample_request.json:wls:MD": true,
+    "real_sample_request.json:wls:AD": true,
+    "real_sample_request.json:wls:RD": true,
+    "real_sample_request.json:ls:FA": true,
+    "real_sample_request.json:ls:MD": true,
+    "real_sample_request.json:ls:AD": true,
+    "real_sample_request.json:ls:RD": true,
+    "verified_request.json:wls:FA": true,
+    "verified_request.json:wls:MD": true,
+    "verified_request.json:wls:AD": true,
+    "verified_request.json:wls:RD": true,
+    "verified_request.json:ls:FA": true,
+    "verified_request.json:ls:MD": true,
+    "verified_request.json:ls:AD": true,
+    "verified_request.json:ls:RD": true
+  },
+  "imaging_scope": "Two directory replicas of one upstream Slicer DWIVolume dataset; not independent subjects. First campaign generates DIPY masks; warm rerun reuses masks/native DTI caches.",
+  "anatomical_review": "pending",
+  "existing_sessions_unchanged": true,
+  "github_actions_used": false,
+  "evidence_root": "ignore/validation/native_experiments_20261028/",
+  "initial_sdk_package": {
+    "kind": "slicerdsurfer_package_resource_audit",
+    "status": "pass",
+    "archive": "/data/chengjin/SlicerDDSurfer/ignore/validation/native_experiments_20261028/sdk/3838-linux-amd64-SlicerDDSurfer-gitf6b5f9b-2026-10-28.tar.gz",
+    "source_root": "/data/chengjin/SlicerDDSurfer",
+    "archive_sha256": "406dc0c881a4de179afec7bcc6079f03488094b74fc89fe08b42e590f9718645",
+    "expected_file_count": 510,
+    "module_roots": [
+      "3838-linux-amd64-SlicerDDSurfer-gitf6b5f9b-2026-10-28/lib/Slicer-5.10/qt-scripted-modules"
+    ],
+    "missing": [],
+    "changed": [],
+    "unexpected": [],
+    "unsafe": [],
+    "scope": "Package contents only; not SDK provenance or scientific correctness"
+  },
+  "final_documentation_checks": {
+    "total": 12,
+    "passed": 11,
+    "skipped": 1,
+    "seconds": 3.725
+  },
+  "final_packaging_note": "Documentation was refreshed after the SDK campaign; rebuilt and repackaged with the same SDK, audited against the final source and installed through Extension Manager. Initial package retained."
+}

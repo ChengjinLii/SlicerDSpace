@@ -43,6 +43,7 @@
       <ul>
         <li><a href="#film">Film</a></li>
         <li><a href="#outputs">Outputs</a></li>
+        <li><a href="#skills">Agent Skills</a></li>
         <li><a href="#start">Get started</a></li>
         <li><a href="#integrated">Methods</a></li>
         <li><a href="#cite">References</a></li>
@@ -68,6 +69,7 @@
       <a class="btn btn-secondary" href="#start">Get started</a>
     </div>
     <p class="status-line">Research software · Private pre-release · BSD-3-Clause code</p>
+    <p class="note"><a href="#skills">Use your Agent with our install-and-use Skill.</a></p>
   </div>
 </section>
 
@@ -250,6 +252,38 @@
       </a>
       <figcaption>What each method makes and what it reads. Free water, NODDI and DKI need at least two non-zero shells; DKI counts only shells up to 2500 s/mm².</figcaption>
     </figure>
+  </div>
+</section>
+
+<section class="section reveal" id="skills" aria-labelledby="skills-title">
+  <div class="container">
+    <p class="eyebrow">Agent Skills</p>
+    <h2 id="skills-title">Install, run and review with your Agent.</h2>
+    <p class="intro">We provide an install-and-use Skill for SlicerDDSurfer. Give its SKILL.md to your local Agent to follow the project's setup, analysis and result-review workflow.</p>
+    <div class="skills-grid">
+      <dl class="skill-capabilities">
+        <div><dt>Install &amp; enable</dt><dd>Locate Slicer, verify module activation and prepare only the dependencies you need.</dd></div>
+        <div><dt>Plan &amp; run</dt><dd>Prepare inputs, select methods and inspect the plan before running analyses or batch experiments.</dd></div>
+        <div><dt>Review &amp; reuse</dt><dd>Inspect outputs, logs and QC for the selected run while preserving existing scenes.</dd></div>
+      </dl>
+      <div class="skill-prompt">
+        <h3>Ask your Agent</h3>
+        <div class="code" data-code>
+          <div class="code-head"><span>Agent prompt</span><button class="copy" type="button" hidden>Copy</button></div>
+          <pre><code>Read .agents/skills/slicerddsurfer-install/SKILL.md.
+Install and enable SlicerDDSurfer if needed,
+then plan a DTI analysis for /path/to/sub-01.
+Prepare only the required dependencies and
+show me the plan before execution.</code></pre>
+        </div>
+        <p class="note">Use an authorized checkout while the repository is private. Your local Agent follows the Skill; the website guide bot provides curated information. Confirm downloads, licenses and restarts when requested.</p>
+      </div>
+    </div>
+    <ul class="doc-links">
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/.agents/skills/slicerddsurfer-install/SKILL.md" target="_blank" rel="noopener">Open Skill</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/.agents/skills/slicerddsurfer-install/references/usage.md" target="_blank" rel="noopener">Agent usage guide</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDDSurfer/blob/main/docs/setup/CLI_TEMPLATES.md" target="_blank" rel="noopener">CLI templates</a></li>
+    </ul>
   </div>
 </section>
 

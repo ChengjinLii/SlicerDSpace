@@ -14,6 +14,7 @@ masking**, not in the main Inputs or Products sections.
 | Display | Saved/CLI value |
 | --- | --- |
 | PNL CNN (dMRI), default | `pnl_cnn` |
+| DIPY median-Otsu, model-free Python option | `dipy` |
 | SynthStrip | `synthstrip` |
 | MRtrix dwi2mask | `mrtrix` |
 | Provided mask only | `provided` |
@@ -85,7 +86,7 @@ new process. Its report and screenshots are written under `--report`.
 ## 中文
 
 脑掩膜选择器仅位于“高级设置 > 预处理与掩膜 > 脑掩膜方法”，默认显示
-`PNL CNN (dMRI)`。可选 SynthStrip、MRtrix dwi2mask 或“仅使用提供的掩膜”。
+`PNL CNN (dMRI)`。可选 SynthStrip、MRtrix dwi2mask、无需权重或外部程序的 DIPY median-Otsu，或“仅使用提供的掩膜”。
 已有的用户掩膜会被尊重；依赖或掩膜缺失时明确报错，不会自动换用其他后端。
 选择默认方法不代表 PNL 模型或运行环境已安装。
 
