@@ -42,7 +42,7 @@ def _write_unit_manifest(path: Path, *, sha256: str, size_bytes: int) -> None:
             "unit_mirror": {
                 "kind": "url-template",
                 "status": "active",
-                "base_url": "https://example.invalid/SlicerDDSurfer-models/v0.1.0",
+                "base_url": "https://example.invalid/SlicerDSpace-models/v0.1.0",
             }
         },
         "profiles": {

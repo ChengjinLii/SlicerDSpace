@@ -149,7 +149,7 @@ Slicer 5.10 用户在 **Edit > Application Settings > Modules > Additional modul
 确认所需工具和模型条款；如提示重启，重启后再点击准备以继续。
 SlicerDMRI、PyTorch 及可选的 UKFTractography 扩展按路线准备。
 
-权重、模板和图谱单独存放于 **SlicerDDSurfer-models**。配置过程校验 SHA256、
+权重、模板和图谱单独存放于 [**SlicerDSpace-models**](https://github.com/ChengjinLii/SlicerDSpace-models)。配置过程校验 SHA256、
 缓存下载并保存路径；**更多选项** 提供已有环境、离线模型和修复入口。
 详见[自动配置](docs/setup/MANAGED_SETUP.zh-CN.md)与[资源条款](docs/assets/MODEL_ASSET_TERMS.md)。
 

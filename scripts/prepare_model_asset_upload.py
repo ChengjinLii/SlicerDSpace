@@ -67,7 +67,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mirror-dir", type=Path, required=True, help="Exported asset mirror directory or asset_mirror_manifest.json.")
     parser.add_argument("--target", choices=("github-release", "huggingface", "zenodo"), default="github-release")
     parser.add_argument("--release-tag", default="v0.1.0")
-    parser.add_argument("--repository", default="ChengjinLii/SlicerDDSurfer-models")
+    parser.add_argument("--repository", default="ChengjinLii/SlicerDSpace-models")
     parser.add_argument("--hf-repo", default="ChengjinLii/SlicerDDSurfer-models")
     parser.add_argument("--zenodo-record", default="REPLACE_WITH_RECORD_ID")
     return parser

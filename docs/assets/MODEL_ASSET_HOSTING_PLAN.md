@@ -16,7 +16,7 @@ asset host after redistribution terms are confirmed.
 ## Target Layout
 
 - Code repository: `ChengjinLii/SlicerDSpace`
-- Asset repository or record: `ChengjinLii/SlicerDDSurfer-models`, Hugging Face,
+- Asset repository or record: `ChengjinLii/SlicerDSpace-models`, Hugging Face,
   Zenodo, OSF, Figshare or institutional object storage
 - Source of truth for paths, sizes and checksums:
   `models/assets_manifest.json`
@@ -53,7 +53,7 @@ defaults while the downloader changes only the source backend.
 python3 scripts/download_model_assets.py --profile core --verify-only
 python3 scripts/export_model_asset_mirror.py \
   --profile core \
-  --output-dir /tmp/SlicerDDSurfer-models-v0.1.0
+  --output-dir /tmp/SlicerDSpace-models-v0.1.0
 ```
 
 7. Upload the generated mirror directory, including `asset_mirror_manifest.json`

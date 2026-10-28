@@ -28,7 +28,7 @@ SlicerDSpace release artifacts are split into three classes:
 
 1. Source code and documentation in this repository.
 2. Manifest-managed model weights and templates in the independent
-   `SlicerDDSurfer-models` repository, downloaded to a user-selected asset root
+   `SlicerDSpace-models` repository, downloaded to a user-selected asset root
    and verified by size and SHA256.
 3. External software installed separately by users, including 3D Slicer,
    SlicerDMRI, MRtrix3, FSL, FreeSurfer-compatible tools, WMA, TractQuerier,

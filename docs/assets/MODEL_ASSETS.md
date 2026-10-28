@@ -8,7 +8,7 @@
 
 SlicerDSpace keeps the code repository lightweight by storing large
 model/template files outside the main source tree. The preferred external
-source is the independent `SlicerDDSurfer-models` repository. The manifest and
+source is the independent [SlicerDSpace-models](https://github.com/ChengjinLii/SlicerDSpace-models) repository. The manifest and
 downloader verify every asset by size and SHA256 checksum before use.
 
 Users do not need to clone model files with the code repository. A code-only
@@ -121,8 +121,9 @@ python3 scripts/download_model_assets.py \
 ```
 
 The `slicerdsurfer_models_git` source resolves files from
-`https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main/{path}` after
-that repository has been published. For an ad-hoc mirror, use `--base-url`;
+`https://github.com/ChengjinLii/SlicerDSpace-models/raw/main/{path}`.
+Existing configured asset directories and verified downloads remain reusable.
+For an ad-hoc mirror, use `--base-url`;
 the downloader appends each relative asset path to that URL and verifies every
 download against the manifest size and SHA256.
 
@@ -132,12 +133,12 @@ verified locally:
 ```bash
 python3 scripts/export_model_asset_mirror.py \
   --profile core \
-  --output-dir /tmp/SlicerDDSurfer-models-v0.1.0
+  --output-dir /tmp/SlicerDSpace-models-v0.1.0
 ```
 
 The exporter verifies size and SHA256 first, then writes the files using the
 same repository-relative paths plus `asset_mirror_manifest.json` and
-`asset_mirror_index.tsv`. Upload that directory to `SlicerDDSurfer-models`,
+`asset_mirror_index.tsv`. Upload that directory to `SlicerDSpace-models`,
 Hugging Face, Zenodo, OSF, Figshare, or institutional object storage. Use
 `--dry-run` to inspect the export plan without writing files, or `--mode
 hardlink` for local staging when the target filesystem supports hard links.
@@ -274,7 +275,7 @@ URL-template sources may use these placeholders:
 For a public release, keep this code repository lightweight and publish large
 weights/templates through a governed asset source:
 
-1. Create `ChengjinLii/SlicerDDSurfer-models` or an equivalent
+1. Use `ChengjinLii/SlicerDSpace-models` or an equivalent
    Hugging Face/Zenodo/OSF record.
 2. Preserve the same relative paths as `asset_records`.
 3. Upload only files whose redistribution and archive permissions are confirmed.

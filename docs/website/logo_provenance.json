@@ -1,22 +1,50 @@
 {
   "source": "docs/figures/logo-ref.svg",
-  "source_sha256": "cc584e1ce0be0ddb32ecf1be9ad62cb9d57ae0f2ae4b584418386db95aeee0d2",
+  "source_sha256": "9cbafb029a55cde2a618f0bc4b8c70ea83e425358642cd306235a18727d0466e",
   "transform": "Remove only the white page background; preserve all vector artwork and aspect ratio",
   "outputs": {
     "logo-ddsurfer.png": {
       "width": 770,
       "height": 782,
-      "sha256": "aa3c81273209fe663a6bfd9ed54c49f14a702c35668d58f76df52063e262e092"
+      "sha256": "88fe72d9290b8fc0e60d451afbcb64fb75920f32041207ed17620ee9a2fcdf1a"
     },
     "icon-64.png": {
       "width": 64,
       "height": 64,
-      "sha256": "8557fed793d5ea2a386ea07cdda5ec81d7d09b9dbc23abff7b55e823e10e6dc5"
+      "sha256": "27d7d4c6bc3c0917f9cff3c40807c53b63b9ee23ec421cc3ea1e357c62c0a34d"
     },
     "icon-180.png": {
       "width": 180,
       "height": 180,
-      "sha256": "5796002ea79220a4aedba4b90601abba3f1a7291d8047f14a319ea5812be90cc"
+      "sha256": "de12f86ae4cb0265b1c743c65ea8751cae253c4df5180fd914d53341ab49e840"
+    }
+  },
+  "derived_assets": {
+    "docs/figures/export/logo-ref_vector_preview.png": {
+      "sha256": "adfee4cf183bb34856cb390365c2b6940e3eb77fa703f6f82837fd4fd0d70fdf",
+      "width": 1540,
+      "height": 1564,
+      "transparent": false
+    },
+    "docs/figures/export/logo-dspace_highres.png": {
+      "sha256": "47ac9ba7533fe442f9f3ee253b5ce33aa434bada3136c8003dac2b33feccc1a5",
+      "width": 3080,
+      "height": 3128,
+      "transparent": true
+    },
+    "docs/figures/logo-ref.pdf": {
+      "sha256": "5ab2b7cec0aab75f40d9d842b0f7a488f1d2b95160cb9befc433d5137cfacfa4",
+      "canvas": [
+        385,
+        391
+      ],
+      "vector": true
+    },
+    "Resources/Icons/SlicerDSpace.png": {
+      "sha256": "88fe72d9290b8fc0e60d451afbcb64fb75920f32041207ed17620ee9a2fcdf1a",
+      "width": 770,
+      "height": 782,
+      "transparent": true
     }
   }
 }

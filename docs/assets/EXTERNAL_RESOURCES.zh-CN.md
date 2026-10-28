@@ -10,7 +10,8 @@
 
 ## 范围
 
-`SlicerDDSurfer-models` 保留既有名称，但统一管理权重、模板、图谱及必要推理参考文件。
+[SlicerDSpace-models](https://github.com/ChengjinLii/SlicerDSpace-models)
+统一管理权重、模板、图谱及必要推理参考文件。已有本地资源目录继续可用，无需更名或重新下载。
 不是把所有“大文件”都迁进去：用户影像、分析结果、训练/测试数据、Conda/Python 环境、
 CUDA 库、外部程序和逐被试生成的拟合字典均排除。
 默认 core 仍是原有 31 个解剖资源，可选后端不随默认安装全量下载。
@@ -56,7 +57,7 @@ ORG 压缩包与 [Zenodo 固定记录](https://zenodo.org/records/2648292) 的�
 ```bash
 python3 scripts/download_model_assets.py \
   --manifest models/external_assets_manifest.json --profile mirrorable-inference \
-  --asset-root /path/to/SlicerDDSurfer-models --verify-only
+  --asset-root /path/to/SlicerDSpace-models --verify-only
 ```
 
 `scripts/import_external_resources.py --help` 提供维护者/离线导入接口，默认仅输出计划，

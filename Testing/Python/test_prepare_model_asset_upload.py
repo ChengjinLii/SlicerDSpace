@@ -55,6 +55,11 @@ def _write_mirror(root: Path) -> None:
 
 
 class PrepareModelAssetUploadTest(unittest.TestCase):
+    def test_default_github_target_uses_renamed_model_repository(self) -> None:
+        module = _load_module()
+        args = module.build_parser().parse_args(['--mirror-dir', '/tmp/example-mirror'])
+        self.assertEqual(args.repository, 'ChengjinLii/SlicerDSpace-models')
+
     def test_github_release_plan_validates_mirror_and_lists_files(self) -> None:
         module = _load_module()
 

@@ -115,7 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Export verified SlicerDSpace model assets into a directory that can be uploaded "
-            "to SlicerDDSurfer-models, Hugging Face, Zenodo, OSF, Figshare, or object storage."
+            "to SlicerDSpace-models, Hugging Face, Zenodo, OSF, Figshare, or object storage."
         )
     )
     parser.add_argument("--profile", "-p", default="core", help="Asset profile to export. Defaults to core.")

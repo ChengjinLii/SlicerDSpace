@@ -161,7 +161,7 @@ Prepare selected analysis environment**. Confirm required tools and model terms;
 restart if requested and select Prepare again to continue. SlicerDMRI,
 PyTorch and the optional UKFTractography extension are prepared as needed.
 
-Weights, templates and atlases live separately in **SlicerDDSurfer-models**.
+Weights, templates and atlases live separately in [**SlicerDSpace-models**](https://github.com/ChengjinLii/SlicerDSpace-models).
 The setup checks SHA256, caches downloads and saves paths. Existing installations,
 offline models and repair are available under **More options**.
 See [managed setup](docs/setup/MANAGED_SETUP.md) and

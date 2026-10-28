@@ -68,7 +68,7 @@ The unchanged upstream builder compiles the pinned FreeSurfer revision,
 ITK Common/VNL and zlib. The adapter only relocates atlas data to the shared
 user asset directory. Its 29,657,074-byte archive is downloaded from a pinned
 DDSurfer commit and SHA256-verified; it is not part of the extension package,
-and this change does not claim it has been uploaded to SlicerDDSurfer-models.
+and this change does not claim it has been uploaded to SlicerDSpace-models.
 The component runtime remains in the upstream recipe-addressed user cache
 unless an explicit prefix is supplied.
 

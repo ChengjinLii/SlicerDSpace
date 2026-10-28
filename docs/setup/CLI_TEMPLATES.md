@@ -36,7 +36,7 @@ export REPO="/path/to/SlicerDSpace"
 export SUBJECT="/path/to/prepared/sub-01"
 export SUBJECT_ID="sub-01"
 export OUTPUTS="/path/to/analysis/sub-01"
-export ASSETS="/path/to/SlicerDDSurfer-models"
+export ASSETS="/path/to/SlicerDSpace-models"
 DEPENDENCY_ARGS=()
 # If needed, export dependency paths from the GUI, then uncomment:
 # DEPENDENCY_ARGS=(--dependency-config "/path/to/dependency_paths.json")
@@ -516,7 +516,7 @@ $Repo = 'C:\work\SlicerDSpace'
 $Subject = 'D:\study\sub-01'
 $SubjectId = 'sub-01'
 $Outputs = 'D:\analysis\sub-01'
-$Assets = 'D:\SlicerDDSurfer-models'
+$Assets = 'D:\SlicerDSpace-models'
 $DependencyArgs = @()
 # $DependencyArgs = @('--dependency-config', 'D:\configs\dependencies.json')
 

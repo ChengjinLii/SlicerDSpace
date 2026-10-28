@@ -10,8 +10,10 @@
 
 ## Scope
 
-The historical `SlicerDDSurfer-models` name now covers weights, templates,
-atlases and required inference references. Raw subject images, analysis outputs,
+The [SlicerDSpace-models](https://github.com/ChengjinLii/SlicerDSpace-models)
+repository covers weights, templates, atlases and required inference references.
+Existing local asset directories remain usable without renaming or redownloading.
+Raw subject images, analysis outputs,
 training/test datasets, Conda/Python environments, CUDA libraries, executables
 and subject-specific fitted dictionaries are not resource-repository contents.
 The default 31-file core profile is unchanged. Optional resources remain opt-in.
@@ -53,7 +55,7 @@ No repository visibility was changed by this work.
 ```bash
 python3 scripts/download_model_assets.py \
   --manifest models/external_assets_manifest.json --profile mirrorable-inference \
-  --asset-root /path/to/SlicerDDSurfer-models --verify-only
+  --asset-root /path/to/SlicerDSpace-models --verify-only
 ```
 
 `scripts/import_external_resources.py` defaults to a plan and requires

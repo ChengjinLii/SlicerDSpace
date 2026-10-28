@@ -78,9 +78,17 @@ class ModelAssetsTest(unittest.TestCase):
         self.assertEqual(manifest["default_asset_source_ids"][0], "slicerdsurfer_models_git")
         self.assertEqual(sources["slicerdsurfer_models_git"]["status"], "active")
         self.assertIn(
-            "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main",
+            "https://github.com/ChengjinLii/SlicerDSpace-models/raw/main",
             sources["slicerdsurfer_models_git"]["url_template"],
         )
+
+    def test_external_resource_mirror_uses_new_repository_and_retains_pinned_revision(self) -> None:
+        manifest = json.loads((REPO_ROOT / 'models/external_assets_manifest.json').read_text(encoding='utf-8'))
+        source = manifest['asset_sources']['optional_models_mirror']
+        self.assertEqual(source['url_template'],
+                         'https://github.com/ChengjinLii/SlicerDSpace-models/raw/'
+                         '11167a58aaced67a69b3e0bc45656aea2abc1c8d/{path_urlencoded}')
+        self.assertEqual(source['status'], 'active')
 
     def test_quick_gate_alias_resolves_to_core_profile(self) -> None:
         module = _load_downloader_module()

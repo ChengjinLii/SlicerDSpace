@@ -155,7 +155,7 @@ directory without altering its contents or regenerating QC records.
 
 - `Resources/Icons/` and `Resources/UI/` are normal Slicer extension resources.
 - Large model weights and templates are not tracked in this code repository.
-  They are restored from the independent `SlicerDDSurfer-models` repository or
+  They are restored from the independent `SlicerDSpace-models` repository or
   another manifest-compatible mirror.
 - Keep only `models/assets_manifest.json`, checksums and download tooling in
   this code repository.

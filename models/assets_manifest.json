@@ -2,7 +2,7 @@
   "kind": "slicerdsurfer_model_asset_manifest",
   "version": 1,
   "default_profile": "core",
-  "asset_source_policy": "The independent SlicerDDSurfer-models repository is the preferred external URL source for code-only checkouts. Git LFS support is retained for direct model-repository clones and legacy asset checkouts. Hugging Face and Zenodo entries are reserved mirrors until public asset terms are confirmed.",
+  "asset_source_policy": "The independent SlicerDSpace-models repository is the preferred external URL source for code-only checkouts. Git LFS support is retained for direct model-repository clones and legacy asset checkouts. Hugging Face and Zenodo entries are reserved mirrors until public asset terms are confirmed.",
   "default_asset_source_ids": [
     "slicerdsurfer_models_git",
     "github_lfs",
@@ -20,15 +20,15 @@
       "kind": "url-template",
       "status": "active",
       "description": "Independent Git LFS asset repository preserving SlicerDSpace-relative paths.",
-      "base_url": "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main",
-      "url_template": "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/main/{path_urlencoded}"
+      "base_url": "https://github.com/ChengjinLii/SlicerDSpace-models/raw/main",
+      "url_template": "https://github.com/ChengjinLii/SlicerDSpace-models/raw/main/{path_urlencoded}"
     },
     "slicerdsurfer_models_release": {
       "kind": "url-template",
       "status": "planned",
       "description": "Planned independent GitHub release repository for model assets.",
-      "base_url": "https://github.com/ChengjinLii/SlicerDDSurfer-models/releases/download/v0.1.0",
-      "url_template": "https://github.com/ChengjinLii/SlicerDDSurfer-models/releases/download/v0.1.0/{path_urlencoded}"
+      "base_url": "https://github.com/ChengjinLii/SlicerDSpace-models/releases/download/v0.1.0",
+      "url_template": "https://github.com/ChengjinLii/SlicerDSpace-models/releases/download/v0.1.0/{path_urlencoded}"
     },
     "huggingface": {
       "kind": "url-template",
@@ -227,7 +227,7 @@
         "transformed surface initialization meshes"
       ],
       "terms_notice": [
-        "DDCSR surface weights, HCP-like templates, surface initialization meshes, and subject-derived FA examples are provided through the external SlicerDDSurfer-models asset source, but public redistribution and DOI-archive terms require author confirmation before manuscript submission.",
+        "DDCSR surface weights, HCP-like templates, surface initialization meshes, and subject-derived FA examples are provided through the external SlicerDSpace-models asset source, but public redistribution and DOI-archive terms require author confirmation before manuscript submission.",
         "If redistribution terms cannot be confirmed, document an alternate access route in Data and Code Availability."
       ],
       "include_patterns": [

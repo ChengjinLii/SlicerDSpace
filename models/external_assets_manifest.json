@@ -10,7 +10,7 @@
       "access": "public",
       "public": true,
       "description": "Public resource mirror pinned to the uploaded resource commit; every downloaded file requires size and SHA256 verification.",
-      "url_template": "https://github.com/ChengjinLii/SlicerDDSurfer-models/raw/11167a58aaced67a69b3e0bc45656aea2abc1c8d/{path_urlencoded}"
+      "url_template": "https://github.com/ChengjinLii/SlicerDSpace-models/raw/11167a58aaced67a69b3e0bc45656aea2abc1c8d/{path_urlencoded}"
     }
   },
   "asset_records": {
