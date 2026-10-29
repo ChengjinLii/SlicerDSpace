@@ -119,15 +119,19 @@ docs/site/index.html
 docs/site/404.html                            small page, same header/footer style, link home
 docs/site/assets/css/site.css
 docs/site/assets/css/performance.css          styles of the performance evidence inside `#performance`
+docs/site/assets/css/guide-bot.css            styles of the project guide (mascot and dialog)
 docs/site/assets/js/site.js
 docs/site/assets/js/performance.js            filters and method links of the performance evidence
+docs/site/assets/js/guide-bot.js              local project guide (curated answers; no network request, storage or model service)
+docs/site/assets/data/performance.json        measurement catalogue of the performance evidence (the only allowlisted public data file)
 docs/site/assets/fonts/                       InterTight, Inter, IBMPlexMono as .woff2 (Latin subset) + the three OFL .txt files
-docs/site/assets/img/                         icon-64.png, icon-180.png (from R/Resources/Icons/SlicerDDSurfer.png), poster.jpg,
+docs/site/assets/img/                         icon-64.png, icon-180.png (from R/Resources/Icons/SlicerDDSurfer.png), logo-ddsurfer.png
+                                              (header and footer logo), guide-bot-hat.svg (project-guide mascot), poster.jpg,
                                               social.jpg, idea.jpg, out-surfaces.jpg, out-tracts.jpg, out-connectome.jpg, slicer.jpg,
-                                              fig-product-map.png, fig-route-guide.png, fig-runtime-resources.png (the three figures are rasterised from
-                                              `docs/figures/*.svg`, which is not served), and twelve result tiles: res-dec.jpg, res-fw.jpg,
-                                              res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tissue.jpg, res-parcel.jpg, res-tr-ukf.jpg,
-                                              res-tr-csd.jpg, res-wmql-csd.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
+                                              fig-product-map.png, fig-route-guide.png, fig-runtime-resources.png, fig-runtime-optimizations.png (the four
+                                              figures are rasterised from `docs/figures/*.svg`, which is not served), and twelve result tiles: res-dec.jpg,
+                                              res-fw.jpg, res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tissue.jpg, res-parcel.jpg, res-tr-ukf.jpg,
+                                              res-tr-csd.jpg, res-wmql-ukf.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
 docs/site/media/SlicerDSpace_promo_1080p.mp4  copy of P/out/SlicerDSpace_promo_1080p.mp4 (47,767,254 bytes)
 docs/site/media/SlicerDSpace.en.srt           copy of P/out/SlicerDSpace.en.srt
 ```
