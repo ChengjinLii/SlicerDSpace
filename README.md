@@ -40,7 +40,9 @@ same scene.
   </picture>
 </p>
 
-[![SlicerDSpace animated video preview](docs/assets/readme/SlicerDSpace_preview.gif)](docs/site/media/SlicerDSpace_promo_1080p.mp4)
+<a href="docs/site/media/SlicerDSpace_promo_1080p.mp4">
+  <img src="docs/assets/readme/SlicerDSpace_preview.gif" alt="SlicerDSpace animated video preview" width="100%">
+</a>
 
 [Watch the video (MP4, 1:12)](docs/site/media/SlicerDSpace_promo_1080p.mp4) ·
 [Website player and transcript](https://chengjinlii.github.io/SlicerDSpace/#film)
