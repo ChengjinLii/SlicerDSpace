@@ -23,6 +23,15 @@
 
 </div>
 
+SlicerDSpace combines T1-weighted-image-free anatomical reconstruction,
+microstructural mapping and white-matter analysis in one 3D Slicer module.
+Choose your methods, prepare their environment and inspect the results in the
+same scene.
+
+---
+
+<a id="video"></a>
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/site/assets/img/slicerdspace-wordmark-light.svg">
@@ -30,25 +39,6 @@
     <img src="docs/site/assets/img/slicerdspace-wordmark.svg" alt="SlicerDSpace" width="560">
   </picture>
 </p>
-
-SlicerDSpace combines T1-weighted-image-free anatomical reconstruction,
-microstructural mapping and white-matter analysis in one 3D Slicer module.
-Choose your methods, prepare their environment and inspect the results in the
-same scene. The GUI, CLI and Agent Skill share the workflow's configuration
-and execution records.
-
-SlicerDSpace is the new product and module name. Existing settings, scenes and
-model caches remain readable; the separate asset repository retains its current
-name and download addresses. Replace the old module search path when upgrading
-an existing Slicer installation.
-
-**Diffusion MRI in. Anatomical prior, microstructure and connectivity out.**
-
-Research software · Private pre-release · Not yet listed in the official Extensions Catalog.
-
----
-
-## Video
 
 [![SlicerDSpace animated video preview](docs/assets/readme/SlicerDSpace_preview.gif)](docs/site/media/SlicerDSpace_promo_1080p.mp4)
 

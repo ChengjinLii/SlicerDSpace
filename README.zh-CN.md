@@ -23,6 +23,13 @@
 
 </div>
 
+SlicerDSpace 将无需 T1 加权影像的解剖重建、微结构定量和白质分析整合到
+一个 3D Slicer 模块中。选择算法、准备所需环境，即可在同一场景检查结果。
+
+---
+
+<a id="宣传视频"></a>
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/site/assets/img/slicerdspace-wordmark-light.svg">
@@ -30,22 +37,6 @@
     <img src="docs/site/assets/img/slicerdspace-wordmark.svg" alt="SlicerDSpace" width="560">
   </picture>
 </p>
-
-SlicerDSpace 将无需 T1 加权影像的解剖重建、微结构定量和白质分析整合到
-一个 3D Slicer 模块中。选择算法、准备所需环境，即可在同一场景检查结果。
-GUI、CLI 和 Agent Skill 共用工作流配置与执行记录。
-
-SlicerDSpace 是新的产品及模块名称，旧设置、场景和模型缓存仍可读取。
-独立资源仓库保留现有名称与下载地址；升级已有安装时，请将 Slicer 的旧模块
-搜索路径替换为新安装路径。
-
-**从扩散 MRI 出发，获得解剖、微结构与脑连接结果。**
-
-科研软件 · 私有预发布 · 尚未进入官方 Extensions Catalog。
-
----
-
-## 宣传视频
 
 [![SlicerDSpace 宣传视频动态预览](docs/assets/readme/SlicerDSpace_preview.gif)](docs/site/media/SlicerDSpace_promo_1080p.mp4)
 

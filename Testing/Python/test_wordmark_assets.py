@@ -39,7 +39,7 @@ class WordmarkTests(unittest.TestCase):
         self.assertEqual(*geometry)
         self.assertNotEqual(*palettes)
 
-    def test_readmes_show_themed_wordmark_before_the_introduction(self):
+    def test_readmes_replace_video_heading_with_themed_wordmark(self):
         for name in ('README.md', 'README.zh-CN.md'):
             source = (ROOT / name).read_text(encoding='utf-8')
             logo = source.index('src="docs/site/assets/img/slicerdspace-wordmark.svg"')
@@ -47,7 +47,13 @@ class WordmarkTests(unittest.TestCase):
             self.assertLess(logo, film)
             introduction = ('SlicerDSpace combines T1-weighted-image-free' if name == 'README.md'
                             else 'SlicerDSpace 将无需 T1 加权影像')
-            self.assertLess(logo, source.index(introduction))
+            self.assertLess(source.index(introduction), logo)
+            heading = 'Video' if name == 'README.md' else '宣传视频'
+            self.assertNotIn('\n## ' + heading + '\n', source)
+            anchor = '<a id="' + heading.lower() + '"></a>'
+            self.assertIn(anchor, source)
+            self.assertLess(source.index(anchor), logo)
+            self.assertEqual(source.count('<picture>'), 1)
             self.assertIn('media="(prefers-color-scheme: dark)"', source)
             self.assertIn('media="(prefers-color-scheme: light)"', source)
             self.assertIn('srcset="docs/site/assets/img/slicerdspace-wordmark-light.svg"', source)
