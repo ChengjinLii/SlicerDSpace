@@ -369,6 +369,10 @@ section[id] { scroll-margin-top: calc(var(--header-h) + 8px); }
   line-height: 1.05;
   letter-spacing: -.045em;
 }
+.product-wordmark {
+  width: min(100%, 800px);
+  height: auto;
+}
 .hero .subtitle {
   max-width: 36em;
   margin: 18px 0 0;

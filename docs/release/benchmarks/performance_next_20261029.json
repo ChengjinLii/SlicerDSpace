@@ -1,0 +1,261 @@
+{
+  "status": "passed",
+  "reviewed_on": "2026-10-29",
+  "scope": "Complete numeric MK-Curve chunks and trained DDParcel forward batches; not whole-brain or workflow time",
+  "comparison": "Pre-change plugin snapshots, not original MATLAB or new author algorithms",
+  "mkcurve": {
+    "records": [
+      {
+        "subject_id": "100206",
+        "solver": "reference",
+        "reference_median_seconds": 1.1927573941648006,
+        "optimized_median_seconds": 1.0585052892565727,
+        "speed_ratio": 1.1268317752124961,
+        "time_reduction_percent": 11.255608689999752,
+        "times_seconds": {
+          "reference": [
+            1.1927573941648006,
+            1.2019269801676273,
+            1.1919206473976374
+          ],
+          "optimized": [
+            1.0207987371832132,
+            1.0585052892565727,
+            1.070963742211461
+          ]
+        },
+        "repeats": 3,
+        "warmups_per_method": 1,
+        "voxels": 64,
+        "measurements": 181,
+        "grid_samples": 200,
+        "exact_output_parity": true
+      },
+      {
+        "subject_id": "100206",
+        "solver": "batched",
+        "reference_median_seconds": 1.2688054032623768,
+        "optimized_median_seconds": 1.2298601604998112,
+        "speed_ratio": 1.031666399167478,
+        "time_reduction_percent": 3.0694417490994996,
+        "times_seconds": {
+          "reference": [
+            1.2688054032623768,
+            1.271308571100235,
+            1.235209895297885
+          ],
+          "optimized": [
+            1.2298601604998112,
+            1.2604374289512634,
+            1.2253218963742256
+          ]
+        },
+        "repeats": 3,
+        "warmups_per_method": 1,
+        "voxels": 64,
+        "measurements": 181,
+        "grid_samples": 200,
+        "exact_output_parity": true
+      },
+      {
+        "subject_id": "149741",
+        "solver": "reference",
+        "reference_median_seconds": 1.1262251231819391,
+        "optimized_median_seconds": 0.9996459484100342,
+        "speed_ratio": 1.126624006202629,
+        "time_reduction_percent": 11.239242684826555,
+        "times_seconds": {
+          "reference": [
+            1.1262251231819391,
+            1.1196276098489761,
+            1.17492313683033
+          ],
+          "optimized": [
+            0.9996459484100342,
+            1.0016715954989195,
+            0.9965290371328592
+          ]
+        },
+        "repeats": 3,
+        "warmups_per_method": 1,
+        "voxels": 64,
+        "measurements": 181,
+        "grid_samples": 201,
+        "exact_output_parity": true
+      },
+      {
+        "subject_id": "149741",
+        "solver": "batched",
+        "reference_median_seconds": 1.2162422314286232,
+        "optimized_median_seconds": 1.2170489244163036,
+        "speed_ratio": 0.9993371729176234,
+        "time_reduction_percent": -0.066326671351713,
+        "times_seconds": {
+          "reference": [
+            1.2206490524113178,
+            1.214735932648182,
+            1.2162422314286232
+          ],
+          "optimized": [
+            1.2349246833473444,
+            1.2074226699769497,
+            1.2170489244163036
+          ]
+        },
+        "repeats": 3,
+        "warmups_per_method": 1,
+        "voxels": 64,
+        "measurements": 181,
+        "grid_samples": 201,
+        "exact_output_parity": true
+      },
+      {
+        "subject_id": "877168",
+        "solver": "reference",
+        "reference_median_seconds": 1.1016755998134613,
+        "optimized_median_seconds": 0.9888402372598648,
+        "speed_ratio": 1.1141087895717816,
+        "time_reduction_percent": 10.242158632968001,
+        "times_seconds": {
+          "reference": [
+            1.1003651916980743,
+            1.1062925271689892,
+            1.1016755998134613
+          ],
+          "optimized": [
+            0.9972374346107244,
+            0.983831824734807,
+            0.9888402372598648
+          ]
+        },
+        "repeats": 3,
+        "warmups_per_method": 1,
+        "voxels": 64,
+        "measurements": 181,
+        "grid_samples": 200,
+        "exact_output_parity": true
+      },
+      {
+        "subject_id": "877168",
+        "solver": "batched",
+        "reference_median_seconds": 1.197767648845911,
+        "optimized_median_seconds": 1.2157144881784916,
+        "speed_ratio": 0.9852376199287792,
+        "time_reduction_percent": -1.4983573274727213,
+        "times_seconds": {
+          "reference": [
+            1.1941859479993582,
+            1.2184639926999807,
+            1.197767648845911
+          ],
+          "optimized": [
+            1.2157144881784916,
+            1.1968240924179554,
+            1.2282808683812618
+          ]
+        },
+        "repeats": 3,
+        "warmups_per_method": 1,
+        "voxels": 64,
+        "measurements": 181,
+        "grid_samples": 200,
+        "exact_output_parity": true
+      }
+    ],
+    "environment": {
+      "python": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:09:02) [GCC 11.2.0]",
+      "scipy": "1.18.1",
+      "numpy": "2.3.3",
+      "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+      "thread_env": {
+        "OPENBLAS_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": "1"
+      }
+    },
+    "source_inputs_unchanged": true,
+    "default_reuse": "reference solver only; batched retains uncached signal handling"
+  },
+  "ddparcel": {
+    "records": [
+      {
+        "plane": "Axial",
+        "input_shape": [
+          1,
+          28,
+          256,
+          256
+        ],
+        "warmups_per_variant": 1,
+        "repeats": 3,
+        "times_seconds": {
+          "reference": [
+            59.81420757062733,
+            59.64124429039657,
+            60.04334338195622
+          ],
+          "optimized": [
+            59.76254376582801,
+            59.850666891783476,
+            59.862271985039115
+          ]
+        },
+        "reference_median_seconds": 59.81420757062733,
+        "optimized_median_seconds": 59.850666891783476,
+        "speed_ratio": 0.9993908284894792,
+        "time_reduction_percent": -0.06095428266452707,
+        "exact_output_parity": true,
+        "all_returned_logits_sha256": [
+          "bd3c45abf9770f4066f13f5963112d95fe0389284972dd989bdf186182eefb67",
+          "bd3c45abf9770f4066f13f5963112d95fe0389284972dd989bdf186182eefb67",
+          "0930f626ce8ce7b3f1b734fd1a229e3e5d56d8a353b45cd64d619920ff3c4e68",
+          "f5c3f0709534f6553d63876e9e4ef7dc3756c7aacf64554ff88ed43f09ba708a",
+          "aa5c273d213ba1c20cd19072fc3b60af123f692751194b077401f47fe53df9ec",
+          "1741a13e362440f2a7b1f2c5f6ec49eb86ecb5e13d9d9fb5e87447ad890348a7"
+        ]
+      }
+    ],
+    "environment": {
+      "python": "3.12.10 (main, Nov 10 2025, 07:45:19) [GCC 14.2.1 20250110 (Red Hat 14.2.1-7)]",
+      "torch": "2.11.0+cu129",
+      "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+      "device": "cpu",
+      "threads": 4,
+      "cpu": "x86_64",
+      "shared_host": true,
+      "gpu": null,
+      "thread_env": {
+        "OPENBLAS_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "4",
+        "MKL_NUM_THREADS": "4"
+      }
+    },
+    "source_inputs_unchanged": true,
+    "finding": "Exact logits; no measurable CPU batch acceleration"
+  },
+  "source_sha256": {
+    "ignore/validation/performance_next_20261029/baseline/microstructure/mkcurve_tensor.py": "6c239d597d498a17bb6bcdfceb633a75a54d8adbbe9662d9338e9f07cd40af21",
+    "microstructure/mkcurve_tensor.py": "15295097531da913c8f65f958d922692a0fb04d585a311d498b2caf2447a1086",
+    "microstructure/mkcurve.py": "dc7564aff3c2b330b9fe4c2dec9a87b8e9d81c48f8397779234472ae075f28c9",
+    "scripts/benchmark_mkcurve_qr.py": "d3b8ebefbe670e70bdc7dbc85d6bc128c26573303aaeaa675d1cffea72a26fa9",
+    "microstructure/mkcurve_directions.json": "988206b31a60e41587116e399bf5d24c2c96f8a6d3424221102462907a974d38",
+    "ignore/validation/compute_optimization_20261020/100206_real_signals.npz": "54d9c570429f9598820001e1ccab95d94a3bd5f7c427066f6e7f1c1568e29e56",
+    "ignore/validation/compute_optimization_20261020/149741_real_signals.npz": "621abffb210ae7ec4262d2dcf68afb32616184094d80fa125ed6884828fa5292",
+    "ignore/validation/compute_optimization_20261020/877168_real_signals.npz": "f9f5e8f6fcf65c2a6f527a96510dc671867afe87d51586bdd929c21f04967015",
+    "ignore/validation/performance_next_20261029/baseline/microstructure/mkcurve.py": "da95c71ef0d71dc97dad82c347496ed02336e5b64d54da92a520666669e4b17b",
+    "ignore/validation/performance_next_20261029/baseline/anatomy/parcellation/models/networks.py": "0d018d1d0f6015bafaf29789635e55e850487cecb609e8754d63d8493faf7812",
+    "anatomy/parcellation/models/networks.py": "eaf8cb24241f0b97290a8bde30f164f8bcfc0b9f9e17bf3396a39d8080c5bd92",
+    "scripts/benchmark_parcel_fusion.py": "9e9487a99c26b3b7934477d982ebb1ead3aa0752f25a243ce05e74dc44d807b1",
+    "anatomy/parcellation/models/sub_module.py": "7e140e6b9c26ea9077b142bf41a7a2a6bdc71b54c3ab71757b59fa2ef0d65002",
+    "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-FractionalAnisotropy-Reg-NormMasked.nii.gz": "72293dfcb6d96efa491e3c769ddbaddaa2eb658da67dede887a3f7d59132434e",
+    "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-MidEigenvalue-Reg-NormMasked.nii.gz": "f32f6cb841ee8a5d63064ed5f5ac9e76970f07267858b7c2f97b8bbaae08c218",
+    "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-MinEigenvalue-Reg-NormMasked.nii.gz": "1484108c7ca8237891e3d914d462d6ab04fdc563cf1fa6d43774289675053561",
+    "ignore/validation/cohort_ddparcel_act_20261017/subjects/100408/outputs/03_structural/ddparcel/100408-dti-Trace-Reg-NormMasked.nii.gz": "52c779cd1101fc9e4c930cd88efb55f2e4c80b0102a206c01aefc9c3067e97b1"
+  },
+  "limitations": [
+    "Shared host; one trained parcellation case and one axial batch at four CPU threads",
+    "MK-Curve uses three 64-voxel real signal chunks, 181 measurements and 200/201/200 synthetic b0 samples",
+    "Batched cache prototype was slower in an earlier exploratory run and is not enabled by default",
+    "No current full-brain paired timing for these incremental changes"
+  ]
+}

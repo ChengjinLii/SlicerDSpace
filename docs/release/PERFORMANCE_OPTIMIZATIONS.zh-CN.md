@@ -6,6 +6,8 @@
 
 [项目](../../README.zh-CN.md) | [文档](../README.zh-CN.md) | [运行时间](MODULE_RUNTIMES_20261017.zh-CN.md) | [原作者对照 CSV](benchmarks/author_wma_optimizations_20261020.csv) | [JSON](benchmarks/author_wma_optimizations_20261020.json) | [English](PERFORMANCE_OPTIMIZATIONS.md)
 
+[后续性能瓶颈、优化方案与首轮实施记录](PERFORMANCE_BOTTLENECKS_AND_PLAN.zh-CN.md)
+
 </div>
 
 **原作者对照必须真正执行作者代码；Python 移植版比较、多线程和调度另行标注。**

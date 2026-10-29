@@ -31,6 +31,7 @@ const MIME = {
   '.srt': 'application/x-subrip',
   '.jpg': 'image/jpeg',
   '.png': 'image/png',
+  '.svg': 'image/svg+xml',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
@@ -155,6 +156,17 @@ async function runViewport(browser, origin, name, width, height, opts) {
   })));
   const bad = imgs.filter((i) => !i.ok).map((i) => i.src);
   record(bad.length === 0, `${tag}: all ${imgs.length} images loaded`, 'not loaded: ' + bad.join(', '));
+
+  const wordmark = await page.locator('.product-wordmark').evaluate((img) => {
+    const box = img.getBoundingClientRect();
+    return { src: img.getAttribute('src'), width: box.width, height: box.height,
+      nativeRatio: img.naturalWidth / img.naturalHeight, ratio: box.width / box.height,
+      right: box.right, viewport: innerWidth };
+  });
+  record(wordmark.src === 'assets/img/slicerdspace-wordmark-light.svg' && wordmark.width > 0
+      && wordmark.height > 0 && wordmark.right <= wordmark.viewport
+      && Math.abs(wordmark.ratio / wordmark.nativeRatio - 1) < .02,
+    `${tag}: vector title loads and scales without distortion`, JSON.stringify(wordmark));
 
   const wmql = await page.locator('.tile-wmql img').evaluate((img) => {
     const box = img.getBoundingClientRect();
@@ -518,6 +530,33 @@ async function runSkills(browser, origin) {
   }
 }
 
+async function runReadmeWordmarks(browser, origin) {
+  for (const name of ['README.md', 'README.zh-CN.md']) {
+    const readme = fs.readFileSync(path.resolve(DOCS, '..', '..', name), 'utf8');
+    const picture = readme.match(/<picture>[\s\S]*?<\/picture>/)?.[0];
+    if (!picture) { record(false, `${name}: themed wordmark present`); continue; }
+    for (const colorScheme of ['light', 'dark']) {
+      const context = await browser.newContext({ viewport: { width: 700, height: 220 }, colorScheme });
+      const page = await context.newPage();
+      await page.goto(origin + '/index.html', { waitUntil: 'load' });
+      const background = colorScheme === 'dark' ? '#0d1117' : '#ffffff';
+      await page.setContent(`<html><head><base href="${origin}/"><style>
+        body { margin: 0; min-height: 220px; display: grid; place-items: center; background: ${background}; }
+        img { display: block; max-width: 90vw; height: auto; }
+        </style></head><body>${picture.replaceAll('docs/site/', '')}</body></html>`);
+      const image = page.locator('img');
+      await image.evaluate(img => img.decode());
+      const actual = await image.evaluate(img => ({ src: new URL(img.currentSrc).pathname,
+        width: img.clientWidth, height: img.clientHeight }));
+      const suffix = colorScheme === 'dark' ? '-light.svg' : '-wordmark.svg';
+      record(actual.src.endsWith(suffix) && actual.width > 0 && actual.height > 0,
+        `${name}: ${colorScheme} theme selects the matching transparent vector`, JSON.stringify(actual));
+      await page.screenshot({ path: path.join(OUT, `${name}-${colorScheme}.png`) });
+      await context.close();
+    }
+  }
+}
+
 // ---------------------------------------------------------------- main
 const server = await serve();
 const origin = `http://127.0.0.1:${server.address().port}`;
@@ -558,6 +597,7 @@ try {
   }
   await run404AndNoJs(browser, origin);
   await runSkills(browser, origin);
+  await runReadmeWordmarks(browser, origin);
   await runReferenceLinks(browser, origin);
   for (const width of [1440, 390, 360, 320]) await runPerformance(browser, origin, width);
   await runPerformance(browser, origin, 390, true);

@@ -26,6 +26,13 @@ import torch
 from . import sub_module as sm
 from collections import OrderedDict
 
+
+def _fuse_backbone_features(value, backbones, slot):
+    # Keep the original operand order and max reduction, but copy each input once.
+    values = [value.unsqueeze(4)] + [result[slot].unsqueeze(4) for result in backbones]
+    return torch.max(torch.cat(values, dim=4), 4)[0]
+
+
 class FastSurferCNN(nn.Module):
     """
     Network Definition of Fully Competitive Network network
@@ -1156,42 +1163,27 @@ class FastSurferCNN_Fuse_Unet_v3_extended(nn.Module):
 
         encoder_output1, skip_encoder_1, indices_1 = self.encode1.forward(x[:, :, :, :])
 
-        encoder_output1 = torch.unsqueeze(encoder_output1, 4)
-        for idx in range(len(self.FastSurferCNNs)):
-            encoder_output1 = torch.cat((encoder_output1, returns[idx][1].unsqueeze(4)), dim=4)
-        encoder_output1, _ = torch.max(encoder_output1, 4)
+        encoder_output1 = _fuse_backbone_features(encoder_output1, returns, 1)
         encoder_output1 = self.fusion1(encoder_output1)
 
         encoder_output2, skip_encoder_2, indices_2 = self.encode2.forward(encoder_output1)
 
-        encoder_output2 = torch.unsqueeze(encoder_output2, 4)
-        for idx in range(len(self.FastSurferCNNs)):
-            encoder_output2 = torch.cat((encoder_output2, returns[idx][4].unsqueeze(4)), dim=4)
-        encoder_output2, _ = torch.max(encoder_output2, 4)
+        encoder_output2 = _fuse_backbone_features(encoder_output2, returns, 4)
         encoder_output2 = self.fusion2(encoder_output2)
 
         encoder_output3, skip_encoder_3, indices_3 = self.encode3.forward(encoder_output2)
 
-        encoder_output3 = torch.unsqueeze(encoder_output3, 4)
-        for idx in range(len(self.FastSurferCNNs)):
-            encoder_output3 = torch.cat((encoder_output3, returns[idx][7].unsqueeze(4)), dim=4)
-        encoder_output3, _ = torch.max(encoder_output3, 4)
+        encoder_output3 = _fuse_backbone_features(encoder_output3, returns, 7)
         encoder_output3 = self.fusion3(encoder_output3)
 
         encoder_output4, skip_encoder_4, indices_4 = self.encode4.forward(encoder_output3)
 
-        encoder_output4 = torch.unsqueeze(encoder_output4, 4)
-        for idx in range(len(self.FastSurferCNNs)):
-            encoder_output4 = torch.cat((encoder_output4, returns[idx][10].unsqueeze(4)), dim=4)
-        encoder_output4, _ = torch.max(encoder_output4, 4)
+        encoder_output4 = _fuse_backbone_features(encoder_output4, returns, 10)
         encoder_output4 = self.fusion4(encoder_output4)
 
         bottleneck = self.bottleneck(encoder_output4)
 
-        bottleneck = torch.unsqueeze(bottleneck, 4)
-        for idx in range(len(self.FastSurferCNNs)):
-            bottleneck = torch.cat((bottleneck, returns[idx][13].unsqueeze(4)), dim=4)
-        bottleneck, _ = torch.max(bottleneck, 4)
+        bottleneck = _fuse_backbone_features(bottleneck, returns, 13)
         bottleneck = self.fusion5(bottleneck)
 
         decoder_output4 = self.decode4.forward(bottleneck, skip_encoder_4, indices_4)

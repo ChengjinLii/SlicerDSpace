@@ -25,7 +25,8 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
 
     def test_product_title_and_manuscript_subtitle(self):
         hero = re.search(r"<h1\b[^>]*>(.*?)</h1>", self.source, re.S).group(1)
-        self.assertEqual(html.unescape(re.sub(r"<[^>]+>", "", hero)), TITLE)
+        self.assertEqual(html.unescape(re.sub(r"<[^>]+>", "", hero)).strip(), TITLE)
+        self.assertIn('src="assets/img/slicerdspace-wordmark-light.svg"', hero)
         self.assertIn("<title>" + TITLE + "</title>", self.source)
         self.assertIn('property="og:title" content="' + TITLE + '"', self.source)
         self.assertIn('<p class="subtitle">' + SUBTITLE + '</p>', self.source)

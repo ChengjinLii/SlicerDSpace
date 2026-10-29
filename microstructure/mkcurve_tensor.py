@@ -136,12 +136,19 @@ def fit_wlls(signals, design, *, solver="reference"):
     scale, scaled = prepared
     valid = np.isfinite(signals).all(axis=1)
     logs = np.log(np.maximum(signals[valid], np.finfo(float).eps))
+    return _fit_logged_signals(logs, np.flatnonzero(valid), len(signals), scale, scaled, solver)
+
+
+def _fit_logged_signals(logs, indices, count, scale, scaled, solver):
+    output = np.full((count, 22), np.nan)
     if not len(logs):
         return output
     initial = lstsq(scaled, logs.T, lapack_driver="gelsy")[0]
     with np.errstate(over="ignore", invalid="ignore"):
         weights = np.exp(scaled @ initial).T
-    pending = np.ones(len(logs), dtype=bool)
+    maxima = weights.max(axis=1) if solver == "reference" else None
+    pending = (np.isfinite(weights).all(axis=1) & (maxima > 0)
+               if maxima is not None else np.ones(len(logs), dtype=bool))
     if solver == "batched":
         candidates = np.flatnonzero(np.isfinite(weights).all(axis=1) & (weights.max(axis=1) > 0))
         # Equilibrated normal systems are used only when well conditioned.
@@ -162,17 +169,49 @@ def fit_wlls(signals, design, *, solver="reference"):
                 continue
             good = np.isfinite(beta).all(axis=1)
             accepted = ids[safe][good]
-            output[np.flatnonzero(valid)[accepted]] = beta[good]
+            output[indices[accepted]] = beta[good]
             pending[accepted] = False
-    for index, observed, weight in zip(np.flatnonzero(valid)[pending], logs[pending], weights[pending]):
-        if not np.isfinite(weight).all() or not np.any(weight > 0):
+    remaining = np.flatnonzero(pending)
+    for row, index, observed, weight in zip(remaining, indices[pending], logs[pending], weights[pending]):
+        if maxima is None and (not np.isfinite(weight).all() or not np.any(weight > 0)):
             continue
         # Dividing all weights by a common factor leaves WLLS unchanged.
-        weight = weight / weight.max()
+        weight = weight / (maxima[row] if maxima is not None else weight.max())
         fit, rank = _weighted_qr(scaled * weight[:, None], observed * weight)
         if rank == 22:
             output[index] = fit / scale
     return output
+
+
+class _SyntheticB0Fitter:
+    """Chunk-local invariant logs; every b0 still gets its original WLLS solve."""
+
+    def __init__(self, signals, design, *, solver="reference"):
+        if solver not in {"reference", "batched"}:
+            raise ValueError("MK-Curve solver must be reference or batched")
+        signals = np.asarray(signals, dtype=np.float64)
+        if signals.ndim != 2 or signals.shape[1] != len(design) or signals.shape[1] < 1:
+            raise ValueError("MK-Curve signals must be voxels x measurements")
+        self.count, self.solver = len(signals), solver
+        self.prepared = _prepared_design(design)
+        self.indices = np.flatnonzero(np.isfinite(signals[:, 1:]).all(axis=1))
+        selected = signals[self.indices].copy()
+        selected[:, 0] = 1.0
+        self.logs = np.log(np.maximum(selected, np.finfo(float).eps))
+
+    def fit(self, b0):
+        b0 = np.asarray(b0, dtype=np.float64)
+        if b0.shape != (self.count,):
+            raise ValueError("Synthetic b0 must have one value per voxel")
+        if self.prepared is None:
+            return np.full((self.count, 22), np.nan)
+        baseline = b0[self.indices]
+        valid = np.isfinite(baseline)
+        indices = self.indices[valid]
+        # Fancy indexing owns C-order storage, just like signals[valid] in fit_wlls.
+        logs = self.logs[valid]
+        logs[:, 0] = np.log(np.maximum(baseline[valid], np.finfo(float).eps))
+        return _fit_logged_signals(logs, indices, self.count, *self.prepared, self.solver)
 
 
 def mean_kurtosis(coefficients):

@@ -6,6 +6,7 @@ Fix BLAS thread counts before launching both interpreters for comparable runs.
 
 import argparse
 import csv
+import cProfile
 from datetime import datetime, timezone
 import hashlib
 import importlib.util
@@ -13,6 +14,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import pstats
 import statistics
 import sys
 import time
@@ -41,6 +43,8 @@ def compare(left, right):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--reference', required=True, type=Path)
+    parser.add_argument('--reference-chunk', type=Path, help='Frozen mkcurve.py for a complete pre-change chunk control')
+    parser.add_argument('--profile', action='store_true', help='Profile a separate, untimed call per variant')
     parser.add_argument('--input', required=True, action='append', type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--repeats', type=int, default=3)
@@ -52,10 +56,17 @@ def main():
     spec = importlib.util.spec_from_file_location('_mkcurve_qr_baseline', args.reference)
     reference = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(reference)
+    reference_chunk = None
+    if args.reference_chunk:
+        spec = importlib.util.spec_from_file_location('_mkcurve_chunk_baseline', args.reference_chunk)
+        reference_chunk = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(reference_chunk)
     # The frozen code and current code read the same unchanged author resource.
     reference.integration_directions = mkcurve_tensor.integration_directions
     sources = [args.reference, Path(mkcurve_tensor.__file__), Path(mkcurve.__file__),
                Path(__file__), Path(mkcurve_tensor.__file__).with_name('mkcurve_directions.json'), *args.input]
+    if args.reference_chunk:
+        sources.append(args.reference_chunk)
     hashes = {str(path.resolve()): sha(path) for path in sources}
     records = []
     for path in args.input:
@@ -64,7 +75,12 @@ def main():
         for solver in ('reference', 'batched'):
             def run(implementation):
                 with patch.dict(sys.modules, {'microstructure.mkcurve_tensor': implementation}):
-                    return mkcurve._fit_chunk((signals.copy(), design, grid, .5, solver))
+                    if implementation is reference and reference_chunk is not None:
+                        return reference_chunk._fit_chunk((signals.copy(), design, grid, .5, solver))
+                    if reference_chunk is not None:
+                        return mkcurve._fit_chunk((signals.copy(), design, grid, .5, solver))
+                    return mkcurve._fit_chunk((signals.copy(), design, grid, .5, solver),
+                        reuse_signal_logs=hasattr(implementation, '_SyntheticB0Fitter'))
             compare(run(reference), run(mkcurve_tensor))
             times = {'reference': [], 'optimized': []}
             for repetition in range(args.repeats):
@@ -84,6 +100,17 @@ def main():
                           times_seconds=times, repeats=args.repeats, warmups_per_method=1,
                           voxels=len(signals), measurements=len(design), grid_samples=len(grid),
                           exact_output_parity=True, comparison_keys=list(outputs['optimized'][3]))
+            if args.profile:
+                profiles = {}
+                for name, implementation in (('reference', reference), ('optimized', mkcurve_tensor)):
+                    profiler = cProfile.Profile()
+                    profiler.runcall(run, implementation)
+                    stats = pstats.Stats(profiler)
+                    profiles[name] = [dict(file=key[0], line=key[1], function=key[2],
+                                          primitive_calls=value[0], calls=value[1],
+                                          own_seconds=value[2], cumulative_seconds=value[3])
+                                      for key, value in sorted(stats.stats.items(), key=lambda item: item[1][3], reverse=True)[:20]]
+                record['untimed_profiles'] = profiles
             records.append(record)
             print(json.dumps(record), flush=True)
     assert all(sha(path) == digest for path, digest in hashes.items()), 'Source/input changed during measurement'

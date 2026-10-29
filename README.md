@@ -23,6 +23,14 @@
 
 </div>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/site/assets/img/slicerdspace-wordmark-light.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/site/assets/img/slicerdspace-wordmark.svg">
+    <img src="docs/site/assets/img/slicerdspace-wordmark.svg" alt="SlicerDSpace" width="560">
+  </picture>
+</p>
+
 SlicerDSpace combines T1-weighted-image-free anatomical reconstruction,
 microstructural mapping and white-matter analysis in one 3D Slicer module.
 Choose your methods, prepare their environment and inspect the results in the

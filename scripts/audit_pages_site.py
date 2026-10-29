@@ -9,12 +9,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GUIDE_HAT = "assets/img/guide-bot-hat.svg"
 GUIDE_HAT_SHA256 = "3159ef890d7fd74135e39bc02a78a5371c90e4974edac3dd02e938e648bf8af4"
+WORDMARKS = {"assets/img/slicerdspace-wordmark.svg", "assets/img/slicerdspace-wordmark-light.svg"}
 
 
 def audit(root=ROOT):
     site = root / "docs/site"
     required = {".nojekyll", "index.html", "404.html"}
-    allowed_top = required | {"assets/data/performance.json", GUIDE_HAT}
+    allowed_top = required | {"assets/data/performance.json", GUIDE_HAT} | WORDMARKS
     allowed_extensions = {
         "assets/css": {".css"},
         "assets/js": {".js"},

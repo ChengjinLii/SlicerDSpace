@@ -117,20 +117,27 @@ def repair_nonpositive(data, mask):
             "policy": "sequential 26-neighbour positive-signal mean; working copy only; no parameter-map smoothing"}
 
 
-def _fit_chunk(payload):
+def _fit_chunk(payload, *, reuse_signal_logs=None):
     import numpy as np
     from microstructure.mkcurve_tensor import fit_wlls, mean_kurtosis, parameter_maps
 
     signals, design, grid, threshold, solver = payload
+    if reuse_signal_logs is None:
+        reuse_signal_logs = solver == "reference"
     b0 = signals[:, 0].copy()
-    original = fit_wlls(signals, design, solver=solver)
+    fitter = None
+    if reuse_signal_logs:
+        from microstructure.mkcurve_tensor import _SyntheticB0Fitter
+        fitter = _SyntheticB0Fitter(signals, design, solver=solver)
+    original = fitter.fit(b0) if fitter else fit_wlls(signals, design, solver=solver)
     curves = np.empty((len(grid), len(signals)))
     for step, value in enumerate(grid):
         signals[:, 0] = value
-        curves[step] = mean_kurtosis(fit_wlls(signals, design, solver=solver))
+        coefficients = fitter.fit(signals[:, 0]) if fitter else fit_wlls(signals, design, solver=solver)
+        curves[step] = mean_kurtosis(coefficients)
     detection = detect_abnormal(curves, b0, grid, threshold)
     signals[:, 0] = detection["corrected_b0"]
-    corrected = fit_wlls(signals, design, solver=solver)
+    corrected = fitter.fit(signals[:, 0]) if fitter else fit_wlls(signals, design, solver=solver)
     for kind, coefficients in (("original", original), ("corrected", corrected)):
         maps = parameter_maps(coefficients)
         valid = np.isfinite(coefficients).all(axis=1)

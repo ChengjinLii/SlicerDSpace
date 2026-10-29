@@ -6,6 +6,8 @@
 
 [Project](../../README.md) | [Documentation](../README.md) | [Runtimes](MODULE_RUNTIMES_20261017.md) | [Author-reference CSV](benchmarks/author_wma_optimizations_20261020.csv) | [JSON](benchmarks/author_wma_optimizations_20261020.json) | [中文](PERFORMANCE_OPTIMIZATIONS.zh-CN.md)
 
+[Next bottlenecks and measured follow-up (中文)](PERFORMANCE_BOTTLENECKS_AND_PLAN.zh-CN.md)
+
 </div>
 
 **Original-author comparisons execute author code; Python-port, threading and

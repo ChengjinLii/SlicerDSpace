@@ -14,6 +14,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlsplit
 
@@ -561,6 +562,12 @@ def image_size(path, is_bytes=False):
     else:
         with open(path, "rb") as f:
             data = f.read()
+    if b'<svg' in data[:512]:
+        root = ET.fromstring(data)
+        viewbox = [float(value) for value in root.attrib['viewBox'].replace(',', ' ').split()]
+        if len(viewbox) != 4 or viewbox[2] <= 0 or viewbox[3] <= 0:
+            raise ValueError('SVG needs a positive viewBox')
+        return viewbox[2], viewbox[3]
     if data[:8] == b"\x89PNG\r\n\x1a\n":
         w, h = struct.unpack(">II", data[16:24])
         return w, h
@@ -579,7 +586,7 @@ def image_size(path, is_bytes=False):
                 h, w = struct.unpack(">HH", data[i + 5:i + 9])
                 return w, h
             i += 2 + seglen
-    raise ValueError("not a PNG or JPEG")
+    raise ValueError("not a PNG, JPEG or SVG")
 
 
 @check("images")
@@ -598,8 +605,9 @@ def images(pages):
             except (KeyError, ValueError):
                 problems.append("%s:%s %s width/height missing or not integers" % (rel, line, src))
                 continue
-            # The small, shared header/footer logo loads eagerly; gallery images remain lazy.
-            if src != "assets/img/logo-ddsurfer.png" and a.get("loading") != "lazy":
+            # Above-the-fold branding loads eagerly; gallery images remain lazy.
+            eager = {"assets/img/logo-ddsurfer.png", "assets/img/slicerdspace-wordmark-light.svg"}
+            if src not in eager and a.get("loading") != "lazy":
                 problems.append("%s:%s %s lacks loading=lazy" % (rel, line, src))
             if src.startswith("data:"):
                 import base64

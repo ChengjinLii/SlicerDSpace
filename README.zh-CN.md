@@ -23,6 +23,14 @@
 
 </div>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/site/assets/img/slicerdspace-wordmark-light.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/site/assets/img/slicerdspace-wordmark.svg">
+    <img src="docs/site/assets/img/slicerdspace-wordmark.svg" alt="SlicerDSpace" width="560">
+  </picture>
+</p>
+
 SlicerDSpace 将无需 T1 加权影像的解剖重建、微结构定量和白质分析整合到
 一个 3D Slicer 模块中。选择算法、准备所需环境，即可在同一场景检查结果。
 GUI、CLI 和 Agent Skill 共用工作流配置与执行记录。
