@@ -80,7 +80,8 @@ Settled decisions (not to be reopened in review):
 
 1. Static HTML, CSS and a small vanilla JS file. No build step, no framework, no third-party requests at run time
    (fonts are self-hosted). Relative paths only, so the site works from any base path.
-2. The served site is `docs/`. The branch root (`README.md`, `SPEC.md`, `FACTS.md`, `tests/`) is not served.
+2. The served site is `docs/site/` on `main`. The site notes (`docs/website/`: `README.md`, `SPEC.md`, `FACTS.md`) and
+   the site tests (`Testing/Website/`) are not served.
 3. English only. Dark theme only (it matches the film). Phone to wide desktop.
 4. The film file is the delivered film, byte for byte (no re-encode). Its `moov` box is already before `mdat`
    (faststart) [F9]. Subtitles are burned in, so the page has no `<track>`; it offers the `.srt` as a download and a
