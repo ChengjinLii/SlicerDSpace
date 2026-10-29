@@ -619,9 +619,10 @@ Serves `docs/` from a local HTTP server with Range support (to match GitHub Page
    integration table opens it and shows `#ref-21` in the upper half of the viewport once scrolling stops; without JS,
    loading `index.html#ref-21` opens it.
 
-## 8. README.md (branch root) must say
+## 8. `docs/website/README.md` must say
 
-1. What the branch is: the project site, made from the repo docs at a48fc95 and the delivered promo film (render 8).
+1. What the folder is: the source notes of the project site, which is served from `docs/site/` on `main`; the site was
+   made from the repo docs at a48fc95 and the delivered promo film (render 8).
 2. How to publish (owner only): Settings → Pages → Source: GitHub Actions, then run the `Website` workflow manually; it
    publishes only `docs/site/` from `main`. The site is public
    once on, even while the repository is private; GitHub Pages on a private repository needs a paid plan.
