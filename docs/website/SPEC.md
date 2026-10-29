@@ -61,7 +61,8 @@ motion blur (180° shutter, sub-frames averaged in linear light). `poster.jpg`, 
 and `social.jpg` are new frames of this render (§3 table); the note under the transcript names TractCloud as the
 source of the bundles. The film's facts are in `FACTS.md` §9.
 
-Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
+Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Location: `docs/site/` (served) and `docs/website/` (spec and facts) on `main` of `ChengjinLii/SlicerDSpace`; the
+original orphan `gh-pages` branch is kept as tag `archive/gh-pages-20261023`. Facts: [`FACTS.md`](FACTS.md) (cited
 below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, except in the parts added on 23 October
 2026 (§5.6.1, §5.6a, §5.10, §5.10a, §5.10b, and the performance section). Those parts have their own sources, named in
 §1, rule 7.
@@ -71,14 +72,16 @@ below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, exc
 - A one-page project site for SlicerDDSurfer, with the promo film embedded and playable.
 - Audience: diffusion MRI researchers who meet the project for the first time, and collaborators who will install it.
 - The site must stay true while the repository is private. It states the pre-release status as the README does.
-- Publishing is the owner's step: Settings → Pages → Deploy from a branch → `gh-pages`, folder `/docs`. Nothing in this
-  branch enables Pages.
+- Publishing is the owner's step: Settings → Pages → Source: GitHub Actions, then a manual run of the `Website`
+  workflow (`.github/workflows/pages.yml`), which validates and deploys only `docs/site/` from `main`. Nothing in this
+  repository enables Pages.
 
 Settled decisions (not to be reopened in review):
 
 1. Static HTML, CSS and a small vanilla JS file. No build step, no framework, no third-party requests at run time
    (fonts are self-hosted). Relative paths only, so the site works from any base path.
-2. The served site is `docs/`. The branch root (`README.md`, `SPEC.md`, `FACTS.md`, `tests/`) is not served.
+2. The served site is `docs/site/` on `main`. The site notes (`docs/website/`: `README.md`, `SPEC.md`, `FACTS.md`) and
+   the site tests (`Testing/Website/`) are not served.
 3. English only. Dark theme only (it matches the film). Phone to wide desktop.
 4. The film file is the delivered film, byte for byte (no re-encode). Its `moov` box is already before `mdat`
    (faststart) [F9]. Subtitles are burned in, so the page has no `<track>`; it offers the `.srt` as a download and a
@@ -106,27 +109,31 @@ Settled decisions (not to be reopened in review):
 ## 2. Files
 
 ```
-README.md                 owner notes: what this branch is, how to publish, how to test, lines to revisit at public release
-SPEC.md                   this file
-FACTS.md                  fact sheet
-tests/check_site.py       static checks (Python 3 stdlib; ffprobe optional)
-tests/browser_check.mjs   headless Chrome checks (playwright-core)
-docs/.nojekyll
-docs/index.html
-docs/404.html             small page, same header/footer style, link home
-docs/assets/css/site.css
-docs/assets/css/performance.css   styles of the performance evidence inside `#performance`
-docs/assets/js/site.js
-docs/assets/js/performance.js     filters and method links of the performance evidence
-docs/assets/fonts/        InterTight, Inter, IBMPlexMono as .woff2 (Latin subset) + the three OFL .txt files
-docs/assets/img/          icon-64.png, icon-180.png (from R/Resources/Icons/SlicerDDSurfer.png), poster.jpg,
-                          social.jpg, idea.jpg, out-surfaces.jpg, out-tracts.jpg, out-connectome.jpg, slicer.jpg,
-                          fig-product-map.png, fig-route-guide.png, fig-runtime-resources.png (the three figures are rasterised from
-                          `docs/figures/*.svg`, which is not served), and twelve result tiles: res-dec.jpg, res-fw.jpg,
-                          res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tissue.jpg, res-parcel.jpg, res-tr-ukf.jpg,
-                          res-tr-csd.jpg, res-wmql-csd.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
-docs/media/SlicerDSpace_promo_1080p.mp4     copy of P/out/SlicerDSpace_promo_1080p.mp4 (47,767,254 bytes)
-docs/media/SlicerDSpace.en.srt              copy of P/out/SlicerDSpace.en.srt
+docs/website/README.md                        owner notes: what the folder is, how to publish, how to test, lines to revisit at public release
+docs/website/SPEC.md                          this file
+docs/website/FACTS.md                         fact sheet
+Testing/Website/check_site.py                 static checks (Python 3 stdlib; ffprobe optional)
+Testing/Website/browser_check.mjs             headless Chrome checks (playwright-core)
+docs/site/.nojekyll
+docs/site/index.html
+docs/site/404.html                            small page, same header/footer style, link home
+docs/site/assets/css/site.css
+docs/site/assets/css/performance.css          styles of the performance evidence inside `#performance`
+docs/site/assets/css/guide-bot.css            styles of the project guide (mascot and dialog)
+docs/site/assets/js/site.js
+docs/site/assets/js/performance.js            filters and method links of the performance evidence
+docs/site/assets/js/guide-bot.js              local project guide (curated answers; no network request, storage or model service)
+docs/site/assets/data/performance.json        measurement catalogue of the performance evidence (the only allowlisted public data file)
+docs/site/assets/fonts/                       InterTight, Inter, IBMPlexMono as .woff2 (Latin subset) + the three OFL .txt files
+docs/site/assets/img/                         icon-64.png, icon-180.png (from R/Resources/Icons/SlicerDDSurfer.png), logo-ddsurfer.png
+                                              (header and footer logo), guide-bot-hat.svg (project-guide mascot), poster.jpg,
+                                              social.jpg, idea.jpg, out-surfaces.jpg, out-tracts.jpg, out-connectome.jpg, slicer.jpg,
+                                              fig-product-map.png, fig-route-guide.png, fig-runtime-resources.png, fig-runtime-optimizations.png (the four
+                                              figures are rasterised from `docs/figures/*.svg`, which is not served), and twelve result tiles: res-dec.jpg,
+                                              res-fw.jpg, res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tissue.jpg, res-parcel.jpg, res-tr-ukf.jpg,
+                                              res-tr-csd.jpg, res-wmql-ukf.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
+docs/site/media/SlicerDSpace_promo_1080p.mp4  copy of P/out/SlicerDSpace_promo_1080p.mp4 (47,767,254 bytes)
+docs/site/media/SlicerDSpace.en.srt           copy of P/out/SlicerDSpace.en.srt
 ```
 
 ## 3. Images (film frames, the cover, the two figures of §5.6a and §5.10a, twelve result tiles and the screenshot)
@@ -301,7 +308,7 @@ Two columns: text left, `idea.jpg` right.
 | out-tracts.jpg | “Tractography · DTI” | “Whole-brain tractography” | “Deterministic DTI tractography. Shown: a display subset of 24,000 of 130,780 streamlines.” | F9 caveats |
 | res-tr-ukf.jpg | “Tractography · UKF” | “UKF two-tensor tractography” | “UKFTractography. Shown: a display subset of 24,000 of 208,295 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
 | res-tr-csd.jpg | “Tractography · CSD/ACT” | “MSMT-CSD with ACT” | “MRtrix3 iFOD2 with ACT. Shown: 24,000 of 1,000,000 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
-| res-wmql-csd.jpg | “WMQL · bundles” | “Arcuate and corticospinal tracts” | “WMQL queries (adapted ddparcel_act preset) on the CSD/ACT tractogram: both sides, 706 streamlines; 540 shown.” | P/film/data/gallery/index.json; QC file of the run |
+| res-wmql-ukf.jpg | “WMQL · fiber bundles” | “Multi-bundle query results” | “Official WMQL queries on UKF tractography. Colours distinguish query families; a display subset is shown.” | unchanged copy of `docs/figures/src/results/bu_wmql_ukf.jpg`; source and hash in `docs/figures/src/results/wmql_sources.json` (`scripts/sync_wmql_site_asset.py --check`) |
 | res-tc-ukf.jpg | “TractCloud · bundles” | “42 white-matter tracts” | “TractCloud on the UKF tractogram: 84,356 streamlines classified; 9,321 shown.” | P/film/data/gallery/index.json; QC file of the run |
 | out-connectome.jpg | “Connectome · DDParcel nodes” | “Structural connectome” | “The 260 strongest of 854 edges are drawn; the matrix shows all 84 × 84 nodes.” | F9 caveats |
 | res-net-sift2.jpg | “Connectome · SIFT2” | “SIFT2-weighted connectome” | “From the CSD/ACT tractogram. The 260 strongest of 2,726 edges are drawn.” | P/film/data/gallery/index.json; QC file of the run |
@@ -561,23 +568,23 @@ serves it at nested paths where relative links break, so `404.html` inlines its 
 
 ## 7. Tests (must pass before push)
 
-### 7.1 `tests/check_site.py` (run: `python3 -I tests/check_site.py [--film PATH]`; exit 1 on any FAIL)
+### 7.1 `Testing/Website/check_site.py` (run from the repository root: `python3 -I Testing/Website/check_site.py [--film PATH]`; exit 1 on any FAIL)
 
 Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where stated.
 
-1. `html_basics`: `docs/index.html` and `docs/404.html` parse; doctype, `lang="en"`, `<title>`, viewport,
+1. `html_basics`: `docs/site/index.html` and `docs/site/404.html` parse; doctype, `lang="en"`, `<title>`, viewport,
    description; exactly one `<h1>` in index; heading levels never skip (h2 → h4); every `id` is unique.
-2. `local_refs`: every local `href`, `src`, `poster`, `srcset` and CSS `url()` resolves to a file inside `docs/`;
+2. `local_refs`: every local `href`, `src`, `poster`, `srcset` and CSS `url()` resolves to a file inside `docs/site/`;
    every `#fragment` link resolves to an `id` in the page.
-3. `external_urls`: every absolute URL in `docs/` (HTML, CSS, JS) is in the §6 set; `<link>`, `<script>`, `<img>`,
+3. `external_urls`: every absolute URL in `docs/site/` (HTML, CSS, JS) is in the §6 set; `<link>`, `<script>`, `<img>`,
    `<source>`, `<video>` and CSS `url()`/`@import` never point to another host, except `<link rel="canonical">` with
    the §6 Pages URL. Inline SVG carries no `xmlns` (or namespace URIs are exempt).
-4. `film_bytes`: `docs/media/SlicerDSpace_promo_1080p.mp4` is 47,767,254 bytes and, when `--film` is given, equal in
+4. `film_bytes`: `docs/site/media/SlicerDSpace_promo_1080p.mp4` is 47,767,254 bytes and, when `--film` is given, equal in
    SHA-256 to that file.
 5. `film_faststart`: top-level MP4 boxes: `ftyp` first, `moov` before `mdat` (pure Python box scan).
 6. `film_probe`: with `ffprobe` on PATH: h264 1920×1080 yuv420p, aac, duration 72.0 ± 0.05 s. `SKIP` without ffprobe.
-7. `transcript_matches_srt`: the transcript list equals the 13 cue texts of `docs/media/SlicerDSpace.en.srt`, in order.
-8. `sizes`: no file in `docs/` is over 50 MB; `docs/` is under 100 MB in total.
+7. `transcript_matches_srt`: the transcript list equals the 13 cue texts of `docs/site/media/SlicerDSpace.en.srt`, in order.
+8. `sizes`: no file in `docs/site/` is over 50 MB; `docs/site/` is under 100 MB in total.
 9. `images`: every `<img>` has non-empty `alt`, integer `width` and `height`; each image file's pixel size matches its
    attributes' aspect ratio within 2% (PNG/JPEG header parse, stdlib only).
     In checks 10 and 11, “visible text” means the text content of both pages plus every `alt`, `aria-label`,
@@ -593,13 +600,13 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
     (Manager|Catalog|Index)`, `(?<!not )(available )?(in|from|through) the (official )?Extensions? (Manager|Catalog)`
     (the allowed copy “not in the official Extensions Catalog” must pass). Also: `Extension Manager` occurs exactly
     once, inside “Install SlicerDMRI and PyTorch from Slicer’s Extension Manager.”
-12. `no_local_paths`: no file in `docs/` contains `/Volumes/`, `/Users/`, `/private/tmp`, `file://`.
+12. `no_local_paths`: no file in `docs/site/` contains `/Volumes/`, `/Users/`, `/private/tmp`, `file://`.
 13. `links_safe`: every `target="_blank"` link has `rel` containing `noopener`.
-14. `fonts_licensed`: every `.woff2` in `docs/assets/fonts/` has its OFL text next to it.
+14. `fonts_licensed`: every `.woff2` in `docs/site/assets/fonts/` has its OFL text next to it.
 
-### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
+### 7.2 `Testing/Website/browser_check.mjs` (run: `npm ci --prefix Testing/Website`, then `node Testing/Website/browser_check.mjs`; `PLAYWRIGHT_CORE=<dir of playwright-core>` is optional)
 
-Serves `docs/` from a local HTTP server with Range support (to match GitHub Pages), opens it in Google Chrome
+Serves `docs/site/` from a local HTTP server with Range support (to match GitHub Pages), opens it in Google Chrome
 (`channel: 'chrome'`; Playwright's Chromium lacks H.264/AAC), and checks at 1440×900 and 390×844 (and 320×640; and 861, 900,
 1023, 1024 and 1100 px wide for header fit and no overlap of brand, nav links, chip and Menu button):
 
@@ -612,15 +619,17 @@ Serves `docs/` from a local HTTP server with Range support (to match GitHub Page
 5. clicking the play button starts playback (`currentTime` advances within 3 s; muted in the test only) and shows
    `controls`;
 6. at 390px the Menu button opens and closes the nav with the keyboard;
-7. full-page screenshots to `tests/out/` (git-ignored) for a human look;
+7. full-page screenshots to `Testing/Website/out/` (git-ignored) for a human look;
 8. at 1440 and 390 px the reference list [4] to [35] is in a closed `<details>`, and a click on the `[21]` link in the
    integration table opens it and shows `#ref-21` in the upper half of the viewport once scrolling stops; without JS,
    loading `index.html#ref-21` opens it.
 
-## 8. README.md (branch root) must say
+## 8. `docs/website/README.md` must say
 
-1. What the branch is: the project site, made from the repo docs at a48fc95 and the delivered promo film (render 8).
-2. How to publish (owner only): Settings → Pages → Deploy from a branch → `gh-pages` / `/docs`. The site is public
+1. What the folder is: the source notes of the project site, which is served from `docs/site/` on `main`; the site was
+   made from the repo docs at a48fc95 and the delivered promo film (render 8).
+2. How to publish (owner only): Settings → Pages → Source: GitHub Actions, then run the `Website` workflow manually; it
+   publishes only `docs/site/` from `main`. The site is public
    once on, even while the repository is private; GitHub Pages on a private repository needs a paid plan.
 3. How to test: the two commands in §7.
 4. “Revisit at public release”: the status chip, the hero status line, the Status section, the “private” callout in
