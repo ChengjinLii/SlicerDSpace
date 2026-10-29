@@ -1,6 +1,6 @@
 // Headless Chrome checks for the SlicerDSpace project site (SPEC section 7.2).
 //
-// Run from the branch root:
+// Run from the repository root:
 //   npm ci --prefix Testing/Website
 //   node Testing/Website/browser_check.mjs
 //
