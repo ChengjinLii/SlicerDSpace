@@ -61,7 +61,8 @@ motion blur (180° shutter, sub-frames averaged in linear light). `poster.jpg`, 
 and `social.jpg` are new frames of this render (§3 table); the note under the transcript names TractCloud as the
 source of the bundles. The film's facts are in `FACTS.md` §9.
 
-Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Branch: `gh-pages` (orphan) of `ChengjinLii/SlicerDDSurfer`. Facts: [`FACTS.md`](FACTS.md) (cited
+Date: 2026-10-20 (v2: fixes from the Opus spec review, round 1, listed in §9). Location: `docs/site/` (served) and `docs/website/` (spec and facts) on `main` of `ChengjinLii/SlicerDSpace`; the
+original orphan `gh-pages` branch is kept as tag `archive/gh-pages-20261023`. Facts: [`FACTS.md`](FACTS.md) (cited
 below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, except in the parts added on 23 October
 2026 (§5.6.1, §5.6a, §5.10, §5.10a, §5.10b, and the performance section). Those parts have their own sources, named in
 §1, rule 7.
@@ -71,8 +72,9 @@ below as `[F<section>]`). The site makes no claim that is not in `FACTS.md`, exc
 - A one-page project site for SlicerDDSurfer, with the promo film embedded and playable.
 - Audience: diffusion MRI researchers who meet the project for the first time, and collaborators who will install it.
 - The site must stay true while the repository is private. It states the pre-release status as the README does.
-- Publishing is the owner's step: Settings → Pages → Deploy from a branch → `gh-pages`, folder `/docs`. Nothing in this
-  branch enables Pages.
+- Publishing is the owner's step: Settings → Pages → Source: GitHub Actions, then a manual run of the `Website`
+  workflow (`.github/workflows/pages.yml`), which validates and deploys only `docs/site/` from `main`. Nothing in this
+  repository enables Pages.
 
 Settled decisions (not to be reopened in review):
 
@@ -620,7 +622,8 @@ Serves `docs/` from a local HTTP server with Range support (to match GitHub Page
 ## 8. README.md (branch root) must say
 
 1. What the branch is: the project site, made from the repo docs at a48fc95 and the delivered promo film (render 8).
-2. How to publish (owner only): Settings → Pages → Deploy from a branch → `gh-pages` / `/docs`. The site is public
+2. How to publish (owner only): Settings → Pages → Source: GitHub Actions, then run the `Website` workflow manually; it
+   publishes only `docs/site/` from `main`. The site is public
    once on, even while the repository is private; GitHub Pages on a private repository needs a paid plan.
 3. How to test: the two commands in §7.
 4. “Revisit at public release”: the status chip, the hero status line, the Status section, the “private” callout in
