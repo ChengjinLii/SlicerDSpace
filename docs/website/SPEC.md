@@ -564,7 +564,7 @@ serves it at nested paths where relative links break, so `404.html` inlines its 
 
 ## 7. Tests (must pass before push)
 
-### 7.1 `tests/check_site.py` (run: `python3 -I tests/check_site.py [--film PATH]`; exit 1 on any FAIL)
+### 7.1 `Testing/Website/check_site.py` (run from the repository root: `python3 -I Testing/Website/check_site.py [--film PATH]`; exit 1 on any FAIL)
 
 Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where stated.
 
@@ -600,9 +600,9 @@ Prints one `PASS name` / `FAIL name - reason` line per check; `SKIP` only where 
 13. `links_safe`: every `target="_blank"` link has `rel` containing `noopener`.
 14. `fonts_licensed`: every `.woff2` in `docs/assets/fonts/` has its OFL text next to it.
 
-### 7.2 `tests/browser_check.mjs` (run: `PLAYWRIGHT_CORE=<dir of playwright-core> node tests/browser_check.mjs`)
+### 7.2 `Testing/Website/browser_check.mjs` (run: `npm ci --prefix Testing/Website`, then `node Testing/Website/browser_check.mjs`; `PLAYWRIGHT_CORE=<dir of playwright-core>` is optional)
 
-Serves `docs/` from a local HTTP server with Range support (to match GitHub Pages), opens it in Google Chrome
+Serves `docs/site/` from a local HTTP server with Range support (to match GitHub Pages), opens it in Google Chrome
 (`channel: 'chrome'`; Playwright's Chromium lacks H.264/AAC), and checks at 1440×900 and 390×844 (and 320×640; and 861, 900,
 1023, 1024 and 1100 px wide for header fit and no overlap of brand, nav links, chip and Menu button):
 
