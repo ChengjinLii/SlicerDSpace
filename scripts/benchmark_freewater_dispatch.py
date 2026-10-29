@@ -62,8 +62,8 @@ def main():
     if args.report.exists() or args.report.with_suffix('.csv').exists() or args.output.exists():
         parser.error('Refusing to overwrite existing evidence')
     args.output.mkdir(parents=True)
-    from microstructure import freewater_wls
-    code_paths = [Path(pipeline.__file__), Path(freewater_dispatch.__file__), Path(freewater_wls.__file__), Path(__file__),
+    from microstructure import freewater_wls, freewater_protocol
+    code_paths = [Path(pipeline.__file__), Path(freewater_dispatch.__file__), Path(freewater_wls.__file__), Path(freewater_protocol.__file__), Path(__file__),
                   Path(fwdti.__file__)]
     hashes = {str(path.resolve()): sha(path) for path in code_paths}
     records = []

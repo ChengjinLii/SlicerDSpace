@@ -23,4 +23,5 @@
 !/scripts/audit_pages_site.py
 !/scripts/audit_performance_upstreams.py
 !/scripts/build_performance_site.py
+!/scripts/build_skill_shell_templates.py
 !/scripts/generate_protocol_benchmarks.py

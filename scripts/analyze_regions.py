@@ -21,6 +21,7 @@ def main():
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--inspect", type=Path, help="One single-subject orchestration manifest")
     mode.add_argument("--request", type=Path, help="Regional analysis JSON request")
+    mode.add_argument("--batch", type=Path, help="Shared regional request and completed subject manifests")
     parser.add_argument("--atlas", type=Path)
     parser.add_argument("--lut", type=Path)
     parser.add_argument("--catalog", type=Path)
@@ -37,6 +38,13 @@ def main():
             ),
         )
         print("[Regions] Available regions and QC-eligible inputs: " + str(args.catalog), flush=True)
+    elif args.batch:
+        from shared.region_batch import run_region_batch
+
+        path = run_region_batch(read_json(args.batch))
+        print("[Regions] Cohort summaries: " + str(path), flush=True)
+        if read_json(path)["status"] != "completed":
+            raise SystemExit(1)
     else:
         run_analysis(read_json(args.request))
 

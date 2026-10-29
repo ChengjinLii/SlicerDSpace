@@ -28,6 +28,10 @@
 先替换路径。`REPO` 可以是源码仓库，也可以是安装后包含 `shared/` 和 `scripts/`
 的 `qt-scripted-modules` 目录。`SLICER` 指向真正的 Slicer 启动程序。
 
+[Agent Skill 算法目录](../../.agents/skills/slicerdspace/references/shell_templates.md)
+提供从下方单被试命令生成的独立 Bash 模板。默认只生成计划，显式选择 `execute`
+才开始分析。Skill 文件位于已授权的源码副本中，不随插件运行时安装。
+
 <!-- cli-setup: bash -->
 ```bash
 export SLICER="/path/to/Slicer"
@@ -138,6 +142,22 @@ pipeline preproc_dipy --targets validation,preprocessing \
   --preprocessing-dipy-denoise-method mppca --plan
 ```
 
+替换去噪器时，其余预处理路线保持一致：
+
+<!-- cli-template: preproc-localpca -->
+```bash
+pipeline preproc_localpca --targets validation,preprocessing \
+  --brain-mask-backend provided --preprocessing-backend dipy \
+  --preprocessing-dipy-denoise-method localpca --plan
+```
+
+<!-- cli-template: preproc-patch2self -->
+```bash
+pipeline preproc_patch2self --targets validation,preprocessing \
+  --brain-mask-backend provided --preprocessing-backend dipy \
+  --preprocessing-dipy-denoise-method patch2self --plan
+```
+
 MRtrix/FSL 路线使用真实采集参数。下面的 `j-`、`0.05` 和反向相位编码 b0
 仅为示例，必须按采集协议替换。
 
@@ -210,6 +230,14 @@ pipeline dti --targets validation,microstructure --microstructure-stages dti \
   --brain-mask-backend provided --micro-fit-method wls --plan
 ```
 
+显式选择普通最小二乘拟合进行对照：
+
+<!-- cli-template: micro-dti-ols -->
+```bash
+pipeline dti_ols --targets validation,microstructure --microstructure-stages dti \
+  --brain-mask-backend provided --micro-fit-method ls --plan
+```
+
 明确使用轻量掩膜生成及 DTI：
 
 <!-- cli-template: micro-dti-light -->
@@ -236,6 +264,12 @@ pipeline dki_wls --targets validation,microstructure --microstructure-stages dti
   --dki-fit-method WLS --brain-mask-backend provided --plan
 ```
 
+<!-- cli-template: micro-dki-ols -->
+```bash
+pipeline dki_ols --targets validation,microstructure --microstructure-stages dti,dki \
+  --dki-fit-method OLS --brain-mask-backend provided --plan
+```
+
 <!-- cli-template: micro-mkcurve -->
 ```bash
 pipeline mkcurve --targets validation,microstructure --microstructure-stages dti,dki \
@@ -243,6 +277,13 @@ pipeline mkcurve --targets validation,microstructure --microstructure-stages dti
 ```
 
 `MKCURVE` 是 Python 移植版，无需 MATLAB。`MKCURVE_MATLAB` 是另行配置路径的作者参考路线。
+
+<!-- cli-template: micro-mkcurve-matlab -->
+```bash
+pipeline mkcurve_matlab --targets validation,microstructure --microstructure-stages dti,dki \
+  --dki-fit-method MKCURVE_MATLAB --brain-mask-backend provided \
+  --dki-matlab-executable "/path/to/matlab" --dki-mkcurve-root "/path/to/MK-Curve" --plan
+```
 
 <!-- cli-template: micro-parallel -->
 ```bash
@@ -458,6 +499,20 @@ GUI **高级设置 > 实验与批处理** 支持相同请求。被试并发数 `
 
 脑区分析复用适用的参数图、完整流线和矩阵，不重新拟合模型；
 图谱中不存在的脑区、失败或过时来源会被拒绝。
+
+`selected_regions` 接受名称/标签号。[A↔B 模板](examples/region_pair_request.json)
+设置 `target_regions` 和 `tract_rule: "endpoint_pair"`；`include_regions`、`exclude_regions`
+可添加途经/排除区。`tissue: true`、`surface: true` 分别复用已有 DDSeg 和匹配的皮层后处理。
+名称从当前 LUT 查询；有歧义时需指定标签号。
+
+[脑区批处理模板](examples/region_batch.json)将同一配置应用到多个已完成的被试，并导出 cohort CSV：
+
+```bash
+"$SLICER" --launch PythonSlicer "$REPO/scripts/analyze_regions.py" \
+  --batch "/path/to/edited_region_batch.json"
+```
+
+完整规则、报告与输出字段见[脑区分析说明](REGIONAL_ANALYSIS.zh-CN.md)。
 
 <!-- cli-template: report -->
 ```bash

@@ -95,6 +95,8 @@ def export_freewater_campaign(campaign_path, output):
         snapshot_unchanged=True, harness_unchanged=True, qc_equal=True,
         qc={key: qc[key] for key in ('status', 'automatic_qc_passed', 'checks', 'validity', 'parameters', 'summary', 'warnings')},
         environment={**optimized['environment']['packages'], 'python': optimized['environment']['python']},
+        fit_implementation=qc.get('fit_implementation', {}),
+        reference_implementation=reference['qc'].get('fit_implementation', {}),
         campaign_sha256=digest(campaign_path), harness_sha256=digest(settings['benchmark_harness']),
         source_inputs_sha256=optimized['inputs_sha256'],
         runtime_snapshot_sha256=settings['snapshot_hashes'],

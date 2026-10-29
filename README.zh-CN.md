@@ -59,7 +59,8 @@ SlicerDSpace 是新的产品及模块名称，旧设置、场景和模型缓存�
 
 成功阶段的关键结果自动加载到 Slicer，重复加载复用相应节点；
 每次运行分别保存日志、参数与 QC。[可选脑区分析](docs/setup/REGIONAL_ANALYSIS.zh-CN.md)
-复用已完成的参数图、完整流线和连接矩阵，导出所选 DDParcel 脑区的结果。
+支持按名称或标签号选择脑区，复用已有结果开展微结构、组织构成、皮层形态、A↔B 流线和连接分析。
+默认折叠详细选项，提供离线联合报告和多被试 CSV 汇总模板。
 
 共用准备步骤与匹配的缓存可复用；算力允许时，可并发运行独立微结构模型或不同被试。
 详见[批量实验](docs/setup/EXPERIMENTS.zh-CN.md)与[性能优化实测](docs/release/PERFORMANCE_OPTIMIZATIONS.zh-CN.md)。
@@ -99,19 +100,36 @@ MATLAB 方法的非官方 Python 移植；PNL CNN 掩膜调用作者已有的 Py
 | 规划与运行 | 准备输入、选择算法及追踪/束来源、检查计划，按请求执行分析或批量实验 |
 | 检查与复用 | 检查输出、日志与 QC，复用匹配结果并保留无关场景节点 |
 
-[查看 Skill](.agents/skills/slicerdspace-install/SKILL.md) ·
-[Agent 使用指南](.agents/skills/slicerdspace-install/references/usage.md) ·
-[命令行模板](docs/setup/CLI_TEMPLATES.zh-CN.md)
+[查看 Skill](.agents/skills/slicerdspace/SKILL.md) ·
+[Agent 使用指南](.agents/skills/slicerdspace/references/usage.md) ·
+[命令行模板](docs/setup/CLI_TEMPLATES.zh-CN.md) ·
+[各算法 Shell 模板](.agents/skills/slicerdspace/references/shell_templates.md)
 
-在已有访问权限的仓库中，可以对支持 `SKILL.md` 的 Agent 说：
+Prompt 直接链接到入口文件 `SKILL.md`。如果要把 Skill 安装进自己的 Agent，
+应复制完整的 `slicerdspace` 文件夹，保留其中的指南、脚本和模板。
+
+将下面的 Prompt 直接发给自己的本地 Agent：
 
 ```text
-读取 .agents/skills/slicerdspace-install/SKILL.md，按需安装并启用
-SlicerDSpace，为 /path/to/sub-01 规划 DTI 分析。
-只准备所需依赖，执行前先给我查看运行计划。
+参考 https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/SKILL.md，
+帮我把 SlicerDSpace 安装并启用到本机的 3D Slicer 中，
+配置需要的依赖环境，并下载相应模型权重。
 ```
 
-Skill 由用户自己的 Agent 执行，下载、许可和重启按提示确认；
+Agent 会检查可用空间和已有资源，等你选择后再下载，并保存路径供 GUI 和 CLI 共用。
+只下载所选分析需要的资源。仓库仍为私有时需要访问权限；Agent 无法打开链接时，
+也可向它提供已有授权的本地源码路径。许可证和重启按提示确认。
+
+**已安装后的使用示例。** 将输入和输出路径替换为本机的实际路径：
+
+```text
+参考 https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/SKILL.md，
+使用 SlicerDSpace 对 /path/to/subject 运行 DDParcel 脑区分区、CSD/ACT 纤维追踪和结构连接组构建，结果保存到 /path/to/results。
+先给我查看计划，确认后再运行；完成后汇总输出和 QC 检查结果。
+```
+
+可按研究需求修改所选方法；其他路线和批处理见 [Agent 使用指南](.agents/skills/slicerdspace/references/usage.md)
+及[命令行模板](docs/setup/CLI_TEMPLATES.zh-CN.md)。安装与分析由自己的 Agent 执行，
 网页导览 Bot 负责导航和预设信息问答。
 
 ---

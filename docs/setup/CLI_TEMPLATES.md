@@ -16,10 +16,10 @@
 | --- | --- |
 | Import DICOM, NIfTI or NRRD | [Input preparation](#input-preparation) |
 | Generate masks or correct DWI | [Masks and preprocessing](#masks-and-preprocessing) |
-| DDSeg, DDParcel, DDSurfer or cortical postprocessing | [Anatomical prior](#anatomy) |
+| DDSeg, DDParcel, DDSurfer or cortical postprocessing | [Anatomical prior](#anatomical-prior) |
 | DTI, FW, NODDI, DKI or MK-Curve | [Microstructure](#microstructure) |
 | DTI, UKF, CSD/ACT or SAF | [Tractography](#tractography) |
-| WMQL, WMA, TractCloud and source selection | [Fiber bundles](#bundles-and-explicit-sources) |
+| WMQL, WMA, TractCloud and source selection | [Fiber bundles](#fiber-bundles-and-explicit-sources) |
 | Connectivity or a combined route | [Connectome](#connectome-and-combined-routes) |
 | Cohorts or parameter comparisons | [Experiments](#cohorts-and-parameter-experiments) |
 | Regional analysis or reports | [Results](#regional-analysis-and-reports) |
@@ -28,6 +28,11 @@ Use Bash on Linux/macOS or inside an explicitly configured WSL environment.
 Native PowerShell is covered below. Replace the paths before running anything.
 `REPO` is either a checkout or the installed `qt-scripted-modules` directory
 containing `shared/` and `scripts/`. Use the real Slicer launcher.
+
+The [Agent Skill's algorithm catalogue](../../.agents/skills/slicerdspace/references/shell_templates.md)
+provides standalone Bash templates generated from the subject-level recipes below.
+Their default is plan-only; an explicit `execute` mode starts analysis. The Skill
+files belong to the authorized source checkout, not the installed extension runtime.
 
 <!-- cli-setup: bash -->
 ```bash
@@ -148,6 +153,22 @@ pipeline preproc_dipy --targets validation,preprocessing \
   --preprocessing-dipy-denoise-method mppca --plan
 ```
 
+Alternative denoisers keep the remaining preprocessing route unchanged:
+
+<!-- cli-template: preproc-localpca -->
+```bash
+pipeline preproc_localpca --targets validation,preprocessing \
+  --brain-mask-backend provided --preprocessing-backend dipy \
+  --preprocessing-dipy-denoise-method localpca --plan
+```
+
+<!-- cli-template: preproc-patch2self -->
+```bash
+pipeline preproc_patch2self --targets validation,preprocessing \
+  --brain-mask-backend provided --preprocessing-backend dipy \
+  --preprocessing-dipy-denoise-method patch2self --plan
+```
+
 MRtrix/FSL with acquisition-specific phase encoding and total readout time.
 Replace `j-`, `0.05` and the reverse-PE image with the actual protocol; they are
 examples, not universal defaults:
@@ -225,6 +246,14 @@ pipeline dti --targets validation,microstructure --microstructure-stages dti \
   --brain-mask-backend provided --micro-fit-method wls --plan
 ```
 
+An explicit ordinary least-squares comparison:
+
+<!-- cli-template: micro-dti-ols -->
+```bash
+pipeline dti_ols --targets validation,microstructure --microstructure-stages dti \
+  --brain-mask-backend provided --micro-fit-method ls --plan
+```
+
 Explicit lightweight masking plus DTI:
 
 <!-- cli-template: micro-dti-light -->
@@ -251,6 +280,12 @@ pipeline dki_wls --targets validation,microstructure --microstructure-stages dti
   --dki-fit-method WLS --brain-mask-backend provided --plan
 ```
 
+<!-- cli-template: micro-dki-ols -->
+```bash
+pipeline dki_ols --targets validation,microstructure --microstructure-stages dti,dki \
+  --dki-fit-method OLS --brain-mask-backend provided --plan
+```
+
 <!-- cli-template: micro-mkcurve -->
 ```bash
 pipeline mkcurve --targets validation,microstructure --microstructure-stages dti,dki \
@@ -259,6 +294,13 @@ pipeline mkcurve --targets validation,microstructure --microstructure-stages dti
 
 `MKCURVE` is the Python port and does not need MATLAB. `MKCURVE_MATLAB` is
 an optional author-reference route with separately configured paths.
+
+<!-- cli-template: micro-mkcurve-matlab -->
+```bash
+pipeline mkcurve_matlab --targets validation,microstructure --microstructure-stages dti,dki \
+  --dki-fit-method MKCURVE_MATLAB --brain-mask-backend provided \
+  --dki-matlab-executable "/path/to/matlab" --dki-mkcurve-root "/path/to/MK-Curve" --plan
+```
 
 <!-- cli-template: micro-parallel -->
 ```bash
@@ -488,6 +530,22 @@ be fresh. Run only after reviewing that request:
 
 Regional analysis reuses eligible maps, full tracks and matrices; it does not
 refit models. A region absent from the atlas or a failed/stale source is rejected.
+
+Use `selected_regions` for names or IDs. The [A-B template](examples/region_pair_request.json)
+adds `target_regions` and `tract_rule: "endpoint_pair"`; optional `include_regions` and
+`exclude_regions` add waypoints and exclusions. `tissue: true` and `surface: true`
+reuse completed DDSeg and matching cortical postprocessing. Names resolve against
+the current LUT; ambiguous names require an explicit ID.
+
+The [regional batch template](examples/region_batch.json) applies one request to
+completed subject manifests and writes cohort CSV tables:
+
+```bash
+"$SLICER" --launch PythonSlicer "$REPO/scripts/analyze_regions.py" \
+  --batch "/path/to/edited_region_batch.json"
+```
+
+See [Regional analysis](REGIONAL_ANALYSIS.md) for the report, selection rules and output schema.
 
 <!-- cli-template: report -->
 ```bash

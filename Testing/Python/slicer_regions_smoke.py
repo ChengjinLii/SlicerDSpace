@@ -33,9 +33,21 @@ def fixture():
     ):
         nib.save(nib.Nifti1Image(data, affine), folder / name)
     lut = folder / "regions.txt"
-    lut.write_text("0 Background 0 0 0 0\n1001 Left-Region 80 100 200 0\n2001 Right-Region 200 100 80 0\n")
+    lut.write_text("0 Background 0 0 0 0\n1001 ctx-lh-precentral 80 100 200 0\n2001 ctx-rh-precentral 200 100 80 0\n")
+    tissue = np.zeros(atlas.shape, np.int16)
+    tissue[atlas == 1001] = 1
+    tissue[atlas == 2001] = 2
+    nib.save(nib.Nifti1Image(tissue, affine), folder / "tissue.nii.gz")
+    (folder / "surf").mkdir()
+    (folder / "label").mkdir()
+    for hemi in ("lh", "rh"):
+        nib.freesurfer.write_annot(str(folder / f"label/{hemi}.aparc.annot"), np.array([1, 1, 0, 0]),
+                                  np.array([[0, 0, 0, 0], [80, 120, 200, 0]]), ["unknown", "precentral"])
+        for key, values in (("thickness", [2, 4, 0, 0]), ("area", [3, 5, 0, 0]), ("curv", [-0.2, 0.4, 0, 0])):
+            nib.freesurfer.write_morph_data(str(folder / f"surf/{hemi}.{key}"), np.array(values, np.float32))
     tracts = folder / "tracts.trk"
-    lines = [np.array([[0, 4, 4], [12, 4, 4]], np.float32), np.array([[2, 4, 4], [4, 4, 4]], np.float32)]
+    lines = [np.array([[0, 4, 4], [12, 4, 4]], np.float32), np.array([[2, 4, 4], [4, 4, 4]], np.float32),
+             np.array([[2, 4, 4], [8, 4, 4]], np.float32)]
     nib.streamlines.save(nib.streamlines.Tractogram(lines, affine_to_rasmm=np.eye(4)), str(tracts))
     matrix, nodes = folder / "matrix.csv", folder / "nodes.tsv"
     matrix.write_text("source_node,target_node,streamline_count\n1001,2001,7\n")
@@ -58,6 +70,7 @@ def fixture():
     for name, outputs in (
         ("parcellation.ddparcel", {"wmparc": str(folder / "atlas.nii.gz")}),
         ("microstructure.dti", {"fa": str(folder / "fa.nii.gz")}),
+        ("segmentation.ddseg", {"segmentation": str(folder / "tissue.nii.gz")}),
         ("tractography.ukf", {"tractogram_trk": str(tracts)}),
         ("connectome.streamline_count", {"matrix_path": str(matrix), "nodes_path": str(nodes)}),
     ):
@@ -72,6 +85,10 @@ def fixture():
         )
         tasks.append(dict(name=name, status="completed", qc_path=str(qc), outputs=outputs))
     tasks[-1]["manifest_path"] = str(stage)
+    qc = folder / "surface_qc.json"
+    write_json(qc, dict(status="completed", automatic_qc_passed=True))
+    tasks.append(dict(name="surface.ddsurfer_postprocess", status="completed", qc_path=str(qc),
+                      outputs=dict(surf=str(folder / "surf"), label=str(folder / "label"))))
     parent = folder / "parent.json"
     write_json(
         parent,
@@ -101,6 +118,10 @@ def tick():
             STATE["owner"] = owner
             widgets = owner._regionWidgets
             assert widgets["panel"].collapsed and owner._advancedSettingsPanel.collapsed
+            assert widgets["options"].collapsed
+            assert widgets["options"].isAncestorOf(widgets["source"])
+            assert widgets["options"].isAncestorOf(widgets["metric_list"])
+            assert not widgets["options"].isAncestorOf(widgets["search"])
             assert owner._advancedSettingsPanel.isAncestorOf(widgets["panel"])
             from shared.ui_regions import apply_region_language
 
@@ -135,7 +156,7 @@ def tick():
                 assert widgets["metrics"].checked
                 assert not widgets["tracts"].checked and not widgets["graph"].checked
                 assert owner._uiWidget.width <= 440, owner._uiWidget.width
-                widgets["search"].text = "Left"
+                widgets["search"].text = "左中央前回"
                 assert not widgets["regions"].item(0).isHidden()
                 assert widgets["regions"].item(1).isHidden()
                 widgets["select"].click()
@@ -145,6 +166,9 @@ def tick():
                 widgets["select"].click()
                 widgets["tracts"].checked = True
                 widgets["graph"].checked = True
+                assert widgets["tissue"].visible and widgets["surface"].visible
+                widgets["tissue"].checked = True
+                widgets["surface"].checked = True
                 owner._uiWidget.grab().save(str(ROOT / "regional_panel.png"))
                 widgets["run"].click()
                 assert owner._setupJob is not None, widgets["status"].text
@@ -161,14 +185,14 @@ def tick():
                 assert len(stats["rows"]) == 2
                 assert abs(stats["rows"][0]["fa_mean"] - 0.6) < 1e-6
                 tracks = json.loads((folder / "selected_tractography.json").read_text())
-                assert tracks["selected_streamlines"] == 2
+                assert tracks["selected_streamlines"] == 3
                 with (folder / "selected_connectome_matrix.csv").open() as stream:
                     matrix = list(csv.reader(stream))
                 assert float(matrix[1][2]) == 7.0
                 from shared.result_scene import owned_nodes
 
                 nodes = owned_nodes(slicer, str(manifest))
-                assert len(nodes) == 6, [(node.GetName(), node.GetClassName()) for node in nodes]
+                assert len(nodes) == 9, [(node.GetName(), node.GetClassName()) for node in nodes]
                 tract = next(
                     node for node in nodes if node.GetAttribute("SlicerDDSurfer.Product") == "tractography.regions"
                 )
@@ -177,7 +201,7 @@ def tick():
                 volume = next(node for node in nodes if node.IsA("vtkMRMLLabelMapVolumeNode"))
                 color = volume.GetDisplayNode().GetColorNode()
                 assert color.GetNumberOfColors() > 2001, color.GetNumberOfColors()
-                assert color.GetColorName(1001) == "Left-Region", color.GetColorName(1001)
+                assert color.GetColorName(1001) == "ctx-lh-precentral", color.GetColorName(1001)
                 assert color.GetLookupTable().GetTableValue(1001)[3] == 1.
                 assert color.GetLookupTable().GetTableValue(0)[3] == 0.
                 from shared.result_scene import regional_color_node
@@ -189,6 +213,38 @@ def tick():
                 assert len(owned_nodes(slicer, str(manifest))) == before
                 assert STATE["ticks"] > 5, STATE["ticks"]
                 owner._uiWidget.grab().save(str(ROOT / "regional_completed.png"))
+                assert owner._regionWidgets["report"].enabled
+                assert Path(owner._regionalReportPath).is_file()
+                widgets = owner._regionWidgets
+                widgets["clear"].click()
+                widgets["search"].text = "1001"
+                widgets["select"].click()
+                widgets["search"].clear()
+                widgets["options"].collapsed = False
+                widgets["rule"].setCurrentIndex(4)
+                assert widgets["target"].visible and widgets["target"].enabled
+                widgets["target"].text = "2001"
+                widgets["graph"].checked = False
+                color.SetColor(2001, "ctx-rh-precentral", 0.8, 0.4, 0.3, 0.)
+                widgets["run"].click()
+                assert owner._setupJob is not None, widgets["status"].text
+                STATE["first_manifest"] = str(manifest)
+                STATE["phase"] = "paired"
+        elif STATE["phase"] == "paired":
+            owner = STATE["owner"]
+            manifest = getattr(owner, "_latestRegionalManifestPath", None)
+            if owner._setupJob is None and str(manifest) != STATE["first_manifest"]:
+                tracks = json.loads((Path(manifest).parent / "selected_tractography.json").read_text())
+                assert tracks["selection_rule"] == "endpoint_pair"
+                assert tracks["selected_streamlines"] == 1
+                from shared.result_scene import owned_nodes
+
+                region_map = next(node for node in owned_nodes(slicer, str(manifest)) if node.IsA("vtkMRMLLabelMapVolumeNode"))
+                assert region_map.GetDisplayNode().GetColorNode().GetLookupTable().GetTableValue(2001)[3] == 1.
+                from scripts.validate_region_analysis import validate
+
+                assert validate(manifest)["status"] == "PASS"
+                owner._uiWidget.grab().save(str(ROOT / "regional_pair.png"))
                 # Input changes must invalidate the catalogue, not reuse old selected labels.
                 owner._regionWidgets["atlas"].setCurrentPath(str(ROOT / "changed_atlas.nii.gz"))
                 assert owner._regionCatalog is None
@@ -206,13 +262,18 @@ def tick():
                         "microstructure mean",
                         "complete ROI streamlines",
                         "unchanged connectivity weights",
-                        "six auto-loaded grouped nodes",
+                        "nine auto-loaded grouped nodes",
                         "source vs preview metadata",
                         "custom LUT IDs above 1000",
                         "duplicate reuse",
                         "changed inputs invalidate",
+                        "simple main panel with collapsed details",
+                        "A-B endpoint selection and independent verification",
+                        "local HTML report",
+                        "tissue and cortical statistics via GUI",
+                        "Chinese region alias search",
                     ],
-                    scene_nodes=before,
+                    scene_nodes=9,
                     manifest=str(manifest),
                 )
                 (ROOT / "regions.json").write_text(json.dumps(report, indent=2))

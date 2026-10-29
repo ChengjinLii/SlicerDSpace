@@ -127,6 +127,7 @@ class RegionAnalysisTest(unittest.TestCase):
             lut_path=str(self.lut),
             manifest_sha256=catalog["manifest_sha256"],
             atlas_sha256=catalog["atlas_sha256"],
+            lut_sha256=catalog["lut_sha256"],
             selected_labels=[1001, 2001],
             metrics=["fa", "noddi_ndi"],
             output_dir=str(self.root / name),
@@ -381,6 +382,12 @@ class RegionAnalysisTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "changed"):
             run_analysis(request)
 
+    def test_lut_changed_since_selection_rejected(self):
+        request = self.request()
+        self.lut.write_text("1001 Right-Region 80 100 200 0\n2001 Left-Region 200 100 80 0\n")
+        with self.assertRaisesRegex(ValueError, "changed"):
+            run_analysis(request)
+
     def test_grid_mismatch_fails_without_publishing_pass(self):
         self.volume("fa.nii.gz", np.ones(self.labels.shape, dtype=np.float32), affine=np.eye(4))
         self.tasks[1] = self.task("microstructure.dti", {"fa": str(self.fa)})
@@ -444,6 +451,214 @@ class RegionAnalysisTest(unittest.TestCase):
         signature["size_bytes"] += 1
         self.assertFalse(signatures_current(signature))
         self.assertFalse(signatures_current({"artifact_sha256": {str(self.fa): "wrong"}}))
+
+    def test_name_alias_search_is_atlas_scoped_and_ids_are_exact(self):
+        from shared.region_selection import matches_region, resolve_regions
+
+        regions = [dict(id=17, name="Left-Hippocampus"), dict(id=53, name="Right-Hippocampus"),
+                   dict(id=1024, name="ctx-lh-precentral"), dict(id=2024, name="ctx-rh-precentral")]
+        self.assertTrue(matches_region(regions[0], "左侧海马"))
+        self.assertFalse(matches_region(regions[1], "左海马"))
+        self.assertTrue(matches_region(regions[2], "左中央前回"))
+        self.assertFalse(matches_region(regions[2], "102"))
+        self.assertFalse(matches_region(regions[2], "???"))
+        self.assertTrue(matches_region(regions[2], "17, 1024"))
+        self.assertEqual(resolve_regions(regions, "左海马,2024"), [17, 2024])
+        with self.assertRaisesRegex(ValueError, "Ambiguous"):
+            resolve_regions(regions, ["海马"])
+        with self.assertRaisesRegex(ValueError, "Unknown"):
+            resolve_regions(regions, ["not-a-region"])
+        with self.assertRaises(ValueError):
+            resolve_regions(regions, [True])
+
+    def add_endpoint_pair_lines(self):
+        self.lines.extend([self.lines[1][[0, -1]].copy(), self.lines[1][[0, -1]].copy()])
+        self.lines[-2] = np.array([[1, 2, 2], [4, 2, 2]]) @ self.affine[:3, :3].T + self.affine[:3, 3]
+        self.lines[-1] = self.lines[-2][::-1].copy()
+        nib.streamlines.save(nib.streamlines.Tractogram(self.lines, affine_to_rasmm=np.eye(4)), str(self.tracts))
+        np.savetxt(self.weights, np.arange(1, 8) / 10)
+        self.tasks[3] = self.task("tractography.csd_act", {"tractogram": str(self.tracts), "sift2_weights": str(self.weights)})
+        self.save_parent()
+
+    def test_pair_rule_requires_opposite_endpoints_and_is_orientation_independent(self):
+        self.add_endpoint_pair_lines()
+        request = self.request(tractogram="tractography.csd_act", tract_rule="endpoint_pair", target_regions=["Right-Region"])
+        request["selected_regions"] = ["Left-Region"]
+        path = run_analysis(request)
+        info = read_json(path.parent / "selected_tractography.json")
+        with Path(info["source_indices"]).open() as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual([int(row["source_index"]) for row in rows], [5, 6])
+        self.assertEqual([float(row["sift2_weight"]) for row in rows], [0.6, 0.7])
+        self.assertAlmostEqual(info["length_mean_mm"], 6)
+        candidates = automatic_result_candidates(read_json(path))[0]
+        region_map = next(item for item in candidates if item["display_role"] == "categorical:region_selection")
+        self.assertEqual(region_map["region_label_ids"], [1001, 2001])
+        from scripts.validate_region_analysis import validate
+
+        self.assertTrue(validate(path)["checks"]["endpoint_selection_membership"])
+
+    def test_waypoints_and_exclusion_preserve_full_original_lines(self):
+        image, labels = atlas_data(self.atlas)
+        folder = self.root / "excluded"
+        folder.mkdir()
+        info = select_streamlines(self.tracts, image, labels, [1001], "endpoint_any", folder,
+                                  exclude_labels=[2001])
+        self.assertEqual(info["selected_streamlines"], 1)
+        np.testing.assert_array_equal(list(native_streamlines(info["output"]))[0], self.lines[1])
+        included = self.root / "included"
+        included.mkdir()
+        info = select_streamlines(self.tracts, image, labels, [1001], "through_any", included,
+                                  include_labels=[2001])
+        self.assertEqual(info["selected_streamlines"], 2)
+
+    def test_pair_target_must_be_nonempty_disjoint_and_requires_tracts(self):
+        image, labels = atlas_data(self.atlas)
+        for target in ([], [1001]):
+            with self.assertRaisesRegex(ValueError, "disjoint"):
+                select_streamlines(self.tracts, image, labels, [1001], "endpoint_pair", self.root, target_labels=target)
+        with self.assertRaisesRegex(ValueError, "require a tractogram"):
+            run_analysis(self.request(target_labels=[2001]))
+
+    def test_quantiles_bilateral_comparison_and_local_report(self):
+        request = self.request()
+        path = run_analysis(request)
+        stats = read_json(path.parent / "selected_microstructure.json")["rows"]
+        self.assertAlmostEqual(stats[0]["fa_median"], 0.6, places=6)
+        self.assertEqual(stats[0]["fa_iqr"], 0)
+        self.assertIsNone(stats[1]["noddi_ndi_median"])
+        with (path.parent / "bilateral_statistics.csv").open() as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual(next(row for row in rows if row["metric"] == "fa")["asymmetry_index"], "0.0")
+        self.assertEqual(next(row for row in rows if row["metric"] == "noddi_ndi")["asymmetry_index"], "")
+        report = Path(read_json(path)["report_path"])
+        self.assertIn("Left–right comparison", report.read_text(encoding="utf-8"))
+        self.assertNotIn("<script", report.read_text(encoding="utf-8"))
+        self.assertIn(str(report), read_json(path)["artifact_sha256"])
+
+    def test_tissue_composition_includes_unclassified_and_checks_affine(self):
+        data = np.zeros(self.labels.shape, np.int16)
+        data[self.labels == 1001] = 1
+        data[self.labels == 2001] = 2
+        tissue = self.volume("segmentation.nii.gz", data)
+        self.tasks.append(self.task("segmentation.ddseg", dict(segmentation=str(tissue))))
+        self.save_parent()
+        request = self.request(tissue=True)
+        request["metrics"] = []
+        path = run_analysis(request)
+        with (path.parent / "selected_tissue_statistics.csv").open() as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual(float(rows[0]["wm_fraction"]), 1.0)
+        self.assertEqual(float(rows[1]["gm_fraction"]), 1.0)
+        from scripts.validate_region_analysis import validate
+
+        self.assertTrue(validate(path)["checks"]["independent_tissue_counts"])
+        tissue = self.volume("segmentation.nii.gz", data, np.eye(4))
+        self.tasks[-1] = self.task("segmentation.ddseg", dict(segmentation=str(tissue)))
+        self.save_parent()
+        with self.assertRaisesRegex(ValueError, "affine"):
+            run_analysis(self.request("bad_tissue_grid", tissue=True))
+
+    def add_surface_fixture(self):
+        self.lut.write_text("1001 ctx-lh-precentral 80 100 200 0\n2001 ctx-rh-precentral 200 100 80 0\n")
+        surf, label = self.root / "surf", self.root / "label"
+        surf.mkdir()
+        label.mkdir()
+        for hemi in ("lh", "rh"):
+            nib.freesurfer.write_annot(str(label / f"{hemi}.aparc.annot"), np.array([1, 1, 0, 0]),
+                np.array([[0, 0, 0, 0], [80, 120, 200, 0]]), ["unknown", "precentral"])
+            for key, values in (("thickness", [2, 4, 0, 0]), ("area", [3, 5, 0, 0]), ("curv", [-0.2, 0.4, 0, 0])):
+                nib.freesurfer.write_morph_data(str(surf / f"{hemi}.{key}"), np.array(values, np.float32))
+        task = self.task("surface.ddsurfer_postprocess", {})
+        task["outputs"] = dict(surf=str(surf), label=str(label))
+        self.tasks.append(task)
+        self.save_parent()
+
+    def test_cortex_matches_hemisphere_names_to_real_annotations(self):
+        self.add_surface_fixture()
+        catalog = self.catalog()
+        self.assertEqual(set(catalog["surfaces"]), {"1001", "2001"})
+        request = self.request(surface=True)
+        path = run_analysis(request)
+        with (path.parent / "selected_surface_statistics.csv").open() as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(float(rows[0]["area_mm2"]), 8.0)
+        self.assertEqual(float(rows[0]["thickness_mean_mm"]), 3.0)
+        from scripts.validate_region_analysis import validate
+
+        self.assertTrue(validate(path)["checks"]["independent_surface_arrays"])
+        self.lut.write_text("1001 Left-Hippocampus 80 100 200 0\n2001 Right-Hippocampus 200 100 80 0\n")
+        self.assertFalse(self.catalog()["surfaces"])
+
+    def test_incompatible_cortical_names_are_never_matched_by_label_id(self):
+        self.add_surface_fixture()
+        self.lut.write_text("1001 ctx-lh-notprecentral 80 100 200 0\n2001 wm-rh-precentral 200 100 80 0\n")
+        self.assertFalse(self.catalog()["surfaces"])
+
+    def test_failed_tissue_and_surface_tasks_are_not_discovered(self):
+        self.add_surface_fixture()
+        self.tasks[-1]["status"] = "failed"
+        self.tasks.append(self.task("segmentation.ddseg", dict(segmentation=str(self.atlas))))
+        self.tasks[-1]["status"] = "failed"
+        self.save_parent()
+        self.assertFalse(self.catalog()["surfaces"])
+        self.assertIsNone(self.catalog()["tissue"])
+
+    def test_saf_full_quantitative_output_can_be_used(self):
+        self.tasks.append(self.task("tractography.saf", dict(tractogram=str(self.tracts))))
+        self.save_parent()
+        self.assertIn("tractography.saf", self.catalog()["tractograms"])
+
+    def test_batch_aggregates_completed_subjects_and_retains_failure(self):
+        from shared.region_batch import run_region_batch
+
+        path = run_region_batch(dict(output_dir=str(self.root / "cohort"),
+            request=dict(selected_regions=["Left-Region"], metrics=["fa"]),
+            subjects=[dict(source_manifest=str(self.manifest), lut_path=str(self.lut)),
+                      dict(source_manifest=str(self.root / "missing.json"))]))
+        self.assertEqual(read_json(path)["completed_subjects"], 1)
+        self.assertEqual(read_json(path)["status"], "partial_failed")
+        with (path.parent / "cohort_selected_microstructure.csv").open() as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["label_name"], "Left-Region")
+        self.assertEqual(rows[0]["subject_id"], "synthetic")
+
+    def test_batch_compatible_subjects_and_mismatched_label_semantics(self):
+        from shared.region_batch import run_region_batch
+
+        parent = read_json(self.manifest)
+        parent["subject_id"] = "synthetic2"
+        second = self.root / "parent2.json"
+        write_json(second, parent)
+        subjects = [dict(source_manifest=str(path), lut_path=str(self.lut)) for path in (self.manifest, second)]
+        config = dict(output_dir=str(self.root / "two_subjects"), request=dict(selected_labels=[1001], metrics=["fa"]), subjects=subjects)
+        manifest = run_region_batch(config)
+        self.assertEqual(read_json(manifest)["status"], "completed")
+        with (manifest.parent / "cohort_selected_microstructure.csv").open() as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual([row["subject_id"] for row in rows], ["synthetic", "synthetic2"])
+        alternate = self.root / "different_lut.txt"
+        alternate.write_text("1001 Left-Another-Region 80 100 200 0\n2001 Right-Region 200 100 80 0\n")
+        config["output_dir"] = str(self.root / "mismatched_cohort")
+        config["subjects"][1]["lut_path"] = str(alternate)
+        manifest = run_region_batch(config)
+        self.assertEqual(read_json(manifest)["completed_subjects"], 1)
+        self.assertIn("IDs/names differ", read_json(manifest)["subjects"][1]["error"])
+
+    def test_batch_cancellation_is_recorded_without_false_completion(self):
+        from shared.region_batch import run_region_batch
+
+        folder = self.root / "cancelled_cohort"
+        config = dict(output_dir=str(folder), request=dict(selected_labels=[1001], metrics=["fa"]),
+                      subjects=[dict(source_manifest=str(self.manifest), lut_path=str(self.lut))])
+        with patch("shared.region_batch.run_analysis", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                run_region_batch(config)
+        record = read_json(folder / "regional_batch_manifest.json")
+        self.assertEqual(record["status"], "cancelled")
+        self.assertEqual(record["subjects"][0]["status"], "cancelled")
 
 
 if __name__ == "__main__":

@@ -41,7 +41,7 @@ def _tensor_dispatch(wls_iter, fwdti):
                     'tensor_helper_scope': 'WLS tensor decomposition, including NLS initialization only'}
 
 
-def configure_freewater_dispatch(model, method, engine):
+def configure_freewater_dispatch(model, method, engine, *, reuse_protocol=True):
     """Use DIPY's callable fit hook only when the exact author bodies match."""
     record = {'enabled': False, 'implementation': 'dipy_original_dispatch'}
     if method not in {'NLS', 'WLS'} or engine != 'serial':
@@ -67,9 +67,16 @@ def configure_freewater_dispatch(model, method, engine):
     wls_iter, tensor_record = _tensor_dispatch(wls_iter, fwdti)
     record.update(tensor_record)
     if method == 'WLS':
+        if reuse_protocol:
+            from microstructure.freewater_protocol import prepare_wls_protocol
+
+            wls_iter = prepare_wls_protocol(wls_iter, model.design_matrix, diso=model.kwargs.get('Diso', 3e-3))
+        context = wls_iter.__globals__.get('_protocol_context')
+        record.update(protocol_reuse_enabled=context is not None,
+                      protocol_grid_cache_budget_bytes=context.max_bytes if context else 0)
         model.fit_method = wls_iter
         return {**record, 'enabled': True, 'implementation': 'dipy_verified_serial_wls_diagonal_free',
-                'reason': 'Identical author WLS, diagonal-free column scaling and source-qualified tensor-helper dispatch'}
+                'reason': 'Identical author WLS; column scaling, qualified tensor helpers and bounded protocol-array reuse'}
     body = bodies['nls_iter']
     namespace = dict(body.__globals__)
     namespace.update({name: value for name, value in bodies.items() if name != 'nls_iter'})

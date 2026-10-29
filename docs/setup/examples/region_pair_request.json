@@ -1,0 +1,14 @@
+{
+  "source_manifest": "/absolute/path/to/run_orchestration_manifest.json",
+  "selected_regions": ["ctx-lh-precentral"],
+  "target_regions": ["ctx-rh-precentral"],
+  "include_regions": [],
+  "exclude_regions": [],
+  "metrics": ["fa", "md"],
+  "tissue": false,
+  "surface": false,
+  "tractogram": "tractography.csd_act",
+  "connectome": null,
+  "tract_rule": "endpoint_pair",
+  "output_dir": "/absolute/path/to/new_region_pair_results"
+}

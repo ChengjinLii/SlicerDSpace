@@ -2,8 +2,10 @@
 
 Use this reference after installation or when a user requests an analysis.
 Read project files from the authorized checkout/runtime root. The detailed
-commands live in `docs/setup/CLI_TEMPLATES.md` and `.zh-CN.md`; do not maintain
-a second set of algorithm commands here.
+commands live in `docs/setup/CLI_TEMPLATES.md` and `.zh-CN.md`. The generated
+[Shell catalogue](shell_templates.md) includes their algorithm snippets and
+links to standalone `../assets/shell/*.sh` templates; do not maintain an
+independent hand-edited set of commands.
 
 ## Establish The Run
 
@@ -70,13 +72,16 @@ In the GUI: enter Inputs, choose Products and their `...` algorithms, then
 **Environment and installation > Prepare selected analysis environment**.
 Advanced settings handles parameters, including **Experiments & batch**;
 environment paths/installations stay in the separate Environment panel.
-Follow the skill's installation rules for downloads, licenses and restarts.
+Reuse the confirmed model/resource root. If none is configured and downloads
+are needed, follow the Skill's storage-choice step before preparing resources.
+Follow its installation rules for downloads, licenses and restarts.
 
 In the CLI, use the actual Slicer launcher with `--launch PythonSlicer` and
 `shared/run_subject_pipeline_cli.py`. The recipe wrapper works from a checkout
 or installed runtime tree and isolates output by route/run name. Saved GUI
 defaults are excluded by the templates. Explicitly pass any required existing
-dependency paths; the documented `--dependency-config` can restore those paths.
+dependency paths, including the confirmed `--model-assets-dir`; the documented
+`--dependency-config` can restore those paths.
 
 Use the selected recipe with `--doctor`, inspect blockers, then `--plan`.
 Both can write metadata. Review the chosen inputs, model versions, tasks,

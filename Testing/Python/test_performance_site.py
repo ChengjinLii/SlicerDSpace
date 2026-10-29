@@ -77,6 +77,25 @@ class PerformanceSiteTests(unittest.TestCase):
                 with patch.object(Path, 'read_text', changed), self.assertRaises(ValueError):
                     build_evidence()
 
+    def test_latest_protocol_pair_is_selected_and_cannot_fall_back_after_failed_qc(self):
+        evidence = build_evidence()
+        record = next(row for row in evidence['records'] if row['id'] == 'freewater')
+        self.assertEqual(record['measurement_source']['file'], 'freewater_protocol_full_20261029.json')
+        self.assertEqual(record['evidence_date'], '2026-10-29')
+        self.assertIn('protocol', record['method'])
+        original_read = Path.read_text
+
+        def changed(path, *args, **kwargs):
+            text = original_read(path, *args, **kwargs)
+            if path.name == 'freewater_protocol_full_20261029.json':
+                record = json.loads(text)
+                record['qc_equal'] = False
+                return json.dumps(record)
+            return text
+
+        with patch.object(Path, 'read_text', changed), self.assertRaises(ValueError):
+            build_evidence()
+
 
 if __name__ == '__main__':
     unittest.main()

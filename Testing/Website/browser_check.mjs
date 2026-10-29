@@ -499,15 +499,20 @@ async function runSkills(browser, origin) {
       await page.locator('#site-nav a[href="#skills"]').count() === 1,
       `skills ${width}px: navigation, Skill, usage and CLI template links`);
     const fit = await page.evaluate(() => {
-      const el = document.querySelector('#skills .code pre');
-      return el.scrollWidth <= el.clientWidth && document.documentElement.scrollWidth <= innerWidth;
+      return [...document.querySelectorAll('#skills .code pre')].every(
+        (el) => el.scrollWidth <= el.clientWidth) && document.documentElement.scrollWidth <= innerWidth;
     });
     record(fit, `skills ${width}px: prompt wraps without horizontal overflow`);
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await skills.locator('.copy').click();
-    const copied = await page.evaluate(() => navigator.clipboard.readText());
-    record(copied === await skills.locator('pre code').innerText(),
-      `skills ${width}px: sample Agent prompt copies intact`);
+    record(await skills.locator('[data-code]').count() === 2,
+      `skills ${width}px: installation and analysis have separate prompts`);
+    for (const id of ['agent-install-prompt', 'agent-analysis-prompt']) {
+      await skills.locator('[data-code]').filter({ has: page.locator('#' + id) }).locator('.copy').click();
+      const copied = await page.evaluate(() => navigator.clipboard.readText());
+      record(copied === await page.locator('#' + id).textContent() &&
+        copied.includes('https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/SKILL.md'),
+        `skills ${width}px: ${id} copies intact with its Skill URL`);
+    }
     await skills.screenshot({ path: path.join(OUT, `skills-${width}.png`) });
     await context.close();
   }

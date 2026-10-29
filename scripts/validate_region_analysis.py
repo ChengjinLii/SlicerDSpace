@@ -28,7 +28,7 @@ def validate(path):
     catalog = inspect_run(
         request["source_manifest"], atlas_override=request.get("atlas_override"), lut_path=request.get("lut_path")
     )
-    selected = sorted(set(request["selected_labels"]))
+    selected = manifest.get("selected_region_ids", sorted(set(request["selected_labels"])))
     folder = Path(path).parent
     atlas = nib.load(catalog["atlas"])
     labels = np.asarray(atlas.dataobj)
@@ -55,7 +55,12 @@ def validate(path):
                     raise AssertionError("Valid voxel count differs")
                 if row[key + "_excluded_voxel_count"] != int(mask.sum()) - len(values):
                     raise AssertionError("Excluded voxel count differs")
-                for statistic, function in (("mean", np.mean), ("std", np.std), ("min", np.min), ("max", np.max)):
+                for statistic, function in (("mean", np.mean), ("std", np.std), ("min", np.min), ("max", np.max),
+                                            ("median", np.median), ("q25", lambda x: np.percentile(x, 25)),
+                                            ("q75", lambda x: np.percentile(x, 75)),
+                                            ("iqr", lambda x: np.subtract(*np.percentile(x, (75, 25))))):
+                    if key + "_" + statistic not in row:
+                        continue
                     actual = row[key + "_" + statistic]
                     if len(values):
                         if not np.isclose(actual, function(values), rtol=2e-6, atol=1e-9):
@@ -83,8 +88,32 @@ def validate(path):
         current = next(wanted, None)
         input_count = 0
         sentinel = object()
+        inverse = np.linalg.inv(atlas.affine)
+        expected_indices = []
+        required = set(request.get("include_labels", []))
+        excluded = set(request.get("exclude_labels", []))
+        mode = request.get("tract_rule", "through_any")
         for index, line in enumerate(native_streamlines(source["path"])):
             input_count += 1
+            if mode.startswith("endpoint") and len(line) >= 2:
+                ends = np.floor(nib.affines.apply_affine(inverse, line[[0, -1]]) + 0.5).astype(int)
+                end_labels = [int(labels[tuple(point)]) if np.all(point >= 0) and np.all(point < labels.shape) else 0
+                              for point in ends]
+                a = request["selected_labels"]
+                b = request.get("target_labels", [])
+                if mode == "endpoint_pair":
+                    accepted = (end_labels[0] in a and end_labels[1] in b) or (end_labels[1] in a and end_labels[0] in b)
+                else:
+                    hits = [value in a for value in end_labels]
+                    accepted = all(hits) if mode == "endpoint_both" else any(hits)
+                if accepted and (required or excluded):
+                    from dipy.tracking.utils import target_line_based
+
+                    accepted = all(list(target_line_based([line], atlas.affine, labels == label)) for label in required)
+                    if accepted and excluded:
+                        accepted = not list(target_line_based([line], atlas.affine, np.isin(labels, list(excluded))))
+                if accepted:
+                    expected_indices.append(index)
             if index == current:
                 result = next(actual, sentinel)
                 if result is sentinel or result.shape != line.shape:
@@ -98,12 +127,50 @@ def validate(path):
             raise AssertionError("Unexpected/missing selected geometry")
         if input_count != info["input_streamlines"] or len(rows) != info["selected_streamlines"]:
             raise AssertionError("Tractogram counts differ")
+        if mode.startswith("endpoint") and indices != expected_indices:
+            raise AssertionError("Endpoint selection membership differs from independent lookup")
+        if mode.startswith("endpoint"):
+            checks["endpoint_selection_membership"] = True
         if source.get("weights"):
             weights = np.loadtxt(source["weights"], ndmin=1)
             np.testing.assert_array_equal([float(row["sift2_weight"]) for row in rows], weights[indices])
             checks["selected_sift2_weights_exact"] = True
         selected_count = len(rows)
         checks["all_selected_geometry_and_source_indices_exact"] = True
+    if request.get("tissue"):
+        data = np.asarray(nib.load(catalog["tissue"]["path"]).dataobj)
+        with (folder / "selected_tissue_statistics.csv").open(newline="") as stream:
+            tissue_rows = list(csv.DictReader(stream))
+        if [int(row["label_id"]) for row in tissue_rows] != selected:
+            raise AssertionError("Tissue region IDs differ")
+        for row in tissue_rows:
+            mask = labels == int(row["label_id"])
+            for code, name in enumerate(("unclassified", "wm", "gm", "csf")):
+                count = int(np.count_nonzero(data[mask] == code))
+                if int(row[name + "_voxels"]) != count or not np.isclose(float(row[name + "_fraction"]), count / mask.sum()):
+                    raise AssertionError("Tissue composition differs")
+        checks["independent_tissue_counts"] = True
+    if request.get("surface"):
+        with (folder / "selected_surface_statistics.csv").open(newline="") as stream:
+            surface_rows = list(csv.DictReader(stream))
+        expected_labels = [label for label in selected if str(label) in catalog["surfaces"]]
+        if [int(row["label_id"]) for row in surface_rows] != expected_labels:
+            raise AssertionError("Surface annotation mapping differs")
+        for row in surface_rows:
+            spec = catalog["surfaces"][row["label_id"]]
+            vertex_labels, _, _ = nib.freesurfer.read_annot(spec["annotation"])
+            mask = vertex_labels == spec["annotation_index"]
+            thick = nib.freesurfer.read_morph_data(spec["thickness"]).astype(float)[mask]
+            area = nib.freesurfer.read_morph_data(spec["area"]).astype(float)[mask]
+            curv = nib.freesurfer.read_morph_data(spec["curv"]).astype(float)[mask]
+            if int(row["vertex_count"]) != int(mask.sum()):
+                raise AssertionError("Surface vertex count differs")
+            for key, value in (("area_mm2", area.sum()), ("thickness_mean_mm", thick.mean()),
+                               ("thickness_median_mm", np.median(thick)), ("thickness_std_mm", thick.std()),
+                               ("curvature_mean_per_mm", curv.mean())):
+                if not np.isclose(float(row[key]), value, rtol=1e-12, atol=1e-12):
+                    raise AssertionError("Surface statistic differs: " + key)
+        checks["independent_surface_arrays"] = True
     if request.get("connectome"):
         source = catalog["connectomes"][request["connectome"]]
         with Path(source["matrix"]).open(newline="") as stream:

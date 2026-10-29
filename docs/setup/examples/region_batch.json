@@ -1,0 +1,13 @@
+{
+  "request": {
+    "selected_regions": ["ctx-lh-precentral", "ctx-rh-precentral"],
+    "metrics": ["fa", "md"],
+    "tissue": false,
+    "surface": false
+  },
+  "subjects": [
+    {"source_manifest": "/absolute/subject1/run_orchestration_manifest.json"},
+    {"source_manifest": "/absolute/subject2/run_orchestration_manifest.json"}
+  ],
+  "output_dir": "/absolute/path/to/new_region_cohort_results"
+}

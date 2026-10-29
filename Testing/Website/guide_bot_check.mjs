@@ -11,6 +11,8 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright-core');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const site = path.resolve(here, '../../docs/site');
+const out = path.join(here, 'out/guide-bot');
+fs.mkdirSync(out, { recursive: true });
 const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.json': 'application/json' };
 const server = http.createServer((req, res) => {
@@ -37,8 +39,35 @@ async function insideViewport(locator, width, height) {
     `Outside ${width}x${height}: ${JSON.stringify(r)}`);
 }
 
+async function assertDockedGuide(page, width, height) {
+  const position = await page.evaluate(() => {
+    const box = element => {
+      const r = element.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    };
+    const overlap = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    const bot = document.querySelector('.guide-bot');
+    const launcher = box(document.querySelector('.guide-bot__launcher'));
+    const dock = box(document.querySelector('.guide-bot__dock'));
+    const collisions = [...document.querySelectorAll('.brand, .menu-btn, .site-nav a, .chip-status')]
+      .filter(element => element.getClientRects().length && overlap(launcher, box(element)))
+      .map(element => element.textContent.trim());
+    return { docked: bot.classList.contains('is-docked'), launcher, dock, collisions,
+      headerBottom: document.querySelector('.site-header').getBoundingClientRect().bottom,
+      horizontalOverflow: document.documentElement.scrollWidth > innerWidth };
+  });
+  assert(position.docked, `Expected a docked guide at ${width}x${height}`);
+  for (const edge of ['left', 'top', 'right', 'bottom']) {
+    assert(Math.abs(position.launcher[edge] - position.dock[edge]) < 1, JSON.stringify(position));
+  }
+  assert(position.launcher.bottom <= position.headerBottom, 'Launcher must stay above the body text');
+  assert.deepEqual(position.collisions, [], `Header collision at ${width}x${height}`);
+  assert.equal(position.horizontalOverflow, false);
+}
+
 try {
-  for (const [width, height] of [[1440, 900], [390, 844], [320, 480], [640, 280]]) {
+  for (const [width, height] of [[1440, 900], [1440, 450], [1366, 768], [1280, 720], [1024, 768],
+    [900, 600], [768, 540], [390, 844], [320, 480], [640, 280]]) {
     const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
     const foreign = [], errors = [];
     page.on('request', request => {
@@ -48,11 +77,24 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/*.mp4', route => route.abort());
     await page.goto(origin + '/', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => document.fonts.ready);
+    if (width < 1400 || height < 480) {
+      await assertDockedGuide(page, width, height);
+      await page.locator('#integrated').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(50);
+      await assertDockedGuide(page, width, height);
+      await page.screenshot({ path: path.join(out, `docked-${width}x${height}.png`) });
+    }
     const launcher = page.locator('.guide-bot__launcher');
     const panel = page.locator('.guide-bot__panel');
+    if (width <= 1023) {
+      await page.locator('#menu-btn').click();
+      assert.equal(await page.locator('#menu-btn').getAttribute('aria-expanded'), 'true');
+    }
     await launcher.focus();
     await page.keyboard.press('Enter');
     assert.equal(await launcher.getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('#menu-btn').getAttribute('aria-expanded'), 'false');
     await insideViewport(panel, width, height);
     await insideViewport(page.locator('.guide-bot__form input'), width, height);
     if (width <= 680) {
@@ -97,6 +139,10 @@ try {
       assert.equal(await panel.isHidden(), true);
       assert.equal(await page.evaluate(() => document.body.classList.contains('guide-bot-open')), false);
       assert.equal(await launcher.evaluate(el => document.activeElement === el), true);
+    } else {
+      await launcher.click();
+      await page.locator('.brand').click();
+      assert(await panel.isHidden(), 'Clicking outside the desktop guide should return to reading');
     }
     assert.deepEqual(foreign, []);
     assert.deepEqual(errors, []);
@@ -117,6 +163,13 @@ try {
   assert(after.x > box.x + 100, 'launcher did not follow the drag');
   await page.setViewportSize({ width: 390, height: 844 });
   await insideViewport(launcher, 390, 844);
+  await assertDockedGuide(page, 390, 844);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  assert(await page.locator('.guide-bot').evaluate(el => !el.classList.contains('is-docked')));
+  const restored = await launcher.boundingBox();
+  assert(Math.abs(restored.x - after.x) < 1 && Math.abs(restored.y - after.y) < 1,
+    'Restore the user-selected floating position on a wide screen');
+  await page.setViewportSize({ width: 390, height: 844 });
   await launcher.click();
   await insideViewport(page.locator('.guide-bot__panel'), 390, 844);
   if (await page.locator('[data-guide-question="references"]').isVisible()) {
@@ -196,7 +249,7 @@ try {
   assert(await noJs.locator('.guide-bot__launcher').isHidden());
   assert(await noJs.locator('h1').isVisible());
   await noJs.close();
-  console.log('PASS drag, header drag, resize, navigation, focus trap, motion, festive asset, and no-JavaScript fallback');
+  console.log('PASS header docking, drag restoration, header drag, resize, navigation, focus trap, motion, festive asset, and no-JavaScript fallback');
 } finally {
   await browser.close();
   await new Promise(resolve => server.close(resolve));

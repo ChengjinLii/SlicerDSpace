@@ -2,7 +2,7 @@
 
 # Performance Optimizations
 
-**Reviewed 22 October 2026 · Complete-model pairs and numerically equivalent optimizations**
+**Reviewed 29 October 2026 · Complete-model pairs and numerically equivalent optimizations**
 
 [Project](../../README.md) | [Documentation](../README.md) | [Runtimes](MODULE_RUNTIMES_20261017.md) | [Author-reference CSV](benchmarks/author_wma_optimizations_20261020.csv) | [JSON](benchmarks/author_wma_optimizations_20261020.json) | [中文](PERFORMANCE_OPTIMIZATIONS.zh-CN.md)
 
@@ -27,6 +27,52 @@ The author-WMA section and engineering appendix follow commit
 uses the working tree after `65fee3e411da34f0d0a220f3384c81f604f60079`.
 The tree is dirty, so a commit alone does not identify measured implementations.
 JSON evidence records implementation hashes and immutable snapshots.
+
+---
+
+## 29 October: Free-Water Protocol-Array Reuse
+
+The [implementation](../../microstructure/freewater_protocol.py) reuses water attenuation,
+repeated spectra and fraction-grid arrays across voxels of the same acquisition design.
+An instance-private read-only grid cache uses exact refinement bounds and a 2 MiB budget.
+Changed design values, memory layouts or diffusivity settings retain uncached evaluation.
+Observation weights, pseudoinverses, parameter searches and tensor decompositions remain voxel-specific.
+Reuse is enabled for source-qualified serial WLS without adding threads or dependencies.
+
+Three native-grid 12³ ROIs each retain 1,728 brain-mask voxels and 288 measurements.
+The comparison executes original **DIPY 1.12.1**, the previous column-scaling/tensor-helper path,
+and protocol reuse. Each variant has one warm-up and three rotated-order repetitions using
+one numerical thread. Median complete-ROI times include reading, fitting, QC and fresh exports:
+
+| Subject | Author | Previous | Protocol reuse | Author/reuse |
+| --- | ---: | ---: | ---: | ---: |
+| 100307 | 2.183 s | 1.895 s | 1.731 s | 1.26× |
+| 100206 | 2.200 s | 1.884 s | 1.738 s | 1.27× |
+| 149741 | 2.199 s | 1.846 s | 1.686 s | 1.30× |
+
+All 13 raw parameters, exported arrays, affines, dtypes and QC decisions match exactly.
+The incremental ratio over the previous implementation is 1.08–1.09×; the original
+441/596/743 excluded tissue voxels remain excluded.
+
+The completed full-brain pair retains 740,916 mask voxels and 288 measurements, one numerical
+thread per variant, fresh outputs and immutable implementation/harness snapshots.
+Original author WLS takes **938.584 s (15.64 min)** and the updated implementation takes
+**713.395 s (11.89 min)**: **225.190 s (3.75 min)** saved, **23.99%** less time, **1.316x**.
+All 13 raw parameters in 54 blocks, four maps/masks, affines, dtypes and QC match exactly.
+The same 623,981 tissue-valid and 116,935 excluded voxels are retained; inputs and snapshots
+are unchanged. The full pair includes existing column/helper optimizations plus protocol reuse;
+the three-path ROI comparison isolates the incremental reuse benefit. This is one shared-host
+pair, optimized first, with identical raw-parameter export in both calls.
+[Full-brain JSON](benchmarks/freewater_protocol_full_20261029.json) ·
+[CSV](benchmarks/freewater_protocol_full_20261029.csv).
+
+The 29 October source audit finds PyPI stable 1.12.1 and author head `57ae6daf9824`.
+The four fitting/residual definitions in both sources match the qualified SHA256 values.
+[Upstream audit](benchmarks/freewater_protocol_upstream_20261029.json) ·
+[JSON](benchmarks/freewater_protocol_20261029.json) ·
+[CSV](benchmarks/freewater_protocol_20261029.csv) ·
+[Reproduction script](../../scripts/benchmark_freewater_protocol.py).
+Supplementary Table 3 in the separate manuscript supplement contains the three-path comparison.
 
 ---
 

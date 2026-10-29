@@ -20,16 +20,28 @@ TEXT = {
         select="Select visible",
         clear="Clear selection",
         metrics="Microstructure statistics",
+        tissue="Tissue composition",
+        surface="Cortical morphology",
         tracts="ROI streamline selection",
         graph="Regional connectivity",
         output="Output folder (optional)",
         run="Analyze selected regions",
         empty="Select a completed subject run. No models are refitted.",
+        options="Options and input files",
+        tract_source="Tractogram",
+        rule="Selection rule",
+        graph_source="Connectome",
+        target="Target regions (A ↔ B)",
+        include="Required waypoints (optional)",
+        exclude="Excluded regions (optional)",
+        selectors="Names or IDs, separated by commas",
+        report="Open regional report",
         rules=[
             "Pass through any selected region",
             "Pass through all selected regions",
             "At least one endpoint in selection",
             "Both endpoints in selection",
+            "Connect selected regions A ↔ target regions B",
         ],
         note="Uses full quantitative files, not display previews. Invalid fits stay excluded. ROI tracks are a geometric subset, not automatically identified anatomical bundles.",
     ),
@@ -44,12 +56,23 @@ TEXT = {
         select="勾选可见脑区",
         clear="清空选择",
         metrics="微结构统计",
+        tissue="组织构成",
+        surface="皮层形态",
         tracts="选区相关流线",
         graph="脑区连接分析",
         output="输出文件夹（可选）",
         run="分析所选脑区",
         empty="选择已完成的单被试运行记录；不会重新拟合模型。",
-        rules=["经过任一所选脑区", "经过全部所选脑区", "至少一个端点在选区内", "两个端点都在选区内"],
+        options="更多选项与输入文件",
+        tract_source="流线来源",
+        rule="筛选规则",
+        graph_source="连接组来源",
+        target="目标脑区（A ↔ B）",
+        include="必须途经的脑区（可选）",
+        exclude="排除的脑区（可选）",
+        selectors="输入名称或标签号，多个用逗号分隔",
+        report="打开脑区分析报告",
+        rules=["经过任一所选脑区", "经过全部所选脑区", "至少一个端点在选区内", "两个端点都在选区内", "连接所选脑区 A ↔ 目标脑区 B"],
         note="使用完整定量文件，不使用显示预览；无效拟合仍排除。选区流线是几何筛选结果，不自动等同于解剖束识别。",
     ),
 }
@@ -64,31 +87,17 @@ def install_region_panel(owner):
     panel.collapsed = True
     panel.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Maximum)
     layout = qt.QVBoxLayout(panel)
-    form = qt.QFormLayout()
-    form.setFieldGrowthPolicy(qt.QFormLayout.AllNonFixedFieldsGrow)
-    layout.addLayout(form)
     controls = dict(panel=panel, labels={})
-    for key in ("source", "atlas", "lut", "output"):
-        path = ctk.ctkPathLineEdit()
-        path.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Fixed)
-        path.filters = ctk.ctkPathLineEdit.Dirs if key == "output" else ctk.ctkPathLineEdit.Files
-        label = qt.QLabel()
-        controls[key] = path
-        controls["labels"][key] = label
-        form.addRow(label, path)
-    row = qt.QHBoxLayout()
-    for key in ("latest", "inspect"):
-        button = qt.QPushButton()
-        controls[key] = button
-        row.addWidget(button)
-    layout.addLayout(row)
+    button = qt.QPushButton()
+    controls["inspect"] = button
+    layout.addWidget(button)
     search = qt.QLineEdit()
     controls["search"] = search
     layout.addWidget(search)
     regions = qt.QListWidget()
     regions.objectName = "regionalLabelsList"
-    regions.setMaximumHeight(180)
-    regions.setMinimumHeight(100)
+    regions.setMaximumHeight(140)
+    regions.setMinimumHeight(80)
     controls["regions"] = regions
     layout.addWidget(regions)
     row = qt.QHBoxLayout()
@@ -97,30 +106,66 @@ def install_region_panel(owner):
         controls[key] = button
         row.addWidget(button)
     layout.addLayout(row)
-    for key in ("metrics", "tracts", "graph"):
+    selected_summary = qt.QLabel()
+    selected_summary.wordWrap = True
+    controls["selection_summary"] = selected_summary
+    layout.addWidget(selected_summary)
+    for key in ("metrics", "tissue", "surface", "tracts", "graph"):
         box = qt.QCheckBox()
         box.enabled = False
+        box.visible = False
         controls[key] = box
         layout.addWidget(box)
+    options = ctk.ctkCollapsibleButton()
+    options.objectName = "regionalAnalysisOptions"
+    options.collapsed = True
+    options.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Maximum)
+    controls["options"] = options
+    layout.addWidget(options)
+    details = qt.QVBoxLayout(options)
+    form = qt.QFormLayout()
+    form.setFieldGrowthPolicy(qt.QFormLayout.AllNonFixedFieldsGrow)
+    details.addLayout(form)
+    for key in ("source", "atlas", "lut", "output"):
+        path = ctk.ctkPathLineEdit()
+        path.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Fixed)
+        path.filters = ctk.ctkPathLineEdit.Dirs if key == "output" else ctk.ctkPathLineEdit.Files
+        label = qt.QLabel()
+        controls[key] = path
+        controls["labels"][key] = label
+        form.addRow(label, path)
+    controls["latest"] = qt.QPushButton()
+    details.addWidget(controls["latest"])
     metric_list = qt.QListWidget()
     metric_list.objectName = "regionalMetricsList"
     metric_list.setMaximumHeight(100)
     metric_list.enabled = False
     controls["metric_list"] = metric_list
-    layout.insertWidget(layout.indexOf(controls["tracts"]), metric_list)
+    details.addWidget(metric_list)
+    sources_form = qt.QFormLayout()
+    sources_form.setFieldGrowthPolicy(qt.QFormLayout.AllNonFixedFieldsGrow)
+    details.addLayout(sources_form)
     for key in ("tract_source", "rule", "graph_source"):
         combo = qt.QComboBox()
         controls[key] = combo
-        if key == "graph_source":
-            layout.addWidget(combo)
-        else:
-            layout.insertWidget(layout.indexOf(controls["graph"]), combo)
-    for index, key in enumerate(("through_any", "through_all", "endpoint_any", "endpoint_both")):
+        combo.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Fixed)
+        label = qt.QLabel()
+        controls["labels"][key] = label
+        sources_form.addRow(label, combo)
+    for key in ("through_any", "through_all", "endpoint_any", "endpoint_both", "endpoint_pair"):
         controls["rule"].addItem(key, key)
+    region_form = qt.QFormLayout()
+    region_form.setFieldGrowthPolicy(qt.QFormLayout.AllNonFixedFieldsGrow)
+    details.addLayout(region_form)
+    for key in ("target", "include", "exclude"):
+        edit, label = qt.QLineEdit(), qt.QLabel()
+        edit.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Fixed)
+        controls[key], controls["labels"][key] = edit, label
+        region_form.addRow(label, edit)
     note = qt.QLabel()
     note.wordWrap = True
     controls["note"] = note
-    layout.addWidget(note)
+    details.addWidget(note)
     button = qt.QPushButton()
     button.objectName = "runRegionalAnalysisButton"
     button.enabled = False
@@ -130,6 +175,10 @@ def install_region_panel(owner):
     status.wordWrap = True
     controls["status"] = status
     layout.addWidget(status)
+    controls["report"] = qt.QPushButton()
+    controls["report"].enabled = False
+    controls["report"].visible = False
+    layout.addWidget(controls["report"])
     owner._regionWidgets = controls
     owner._regionCatalog = None
     owner._advancedSettingsPanel.layout().insertWidget(3, panel)
@@ -139,15 +188,23 @@ def install_region_panel(owner):
     controls["select"].clicked.connect(lambda: set_checks(owner, True))
     controls["clear"].clicked.connect(lambda: set_checks(owner, False))
     controls["search"].textChanged.connect(lambda value: filter_regions(owner, value))
+    controls["search"].returnPressed.connect(lambda: set_checks(owner, True))
+    controls["regions"].itemChanged.connect(lambda *_: _selection_changed(owner))
+    controls["metric_list"].itemChanged.connect(lambda *_: _selection_changed(owner))
     for key in ("source", "atlas", "lut"):
         controls[key].currentPathChanged.connect(lambda *_: invalidate_catalog(owner))
     controls["metrics"].toggled.connect(lambda enabled: metric_list.setEnabled(enabled))
     controls["tracts"].toggled.connect(lambda enabled: _tract_enabled(owner, enabled))
     controls["graph"].toggled.connect(lambda enabled: controls["graph_source"].setEnabled(enabled))
+    controls["rule"].currentIndexChanged.connect(lambda *_: _tract_enabled(owner, controls["tracts"].checked))
+    for key in ("metrics", "tissue", "surface", "tracts", "graph"):
+        controls[key].toggled.connect(lambda *_: _selection_changed(owner))
+    controls["report"].clicked.connect(lambda: open_report(owner))
     panel.connect("contentsCollapsed(bool)", lambda collapsed: _expanded(owner, collapsed))
     apply_region_language(owner, getattr(owner, "_onboardingLanguage", "en"))
     _tract_enabled(owner, False)
     controls["graph_source"].enabled = False
+    _selection_changed(owner)
 
 
 def _count(widget):
@@ -170,6 +227,8 @@ def _expanded(owner, collapsed):
 
     if not collapsed and not _paths(owner)[0]:
         use_latest_run(owner)
+    if not collapsed and _paths(owner)[0] and not owner._regionCatalog and not getattr(owner, "_pipelineActive", False):
+        qt.QTimer.singleShot(0, lambda: inspect_regions(owner))
     root = owner._uiWidget
 
     def fit():
@@ -181,14 +240,39 @@ def _expanded(owner, collapsed):
 
 
 def _tract_enabled(owner, enabled):
-    for key in ("tract_source", "rule"):
-        owner._regionWidgets[key].enabled = enabled
+    widgets = owner._regionWidgets
+    for key in ("tract_source", "rule", "include", "exclude"):
+        widgets[key].enabled = enabled
+    pair = str(widgets["rule"].itemData(widgets["rule"].currentIndex)) == "endpoint_pair"
+    widgets["target"].enabled = enabled and pair
+    widgets["target"].setVisible(pair)
+    widgets["labels"]["target"].setVisible(pair)
+
+
+def _selection_changed(owner):
+    widgets = owner._regionWidgets
+    count = len(_checked(widgets["regions"]))
+    chinese = str(getattr(owner, "_onboardingLanguage", "en")).startswith("zh")
+    widgets["selection_summary"].text = f"已选择 {count} 个脑区" if chinese else f"{count} regions selected"
+    available = any(widgets[key].enabled and widgets[key].checked for key in ("metrics", "tissue", "surface", "tracts", "graph"))
+    widgets["run"].enabled = bool(owner._regionCatalog and count and available)
+
+
+def open_report(owner):
+    import qt
+
+    path = getattr(owner, "_regionalReportPath", None)
+    if path and Path(path).is_file():
+        qt.QDesktopServices.openUrl(qt.QUrl.fromLocalFile(str(path)))
 
 
 def invalidate_catalog(owner):
     owner._regionCatalog = None
     owner._regionWidgets["run"].enabled = False
-    for key in ("metrics", "tracts", "graph"):
+    owner._regionalReportPath = None
+    owner._regionWidgets["report"].enabled = False
+    owner._regionWidgets["report"].visible = False
+    for key in ("metrics", "tissue", "surface", "tracts", "graph"):
         owner._regionWidgets[key].checked = False
         owner._regionWidgets[key].enabled = False
     _status(owner, "Inputs changed; reload regions / 输入已改变，请重新读取脑区")
@@ -210,9 +294,12 @@ def apply_region_language(owner, language):
     widgets["panel"].text = strings["title"]
     for key, label in widgets["labels"].items():
         label.text = strings[key]
-    for key in ("latest", "inspect", "select", "clear", "metrics", "tracts", "graph", "run", "note"):
+    widgets["options"].text = strings["options"]
+    for key in ("latest", "inspect", "select", "clear", "metrics", "tissue", "surface", "tracts", "graph", "run", "note", "report"):
         widgets[key].text = strings[key]
     widgets["search"].placeholderText = strings["search"]
+    for key in ("target", "include", "exclude"):
+        widgets[key].placeholderText = strings["selectors"]
     for index, name in enumerate(strings["rules"]):
         widgets["rule"].setItemText(index, name)
     if not widgets["status"].text:
@@ -220,21 +307,29 @@ def apply_region_language(owner, language):
 
 
 def filter_regions(owner, query):
+    import qt
+    from shared.region_selection import matches_region
+
     widgets = owner._regionWidgets
-    query = str(query or "").lower().strip()
+    regions = {row["id"]: row for row in (owner._regionCatalog or {}).get("regions", [])}
     for index in range(_count(widgets["regions"])):
         item = widgets["regions"].item(index)
-        item.setHidden(query not in item.text().lower())
+        item.setHidden(not matches_region(regions.get(int(item.data(qt.Qt.UserRole)), {"id": -1, "name": item.text()}), query))
 
 
 def set_checks(owner, checked):
     import qt
 
     widget = owner._regionWidgets["regions"]
-    for index in range(_count(widget)):
-        item = widget.item(index)
-        if not checked or not item.isHidden():
-            item.setCheckState(qt.Qt.Checked if checked else qt.Qt.Unchecked)
+    blocked = widget.blockSignals(True)
+    try:
+        for index in range(_count(widget)):
+            item = widget.item(index)
+            if not checked or not item.isHidden():
+                item.setCheckState(qt.Qt.Checked if checked else qt.Qt.Unchecked)
+    finally:
+        widget.blockSignals(blocked)
+    _selection_changed(owner)
 
 
 def _command(owner, args):
@@ -295,19 +390,26 @@ def inspect_regions(owner):
                     widgets[combo].addItem(key, key)
             for key, available in (
                 ("metrics", bool(data["metrics"])),
+                ("tissue", bool(data.get("tissue"))),
+                ("surface", bool(data.get("surfaces"))),
                 ("tracts", bool(data["tractograms"])),
                 ("graph", bool(data["connectomes"])),
             ):
                 widgets[key].enabled = available
+                widgets[key].visible = available
                 widgets[key].checked = available if key == "metrics" else False
+                widgets[key].toolTip = "" if available else (
+                    "Complete the corresponding analysis with valid QC first / 请先完成相应算法并取得可用结果"
+                )
             owner._regionCatalog = data
-            widgets["run"].enabled = True
+            _selection_changed(owner)
             widgets["atlas"].toolTip = data["atlas"]
-            _status(
-                owner,
+            chinese = str(getattr(owner, "_onboardingLanguage", "en")).startswith("zh")
+            _status(owner, "结果已读取，勾选脑区后即可分析。" if chinese else "Results loaded. Select regions to analyze.")
+            widgets["status"].toolTip = (
                 f'{len(data["regions"])} regions; {len(data["metrics"])} metrics; '
-                f'{len(data["tractograms"])} tractograms; {len(data["connectomes"])} connectomes. '
-                f'{len(data["warnings"])} unavailable/QC notices. Select regions, then analyze.',
+                f'{len(data["tractograms"])} tractograms; {len(data["connectomes"])} connectomes; '
+                f'{len(data["warnings"])} input/QC notices (see log).'
             )
             for warning in data["warnings"]:
                 owner.appendLog("[Regions] Excluded/not available: " + warning)
@@ -362,8 +464,11 @@ def analyze_regions(owner):
         lut_path=lut or None,
         manifest_sha256=catalog["manifest_sha256"],
         atlas_sha256=catalog["atlas_sha256"],
+        lut_sha256=catalog.get("lut_sha256"),
         selected_labels=[int(key) for key in selected],
         metrics=metrics,
+        tissue=bool(widgets["tissue"].checked),
+        surface=bool(widgets["surface"].checked),
         tractogram=(
             str(widgets["tract_source"].itemData(widgets["tract_source"].currentIndex))
             if widgets["tracts"].checked
@@ -377,7 +482,21 @@ def analyze_regions(owner):
         tract_rule=str(widgets["rule"].itemData(widgets["rule"].currentIndex)),
         output_dir=str(directory),
     )
-    if not metrics and not request["tractogram"] and not request["connectome"]:
+    if request["tractogram"]:
+        from shared.region_selection import resolve_regions
+
+        try:
+            for field in ("target", "include", "exclude"):
+                text = str(widgets[field].text or "") if field != "target" or request["tract_rule"] == "endpoint_pair" else ""
+                request[field + "_labels"] = resolve_regions(catalog["regions"], text, allow_empty=True)
+            if request["tract_rule"] == "endpoint_pair" and (
+                not request["target_labels"] or set(selected) & set(request["target_labels"])
+            ):
+                raise ValueError("Choose target regions B different from selected regions A / 请选择与 A 不重叠的目标脑区 B")
+        except ValueError as exc:
+            _status(owner, str(exc), True)
+            return
+    if not metrics and not request["tractogram"] and not request["connectome"] and not request["tissue"] and not request["surface"]:
         _status(owner, "Select an available analysis / 请启用至少一种可用分析", True)
         return
     try:
@@ -397,6 +516,9 @@ def analyze_regions(owner):
                     raise RuntimeError("Regional job did not publish completed outputs")
                 loaded = owner.logic.loadKeyResultsFromManifest(manifest, automatic=True)
                 owner._latestRegionalManifestPath = manifest
+                owner._regionalReportPath = record.get("report_path")
+                widgets["report"].enabled = bool(owner._regionalReportPath and Path(owner._regionalReportPath).is_file())
+                widgets["report"].visible = widgets["report"].enabled
                 message = f'Regional analysis completed. Loaded {len(loaded["loaded"])}; warnings: {len(record["warnings"])}. '
                 _status(owner, message + "Visual review pending.\n" + str(directory))
                 owner.appendLog("[Regions] " + message + str(manifest))

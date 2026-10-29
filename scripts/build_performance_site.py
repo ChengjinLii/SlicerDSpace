@@ -20,9 +20,18 @@ def build_evidence():
     def load(name):
         path = BENCHMARKS / name
         sources.append({'file': name, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()})
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding='utf-8'))
 
-    full = load('freewater_latest_stable_full_20261022.json')
+    full_name = ('freewater_protocol_full_20261029.json' if (BENCHMARKS / 'freewater_protocol_full_20261029.json').is_file()
+                 else 'freewater_latest_stable_full_20261022.json')
+    protocol_reuse = full_name == 'freewater_protocol_full_20261029.json'
+    full = load(full_name)
+    if protocol_reuse and (
+        (full.get('fit_implementation') or {}).get('protocol_reuse_enabled') is not True
+        or (full.get('reference_implementation') or {}).get('enabled') is not False
+        or (full.get('reference_implementation') or {}).get('implementation') != 'dipy_original_dispatch'
+    ):
+        raise ValueError('Protocol timing must record enabled reuse and an unmodified author reference')
     if not all(full.get(key) is True for key in ('inputs_unchanged', 'snapshot_unchanged', 'harness_unchanged', 'qc_equal')) or full['status'] != 'passed':
         raise ValueError('Full Free-water evidence has not passed its independent verification')
     previous = load('complete_models_20261020.json')
@@ -42,11 +51,13 @@ def build_evidence():
         raise ValueError('Free-water numerical equivalence is incomplete')
     add('freewater', 'Free-water WLS', 'implementation', 'Full brain',
         case['reference_seconds'], case['optimized_seconds'],
-        'Diagonal-free weight multiplication and source-qualified direct tensor-helper calls remove repeated allocation and compatibility checks.',
+        ('Reuse protocol-only attenuation/spectrum/grid arrays in a bounded private cache, alongside diagonal-free weights and source-qualified tensor helpers.'
+         if protocol_reuse else 'Diagonal-free weight multiplication and source-qualified direct tensor-helper calls remove repeated allocation and compatibility checks.'),
         'Original installed DIPY WLS, not an earlier plugin. One numerical thread in both paths.',
         f"All 13 raw fit parameters, four maps/masks, affines, dtypes and automatic QC match. The same {case['validity']['excluded_tissue_voxels']} voxels remain excluded.",
         'One subject, one pair on a shared Linux host; optimized first. OS caches were not flushed. Both calls include raw-parameter evidence export.',
-        f"{case['mask_voxels']} mask voxels; {case['measurements']} measurements; automatic QC passes, anatomical review pending.", evidence_date='2026-10-22')
+        f"{case['mask_voxels']} mask voxels; {case['measurements']} measurements; automatic QC passes, anatomical review pending.",
+        evidence_date='2026-10-29' if protocol_reuse else '2026-10-22')
 
     pairs = {row['stage']: row for row in previous['complete_model_pairs']}
     for key in ('wma', 'noddi'):
@@ -213,8 +224,14 @@ def build_evidence():
         'surface-mapping': 'Optimization inherited from DDSurfer c3b2d40; no plugin-original credit or latest-FreeSurfer speed claim.',
         'dwi-io': 'Generic compression/I/O control, not an improvement to a scientific estimator or an upstream-freshness claim.',
     }
+    if protocol_reuse:
+        latest_fw = load('freewater_protocol_upstream_20261029.json')
+        if latest_fw['pypi_version'] != full['environment']['dipy'] or latest_fw['qualified_bodies_match'] != [True, True]:
+            raise ValueError('New Free-water pair lacks a matching stable/head source audit')
+        references['freewater'] = ('Measured DIPY ' + full['environment']['dipy'] + '; latest stable on 29 October. '
+            'The stable/head fitting definitions match qualified hashes; bounded protocol reuse is included in this full-brain pair.')
     measurement_sources = {
-        'freewater': 'freewater_latest_stable_full_20261022.json',
+        'freewater': full_name,
         'wma': 'complete_models_20261020.json', 'noddi': 'complete_models_20261020.json',
         'mkcurve': 'mkcurve_qr_scipy1181_20261022.json', 'dki': 'dki_latest_stable_integration_20261022.json',
         'scheduling': 'complete_models_20261020.json', 'wma-filter': 'author_wma_optimizations_20261020.json',
@@ -225,7 +242,7 @@ def build_evidence():
     for row in rows:
         row['upstream_reference'] = references[row['id']]
         row['measurement_source'] = next(source for source in sources if source['file'] == measurement_sources[row['id']])
-    return dict(kind='slicerddsurfer_public_performance_evidence', version=3, reviewed_on='2026-10-25',
+    return dict(kind='slicerddsurfer_public_performance_evidence', version=3, reviewed_on='2026-10-29' if protocol_reuse else '2026-10-25',
                 sources=sources, records=rows,
                 upstream_review=dict(checked_at_utc=audit['checked_at_utc'],
                     stable_versions={key: upstream[repo]['pypi']['version'] for key, repo in (
@@ -272,7 +289,7 @@ def main():
     evidence = build_evidence()
     payload = json.dumps(evidence, indent=2) + '\n'
     page = SITE / 'index.html'
-    original = page.read_text()
+    original = page.read_text(encoding='utf-8')
     if original.count(BEGIN) != 1 or original.count(END) != 1:
         raise ValueError('Expected one performance evidence region in docs/site/index.html')
     before, middle = original.split(BEGIN)
@@ -280,13 +297,13 @@ def main():
     expected = before + BEGIN + '\n' + render(evidence) + '\n' + END + after
     data = SITE / 'assets/data/performance.json'
     if args.check:
-        if not data.is_file() or data.read_text() != payload or original != expected:
+        if not data.is_file() or data.read_text(encoding='utf-8') != payload or original != expected:
             raise SystemExit('Website performance evidence in index.html is stale; run scripts/build_performance_site.py')
         print('PASS public performance data, source hashes and rendered measurements')
     else:
         data.parent.mkdir(parents=True, exist_ok=True)
-        data.write_text(payload)
-        page.write_text(expected)
+        data.write_text(payload, encoding='utf-8')
+        page.write_text(expected, encoding='utf-8')
         print(f"Exported {len(evidence['records'])} scoped measurements; private paths and runtime snapshots excluded")
 
 

@@ -56,8 +56,11 @@ was expanded on 25 October; the upstream-source audit is still dated 22 October.
 ## Site Guide
 
 The homepage's `#skills` section and navigation introduce the project's
-install-and-use Agent Skill, its usage reference, CLI recipes and a copyable
-prompt. Both root READMEs also have an Agent Skills section. Skill files stay in
+install-and-use Agent Skill, its usage reference, CLI recipes and two copyable
+prompts: installation and analysis. The prompts are also in both root READMEs
+and the manuscript's setup instructions. The Skill contains
+Agent-facing operating instructions rather than user prompts. Model downloads follow the user's confirmed storage choice; an
+analysis request waits for plan confirmation. Skill files stay in
 the repository: links require repository access during private pre-release.
 The Skill runs through the user's Agent; it is separate from the local site guide.
 
@@ -70,6 +73,12 @@ network requests, does not persist questions, and does not call an AI model. Upd
 answers alongside the relevant homepage sections when product behaviour or
 installation instructions change. Keyboard, drag, responsive, privacy and
 no-JavaScript behaviour are checked by `node Testing/Website/guide_bot_check.mjs`.
+When the outer reading gutter is too narrow, or the viewport is short, the
+mascot docks in a reserved 36 px header slot instead of covering page text.
+Wide screens retain the floating mascot and its last dragged position. Opening
+the guide closes an expanded navigation menu; outside clicks dismiss the
+non-modal desktop panel. The browser checks cover 320--1440 px windows,
+scrolling, header collisions and switching between docked and floating modes.
 
 ---
 

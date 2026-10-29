@@ -133,11 +133,13 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
         self.assertIn('id="skills-title"', section)
         self.assertIn('Plan &amp; run', section)
         self.assertIn('Review &amp; reuse', section)
-        self.assertIn('show me the plan before execution', section)
+        self.assertIn('Show me the plan and wait for confirmation before running', section)
+        self.assertIn('id="agent-install-prompt"', section)
+        self.assertIn('id="agent-analysis-prompt"', section)
         self.assertIn('website guide bot provides curated information', section)
         self.assertNotIn('<details', section)
-        for relative in ('.agents/skills/slicerdspace-install/SKILL.md',
-                         '.agents/skills/slicerdspace-install/references/usage.md',
+        for relative in ('.agents/skills/slicerdspace/SKILL.md',
+                         '.agents/skills/slicerdspace/references/usage.md',
                          'docs/setup/CLI_TEMPLATES.md'):
             self.assertIn('href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/' + relative + '"', section)
             self.assertTrue((ROOT / relative).is_file())
@@ -148,10 +150,11 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
                 text = (ROOT / name).read_text(encoding='utf-8')
                 self.assertIn('[Agent Skills](#agent-skills)', text)
                 content = text.split('## Agent Skills\n', 1)[1].split('\n---\n', 1)[0]
-                self.assertIn('.agents/skills/slicerdspace-install/SKILL.md', content)
-                self.assertIn('.agents/skills/slicerdspace-install/references/usage.md', content)
+                self.assertIn('.agents/skills/slicerdspace/SKILL.md', content)
+                self.assertIn('.agents/skills/slicerdspace/references/usage.md', content)
                 self.assertIn('docs/setup/' + templates, content)
-                self.assertIn('/path/to/sub-01', content)
+                self.assertIn('/path/to/subject', content)
+                self.assertIn('/path/to/results', content)
                 self.assertIn('QC', content)
 
 

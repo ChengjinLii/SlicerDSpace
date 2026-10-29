@@ -1,0 +1,80 @@
+{
+  "kind": "regional_linkage_acceptance",
+  "date": "2026-10-29",
+  "base_commit": "adb378f",
+  "changes": "Local regional-analysis working-tree changes, not yet committed",
+  "status": "PASS",
+  "scope": "Optional atlas-scoped postprocessing, GUI integration and output consistency",
+  "regression": {
+    "tests_run": 1674,
+    "passed": 1671,
+    "skipped": 3,
+    "failed": 0,
+    "seconds": 90.683,
+    "additional_region_and_display_tests": 56,
+    "additional_tests_status": "PASS",
+    "local_log": "/tmp/slicerdspace-regional-acceptance-suite.log"
+  },
+  "package": {
+    "expected_runtime_files": 520,
+    "missing": 0,
+    "changed": 0,
+    "unexpected": 0,
+    "local_evidence": "ignore/validation/regional_linkage_20261029_display_acceptance/package_resource_audit.json"
+  },
+  "native_slicer": {
+    "version": "5.10.0",
+    "platform": "Linux",
+    "fixtures": "Known-coordinate synthetic atlas, DDSeg labels, surface annotations/overlays, tractogram and connectivity",
+    "region_gui": "PASS",
+    "compact_gui": "PASS",
+    "checks": [
+      "Advanced-only optional panel; details collapsed",
+      "440-pixel regional layout and 440/540-pixel compact layout",
+      "Chinese name alias and exact label search",
+      "Background execution and responsive GUI heartbeat",
+      "Microstructure, tissue and cortical statistics",
+      "A-B endpoint selection and independent membership check",
+      "Both A and B labels visible after automatic loading",
+      "Nine grouped result nodes; duplicate loading reuses nodes",
+      "Offline report button",
+      "Changed source paths invalidate selections"
+    ],
+    "local_region_evidence": "ignore/validation/regional_linkage_20261029_display_acceptance/regions/regions.json",
+    "local_compact_evidence": "ignore/validation/regional_linkage_20261029_acceptance/compact_ui/compact_ui.json",
+    "fixture_note": "Earlier compact-UI invocations supplied directories without the required input/ layout; the canonical subject-root invocation passes. Earlier reports remain archived."
+  },
+  "real_subject": {
+    "dataset": "HCP-YA",
+    "subject_id": "100206",
+    "selected_labels": [1024, 2024],
+    "metrics": ["fa", "md", "ad", "rd"],
+    "source_streamlines": 1000000,
+    "selected_streamlines": 148,
+    "rule": "endpoint_pair",
+    "maximum_coordinate_error_mm": 0.0,
+    "source_indices_and_sift2_weights": "EXACT",
+    "scalar_quantiles_tissue_and_graph_weights": "PASS",
+    "postprocessing_seconds": 37.76316727884114,
+    "independent_validation_seconds": 39.3978575617075,
+    "timing_scope": "Single postprocessing measurement including QC/source hashes, four-map statistics, tissue composition, million-line endpoint selection, bilateral table, graph extraction and report. No upstream refitting or speedup claim.",
+    "local_evidence": "ignore/validation/regional_linkage_20261029_real/independent_audit_final.json"
+  },
+  "real_cohort": {
+    "subject_ids": ["100206", "149741", "877168"],
+    "completed_subjects": 3,
+    "failed_subjects": 0,
+    "selected_labels_per_subject": [1024, 2024],
+    "cohort_scalar_rows": 6,
+    "independent_scalar_and_tissue_validation": "PASS",
+    "local_evidence": "ignore/validation/regional_linkage_20261029_real/cohort_final/independent_audit.json"
+  },
+  "boundaries": [
+    "No new model fitting or default workflow changes",
+    "Cortical linkage currently matches explicit ctx-lh/ctx-rh names to aparc surface annotations",
+    "Synthetic arrays validate cortical arithmetic and GUI integration; they are not a new real-subject cortical validation",
+    "ROI streamline geometry does not assign anatomical bundle names",
+    "These checks do not replace upstream QC or anatomical review",
+    "Native GUI execution is measured on Linux, not Windows/macOS"
+  ]
+}

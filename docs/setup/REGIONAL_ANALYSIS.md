@@ -15,10 +15,14 @@
 Open **Advanced settings > Regions & input import > Regional analysis (optional)**. This section is
 collapsed by default and does not change the products or methods in the main run.
 
-1. Choose **Use latest run**, or browse to a single-subject `*_orchestration_manifest.json`.
-2. Select **Load regions and available results**. Only explicitly recorded completed/reused products with acceptable recorded QC and current signatures are eligible. Failed products in a partial run remain excluded.
-3. Search by atlas name, hemisphere or numeric label. Check individual regions, or select the currently visible search results.
-4. Choose the available analyses and click **Analyze selected regions**.
+1. Expand the panel to load the latest run, or use **Load regions and available results** to refresh.
+2. Search by name, hemisphere or exact numeric label and check regions. Common Chinese anatomical aliases are supported. Enter selects the visible search results.
+3. Check the desired analyses and click **Analyze selected regions**. Only analyses with available results appear.
+4. Inspect the automatically loaded results and select **Open regional report** for the summary.
+
+**Options and input files** holds the source manifest, atlas/LUT overrides, metric selection,
+tractogram and connectivity sources, selection rules, target/waypoint/exclusion regions and output folder.
+Only explicitly recorded completed/reused products with acceptable recorded QC and current signatures are eligible.
 
 DDParcel supplies the default atlas and FreeSurfer label names. A custom integer
 NIfTI atlas and optional FreeSurfer-format LUT can be selected. Statistical maps
@@ -32,7 +36,9 @@ parent run, not merely overlapping label numbers.
 
 | Analysis | Inputs | Result |
 | --- | --- | --- |
-| Microstructure | Existing DTI, FW, NODDI or DKI/MK-Curve scalar maps | Per-region mean, standard deviation, minimum, maximum, valid/excluded counts and coverage |
+| Microstructure | Existing DTI, FW, NODDI or DKI/MK-Curve scalar maps | Mean, SD, median, quartiles/IQR, range, valid/excluded counts and coverage |
+| Tissue composition | Existing DDSeg hard tissue labels | WM/GM/CSF and unclassified counts, volumes and fractions of each entire ROI |
+| Cortical morphology | Completed postprocessing aparc annotation and thickness/area/curvature overlays | Vertex count, area, mean/median thickness, thickness SD and mean curvature |
 | ROI streamline selection | A completed full tractogram; matching SIFT2 weights when explicitly recorded | Complete selected lines, source indices, associated weights and a separate display preview |
 | Regional connectivity | Existing symmetric connectivity matrix and node table | Induced selected-region matrix plus all nonzero connections from selected nodes to other parent nodes |
 
@@ -44,12 +50,23 @@ MK-Curve corrected maps use recorded per-metric masks when available.
 Finite zero values remain legitimate observations. Excluded fits do not enter
 the denominator; a region with no valid estimates is blank/null, never zero-filled.
 
-Four streamline rules are available:
+Five streamline rules are available:
 
 - **Pass through any** selected region: union of region intersections.
 - **Pass through all** selected regions: intersection of region matches, limited to 16 regions per request.
 - **At least one endpoint** in the selection: endpoint membership in the selected-region union.
 - **Both endpoints** in the selection: both endpoints in the union, not necessarily in different regions.
+- **A ↔ B endpoints**: one endpoint in selected group A and the other in target group B, independent of stored direction. Both groups must be nonempty and disjoint.
+
+Additional waypoint regions must all be traversed (up to 16), while entering any exclusion region rejects a line.
+Enter names or IDs separated by commas in Options. Ambiguous names return candidate IDs for confirmation.
+Statistics/connectivity cover the union of A and B. Full DTI, CSD/ACT, UKF and SAF sources are available when recorded by the parent run.
+
+Cortical linkage requires exact hemisphere and structural-name matches between `ctx-lh-*`/`ctx-rh-*`
+atlas entries and actual `aparc.annot` annotations. Thickness/curvature are vertex means and area is
+the sum of vertex areas. Unmatched regions are reported; arbitrary atlas IDs are never treated as surface labels.
+Matched left/right names and compartments also produce differences and `2(L-R)/(|L|+|R|)` asymmetry
+indices. Missing values and zero denominators remain blank.
 
 Through-region rules use DIPY's [line-based ROI targeting](https://docs.dipy.org/stable/reference/dipy.tracking.html#dipy.tracking.utils.target_line_based),
 including segment crossings between stored vertices. The output is a geometric
@@ -80,6 +97,10 @@ region_analysis_qc.json
 selected_regions.nii.gz
 selected_regions.csv
 selected_microstructure.csv / .json       # if requested
+selected_tissue_statistics.csv            # if requested
+selected_surface_statistics.csv           # if matching cortical regions are available
+bilateral_statistics.csv                  # when selected left/right names pair exactly
+regional_report.html                      # offline summary
 selected_streamlines.vtk                  # complete matching geometry, if nonempty
 selected_streamlines_preview.vtk          # display only
 selected_streamline_ids.csv               # optional matching SIFT2 weight column
@@ -126,6 +147,23 @@ available `metrics` keys, optional task keys `tractogram` and `connectome`,
 `tract_rule`, and a fresh `output_dir`. Optional atlas/LUT overrides and catalog
 hashes are supported. The GUI writes this request automatically.
 
+`selected_regions` also accepts names/IDs; `target_regions`, `include_regions` and `exclude_regions`
+use the same format. Aliases resolve against the current atlas/LUT; ambiguous names require explicit IDs.
+Use `"tissue": true` and `"surface": true` for existing segmentation and cortical products.
+See the [A-B request template](examples/region_pair_request.json).
+
+Apply a shared request to multiple completed subject runs with:
+
+```bash
+python scripts/analyze_regions.py --batch /absolute/region_batch.json
+```
+
+The [batch template](examples/region_batch.json) contains a shared `request`, subject manifests
+(with optional atlas/LUT overrides) and a fresh output directory. Subjects run sequentially without
+refitting. `cohort_*.csv` long tables retain subject IDs, sources and atlas hashes. Selected atlas
+IDs/names must have matching semantics. Failed subjects retain their errors while other subjects
+continue; a partial batch returns a nonzero exit code. No group tests or normative ranges are inferred.
+
 Native Slicer tests cover background execution, EN/ZH labels, 440-pixel layout,
 label IDs above 1000, automatic result loading and duplicate reuse. Independent
 checks compare regional statistics with direct Boolean-mask calculations,
@@ -135,3 +173,7 @@ weights with the parent matrix. These checks do not establish clinical validity.
 The [20 October validation record](../release/benchmarks/regional_analysis_20261020.json)
 includes a real million-streamline HCP-YA case and separates postprocessing time
 from upstream model fitting; it is not an algorithm-speedup benchmark.
+
+The [29 October linkage validation](../release/benchmarks/regional_analysis_20261029.json)
+covers the simplified panel, tissue/cortical integration, A-B selection with exact source
+geometry/weights, and independently checked regional summaries for three real subjects.

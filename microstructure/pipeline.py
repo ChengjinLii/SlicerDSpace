@@ -1476,6 +1476,7 @@ def _compute_roi_stats(
     validity_mask_paths: dict[str, Path] | None = None,
     brain_mask_path: Path | None = None,
     selected_labels: tuple[int, ...] | None = None,
+    include_quantiles: bool = False,
 ) -> int:
     started = time.monotonic()
     if not metric_paths:
@@ -1509,6 +1510,8 @@ def _compute_roi_stats(
                 f"{metric_key}_valid_fraction",
             ]
         )
+        if include_quantiles:
+            metric_fieldnames.extend(f"{metric_key}_{suffix}" for suffix in ("median", "q25", "q75", "iqr"))
 
     metric_validity_masks: dict[str, np.ndarray] = dict(validity_masks or {})
     loaded_masks: dict[Path, np.ndarray] = {}
@@ -1592,7 +1595,7 @@ def _compute_roi_stats(
             row[f"{metric_key}_excluded_voxel_count"] = row["roi_voxel_count"] - int(voxels.size)
             row[f"{metric_key}_valid_fraction"] = float(voxels.size / row["roi_voxel_count"])
             if voxels.size == 0:
-                for suffix in ("mean", "std", "min", "max"):
+                for suffix in ("mean", "std", "min", "max", *(("median", "q25", "q75", "iqr") if include_quantiles else ())):
                     row[f"{metric_key}_{suffix}"] = None
                 continue
             # Selected-region exports use double reductions, including near-constant ROIs.
@@ -1601,6 +1604,10 @@ def _compute_roi_stats(
             row[f"{metric_key}_std"] = float(np.std(voxels, dtype=reduction_dtype))
             row[f"{metric_key}_min"] = float(np.min(voxels))
             row[f"{metric_key}_max"] = float(np.max(voxels))
+            if include_quantiles:
+                q25, median, q75 = np.percentile(voxels.astype(np.float64), (25, 50, 75))
+                row.update({f"{metric_key}_median": float(median), f"{metric_key}_q25": float(q25),
+                            f"{metric_key}_q75": float(q75), f"{metric_key}_iqr": float(q75 - q25)})
 
         row["voxel_count"] = int(voxel_count or 0)
         rows.append(row)

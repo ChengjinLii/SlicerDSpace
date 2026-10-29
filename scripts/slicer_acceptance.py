@@ -127,7 +127,7 @@ def run(args):
                    SLICERDSPACE_EXTENSION_MODULE_DIR=str(module),
                    SLICERDSPACE_EXTENSION_ARCHIVE=str(archive),
                    SLICERDSPACE_ARCHIVE_INSPECTOR=str(inspector_snapshot),
-                   SLICERDSPACE_AGENT_INSTALL_HELPER=str(ROOT / '.agents/skills/slicerdspace-install/scripts/enable_in_slicer.py'),
+                   SLICERDSPACE_AGENT_INSTALL_HELPER=str(ROOT / '.agents/skills/slicerdspace/scripts/enable_in_slicer.py'),
                    SLICERDSPACE_SMOKE_SUBJECT_ROOT=str(args.subject),
                    SLICERDSPACE_SMOKE_SUBJECT_ID="100307",
                    SLICERDSPACE_SMOKE_RUN_NAME="acceptance_plan",

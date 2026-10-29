@@ -1,11 +1,11 @@
 {
   "kind": "slicerddsurfer_public_performance_evidence",
   "version": 3,
-  "reviewed_on": "2026-10-25",
+  "reviewed_on": "2026-10-29",
   "sources": [
     {
-      "file": "freewater_latest_stable_full_20261022.json",
-      "sha256": "731c9611d5bc92f27ac65cc67d3ad7b1e5a560224961749ba754f0b1194f49b1"
+      "file": "freewater_protocol_full_20261029.json",
+      "sha256": "e579f58c6bec9e7b22c2c6912d61515134621058b2cfaee5e81a54585a9a98fa"
     },
     {
       "file": "complete_models_20261020.json",
@@ -42,6 +42,10 @@
     {
       "file": "upstream_freshness_verified_20261022.json",
       "sha256": "b96025854ddd3ae724e2b10d42b63819708d40144aee39f2504344b96a477cb4"
+    },
+    {
+      "file": "freewater_protocol_upstream_20261029.json",
+      "sha256": "0a41483d1c0d56a8816b0a1dd685ee3e72d747ada2c7ecc3f0fb352e04cdeedc"
     }
   ],
   "records": [
@@ -50,21 +54,21 @@
       "title": "Free-water WLS",
       "category": "implementation",
       "scope": "Full brain",
-      "evidence_date": "2026-10-22",
-      "reference_seconds": 914.1616970524192,
-      "optimized_seconds": 769.1294777877629,
-      "speed_ratio": 1.1885667152971573,
-      "seconds_saved": 145.0322192646563,
-      "reduction_percent": 15.865050978649787,
-      "method": "Diagonal-free weight multiplication and source-qualified direct tensor-helper calls remove repeated allocation and compatibility checks.",
+      "evidence_date": "2026-10-29",
+      "reference_seconds": 938.5844462327659,
+      "optimized_seconds": 713.3948655631393,
+      "speed_ratio": 1.3156590992449413,
+      "seconds_saved": 225.1895806696266,
+      "reduction_percent": 23.99246882616466,
+      "method": "Reuse protocol-only attenuation/spectrum/grid arrays in a bounded private cache, alongside diagonal-free weights and source-qualified tensor helpers.",
       "baseline": "Original installed DIPY WLS, not an earlier plugin. One numerical thread in both paths.",
       "unchanged": "All 13 raw fit parameters, four maps/masks, affines, dtypes and automatic QC match. The same 116935 voxels remain excluded.",
       "limitation": "One subject, one pair on a shared Linux host; optimized first. OS caches were not flushed. Both calls include raw-parameter evidence export.",
       "sample": "740916 mask voxels; 288 measurements; automatic QC passes, anatomical review pending.",
-      "upstream_reference": "Measured DIPY 1.12.1; latest stable at review: 1.12.1. Current stable-release full-brain pair.",
+      "upstream_reference": "Measured DIPY 1.12.1; latest stable on 29 October. The stable/head fitting definitions match qualified hashes; bounded protocol reuse is included in this full-brain pair.",
       "measurement_source": {
-        "file": "freewater_latest_stable_full_20261022.json",
-        "sha256": "731c9611d5bc92f27ac65cc67d3ad7b1e5a560224961749ba754f0b1194f49b1"
+        "file": "freewater_protocol_full_20261029.json",
+        "sha256": "e579f58c6bec9e7b22c2c6912d61515134621058b2cfaee5e81a54585a9a98fa"
       }
     },
     {

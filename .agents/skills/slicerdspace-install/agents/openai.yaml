@@ -1,4 +1,0 @@
-interface:
-  display_name: "Install and Use SlicerDSpace"
-  short_description: "Install, configure, run and review SlicerDSpace analyses"
-  default_prompt: "Use $slicerdspace-install to check my setup, prepare only the dependencies I need, plan my chosen analysis or experiments, and run and review the outputs I request."

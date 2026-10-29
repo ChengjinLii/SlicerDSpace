@@ -27,7 +27,7 @@ or renamed in this update.
 ## Changes
 
 **Agent-assisted installation.** The portable
-[installation Skill](../../.agents/skills/slicerddsurfer-install/SKILL.md)
+[installation Skill](../../.agents/skills/slicerdspace/SKILL.md)
 uses the runtime-resource staging tool, checks the actual installed import path,
 opens the widget and runs its registered native Self Tests. Persistent activation
 preserves other module paths and rejects conflicting DDSurfer installations.

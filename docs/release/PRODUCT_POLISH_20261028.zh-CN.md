@@ -24,7 +24,7 @@
 ## 已完成的改进
 
 **Agent 安装 Skill。** 新增可随仓库分发的
-[安装 Skill](../../.agents/skills/slicerddsurfer-install/SKILL.md)。
+[安装 Skill](../../.agents/skills/slicerdspace/SKILL.md)。
 通过现有运行时清单部署，核对实际加载路径、打开插件界面并运行原生 Self Tests。
 持久启用时保留其他模块路径，发现另一份 DDSurfer 安装则停止并说明冲突。
 只准备用户选择的分析；下载、许可证及重启由用户明确决定。

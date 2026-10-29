@@ -255,7 +255,7 @@ def automatic_result_candidates(manifest: dict, *, per_product_caps: dict | None
             candidate['quantitative_source_path'] = tasks[candidate['product']]['outputs'].get('tractogram', candidate['path'])
         if role == 'categorical:region_selection':
             candidate['color_lut_path'] = manifest.get('atlas_lut_path')
-            candidate['region_label_ids'] = (manifest.get('request') or {}).get('selected_labels', [])
+            candidate['region_label_ids'] = manifest.get('selected_region_ids') or (manifest.get('request') or {}).get('selected_labels', [])
         if candidate["qc_state"] in {"failed", "partial_failed", "error"}:
             skipped.append({**candidate, "reason": "Recorded QC failed; automatic display excluded", "reason_category": "qc_failed"})
             continue

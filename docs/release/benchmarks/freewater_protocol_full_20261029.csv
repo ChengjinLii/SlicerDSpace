@@ -1,0 +1,2 @@
+subject_id,mask_voxels,measurements,reference_seconds,optimized_seconds,seconds_saved,speed_ratio,time_reduction_percent,exact_raw_parameters,exact_exported_maps_and_qc,automatic_qc_passed
+100307,740916,288,938.5844462327659,713.3948655631393,225.1895806696266,1.3156590992449413,23.99246882616466,True,True,True

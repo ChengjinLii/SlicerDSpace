@@ -1,0 +1,201 @@
+{
+  "status": "passed",
+  "records": [
+    {
+      "subject_id": "100307",
+      "crop": [
+        12,
+        12,
+        12
+      ],
+      "mask_voxels": 1728,
+      "measurements": 288,
+      "median_seconds": {
+        "author": 2.1833392661064863,
+        "current": 1.895058285444975,
+        "protocol": 1.731324464082718
+      },
+      "times_seconds": {
+        "author": [
+          2.1832935120910406,
+          2.280867785215378,
+          2.1833392661064863
+        ],
+        "current": [
+          1.8922501001507044,
+          1.8979109171777964,
+          1.895058285444975
+        ],
+        "protocol": [
+          1.731324464082718,
+          1.805074891075492,
+          1.712937992066145
+        ]
+      },
+      "author_speed_ratio": 1.2610803528749608,
+      "incremental_speed_ratio": 1.0945714248016507,
+      "exact_raw_parameters": true,
+      "exact_maps_affines_dtypes_and_qc": true,
+      "automatic_qc_passed": true,
+      "validity": {
+        "brain_mask_voxels": 1728,
+        "excluded_tissue_voxels": 441,
+        "valid_tissue_fraction": 0.7447916666666666,
+        "valid_tissue_voxels": 1287
+      },
+      "grid_hits": 4304,
+      "grid_misses": 877,
+      "grid_cache_bytes": 2085424,
+      "grid_cache_budget": 2097152
+    },
+    {
+      "subject_id": "100206",
+      "crop": [
+        12,
+        12,
+        12
+      ],
+      "mask_voxels": 1728,
+      "measurements": 288,
+      "median_seconds": {
+        "author": 2.200182966887951,
+        "current": 1.884287342429161,
+        "protocol": 1.7381370440125465
+      },
+      "times_seconds": {
+        "author": [
+          2.2044103015214205,
+          2.1945303678512573,
+          2.200182966887951
+        ],
+        "current": [
+          1.884287342429161,
+          1.884020920842886,
+          1.8889807760715485
+        ],
+        "protocol": [
+          1.7587247826159,
+          1.7381370440125465,
+          1.7296097036451101
+        ]
+      },
+      "author_speed_ratio": 1.265828246666187,
+      "incremental_speed_ratio": 1.0840844506019052,
+      "exact_raw_parameters": true,
+      "exact_maps_affines_dtypes_and_qc": true,
+      "automatic_qc_passed": true,
+      "validity": {
+        "brain_mask_voxels": 1728,
+        "excluded_tissue_voxels": 596,
+        "valid_tissue_fraction": 0.6550925925925926,
+        "valid_tissue_voxels": 1132
+      },
+      "grid_hits": 4275,
+      "grid_misses": 909,
+      "grid_cache_bytes": 2085424,
+      "grid_cache_budget": 2097152
+    },
+    {
+      "subject_id": "149741",
+      "crop": [
+        12,
+        12,
+        12
+      ],
+      "mask_voxels": 1728,
+      "measurements": 288,
+      "median_seconds": {
+        "author": 2.1987989898771048,
+        "current": 1.8459085449576378,
+        "protocol": 1.686493018642068
+      },
+      "times_seconds": {
+        "author": [
+          2.217251982539892,
+          2.1658571790903807,
+          2.1987989898771048
+        ],
+        "current": [
+          1.8459085449576378,
+          1.8385250959545374,
+          1.862959049642086
+        ],
+        "protocol": [
+          1.686493018642068,
+          1.6758491061627865,
+          1.7046862468123436
+        ]
+      },
+      "author_speed_ratio": 1.3037699922692452,
+      "incremental_speed_ratio": 1.0945248658330813,
+      "exact_raw_parameters": true,
+      "exact_maps_affines_dtypes_and_qc": true,
+      "automatic_qc_passed": true,
+      "validity": {
+        "brain_mask_voxels": 1728,
+        "excluded_tissue_voxels": 743,
+        "valid_tissue_fraction": 0.5700231481481481,
+        "valid_tissue_voxels": 985
+      },
+      "grid_hits": 4406,
+      "grid_misses": 769,
+      "grid_cache_bytes": 2085424,
+      "grid_cache_budget": 2097152
+    }
+  ],
+  "source_sha256": {
+    "/data/chengjin/SlicerDDSurfer/microstructure/freewater_protocol.py": "95aa7a9a345cbff09eeb062f11d4269c359ef886c93a0d198d0a283bb7b077b3",
+    "/data/chengjin/SlicerDDSurfer/microstructure/freewater_wls.py": "dd4274b701a2d3c90d37b9e13b6d146e5a47539d8ddac5b1f2ff337342969c7b",
+    "/data/chengjin/SlicerDDSurfer/microstructure/freewater_dispatch.py": "beac6511898e2a4c231d0157c3144f321550b7e0d348d50705c6425fc56c707c",
+    "/data/chengjin/SlicerDDSurfer/microstructure/pipeline.py": "eccd115c60567c0ab6c3a079651f0ffff8817ab03ad962dda135295c80dce242",
+    "/data/chengjin/SlicerDDSurfer/scripts/benchmark_freewater_protocol.py": "3d7a9aa51cc424d2e1842e1d9069592c0aedce0b45b807daac93981a843320ce",
+    "/data/chengjin/SlicerDDSurfer/ignore/validation/upstream_current_20261022/environment/lib/python3.13/site-packages/dipy/reconst/fwdti.py": "ecd0197ac1707a1c0defc70cd12885a3e04fc90921221b299ced66da3938c186",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100307/T1w/Diffusion/data.nii.gz": "0c146b380d873cd6987c968fdf090875f89fd5795b0d6c72564a3acab737f07c",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100307/T1w/Diffusion/bvals": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100307/T1w/Diffusion/bvecs": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100307/T1w/Diffusion/nodif_brain_mask.nii.gz": "d4f83d76459efe879bd41c2b555ea6ff6d2754258ca849cb12fa9c53f0ac9a06",
+    "ignore/validation/freewater_protocol_20261029_final/100307/input/bvals": "5e37917530249c5437232944285fbdc48e41d548a741227c7ba9466660bfae08",
+    "ignore/validation/freewater_protocol_20261029_final/100307/input/data.nii.gz": "3522b2a3c227345f9d67f9624d098cab56673c40ad126008118b409a8dc845ce",
+    "ignore/validation/freewater_protocol_20261029_final/100307/input/nodif_brain_mask.nii.gz": "a4532841ebbb7a6001a9a7bf7e3152a74a446346469eeb5915d65d5d854fd5fe",
+    "ignore/validation/freewater_protocol_20261029_final/100307/input/bvecs": "c38c02461104fcbb8145411121b0d9cb870b528ae23719412a8dd5170f6b8e71",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100206/T1w/Diffusion/data.nii.gz": "551bd2b7866187674162e2525a8fccf370d2e15a5878eb7520744cfd33f6d03d",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100206/T1w/Diffusion/bvals": "26bfc9904dc08251ea36ef831f35e4973a48046c7c62017caa27f0a0e7071eea",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100206/T1w/Diffusion/bvecs": "661a494c36f8570fb7e8a43a8937ef117767eb2ba635241c141c9faba217a3f1",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/100206/T1w/Diffusion/nodif_brain_mask.nii.gz": "14d0b0f107ee17184313e2cee3213d2a72731a51294f4c35b3c31bef87c7f1ea",
+    "ignore/validation/freewater_protocol_20261029_final/100206/input/bvals": "26bfc9904dc08251ea36ef831f35e4973a48046c7c62017caa27f0a0e7071eea",
+    "ignore/validation/freewater_protocol_20261029_final/100206/input/data.nii.gz": "97fa04a7cb34e58caf4c8c823ec086a1b04fdb05cb9b40b42d825227bba96fa3",
+    "ignore/validation/freewater_protocol_20261029_final/100206/input/nodif_brain_mask.nii.gz": "a4532841ebbb7a6001a9a7bf7e3152a74a446346469eeb5915d65d5d854fd5fe",
+    "ignore/validation/freewater_protocol_20261029_final/100206/input/bvecs": "661a494c36f8570fb7e8a43a8937ef117767eb2ba635241c141c9faba217a3f1",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/149741/T1w/Diffusion/data.nii.gz": "14da8fd6d5a0929c05f95b92c4b36fc56ea48d7398018f1874dcd6bbe0f0a6bd",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/149741/T1w/Diffusion/bvals": "aa3247a2cc39b80ac02286483dcc6fb612ab870fea153f1d8b87369c41bc7807",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/149741/T1w/Diffusion/bvecs": "770cc56c46ec51438938062a67aad644427c43e337118b05a81d8ac48b5a2102",
+    "/dataset/nfs_share01/HCP/HCP-YA/3T/Diffusion_Preprocessed/149741/T1w/Diffusion/nodif_brain_mask.nii.gz": "98f8cf9fef47528b31f18c8313b9d2a6c6cf4cfa20fd045d101b017a026c280c",
+    "ignore/validation/freewater_protocol_20261029_final/149741/input/bvals": "aa3247a2cc39b80ac02286483dcc6fb612ab870fea153f1d8b87369c41bc7807",
+    "ignore/validation/freewater_protocol_20261029_final/149741/input/data.nii.gz": "c4edf12fdfe651200b85d30fc9e25485f5a92b14b407074da90471f40afd28e3",
+    "ignore/validation/freewater_protocol_20261029_final/149741/input/nodif_brain_mask.nii.gz": "a4532841ebbb7a6001a9a7bf7e3152a74a446346469eeb5915d65d5d854fd5fe",
+    "ignore/validation/freewater_protocol_20261029_final/149741/input/bvecs": "770cc56c46ec51438938062a67aad644427c43e337118b05a81d8ac48b5a2102"
+  },
+  "source_inputs_unchanged": true,
+  "author_body_sha256": {
+    "wls_iter": "17a44218fbc8d8c46aacbdd6c23d4424ce8ece69df1552b06386a1c2e1b0661b",
+    "nls_iter": "b25754feef042ba51106bdf6cc44d412f45a97505bb0d525be7f7390654bb019"
+  },
+  "environment": {
+    "python": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:09:02) [GCC 11.2.0]",
+    "executable": "/data/chengjin/SlicerDDSurfer/ignore/validation/upstream_current_20261022/environment/bin/python",
+    "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+    "dipy": "1.12.1",
+    "numpy": "2.3.3",
+    "scipy": "1.18.1",
+    "threads": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1"
+    }
+  },
+  "repeats": 3,
+  "warmups_per_variant": 1,
+  "order": "Rotated author/current/protocol order",
+  "scope": "Complete native-grid ROI WLS stage including validation, reading, fitting, maps, QC and fresh exports",
+  "limitation": "Shared-host warmed ROI comparison; no full-brain or whole-workflow speedup estimate"
+}

@@ -15,6 +15,7 @@ import nibabel as nib
 import numpy as np
 
 from shared.result_scene import record_qc_state
+from shared.region_selection import resolve_regions
 
 
 def read_json(path):
@@ -182,13 +183,14 @@ def inspect_run(manifest_path, *, atlas_override=None, lut_path=None):
     ):
         raise ValueError("Wait for this run to finish before regional analysis")
     warnings, metrics, tracts, connectomes, validation_files = [], {}, {}, {}, set()
+    tissue, surface_task = None, None
     atlas = None
     metric_brain_masks = {}
     # An appended failed retry must supersede an earlier successful task, not leak old outputs.
     latest_tasks = {task["name"]: task for task in parent.get("tasks", [])}
     for task in latest_tasks.values():
         name = task.get("name", "")
-        if not name.startswith(("parcellation.", "microstructure.", "tractography.", "connectome.")):
+        if not name.startswith(("parcellation.", "microstructure.", "tractography.", "connectome.", "segmentation.", "surface.")):
             continue
         try:
             qc, stage = usable_task(task)
@@ -202,6 +204,10 @@ def inspect_run(manifest_path, *, atlas_override=None, lut_path=None):
                     if outputs.get(key):
                         atlas = file_path(outputs[key])
                         break
+            if name == "segmentation.ddseg" and outputs.get("segmentation"):
+                tissue = dict(path=str(file_path(outputs["segmentation"])), qc_path=task["qc_path"])
+            if name == "surface.ddsurfer_postprocess":
+                surface_task = task
             if name.startswith("microstructure."):
                 available = _metric_specs(task, outputs, warnings)
                 recorded_mask = (stage.get("raw_input_bundle") or qc.get("source_signature") or {}).get("mask")
@@ -211,7 +217,7 @@ def inspect_run(manifest_path, *, atlas_override=None, lut_path=None):
                     recorded_mask = str(file_path(recorded_mask))
                 metric_brain_masks.update({key: recorded_mask for key in available})
                 metrics.update(available)
-            if name.startswith("tractography.") and name != "tractography.saf":
+            if name.startswith("tractography."):
                 for key in ("tractogram", "tractogram_trk", "tractogram_vtk"):
                     if outputs.get(key):
                         source = file_path(outputs[key])
@@ -284,6 +290,17 @@ def inspect_run(manifest_path, *, atlas_override=None, lut_path=None):
         if sha256(value["atlas"]) != atlas_hash:
             del connectomes[key]
             warnings.append(key + ": source atlas differs from the chosen atlas")
+    regions = [dict(id=int(key), name=names.get(int(key), "ROI-" + str(key)), voxels=int(count),
+                    volume_mm3=float(count * abs(np.linalg.det(image.affine[:3, :3]))))
+               for key, count in zip(ids, counts)]
+    surfaces = {}
+    if surface_task:
+        from shared.region_reports import discover_surfaces
+
+        try:
+            surfaces = discover_surfaces(surface_task, regions)
+        except (OSError, ValueError, IndexError) as exc:
+            warnings.append("Cortical morphology unavailable: " + str(exc))
     return dict(
         version=1,
         source_manifest=str(path),
@@ -295,16 +312,11 @@ def inspect_run(manifest_path, *, atlas_override=None, lut_path=None):
         atlas_sha256=atlas_hash,
         atlas_override=str(atlas_override or ""),
         lut_path=str(lut) if lut else None,
+        lut_sha256=sha256(lut) if lut else None,
         brain_mask=brain_mask,
-        regions=[
-            dict(
-                id=int(key),
-                name=names.get(int(key), "ROI-" + str(key)),
-                voxels=int(count),
-                volume_mm3=float(count * abs(np.linalg.det(image.affine[:3, :3]))),
-            )
-            for key, count in zip(ids, counts)
-        ],
+        regions=regions,
+        tissue=tissue,
+        surfaces=surfaces,
         metrics=metrics,
         tractograms=tracts,
         connectomes=connectomes,
@@ -398,7 +410,7 @@ def native_streamlines(path):
         yield line
 
 
-def _endpoint_selection(batch, image, selected_mask, both):
+def _endpoint_selection(batch, image, selected_mask, both, target_mask=None):
     inverse = np.linalg.inv(image.affine)
     result = []
     for points in batch:
@@ -406,26 +418,43 @@ def _endpoint_selection(batch, image, selected_mask, both):
         valid = ((voxel >= 0) & (voxel < selected_mask.shape)).all(axis=1)
         hits = np.zeros(2, dtype=bool)
         hits[valid] = selected_mask[tuple(voxel[valid].T)]
-        if hits.all() if both else hits.any():
+        if target_mask is not None:
+            target_hits = np.zeros(2, dtype=bool)
+            target_hits[valid] = target_mask[tuple(voxel[valid].T)]
+            accepted = (hits[0] and target_hits[1]) or (hits[1] and target_hits[0])
+        else:
+            accepted = hits.all() if both else hits.any()
+        if accepted:
             result.append(points)
     return result
 
 
-def select_streamlines(source, image, labels, selected, mode, directory, *, weights_path=None, preview_limit=30000):
+def select_streamlines(source, image, labels, selected, mode, directory, *, weights_path=None, preview_limit=30000,
+                       target_labels=(), include_labels=(), exclude_labels=()):
     """Select complete lines, not clipped fragments or a new anatomical bundle definition."""
     from dipy.tracking.utils import target_line_based
 
-    if mode not in {"through_any", "through_all", "endpoint_any", "endpoint_both"}:
+    if mode not in {"through_any", "through_all", "endpoint_any", "endpoint_both", "endpoint_pair"}:
         raise ValueError("Unknown ROI streamline rule")
     if mode == "through_all" and len(selected) > 16:
         raise ValueError("Through-all supports at most 16 regions; use through-any for larger selections")
     if preview_limit < 1:
         raise ValueError("Preview line limit must be positive")
+    if mode == "endpoint_pair" and (not target_labels or set(selected) & set(target_labels)):
+        raise ValueError("A-B endpoint selection requires nonempty, disjoint source and target regions")
+    if mode != "endpoint_pair" and target_labels:
+        raise ValueError("Target regions require the A-B endpoint rule")
+    if len(include_labels) > 16:
+        raise ValueError("At most 16 through-all inclusion regions are supported")
     union = np.isin(labels, selected)
+    target_mask = np.isin(labels, target_labels) if target_labels else None
+    exclude_mask = np.isin(labels, exclude_labels) if exclude_labels else None
+    inclusion_masks = [labels == label for label in include_labels]
     inputs = iter(native_streamlines(source))
     rng = np.random.default_rng(42)
     preview, total, kept, degenerate, longest_preview_line = [], 0, 0, 0, 1
     preview_written = False
+    length_sum = length_square_sum = 0.0
     weights = np.loadtxt(weights_path, ndmin=1) if weights_path else None
     if weights is not None and (weights.ndim != 1 or not np.isfinite(weights).all() or np.any(weights < 0)):
         raise ValueError("Invalid matching SIFT2 weights")
@@ -458,7 +487,7 @@ def select_streamlines(source, image, labels, selected, mode, directory, *, weig
                     batch.append(points)
                     indices[id(points)] = total + offset
                 if mode.startswith("endpoint"):
-                    matches = _endpoint_selection(batch, image, union, mode == "endpoint_both")
+                    matches = _endpoint_selection(batch, image, union, mode == "endpoint_both", target_mask)
                 elif mode == "through_any":
                     matches = list(target_line_based(batch, image.affine, union)) if batch else []
                 else:
@@ -467,6 +496,10 @@ def select_streamlines(source, image, labels, selected, mode, directory, *, weig
                         if not matches:
                             break
                         matches = list(target_line_based(matches, image.affine, labels == label))
+                for mask in inclusion_masks:
+                    matches = list(target_line_based(matches, image.affine, mask)) if matches else []
+                if matches and exclude_mask is not None:
+                    matches = list(target_line_based(matches, image.affine, exclude_mask, include=False))
                 for points in matches:
                     source_index = indices[id(points)]
                     if weights is not None and source_index >= len(weights):
@@ -478,6 +511,9 @@ def select_streamlines(source, image, labels, selected, mode, directory, *, weig
                     )
                     spool.append(points)
                     kept += 1
+                    length = float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
+                    length_sum += length
+                    length_square_sum += length * length
                     # Bound reservoir memory even for exceptionally long source lines.
                     if len(points) > 1_000_000:
                         continue
@@ -518,6 +554,10 @@ def select_streamlines(source, image, labels, selected, mode, directory, *, weig
         selected_streamlines=kept,
         degenerate_streamlines=degenerate,
         selection_rule=mode,
+        source_labels=list(selected), target_labels=list(target_labels),
+        include_labels=list(include_labels), exclude_labels=list(exclude_labels),
+        length_mean_mm=length_sum / kept if kept else None,
+        length_std_mm=float(np.sqrt(max(0.0, length_square_sum / kept - (length_sum / kept)**2))) if kept else None,
         coordinates="RAS mm",
         algorithm="DIPY target_line_based for through rules; exact endpoint voxel lookup otherwise",
         geometry_only=True,
@@ -616,19 +656,21 @@ def run_analysis(request):
     catalog = inspect_run(
         request["source_manifest"], atlas_override=request.get("atlas_override"), lut_path=request.get("lut_path")
     )
-    for key in ("manifest_sha256", "atlas_sha256"):
+    for key in ("manifest_sha256", "atlas_sha256", "lut_sha256"):
         if request.get(key) and request[key] != catalog[key]:
             raise ValueError("Source run/atlas changed; reload the region list")
-    selected = request.get("selected_labels")
-    if (
-        not isinstance(selected, list)
-        or not selected
-        or any(type(value) is not int or value <= 0 for value in selected)
-    ):
-        raise ValueError("Select at least one positive integer region ID")
-    selected = sorted(set(selected))
-    if set(selected) - {row["id"] for row in catalog["regions"]}:
-        raise ValueError("Selected region is absent from this atlas")
+    request = dict(request)
+    if "selected_regions" not in request:
+        ids = request.get("selected_labels")
+        if not isinstance(ids, list) or any(type(value) is not int or value <= 0 for value in ids):
+            raise ValueError("selected_labels requires positive integer IDs; use selected_regions for names")
+    primary = resolve_regions(catalog["regions"], request.get("selected_regions", request.get("selected_labels")))
+    request["selected_labels"] = primary
+    for field in ("target", "include", "exclude"):
+        request[field + "_labels"] = resolve_regions(
+            catalog["regions"], request.get(field + "_regions", request.get(field + "_labels")), allow_empty=True
+        )
+    selected = sorted(set(primary) | set(request["target_labels"]))
     metric_keys = request.get("metrics", [])
     if not isinstance(metric_keys, list) or any(key not in catalog["metrics"] for key in metric_keys):
         raise ValueError("Selected metric is unavailable or failed QC")
@@ -640,8 +682,14 @@ def run_analysis(request):
         and connectome_key not in catalog["connectomes"]
     ):
         raise ValueError("Selected tractography/connectome is unavailable or failed QC")
-    if not metric_keys and not tract_key and not connectome_key:
-        raise ValueError("Select microstructure, tractography or connectome analysis")
+    if request.get("tissue") and not catalog.get("tissue"):
+        raise ValueError("QC-eligible DDSeg segmentation is unavailable")
+    if request.get("surface") and not any(str(label) in catalog["surfaces"] for label in selected):
+        raise ValueError("No selected cortical region has a matching aparc surface annotation")
+    if not tract_key and any(request[field + "_labels"] for field in ("target", "include", "exclude")):
+        raise ValueError("Target/include/exclude regions require a tractogram")
+    if not metric_keys and not tract_key and not connectome_key and not request.get("tissue") and not request.get("surface"):
+        raise ValueError("Select microstructure, tissue, surface, tractography or connectome analysis")
     directory = Path(request["output_dir"]).expanduser().resolve()
     directory.mkdir(parents=True, exist_ok=True)
     manifest_path, qc_path = directory / "region_analysis_manifest.json", directory / "region_analysis_qc.json"
@@ -651,6 +699,12 @@ def run_analysis(request):
     sources.update(Path(value) for value in catalog["validation_files"])
     if catalog["lut_path"]:
         sources.add(Path(catalog["lut_path"]))
+    if request.get("tissue"):
+        sources.update(Path(value) for value in catalog["tissue"].values())
+    if request.get("surface"):
+        for label in selected:
+            spec = catalog["surfaces"].get(str(label), {})
+            sources.update(Path(spec[key]) for key in ("annotation", "thickness", "area", "curv") if key in spec)
     for key in metric_keys:
         item = catalog["metrics"][key]
         sources.update(
@@ -674,11 +728,12 @@ def run_analysis(request):
         output_root=str(directory),
         source_manifest=catalog["source_manifest"],
         request=request,
+        selected_region_ids=selected,
         source_sha256=signatures,
         atlas_lut_path=catalog["lut_path"],
         implementation_sha256={
             name: sha256(Path(__file__).resolve().parents[1] / name)
-            for name in ("shared/region_analysis.py", "microstructure/pipeline.py")
+            for name in ("shared/region_analysis.py", "shared/region_selection.py", "shared/region_reports.py", "microstructure/pipeline.py")
         },
         tasks=[],
         started_at=datetime.now(timezone.utc).isoformat(),
@@ -687,7 +742,12 @@ def run_analysis(request):
     write_json(manifest_path, record)
     warnings = []
     try:
+        from shared.region_reports import bilateral_statistics, surface_statistics, tissue_statistics, write_report, write_table
+
         image, labels = atlas_data(catalog["atlas"])
+        regions = [row for row in catalog["regions"] if row["id"] in selected]
+        metric_rows, tissue_rows, surface_rows = [], [], []
+        tract_info = graph_info = None
         region_path = directory / "selected_regions.nii.gz"
         subset = np.where(np.isin(labels, selected), labels, 0).astype(np.int32)
         nib.save(nib.Nifti1Image(subset, image.affine), region_path)
@@ -718,12 +778,35 @@ def run_analysis(request):
                 },
                 brain_mask_path=Path(catalog["brain_mask"]),
                 selected_labels=tuple(selected),
+                include_quantiles=True,
             )
             outputs["roi_stats_csv"] = str(stats_csv)
-            for row in read_json(stats_json)["rows"]:
+            metric_rows = read_json(stats_json)["rows"]
+            for row in metric_rows:
                 for key in metric_keys:
                     if row[key + "_valid_voxel_count"] == 0:
                         warnings.append(f'Region {row["label_id"]}: no valid {key} estimates; blank, not zero')
+        if request.get("tissue"):
+            tissue_rows = tissue_statistics(catalog["tissue"]["path"], image, labels, regions)
+            path = directory / "selected_tissue_statistics.csv"
+            write_table(path, tissue_rows)
+            record["tasks"].append(dict(name="statistics.regional_tissue", status="completed",
+                                        outputs={"tissue_stats_csv": str(path)}, qc_path=str(qc_path)))
+        if request.get("surface"):
+            surface_rows = surface_statistics(catalog["surfaces"], regions)
+            unmapped = [row["name"] for row in regions if str(row["id"]) not in catalog["surfaces"]]
+            if unmapped:
+                warnings.append("No exact cortical aparc match for: " + ", ".join(unmapped))
+            path = directory / "selected_surface_statistics.csv"
+            write_table(path, surface_rows)
+            record["tasks"].append(dict(name="statistics.regional_surface", status="completed",
+                                        outputs={"surface_stats_csv": str(path)}, qc_path=str(qc_path)))
+        bilateral_rows = bilateral_statistics(regions, metric_rows, metric_keys, surface_rows)
+        if bilateral_rows:
+            path = directory / "bilateral_statistics.csv"
+            write_table(path, bilateral_rows)
+            record["tasks"].append(dict(name="statistics.regional_bilateral", status="completed",
+                                        outputs={"bilateral_stats_csv": str(path)}, qc_path=str(qc_path)))
         record["tasks"].append(
             dict(name="statistics.regions", status="completed", outputs=outputs, qc_path=str(qc_path))
         )
@@ -733,11 +816,14 @@ def run_analysis(request):
                 item["path"],
                 image,
                 labels,
-                selected,
+                primary,
                 request.get("tract_rule", "through_any"),
                 directory,
                 weights_path=item.get("weights"),
+                target_labels=request["target_labels"], include_labels=request["include_labels"],
+                exclude_labels=request["exclude_labels"],
             )
+            tract_info = info
             write_json(directory / "selected_tractography.json", info)
             if not info["selected_streamlines"]:
                 warnings.append("No streamlines match the ROI rule; no tract geometry invented")
@@ -761,6 +847,7 @@ def run_analysis(request):
             info = extract_connectome(
                 catalog["connectomes"][connectome_key], Path(catalog["atlas"]), selected, directory
             )
+            graph_info = info
             write_json(directory / "selected_connectome.json", info)
             record["tasks"].append(
                 dict(
@@ -770,6 +857,9 @@ def run_analysis(request):
                     outputs={key: info[key] for key in ("matrix", "connections")},
                 )
             )
+        report = write_report(directory, catalog, regions, metric_rows, metric_keys, tissue_rows, surface_rows,
+                              bilateral_rows, tract_info, graph_info, warnings)
+        record["report_path"] = str(report)
         print("[Regions] Verifying inputs remained unchanged", flush=True)
         if any(sha256(path) != signature for path, signature in signatures.items()):
             raise RuntimeError("A quantitative input changed during regional analysis; results not accepted")

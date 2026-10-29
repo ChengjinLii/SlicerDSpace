@@ -7,6 +7,8 @@
 from dipy.reconst import fwdti
 import numpy as np
 
+_protocol_context = None
+
 
 def wls_iter(design_matrix, sig, S0, *, Diso=3e-3, mdreg=2.7e-3,
              min_signal=1.0e-6, piterations=3):
@@ -36,13 +38,18 @@ def wls_iter(design_matrix, sig, S0, *, Diso=3e-3, mdreg=2.7e-3,
     params = np.dot(invWTS2W_WTS2, log_s)
     md = (params[0] + params[2] + params[5]) / 3
     if md < mdreg and np.mean(sig) > min_signal and S0 > min_signal:
-        fwsig = np.exp(np.dot(W, np.array([Diso, 0, Diso, 0, 0, Diso, 0])))
+        protocol = _protocol_context if _protocol_context is not None and _protocol_context.matches(W, Diso) else None
+        fwsig = protocol.fwsig if protocol else np.exp(np.dot(W, np.array([Diso, 0, Diso, 0, 0, Diso, 0])))
         df, flow, fhig, ns = 1, 0, 1, 9
         for _ in range(piterations):
             df = df * 0.1
-            fs = np.linspace(flow + df, fhig - df, num=ns)
-            SFW = np.array([fwsig] * ns)
-            FS, SI = np.meshgrid(fs, sig)
+            if protocol:
+                fs, FS, SFW = protocol.grid(flow, fhig, df, ns)
+                SI = np.broadcast_to(sig[:, None], FS.shape)
+            else:
+                fs = np.linspace(flow + df, fhig - df, num=ns)
+                SFW = np.array([fwsig] * ns)
+                FS, SI = np.meshgrid(fs, sig)
             SA = SI - FS * S0 * SFW.T
             SA[SA <= 0] = min_signal
             y = np.log(SA / (1 - FS))

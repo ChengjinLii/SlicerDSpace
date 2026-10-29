@@ -1,0 +1,43 @@
+{
+  "repository": "dipy/dipy",
+  "url": "https://github.com/dipy/dipy",
+  "default_branch": "master",
+  "head_sha": "57ae6daf98240b92738572df9081e7c8a24514fb",
+  "head_date": "2026-10-28T17:29:33Z",
+  "latest_release": {
+    "tag": "1.12.1",
+    "published_at": "2026-04-23T15:14:03Z",
+    "url": "https://github.com/dipy/dipy/releases/tag/1.12.1"
+  },
+  "pypi_version": "1.12.1",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/dipy/dipy/1.12.1/dipy/reconst/fwdti.py",
+      "revision": "1.12.1",
+      "path": "dipy/reconst/fwdti.py",
+      "sha256": "ecd0197ac1707a1c0defc70cd12885a3e04fc90921221b299ced66da3938c186",
+      "functions_sha256": {
+        "wls_iter": "17a44218fbc8d8c46aacbdd6c23d4424ce8ece69df1552b06386a1c2e1b0661b",
+        "_nls_err_func": "05c48919624ad726525974facc306fdb144e09b69ebe7f4ca1cbaaa85dfbfeec",
+        "_nls_jacobian_func": "6a3d0ae7e06d38bb9e8d5aeb4b3c49d98426d5ea5311fdc64fae77c3f11f7b1c",
+        "nls_iter": "b25754feef042ba51106bdf6cc44d412f45a97505bb0d525be7f7390654bb019"
+      }
+    },
+    {
+      "url": "https://raw.githubusercontent.com/dipy/dipy/57ae6daf98240b92738572df9081e7c8a24514fb/dipy/reconst/fwdti.py",
+      "revision": "57ae6daf98240b92738572df9081e7c8a24514fb",
+      "path": "dipy/reconst/fwdti.py",
+      "sha256": "18a89c7ddd73fca0236c6dc85fbe0d570df00ba465fcae0e5eee08eeb9814e08",
+      "functions_sha256": {
+        "wls_iter": "17a44218fbc8d8c46aacbdd6c23d4424ce8ece69df1552b06386a1c2e1b0661b",
+        "_nls_err_func": "05c48919624ad726525974facc306fdb144e09b69ebe7f4ca1cbaaa85dfbfeec",
+        "_nls_jacobian_func": "6a3d0ae7e06d38bb9e8d5aeb4b3c49d98426d5ea5311fdc64fae77c3f11f7b1c",
+        "nls_iter": "b25754feef042ba51106bdf6cc44d412f45a97505bb0d525be7f7390654bb019"
+      }
+    }
+  ],
+  "qualified_bodies_match": [
+    true,
+    true
+  ]
+}

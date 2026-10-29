@@ -63,7 +63,10 @@ Research software · Private pre-release · Not yet listed in the official Exten
 Key products load into Slicer as successful stages finish. Run-scoped loading
 reuses scene nodes, while logs, parameters and QC stay with each run.
 Optional [regional analysis](docs/setup/REGIONAL_ANALYSIS.md) reuses completed
-maps, full tractograms and matrices for selected DDParcel regions.
+maps, full tractograms and matrices for selected DDParcel regions. Search by
+region name or label ID for scalar/tissue summaries, cortical morphology,
+A-to-B streamline selection and regional connectivity. Detailed options stay
+collapsed; reports and cohort CSV templates are included.
 
 Shared preparation and compatible cached outputs are reused. Independent
 microstructure models and separate subjects can run concurrently within the
@@ -109,20 +112,41 @@ analysis and result review.
 | Plan and run | Prepare inputs, choose algorithms and tracking/bundle sources, review plans and run requested analyses or batch experiments |
 | Review and reuse | Inspect outputs, logs and QC; reuse compatible results and preserve unrelated scene nodes |
 
-[Open the Skill](.agents/skills/slicerdspace-install/SKILL.md) ·
-[Agent usage guide](.agents/skills/slicerdspace-install/references/usage.md) ·
-[CLI templates](docs/setup/CLI_TEMPLATES.md)
+[Open the Skill](.agents/skills/slicerdspace/SKILL.md) ·
+[Agent usage guide](.agents/skills/slicerdspace/references/usage.md) ·
+[CLI templates](docs/setup/CLI_TEMPLATES.md) ·
+[Algorithm Shell templates](.agents/skills/slicerdspace/references/shell_templates.md)
 
-From an authorized checkout, ask an Agent that supports `SKILL.md`:
+Prompts link directly to `SKILL.md`, the Agent's entry point. To install the Skill
+in an Agent, copy the complete `slicerdspace` directory, including its references,
+scripts and templates.
+
+Copy this prompt into your local Agent:
 
 ```text
-Read .agents/skills/slicerdspace-install/SKILL.md. Install and enable
-SlicerDSpace if needed, then plan a DTI analysis for /path/to/sub-01.
-Prepare only the required dependencies and show me the plan before execution.
+Read https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/SKILL.md.
+Install and enable SlicerDSpace in my local 3D Slicer.
+Set up the required dependencies and download the corresponding model weights.
 ```
 
-The Skill works through your Agent. Confirm downloads, licenses and restarts
-when requested; the website guide bot provides navigation and curated answers.
+The Agent checks storage space and existing resources, waits for your choice,
+and saves the selected path for GUI and CLI use. It downloads only the resources
+needed by your selected analyses. Repository access is required while it is private;
+you can provide an authorized local checkout if the Agent cannot open the URL.
+Confirm licenses and restarts when requested.
+
+**Use an existing installation.** Replace the input and output paths in this example:
+
+```text
+Read https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/SKILL.md.
+Use SlicerDSpace to run DDParcel brain parcellation, CSD/ACT tractography and structural connectome construction for /path/to/subject; save results to /path/to/results.
+Show me the plan and wait for confirmation before running. Afterwards, summarize the outputs and QC findings.
+```
+
+Change the requested methods to suit your study; the [usage guide](.agents/skills/slicerdspace/references/usage.md)
+and [CLI templates](docs/setup/CLI_TEMPLATES.md) cover other routes and batch execution.
+The website guide bot provides navigation and curated answers; installation and
+analysis run through your own Agent.
 
 ---
 

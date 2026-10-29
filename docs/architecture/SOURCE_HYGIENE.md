@@ -28,6 +28,29 @@ upstream source files were not removed or rewritten.
 
 ## Retained Files
 
+### Review On 2026-10-29
+
+Checked the fetched `origin/main` at `450cf7b` against the current source tree.
+The eight commits since the local base change the website social image,
+browser checks and site specification, not algorithm implementations. This
+review does not merge or overwrite those remote changes.
+
+| Entry | Decision | Reason |
+| --- | --- | --- |
+| Former `slicerddsurfer-install` Skill | Remove | An obsolete redirect-only Skill. The maintained [SlicerDSpace Skill](../../.agents/skills/slicerdspace/SKILL.md) contains the installation and usage workflow. |
+| `SlicerDDSurfer.py` | Retain | Thin source-import compatibility alias; the installed extension exposes SlicerDSpace. |
+| `run_postprocess_docker.py` | Retain | Documented compatibility entry for the optional Docker route, covered by regression tests. |
+| `anatomy/surface/ddsurfer_postprocess_release/` | Retain | Still resolved by `anatomy/surface/postprocess_release.py` and used by postprocessing tests. |
+| `anatomy/surface/ddsurfer_backend/` | Retain | Current DDSurfer algorithm source, not a superseded plugin version. |
+| Original figure assets and reference metadata | Retain | Inputs to figure regeneration, manuscript assets or archived citation verification. |
+| Website `idea.jpg` and `fig-route-guide.png` | Review only | Not used by the current homepage, but still listed in the site specification; retained as source material. |
+
+No additional backup, `.orig`, `.rej` or retired-source directory is present
+in the remote tree reviewed here. Archived benchmark paths and checksums remain
+unchanged; they describe the versions actually measured.
+
+### Active Contracts
+
 Older files can still serve an active contract:
 
 - `SlicerDSpace.py`, `SlicerDSpace.s4ext`, `CMakeLists.txt` and `Resources/`
@@ -40,7 +63,7 @@ Older files can still serve an active contract:
 - `anatomy/parcellation/conversion/` includes public conversion utilities and test
   fixtures. These support format/gradient/coordinate regression checks and
   are retained. Test fixtures are not manuscript data or model weights.
-- `licenses/`, `LICENSE`, `THIRD_PARTY_NOTICES.md` and copyright headers retain
+- `licenses/`, `LICENSE.txt`, `THIRD_PARTY_NOTICES.md` and copyright headers retain
   attribution for the third-party code still distributed. Lists of derived
   files were updated after removing the training pair.
 - `CITATION.cff`, `codemeta.json` and `.zenodo.json` support citation and
