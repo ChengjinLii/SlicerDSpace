@@ -20,7 +20,7 @@
 <link rel="apple-touch-icon" href="assets/img/icon-180.png">
 <link rel="preload" href="assets/fonts/InterTight.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/css/site.css?v=results-overview-1">
+<link rel="stylesheet" href="assets/css/site.css?v=start-routes-20261030">
 <link rel="stylesheet" href="assets/css/performance.css?v=hidden-details-1">
 <link rel="stylesheet" href="assets/css/guide-bot.css">
 <script>document.documentElement.classList.add('js');</script>
@@ -83,6 +83,7 @@
       </div>
     </div>
     <p class="meta-row">
+      <span>3D Slicer 中的扩散 MRI 分析工作流。</span>
       <a href="media/SlicerDSpace_promo_1080p.mp4" download>下载视频</a>
     </p>
   </div>
@@ -99,7 +100,7 @@
           <img src="assets/img/results-overview.svg" width="1830" height="2036" loading="lazy" decoding="async" fetchpriority="low" alt="完整结果总览：解剖先验、微结构参数图、四种纤维追踪方法、WMQL、TractCloud 与 WMA 纤维束，以及结构连接组">
         </a>
       </div>
-      <figcaption>各分析路线的参数图、皮层表面、纤维束与连接组结果。 <span>WMQL 包含小脑—脑干（CBL-BrS）及双侧小脑（CBL-CBL）区域查询结果。</span> <a href="assets/img/results-overview.svg" target="_blank" rel="noopener">查看完整矢量图</a></figcaption>
+      <figcaption>各分析路线的参数图、皮层表面、纤维束与连接组结果。 <a href="assets/img/results-overview.svg" target="_blank" rel="noopener">查看完整矢量图</a></figcaption>
     </figure>
   </div>
 </section>
@@ -125,7 +126,7 @@
     <p class="eyebrow">开始使用</p>
     <h2>从安装到获得第一份结果。</h2>
     <div class="start-skills" id="skills" aria-labelledby="skills-title">
-      <h3 id="skills-title">让 Agent 协助安装、分析与结果检查。</h3>
+      <h3 class="start-route-title" id="skills-title"><span class="start-route-marker" aria-hidden="true">A</span><span class="start-route-label"><span class="start-route-text">让 Agent 协助安装、分析与结果检查。</span> <span class="start-recommended">（推荐）</span></span></h3>
       <ol class="start-steps agent-steps">
         <li class="start-step">
           <div class="start-body">
@@ -165,7 +166,7 @@
         </li>
       </ol>
     </div>
-    <h3 class="start-manual-title">也可以手动配置</h3>
+    <h3 class="start-route-title start-manual-title"><span class="start-route-marker" aria-hidden="true">B</span><span class="start-route-label start-route-text">也可以手动配置</span></h3>
     <ol class="start-steps">
       <li class="start-step">
         <div class="start-body">
@@ -220,7 +221,7 @@ python3 scripts/stage_slicer_extension.py \
       </li>
     </ol>
     <div class="start-cli" id="cli" aria-labelledby="cli-title">
-      <h3 id="cli-title">命令行运行与队列批处理</h3>
+      <h3 class="start-route-title" id="cli-title"><span class="start-route-marker" aria-hidden="true">C</span><span class="start-route-label start-route-text">命令行运行与队列批处理</span></h3>
       <p>在代码目录中使用 Slicer 的 Python 检查 DTI 路线，先替换以下两个绝对路径：</p>
       <div class="code" data-code>
         <div class="code-head"><span>bash</span><button class="copy" type="button" hidden>复制</button></div>
