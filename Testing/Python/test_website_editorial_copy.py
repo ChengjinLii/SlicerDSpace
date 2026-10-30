@@ -67,7 +67,7 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
         section = self.section('outputs')
         self.assertNotIn('class="tile', section)
         self.assertEqual(len(re.findall(r'<img\b', section)), 1)
-        self.assertIn('src="assets/img/results-overview.svg"', section)
+        self.assertIn('src="assets/img/results-overview.svg?v=wmql-cerebellar-200"', section)
         self.assertIn('width="1830" height="2036"', section)
         self.assertIn('Open full-size SVG', section)
         receipt = json.loads((ROOT / "docs/website/published_assets.json").read_text())
@@ -219,6 +219,10 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
         styles = (ROOT / 'docs/site/assets/css/site.css').read_text(encoding='utf-8')
         self.assertNotIn('.start-skills > h3', styles)
         self.assertNotIn('.start-cli > h3', styles)
+        for selector in ('.start-route-marker', '.start-recommended'):
+            rule = re.search(re.escape(selector) + r'\s*\{([^}]+)\}', styles).group(1)
+            self.assertIn('color: var(--route-accent)', rule)
+            self.assertNotIn('var(--orange)', rule)
 
     def test_figure_wrappers_are_unframed_and_result_assets_remain_available(self):
         self.assertNotIn('class="panel shot', self.source)

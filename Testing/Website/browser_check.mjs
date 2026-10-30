@@ -224,7 +224,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
     return { src: img.getAttribute('src'), width: img.naturalWidth, height: img.naturalHeight,
       fit: getComputedStyle(img).objectFit, ratio: box.width / box.height };
   });
-  record(overview.src === 'assets/img/results-overview.svg' && overview.width > 0
+  record(overview.src === 'assets/img/results-overview.svg?v=wmql-cerebellar-200' && overview.width > 0
       && Math.abs(overview.ratio - 1830 / 2036) < .01,
     `${tag}: complete vector results overview is uncropped`, JSON.stringify(overview));
   record(await page.locator('#outputs article.tile').count() === 0,
@@ -657,6 +657,9 @@ async function runSkills(browser, origin) {
           style.fontWeight === styles[0].fontWeight && style.lineHeight === styles[0].lineHeight);
     });
     record(headings, `skills ${width}px: A/B/C routes have matching heading typography and hierarchy`);
+    const accents = await page.locator('#start .start-route-marker, #start .start-recommended')
+      .evaluateAll(elements => elements.length === 4 && elements.every(el => getComputedStyle(el).color === 'rgb(169, 191, 208)'));
+    record(accents, `skills ${width}px: route markers and recommendation share the muted blue-grey accent`);
     const timeline = await skills.locator('.agent-steps').evaluate(el => {
       const steps = [...el.children];
       const first = getComputedStyle(steps[0], '::before');
