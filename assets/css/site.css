@@ -1060,9 +1060,9 @@ figcaption {
 .st-ok { color: var(--text); }
 .st-partial { color: var(--orange); }
 .st-needs { color: var(--muted); font-size: 12.5px; }
-.ref-cell { min-width: 190px; width: 22%; font-family: var(--f-mono); font-size: 11px; }
-.ref-cell a { display: block; white-space: normal; overflow-wrap: anywhere; line-height: 1.6; }
-.ref-cell a + a { margin-top: 8px; }
+.ref-cell { min-width: 110px; width: 12%; font-family: var(--f-mono); font-size: 13px; }
+.ref-cell a { display: inline-block; padding: 2px 0; margin-right: 7px; white-space: nowrap; line-height: 1.6; }
+.ref-cell a + a { margin-top: 0; }
 
 /* ---------- References ---------- */
 .references { margin-top: 36px; }

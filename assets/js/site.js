@@ -4,9 +4,9 @@
   'use strict';
 
   var chinese = document.documentElement.lang.toLowerCase().indexOf('zh') === 0;
-  var labels = chinese ? { play: '播放宣传片 · 1:12', replay: '重新播放', copy: '复制',
+  var labels = chinese ? { play: '播放宣传片', replay: '重新播放', copy: '复制',
     copied: '已复制', manualCopy: '请按 Ctrl+C', film: '（SlicerDSpace 宣传片）' } :
-    { play: 'Play film · 1:12', replay: 'Play again', copy: 'Copy',
+    { play: 'Play film', replay: 'Play again', copy: 'Copy',
       copied: 'Copied', manualCopy: 'Press Ctrl+C', film: ' (SlicerDSpace film)' };
 
   var reduceMotion = window.matchMedia &&
