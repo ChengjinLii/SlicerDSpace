@@ -2,7 +2,7 @@
 
 # Performance Optimizations
 
-**Reviewed 29 October 2026 · Complete-model pairs and numerically equivalent optimizations**
+**Reviewed 30 October 2026 · Complete-model pairs and numerically equivalent optimizations**
 
 [Project](../../README.md) | [Documentation](../README.md) | [Runtimes](MODULE_RUNTIMES_20261017.md) | [Author-reference CSV](benchmarks/author_wma_optimizations_20261020.csv) | [JSON](benchmarks/author_wma_optimizations_20261020.json) | [中文](PERFORMANCE_OPTIMIZATIONS.zh-CN.md)
 
@@ -29,6 +29,38 @@ The author-WMA section and engineering appendix follow commit
 uses the working tree after `65fee3e411da34f0d0a220f3384c81f604f60079`.
 The tree is dirty, so a commit alone does not identify measured implementations.
 JSON evidence records implementation hashes and immutable snapshots.
+
+---
+
+## 30 October: Evidence Refresh
+
+The supplement and homepage now include the 29 October incremental MK-Curve
+experiment, with [source records](benchmarks/performance_next_20261029.json).
+Chunk-local signal reuse keeps non-b0 log signals across the full synthetic-b0
+scan; each candidate retains its own weights and weighted solve. All paths use
+SciPy 1.18.1 and one numerical thread, with one warm-up and three alternating
+repetitions. Median numeric-chunk times are:
+
+| Acquisition chunk | Previous QR | Signal reuse | Time saved |
+| --- | ---: | ---: | ---: |
+| 1 | 1.193 s | 1.059 s | 11.26% |
+| 2 | 1.126 s | 1.000 s | 11.24% |
+| 3 | 1.102 s | 0.989 s | 10.24% |
+
+Each chunk has 64 voxels, 181 measurements and 200–201 synthetic-b0 samples.
+Coefficients, complete curves, maps, residuals and validity masks match exactly
+for both solvers. The batched candidate ranges from 1.50% slower to 3.07% faster;
+default reuse remains reference-solver only. These are increments over the
+existing Python QR path; the full-brain record remains separate.
+
+Supplementary Table 4 includes all six comparisons, and Supplementary Figure 1
+now contains eleven operations. The same source records the trained DDParcel
+fusion candidate at 59.814 versus 59.851 s, with identical logits and no
+measurable gain; it remains a screening result rather than a speedup row.
+The homepage retains fourteen scoped records with inline, initially collapsed
+details. Shared DTI/input preparation is described with its cache boundaries;
+no new full-workflow or anatomical-accuracy claim is added. This refresh reuses
+recorded experiments and does not perform new scientific fits.
 
 ---
 

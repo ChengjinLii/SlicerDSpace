@@ -129,6 +129,38 @@ class InputValidationTest(unittest.TestCase):
             self.assertFalse(result.passed)
             self.assertTrue(any(issue.category == "gradient" for issue in result.messages))
 
+    def test_gradient_count_must_match_dwi_volume_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = _make_subject_root(Path(tmp))
+            _write(root / 'input/bvals', '0 1000 1000\n')
+            _write(root / 'input/bvecs', '0 1 0\n0 0 1\n0 0 0\n')
+            result = validate_subject_inputs(InputValidationConfig(
+                SUBJECT_ID, root, dependency_groups=(), brain_mask_backend='provided'))
+            self.assertFalse(result.passed)
+            self.assertTrue(any(issue.category == 'gradient' and 'volume' in issue.message for issue in result.messages))
+
+    def test_nonfinite_gradients_produce_a_structured_report(self):
+        for value in ('inf', '-inf', 'nan'):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as tmp:
+                root = _make_subject_root(Path(tmp))
+                _write(root / 'input/bvals', f'0 1000 1000 {value}\n')
+                result = validate_subject_inputs(InputValidationConfig(
+                    SUBJECT_ID, root, dependency_groups=(), brain_mask_backend='provided'))
+                self.assertFalse(result.passed)
+                self.assertTrue(any('non-finite' in issue.message for issue in result.messages))
+                json.loads(result.report_path.read_text(), parse_constant=lambda value: self.fail(value))
+
+    def test_dwi_must_be_four_dimensional(self):
+        import nibabel as nib
+        import numpy as np
+        with tempfile.TemporaryDirectory() as tmp:
+            root = _make_subject_root(Path(tmp))
+            nib.save(nib.Nifti1Image(np.ones((5, 5, 5), dtype=np.float32), np.eye(4)), root / 'input/data.nii.gz')
+            result = validate_subject_inputs(InputValidationConfig(
+                SUBJECT_ID, root, dependency_groups=(), brain_mask_backend='provided'))
+            self.assertFalse(result.passed)
+            self.assertTrue(any(issue.category == 'dwi' for issue in result.messages))
+
 
 if __name__ == "__main__":
     unittest.main()

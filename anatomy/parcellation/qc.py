@@ -13,17 +13,22 @@ def label_semantics(values) -> dict:
     right_wm = (labels >= 4001) & (labels <= 4035)
     regional_wm = left_wm | right_wm
     missing = bool(cortical.any() and not regional_wm.any())
+    callosal = np.isin(labels, (192, 251, 252, 253, 254, 255, 1004, 2004, 3004, 4004))
     return {'schema': 'dk_label_content.v1', 'cortical_region_voxels': int(cortical.sum()),
             'regional_white_matter_voxels': int(regional_wm.sum()),
             'left_regional_white_matter_voxels': int(left_wm.sum()),
             'right_regional_white_matter_voxels': int(right_wm.sum()),
             'generic_cerebral_white_matter_voxels': int(np.count_nonzero((labels == 2) | (labels == 41))),
             'regional_white_matter_label_ids': [int(value) for value in np.unique(labels[regional_wm])],
+            'corpus_callosum_voxels': int(callosal.sum()),
+            'corpus_callosum_label_ids': [int(value) for value in np.unique(labels[callosal])],
+            'corpus_callosum_192_voxels': int(np.count_nonzero(labels == 192)),
             'cortical_labels_without_regional_wm': missing,
             'scope': 'DK label content only; neither anatomical validation nor FreeSurfer wmparc equivalence',
             'warnings': (['Cortical/aseg labels are present without DK regional WM territories (3000/4000 series). '
-                          'The legacy wmparc filename does not establish FreeSurfer wmparc equivalence. '
-                          'WMQL crossing coverage on ACT boundary-cropped tracks needs separate validation.'] if missing else [])}
+                          'This is expected for the DDParcel model, which predicts generic left/right WM (2/41). '
+                          'The legacy wmparc filename does not establish FreeSurfer wmparc equivalence; '
+                          'WMQL crossing/only rules need compatible label territories.'] if missing else [])}
 
 
 def validate_outputs(subject_id: str, output_dir: Path, native_mask: Path) -> dict:

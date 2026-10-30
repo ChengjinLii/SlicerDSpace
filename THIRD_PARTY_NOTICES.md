@@ -65,6 +65,21 @@ have been obtained under license from The Brigham and Women's Hospital, Inc.
 and are subject to the terms and conditions in [the full WMA/Slicer agreement](licenses/WMA.txt).
 Optional upstream WMA code and atlas assets retain their own distribution terms.
 
+## Optional WMA Atlas Families
+
+The ORG, East-West WM and NABA atlases are separately selected data resources
+in `SlicerDSpace-models`. East-West is published by Li and colleagues at
+[ScienceDB](https://doi.org/10.57760/sciencedb.17354); NABA is published by
+Zhang and colleagues at [Zenodo](https://doi.org/10.5281/zenodo.18227691).
+Both records specify CC BY 4.0. The mirror retains original data bytes in a
+runtime subset, attribution, upstream archive checksums and extracted-file
+SHA256 inventories. The corresponding papers are
+[Li et al. (2024)](https://doi.org/10.1038/s41597-024-03624-2) and
+[Zhang et al. (2026)](https://doi.org/10.1016/j.fmre.2025.12.030).
+WMA's original software licence continues to apply to its execution components.
+No NABA algorithm source is redistributed with this extension; the adapter
+reads published tract definitions and calls the installed WMA implementation.
+
 ---
 
 ## FastSurfer-derived code (Apache License 2.0)

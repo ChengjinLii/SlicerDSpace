@@ -2,16 +2,53 @@
 """Export explicitly selected, verified measurements without private runtime paths."""
 
 import argparse
+from datetime import date
 import hashlib
 from html import escape
 import json
 import math
 from pathlib import Path
+import re
+from statistics import median
 
 ROOT = Path(__file__).resolve().parents[1]
 BENCHMARKS = ROOT / 'docs/release/benchmarks'
 SITE = ROOT / 'docs/site'
 BEGIN, END = '<!-- measured-evidence:start -->', '<!-- measured-evidence:end -->'
+REVIEWED_ON = '2026-10-30'
+
+
+def mkcurve_signal_records(report):
+    """Qualify all six incremental comparisons, including the non-winning solver."""
+    evidence = report.get('mkcurve', {})
+    records = evidence.get('records', [])
+    environment = evidence.get('environment', {})
+    if (report.get('status') != 'passed' or evidence.get('source_inputs_unchanged') is not True
+            or environment.get('scipy') != '1.18.1'
+            or any(environment.get('thread_env', {}).get(key) != '1'
+                   for key in ('OPENBLAS_NUM_THREADS', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS'))
+            or len(records) != 6):
+        raise ValueError('MK-Curve signal-reuse evidence is incomplete')
+    subjects = {row['subject_id'] for row in records}
+    if len(subjects) != 3 or any(
+            sorted(row['solver'] for row in records if row['subject_id'] == subject) != ['batched', 'reference']
+            for subject in subjects):
+        raise ValueError('Expected both MK-Curve solvers in each of three acquisitions')
+    for row in records:
+        if (row.get('exact_output_parity') is not True or row.get('repeats') != 3
+                or row.get('warmups_per_method') != 1 or row.get('voxels') != 64
+                or row.get('measurements') != 181 or row.get('grid_samples') not in (200, 201)):
+            raise ValueError('MK-Curve signal-reuse output or scope verification failed')
+        for variant in ('reference', 'optimized'):
+            values = row['times_seconds'][variant]
+            if (len(values) != 3 or not all(math.isfinite(value) and value > 0 for value in values)
+                    or not math.isclose(median(values), row[variant + '_median_seconds'], rel_tol=1e-12)):
+                raise ValueError('MK-Curve signal-reuse median does not match its repetitions')
+        before, after = row['reference_median_seconds'], row['optimized_median_seconds']
+        if (not math.isclose(before / after, row['speed_ratio'], rel_tol=1e-12)
+                or not math.isclose(100 * (1 - after / before), row['time_reduction_percent'], abs_tol=1e-10)):
+            raise ValueError('MK-Curve signal-reuse ratio does not match its measurements')
+    return records
 
 
 def build_evidence():
@@ -95,6 +132,25 @@ def build_evidence():
     rows[-1]['solver_results'] = [dict(subject=item['subject_id'], solver=item['solver'],
         reference_seconds=item['reference_median_seconds'], optimized_seconds=item['optimized_median_seconds'],
         speed_ratio=item['speed_ratio']) for item in qr['records']]
+
+    signal_report = load('performance_next_20261029.json')
+    signal_records = mkcurve_signal_records(signal_report)
+    reference_records = [item for item in signal_records if item['solver'] == 'reference']
+    case = reference_records[0]
+    reductions = [item['time_reduction_percent'] for item in reference_records]
+    add('mkcurve-signal', 'MK-Curve signal reuse', 'port', '64-voxel numeric chunk / incremental QR change',
+        case['reference_median_seconds'], case['optimized_median_seconds'],
+        'Within each chunk, reuse non-b0 signals and their logarithms across the full synthetic-b0 scan; update only the candidate b0 column.',
+        'The preceding qualified-QR Python implementation versus added signal reuse; solver, grid, correction rules and one numerical thread stay fixed.',
+        'Original/corrected coefficients, complete curves, parameter maps, residuals and validity masks match exactly in all three acquisitions and both solvers.',
+        'Displayed medians use acquisition 1, selected consistently with the earlier QR record. Three alternating repeats after one warmup. Batched-path changes range from -1.50% to +3.07%, so signal reuse remains enabled only for the reference solver. These incremental timings overlap the earlier QR implementation and are not additive.',
+        f'Three acquisitions, 64 voxels each, 181 measurements and 200-201 synthetic-b0 samples. Reference-QR time falls {min(reductions):.2f}-{max(reductions):.2f}%. Numeric computation only; input preparation and file export excluded.',
+        evidence_date=signal_report['reviewed_on'])
+    rows[-1]['solver_results'] = [dict(subject=item['subject_id'], solver=item['solver'],
+        reference_seconds=item['reference_median_seconds'], optimized_seconds=item['optimized_median_seconds'],
+        speed_ratio=item['speed_ratio'], reduction_percent=item['time_reduction_percent'],
+        times_seconds=item['times_seconds'], repeats=item['repeats'], warmups_per_method=item['warmups_per_method'],
+        exact_output_parity=item['exact_output_parity']) for item in signal_records]
 
     roi = load('dki_latest_stable_integration_20261022.json')
     if roi['status'] != 'passed' or not all(item['all_output_arrays_exact'] and item['source_unchanged'] for item in roi['cases']):
@@ -216,6 +272,7 @@ def build_evidence():
         'dki': 'DIPY 1.12.1 is current stable at review. Array metrics already exist upstream; this is plugin integration, not an author-algorithm speedup.',
         'mkcurve': 'Current MATLAB reference ' + upstream['zhangfanmark/MK-Curve']['head_sha'][:12] +
             '; measured on current stable SciPy 1.18.1. This port-only comparison does not claim to outperform MATLAB or invent upstream native batching.',
+        'mkcurve-signal': 'Recorded 29 October with SciPy 1.18.1; source/input checksums and one-thread settings are preserved. This is an incremental comparison within the Python port, following the qualified QR change.',
         'scheduling': 'Historical plugin scheduler comparison, not a latest-upstream algorithm performance claim.',
         'freewater-nls': 'Measured DIPY 1.12.1 in Slicer; author NLS/residual/Jacobian source hashes match the dated stable-source audit.',
         'wma-transform': 'Author register_two_subjects.py SHA256 matches the 22 October WMA source audit; measured bulk vtkTransform path.',
@@ -234,6 +291,7 @@ def build_evidence():
         'freewater': full_name,
         'wma': 'complete_models_20261020.json', 'noddi': 'complete_models_20261020.json',
         'mkcurve': 'mkcurve_qr_scipy1181_20261022.json', 'dki': 'dki_latest_stable_integration_20261022.json',
+        'mkcurve-signal': 'performance_next_20261029.json',
         'scheduling': 'complete_models_20261020.json', 'wma-filter': 'author_wma_optimizations_20261020.json',
         'freewater-nls': 'freewater_dispatch_slicer_20261021.json', 'wma-transform': 'wma_transform_20261021.json',
         'wma-fibers': 'wma_fibers_bounded_20261021.json',
@@ -242,7 +300,7 @@ def build_evidence():
     for row in rows:
         row['upstream_reference'] = references[row['id']]
         row['measurement_source'] = next(source for source in sources if source['file'] == measurement_sources[row['id']])
-    return dict(kind='slicerddsurfer_public_performance_evidence', version=3, reviewed_on='2026-10-29' if protocol_reuse else '2026-10-25',
+    return dict(kind='slicerddsurfer_public_performance_evidence', version=4, reviewed_on=REVIEWED_ON,
                 sources=sources, records=rows,
                 upstream_review=dict(checked_at_utc=audit['checked_at_utc'],
                     stable_versions={key: upstream[repo]['pypi']['version'] for key, repo in (
@@ -266,19 +324,13 @@ def duration(seconds):
 
 
 def render(evidence):
-    rows, methods = [], []
+    rows = []
     for row in evidence['records']:
         identifier, category = escape(row['id']), escape(row['category'])
-        rows.append(f'''<tr data-category="{category}"><th scope="row"><a href="#method-{identifier}">{escape(row['title'])}</a><small>{escape(row['scope'])} / record {row['evidence_date']}</small></th><td><span class="perf-kind {category}">{LABELS[row['category']]}</span></td><td>{duration(row['reference_seconds'])}</td><td>{duration(row['optimized_seconds'])}</td><td>{row['speed_ratio']:.2f}x<small>{row['reduction_percent']:.2f}% less time</small></td></tr>''')
-        methods.append(f'''<details class="perf-method" data-category="{category}" id="method-{identifier}"><summary><span>{escape(row['title'])}</span><span class="perf-scope">{escape(row['scope'])}</span></summary><div class="perf-method-body"><dl><dt>Upstream check</dt><dd>{escape(row['upstream_reference'])}</dd><dt>What changed</dt><dd>{escape(row['method'])}</dd><dt>Reference</dt><dd>{escape(row['baseline'])}</dd><dt>Equivalence</dt><dd>{escape(row['unchanged'])}</dd><dt>Measured scope</dt><dd>{escape(row['sample'])}</dd><dt>Limits</dt><dd>{escape(row['limitation'])}</dd></dl></div></details>''')
-    cards = []
-    for row in evidence['records'][:2]:
-        cards.append(f'''<figure class="perf-chart" data-category="implementation"><figcaption><span class="perf-kind implementation">{escape(row['scope'])} / implementation</span><h3>{escape(row['title'])}</h3></figcaption><div class="perf-bar-row"><span>Reference</span><div class="perf-track"><span class="perf-bar reference" style="--extent:100%"></span></div><strong>{duration(row['reference_seconds'])}</strong></div><div class="perf-bar-row"><span>Optimized</span><div class="perf-track"><span class="perf-bar" style="--extent:{100 * row['optimized_seconds'] / row['reference_seconds']:.4f}%"></span></div><strong>{duration(row['optimized_seconds'])}</strong></div><p class="perf-chart-note">{row['reduction_percent']:.2f}% less time in this measured call. Output equivalence checked; one shared-host pair.</p></figure>''')
+        rows.append(f'''<tr class="perf-record" data-category="{category}" data-record="{identifier}"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-{identifier}" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>{escape(row['title'])}</span></button><small>{escape(row['scope'])} / record {row['evidence_date']}</small></th><td><span class="perf-kind {category}">{LABELS[row['category']]}</span></td><td>{duration(row['reference_seconds'])}</td><td>{duration(row['optimized_seconds'])}</td><td>{row['speed_ratio']:.2f}x<small>{row['reduction_percent']:.2f}% less time</small></td></tr>''')
+        rows.append(f'''<tr class="perf-detail-row" id="method-{identifier}" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>Upstream check</dt><dd>{escape(row['upstream_reference'])}</dd><dt>What changed</dt><dd>{escape(row['method'])}</dd><dt>Reference</dt><dd>{escape(row['baseline'])}</dd><dt>Equivalence</dt><dd>{escape(row['unchanged'])}</dd><dt>Measured scope</dt><dd>{escape(row['sample'])}</dd><dt>Limits</dt><dd>{escape(row['limitation'])}</dd></dl></div></td></tr>''')
     return '\n'.join([
-        '<div class="perf-chart-grid">' + ''.join(cards) + '</div>',
         '<div class="perf-table-wrap" tabindex="0" role="region" aria-label="Measured performance comparisons, scroll horizontally on small screens"><table class="perf-table"><caption>Different models and scopes are not ranked against each other. Ratios are reference time divided by optimized time.</caption><thead><tr><th scope="col">Computation / scope</th><th scope="col">Type of change</th><th scope="col">Reference</th><th scope="col">Optimized</th><th scope="col">Measured ratio</th></tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>',
-        '<p class="note">Only Free-water and WMA are highlighted above; NODDI multithreading, Python-port comparisons and integration of existing DIPY array metrics are deliberately labeled separately. No timing here establishes higher anatomical validity.</p>',
-        '<div class="perf-methods"><h3>Methods &amp; verification</h3><p class="muted">Open a record for the reference implementation, changes, checks and limits.</p>' + ''.join(methods) + '</div>'
     ])
 
 
@@ -295,6 +347,9 @@ def main():
     before, middle = original.split(BEGIN)
     _, after = middle.split(END)
     expected = before + BEGIN + '\n' + render(evidence) + '\n' + END + after
+    reviewed = date.fromisoformat(evidence['reviewed_on'])
+    expected = re.sub(r'Catalogue updated \d{1,2} [A-Za-z]+ \d{4}',
+                      f'Catalogue updated {reviewed.day} {reviewed:%B %Y}', expected)
     data = SITE / 'assets/data/performance.json'
     if args.check:
         if not data.is_file() or data.read_text(encoding='utf-8') != payload or original != expected:

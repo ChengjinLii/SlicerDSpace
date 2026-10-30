@@ -68,6 +68,7 @@ class RunSelection:
     dki_fit_method: str = "WLS"
     wmql_query_preset: str = "official"
     wmql_query_selection: str = ""
+    wma_atlas: str = "org"
     max_parallel_models: int = 1
     ukf_parameters_text: str = '{}'
 
@@ -433,7 +434,7 @@ def build_single_subject_run_kwargs(
         "tractography_backend": selection.tractography_backend,
         "bundle_backend": selection.bundle_backend,
         "wmql_query_preset": selection.wmql_query_preset,
-        "wmql_query_selection": _wmql_selection(selection.wmql_query_selection),
+        "wmql_query_selection": _wmql_selection(selection.wmql_query_selection, selection.wmql_query_preset),
         "max_parallel_models": selection.max_parallel_models,
         "preprocessing_backend": selection.preprocessing_backend,
         "brain_mask_backend": selection.brain_mask_backend,
@@ -464,6 +465,7 @@ def build_single_subject_run_kwargs(
         "tract_querier_root": external_paths.get("tract_querier_root"),
         "wma_root": external_paths.get("wma_root"),
         "wma_atlas_dir": external_paths.get("wma_atlas_dir"),
+        "wma_atlas": selection.wma_atlas,
         "wma_input_tractography": (
             Path(selection.wma_input_tractography_text).expanduser()
             if selection.wma_input_tractography_text.strip()
@@ -494,7 +496,8 @@ def build_batch_run_kwargs(selection: RunSelection, *, batch_root: Path) -> dict
         "tractography_backend": selection.tractography_backend,
         "bundle_backend": selection.bundle_backend,
         "wmql_query_preset": selection.wmql_query_preset,
-        "wmql_query_selection": _wmql_selection(selection.wmql_query_selection),
+        "wma_atlas": selection.wma_atlas,
+        "wmql_query_selection": _wmql_selection(selection.wmql_query_selection, selection.wmql_query_preset),
         "max_parallel_models": selection.max_parallel_models,
         "preprocessing_backend": selection.preprocessing_backend,
         "brain_mask_backend": selection.brain_mask_backend,
@@ -795,6 +798,7 @@ def build_background_cli_args(
         str(common_run_kwargs["tractography_backend"]),
         "--bundle-backend",
         str(common_run_kwargs["bundle_backend"]),
+        "--wma-atlas", str(common_run_kwargs.get("wma_atlas", "org")),
         "--wmql-query-preset",
         str(common_run_kwargs.get("wmql_query_preset", "official")),
         '--wmql-query-selection', ','.join(common_run_kwargs.get('wmql_query_selection', ())),
@@ -864,6 +868,7 @@ def build_batch_background_cli_args(
         str(common_run_kwargs["tractography_backend"]),
         "--bundle-backend",
         str(common_run_kwargs["bundle_backend"]),
+        "--wma-atlas", str(common_run_kwargs.get("wma_atlas", "org")),
         "--wmql-query-preset",
         str(common_run_kwargs.get("wmql_query_preset", "official")),
         '--wmql-query-selection', ','.join(common_run_kwargs.get('wmql_query_selection', ())),
@@ -895,9 +900,9 @@ def build_batch_background_cli_args(
 _BATCH_MANIFEST_LINE_PREFIX = "[Batch] manifest:"
 
 
-def _wmql_selection(value):
+def _wmql_selection(value, preset='official'):
     from tractography.wmql_protocol import canonical_wmql_selection
-    return canonical_wmql_selection(value)
+    return canonical_wmql_selection(value, preset)
 
 
 def _ukf_run_options(selection):

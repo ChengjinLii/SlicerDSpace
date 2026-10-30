@@ -1,0 +1,1154 @@
+{
+  "schema": "wmql_experimental_atlas_comparison.v1",
+  "implementation_checks": "passed",
+  "scientific_acceptance": "pending",
+  "radius_mm": 5,
+  "minimum_streamlines": 20,
+  "cases": [
+    {
+      "subject": "100307",
+      "checks": {
+        "same_subject": true,
+        "same_tractogram": true,
+        "same_native_atlas": true,
+        "same_query_definitions": true,
+        "same_selection": true,
+        "same_threshold": true,
+        "same_length_threshold": true,
+        "source_and_cache_current": true,
+        "same_grid": true,
+        "protected_labels_unchanged": true,
+        "left_wm_stays_in_hemisphere": true,
+        "left_independent_assignment_sample": true,
+        "right_wm_stays_in_hemisphere": true,
+        "right_independent_assignment_sample": true,
+        "callosal_support_preserved": true,
+        "native_execution_integrity": true,
+        "native_minimum_unchanged": true,
+        "derived_execution_integrity": true,
+        "derived_minimum_unchanged": true,
+        "experimental_not_automatically_accepted": true
+      },
+      "assignment_validation": {
+        "method": "Independent brute-force squared Euclidean distances to all cortical seed centres",
+        "random_seed": 20261030,
+        "scope": "512 sampled cerebral WM voxels, all protected voxels and all hemisphere-label memberships",
+        "samples": [
+          {
+            "hemisphere": "left",
+            "sampled_voxels": 256,
+            "mismatches": 0
+          },
+          {
+            "hemisphere": "right",
+            "sampled_voxels": 256,
+            "mismatches": 0
+          }
+        ]
+      },
+      "input_hashes": {
+        "tractogram": "1c3358fa0e922826c3e90b2f36e6f831ef8ed41a18de36f48fb43cac0a04be7b",
+        "native_atlas": "32599cf4d9e94594a81aab58ff196e8380140d2f967db129b843d0b50a52aa25"
+      },
+      "atlas_preparation_seconds": 3.965731991454959,
+      "counts": {
+        "native": {
+          "nonempty": 44,
+          "requested": 51,
+          "sampling_passed": 34,
+          "empty_or_missing": 7,
+          "sparse": 10,
+          "execution_seconds": 19.569029549136758,
+          "automatic_qc_passed": false
+        },
+        "derived": {
+          "nonempty": 50,
+          "requested": 51,
+          "sampling_passed": 43,
+          "empty_or_missing": 1,
+          "sparse": 7,
+          "execution_seconds": 32.40785804204643,
+          "automatic_qc_passed": false
+        }
+      },
+      "query_comparison": [
+        {
+          "query": "af.left",
+          "native_count": 1184,
+          "derived_count": 231,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "af.right",
+          "native_count": 1216,
+          "derived_count": 242,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cb.left",
+          "native_count": 0,
+          "derived_count": 878,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cb.right",
+          "native_count": 20,
+          "derived_count": 319,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc",
+          "native_count": 0,
+          "derived_count": 17288,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_1",
+          "native_count": 49,
+          "derived_count": 77,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_2",
+          "native_count": 120,
+          "derived_count": 218,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_3",
+          "native_count": 5,
+          "derived_count": 16,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "cc_4",
+          "native_count": 0,
+          "derived_count": 0,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "cc_5",
+          "native_count": 0,
+          "derived_count": 3,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "cc_6",
+          "native_count": 0,
+          "derived_count": 22,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_7",
+          "native_count": 178,
+          "derived_count": 287,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cerebellar_bilateral",
+          "native_count": 432,
+          "derived_count": 432,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cerebellar_brainstem.left",
+          "native_count": 315,
+          "derived_count": 315,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cerebellar_brainstem.right",
+          "native_count": 436,
+          "derived_count": 436,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cst.left",
+          "native_count": 168,
+          "derived_count": 199,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cst.right",
+          "native_count": 252,
+          "derived_count": 351,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ec.left",
+          "native_count": 36,
+          "derived_count": 349,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ec.right",
+          "native_count": 22,
+          "derived_count": 439,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "extreme_capsule.left",
+          "native_count": 7,
+          "derived_count": 573,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "extreme_capsule.right",
+          "native_count": 10,
+          "derived_count": 165,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ilf.left",
+          "native_count": 29,
+          "derived_count": 44,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ilf.right",
+          "native_count": 25,
+          "derived_count": 35,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "internal_capsule_new.left",
+          "native_count": 90,
+          "derived_count": 223,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "internal_capsule_new.right",
+          "native_count": 62,
+          "derived_count": 396,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ioff.left",
+          "native_count": 13,
+          "derived_count": 244,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ioff.right",
+          "native_count": 14,
+          "derived_count": 150,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "mdlf.left",
+          "native_count": 0,
+          "derived_count": 79,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "mdlf.right",
+          "native_count": 0,
+          "derived_count": 14,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "slf_i.left",
+          "native_count": 14,
+          "derived_count": 349,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_i.right",
+          "native_count": 90,
+          "derived_count": 409,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_ii.left",
+          "native_count": 93,
+          "derived_count": 148,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_ii.right",
+          "native_count": 45,
+          "derived_count": 75,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_iii.left",
+          "native_count": 143,
+          "derived_count": 171,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_iii.right",
+          "native_count": 195,
+          "derived_count": 258,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "soff.left",
+          "native_count": 76,
+          "derived_count": 53,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "soff.right",
+          "native_count": 63,
+          "derived_count": 10,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "striato_frontal.left",
+          "native_count": 384,
+          "derived_count": 465,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_frontal.right",
+          "native_count": 207,
+          "derived_count": 307,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_occipital.left",
+          "native_count": 4,
+          "derived_count": 5,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "striato_occipital.right",
+          "native_count": 3,
+          "derived_count": 4,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "striato_parietal.left",
+          "native_count": 25,
+          "derived_count": 36,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_parietal.right",
+          "native_count": 51,
+          "derived_count": 59,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_frontal.left",
+          "native_count": 76,
+          "derived_count": 146,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_frontal.right",
+          "native_count": 35,
+          "derived_count": 72,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_occipital.left",
+          "native_count": 18,
+          "derived_count": 29,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_occipital.right",
+          "native_count": 9,
+          "derived_count": 11,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "thalamo_parietal.left",
+          "native_count": 54,
+          "derived_count": 67,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_parietal.right",
+          "native_count": 38,
+          "derived_count": 45,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "uf.left",
+          "native_count": 83,
+          "derived_count": 390,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "uf.right",
+          "native_count": 54,
+          "derived_count": 147,
+          "derived_sampling_passed": true
+        }
+      ],
+      "anatomical_review": "pending",
+      "default_route_changed": false
+    },
+    {
+      "subject": "100206",
+      "checks": {
+        "same_subject": true,
+        "same_tractogram": true,
+        "same_native_atlas": true,
+        "same_query_definitions": true,
+        "same_selection": true,
+        "same_threshold": true,
+        "same_length_threshold": true,
+        "source_and_cache_current": true,
+        "same_grid": true,
+        "protected_labels_unchanged": true,
+        "left_wm_stays_in_hemisphere": true,
+        "left_independent_assignment_sample": true,
+        "right_wm_stays_in_hemisphere": true,
+        "right_independent_assignment_sample": true,
+        "callosal_support_preserved": true,
+        "native_execution_integrity": true,
+        "native_minimum_unchanged": true,
+        "derived_execution_integrity": true,
+        "derived_minimum_unchanged": true,
+        "experimental_not_automatically_accepted": true
+      },
+      "assignment_validation": {
+        "method": "Independent brute-force squared Euclidean distances to all cortical seed centres",
+        "random_seed": 20261030,
+        "scope": "512 sampled cerebral WM voxels, all protected voxels and all hemisphere-label memberships",
+        "samples": [
+          {
+            "hemisphere": "left",
+            "sampled_voxels": 256,
+            "mismatches": 0
+          },
+          {
+            "hemisphere": "right",
+            "sampled_voxels": 256,
+            "mismatches": 0
+          }
+        ]
+      },
+      "input_hashes": {
+        "tractogram": "de024713a1fd27054ae5f2a59b48b263f4ce44f908ac8bd2159a4ade8f162b73",
+        "native_atlas": "5129fc562e0e16fb22bb60b97d69ce05d7a486ae23922ea49a5e3acd23fc7ba6"
+      },
+      "atlas_preparation_seconds": 4.8560270592570305,
+      "counts": {
+        "native": {
+          "nonempty": 39,
+          "requested": 51,
+          "sampling_passed": 32,
+          "empty_or_missing": 12,
+          "sparse": 7,
+          "execution_seconds": 57.426660034805536,
+          "automatic_qc_passed": false
+        },
+        "derived": {
+          "nonempty": 51,
+          "requested": 51,
+          "sampling_passed": 48,
+          "empty_or_missing": 0,
+          "sparse": 3,
+          "execution_seconds": 106.39648131281137,
+          "automatic_qc_passed": false
+        }
+      },
+      "query_comparison": [
+        {
+          "query": "af.left",
+          "native_count": 63,
+          "derived_count": 15,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "af.right",
+          "native_count": 27,
+          "derived_count": 4,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "cb.left",
+          "native_count": 0,
+          "derived_count": 15371,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cb.right",
+          "native_count": 2,
+          "derived_count": 16035,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc",
+          "native_count": 0,
+          "derived_count": 50164,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_1",
+          "native_count": 257,
+          "derived_count": 996,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_2",
+          "native_count": 2131,
+          "derived_count": 13533,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_3",
+          "native_count": 100,
+          "derived_count": 1041,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_4",
+          "native_count": 148,
+          "derived_count": 302,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_5",
+          "native_count": 0,
+          "derived_count": 961,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_6",
+          "native_count": 0,
+          "derived_count": 1366,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_7",
+          "native_count": 311,
+          "derived_count": 1680,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cerebellar_bilateral",
+          "native_count": 8030,
+          "derived_count": 8030,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cerebellar_brainstem.left",
+          "native_count": 1773,
+          "derived_count": 1773,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cerebellar_brainstem.right",
+          "native_count": 1926,
+          "derived_count": 1926,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cst.left",
+          "native_count": 159,
+          "derived_count": 544,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cst.right",
+          "native_count": 136,
+          "derived_count": 750,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ec.left",
+          "native_count": 6,
+          "derived_count": 176,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ec.right",
+          "native_count": 1,
+          "derived_count": 483,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "extreme_capsule.left",
+          "native_count": 0,
+          "derived_count": 197,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "extreme_capsule.right",
+          "native_count": 0,
+          "derived_count": 171,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ilf.left",
+          "native_count": 87,
+          "derived_count": 459,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ilf.right",
+          "native_count": 68,
+          "derived_count": 675,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "internal_capsule_new.left",
+          "native_count": 0,
+          "derived_count": 371,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "internal_capsule_new.right",
+          "native_count": 35,
+          "derived_count": 760,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ioff.left",
+          "native_count": 0,
+          "derived_count": 458,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ioff.right",
+          "native_count": 0,
+          "derived_count": 349,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "mdlf.left",
+          "native_count": 0,
+          "derived_count": 1564,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "mdlf.right",
+          "native_count": 0,
+          "derived_count": 847,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_i.left",
+          "native_count": 0,
+          "derived_count": 411,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_i.right",
+          "native_count": 10,
+          "derived_count": 386,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_ii.left",
+          "native_count": 245,
+          "derived_count": 2287,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_ii.right",
+          "native_count": 209,
+          "derived_count": 2833,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_iii.left",
+          "native_count": 98,
+          "derived_count": 992,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_iii.right",
+          "native_count": 112,
+          "derived_count": 1888,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "soff.left",
+          "native_count": 9,
+          "derived_count": 4,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "soff.right",
+          "native_count": 5,
+          "derived_count": 27,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_frontal.left",
+          "native_count": 3521,
+          "derived_count": 7542,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_frontal.right",
+          "native_count": 4929,
+          "derived_count": 9632,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_occipital.left",
+          "native_count": 400,
+          "derived_count": 860,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_occipital.right",
+          "native_count": 549,
+          "derived_count": 1085,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_parietal.left",
+          "native_count": 2033,
+          "derived_count": 4192,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_parietal.right",
+          "native_count": 2850,
+          "derived_count": 5189,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_frontal.left",
+          "native_count": 4537,
+          "derived_count": 9234,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_frontal.right",
+          "native_count": 3246,
+          "derived_count": 5711,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_occipital.left",
+          "native_count": 357,
+          "derived_count": 876,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_occipital.right",
+          "native_count": 239,
+          "derived_count": 555,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_parietal.left",
+          "native_count": 2963,
+          "derived_count": 6003,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_parietal.right",
+          "native_count": 2762,
+          "derived_count": 4651,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "uf.left",
+          "native_count": 18,
+          "derived_count": 1117,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "uf.right",
+          "native_count": 20,
+          "derived_count": 1229,
+          "derived_sampling_passed": true
+        }
+      ],
+      "anatomical_review": "pending",
+      "default_route_changed": false
+    },
+    {
+      "subject": "149741",
+      "checks": {
+        "same_subject": true,
+        "same_tractogram": true,
+        "same_native_atlas": true,
+        "same_query_definitions": true,
+        "same_selection": true,
+        "same_threshold": true,
+        "same_length_threshold": true,
+        "source_and_cache_current": true,
+        "same_grid": true,
+        "protected_labels_unchanged": true,
+        "left_wm_stays_in_hemisphere": true,
+        "left_independent_assignment_sample": true,
+        "right_wm_stays_in_hemisphere": true,
+        "right_independent_assignment_sample": true,
+        "callosal_support_preserved": true,
+        "native_execution_integrity": true,
+        "native_minimum_unchanged": true,
+        "derived_execution_integrity": true,
+        "derived_minimum_unchanged": true,
+        "experimental_not_automatically_accepted": true
+      },
+      "assignment_validation": {
+        "method": "Independent brute-force squared Euclidean distances to all cortical seed centres",
+        "random_seed": 20261030,
+        "scope": "512 sampled cerebral WM voxels, all protected voxels and all hemisphere-label memberships",
+        "samples": [
+          {
+            "hemisphere": "left",
+            "sampled_voxels": 256,
+            "mismatches": 0
+          },
+          {
+            "hemisphere": "right",
+            "sampled_voxels": 256,
+            "mismatches": 0
+          }
+        ]
+      },
+      "input_hashes": {
+        "tractogram": "e8b1d1c833a0a1d1d200eb03381a62dfc35d2e1c02fe99f862979208db9c8f65",
+        "native_atlas": "2f8403e5e321139208da72c8dab082ee439f6982374649f9eec3ea7e5005977a"
+      },
+      "atlas_preparation_seconds": 4.25608835555613,
+      "counts": {
+        "native": {
+          "nonempty": 32,
+          "requested": 51,
+          "sampling_passed": 27,
+          "empty_or_missing": 19,
+          "sparse": 5,
+          "execution_seconds": 54.76510481350124,
+          "automatic_qc_passed": false
+        },
+        "derived": {
+          "nonempty": 50,
+          "requested": 51,
+          "sampling_passed": 49,
+          "empty_or_missing": 1,
+          "sparse": 1,
+          "execution_seconds": 76.38402207754552,
+          "automatic_qc_passed": false
+        }
+      },
+      "query_comparison": [
+        {
+          "query": "af.left",
+          "native_count": 52,
+          "derived_count": 50,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "af.right",
+          "native_count": 16,
+          "derived_count": 3,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "cb.left",
+          "native_count": 0,
+          "derived_count": 17562,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cb.right",
+          "native_count": 0,
+          "derived_count": 14048,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc",
+          "native_count": 0,
+          "derived_count": 67831,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_1",
+          "native_count": 291,
+          "derived_count": 1179,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_2",
+          "native_count": 601,
+          "derived_count": 12668,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_3",
+          "native_count": 70,
+          "derived_count": 1333,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_4",
+          "native_count": 526,
+          "derived_count": 1291,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_5",
+          "native_count": 0,
+          "derived_count": 636,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_6",
+          "native_count": 0,
+          "derived_count": 2569,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cc_7",
+          "native_count": 128,
+          "derived_count": 2719,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cerebellar_bilateral",
+          "native_count": 5848,
+          "derived_count": 5848,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cerebellar_brainstem.left",
+          "native_count": 2118,
+          "derived_count": 2118,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cerebellar_brainstem.right",
+          "native_count": 1698,
+          "derived_count": 1698,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cst.left",
+          "native_count": 373,
+          "derived_count": 1251,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "cst.right",
+          "native_count": 239,
+          "derived_count": 1042,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ec.left",
+          "native_count": 0,
+          "derived_count": 56,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ec.right",
+          "native_count": 0,
+          "derived_count": 293,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "extreme_capsule.left",
+          "native_count": 0,
+          "derived_count": 375,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "extreme_capsule.right",
+          "native_count": 0,
+          "derived_count": 77,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ilf.left",
+          "native_count": 42,
+          "derived_count": 1055,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ilf.right",
+          "native_count": 41,
+          "derived_count": 749,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "internal_capsule_new.left",
+          "native_count": 0,
+          "derived_count": 123,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "internal_capsule_new.right",
+          "native_count": 9,
+          "derived_count": 521,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ioff.left",
+          "native_count": 0,
+          "derived_count": 201,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "ioff.right",
+          "native_count": 0,
+          "derived_count": 415,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "mdlf.left",
+          "native_count": 0,
+          "derived_count": 1604,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "mdlf.right",
+          "native_count": 0,
+          "derived_count": 1359,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_i.left",
+          "native_count": 0,
+          "derived_count": 317,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_i.right",
+          "native_count": 0,
+          "derived_count": 235,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_ii.left",
+          "native_count": 21,
+          "derived_count": 800,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_ii.right",
+          "native_count": 35,
+          "derived_count": 1344,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_iii.left",
+          "native_count": 9,
+          "derived_count": 603,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "slf_iii.right",
+          "native_count": 12,
+          "derived_count": 1241,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "soff.left",
+          "native_count": 0,
+          "derived_count": 0,
+          "derived_sampling_passed": false
+        },
+        {
+          "query": "soff.right",
+          "native_count": 2,
+          "derived_count": 38,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_frontal.left",
+          "native_count": 2816,
+          "derived_count": 8381,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_frontal.right",
+          "native_count": 3062,
+          "derived_count": 8090,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_occipital.left",
+          "native_count": 228,
+          "derived_count": 918,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_occipital.right",
+          "native_count": 314,
+          "derived_count": 1145,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_parietal.left",
+          "native_count": 776,
+          "derived_count": 2706,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "striato_parietal.right",
+          "native_count": 1093,
+          "derived_count": 2833,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_frontal.left",
+          "native_count": 3104,
+          "derived_count": 7309,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_frontal.right",
+          "native_count": 2595,
+          "derived_count": 5752,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_occipital.left",
+          "native_count": 328,
+          "derived_count": 1190,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_occipital.right",
+          "native_count": 160,
+          "derived_count": 585,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_parietal.left",
+          "native_count": 1336,
+          "derived_count": 4691,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "thalamo_parietal.right",
+          "native_count": 1163,
+          "derived_count": 3011,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "uf.left",
+          "native_count": 0,
+          "derived_count": 329,
+          "derived_sampling_passed": true
+        },
+        {
+          "query": "uf.right",
+          "native_count": 0,
+          "derived_count": 358,
+          "derived_sampling_passed": true
+        }
+      ],
+      "anatomical_review": "pending",
+      "default_route_changed": false
+    }
+  ],
+  "author_engine_parity": {
+    "status": "passed",
+    "checks": {
+      "source_files_unchanged": true,
+      "output_query_sets_equal": true,
+      "all_query_multisets_equal": true,
+      "all_source_membership_passed": true
+    },
+    "queries": 51,
+    "reference_runtime_seconds": 22.855877539142966
+  },
+  "scope": "Label preparation and extraction implementation; not expert anatomical validation",
+  "default_route_changed": false,
+  "publication_figure_changed": false
+}

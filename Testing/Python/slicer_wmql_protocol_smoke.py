@@ -13,7 +13,11 @@ def run():
         combo = widget.ui.wmqlQueryPresetComboBox
         assert node.orchestrationWmqlPreset == 'official'
         assert combo.currentText == 'official'
-        assert combo.count == 1
+        assert combo.count == 3
+        for preset in ('official_cerebellar', 'cerebellar', 'official'):
+            combo.setCurrentText(preset)
+            slicer.app.processEvents()
+            assert node.orchestrationWmqlPreset == preset
         node.targetBundles = True
         node.orchestrationBundleBackend = 'wmql'
         widget._advancedSettingsPanel.collapsed = False

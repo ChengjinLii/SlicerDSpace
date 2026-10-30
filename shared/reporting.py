@@ -827,8 +827,8 @@ def _build_html_report(
     <p class=\"muted\">Use this section to identify the next optimization target. Skipped task runtimes measure resume detection overhead, not original compute time.</p>
     <div class=\"grid\">
       {_render_cards([
-          ('Elapsed', _format_seconds(performance_profile.get('orchestration_elapsed_seconds')), 'Total orchestrator wall time.'),
-          ('Task runtime sum', _format_seconds(performance_profile.get('task_runtime_seconds_total')), 'Sequential task timing captured by the orchestrator.'),
+          ('Pre-report elapsed', _format_seconds(performance_profile.get('orchestration_elapsed_seconds')), 'Elapsed at the pre-report snapshot.'),
+          ('Task runtime sum', _format_seconds(performance_profile.get('task_runtime_seconds_total')), 'Sum of task intervals; concurrent intervals may overlap.'),
           ('Profile JSON', performance_profile.get('path') or manifest.get('performance_profile_path') or '', 'Machine-readable profile artifact.'),
       ])}
     </div>

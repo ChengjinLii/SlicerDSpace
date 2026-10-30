@@ -2,8 +2,18 @@
   "kind": "slicerdsurfer_model_asset_manifest",
   "version": 1,
   "default_profile": "mirrorable-inference",
-  "default_asset_source_ids": ["optional_models_mirror"],
+  "default_asset_source_ids": [
+    "optional_models_mirror"
+  ],
   "asset_sources": {
+    "wma_atlases_mirror": {
+      "kind": "url-template",
+      "status": "active",
+      "access": "public",
+      "public": true,
+      "description": "Version-pinned East-West and NABA runtime subsets, retaining original data bytes and CC BY 4.0 attribution.",
+      "url_template": "https://github.com/ChengjinLii/SlicerDSpace-models/raw/137e8bbddc3bcee821e13d1e4aabf3a44171c209/{path_urlencoded}"
+    },
     "optional_models_mirror": {
       "kind": "url-template",
       "status": "active",
@@ -17,7 +27,9 @@
     "surface/postprocessing/atlas.tar.gz": {
       "sha256": "531f481bd677396f8b4c816f0be076a35249f2991cb4d4456b22cbc1b583c510",
       "size_bytes": 29657074,
-      "urls": ["https://raw.githubusercontent.com/ChengjinLii/DDSurfer/8a8699c0fda32be7e0a3cbca2903680b9f0c950b/postprocessing/assets/atlas.tar.gz"],
+      "urls": [
+        "https://raw.githubusercontent.com/ChengjinLii/DDSurfer/8a8699c0fda32be7e0a3cbca2903680b9f0c950b/postprocessing/assets/atlas.tar.gz"
+      ],
       "redistribution": "with-notice",
       "license": "FreeSurfer Software License Agreement and included third-party notices",
       "note": "Pinned data-only upstream archive; no native binaries or personal activation. Not yet mirrored by this change."
@@ -60,8 +72,12 @@
     "brain_mask/pnl_cnn/IITmean_b0_256.nii.gz": {
       "sha256": "2bb1a7bbe448702033a515e76164df6472828422ecef5cb4f996d91ec126dead",
       "size_bytes": 7830929,
-      "urls": ["https://www.nitrc.org/frs/download.php/11290/IITmean_b0_256.nii.gz"],
-      "source_ids": ["iit_upstream_only"],
+      "urls": [
+        "https://www.nitrc.org/frs/download.php/11290/IITmean_b0_256.nii.gz"
+      ],
+      "source_ids": [
+        "iit_upstream_only"
+      ],
       "redistribution": "upstream-only",
       "license_url": "https://www.nitrc.org/projects/iit/",
       "reason": "IIT terms prohibit posting on websites or other electronic media without express written permission. Local authorized acquisition is not mirror permission."
@@ -93,7 +109,9 @@
     "bundles/wma/archives/ORG-800FC-100HCP.zip": {
       "sha256": "8ab81aed998ff417f91284a33a3c9233afaaeb314caa32d520f6123c2fd9e741",
       "size_bytes": 622973397,
-      "urls": ["https://zenodo.org/records/2648292/files/ORG-800FC-100HCP.zip?download=1"],
+      "urls": [
+        "https://zenodo.org/records/2648292/files/ORG-800FC-100HCP.zip?download=1"
+      ],
       "upstream_md5": "f80e8059d73142fcdfcad6e3c2610b12",
       "redistribution": "with-notice",
       "license": "CC-BY-4.0",
@@ -103,7 +121,9 @@
     "bundles/wma/archives/ORG-RegAtlas-100HCP.zip": {
       "sha256": "c2b024980999b925ea896c49183995bfc97aeed8cbb648946dcbfa9e3ea6a5f1",
       "size_bytes": 1181764875,
-      "urls": ["https://zenodo.org/records/2648292/files/ORG-RegAtlas-100HCP.zip?download=1"],
+      "urls": [
+        "https://zenodo.org/records/2648292/files/ORG-RegAtlas-100HCP.zip?download=1"
+      ],
       "upstream_md5": "436394cefe4b6ab6ffec71393cad297d",
       "redistribution": "with-notice",
       "license": "CC-BY-4.0",
@@ -118,19 +138,313 @@
     "brain_mask/synthstrip/synthstrip.1.pt": {
       "sha256": "37417f802196186441aae3e7f385d94f8a98c64a88acaeaa2723af995c653e33",
       "size_bytes": 30851709,
-      "urls": ["https://surfer.nmr.mgh.harvard.edu/docs/synthstrip/requirements/synthstrip.1.pt"],
+      "urls": [
+        "https://surfer.nmr.mgh.harvard.edu/docs/synthstrip/requirements/synthstrip.1.pt"
+      ],
       "redistribution": "with-notice",
       "license": "CC-BY-4.0",
       "license_url": "https://creativecommons.org/licenses/by/4.0/",
       "attribution": "Andrew Hoopes, Jocelyn S. Mora, Adrian V. Dalca, Bruce Fischl, Malte Hoffmann. SynthStrip, NeuroImage 260:119474 (2022). Main model version 1, unmodified.",
       "terms_url": "https://surfer.nmr.mgh.harvard.edu/docs/synthstrip/"
+    },
+    "bundles/wma/naba/archives/runtime.zip.part-000": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "3b7decaa531051740c9454f4584a16ff7ea2fcce76c0a03e1ef018d3417276a1",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.5281/zenodo.18227691",
+      "attribution": "https://doi.org/10.1016/j.fmre.2025.12.030"
+    },
+    "bundles/wma/naba/archives/runtime.zip.part-001": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "3af376eb0b2f270ba05b45f1c478ceee16de00fc5c7339388a69ed5c5be107ae",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.5281/zenodo.18227691",
+      "attribution": "https://doi.org/10.1016/j.fmre.2025.12.030"
+    },
+    "bundles/wma/naba/archives/runtime.zip.part-002": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "a44645427dda05edd9bc5c0a617319d7ee886955bf3ca8adcd638ef7e227c01e",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.5281/zenodo.18227691",
+      "attribution": "https://doi.org/10.1016/j.fmre.2025.12.030"
+    },
+    "bundles/wma/naba/archives/runtime.zip.part-003": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "8111845306b44be92f61849e30c6439307052ef1bc565eb958e620d725c51017",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.5281/zenodo.18227691",
+      "attribution": "https://doi.org/10.1016/j.fmre.2025.12.030"
+    },
+    "bundles/wma/naba/archives/runtime.zip.part-004": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "5f5b2b13f685818fdb7483782c06eb81706dde35a40751a5f6d31ee9063b3615",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.5281/zenodo.18227691",
+      "attribution": "https://doi.org/10.1016/j.fmre.2025.12.030"
+    },
+    "bundles/wma/naba/archives/runtime.zip.part-005": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "22deeac27715ef7ca5779d9ebb644b9488580b918fdc0ab6fba733df309e8f52",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.5281/zenodo.18227691",
+      "attribution": "https://doi.org/10.1016/j.fmre.2025.12.030"
+    },
+    "bundles/wma/naba/archives/runtime.zip.part-006": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "486d834b3a08294eb841b9cce30837b89c029173f3628dd42db37c3148395f69",
+      "size_bytes": 38897925,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.5281/zenodo.18227691",
+      "attribution": "https://doi.org/10.1016/j.fmre.2025.12.030"
+    },
+    "bundles/wma/naba/extracted_resource_index.json": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "fd79e58b94ac841f21faab5a6ba8a4e4bd387c8f81e8c4b0a6342636856f9a80",
+      "size_bytes": 144730,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.5281/zenodo.18227691",
+      "attribution": "https://doi.org/10.1016/j.fmre.2025.12.030"
+    },
+    "bundles/wma/naba/ATTRIBUTION.md": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "a21a61022e225a99e73c5c626ba8767f5d923c66deb77edc4ef8bbf0a75cfbf1",
+      "size_bytes": 442,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.5281/zenodo.18227691",
+      "attribution": "https://doi.org/10.1016/j.fmre.2025.12.030"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-000": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "bd8f0bfcfc19df84dab6cf0ec0cb859f1b7eaac40bdb21b741f7ebdf7d7c818e",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-001": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "5952934a335bb6d52c892beaa91ec3caa61a5abc285de3e89b1041f86682b141",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-002": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "ba63f4edef858c08b8c3ffa202347cdc465c5d578cc4878e98644be0d334dea8",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-003": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "8cae68c08350106af1117aadadf01e64f5400e1d931ea78b79d795391a00a607",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-004": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "292d52426ba90a478ae3ebbafd94b7761d41b71f083b46553f8fc6ae9942ca52",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-005": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "d922c005b9beb30b018b0b56c9ce68020a31933bbb9fc8b7ee5179a748a0ae4d",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-006": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "0209cd78bbfff5f06e628983a5f20bc49f55a02835a2bbd10edbf8deb0c1261b",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-007": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "b189d27b34d8db84240a38afb77182fc560299a99ed93d8e9ae7c1ce6f8fedc1",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-008": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "1a0166d85f218fc62556f28c05ceabc8b3870f0b00dd49125a32dc503a4005ae",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-009": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "8bfc6d93f926aaf849b1f049c6be9ed1b9e917fd0559a66cc21f4efe29379014",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-010": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "3da5a0c191f00d16db5fc88eb4e90f2b90580c21749e3641a5714a6ee4df8d43",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-011": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "abab33077feb790d5d01b916e59a09756223680b249fbde418c00350cb93e2be",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-012": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "55a91c82455e174a20a8e37306bbc9638bfbad4bd44325ac212e3bc79c72e342",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-013": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "a5d4d5bc5ed8b546e81eb70704ddffedaef673e7ac1a1974e3bc452056bb3ed4",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-014": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "9d7286bc89bdcee41da3c7a9188380a5745047cb554d37ed32d46a77269cf531",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-015": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "bbe1152fc2bbd7676112cf7f563737bfaaa0817cf2e518340fe18d3ef5cbf675",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-016": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "2d10e3a40a752d3910a880c3a99d85847bb9598a199d24edff5d05dd35c1a13e",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-017": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "4f96fe68a0d3136b8666ff77992dc8861c24268d01923498128cefacbed39b62",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-018": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "7985bce0ec69213bdf3adf31caf740f82c67be5dda0275fe7676093f54f5cd84",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-019": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "899b9b7aaca3ab37ca4b4b21a4f5e80cba52325f5af14e4ba0bb2341e321685d",
+      "size_bytes": 536870912,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/archives/runtime.zip.part-020": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "b7fd5a2cfd51457224d895fa9e2e459269c143e09ba8232354e1af25c210b69e",
+      "size_bytes": 370370024,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/extracted_resource_index.json": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "acc6e8d4a56e1dd0c60078cdc8e599d0f8912152760ef0c4e69cbb107fa19cd2",
+      "size_bytes": 156592,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
+    },
+    "bundles/wma/east-west/ATTRIBUTION.md": {
+      "source_ids": ["wma_atlases_mirror"],
+      "sha256": "baa8f25ab237cea89ea5b9f92d742bd9bc3e9d4d2a0d9880df04ef9f73b74e2f",
+      "size_bytes": 455,
+      "redistribution": "with-notice",
+      "license": "CC-BY-4.0",
+      "terms_url": "https://doi.org/10.57760/sciencedb.17354",
+      "attribution": "https://doi.org/10.1038/s41597-024-03624-2"
     }
   },
   "profiles": {
     "surface-postprocess": {
       "directory": "surface/postprocessing",
-      "required_paths": ["surface/postprocessing/atlas.tar.gz"],
-      "terms_notice": ["Original FreeSurfer atlas data and notices from the pinned DDSurfer revision. Preserve the complete MGH/third-party agreements. Source compilation downloads pinned FreeSurfer, ITK and zlib sources separately. No executable binaries or personal activation file are downloaded in this profile."]
+      "required_paths": [
+        "surface/postprocessing/atlas.tar.gz"
+      ],
+      "terms_notice": [
+        "Original FreeSurfer atlas data and notices from the pinned DDSurfer revision. Preserve the complete MGH/third-party agreements. Source compilation downloads pinned FreeSurfer, ITK and zlib sources separately. No executable binaries or personal activation file are downloaded in this profile."
+      ]
     },
     "pnl-cnn-weights": {
       "required_paths": [
@@ -140,13 +454,21 @@
         "brain_mask/pnl_cnn/weights-sagittal-improvement-09.h5",
         "brain_mask/pnl_cnn/LICENSE.txt"
       ],
-      "terms_notice": ["Preserve the complete PNL/BWH agreement and attribution. This profile deliberately excludes the third-party IIT template."]
+      "terms_notice": [
+        "Preserve the complete PNL/BWH agreement and attribution. This profile deliberately excludes the third-party IIT template."
+      ]
     },
     "pnl-cnn": {
       "directory": "brain_mask/pnl_cnn",
-      "include_profiles": ["pnl-cnn-weights"],
-      "required_paths": ["brain_mask/pnl_cnn/IITmean_b0_256.nii.gz"],
-      "terms_notice": ["Includes an upstream-only IIT template for local verification/acquisition. Mirror export is prohibited without separate written permission."]
+      "include_profiles": [
+        "pnl-cnn-weights"
+      ],
+      "required_paths": [
+        "brain_mask/pnl_cnn/IITmean_b0_256.nii.gz"
+      ],
+      "terms_notice": [
+        "Includes an upstream-only IIT template for local verification/acquisition. Mirror export is prohibited without separate written permission."
+      ]
     },
     "tractcloud": {
       "directory": "bundles/tractcloud",
@@ -156,22 +478,130 @@
         "bundles/tractcloud/TrainData_800clu800ol/HCP_mass_center.npy",
         "bundles/tractcloud/LICENSE.txt"
       ],
-      "terms_notice": ["Unmodified inference subset only. Preserve the complete Slicer/BWH agreement and cite TractCloud and its ORG reference atlas. No raw subject or training/test data included."]
+      "terms_notice": [
+        "Unmodified inference subset only. Preserve the complete Slicer/BWH agreement and cite TractCloud and its ORG reference atlas. No raw subject or training/test data included."
+      ]
     },
     "synthstrip": {
       "directory": "brain_mask/synthstrip",
-      "required_paths": ["brain_mask/synthstrip/synthstrip.1.pt"],
-      "terms_notice": ["Unmodified model by Andrew Hoopes, Jocelyn S. Mora, Adrian V. Dalca, Bruce Fischl and Malte Hoffmann, NeuroImage 260:119474 (2022). Distributed under the author's CC BY 4.0 option: https://creativecommons.org/licenses/by/4.0/. Weights alone do not install the SynthStrip runtime."]
+      "required_paths": [
+        "brain_mask/synthstrip/synthstrip.1.pt"
+      ],
+      "terms_notice": [
+        "Unmodified model by Andrew Hoopes, Jocelyn S. Mora, Adrian V. Dalca, Bruce Fischl and Malte Hoffmann, NeuroImage 260:119474 (2022). Distributed under the author's CC BY 4.0 option: https://creativecommons.org/licenses/by/4.0/. Weights alone do not install the SynthStrip runtime."
+      ]
     },
     "wma": {
       "description": "Pinned official ORG distribution archives. Extract with validated paths before WMA use; not part of the default core download.",
       "directory": "bundles/wma",
-      "required_paths": ["bundles/wma/archives/ORG-800FC-100HCP.zip", "bundles/wma/archives/ORG-RegAtlas-100HCP.zip", "bundles/wma/LICENSE.txt", "bundles/wma/extracted_resource_index.json"],
-      "terms_notice": ["ORG atlas, doi:10.5281/zenodo.2648292, unmodified. CC BY 4.0 per the pinned Zenodo record; preserve attribution, citation and the upstream Slicer agreement. No subject-level DWI data."]
+      "required_paths": [
+        "bundles/wma/archives/ORG-800FC-100HCP.zip",
+        "bundles/wma/archives/ORG-RegAtlas-100HCP.zip",
+        "bundles/wma/LICENSE.txt",
+        "bundles/wma/extracted_resource_index.json"
+      ],
+      "terms_notice": [
+        "ORG atlas, doi:10.5281/zenodo.2648292, unmodified. CC BY 4.0 per the pinned Zenodo record; preserve attribution, citation and the upstream Slicer agreement. No subject-level DWI data."
+      ]
     },
     "mirrorable-inference": {
-      "include_profiles": ["pnl-cnn-weights", "tractcloud", "synthstrip", "wma"],
-      "terms_notice": ["An allowlist of inference resources, not every dependency. Not proof of completed GitHub upload or universal licensing clearance."]
+      "include_profiles": [
+        "pnl-cnn-weights",
+        "tractcloud",
+        "synthstrip",
+        "wma"
+      ],
+      "terms_notice": [
+        "An allowlist of inference resources, not every dependency. Not proof of completed GitHub upload or universal licensing clearance."
+      ]
+    },
+    "wma-naba": {
+      "directory": "bundles/wma/naba",
+      "atlas_family": "naba",
+      "required_paths": [
+        "bundles/wma/naba/archives/runtime.zip.part-000",
+        "bundles/wma/naba/archives/runtime.zip.part-001",
+        "bundles/wma/naba/archives/runtime.zip.part-002",
+        "bundles/wma/naba/archives/runtime.zip.part-003",
+        "bundles/wma/naba/archives/runtime.zip.part-004",
+        "bundles/wma/naba/archives/runtime.zip.part-005",
+        "bundles/wma/naba/archives/runtime.zip.part-006",
+        "bundles/wma/naba/extracted_resource_index.json",
+        "bundles/wma/naba/ATTRIBUTION.md"
+      ],
+      "extracted_index": "bundles/wma/naba/extracted_resource_index.json",
+      "archive_parts": [
+        "bundles/wma/naba/archives/runtime.zip.part-000",
+        "bundles/wma/naba/archives/runtime.zip.part-001",
+        "bundles/wma/naba/archives/runtime.zip.part-002",
+        "bundles/wma/naba/archives/runtime.zip.part-003",
+        "bundles/wma/naba/archives/runtime.zip.part-004",
+        "bundles/wma/naba/archives/runtime.zip.part-005",
+        "bundles/wma/naba/archives/runtime.zip.part-006"
+      ],
+      "archive_sha256": "422b50a3b3a91f084cc8717078adbcda8b6f8cbd8d4a5237f4cc64a2c5558cd7",
+      "terms_notice": [
+        "NABA (neonates / adults): original atlas data under CC BY 4.0. Retain attribution and cite https://doi.org/10.1016/j.fmre.2025.12.030. Download only for the selected atlas route."
+      ],
+      "expanded_size_bytes": 4263715699
+    },
+    "wma-east-west": {
+      "directory": "bundles/wma/east-west",
+      "atlas_family": "east-west",
+      "required_paths": [
+        "bundles/wma/east-west/archives/runtime.zip.part-000",
+        "bundles/wma/east-west/archives/runtime.zip.part-001",
+        "bundles/wma/east-west/archives/runtime.zip.part-002",
+        "bundles/wma/east-west/archives/runtime.zip.part-003",
+        "bundles/wma/east-west/archives/runtime.zip.part-004",
+        "bundles/wma/east-west/archives/runtime.zip.part-005",
+        "bundles/wma/east-west/archives/runtime.zip.part-006",
+        "bundles/wma/east-west/archives/runtime.zip.part-007",
+        "bundles/wma/east-west/archives/runtime.zip.part-008",
+        "bundles/wma/east-west/archives/runtime.zip.part-009",
+        "bundles/wma/east-west/archives/runtime.zip.part-010",
+        "bundles/wma/east-west/archives/runtime.zip.part-011",
+        "bundles/wma/east-west/archives/runtime.zip.part-012",
+        "bundles/wma/east-west/archives/runtime.zip.part-013",
+        "bundles/wma/east-west/archives/runtime.zip.part-014",
+        "bundles/wma/east-west/archives/runtime.zip.part-015",
+        "bundles/wma/east-west/archives/runtime.zip.part-016",
+        "bundles/wma/east-west/archives/runtime.zip.part-017",
+        "bundles/wma/east-west/archives/runtime.zip.part-018",
+        "bundles/wma/east-west/archives/runtime.zip.part-019",
+        "bundles/wma/east-west/archives/runtime.zip.part-020",
+        "bundles/wma/east-west/extracted_resource_index.json",
+        "bundles/wma/east-west/ATTRIBUTION.md"
+      ],
+      "extracted_index": "bundles/wma/east-west/extracted_resource_index.json",
+      "archive_parts": [
+        "bundles/wma/east-west/archives/runtime.zip.part-000",
+        "bundles/wma/east-west/archives/runtime.zip.part-001",
+        "bundles/wma/east-west/archives/runtime.zip.part-002",
+        "bundles/wma/east-west/archives/runtime.zip.part-003",
+        "bundles/wma/east-west/archives/runtime.zip.part-004",
+        "bundles/wma/east-west/archives/runtime.zip.part-005",
+        "bundles/wma/east-west/archives/runtime.zip.part-006",
+        "bundles/wma/east-west/archives/runtime.zip.part-007",
+        "bundles/wma/east-west/archives/runtime.zip.part-008",
+        "bundles/wma/east-west/archives/runtime.zip.part-009",
+        "bundles/wma/east-west/archives/runtime.zip.part-010",
+        "bundles/wma/east-west/archives/runtime.zip.part-011",
+        "bundles/wma/east-west/archives/runtime.zip.part-012",
+        "bundles/wma/east-west/archives/runtime.zip.part-013",
+        "bundles/wma/east-west/archives/runtime.zip.part-014",
+        "bundles/wma/east-west/archives/runtime.zip.part-015",
+        "bundles/wma/east-west/archives/runtime.zip.part-016",
+        "bundles/wma/east-west/archives/runtime.zip.part-017",
+        "bundles/wma/east-west/archives/runtime.zip.part-018",
+        "bundles/wma/east-west/archives/runtime.zip.part-019",
+        "bundles/wma/east-west/archives/runtime.zip.part-020"
+      ],
+      "archive_sha256": "f720f69f7606a7dba3e493fbb0ac00dea223e693f817ef732e89461a4c81f60d",
+      "expanded_size_bytes": 17152366968,
+      "terms_notice": [
+        "East-West (Eastern / Western adults): original atlas data under CC BY 4.0. Retain attribution and cite https://doi.org/10.1038/s41597-024-03624-2. Download only for the selected atlas route."
+      ]
     }
   }
 }

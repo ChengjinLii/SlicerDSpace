@@ -32,6 +32,8 @@ lightweight source checkout or complete development/research repository.
 | [Managed setup](setup/MANAGED_SETUP.md) | Selected extensions, Python/models, isolated MRtrix/FSL/PNL, repair and offline resources |
 | [Microstructure](setup/MICROSTRUCTURE.md) | DTI default, independent FW/NODDI/DKI and original MK-Curve boundary |
 | [UKF tractography](setup/UKF.md) | Optional author extension, defaults, lossless input and automatic WMA handoff |
+| [WMA atlases](setup/WMA_ATLASES.md) | ORG, East-West and NABA selection, on-demand resources and atlas-specific QC |
+| [WMQL cerebellar selections](setup/WMQL_CEREBELLAR.md) | Optional regional rules, CLI/GUI presets and checks |
 | [Regional analysis](setup/REGIONAL_ANALYSIS.md) | Optional Advanced region selection, scalar statistics, ROI streamlines and unchanged-weight subgraphs |
 | [Automatic results](setup/AUTOMATIC_RESULTS.md) | Current-run loading and RAS VTK display previews |
 | [Settings](setup/USER_CONFIG.md) | Persistent GUI/CLI configuration |

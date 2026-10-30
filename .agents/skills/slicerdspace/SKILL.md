@@ -183,7 +183,7 @@ the requested route and its prerequisites, not every algorithm at once.
 | [Anatomical prior](references/shell_templates.md#anatomical-prior) | DDSeg, DDParcel, DDSurfer, native cortical postprocessing |
 | [Microstructure](references/shell_templates.md#microstructure) | DTI WLS/OLS, FW, NODDI, DKI WLS/OLS, Python MK-Curve, optional MATLAB reference |
 | [Tractography](references/shell_templates.md#tractography) | DTI deterministic, UKF, CSD/ACT with SIFT2, SAF |
-| [Fiber bundles](references/shell_templates.md#fiber-bundles) | WMQL, WMA, TractCloud; source selection and combinations |
+| [Fiber bundles](references/shell_templates.md#fiber-bundles) | WMQL, WMA, TractCloud; source selection, ORG / East-West / NABA atlases and combinations |
 | [Connectome](references/shell_templates.md#connectome-and-combined-routes) | Python count/scalar-weighted or MRtrix/SIFT2; combined routes |
 
 Set the actual Slicer, runtime, subject, output and confirmed resource paths as

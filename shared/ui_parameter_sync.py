@@ -93,6 +93,7 @@ def sync_parameter_node_to_ui(widget) -> None:
         getattr(ui, "wmaInputTractographyPath", None),
         getattr(node, "wmaInputTractography", "") or "",
     )
+    widget._sync_combo_text(getattr(ui, "wmaAtlasComboBox", None), getattr(node, "wmaAtlas", "org"))
     widget._sync_combo_text(getattr(ui, "wmqlQueryPresetComboBox", None),
                             getattr(node, "orchestrationWmqlPreset", "official") or "official", via_index=False)
     widget._sync_line_edit(getattr(ui, 'wmqlQuerySelectionLineEdit', None),

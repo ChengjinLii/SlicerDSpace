@@ -1,0 +1,176 @@
+{
+  "schema": "wma_public_mirror_probe.v1",
+  "status": "passed",
+  "model_repository": "ChengjinLii/SlicerDSpace-models",
+  "model_commit": "137e8bbddc3bcee821e13d1e4aabf3a44171c209",
+  "authentication": "anonymous HTTP",
+  "headers": [
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-000",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-001",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-002",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-003",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-004",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-005",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-006",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-007",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-008",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-009",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-010",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-011",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-012",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-013",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-014",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-015",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-016",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-017",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-018",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-019",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/archives/runtime.zip.part-020",
+      "size_bytes": 370370024,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/extracted_resource_index.json",
+      "size_bytes": 156592,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/east-west/ATTRIBUTION.md",
+      "size_bytes": 455,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/naba/archives/runtime.zip.part-000",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/naba/archives/runtime.zip.part-001",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/naba/archives/runtime.zip.part-002",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/naba/archives/runtime.zip.part-003",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/naba/archives/runtime.zip.part-004",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/naba/archives/runtime.zip.part-005",
+      "size_bytes": 536870912,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/naba/archives/runtime.zip.part-006",
+      "size_bytes": 38897925,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/naba/extracted_resource_index.json",
+      "size_bytes": 144730,
+      "status": "passed"
+    },
+    {
+      "path": "bundles/wma/naba/ATTRIBUTION.md",
+      "size_bytes": 442,
+      "status": "passed"
+    }
+  ],
+  "downloaded_and_sha256_verified": [
+    "bundles/wma/east-west/extracted_resource_index.json",
+    "bundles/wma/east-west/archives/runtime.zip.part-020",
+    "bundles/wma/naba/extracted_resource_index.json",
+    "bundles/wma/naba/archives/runtime.zip.part-006"
+  ],
+  "scope": "All resource URLs and sizes; complete downloads of both extraction indices and one archive part per atlas. Full extraction is checked separately with the byte-identical offline parts."
+}

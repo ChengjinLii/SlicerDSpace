@@ -1,0 +1,257 @@
+{
+  "cache_policy": "Fresh output directories share the host OS cache; no cache flush or model computation.",
+  "commit": "558a497ae4c0181f01c383f52efa5e22ab89a2c2",
+  "cpu_affinity_count": 144,
+  "load_average": [
+    10.96728515625,
+    10.59521484375,
+    10.80126953125
+  ],
+  "measured_at": "2026-10-29T21:32:50.961921+00:00",
+  "medians": {
+    "fresh_output_directory": {
+      "directory_scan_seconds": 0.0003770720213651657,
+      "external_api_wall_seconds": 0.012629739940166473,
+      "legacy_pre_report_seconds": 0.007234098389744759,
+      "orchestrator_wall_seconds": 0.012104367837309837
+    },
+    "gradient_modified": {
+      "directory_scan_seconds": 0.0008095856755971909,
+      "external_api_wall_seconds": 0.01531665213406086,
+      "legacy_pre_report_seconds": 0.0076518673449754715,
+      "orchestrator_wall_seconds": 0.014799447730183601
+    },
+    "same_settings_repeat": {
+      "directory_scan_seconds": 0.0007326919585466385,
+      "external_api_wall_seconds": 0.014982331544160843,
+      "legacy_pre_report_seconds": 0.00770457461476326,
+      "orchestrator_wall_seconds": 0.01444377563893795
+    }
+  },
+  "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+  "python": "3.13.5",
+  "records": [
+    {
+      "declared_path_queries": 0,
+      "directory_scan_seconds": 0.00039599277079105377,
+      "external_api_wall_seconds": 0.038218991830945015,
+      "legacy_pre_report_seconds": 0.01205020397901535,
+      "orchestrator_wall_seconds": 0.0173477940261364,
+      "phases_seconds": {
+        "input_preparation_and_validation": 0.0035511162132024765,
+        "metadata_and_profile": 0.0016306061297655106,
+        "output_tree_report": 0.0013170763850212097,
+        "planning": 0.005909031257033348,
+        "product_execution": 0.0013451334089040756,
+        "subject_reports_and_refresh": 0.0030184313654899597
+      },
+      "repeat": 0,
+      "scenario": "fresh_output_directory",
+      "spatial_shape": [
+        5,
+        5,
+        5
+      ],
+      "status": "completed"
+    },
+    {
+      "declared_path_queries": 0,
+      "directory_scan_seconds": 0.0007322151213884354,
+      "external_api_wall_seconds": 0.015142085030674934,
+      "legacy_pre_report_seconds": 0.007825715467333794,
+      "orchestrator_wall_seconds": 0.014607829973101616,
+      "phases_seconds": {
+        "input_preparation_and_validation": 0.0030792467296123505,
+        "metadata_and_profile": 0.0021952465176582336,
+        "output_tree_report": 0.001977207139134407,
+        "planning": 0.0019601956009864807,
+        "product_execution": 0.001325417309999466,
+        "subject_reports_and_refresh": 0.0034722723066806793
+      },
+      "repeat": 0,
+      "scenario": "same_settings_repeat",
+      "spatial_shape": [
+        5,
+        5,
+        5
+      ],
+      "status": "completed"
+    },
+    {
+      "declared_path_queries": 0,
+      "directory_scan_seconds": 0.0008256882429122925,
+      "external_api_wall_seconds": 0.015398640185594559,
+      "legacy_pre_report_seconds": 0.007678095251321793,
+      "orchestrator_wall_seconds": 0.014872681349515915,
+      "phases_seconds": {
+        "input_preparation_and_validation": 0.0030014514923095703,
+        "metadata_and_profile": 0.0022814013063907623,
+        "output_tree_report": 0.0021642427891492844,
+        "planning": 0.0018857289105653763,
+        "product_execution": 0.0013354998081922531,
+        "subject_reports_and_refresh": 0.003626542165875435
+      },
+      "repeat": 0,
+      "scenario": "gradient_modified",
+      "spatial_shape": [
+        5,
+        5,
+        5
+      ],
+      "status": "completed"
+    },
+    {
+      "declared_path_queries": 0,
+      "directory_scan_seconds": 0.0003770720213651657,
+      "external_api_wall_seconds": 0.012629739940166473,
+      "legacy_pre_report_seconds": 0.007234098389744759,
+      "orchestrator_wall_seconds": 0.012104367837309837,
+      "phases_seconds": {
+        "input_preparation_and_validation": 0.003012780100107193,
+        "metadata_and_profile": 0.0015743598341941833,
+        "output_tree_report": 0.0012538563460111618,
+        "planning": 0.0016970261931419373,
+        "product_execution": 0.0013342835009098053,
+        "subject_reports_and_refresh": 0.0026992056518793106
+      },
+      "repeat": 1,
+      "scenario": "fresh_output_directory",
+      "spatial_shape": [
+        6,
+        5,
+        5
+      ],
+      "status": "completed"
+    },
+    {
+      "declared_path_queries": 0,
+      "directory_scan_seconds": 0.0007414743304252625,
+      "external_api_wall_seconds": 0.014982331544160843,
+      "legacy_pre_report_seconds": 0.007684504613280296,
+      "orchestrator_wall_seconds": 0.01444377563893795,
+      "phases_seconds": {
+        "input_preparation_and_validation": 0.0029701590538024902,
+        "metadata_and_profile": 0.0021480917930603027,
+        "output_tree_report": 0.0020059682428836823,
+        "planning": 0.001986289396882057,
+        "product_execution": 0.0013199187815189362,
+        "subject_reports_and_refresh": 0.003433646634221077
+      },
+      "repeat": 1,
+      "scenario": "same_settings_repeat",
+      "spatial_shape": [
+        6,
+        5,
+        5
+      ],
+      "status": "completed"
+    },
+    {
+      "declared_path_queries": 0,
+      "directory_scan_seconds": 0.0008095856755971909,
+      "external_api_wall_seconds": 0.015254516154527664,
+      "legacy_pre_report_seconds": 0.007582496851682663,
+      "orchestrator_wall_seconds": 0.01473238319158554,
+      "phases_seconds": {
+        "input_preparation_and_validation": 0.0030068494379520416,
+        "metadata_and_profile": 0.0022523272782564163,
+        "output_tree_report": 0.002129277214407921,
+        "planning": 0.001873895525932312,
+        "product_execution": 0.0012605451047420502,
+        "subject_reports_and_refresh": 0.003642614930868149
+      },
+      "repeat": 1,
+      "scenario": "gradient_modified",
+      "spatial_shape": [
+        6,
+        5,
+        5
+      ],
+      "status": "completed"
+    },
+    {
+      "declared_path_queries": 0,
+      "directory_scan_seconds": 0.0003741346299648285,
+      "external_api_wall_seconds": 0.012565745040774345,
+      "legacy_pre_report_seconds": 0.007153315469622612,
+      "orchestrator_wall_seconds": 0.012040263041853905,
+      "phases_seconds": {
+        "input_preparation_and_validation": 0.0029366426169872284,
+        "metadata_and_profile": 0.001548420637845993,
+        "output_tree_report": 0.0012719575315713882,
+        "planning": 0.0017149224877357483,
+        "product_execution": 0.0013309251517057419,
+        "subject_reports_and_refresh": 0.002703869715332985
+      },
+      "repeat": 2,
+      "scenario": "fresh_output_directory",
+      "spatial_shape": [
+        7,
+        5,
+        5
+      ],
+      "status": "completed"
+    },
+    {
+      "declared_path_queries": 0,
+      "directory_scan_seconds": 0.0007326919585466385,
+      "external_api_wall_seconds": 0.01489754393696785,
+      "legacy_pre_report_seconds": 0.00770457461476326,
+      "orchestrator_wall_seconds": 0.014371655881404877,
+      "phases_seconds": {
+        "input_preparation_and_validation": 0.002974551171064377,
+        "metadata_and_profile": 0.002161111682653427,
+        "output_tree_report": 0.00196257047355175,
+        "planning": 0.0019812211394309998,
+        "product_execution": 0.0013263188302516937,
+        "subject_reports_and_refresh": 0.0033941641449928284
+      },
+      "repeat": 2,
+      "scenario": "same_settings_repeat",
+      "spatial_shape": [
+        7,
+        5,
+        5
+      ],
+      "status": "completed"
+    },
+    {
+      "declared_path_queries": 0,
+      "directory_scan_seconds": 0.0008067525923252106,
+      "external_api_wall_seconds": 0.01531665213406086,
+      "legacy_pre_report_seconds": 0.0076518673449754715,
+      "orchestrator_wall_seconds": 0.014799447730183601,
+      "phases_seconds": {
+        "input_preparation_and_validation": 0.002960389479994774,
+        "metadata_and_profile": 0.0022510364651679993,
+        "output_tree_report": 0.0021258071064949036,
+        "planning": 0.0019172877073287964,
+        "product_execution": 0.0013264883309602737,
+        "subject_reports_and_refresh": 0.0036384444683790207
+      },
+      "repeat": 2,
+      "scenario": "gradient_modified",
+      "spatial_shape": [
+        7,
+        5,
+        5
+      ],
+      "status": "completed"
+    }
+  ],
+  "scope": "Synthetic validation and reporting only; no MRI model fitting, model-cache timing, or speedup comparison.",
+  "source_sha256": {
+    "scripts/benchmark_workflow_overheads.py": "f373beee6311225787117cad1c315752a5fd150472f0ff48d5b48da8bcf756cb",
+    "shared/orchestrator.py": "f1df2ace917deffa4f6508c5312e65bb6df32e0ffe105c9e34c24b63c4675ce0",
+    "shared/pipeline.py": "8934d75baad954960839ac8ae8b934ef5bb540eb83c78637c8e1796e55bf196f",
+    "shared/reporting.py": "ec902ceaa24a80db119bd1a7d5be2c6c7b0c1fc4afe389270bbbc105169091ac",
+    "shared/run_subject_pipeline_cli.py": "f63198b32382c4657e639e4572c27687566e0277e2bd50bb7ca40eb8e35101d9",
+    "shared/validation.py": "d0629c368a1a477a4e328707afa056d77b4f0ab3eeed712e5c0232d2d7626c7c"
+  },
+  "status": "passed",
+  "threads": {
+    "MKL_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1"
+  }
+}

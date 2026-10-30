@@ -1,19 +1,4 @@
 /* Chengjin Bot's mascot, motion and light dialog, adapted to the project guide. */
-.guide-bot__dock { flex: 0 0 36px; width: 36px; height: 36px; order: 1; }
-.guide-bot__dock[hidden] { display: none; }
-.guide-bot.is-docked { width: 36px; height: 36px; filter: none; animation: none; }
-.guide-bot.is-docked .guide-bot__launcher { width: 36px; height: 36px; touch-action: manipulation; animation: none; box-shadow: 0 0 12px rgba(78, 168, 255, .24); }
-.guide-bot.is-docked .guide-bot__launcher:hover { transform: none; }
-.guide-bot.is-docked .guide-bot__hat { display: none; }
-@media (max-width: 1023px) {
-  body.guide-bot-docked .guide-bot__dock { margin-left: auto; }
-  body.guide-bot-docked .menu-btn { margin-left: 0; order: 2; }
-}
-@media (max-width: 400px) {
-  body.guide-bot-docked .header-inner { gap: 10px; }
-  body.guide-bot-docked .menu-btn { width: 40px; height: 40px; justify-content: center; padding: 0; }
-  body.guide-bot-docked .menu-btn > span:last-child { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
-}
 .guide-bot {
   position: fixed;
   left: 24px;

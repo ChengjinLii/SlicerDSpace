@@ -7,6 +7,7 @@ import argparse
 import json
 import signal
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -198,9 +199,10 @@ def resolve_analysis_options(args, *, explicit_dests=()):
             tracking.append(source)
         args.tractography_backend = ','.join(tracking)
     from tractography.ukf import parameters
-    from tractography.wmql_protocol import canonical_wmql_selection
+    from tractography.wmql_protocol import CATALOG_PRESETS, canonical_wmql_selection
     parameters(json.loads(args.ukf_parameters))
-    canonical_wmql_selection(args.wmql_query_selection)
+    if args.wmql_query_preset in CATALOG_PRESETS:
+        canonical_wmql_selection(args.wmql_query_selection, args.wmql_query_preset)
     targets = _resolve_targets(args)
     if not targets:
         raise ValueError('No targets selected. Use --all or --targets.')
@@ -303,6 +305,7 @@ def _environment_config_from_args(
         model_assets_dir=args.model_assets_dir,
         wma_root=args.wma_root,
         wma_atlas_dir=args.wma_atlas_dir,
+        wma_atlas=args.wma_atlas,
         slicer_executable=args.slicer_executable,
         fiber_tract_measurements_cli=args.fiber_tract_measurements_cli,
         tract_querier_root=args.tract_querier_root,
@@ -560,10 +563,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument('--max-parallel-models', type=int, choices=(1,2,3), default=1,
                         help='Independent Free-water/NODDI/DKI processes; resource-bounded; default sequential.')
-    parser.add_argument("--wmql-query-preset", choices=("official", "ddparcel_act", "author", "published_endpoints"), default="official",
-                        help="Unmodified official multi-bundle rules (default). Other choices are deprecated historical protocols, not fallback routes.")
+    parser.add_argument("--wmql-query-preset", choices=("official", "cerebellar", "official_cerebellar", "ddparcel_act", "author", "published_endpoints"), default="official",
+                        help="official: 48 unchanged author outputs (default); official_cerebellar: add three regional cerebellar selections; cerebellar: regional selections only. Remaining choices are historical protocols.")
     parser.add_argument('--wmql-query-selection', default='',
-                        help='Comma-separated official query/family names, e.g. AF,CST,UF,cc_4. Empty/all runs every official output query.')
+                        help='Comma-separated queries from the selected preset, e.g. AF,CST or cerebellar_brainstem. Empty/all runs the selected preset in full.')
+    parser.add_argument('--wmql-atlas-mode', choices=('native', 'ddparcel_wm'), default='native',
+                        help='native retains the supplied labels (default). ddparcel_wm explicitly enables experimental 5-mm adjacent-WM territories; native DDParcel output is unchanged and anatomical review remains required.')
     parser.add_argument(
         "--select-streamlines",
         type=int,
@@ -723,7 +728,9 @@ def build_parser() -> argparse.ArgumentParser:
             "broad long-range bundle coverage."
         ),
     )
-    parser.add_argument("--wma-atlas-dir", type=Path, help="ORG atlas directory for WMA.")
+    parser.add_argument("--wma-atlas", choices=("org", "east-west", "naba"), default="org",
+                        help="WMA atlas family: ORG (default), East-West adults, or NABA neonates/adults.")
+    parser.add_argument("--wma-atlas-dir", type=Path, help="Optional directory for the selected WMA atlas.")
     parser.add_argument("--wma-root", type=Path, help="Optional WhiteMatterAnalysis checkout root.")
     parser.add_argument("--slicer-executable", type=Path, help="Slicer executable used by WMA.")
     parser.add_argument("--wma-use-virtual-x", action="store_true", help="Enable xvfb-run mode for WMA.")
@@ -759,6 +766,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    cli_started = time.monotonic()
     parser = build_parser()
     raw_argv = list(sys.argv[1:] if argv is None else argv)
     explicit_dests = coupled_explicit_cli_destinations(
@@ -783,6 +791,10 @@ def main(argv: list[str] | None = None) -> int:
                 user_config,
                 explicit_dests=explicit_dests | dependency_profile_dests,
             )
+        if 'wma_atlas_dir' not in explicit_dests:
+            from shared.optional_assets import inherited_wma_atlas_directory
+            args.wma_atlas_dir = inherited_wma_atlas_directory(args.wma_atlas_dir, args.wma_atlas,
+                                                               args.model_assets_dir)
         if args.python_environment and args.python_executable is None:
             args.python_executable = resolve_python_executable(
                 python_environment=args.python_environment,
@@ -845,6 +857,7 @@ def main(argv: list[str] | None = None) -> int:
     preflight_blocked_targets: dict[str, str] = {}
     doctor_result: EnvironmentDoctorResult | None = None
     doctor_paths: dict[str, str] = {}
+    environment_started = time.monotonic()
     if (args.execute or args.plan) and not args.skip_environment_check:
         doctor_result, doctor_paths = _run_environment_doctor_from_args(
             args,
@@ -875,6 +888,7 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
 
+    environment_seconds = time.monotonic() - environment_started
     config = ProductOrchestratorConfig(
         subject_id=subject_id,
         subject_root=subject_root,
@@ -889,6 +903,7 @@ def main(argv: list[str] | None = None) -> int:
         dwiconvert_executable=args.dwiconvert_executable,
         execute=bool(args.execute),
         wmql_query_preset=args.wmql_query_preset,
+        wmql_atlas_mode=args.wmql_atlas_mode,
         wmql_query_selection=tuple(value.strip() for value in args.wmql_query_selection.split(',') if value.strip()),
         max_parallel_models=args.max_parallel_models,
         resume=not args.no_resume,
@@ -960,6 +975,7 @@ def main(argv: list[str] | None = None) -> int:
         saf_mrtrix_prefix=args.saf_mrtrix_prefix,
         wma_input_tractography=args.wma_input_tractography,
         wma_atlas_dir=args.wma_atlas_dir,
+        wma_atlas=args.wma_atlas,
         wma_root=args.wma_root,
         slicer_executable=args.slicer_executable,
         wma_use_virtual_x=bool(args.wma_use_virtual_x),
@@ -1010,10 +1026,19 @@ def main(argv: list[str] | None = None) -> int:
             ),
         )
 
+    orchestration_started = time.monotonic()
     result = run_subject_products(config, log=print)
+    orchestration_seconds = time.monotonic() - orchestration_started
+    cli_timing = dict(main_wall_seconds=time.monotonic() - cli_started,
+                      environment_check_seconds=environment_seconds, orchestration_call_seconds=orchestration_seconds,
+                      scope='CLI main entry through environment checks, planning and orchestration return; excludes Python startup and final response/telemetry writes.')
+    manifest_payload = {}
     try:
         manifest_payload = json.loads(result.run_manifest_path.read_text(encoding="utf-8"))
         task_payloads = manifest_payload.get("tasks", [])
+        manifest_payload['cli_timing'] = cli_timing
+        from shared.pipeline import _write_manifest
+        _write_manifest(result.run_manifest_path, manifest_payload)
     except Exception:
         task_payloads = [
             {
@@ -1032,6 +1057,7 @@ def main(argv: list[str] | None = None) -> int:
         "run_manifest_path": result.run_manifest_path.as_posix(),
         "run_plan_path": result.run_plan_path.as_posix() if result.run_plan_path else None,
         "tasks": task_payloads,
+        "cli_timing": cli_timing,
     }
 
     if args.print_manifest_only:

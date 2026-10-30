@@ -21,8 +21,8 @@
       "sha256": "6819d2b477efb64d95327d306c3b30d95ddd4e853f51dc54b209ed3066e6a46f"
     },
     "docs/site/assets/img/res-wmql-ukf.jpg": {
-      "sha256": "af942ba00b27f4fe52009ede25a6afae3263a244cd52c40fb89824d0d0d23598",
-      "query_preset": "official_multibundle",
+      "sha256": "55d96fc9fb1ded8d6e21b3ccb9ac91f670b29d97583388b3eeda2f1bf44ae7c7",
+      "query_preset": "official_cerebellar",
       "input_method": "UKF"
     },
     "docs/site/assets/img/fig-product-map.png": {
@@ -35,7 +35,85 @@
       "sha256": "7b34ee9dad3fdf57872ef77c3b266a66e75be992ba3aebb8c55e9a6ccb325391"
     },
     "docs/site/assets/img/fig-runtime-optimizations.png": {
-      "sha256": "019703f494e6ee3fbdf40b7c5aaa4477684fdb1d3ea3b1824694dc0e9407fc5e"
+      "sha256": "e51323bc167818b72b32e7b52afdf0e07aeb6a958a5c75d115f588aa4d4cbbcc"
+    },
+    "docs/site/assets/img/results-overview.svg": {
+      "sha256": "0a744a5dcc16e56d9bf59f4dcbaddc8130dda8ce6afc7cbf75a7109daf1fa4d0",
+      "source_sha256": "f8e8953767b2707395c7895cde4b690650cceed4c6bf054b0ee85747ae467e29",
+      "derivative": "Black website gutters and white panel outlines; scientific artwork unchanged",
+      "query_preset": "official_cerebellar",
+      "query_provenance_sha256": "fecd310204e04f2b22a380a42a50e1d7e7eb5aeae687776acf60e9f95848bf66"
+    },
+    "docs/site/assets/img/fig-product-map.webp": {
+      "sha256": "c939ed72a4e7519d56816859aa15f8798e2ce717ba06e095da740f0a329b5838",
+      "source_sha256": "b0da2ea13bc32b1fb04dfb1ed0472f2427711a1062d3cccf354efdb142326a90",
+      "derivative": "Lossless WebP; decoded RGBA pixels and dimensions identical to PNG"
+    },
+    "docs/site/assets/img/fig-runtime-resources.webp": {
+      "sha256": "761d18b4786ff4cbd1cf86c6028cd15af82f97bbb3edf87f3e3300bf1a8966cd",
+      "source_sha256": "7b34ee9dad3fdf57872ef77c3b266a66e75be992ba3aebb8c55e9a6ccb325391",
+      "derivative": "Lossless WebP; decoded RGBA pixels and dimensions identical to PNG"
+    },
+    "docs/site/media/SlicerDSpace_promo_1080p.mp4": {
+      "sha256": "877f7e3a4dc7afbf4641a609398940a65bf2b21c26d918c3f170efee78c27df9",
+      "source_sha256": "4ead178f6d1165b98d0c5b61b1c94e250ac53d7893c5fae2d7847d6cdd1e13b5",
+      "source_bytes": 47767254,
+      "output_bytes": 24799408,
+      "reduction_percent": 48.08,
+      "derivative": "H.264 High, CRF 24, 1080p/30fps retained, original AAC copied",
+      "source_metadata": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 1920,
+            "height": 1080,
+            "r_frame_rate": "30/1",
+            "nb_read_frames": "2160"
+          },
+          {
+            "codec_name": "aac",
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "nb_read_frames": "3375"
+          }
+        ],
+        "format": {
+          "duration": "72.000000",
+          "size": "47767254"
+        }
+      },
+      "output_metadata": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 1920,
+            "height": 1080,
+            "r_frame_rate": "30/1",
+            "nb_read_frames": "2160"
+          },
+          {
+            "codec_name": "aac",
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "nb_read_frames": "3375"
+          }
+        ],
+        "format": {
+          "duration": "72.000000",
+          "size": "24799408"
+        }
+      },
+      "audio_payload_sha256": "65fa0d19c6b55b4ae970cf02e1bfac79d5c062d705b982443ce3fd517764bb25",
+      "audio_payload_identical": true,
+      "complete_frame_ssim": 0.99387,
+      "ssim_frames_checked": 2160,
+      "faststart": true
     }
   }
 }

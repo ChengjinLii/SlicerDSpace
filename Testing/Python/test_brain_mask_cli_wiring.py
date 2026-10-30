@@ -286,6 +286,7 @@ class BrainMaskCliWiringTest(unittest.TestCase):
                 return batch_cli.SubjectRunResult(
                     subject.subject_id, subject.subject_root, command, 0,
                     log_dir / "stdout", log_dir / "stderr", 0.0,
+                    run_status='planned', status_source='child_manifest',
                 )
 
             for backend in BACKENDS:

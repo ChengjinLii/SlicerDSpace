@@ -10,8 +10,6 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 TITLE = "SlicerDSpace"
-SUBTITLE = ("A T1-weighted-image-free 3D Slicer workflow for diffusion MRI "
-            "anatomical priors, microstructure and connectivity analysis")
 
 
 class WebsiteEditorialCopyTests(unittest.TestCase):
@@ -23,13 +21,19 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
         return re.search(r'<section\b[^>]*\bid="' + name + r'"[^>]*>(.*?)</section>',
                          self.source, re.S).group(1)
 
-    def test_product_title_and_manuscript_subtitle(self):
+    def test_hero_is_wordmark_and_two_film_setup_links(self):
         hero = re.search(r"<h1\b[^>]*>(.*?)</h1>", self.source, re.S).group(1)
         self.assertEqual(html.unescape(re.sub(r"<[^>]+>", "", hero)).strip(), TITLE)
         self.assertIn('src="assets/img/slicerdspace-wordmark-light.svg"', hero)
         self.assertIn("<title>" + TITLE + "</title>", self.source)
         self.assertIn('property="og:title" content="' + TITLE + '"', self.source)
-        self.assertIn('<p class="subtitle">' + SUBTITLE + '</p>', self.source)
+        top = self.section('top')
+        for removed in ('class="subtitle"', 'class="lead"', 'class="eyebrow"',
+                        'class="status-line"', 'class="note"'):
+            self.assertNotIn(removed, top)
+        self.assertEqual(re.findall(r'<a\b[^>]*href="([^"]+)"', top), ['#film', '#start'])
+        main = self.source.split('<main id="main">', 1)[1].split('</main>', 1)[0]
+        self.assertEqual(re.findall(r'<section\b[^>]*\bid="([^"]+)"', main)[:2], ['top', 'film'])
 
     def test_removed_sections_leave_no_dangling_navigation(self):
         for name in ("idea", "workflows", "status", "performance-notes", "slicer"):
@@ -38,37 +42,41 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
         self.assertNotIn("fig-route-guide.png", self.source)
         self.assertIn("fig-product-map.png", self.source)
 
-    def test_methods_immediately_precede_references(self):
+    def test_methods_are_the_last_section_without_separate_references(self):
         main = self.source.split('<main id="main">', 1)[1].split('</main>', 1)[0]
         sections = re.findall(r'<section\b[^>]*\bid="([^"]+)"', main)
-        self.assertEqual(sections[-2:], ["integrated", "cite"])
+        self.assertEqual(sections[-1], "integrated")
+        self.assertNotIn('cite', sections)
 
-    def test_header_and_footer_use_the_reviewed_vector_logo_export(self):
-        for css_class in ("brand", "foot-brand"):
-            logo = re.search(r'class="' + css_class + r'"[^>]*>\s*<img\b([^>]+)>', self.source).group(1)
-            self.assertIn('src="assets/img/logo-ddsurfer.png"', logo)
+    def test_header_is_navigation_only_and_footer_uses_vector_wordmark(self):
+        header = self.source.split('<header class="site-header"', 1)[1].split('</header>', 1)[0]
+        self.assertNotIn('<img', header)
+        self.assertNotIn('class="brand"', header)
+        self.assertNotIn('Private pre-release', self.source)
+        self.assertNotIn('chip-status', header)
+        logo = re.search(r'class="foot-brand"[^>]*>\s*<img\b([^>]+)>', self.source).group(1)
+        self.assertIn('src="assets/img/slicerdspace-wordmark-light.svg"', logo)
+        self.assertIn('width="1324" height="239"', logo)
+        self.assertNotIn('src="assets/img/logo-ddsurfer.png"', self.source)
         record = json.loads((ROOT / "docs/website/logo_provenance.json").read_text(encoding="utf-8"))
         self.assertEqual(record["source_repository"], "ChengjinLii/paper-latex")
         subprocess.run([sys.executable, "scripts/check_website_assets.py", "--check"],
                        cwd=ROOT, check=True, capture_output=True, text=True)
 
-    def test_wmql_gallery_matches_latest_official_query_asset(self):
-        card = re.search(r'<article class="tile tile-wmql">(.*?)</article>',
-                         self.source, re.S).group(1)
-        published = ROOT / "docs/site/assets/img/res-wmql-ukf.jpg"
-        receipt = json.loads((ROOT / "docs/website/published_assets.json").read_text(encoding="utf-8"))
-        entry = receipt["files"]["docs/site/assets/img/res-wmql-ukf.jpg"]
-        self.assertEqual(entry["query_preset"], "official_multibundle")
-        self.assertEqual(entry["input_method"], "UKF")
-        self.assertEqual(hashlib.sha256(published.read_bytes()).hexdigest(), entry["sha256"])
-        self.assertIn('src="assets/img/res-wmql-ukf.jpg"', card)
-        self.assertIn('width="1852" height="1000"', card)
-        self.assertIn("Official WMQL queries on UKF", card)
-        self.assertNotIn("ddparcel_act", card)
-        self.assertNotIn("res-wmql-csd.jpg", self.source)
-        self.assertFalse((published.parent / "res-wmql-csd.jpg").exists())
-        styles = (ROOT / "docs/site/assets/css/site.css").read_text(encoding="utf-8")
-        self.assertRegex(styles, r"\.tile-wmql img\s*\{[^}]*object-fit:\s*contain")
+    def test_complete_results_plate_replaces_individual_gallery_tiles(self):
+        section = self.section('outputs')
+        self.assertNotIn('class="tile', section)
+        self.assertEqual(len(re.findall(r'<img\b', section)), 1)
+        self.assertIn('src="assets/img/results-overview.svg"', section)
+        self.assertIn('width="1830" height="2036"', section)
+        self.assertIn('Open full-size SVG', section)
+        receipt = json.loads((ROOT / "docs/website/published_assets.json").read_text())
+        published = ROOT / "docs/site/assets/img/results-overview.svg"
+        entry = receipt['files']['docs/site/assets/img/results-overview.svg']
+        self.assertEqual(hashlib.sha256(published.read_bytes()).hexdigest(), entry['sha256'])
+        self.assertEqual(entry['query_preset'], 'official_cerebellar')
+        self.assertRegex(entry['query_provenance_sha256'], r'^[a-f0-9]{64}$')
+        self.assertNotIn('res-wmql-csd.jpg', self.source)
 
     def test_integration_is_standalone_and_source_backed(self):
         integrated = self.section("integrated")
@@ -81,7 +89,7 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
                        "wma", "tractcloud", "sift2", "scalar_length", "regional"):
             self.assertIn(method, methods)
         for row in re.findall(r'<tr data-method=.*?</tr>', integrated, re.S):
-            self.assertRegex(row, r'href="#ref-\d+"')
+            self.assertRegex(row, r'class="method-reference"[^>]+href="https://')
         subprocess.run([sys.executable, "scripts/build_website_catalog.py", "--check"],
                        cwd=ROOT, check=True, capture_output=True, text=True)
 
@@ -94,29 +102,71 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
         self.assertIn("UKF reference route", table)
         self.assertIn("full suite optional", table)
 
-    def test_citations_use_one_uniform_numbered_list(self):
-        cite = self.section("cite")
-        self.assertNotIn("paper-grid", cite)
-        self.assertEqual(cite.count('<ol class="ref-list">'), 1)
-        self.assertEqual(re.findall(r'<li id="ref-(\d+)"', cite), [str(i) for i in range(1, 54)])
-        self.assertNotIn("<details", cite)
-        main = self.source.split('<main id="main">', 1)[1].split('</main>', 1)[0]
-        self.assertEqual(re.findall(r'<section\b[^>]*\bid="([^"]+)"', main)[-1], "cite")
+    def test_citations_are_direct_links_in_method_rows(self):
+        self.assertNotIn('id="cite"', self.source)
+        self.assertNotIn('ref-list', self.source)
+        self.assertNotIn('href="#ref-', self.source)
+        self.assertIn('Papers', self.section('integrated'))
+        self.assertIn('href="https://doi.org/10.1002/advs.76596"', self.section('integrated'))
+        links = re.findall(r'<a class="method-reference"[^>]*data-reference="(\d+)"[^>]*>(.*?)</a>', self.section('integrated'))
+        self.assertTrue(links)
+        self.assertTrue(all(text == '[' + number + ']' for number, text in links))
+
+    def test_film_area_has_one_download_and_does_not_preload_video(self):
+        film = self.section('film')
+        self.assertIn('preload="none"', film)
+        self.assertIn('poster="assets/img/poster.jpg"', film)
+        meta = re.search(r'<p class="meta-row">(.*?)</p>', film, re.S).group(1)
+        self.assertEqual(len(re.findall(r'<a\b', meta)), 1)
+        self.assertIn('Download video', meta)
+        self.assertIn('<span>Diffusion MRI workflows in 3D Slicer.</span>', meta)
+        self.assertLess(meta.index('Diffusion MRI workflows'), meta.index('Download video'))
+        for removed in ('72.0 s', '1920 × 1080', '.srt', 'id="transcript"', 'narrated', 'subtitles in the picture'):
+            self.assertNotIn(removed, film)
+
+    def test_results_caption_does_not_single_out_cerebellar_queries(self):
+        caption = re.search(r'<figcaption>(.*?)</figcaption>', self.section('outputs'), re.S).group(1)
+        self.assertNotIn('CBL-BrS', caption)
+        self.assertNotIn('CBL-CBL', caption)
 
     def test_references_have_primary_links_and_no_dangling_ids(self):
         catalog = json.loads((ROOT / "docs/website/references.json").read_text(encoding="utf-8"))
-        refs = {str(item["id"]) for item in catalog["references"]}
-        self.assertEqual(refs, set(re.findall(r'<li id="ref-(\d+)"', self.source)))
-        self.assertTrue(set(re.findall(r'href="#ref-(\d+)"', self.source)) <= refs)
+        used = set(re.findall(r'data-reference="(\d+)"', self.source))
+        self.assertTrue(used)
         for item in catalog["references"]:
-            self.assertTrue(item["url"].startswith("https://"))
-            self.assertIn(html.escape(item["url"], quote=True), self.source)
+            if str(item['id']) in used:
+                self.assertTrue(item["url"].startswith("https://"))
+                self.assertIn(html.escape(item["url"], quote=True), self.source)
+                self.assertIn(html.escape(item['citation'], quote=True), self.source)
 
     def test_subject_identity_does_not_dominate_main_copy(self):
         for name in ("top", "film", "outputs"):
             copy = self.section(name)
             self.assertNotIn("EDDEN sub-01", copy)
-        self.assertIn('href="#ref-35"', self.source)
+        self.assertTrue((ROOT / 'docs/website/FACTS.md').is_file())
+
+    def test_public_facing_copy_and_footer_avoid_development_status(self):
+        self.assertNotIn('pre-release', self.source.lower())
+        self.assertNotIn('repository is private', self.source.lower())
+        footer = self.source.split('<footer class="site-footer">', 1)[1].split('</footer>', 1)[0]
+        self.assertNotIn('About the film', footer)
+        self.assertNotIn('Rosetta', footer)
+        self.assertIn('class="foot-nav"', footer)
+        self.assertIn('LICENSE.txt', footer)
+        self.assertIn('THIRD_PARTY_NOTICES.md', footer)
+
+    def test_footer_reuses_header_gradient_and_keeps_navigation_structured(self):
+        styles = (ROOT / 'docs/site/assets/css/site.css').read_text(encoding='utf-8')
+        header = re.search(r'\.site-header::after\s*\{([^}]+)\}', styles).group(1)
+        footer = re.search(r'\.site-footer::before\s*\{([^}]+)\}', styles).group(1)
+        for shared in ('height: 2px', 'background: var(--tri)', 'opacity: .7'):
+            self.assertIn(shared, header)
+            self.assertIn(shared, footer)
+        markup = self.source.split('<footer class="site-footer">', 1)[1].split('</footer>', 1)[0]
+        self.assertIn('<a class="foot-brand" href="#top">', markup)
+        self.assertIn('<nav class="foot-links" aria-label="Legal information">', markup)
+        self.assertIn('<a class="foot-top-link" href="#top">', markup)
+        self.assertEqual(markup.count('<ul>'), 2)
 
     def test_setup_describes_current_gui_and_first_execution(self):
         start = self.section("start")
@@ -126,22 +176,67 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
             self.assertIn(requirement, start)
         self.assertNotIn("Advanced settings › Results and QC", self.source)
 
-    def test_skills_are_discoverable_and_link_to_existing_guides(self):
-        section = self.section('skills')
-        self.assertIn('href="#skills">Agent Skills</a>', self.source)
+    def test_skills_are_within_get_started_and_link_to_existing_guides(self):
+        start = self.section('start')
+        section = start.split('<div class="start-skills"', 1)[1].split('<h3 class="start-route-title start-manual-title">', 1)[0]
+        self.assertIn('id="skills"', section)
+        self.assertNotIn('<section class="section reveal" id="skills"', self.source)
+        self.assertNotIn('href="#skills">Agent Skills</a>', self.source)
+        self.assertIn('href="#start">Get started</a>', self.source)
         self.assertIn('id="skills-title"', section)
-        self.assertIn('Plan &amp; run', section)
-        self.assertIn('Review &amp; reuse', section)
+        agent_steps = section.split('<ol class="start-steps agent-steps">', 1)[1].rsplit('</ol>', 1)[0]
+        self.assertEqual(agent_steps.count('<li class="start-step">'), 3)
+        self.assertIn('<h4>Read the Skill</h4>', agent_steps)
+        self.assertIn('<h4>Install and enable</h4>', agent_steps)
+        self.assertIn('<h4>Use an existing installation</h4>', agent_steps)
+        self.assertNotIn('skill-capabilities', section)
+        self.assertNotIn('skills-grid', section)
         self.assertIn('Show me the plan and wait for confirmation before running', section)
         self.assertIn('id="agent-install-prompt"', section)
         self.assertIn('id="agent-analysis-prompt"', section)
-        self.assertIn('website guide bot provides curated information', section)
         self.assertNotIn('<details', section)
         for relative in ('.agents/skills/slicerdspace/SKILL.md',
                          '.agents/skills/slicerdspace/references/usage.md',
                          'docs/setup/CLI_TEMPLATES.md'):
             self.assertIn('href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/' + relative + '"', section)
             self.assertTrue((ROOT / relative).is_file())
+
+    def test_output_heading_and_cli_are_direct_and_visible(self):
+        self.assertIn('<h2>Outputs from SlicerDSpace.</h2>', self.section('outputs'))
+        start = self.section('start')
+        self.assertIn('<div class="start-cli" id="cli"', start)
+        self.assertNotIn('<details class="transcript start-cli"', start)
+        self.assertIn('--jobs 2', start)
+
+    def test_setup_routes_have_one_heading_level_and_matching_visual_markers(self):
+        start = self.section('start')
+        headings = re.findall(r'<h3 class="start-route-title[^\"]*"[^>]*>(.*?)</h3>', start)
+        self.assertEqual(len(headings), 3)
+        for heading, marker in zip(headings, 'ABC'):
+            self.assertIn(f'class="start-route-marker" aria-hidden="true">{marker}</span>', heading)
+            self.assertIn('start-route-text', heading)
+        self.assertIn('class="start-recommended">(Recommended)</span>', headings[0])
+        styles = (ROOT / 'docs/site/assets/css/site.css').read_text(encoding='utf-8')
+        self.assertNotIn('.start-skills > h3', styles)
+        self.assertNotIn('.start-cli > h3', styles)
+
+    def test_figure_wrappers_are_unframed_and_result_assets_remain_available(self):
+        self.assertNotIn('class="panel shot', self.source)
+        self.assertIn('<figure class="results-overview">', self.section('outputs'))
+        for name in ('choose', 'runtime'):
+            self.assertIn('<figure class="shot fig">', self.section(name))
+        styles = (ROOT / 'docs/site/assets/css/site.css').read_text(encoding='utf-8')
+        self.assertIn('.results-scroll { overflow-x: auto;', styles)
+
+    def test_guide_floats_without_header_docking(self):
+        self.assertIn('id="guide-bot"', self.source)
+        self.assertNotIn('guide-bot__dock', self.source)
+        script = (ROOT / 'docs/site/assets/js/guide-bot.js').read_text(encoding='utf-8')
+        self.assertNotIn('is-docked', script)
+        self.assertNotIn('positionLauncher', script)
+        self.assertIn('Get started includes the Skill', script)
+        for name in ('assets/css/guide-bot.css', 'assets/js/guide-bot.js', 'assets/img/guide-bot-hat.svg'):
+            self.assertTrue((ROOT / 'docs/site' / name).is_file())
 
     def test_both_readmes_promote_installation_and_use_skills(self):
         for name, templates in (('README.md', 'CLI_TEMPLATES.md'), ('README.zh-CN.md', 'CLI_TEMPLATES.zh-CN.md')):

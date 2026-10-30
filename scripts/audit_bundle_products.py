@@ -156,7 +156,8 @@ def audit(manifest_path, tolerance=.001):
         summary = summarize_wmql_outputs(directory, manifest['subject_id'])
         requested = tuple(manifest.get('requested_queries') or manifest.get('query_selection', ()))
         contract_error = _wmql_output_contract_error(summary, len(requested), requested,
-                                                    require_sampling=not manifest.get('official_multibundle', False))
+                                                    require_sampling=not (manifest.get('official_multibundle', False)
+                                                                          or manifest.get('coverage_report_mode', False)))
         files = list(map(Path, summary['bundle_files']))
     elif kind == 'tractcloud_parcellation':
         from tractography.tractcloud import summarize_tractcloud_outputs, _tractcloud_output_contract_error

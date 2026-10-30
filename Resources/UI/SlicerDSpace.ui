@@ -644,8 +644,10 @@
         <item row="8" column="1">
          <widget class="QComboBox" name="wmqlQueryPresetComboBox">
           <property name="SlicerParameterName" stdset="0"><string>orchestrationWmqlPreset</string></property>
-          <property name="toolTip"><string>Unmodified author multi-bundle rules and label aliases. All 48 output queries run by default. Empty or sparse bundles are reported separately; no fallback definitions.</string></property>
+          <property name="toolTip"><string>official: 48 unchanged author outputs (default). official_cerebellar: add three regional cerebellar selections. cerebellar: those regional selections only. These are not individual ICP/MCP/SCP labels. Empty or sparse outputs remain reported.</string></property>
           <item><property name="text"><string>official</string></property></item>
+          <item><property name="text"><string>official_cerebellar</string></property></item>
+          <item><property name="text"><string>cerebellar</string></property></item>
          </widget>
         </item>
         <item row="9" column="0">
@@ -653,11 +655,25 @@
           <property name="text"><string>WMQL bundles</string></property>
          </widget>
         </item>
+        <item row="10" column="0">
+         <widget class="QLabel" name="wmaAtlasLabel">
+          <property name="text"><string>WMA atlas</string></property>
+         </widget>
+        </item>
+        <item row="10" column="1">
+         <widget class="QComboBox" name="wmaAtlasComboBox">
+          <property name="SlicerParameterName" stdset="0"><string>wmaAtlas</string></property>
+          <property name="toolTip"><string>org: adult/lifespan reference (default); east-west: Eastern and Western adults; naba: neonates and adults. Only the selected atlas is downloaded under Environment and installation.</string></property>
+          <item><property name="text"><string>org</string></property></item>
+          <item><property name="text"><string>east-west</string></property></item>
+          <item><property name="text"><string>naba</string></property></item>
+         </widget>
+        </item>
         <item row="9" column="1">
          <widget class="QLineEdit" name="wmqlQuerySelectionLineEdit">
           <property name="SlicerParameterName" stdset="0"><string>orchestrationWmqlSelection</string></property>
-          <property name="placeholderText"><string>All official bundles (optional: AF,CST,UF,cc_4)</string></property>
-          <property name="toolTip"><string>Leave empty for all official output queries. Enter comma-separated families or exact names, e.g. AF,CST,UF,ilf.right,cc_4. Family names select both sides. Missing outputs and sampling warnings are retained.</string></property>
+          <property name="placeholderText"><string>All selected preset queries (optional: AF,CST,UF,cc_4)</string></property>
+          <property name="toolTip"><string>Leave empty for all outputs in the selected preset. Enter comma-separated families or exact names, e.g. AF,CST,UF,ilf.right,cc_4 or cerebellar_brainstem. Family names select both sides. Missing outputs and sampling warnings are retained.</string></property>
          </widget>
         </item>
         <item row="4" column="0">

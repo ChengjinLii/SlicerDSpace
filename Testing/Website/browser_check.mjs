@@ -32,6 +32,7 @@ const MIME = {
   '.jpg': 'image/jpeg',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
@@ -102,10 +103,12 @@ async function runViewport(browser, origin, name, width, height, opts) {
   const consoleErrors = [];
   const failed = [];
   const foreign = [];
+  const mediaRequests = [];
   page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
   page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message));
   page.on('request', (r) => {
     const u = new URL(r.url());
+    if (/\/media\/[^/?#]+\.mp4$/.test(u.pathname)) mediaRequests.push(r.url());
     if (u.origin !== origin && u.protocol !== 'data:' && u.protocol !== 'blob:' && u.protocol !== 'about:') foreign.push(r.url());
   });
   page.on('requestfailed', (r) => {
@@ -120,6 +123,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
 
   await page.goto(origin + '/index.html', { waitUntil: 'load' });
   await page.waitForTimeout(400);
+  record(mediaRequests.length === 0, `${tag}: no video bytes requested before playback`, String(mediaRequests.length));
 
   // 2. no horizontal scroll
   const w = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
@@ -136,6 +140,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
         const r = el.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) return false;
         if (el.closest('pre') || el.closest('.sr-only') || el.closest('.table-wrap') || el.closest('.perf-table-wrap')) return false;
+        if (el.closest('.results-scroll') && !el.matches('.results-scroll')) return false;
         return r.right > iw + 0.5 || r.left < -0.5;
       }).slice(0, 5).map((el) => el.tagName.toLowerCase() + '.' + el.className);
     });
@@ -156,6 +161,9 @@ async function runViewport(browser, origin, name, width, height, opts) {
   })));
   const bad = imgs.filter((i) => !i.ok).map((i) => i.src);
   record(bad.length === 0, `${tag}: all ${imgs.length} images loaded`, 'not loaded: ' + bad.join(', '));
+  const webpSources = await page.locator('picture > img').evaluateAll(items => items.map(image => image.currentSrc));
+  record(webpSources.length === 2 && webpSources.every(source => source.endsWith('.webp')),
+    `${tag}: lossless WebP alternatives are selected for PNG figures`, JSON.stringify(webpSources));
 
   const wordmark = await page.locator('.product-wordmark').evaluate((img) => {
     const box = img.getBoundingClientRect();
@@ -168,15 +176,69 @@ async function runViewport(browser, origin, name, width, height, opts) {
       && Math.abs(wordmark.ratio / wordmark.nativeRatio - 1) < .02,
     `${tag}: vector title loads and scales without distortion`, JSON.stringify(wordmark));
 
-  const wmql = await page.locator('.tile-wmql img').evaluate((img) => {
+  const frames = await page.evaluate(() => [...document.querySelectorAll('.tile, .tile img, .tile .chip, .shot, .shot img, .fig a, .film-frame')].map(el => {
+    const style = getComputedStyle(el);
+    return { name: el.className || el.tagName, border: [style.borderTopWidth, style.borderRightWidth,
+      style.borderBottomWidth, style.borderLeftWidth], radii: [style.borderTopLeftRadius,
+      style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius] };
+  }));
+  record(frames.every(item => [...item.border, ...item.radii].every(value => parseFloat(value) === 0)),
+    `${tag}: scientific images, video and result plates have no rounded frames`, JSON.stringify(frames));
+  const separators = await page.locator('.tile').evaluateAll(items => items.every(el => {
+    const style = getComputedStyle(el, '::after');
+    return style.backgroundImage.includes('data:image/svg+xml') && style.pointerEvents === 'none'
+      && getComputedStyle(el).backgroundColor === 'rgba(0, 0, 0, 0)';
+  }));
+  record(separators, `${tag}: open result plates use noninteractive curved separators`);
+
+  const branding = await page.locator('.foot-brand img').evaluateAll(imgs => imgs.map(img => {
+    const r = img.getBoundingClientRect();
+    return { src: img.getAttribute('src'), width: r.width, height: r.height,
+      ratio: (r.width / r.height) / (img.naturalWidth / img.naturalHeight) };
+  }));
+  record(branding.length === 1 && branding.every(img =>
+    img.src === 'assets/img/slicerdspace-wordmark-light.svg' && img.width >= 180 && img.height > 0
+      && Math.abs(img.ratio - 1) < .02),
+    `${tag}: footer uses an undistorted wordmark`, JSON.stringify(branding));
+  record(await page.locator('.site-header img, .site-header .brand, .chip-status').count() === 0,
+    `${tag}: header has no logo or pre-release badge`);
+  const center = await page.evaluate(() => {
+    const mid = el => { const r = el.getBoundingClientRect(); return (r.left + r.right) / 2; };
+    return { title: mid(document.querySelector('.product-wordmark')) - innerWidth / 2,
+      actions: mid(document.querySelector('#top .btn-row')) - innerWidth / 2,
+      navigation: innerWidth < 1024 ? 0 : mid(document.querySelector('.site-nav ul')) - innerWidth / 2 };
+  });
+  record(Object.values(center).every(offset => Math.abs(offset) < 1),
+    `${tag}: wordmark, actions and desktop navigation are centered`, JSON.stringify(center));
+  const heroContents = await page.locator('#top .container').evaluate(el => [...el.children].map(child => child.tagName));
+  record(JSON.stringify(heroContents) === JSON.stringify(['H1', 'DIV']) &&
+      await page.locator('#top .btn-row a').count() === 2 &&
+      await page.locator('#top + #film video').count() === 1,
+    `${tag}: wordmark, two actions and film have no intervening intro copy`, JSON.stringify(heroContents));
+  record(await page.locator('.guide-bot__launcher').isVisible() &&
+      await page.locator('.guide-bot__dock, .guide-bot.is-docked').count() === 0,
+    `${tag}: guide stays floating without header docking`);
+
+  const overview = await page.locator('.results-overview img').evaluate((img) => {
     const box = img.getBoundingClientRect();
     return { src: img.getAttribute('src'), width: img.naturalWidth, height: img.naturalHeight,
       fit: getComputedStyle(img).objectFit, ratio: box.width / box.height };
   });
-  record(wmql.src === 'assets/img/res-wmql-ukf.jpg' && wmql.width === 1852 && wmql.height === 1000
-      && wmql.fit === 'contain' && Math.abs(wmql.ratio - 4 / 3) < .01,
-    `${tag}: current WMQL render fits the tile without cropping`, JSON.stringify(wmql));
-  await page.locator('.tile-wmql').screenshot({ path: path.join(OUT, `wmql-${width}.png`) });
+  record(overview.src === 'assets/img/results-overview.svg' && overview.width > 0
+      && Math.abs(overview.ratio - 1830 / 2036) < .01,
+    `${tag}: complete vector results overview is uncropped`, JSON.stringify(overview));
+  record(await page.locator('#outputs article.tile').count() === 0,
+    `${tag}: results are one scientific plate, not separate gallery cards`);
+  const plateScroll = await page.locator('.results-scroll').evaluate(el => {
+    const r = el.getBoundingClientRect();
+    return { left: r.left, right: r.right, viewport: innerWidth,
+      content: el.scrollWidth, visible: el.clientWidth };
+  });
+  record(plateScroll.left >= 0 && plateScroll.right <= plateScroll.viewport &&
+      (width > 700 || plateScroll.content > plateScroll.visible),
+    `${tag}: small screens pan only the results plate, not the page`, JSON.stringify(plateScroll));
+  await page.locator('.results-overview').screenshot({ path: path.join(OUT, `results-${width}.png`),
+    style: '.site-header { visibility: hidden !important; }' });
 
   const w2 = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
   record(w2.sw <= w2.iw, `${tag}: no horizontal scroll after scrolling through`, `scrollWidth ${w2.sw} > ${w2.iw}`);
@@ -195,7 +257,6 @@ async function runViewport(browser, origin, name, width, height, opts) {
   if (!narrow) record(hdr.navVisible, `${tag}: nav links visible`, JSON.stringify(hdr));
 
   // 4. video
-  await page.waitForFunction(() => document.getElementById('film-video').readyState >= 1, null, { timeout: 15000 }).catch(() => {});
   const vid = await page.evaluate(() => {
     const v = document.getElementById('film-video');
     return {
@@ -203,9 +264,8 @@ async function runViewport(browser, origin, name, width, height, opts) {
       can: v.canPlayType('video/mp4; codecs="avc1.640032, mp4a.40.2"'),
     };
   });
-  record(vid.readyState >= 1 && Math.abs(vid.duration - 72.0) <= 0.05 && vid.videoWidth === 1920,
-    `${tag}: video metadata (readyState ${vid.readyState}, duration ${vid.duration?.toFixed?.(3)}, width ${vid.videoWidth})`,
-    JSON.stringify(vid));
+  record(mediaRequests.length === 0 && vid.readyState === 0,
+    `${tag}: scrolling through the page does not fetch film metadata or video`, JSON.stringify(vid));
   record(vid.can !== '', `${tag}: canPlayType for avc1.640032 + mp4a.40.2 is "${vid.can}"`, 'empty');
 
   // The play button replaces the native controls at start.
@@ -214,7 +274,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
     const b = document.querySelector('.film-play');
     return { controls: v.hasAttribute('controls'), btn: !!b && !b.hidden, label: b ? b.textContent.trim() : '' };
   });
-  record(!pre.controls && pre.btn && pre.label === 'Play film · 1:12',
+  record(!pre.controls && pre.btn && pre.label === 'Play film',
     `${tag}: play button shown, controls removed (label "${pre.label}")`, JSON.stringify(pre));
 
   // 6. menu with the keyboard (narrow only)
@@ -291,6 +351,9 @@ async function runViewport(browser, origin, name, width, height, opts) {
   });
   record(advanced && !post.paused, `${tag}: click on the play button starts playback (currentTime ${t0.toFixed(2)} -> ${t1.toFixed(2)})`, JSON.stringify({ t0, t1, ...post }));
   record(post.controls && post.btnHidden, `${tag}: controls shown and play button hidden after start`, JSON.stringify(post));
+  const played = await page.locator('#film-video').evaluate(v => ({ duration: v.duration, width: v.videoWidth }));
+  record(Math.abs(played.duration - 72) < 0.05 && played.width === 1920,
+    `${tag}: playback retains the complete 1080p film`, JSON.stringify(played));
   await page.screenshot({ path: path.join(OUT, `playing-${width}.png`) });
 
   // Ended state: jump near the end and wait for the button to return.
@@ -313,14 +376,13 @@ async function runViewport(browser, origin, name, width, height, opts) {
   });
   record(!hero.paused && hero.t > 0.2 && hero.top >= -5 && hero.top < 250, `${tag}: "Watch the film" scrolls to #film and plays (top ${hero.top}, t ${hero.t.toFixed(2)})`, JSON.stringify(hero));
 
-  // Other things worth a look: transcript, copy buttons, reduced motion is not tested here.
+  // The short workflow description precedes the only download link.
   await page.evaluate(() => { document.getElementById('film-video').pause(); });
-  const tr = await page.evaluate(() => {
-    const d = document.getElementById('transcript');
-    d.open = true;
-    return d.querySelectorAll('li').length;
-  });
-  record(tr === 13, `${tag}: transcript has ${tr} lines`, String(tr));
+  const minimalFilm = await page.evaluate(() => !document.getElementById('transcript') &&
+    document.querySelectorAll('#film .meta-row a').length === 1 &&
+    document.querySelector('#film .meta-row').firstElementChild.textContent === 'Diffusion MRI workflows in 3D Slicer.' &&
+    document.querySelectorAll('#film a[href$=".srt"]').length === 0);
+  record(minimalFilm, `${tag}: workflow description precedes the only video download`);
 
   record(consoleErrors.length === 0 && failed.length === 0 && foreign.length === 0,
     `${tag}: no console error, failed request or foreign host`,
@@ -358,7 +420,7 @@ async function run404AndNoJs(browser, origin) {
   await c2.close();
 }
 
-// The performance evidence is a closed <details> on the home page (index.html#performance).
+// Method details expand directly underneath their measurement row.
 async function runPerformance(browser, origin, width, noJs = false) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: !noJs });
   const page = await context.newPage();
@@ -376,49 +438,58 @@ async function runPerformance(browser, origin, width, noJs = false) {
   await page.evaluate(() => document.fonts.ready);
   const prefix = `performance ${width}px${noJs ? ' no JS' : ''}`;
   const evidence = page.locator('#performance-evidence');
-  record(await evidence.count() === 1 && await evidence.getAttribute('open') === null, prefix + ': evidence details closed by default');
-  record(await page.locator('#performance-evidence .perf-table').isHidden(), prefix + ': table hidden while closed');
-  await page.locator('#performance-evidence > summary').click();
-  await page.waitForFunction(() => document.getElementById('performance-evidence').open);
-  record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': click opens the evidence and shows the table');
-  record(await page.locator('.perf-table tbody tr').count() === 13, prefix + ': thirteen scoped records');
-  record(await page.locator('.perf-method[open]').count() === 0, prefix + ': method details initially collapsed');
-  record(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), prefix + ': no page overflow with the evidence open');
+  await evidence.scrollIntoViewIfNeeded();
+  record(await evidence.evaluate(el => el.tagName === 'DIV' && !el.closest('details')) &&
+    await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': complete comparison table is visible by default');
+  record(await page.locator('.perf-table .perf-record').count() === 14 &&
+    await page.locator('.perf-table .perf-record').evaluateAll(rows => rows.every(row => getComputedStyle(row).display !== 'none')),
+    prefix + ': all fourteen timing rows are visible without expanding anything');
+  record(await page.locator('.perf-chart, .perf-filters, #perf-count').count() === 0,
+    prefix + ': no filter controls, count or highlighted bar charts');
+  record(await page.locator('.perf-methods').count() === 0, prefix + ': no separate method-details section');
+  record(await page.locator('.perf-toggle[aria-expanded="false"]').count() === 14 &&
+    await page.locator('.perf-detail-row.is-open').count() === 0 &&
+    await page.locator('.perf-detail-row').evaluateAll(rows => rows.every(row => row.hidden && getComputedStyle(row).display === 'none')),
+    prefix + ': all method and verification details start hidden, including without JavaScript');
+  record(await page.locator('.perf-toggle-icon').evaluateAll(icons => icons.every(icon => icon.textContent === '+')),
+    prefix + ': each timing row has an explicit plus control');
+  if (noJs) {
+    record(await page.locator('.perf-toggle:disabled').count() === 14,
+      prefix + ': failed or disabled scripting does not expose details or leave active broken buttons');
+  }
+  record(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), prefix + ': no page overflow with the table visible');
   if (!noJs) {
-    await page.locator('[data-perf-filter="parallel,workflow"]').click();
-    record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 2, prefix + ': thread/schedule filter');
-    await page.locator('[data-perf-filter="port"]').click();
-    record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 1, prefix + ': port filter');
-    await page.locator('[data-perf-filter="integration"]').click();
-    record(await page.locator('.perf-table tbody tr:not([hidden])').count() === 1 && await page.locator('.perf-table a[href="#method-dki"]').isVisible(), prefix + ': existing upstream capability is separate');
-    await page.locator('[data-perf-filter="all"]').click();
-    await page.locator('.perf-table a[href="#method-freewater"]').click();
-    await page.waitForFunction(() => document.getElementById('method-freewater').open);
-    record(await page.locator('#method-freewater').getAttribute('open') !== null, prefix + ': measurement link opens method');
-    // The hashchange handler of performance.js runs after the click. Let it finish before the key press,
-    // or it can reopen the method that the key press just closed.
-    await page.waitForFunction(() => location.hash === '#method-freewater');
-    await page.waitForTimeout(200);
-    await page.locator('#method-freewater summary').focus();
+    await page.locator('.perf-toggle[aria-controls="method-freewater"] .perf-toggle-icon').click();
+    record(await page.locator('#method-freewater').isVisible() &&
+      await page.locator('#method-freewater').evaluate(el => el.previousElementSibling.dataset.record === 'freewater'),
+      prefix + ': measurement expands inside the table below its own row');
+    const bodyWidth = await page.locator('#method-freewater .perf-method-body').evaluate(el => el.getBoundingClientRect().width);
+    record(bodyWidth <= width - 32, prefix + ': expanded description fits the viewport', String(bodyWidth));
+    record(await page.locator('.perf-toggle[aria-controls="method-freewater"] .perf-toggle-icon').innerText() === '-',
+      prefix + ': opening a record changes its plus to minus');
+    await page.locator('.perf-toggle[aria-controls="method-freewater"]').focus();
     await page.keyboard.press('Enter');
-    await page.waitForFunction(() => !document.getElementById('method-freewater').open);
-    record(await page.locator('#method-freewater').getAttribute('open') === null, prefix + ': keyboard collapse');
-    await page.locator('.perf-table a[href="#method-freewater"]').click();
-    await page.waitForFunction(() => document.getElementById('method-freewater').open);
-    record(await page.locator('#method-freewater').getAttribute('open') !== null, prefix + ': same-fragment link reopens method');
+    record(await page.locator('#method-freewater').isHidden(), prefix + ': Enter collapses inline details');
+    await page.keyboard.press('Space');
+    record(await page.locator('#method-freewater').isVisible(), prefix + ': Space reopens inline details');
+    await page.locator('.perf-toggle[aria-controls="method-wma"]').click();
+    record(await page.locator('#method-wma').isVisible() && await page.locator('#method-freewater').isVisible(),
+      prefix + ': independent records can be compared inline');
+    await page.locator('.perf-toggle[aria-controls="method-wma"]').click();
+    record(await page.locator('#method-wma').isHidden(), prefix + ': clicking again closes that record');
+    await page.goto(origin + '/SlicerDSpace/index.html#method-dki', { waitUntil: 'load' });
+    await page.reload({ waitUntil: 'load' });
+    record(await page.locator('.perf-detail-row').evaluateAll(rows => rows.every(row => row.hidden)) &&
+      await page.locator('.perf-toggle[aria-controls="method-dki"]').getAttribute('aria-expanded') === 'false',
+      prefix + ': a fresh load never expands details from a retained URL fragment');
     const response = await context.request.get(origin + '/SlicerDSpace/assets/data/performance.json');
     const data = await response.json();
-    record(response.ok() && data.records.length === 13 && !JSON.stringify(data).includes('/data/chengjin/'), prefix + ': sanitized evidence download');
-    // The hash opens the evidence; the footer link reopens it after it was closed.
+    record(response.ok() && data.records.length === 14 && !JSON.stringify(data).includes('/data/chengjin/'), prefix + ': sanitized evidence download');
+    // Both the direct fragment and footer navigate to the already-visible table.
     await page.goto(origin + '/SlicerDSpace/index.html#performance', { waitUntil: 'load' });
-    await page.waitForFunction(() => document.getElementById('performance-evidence').open);
-    record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': #performance opens the evidence');
-    await page.evaluate(() => { document.getElementById('performance-evidence').open = false; });
+    record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': #performance shows the complete table');
     await page.locator('footer a[href="#performance"]').click();
-    await page.waitForFunction(() => document.getElementById('performance-evidence').open);
-    record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': footer link reopens the evidence');
-  } else {
-    record(await page.locator('.perf-filters').isHidden(), prefix + ': no nonfunctional filter controls');
+    record(await page.locator('#performance-evidence .perf-table').isVisible(), prefix + ': footer link reaches the visible table');
   }
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: path.join(OUT, `performance-${width}${noJs ? '-nojs' : ''}.png`), fullPage: true });
@@ -426,72 +497,142 @@ async function runPerformance(browser, origin, width, noJs = false) {
   await context.close();
 }
 
-// The complete bibliography is always expanded at the end of the main page.
-// Test table-to-reference navigation on desktop, mobile and without JavaScript.
-async function runReferenceLinks(browser, origin) {
-  for (const width of [1440, 390]) {
-    const context = await browser.newContext({ viewport: { width, height: 900 } });
-    const page = await context.newPage();
-    await page.goto(origin + '/index.html', { waitUntil: 'load' });
-    const expanded = await page.evaluate(() => {
-      const d = document.getElementById('reference-list');
-      return !!d && !d.closest('details') && !!d.querySelector('#ref-1') && !!d.querySelector('#ref-53')
-        && d.querySelectorAll('.ref-list > li').length === 53
-        && document.querySelector('main > section:last-of-type').id === 'cite';
-    });
-    record(expanded, `references ${width}px: list [1] to [53] is expanded at the page end`, String(expanded));
-    const link = page.locator('.int-table a[href="#ref-21"]').first();
-    await link.scrollIntoViewIfNeeded();
-    await link.click();
-    // Smooth scrolling takes a while: wait until the position is stable.
-    let s = null;
-    let last = null;
-    for (let i = 0; i < 60; i++) {
-      await page.waitForTimeout(150);
-      s = await page.evaluate(() => {
-        const r = document.getElementById('ref-21').getBoundingClientRect();
-        return { expanded: !document.getElementById('reference-list').closest('details'), top: Math.round(r.top), h: r.height, ih: innerHeight };
-      });
-      if (last !== null && s.top === last) break;
-      last = s.top;
+// A failed stylesheet, script, or root-class initializer must never expose details.
+async function runPerformanceFailures(browser, origin) {
+  for (const file of ['index.html', 'zh.html']) {
+    for (const mode of ['no scripts or styles', 'failed performance script', 'no root JS class']) {
+      const context = await browser.newContext({ viewport: { width: 390, height: 900 },
+        javaScriptEnabled: mode !== 'no scripts or styles', reducedMotion: 'reduce' });
+      const page = await context.newPage();
+      if (mode === 'no scripts or styles') {
+        await page.route('**/*.css*', route => route.abort());
+      } else if (mode === 'failed performance script') {
+        await page.route('**/performance.js*', route => route.abort());
+      }
+      await page.goto(origin + '/' + file + '#performance', { waitUntil: 'load' });
+      if (mode === 'no root JS class') {
+        await page.evaluate(() => document.documentElement.classList.remove('js'));
+      }
+      record(await page.locator('.perf-record').count() === 14 &&
+        await page.locator('.perf-table').isVisible() &&
+        await page.locator('.perf-detail-row').evaluateAll(rows => rows.length === 14 &&
+          rows.every(row => row.hidden && getComputedStyle(row).display === 'none')),
+        `${file} ${mode}: timing table remains visible and every detail stays hidden`);
+      if (mode === 'no root JS class') {
+        const toggle = page.locator('.perf-toggle[aria-controls="method-freewater"]');
+        await toggle.locator('.perf-toggle-icon').click();
+        record(await page.locator('#method-freewater').isVisible() &&
+          await page.locator('.perf-detail-row[hidden]').count() === 13,
+          `${file} ${mode}: explicit plus opens only the selected detail`);
+        await toggle.click();
+        record(await page.locator('.perf-detail-row[hidden]').count() === 14,
+          `${file} ${mode}: minus restores the compact timing-only table`);
+      } else {
+        record(await page.locator('.perf-toggle:disabled').count() === 14,
+          `${file} ${mode}: unavailable toggles are safely disabled`);
+      }
+      await context.close();
     }
-    record(s.expanded && s.h > 0 && s.top >= 0 && s.top < s.ih / 2,
-      `references ${width}px: a click on [21] in the table shows the matching entry (top ${s.top})`, JSON.stringify(s));
-    await context.close();
   }
-  const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, javaScriptEnabled: false });
-  const p2 = await c2.newPage();
-  await p2.goto(origin + '/index.html#ref-21', { waitUntil: 'load' });
-  // Poll from Node: requestAnimationFrame-based polling is unavailable when
-  // page JavaScript is disabled. Allow native smooth scrolling to settle.
-  let nojs;
-  for (let i = 0; i < 60; i++) {
-    await p2.waitForTimeout(150);
-    nojs = await p2.evaluate(() => {
-      const entry = document.getElementById('ref-21');
-      const r = entry.getBoundingClientRect();
-      return { expanded: !entry.closest('details'), top: r.top, bottom: r.bottom, h: r.height, ih: innerHeight };
-    });
-    if (nojs.top >= 0 && nojs.bottom < nojs.ih) break;
-  }
-  record(nojs.expanded && nojs.h > 0 && nojs.top >= 0 && nojs.bottom < nojs.ih,
-    'references no-JS: index.html#ref-21 shows the visible bibliography entry', JSON.stringify(nojs));
-  await c2.close();
 }
 
-// Run times, optimization figures and detailed evidence all stay on the home page.
+// Each method links directly to its primary paper or official documentation.
+async function runReferenceLinks(browser, origin) {
+  const refs = JSON.parse(fs.readFileSync(path.resolve(DOCS, '../website/references.json'), 'utf8')).references;
+  const referenceById = new Map(refs.map(item => [String(item.id), item]));
+  for (const [width, noJs] of [[1440, false], [390, false], [390, true]]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: !noJs });
+    const page = await context.newPage();
+    await page.goto(origin + '/index.html#integrated', { waitUntil: 'load' });
+    const links = await page.locator('.int-table .method-reference').evaluateAll(items => items.map(a => ({
+      id: a.dataset.reference, href: a.href, text: a.textContent.trim(), title: a.title,
+      target: a.target, rel: a.rel,
+    })));
+    record(links.length > 35 && links.every(link => {
+      const source = referenceById.get(link.id);
+      return source && link.href === source.url && link.title === source.citation
+        && link.target === '_blank' && link.rel.includes('noopener')
+        && link.text === `[${link.id}]`;
+    }), `references ${width}px${noJs ? ' no JS' : ''}: all method links match reviewed primary sources`);
+    record(await page.locator('#cite, .ref-list, a[href^="#ref-"]').count() === 0 &&
+      await page.locator('.int-table [data-reference="21"]').getAttribute('href') === referenceById.get('21').url,
+      `references ${width}px${noJs ? ' no JS' : ''}: direct DOI links replace the standalone bibliography`);
+    record(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      `references ${width}px${noJs ? ' no JS' : ''}: linked methods table does not widen the page`);
+    const footer = page.locator('.site-footer');
+    record(await footer.locator('.foot-nav').count() === 1 &&
+      !/About the film|Rosetta|pre-release/.test(await footer.innerText()),
+      `footer ${width}px${noJs ? ' no JS' : ''}: compact public-facing links and no production notes`);
+    await footer.screenshot({ path: path.join(OUT, `footer-${width}${noJs ? '-nojs' : ''}.png`) });
+    await context.close();
+  }
+}
+
+async function runFooter(browser, origin) {
+  for (const file of ['index.html', 'zh.html']) {
+    for (const [width, noJs] of [[1440, false], [1024, false], [768, false], [640, false], [390, false], [320, false], [390, true]]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: !noJs, reducedMotion: 'reduce' });
+      const page = await context.newPage();
+      await page.goto(origin + '/' + file, { waitUntil: 'load' });
+      const footer = page.locator('.site-footer');
+      await footer.scrollIntoViewIfNeeded();
+      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      const prefix = `footer ${file} ${width}px${noJs ? ' no JS' : ''}`;
+      const layout = await footer.evaluate(el => {
+        const line = getComputedStyle(el, '::before');
+        const headerLine = getComputedStyle(document.querySelector('.site-header'), '::after');
+        const links = [...el.querySelectorAll('a')].map(a => a.getBoundingClientRect());
+        const bounds = el.getBoundingClientRect();
+        const overlaps = links.some((a, i) => links.slice(i + 1).some(b =>
+          a.left < b.right - .5 && b.left < a.right - .5 &&
+          a.top < b.bottom - .5 && b.top < a.bottom - .5));
+        return {
+          rainbow: line.content !== 'none' && line.backgroundImage === headerLine.backgroundImage &&
+            line.backgroundImage.includes('linear-gradient') && line.height === '2px' && line.opacity === headerLine.opacity,
+          fits: document.documentElement.scrollWidth <= innerWidth && links.every(a =>
+            a.left >= 0 && a.right <= innerWidth + .5 && a.top >= bounds.top && a.bottom <= bounds.bottom + .5),
+          overlaps,
+        };
+      });
+      record(layout.rainbow, prefix + ': full-width rainbow line matches the header');
+      record(layout.fits && !layout.overlaps, prefix + ': wordmark, navigation and legal links fit without overlap');
+      if (width <= 680 && !noJs) {
+        const clearOfGuide = await footer.evaluate(el => {
+          const launcher = document.querySelector('.guide-bot__launcher').getBoundingClientRect();
+          return [...el.querySelectorAll('a')].every(a => {
+            const r = a.getBoundingClientRect();
+            return r.right <= launcher.left || r.left >= launcher.right ||
+              r.bottom <= launcher.top || r.top >= launcher.bottom;
+          });
+        });
+        record(clearOfGuide, prefix + ': floating guide leaves footer links unobstructed at the page end');
+      }
+      record(await footer.locator('.foot-nav ul').count() === 2 &&
+        await footer.locator('.foot-links a').count() === 2 &&
+        await footer.locator('.foot-top-link').count() === 1,
+        prefix + ': grouped navigation, legal links and back-to-top are distinct');
+      await footer.screenshot({ path: path.join(OUT, `footer-redesign-${file}-${width}${noJs ? '-nojs' : ''}.png`) });
+      await footer.locator('.foot-top-link').click();
+      record(new URL(page.url()).hash === '#top' && await page.locator('.product-wordmark').isVisible(),
+        prefix + ': back-to-top link reaches the hero');
+      await context.close();
+    }
+  }
+}
+
+// Run times and the optimization table stay on the home page.
 async function runHomePerformanceNavigation(browser, origin) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await page.goto(origin + '/SlicerDSpace/index.html#runtime', { waitUntil: 'load' });
   const images = page.locator('#runtime img');
-  record(await images.count() === 2,
-    'home page: stage times and optimization figures share the runtime section');
+  record(await images.count() === 1 && await page.locator('img[src*="fig-runtime-optimizations"]').count() === 0,
+    'home page: only the stage-time figure remains, without the optimization image');
   await page.locator('footer a[href="#performance"]').click();
-  await page.waitForFunction(() => document.getElementById('performance-evidence').open);
   record(new URL(page.url()).pathname === '/SlicerDSpace/index.html' &&
-    new URL(page.url()).hash === '#performance',
-    'home page: evidence link opens the disclosure without navigating to another page', page.url());
+    new URL(page.url()).hash === '#performance' && await page.locator('.perf-table').isVisible(),
+    'home page: evidence link reaches the visible table on the same page', page.url());
   const retired = await context.request.get(origin + '/SlicerDSpace/performance.html');
   record(retired.status() === 404, 'retired performance page is not published', String(retired.status()));
   await context.close();
@@ -504,12 +645,33 @@ async function runSkills(browser, origin) {
     await page.goto(origin + '/index.html#skills', { waitUntil: 'load' });
     const skills = page.locator('#skills');
     await skills.scrollIntoViewIfNeeded();
-    await page.waitForFunction(() => getComputedStyle(document.getElementById('skills')).opacity === '1');
-    record(await skills.locator('h2').innerText() === 'Install, run and review with your Agent.',
+    await page.waitForFunction(() => document.getElementById('start').classList.contains('in'));
+    record(await skills.locator('.start-route-text').innerText() === 'Install, run and review with your Agent.' &&
+      await skills.locator('.start-recommended').innerText() === '(Recommended)',
       `skills ${width}px: visible install-and-use introduction`);
+    const headings = await page.locator('#start .start-route-title').evaluateAll(elements => {
+      const styles = elements.map(el => getComputedStyle(el));
+      return elements.length === 3 && elements.every(el => el.tagName === 'H3') &&
+        elements.map(el => el.querySelector('.start-route-marker').textContent).join('') === 'ABC' &&
+        styles.every(style => style.fontSize === styles[0].fontSize &&
+          style.fontWeight === styles[0].fontWeight && style.lineHeight === styles[0].lineHeight);
+    });
+    record(headings, `skills ${width}px: A/B/C routes have matching heading typography and hierarchy`);
+    const timeline = await skills.locator('.agent-steps').evaluate(el => {
+      const steps = [...el.children];
+      const first = getComputedStyle(steps[0], '::before');
+      const manual = getComputedStyle(document.querySelector('#start > .container > .start-steps .start-step'), '::before');
+      return steps.length === 3 && steps.every(step => step.classList.contains('start-step')) &&
+        first.width === manual.width && first.borderRadius === manual.borderRadius &&
+        getComputedStyle(steps[0], '::after').width === '1px' &&
+        getComputedStyle(steps[2], '::after').display === 'none';
+    });
+    record(timeline, `skills ${width}px: three numbered steps reuse the manual setup's rail and markers`);
     record(await skills.locator('.doc-links a').count() === 3 &&
-      await page.locator('#site-nav a[href="#skills"]').count() === 1,
-      `skills ${width}px: navigation, Skill, usage and CLI template links`);
+      await page.locator('#start #skills').count() === 1 &&
+      await page.locator('#site-nav a[href="#start"]').count() === 1 &&
+      await page.locator('#site-nav a[href="#skills"]').count() === 0,
+      `skills ${width}px: prompts and reference links are part of Get started`);
     const fit = await page.evaluate(() => {
       return [...document.querySelectorAll('#skills .code pre')].every(
         (el) => el.scrollWidth <= el.clientWidth) && document.documentElement.scrollWidth <= innerWidth;
@@ -518,6 +680,9 @@ async function runSkills(browser, origin) {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     record(await skills.locator('[data-code]').count() === 2,
       `skills ${width}px: installation and analysis have separate prompts`);
+    record(await page.locator('.skill-capabilities, .skills-grid').count() === 0 &&
+      await page.locator('#cli').evaluate(el => !el.closest('details')),
+      `skills ${width}px: no capability panels; CLI instructions are always expanded`);
     for (const id of ['agent-install-prompt', 'agent-analysis-prompt']) {
       await skills.locator('[data-code]').filter({ has: page.locator('#' + id) }).locator('.copy').click();
       const copied = await page.evaluate(() => navigator.clipboard.readText());
@@ -557,6 +722,78 @@ async function runReadmeWordmarks(browser, origin) {
   }
 }
 
+async function runLanguages(browser, origin) {
+  for (const width of [1440, 1024, 390, 320]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/*.mp4', route => route.abort());
+    await page.goto(origin + '/SlicerDSpace/index.html#skills', { waitUntil: 'load' });
+    await page.locator('.lang-btn[data-lang="zh"]').click();
+    await page.waitForURL(url => url.pathname.endsWith('/zh.html'));
+    record(new URL(page.url()).hash === '#skills' && await page.locator('html').getAttribute('lang') === 'zh-CN',
+      `language ${width}px: Chinese link keeps the current section under a project base path`);
+    record(await page.locator('.lang-btn.is-active').getAttribute('data-lang') === 'zh' &&
+        await page.locator('#top .btn-primary').innerText() === '观看宣传片' &&
+        await page.locator('#skills-title .start-route-text').innerText() === '让 Agent 协助安装、分析与结果检查。' &&
+        await page.locator('#skills-title .start-recommended').innerText() === '（推荐）' &&
+        await page.locator('.guide-bot__header h2').innerText() === '问问项目助手',
+      `language ${width}px: capsule, homepage, Skills and bot use Chinese`);
+    const header = await page.evaluate(() => {
+      const capsule = document.querySelector('.language-switch').getBoundingClientRect();
+      const menu = document.getElementById('menu-btn').getBoundingClientRect();
+      const nav = document.querySelector('.site-nav ul').getBoundingClientRect();
+      return { fits: capsule.left >= 0 && capsule.right <= innerWidth && capsule.top >= 0,
+        separate: innerWidth >= 1024 ? nav.right + 8 <= capsule.left : menu.right + 8 <= capsule.left,
+        centered: innerWidth < 1024 || Math.abs((nav.left + nav.right) / 2 - innerWidth / 2) < 1,
+        radius: parseFloat(getComputedStyle(document.querySelector('.language-switch')).borderRadius),
+        overflow: document.documentElement.scrollWidth > innerWidth };
+    });
+    record(header.fits && header.separate && header.centered && header.radius >= 999 && !header.overflow,
+      `language ${width}px: capsule stays at the right without moving or covering navigation`, JSON.stringify(header));
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.locator('#skills [data-code]').filter({ has: page.locator('#agent-install-prompt') }).locator('.copy').click();
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    record(copied === await page.locator('#agent-install-prompt').textContent() && copied.includes('配置需要的依赖环境'),
+      `language ${width}px: copy uses the Chinese Agent prompt`);
+    await page.goto(origin + '/SlicerDSpace/zh.html#performance', { waitUntil: 'load' });
+    const count = await page.locator('.perf-table .perf-record').count();
+    record(count === 14 && await page.locator('.perf-table').isVisible() &&
+        await page.locator('[data-perf-filter], #perf-count').count() === 0 &&
+        await page.locator('#integrated tr[data-method]').count() === 35 &&
+        await page.locator('.int-table .method-reference').count() > 35 &&
+        await page.locator('#cite').count() === 0,
+      `language ${width}px: full translated performance table and complete method/reference catalogs`);
+    await page.locator('.lang-btn[data-lang="en"]').click();
+    await page.waitForURL(url => url.pathname.endsWith('/index.html'));
+    record(new URL(page.url()).hash === '#performance' &&
+        await page.locator('html').getAttribute('lang') === 'en' &&
+        await page.locator('.lang-btn.is-active').getAttribute('data-lang') === 'en',
+      `language ${width}px: English switch restores English and keeps the section`);
+    await page.goto(origin + '/zh.html', { waitUntil: 'load' });
+    await page.screenshot({ path: path.join(OUT, `site-zh-${width}.png`) });
+    record(!errors.length, `language ${width}px: no JavaScript errors`, errors.join('; '));
+    await context.close();
+  }
+  const context = await browser.newContext({ viewport: { width: 390, height: 900 }, javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto(origin + '/index.html', { waitUntil: 'load' });
+  await page.locator('.lang-btn[data-lang="zh"]').click();
+  await page.waitForURL(url => url.pathname.endsWith('/zh.html'));
+  record(await page.locator('html').getAttribute('lang') === 'zh-CN' &&
+      await page.locator('#skills-title .start-route-text').innerText() === '让 Agent 协助安装、分析与结果检查。' &&
+      await page.locator('#skills-title .start-recommended').innerText() === '（推荐）' &&
+      await page.locator('#integrated tr[data-method]').count() === 35,
+    'language no JS: Chinese content, commands and all methods are available without scripting');
+  record(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    'language no JS: Chinese page fits a mobile viewport');
+  await page.locator('.lang-btn[data-lang="en"]').click();
+  await page.waitForURL(url => url.pathname.endsWith('/index.html'));
+  record(await page.locator('html').getAttribute('lang') === 'en', 'language no JS: English return link works');
+  await context.close();
+}
+
 // ---------------------------------------------------------------- main
 const server = await serve();
 const origin = `http://127.0.0.1:${server.address().port}`;
@@ -567,41 +804,47 @@ try {
     headless: true,
     args: ['--autoplay-policy=no-user-gesture-required'],
   });
-  await runViewport(browser, origin, '1440x900', 1440, 900, {});
-  await runViewport(browser, origin, '390x844', 390, 844, {});
-  await runViewport(browser, origin, '320x640', 320, 640, { overflowOnly: true });
-  // Header edge widths around the nav fold (Codex code review r1 B1: at 861-930 px the nav row overlapped the brand
-  // inside the header, which the scrollWidth check could not see). The header must fit, and the brand, the visible
-  // nav links, the status chip and the Menu button must not overlap.
-  for (const w of [861, 900, 1023, 1024, 1100]) {
-    const ctx = await browser.newContext({ viewport: { width: w, height: 800 } });
-    const pg = await ctx.newPage();
-    await pg.goto(origin + '/index.html', { waitUntil: 'load' });
-    const hdr = await pg.evaluate(() => {
-      const inner = document.querySelector('.header-inner');
-      const shown = (el) => { const s = getComputedStyle(el), r = el.getBoundingClientRect(); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
-      const items = [document.querySelector('.brand'), document.getElementById('menu-btn'),
-        ...document.querySelectorAll('#site-nav a, #site-nav .chip-status')].filter(shown);
-      const rects = items.map((el) => ({ name: (el.textContent || '').trim().slice(0, 20), r: el.getBoundingClientRect() }));
-      const hits = [];
-      for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
-        const a = rects[i].r, b = rects[j].r;
-        if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) hits.push(`${rects[i].name} / ${rects[j].name}`);
-      }
-      const fits = inner.scrollWidth <= inner.clientWidth && document.documentElement.scrollWidth <= window.innerWidth;
-      return { fits, hits };
-    });
-    record(hdr.fits, `${w}px: header fits and page does not scroll sideways`, 'overflow');
-    record(!hdr.hits.length, `${w}px: brand, nav links, chip and Menu button do not overlap`, hdr.hits.join('; '));
-    await ctx.close();
+  if (!process.argv.includes('--performance') && !process.argv.includes('--footer') && !process.argv.includes('--skills')) {
+    await runViewport(browser, origin, '1440x900', 1440, 900, {});
+    await runViewport(browser, origin, '390x844', 390, 844, {});
+    await runViewport(browser, origin, '320x640', 320, 640, { overflowOnly: true });
+    // Check header edges around the mobile-navigation breakpoint.
+    for (const w of [861, 900, 1023, 1024, 1100]) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: 800 } });
+      const pg = await ctx.newPage();
+      await pg.goto(origin + '/index.html', { waitUntil: 'load' });
+      const hdr = await pg.evaluate(() => {
+        const inner = document.querySelector('.header-inner');
+        const shown = (el) => { const s = getComputedStyle(el), r = el.getBoundingClientRect(); return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0; };
+        const items = [document.getElementById('menu-btn'),
+          ...document.querySelectorAll('#site-nav a, .lang-btn')].filter(shown);
+        const rects = items.map((el) => ({ name: (el.textContent || '').trim().slice(0, 20), r: el.getBoundingClientRect() }));
+        const hits = [];
+        for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+          const a = rects[i].r, b = rects[j].r;
+          if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) hits.push(`${rects[i].name} / ${rects[j].name}`);
+        }
+        const fits = inner.scrollWidth <= inner.clientWidth && document.documentElement.scrollWidth <= window.innerWidth;
+        return { fits, hits };
+      });
+      record(hdr.fits, `${w}px: header fits and page does not scroll sideways`, 'overflow');
+      record(!hdr.hits.length, `${w}px: nav links, language capsule and Menu button do not overlap`, hdr.hits.join('; '));
+      await ctx.close();
+    }
+    await run404AndNoJs(browser, origin);
+    await runSkills(browser, origin);
+    await runLanguages(browser, origin);
+    await runReadmeWordmarks(browser, origin);
+    await runReferenceLinks(browser, origin);
   }
-  await run404AndNoJs(browser, origin);
-  await runSkills(browser, origin);
-  await runReadmeWordmarks(browser, origin);
-  await runReferenceLinks(browser, origin);
-  for (const width of [1440, 390, 360, 320]) await runPerformance(browser, origin, width);
-  await runPerformance(browser, origin, 390, true);
-  await runHomePerformanceNavigation(browser, origin);
+  if (process.argv.includes('--skills')) await runSkills(browser, origin);
+  if (!process.argv.includes('--performance') && !process.argv.includes('--skills')) await runFooter(browser, origin);
+  if (!process.argv.includes('--footer') && !process.argv.includes('--skills')) {
+    for (const width of [1440, 390, 360, 320]) await runPerformance(browser, origin, width);
+    await runPerformance(browser, origin, 390, true);
+    await runPerformanceFailures(browser, origin);
+    await runHomePerformanceNavigation(browser, origin);
+  }
 } catch (err) {
   record(false, 'browser run', String(err && err.stack || err));
 } finally {

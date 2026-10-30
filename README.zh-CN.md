@@ -42,8 +42,8 @@ SlicerDSpace 将无需 T1 加权影像的解剖重建、微结构定量和白质
   <img src="docs/assets/readme/SlicerDSpace_preview.gif" alt="SlicerDSpace 宣传视频动态预览" width="100%">
 </a>
 
-[观看完整视频（MP4，1 分 12 秒）](docs/site/media/SlicerDSpace_promo_1080p.mp4) ·
-[网页播放器与字幕](https://chengjinlii.github.io/SlicerDSpace/#film)
+24 秒原速预览 · [观看完整视频（MP4，1 分 12 秒）](docs/site/media/SlicerDSpace_promo_1080p.mp4) ·
+[网页播放器](https://chengjinlii.github.io/SlicerDSpace/#film)
 
 ---
 
@@ -221,6 +221,8 @@ sub-01/
 **高级设置** 按掩膜、模型参数、性能、脑区/输入导入和实验分类；环境安装单独管理。
 
 UKF 通过已安装扩展自动运行，并可直接把结果传给 WMA。
+WMA 支持 `--wma-atlas org|east-west|naba`（默认 `org`），高级设置中也可选择。
+参见[图谱选择与按需资源](docs/setup/WMA_ATLASES.zh-CN.md)。
 多种追踪方法分别保存为 `<run>__<backend>` 变体。
 完整定量流线保留，另生成限量 VTK 预览用于场景显示。
 

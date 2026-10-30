@@ -5,21 +5,28 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import xml.etree.ElementTree as ET
+
+try:
+    from .prepare_website_results import validate_static_svg
+except ImportError:
+    from prepare_website_results import validate_static_svg
 
 ROOT = Path(__file__).resolve().parents[1]
 GUIDE_HAT = "assets/img/guide-bot-hat.svg"
 GUIDE_HAT_SHA256 = "3159ef890d7fd74135e39bc02a78a5371c90e4974edac3dd02e938e648bf8af4"
 WORDMARKS = {"assets/img/slicerdspace-wordmark.svg", "assets/img/slicerdspace-wordmark-light.svg"}
+RESULTS = "assets/img/results-overview.svg"
 
 
 def audit(root=ROOT):
     site = root / "docs/site"
     required = {".nojekyll", "index.html", "404.html"}
-    allowed_top = required | {"assets/data/performance.json", GUIDE_HAT} | WORDMARKS
+    allowed_top = required | {"zh.html", "assets/data/performance.json", GUIDE_HAT, RESULTS} | WORDMARKS
     allowed_extensions = {
         "assets/css": {".css"},
         "assets/js": {".js"},
-        "assets/img": {".png", ".jpg"},
+        "assets/img": {".png", ".jpg", ".webp"},
         "assets/fonts": {".woff2", ".txt"},
         "media": {".mp4", ".srt"},
     }
@@ -39,6 +46,15 @@ def audit(root=ROOT):
             problems.append("Unexpected public file: " + relative)
         if relative == GUIDE_HAT and hashlib.sha256(path.read_bytes()).hexdigest() != GUIDE_HAT_SHA256:
             problems.append("Unapproved guide asset: " + relative)
+        if relative == RESULTS:
+            try:
+                validate_static_svg(ET.fromstring(path.read_bytes()))
+                receipt = json.loads((root / "docs/website/published_assets.json").read_text())
+                expected = receipt["files"]["docs/site/" + RESULTS]["sha256"]
+                if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+                    raise ValueError("Results artwork differs from the reviewed receipt")
+            except (ValueError, KeyError, OSError, ET.ParseError) as exc:
+                problems.append("Unapproved results SVG: " + str(exc))
         files.append(relative)
         total += path.stat().st_size
     for name in required:

@@ -22,9 +22,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DOCS = os.path.join(ROOT, "docs", "site")
 INDEX = os.path.join(DOCS, "index.html")
 PAGE404 = os.path.join(DOCS, "404.html")
+CHINESE = os.path.join(DOCS, "zh.html")
 FILM = os.path.join(DOCS, "media", "SlicerDSpace_promo_1080p.mp4")
 SRT = os.path.join(DOCS, "media", "SlicerDSpace.en.srt")
-FILM_BYTES = 47767254
+FILM_BYTES = 24799408
 
 REPO = "https://github.com/ChengjinLii/SlicerDSpace"
 BLOB = REPO + "/blob/main/"
@@ -80,6 +81,7 @@ ALLOWED_URLS = {
     "https://doi.org/10.3389/fninf.2014.00008",
     "https://doi.org/10.5281/zenodo.2648292",
     "https://chengjinlii.github.io/SlicerDSpace/",
+    "https://chengjinlii.github.io/SlicerDSpace/zh.html",
     "https://chengjinlii.github.io/SlicerDSpace/assets/img/social.jpg",
 }
 
@@ -281,9 +283,10 @@ def fail_list(items):
 
 # ---------------------------------------------------------------- checks
 @check("html_basics")
-def html_basics(idx, raw_idx, p404, raw_404):
+def html_basics(idx, raw_idx, p404, raw_404, *localized):
     problems = []
-    for label, p, raw in (("index", idx, raw_idx), ("404", p404, raw_404)):
+    entries = [("index", idx, raw_idx, "en"), ("404", p404, raw_404, "en"), *localized]
+    for label, p, raw, language in entries:
         dup = [e for e in p.errors if e.startswith("duplicate id")]
         if dup:
             problems.append("%s: every id must be unique: %s" % (label, fail_list(dup)))
@@ -293,8 +296,8 @@ def html_basics(idx, raw_idx, p404, raw_404):
         if not raw.lstrip().lower().startswith("<!doctype html>"):
             problems.append("%s: missing <!doctype html>" % label)
         html_tags = [a for t, a, _ in p.tags if t == "html"]
-        if not html_tags or html_tags[0].get("lang") != "en":
-            problems.append('%s: <html lang="en"> missing' % label)
+        if not html_tags or html_tags[0].get("lang") != language:
+            problems.append('%s: <html lang="%s"> missing' % (label, language))
         titles = re.findall(r"<title>(.*?)</title>", raw, re.S)
         if not titles or not titles[0].strip():
             problems.append("%s: empty <title>" % label)
@@ -308,7 +311,7 @@ def html_basics(idx, raw_idx, p404, raw_404):
     h1 = [h for h in idx.headings if h[0] == 1]
     if len(h1) != 1:
         problems.append("index: %d <h1>, need exactly 1" % len(h1))
-    for label, p in (("index", idx), ("404", p404)):
+    for label, p, _, _ in entries:
         prev = 0
         for level, text in p.headings:
             if level > prev + 1:
@@ -418,7 +421,7 @@ def external_urls(pages):
                     if v and is_absolute(v):
                         if v.startswith("data:"):
                             continue
-                        if tag == "link" and a.get("rel") == "canonical" and v in ALLOWED_URLS:
+                        if tag == "link" and a.get("rel") in ("canonical", "alternate") and v in ALLOWED_URLS:
                             continue
                         problems.append("%s:%s <%s %s=%r> points to another host" % (rel, line, tag, attr, v))
     for f in all_files():
@@ -529,17 +532,16 @@ def srt_cues(path):
     return cues
 
 
-@check("transcript_matches_srt")
-def transcript_matches_srt(idx):
-    cues = srt_cues(SRT)
-    if len(cues) != 13:
-        return "SRT has %d cues, expected 13" % len(cues)
-    page = idx.transcript
-    if page != cues:
-        for i, (a, b) in enumerate(zip(page, cues), 1):
-            if a != b:
-                return "item %d differs: page %r vs srt %r" % (i, a, b)
-        return "page has %d items, SRT has %d" % (len(page), len(cues))
+@check("minimal_film_controls")
+def minimal_film_controls(idx):
+    videos = [attributes for tag, attributes, _ in idx.tags if tag == 'video']
+    if len(videos) != 1 or videos[0].get('preload') != 'none':
+        return 'The film must load only on request (preload=none)'
+    if idx.transcript or any(tag == 'details' and attributes.get('id') == 'transcript'
+                             for tag, attributes, _ in idx.tags):
+        return 'The film transcript was removed from the homepage'
+    if any(tag == 'a' and attributes.get('href', '').endswith('.srt') for tag, attributes, _ in idx.tags):
+        return 'The homepage must not offer subtitle downloads'
     return None
 
 
@@ -626,8 +628,8 @@ def images(pages):
 
 # Keep substantive installation and display scopes; removed Status prose is not
 # a homepage requirement. Per-run scientific evidence remains in source records.
-REQUIRED = ["at analysis time", "Private pre-release", "24,000 of 130,780",
-            "not installed silently", "in preparation", "display subset",
+REQUIRED = ["Open full-size SVG",
+            "not installed silently",
             "anatomical review", "must share one voxel grid"]
 BANNED = [r"T1w?-free", r"T1-weighted-free", r"fully automatic", r"no registration",
           r"no preprocessing", r"U-shaped", r"\bthe first\b", r"\bthe only\b",
@@ -705,6 +707,14 @@ def fonts_licensed():
     return fail_list(problems) if problems else None
 
 
+@check("localization")
+def localization():
+    result = subprocess.run([sys.executable, '-I', os.path.join(ROOT, 'scripts/build_website_locales.py'),
+                             '--check'], capture_output=True, text=True)
+    if result.returncode:
+        return result.stdout + result.stderr
+
+
 # ---------------------------------------------------------------- main
 def main(argv):
     film_arg = None
@@ -716,15 +726,17 @@ def main(argv):
         film_arg = argv[i + 1]
     idx, raw_idx = parse(INDEX)
     p404, raw_404 = parse(PAGE404)
-    pages = [(INDEX, idx), (PAGE404, p404)]
+    chinese, raw_chinese = parse(CHINESE)
+    pages = [(INDEX, idx), (PAGE404, p404), (CHINESE, chinese)]
 
-    html_basics(idx, raw_idx, p404, raw_404)
+    html_basics(idx, raw_idx, p404, raw_404, ('zh', chinese, raw_chinese, 'zh-CN'))
+    localization()
     local_refs(pages)
     external_urls(pages)
     film_bytes(film_arg)
     film_faststart()
     film_probe()
-    transcript_matches_srt(idx)
+    minimal_film_controls(idx)
     sizes()
     images(pages)
     claims_required(pages)

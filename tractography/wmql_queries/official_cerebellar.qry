@@ -1,0 +1,5 @@
+# Unmodified upstream outputs plus separately named SlicerDSpace regional queries.
+import freesurfer_queries.qry
+# Do not re-import aliases or insert side-dependent helpers before the author's
+# hemisphere globs: either operation changes the author's CST/hemisphere sets.
+import cerebellar_regions.qry

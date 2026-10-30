@@ -180,6 +180,42 @@ sys.exit(3 if failed else 0)
         self.assertEqual(args.jobs, 3)
         self.assertEqual(forwarded, ["--targets", "microstructure"])
 
+    def test_actual_cli_blocked_subject_is_not_a_completed_batch(self):
+        from test_input_execution_gate import subject
+        for allow_partial in (False, True):
+            with self.subTest(allow_partial=allow_partial), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                subject(root / 'subjects')
+                manifest = root / 'batch.json'
+                args = ['--batch-root', str(root / 'subjects'), '--output-root', str(root / 'outputs'),
+                        '--manifest', str(manifest), '--execute', '--targets', 'wma',
+                        '--wma-root', str(root / 'no-wma'), '--brain-mask-backend', 'provided']
+                if allow_partial:
+                    args.append('--allow-partial-success')
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    code = batch_cli.main(args)
+                record = json.loads(manifest.read_text())
+                self.assertEqual(code, 0 if allow_partial else 2)
+                self.assertEqual(record['status'], 'completed_with_blocks')
+                self.assertEqual(record['subject_status_counts'], {'completed_with_blocks': 1})
+                self.assertGreater(record['task_status_counts']['blocked'], 0)
+                self.assertEqual(record['results'][0]['status_source'], 'child_manifest')
+
+    def test_stale_manifest_is_not_used_for_a_new_custom_runner(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stale = root / 'outputs/00_run_metadata/Test1_orchestration_manifest.json'
+            stale.parent.mkdir(parents=True)
+            stale.write_text(json.dumps(dict(subject_id='sub-01', run_name='Test1', status='completed_with_blocks', tasks=[dict(status='blocked')])))
+            runner = root / 'custom.py'
+            runner.write_text('pass\n')
+            result = batch_cli._run_subject([sys.executable, str(runner), '--output-root', str(root / 'outputs')],
+                batch_cli.BatchSubject('sub-01', root, 'test', 'subject_root'), root / 'logs')
+            self.assertEqual(result.run_status, 'process_completed')
+            self.assertEqual(result.status_source, 'process_exit_code')
+            self.assertIsNone(result.task_counts)
+            self.assertIn('fresh', result.manifest_error)
+
 
 if __name__ == "__main__":
     unittest.main()

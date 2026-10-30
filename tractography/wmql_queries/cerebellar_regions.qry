@@ -1,0 +1,23 @@
+# SlicerDSpace regional extension v1. Import FreeSurfer aliases before this file.
+# Outputs select regional candidates; no peduncle-specific label is assigned.
+
+cb_region.side |= Cerebellum_White_Matter.side or Cerebellum_Cortex.side
+cb_supratentorial |= (
+    'ctx_*' or 'wm_*' or Cerebral_White_Matter.left or Cerebral_White_Matter.right or
+    Cerebral_Cortex.left or Cerebral_Cortex.right or Thalamus_Proper.left or
+    Thalamus_Proper.right or Caudate.left or Caudate.right or Putamen.left or
+    Putamen.right or Pallidum.left or Pallidum.right or Thalamus.left or Thalamus.right or
+    Accumbens_area.left or Accumbens_area.right or VentralDC.left or VentralDC.right or
+    Hippocampus.left or Hippocampus.right or Amygdala.left or Amygdala.right
+)
+
+cerebellar_brainstem.side = (
+    endpoints_in(cb_region.side) and
+    both_endpoints_in(cb_region.side or Brain_Stem) and
+    Cerebellum_White_Matter.side and Brain_Stem
+) not in (cb_region.opposite or endpoints_in(cb_region.opposite)) not in (cb_supratentorial or endpoints_in(cb_supratentorial))
+
+cerebellar_bilateral = (
+    endpoints_in(cb_region.left) and endpoints_in(cb_region.right) and
+    Cerebellum_White_Matter.left and Cerebellum_White_Matter.right and Brain_Stem
+) not in (cb_supratentorial or endpoints_in(cb_supratentorial))

@@ -19,7 +19,8 @@ from shared.external_process import python_tool_environment, text_subprocess_kwa
 from shared.output_contracts import polydata_streamline_count
 from shared.product_staging import archive_run_records, new_product_staging, publish_products, retain_failed_products
 from tractography.wmql_protocol import (OFFICIAL_DIR, official_query_names, canonical_wmql_selection,
-                                       atlas_compatibility, bundle_assessment)
+                                       atlas_compatibility, bundle_assessment, CATALOG_PRESETS,
+                                       CEREBELLAR_QUERIES, preset_query_names)
 
 
 TRACT_QUERIER_REPOSITORY = "https://github.com/demianw/tract_querier"
@@ -62,6 +63,7 @@ class WMQLConfig:
     length_threshold: float = 0.0
     execute: bool = False
     query_preset: str = "official"
+    atlas_mode: str = 'native'
 
 
 @dataclass(frozen=True)
@@ -80,6 +82,8 @@ class WMQLResult:
 def bundled_wmql_query_path(preset: str = "official") -> Path:
     if preset == 'official':
         return OFFICIAL_DIR / 'freesurfer_queries.qry'
+    if preset in ('cerebellar', 'official_cerebellar'):
+        return OFFICIAL_DIR.parent / (preset + '.qry')
     # Read-only historical protocols remain addressable for reproducibility.
     files = {"ddparcel_act": "AF_CST_DDParcel_ACT.qry", "author": "AF_CST_ACT.qry",
              "published_endpoints": "AF_CST.qry"}
@@ -130,6 +134,13 @@ def wmql_query_cache_current(manifest) -> bool:
 def wmql_query_provenance(query_path, dependencies=None):
     query_path = Path(query_path)
     digest = hashlib.sha256(Path(query_path).read_bytes()).hexdigest()
+    for preset in ('cerebellar', 'official_cerebellar'):
+        if query_path.resolve() == bundled_wmql_query_path(preset).resolve():
+            return {'preset': preset, 'sha256': digest, 'extension_version': 1,
+                    'extension_queries': list(CEREBELLAR_QUERIES),
+                    'reference': 'https://tract-querier.readthedocs.io/en/latest/example_script.html',
+                    'scope': 'SlicerDSpace regional cerebellar queries executed by the author WMQL engine; not published ICP/MCP/SCP definitions.',
+                    'official_rules_included': preset == 'official_cerebellar'}
     published = bundled_wmql_query_path('published_endpoints').with_name('CST_WMQL2016.qry')
     endpoint_digests = {hashlib.sha256(path.read_bytes()).hexdigest() for path in (published, bundled_wmql_query_path('published_endpoints'))}
     author_selection = digest == hashlib.sha256(bundled_wmql_query_path('author').read_bytes()).hexdigest()
@@ -277,6 +288,7 @@ def inspect_wmql_backend(
 def _query_include_dirs(config: WMQLConfig, query_path: Path) -> list[Path]:
     dirs: list[Path] = [query_path.parent]
     dirs.extend(path.expanduser().resolve() for path in config.include_dirs)
+    dirs.append(OFFICIAL_DIR)
     if config.tract_querier_root is not None:
         data_dir = config.tract_querier_root.expanduser().resolve() / "tract_querier" / "data"
         if data_dir.is_dir():
@@ -454,6 +466,10 @@ def _wmql_output_contract_error(
 
 
 def _validate_wmql_config(config: WMQLConfig, backend_status: dict[str, Any]) -> None:
+    if config.atlas_mode not in ('native', 'ddparcel_wm'):
+        raise ValueError('Unknown WMQL atlas mode: ' + config.atlas_mode)
+    if config.atlas_mode != 'native' and (config.query_path is not None or config.query_preset not in CATALOG_PRESETS):
+        raise ValueError('Experimental DDParcel WM preparation requires a bundled catalogue, not custom/historical rules')
     if not config.subject_id.strip():
         raise ValueError("subject_id is required.")
     if config.input_tractography.suffix.lower() not in VALID_TRACT_EXTENSIONS:
@@ -482,9 +498,11 @@ def run_wmql_bundle_segmentation(
     """Prepare or execute WMQL bundle extraction for one whole-brain tractogram."""
 
     official_mode = config.query_preset == 'official' and config.query_path is None
-    if official_mode:
-        config = replace(config, query_selection=canonical_wmql_selection(config.query_selection))
-    requested_queries = (config.query_selection or official_query_names()) if official_mode else config.query_selection
+    catalogue_mode = config.query_preset in CATALOG_PRESETS and config.query_path is None
+    cerebellar_mode = catalogue_mode and config.query_preset != 'official'
+    if catalogue_mode:
+        config = replace(config, query_selection=canonical_wmql_selection(config.query_selection, config.query_preset))
+    requested_queries = (config.query_selection or preset_query_names(config.query_preset)) if catalogue_mode else config.query_selection
     backend_status = inspect_wmql_backend(
         tract_querier_root=config.tract_querier_root,
         tract_querier_executable=config.tract_querier_executable,
@@ -500,18 +518,36 @@ def run_wmql_bundle_segmentation(
     include_dirs = _query_include_dirs(config, query_path)
     query_dependencies = wmql_query_dependencies(query_path, include_dirs)
     provenance = wmql_query_provenance(query_path, query_dependencies)
-    if official_mode:
-        if (query_dependencies.get(str(query_path)) != AUTHOR_BUNDLE_QUERY_SHA256
+    if catalogue_mode:
+        if ((config.query_preset != 'cerebellar' and not any(
+                Path(path).name == 'freesurfer_queries.qry' and digest == AUTHOR_BUNDLE_QUERY_SHA256
+                for path, digest in query_dependencies.items()))
                 or not any(Path(path).name == 'FreeSurfer.qry' and digest == AUTHOR_ALIAS_SHA256
                            for path, digest in query_dependencies.items())):
             raise ValueError('Official WMQL rule bytes do not match the pinned author source')
+    if official_mode:
         provenance.update(preset='official_multibundle', upstream_commit=AUTHOR_QUERY_COMMIT,
                           scope='Unmodified author repository rules and label aliases; no DDParcel-specific predicate overrides')
+    source_atlas = config.atlas_path
+    effective_atlas, atlas_preparation = source_atlas, None
     compatibility, compatibility_error = None, None
-    if official_mode and config.execute:
+    if catalogue_mode and config.execute:
         import nibabel as nib
         try:
-            compatibility = atlas_compatibility(config.atlas_path)
+            if config.atlas_mode == 'ddparcel_wm':
+                from tractography.wmql_atlas import prepare_ddparcel_atlas
+                effective_atlas, atlas_preparation = prepare_ddparcel_atlas(source_atlas, output_dir / 'atlas_cache')
+                if log:
+                    log('[WMQL] Experimental 5-mm adjacent-WM atlas prepared; native DDParcel labels retained separately')
+            compatibility = atlas_compatibility(effective_atlas)
+            if cerebellar_mode:
+                missing = sorted({7, 8, 16, 46, 47} - set(compatibility['label_ids']))
+                if missing:
+                    raise ValueError('Cerebellar queries require native cerebellar WM/cortex and brainstem labels: '
+                                     + ', '.join(map(str, missing)))
+                if config.query_preset == 'cerebellar':
+                    # Regional selections do not require regional cerebral WM labels.
+                    compatibility['warnings'] = []
         except (OSError, ValueError, nib.filebasedimages.ImageFileError) as exc:
             compatibility_error = f'Atlas compatibility failed: {exc}'
             compatibility = dict(status='failed', error=compatibility_error)
@@ -524,7 +560,7 @@ def run_wmql_bundle_segmentation(
         Path(path).name: digest for path, digest in snapshot_dependencies.items()
     }:
         raise ValueError('WMQL staged imports differ from the selected query source')
-    command_config = replace(config, query_path=staged_query)
+    command_config = replace(config, query_path=staged_query, atlas_path=effective_atlas)
     command = build_wmql_command(command_config, backend_status)
 
     manifest_path = output_dir / "wmql_manifest.json"
@@ -537,7 +573,10 @@ def run_wmql_bundle_segmentation(
         "subject_id": config.subject_id,
         "query_preset": config.query_preset,
         "input_tractography": config.input_tractography.expanduser().resolve().as_posix(),
-        "atlas_path": config.atlas_path.expanduser().resolve().as_posix(),
+        "atlas_path": effective_atlas.expanduser().resolve().as_posix(),
+        "source_atlas_path": source_atlas.expanduser().resolve().as_posix(),
+        "atlas_mode": config.atlas_mode,
+        "atlas_preparation": atlas_preparation,
         "query_path": query_path.as_posix(),
         "query_sha256": hashlib.sha256(query_path.read_bytes()).hexdigest(),
         "query_dependencies": query_dependencies,
@@ -548,6 +587,7 @@ def run_wmql_bundle_segmentation(
         "query_selection": list(config.query_selection),
         "requested_queries": list(requested_queries),
         "official_multibundle": official_mode,
+        "coverage_report_mode": catalogue_mode,
         "atlas_compatibility": compatibility,
         "threshold": config.threshold,
         "length_threshold": config.length_threshold,
@@ -559,7 +599,8 @@ def run_wmql_bundle_segmentation(
         "previous_records": previous_records,
         "dependencies": {
             "input_tractography": _file_info(config.input_tractography),
-            "atlas": _file_info(config.atlas_path),
+            "atlas": _file_info(source_atlas),
+            "effective_atlas": _file_info(effective_atlas),
             "query": _file_info(query_path),
         },
         "outputs": {"qc": qc_path.as_posix(), "summary": output_summary},
@@ -616,7 +657,7 @@ def run_wmql_bundle_segmentation(
                 execution_error = 'WMQL source inputs changed during execution; outputs are not reusable'
             if execution_error is None:
                 execution_error = _wmql_output_contract_error(output_summary, len(requested_queries), requested_queries,
-                                                               require_sampling=not official_mode)
+                                                               require_sampling=not catalogue_mode)
             if staging:
                 try:
                     if execution_error is None:
@@ -633,15 +674,17 @@ def run_wmql_bundle_segmentation(
     if config.execute and execution_error is None:
         execution_error = _wmql_output_contract_error(
             output_summary,
-            len(requested_queries), requested_queries, require_sampling=not official_mode,
+            len(requested_queries), requested_queries, require_sampling=not catalogue_mode,
         )
 
     elapsed_seconds = time.monotonic() - start_time
     assessment = bundle_assessment(output_summary, requested_queries, MIN_BUNDLE_STREAMLINES)
-    coverage_warning = bool(official_mode and not assessment['all_requested_sampling_passed'])
+    coverage_warning = bool(catalogue_mode and not assessment['all_requested_sampling_passed'])
     scientific_warnings = [f"{b['query_name']}: {b['state']} ({b['streamline_count']} streamlines)"
                            for b in assessment['bundles'] if not b['sampling_passed']]
     scientific_warnings.extend((compatibility or {}).get('warnings', []))
+    if atlas_preparation:
+        scientific_warnings.append('Experimental adjacent-WM territories: review anatomical boundaries and bundle identity before quantitative use.')
     qc = {
         "kind": "wmql_bundle_segmentation_qc",
         "version": WMQL_QC_VERSION,
@@ -654,8 +697,11 @@ def run_wmql_bundle_segmentation(
         "execution_passed": bool(config.execute and execution_error is None),
         "output_integrity_passed": bool(config.execute and execution_error is None),
         "automatic_qc_passed": bool(config.execute and execution_error is None and not coverage_warning
-                                    and not (compatibility or {}).get('warnings')),
+                                    and not (compatibility or {}).get('warnings') and not atlas_preparation),
+        "atlas_mode": config.atlas_mode,
+        "atlas_preparation": atlas_preparation,
         "official_multibundle": official_mode,
+        "coverage_report_mode": catalogue_mode,
         "bundle_assessment": assessment,
         "atlas_compatibility": compatibility,
         "quantification_eligible": False,

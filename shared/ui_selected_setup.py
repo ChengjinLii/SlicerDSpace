@@ -122,6 +122,10 @@ def _confirm(owner, plan):
         from scripts.download_model_assets import _format_bytes
         parts.append(_text(owner, "Selected optional resources (full profile size): ", "所选可选资源（完整分组大小）：") +
                      _format_bytes(plan["optional_asset_size_bytes"]))
+        if plan.get("optional_asset_peak_disk_bytes", 0) > plan["optional_asset_size_bytes"]:
+            parts.append(_text(owner, "Allow disk space for download, extracted data and temporary assembly: ",
+                               "下载、解压与临时拼接所需磁盘空间上限估计：") +
+                         _format_bytes(plan["optional_asset_peak_disk_bytes"]))
         parts.extend(plan["optional_asset_terms"])
     label = qt.QLabel("\n\n".join(parts))
     label.wordWrap = True
@@ -203,6 +207,7 @@ def prepare_selected_environment(owner, result=None, *, repair=False):
         need_torch=bool(targets & {"segmentation", "parcellation", "surface"}),
         need_ukf="tractography" in targets and contains_tracking(owner._tractography_backend_text(), "ukf"),
         brain_mask_backend=getattr(owner._parameterNode, "brainMaskBackend", "pnl_cnn"), gpu_available=gpu,
+        wma_atlas=getattr(owner._parameterNode, "wmaAtlas", "org"),
         existing_managed_profiles=existing, repair=repair)
     pending_actions = plan.get('surface_build_required', False) or any(plan[key] for key in (
         "extensions", "restart_extensions", "python_packages", "asset_profiles", "optional_asset_profiles",
@@ -431,7 +436,8 @@ def use_offline_assets(owner):
                                          ("parcellation", "targetParcellation")) if getattr(node, target, False)]
     report = getattr(owner, "_lastEnvironmentResult", None)
     from shared.optional_assets import missing_optional_profiles
-    optional = missing_optional_profiles(report, getattr(node, "brainMaskBackend", "pnl_cnn")) if report else []
+    optional = missing_optional_profiles(report, getattr(node, "brainMaskBackend", "pnl_cnn"),
+                                         getattr(node, "wmaAtlas", "org")) if report else []
     if not profiles and not optional:
         slicer.util.infoDisplay(_text(owner, "Check the selected environment first to identify required resources.",
                                      "请先检查所选环境，确认需要的离线资源。"))

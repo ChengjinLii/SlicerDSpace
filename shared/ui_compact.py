@@ -93,7 +93,8 @@ def install_compact_layout(owner: Any) -> None:
     layout.setSizeConstraint(qt.QLayout.SetMinAndMaxSize)
     ui.headerLayout.setContentsMargins(0, 2, 0, 5)
     ui.headerTextLayout.setContentsMargins(0, 0, 0, 0)
-    ui.logoLabel.setFixedSize(24, 24)
+    from shared.ui_branding import install_header_wordmark
+    install_header_wordmark(owner)
     ui.subtitleLabel.hide()
 
     # Reuse the selector so persistence and all translations still work.

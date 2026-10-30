@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from scripts.build_performance_site import build_evidence, render
+from scripts.build_performance_site import build_evidence, mkcurve_signal_records, render
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -19,7 +19,7 @@ class PerformanceSiteTests(unittest.TestCase):
         evidence = build_evidence()
         saved = json.loads((ROOT / 'docs/site/assets/data/performance.json').read_text())
         self.assertEqual(saved, evidence)
-        self.assertEqual(len(evidence['records']), 13)
+        self.assertEqual(len(evidence['records']), 14)
         for row in evidence['records']:
             self.assertTrue(math.isclose(row['speed_ratio'], row['reference_seconds'] / row['optimized_seconds']))
             self.assertTrue(row['scope'] and row['baseline'] and row['limitation'])
@@ -46,7 +46,13 @@ class PerformanceSiteTests(unittest.TestCase):
         self.assertIn('id="performance-evidence"', page)
         self.assertIn('href="#performance"', page)
         self.assertIn('assets/img/fig-runtime-resources.png', page)
-        self.assertIn('assets/img/fig-runtime-optimizations.png', page)
+        self.assertNotIn('assets/img/fig-runtime-optimizations.png', page)
+        self.assertNotIn('perf-chart', page)
+        self.assertNotIn('perf-filters', page)
+        self.assertNotIn('id="perf-count"', page)
+        self.assertIn('<div class="perf-evidence" id="performance-evidence">', page)
+        self.assertNotIn('<details class="perf-evidence"', page)
+        self.assertNotIn('View performance comparisons', page)
         self.assertFalse((ROOT / 'docs/site/performance.html').exists())
         for name in ('index.html', '404.html'):
             self.assertNotIn('performance.html', (ROOT / 'docs/site' / name).read_text(encoding='utf-8'))
@@ -62,6 +68,42 @@ class PerformanceSiteTests(unittest.TestCase):
             file.write_text(json.dumps(record))
             with patch('scripts.build_performance_site.BENCHMARKS', folder), self.assertRaises(ValueError):
                 build_evidence()
+
+    def test_method_details_are_adjacent_rows_in_the_same_table(self):
+        evidence = build_evidence()
+        markup = render(evidence)
+        self.assertEqual(markup.count('class="perf-record"'), 14)
+        self.assertEqual(markup.count('class="perf-detail-row"'), 14)
+        self.assertNotIn('perf-methods', markup)
+        self.assertNotIn('Methods &amp; verification', markup)
+        self.assertNotIn('<details', markup)
+        for row in evidence['records']:
+            before = markup.index('data-record="' + row['id'] + '"')
+            main_end = markup.index('</tr>', before) + len('</tr>')
+            self.assertTrue(markup[main_end:].startswith('<tr class="perf-detail-row" id="method-' + row['id'] + '" hidden>'))
+            self.assertIn('<button class="perf-toggle" type="button"', markup[before:main_end])
+            self.assertIn('aria-controls="method-' + row['id'] + '" aria-expanded="false"', markup[before:main_end])
+            self.assertIn('<span class="perf-toggle-icon" aria-hidden="true">+</span>', markup[before:main_end])
+
+    def test_details_start_hidden_in_both_pages_without_javascript_or_css(self):
+        from html.parser import HTMLParser
+
+        class Rows(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.rows = []
+
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'tr' and attrs.get('class') == 'perf-detail-row':
+                    self.rows.append(attrs)
+
+        for filename in ('index.html', 'zh.html'):
+            with self.subTest(filename=filename):
+                parser = Rows()
+                parser.feed((ROOT / 'docs/site' / filename).read_text(encoding='utf-8'))
+                self.assertEqual(len(parser.rows), 14)
+                self.assertTrue(all('hidden' in row for row in parser.rows))
 
     def test_new_local_optimizations_require_complete_equivalence_checks(self):
         import copy
@@ -95,6 +137,37 @@ class PerformanceSiteTests(unittest.TestCase):
 
         with patch.object(Path, 'read_text', changed), self.assertRaises(ValueError):
             build_evidence()
+
+    def test_signal_reuse_is_incremental_and_keeps_both_solver_outcomes(self):
+        report = json.loads((ROOT / 'docs/release/benchmarks/performance_next_20261029.json').read_text())
+        records = mkcurve_signal_records(report)
+        row = next(row for row in build_evidence()['records'] if row['id'] == 'mkcurve-signal')
+        self.assertEqual(row['category'], 'port')
+        self.assertEqual(row['evidence_date'], '2026-10-29')
+        self.assertEqual(row['reference_seconds'], records[0]['reference_median_seconds'])
+        self.assertEqual(len(row['solver_results']), 6)
+        self.assertTrue(any(case['reduction_percent'] < 0 for case in row['solver_results']))
+        self.assertIn('preceding qualified-QR', row['baseline'])
+        self.assertIn('only for the reference solver', row['limitation'])
+        self.assertNotIn('ddparcel', {item['id'] for item in build_evidence()['records']})
+
+    def test_signal_reuse_rejects_incomplete_or_inconsistent_records(self):
+        import copy
+        report = json.loads((ROOT / 'docs/release/benchmarks/performance_next_20261029.json').read_text())
+        mutations = (
+            lambda r: r['mkcurve']['records'].pop(),
+            lambda r: r['mkcurve']['records'][-1].update(exact_output_parity=False),
+            lambda r: r['mkcurve']['records'][0].update(reference_median_seconds=.1),
+            lambda r: r['mkcurve']['records'][0].update(speed_ratio=10),
+            lambda r: r['mkcurve'].update(source_inputs_unchanged=False),
+            lambda r: r['mkcurve']['environment']['thread_env'].update(OMP_NUM_THREADS='8'),
+        )
+        for index, mutate in enumerate(mutations):
+            with self.subTest(mutation=index):
+                candidate = copy.deepcopy(report)
+                mutate(candidate)
+                with self.assertRaises(ValueError):
+                    mkcurve_signal_records(candidate)
 
 
 if __name__ == '__main__':

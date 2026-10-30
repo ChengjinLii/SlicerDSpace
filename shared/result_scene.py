@@ -77,7 +77,8 @@ def record_qc_state(record):
                     any(isinstance(value, dict) and value.get('passed') is False for value in checks)
                     if isinstance(checks, list) else False)
     if (record.get('kind') == 'wmql_bundle_segmentation_qc' and record.get('version') == 6
-            and record.get('official_multibundle') is True and status == 'completed'
+            and (record.get('official_multibundle') is True or record.get('coverage_report_mode') is True)
+            and status == 'completed'
             and record.get('execution_passed') is True and record.get('output_integrity_passed') is True
             and not failed_check and not record.get('error')
             and record.get('bundle_assessment', {}).get('bundles')

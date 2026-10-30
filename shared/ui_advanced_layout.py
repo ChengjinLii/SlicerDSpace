@@ -76,7 +76,7 @@ def install_advanced_categories(owner):
     layout.insertWidget(2, stack)
     rows = {
         "processing": ("preprocessingBackendComboBox", "brainMaskOptions"),
-        "models": ("orchestrationDkiFitMethodComboBox", "wmqlQueryPresetComboBox", "wmqlQuerySelectionLineEdit", "wmaInputTractographyPath", "orchestrationSelectStreamlinesSpinBox"),
+        "models": ("orchestrationDkiFitMethodComboBox", "wmqlQueryPresetComboBox", "wmqlQuerySelectionLineEdit", "wmaAtlasComboBox", "wmaInputTractographyPath", "orchestrationSelectStreamlinesSpinBox"),
         "execution": ("orchestrationRunNameLineEdit", "unifiedTorchDeviceComboBox", "parallelModelsSpinBox"),
     }
     for key, names in rows.items():
@@ -130,6 +130,11 @@ def apply_advanced_language(owner):
     if selector is None:
         return
     zh = getattr(owner, "_onboardingLanguage", "en").startswith("zh")
+    if hasattr(owner.ui, "wmaAtlasLabel"):
+        owner.ui.wmaAtlasLabel.setText("WMA 图谱" if zh else "WMA atlas")
+        owner.ui.wmaAtlasComboBox.setToolTip(
+            "org：成人参考图谱；east-west：东西方成人；naba：新生儿与成人。在环境面板按需下载所选图谱。" if zh else
+            "org: adult reference; east-west: Eastern/Western adults; naba: neonates/adults. Prepare only the selected atlas in the Environment panel.")
     previous = selector.currentIndex
     blocked = selector.blockSignals(True)
     selector.clear()

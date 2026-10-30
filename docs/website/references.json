@@ -372,6 +372,20 @@
       "url": "https://doi.org/10.1016/j.neuroimage.2019.06.039",
       "link_label": "DOI 10.1016/j.neuroimage.2019.06.039",
       "provenance": "https://api.crossref.org/works/10.1016%2Fj.neuroimage.2019.06.039"
+    },
+    {
+      "id": 54,
+      "citation": "Li Y, et al. A diffusion MRI tractography atlas for concurrent white matter mapping across Eastern and Western populations. Scientific Data 11:787, 2024.",
+      "url": "https://doi.org/10.1038/s41597-024-03624-2",
+      "link_label": "DOI 10.1038/s41597-024-03624-2",
+      "provenance": "Primary paper PMC11255335 and its linked ScienceDB record 10.57760/sciencedb.17354"
+    },
+    {
+      "id": 55,
+      "citation": "Zhang W, et al. Cross-population white matter atlas creation for concurrent mapping of brain connections in neonates and adults with diffusion MRI tractography. Fundamental Research 6(3):1838-1847, 2026.",
+      "url": "https://doi.org/10.1016/j.fmre.2025.12.030",
+      "link_label": "DOI 10.1016/j.fmre.2025.12.030",
+      "provenance": "https://api.crossref.org/works/10.1016%2Fj.fmre.2025.12.030"
     }
   ]
 }

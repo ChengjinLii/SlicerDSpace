@@ -359,7 +359,11 @@ pipeline bundles_wmql --targets validation,parcellation,tractography,bundles \
   --wmql-query-preset official --brain-mask-backend provided --plan
 ```
 
-官方 WMQL 规则默认执行全部输出查询；选择束子集示例：
+官方 WMQL 规则默认执行全部输出查询。需要小脑区域查询时，将
+`--wmql-query-preset official` 改为 `--wmql-query-preset official_cerebellar`
+（原有 48 条加 3 条区域查询），或 `cerebellar`（仅区域查询）。新增结果为左、右小脑—脑干及
+双侧小脑相关候选流线，不直接赋予小脑上、中、下脚标签。
+参见[规则与检查](WMQL_CEREBELLAR.zh-CN.md)。选择束子集示例：
 
 <!-- cli-template: bundle-wmql-subset -->
 ```bash
@@ -372,8 +376,11 @@ pipeline bundles_wmql_subset --targets validation,parcellation,tractography,bund
 ```bash
 pipeline bundles_wma --targets validation,tractography,bundles \
   --tractography-backend ukf --bundle-backend wma --bundle-tractography-backend ukf \
+  --wma-atlas org \
   --slicer-executable "$SLICER" --brain-mask-backend provided --plan
 ```
+
+WMA 默认使用 ORG。改用 `--wma-atlas east-west` 或 `--wma-atlas naba` 可选择东西方成人图谱或新生儿/成人图谱。直接调用 CLI 时传入 `--wma-atlas org|east-west|naba`；`--wma-atlas-dir` 可指定已有图谱。仅在确认的资源目录下准备所选 profile（`wma`、`wma-east-west` 或 `wma-naba`），不用下载全部三套。参见 [WMA 图谱指南](WMA_ATLASES.zh-CN.md)。
 
 <!-- cli-template: bundle-tractcloud -->
 ```bash
@@ -448,6 +455,9 @@ pipeline combined --targets validation,microstructure,segmentation,parcellation,
 每名已准备被试使用同一配置；根据总 RAM/显存需求，从一到两个并发被试开始。
 默认生成计划，加 `--execute` 才执行计算。未指定 `--continue-on-error` 时，
 一次失败后停止提交新任务，等待已运行任务结束。
+批次 manifest 汇总每个被试的实际运行状态及任务数量。即使单被试 CLI 允许部分执行，
+受阻子任务也会使批次记为 `completed_with_blocks`，默认返回非零退出码。
+明确接受部分结果时才使用 `--allow-partial-success`；它允许退出码为 0，但仍保留受阻状态。
 
 <!-- cli-template: cohort -->
 ```bash

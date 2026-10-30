@@ -484,6 +484,9 @@ $wmaMappings = @()
 if ($ResolvedSlicer -and $state.slicer_bridge) {
     $wmaMappings += "$ResolvedSlicer|$($state.slicer_bridge)"
 }
+Install-BridgeExecutable $BridgeBinary (Join-Path $wmaBridgeRoot "bin\python.exe") `
+    $state.runtime_command_bridge -Mappings $wmaMappings `
+    -PrefixArguments @("$($state.runtime_env)/bin/python")
 $wmaCommands = @(
     "wm_apply_ORG_atlas_to_subject.sh",
     "wm_append_clusters_to_anatomical_tracts.py",

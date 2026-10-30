@@ -1,0 +1,74 @@
+{
+  "collected_at": "2026-10-29T21:43:04.109080+00:00",
+  "commit": "558a497ae4c0181f01c383f52efa5e22ab89a2c2",
+  "core_artifacts": {
+    "SlicerDSpace.py": {
+      "installed_sha256": "61d906a7d5ca95fccd32eefc7f26f1d0e6b7f3b7fd8b82c9c8513b51acb425a9",
+      "source_sha256": "61d906a7d5ca95fccd32eefc7f26f1d0e6b7f3b7fd8b82c9c8513b51acb425a9"
+    },
+    "anatomy/segmentation/qc.py": {
+      "installed_sha256": "66f84b3bed49561a35b779de28002f5694737f05ec732722f53a67167bfe327e",
+      "source_sha256": "66f84b3bed49561a35b779de28002f5694737f05ec732722f53a67167bfe327e"
+    },
+    "scripts/extension_runtime/runtime_resources.json": {
+      "installed_sha256": "65da463f718a72e96e6a300ac1b75feaa20e59a19002147199a98c0760174446",
+      "source_sha256": "65da463f718a72e96e6a300ac1b75feaa20e59a19002147199a98c0760174446"
+    },
+    "scripts/run_batch_pipeline.py": {
+      "installed_sha256": "003b254f90bf7ba45382baaa16073025a80fa25aa1458337b1d0acb035bff0e8",
+      "source_sha256": "003b254f90bf7ba45382baaa16073025a80fa25aa1458337b1d0acb035bff0e8"
+    },
+    "shared/orchestrator.py": {
+      "installed_sha256": "f1df2ace917deffa4f6508c5312e65bb6df32e0ffe105c9e34c24b63c4675ce0",
+      "source_sha256": "f1df2ace917deffa4f6508c5312e65bb6df32e0ffe105c9e34c24b63c4675ce0"
+    },
+    "shared/pipeline.py": {
+      "installed_sha256": "8934d75baad954960839ac8ae8b934ef5bb540eb83c78637c8e1796e55bf196f",
+      "source_sha256": "8934d75baad954960839ac8ae8b934ef5bb540eb83c78637c8e1796e55bf196f"
+    },
+    "shared/reporting.py": {
+      "installed_sha256": "ec902ceaa24a80db119bd1a7d5be2c6c7b0c1fc4afe389270bbbc105169091ac",
+      "source_sha256": "ec902ceaa24a80db119bd1a7d5be2c6c7b0c1fc4afe389270bbbc105169091ac"
+    },
+    "shared/run_subject_pipeline_cli.py": {
+      "installed_sha256": "f63198b32382c4657e639e4572c27687566e0277e2bd50bb7ca40eb8e35101d9",
+      "source_sha256": "f63198b32382c4657e639e4572c27687566e0277e2bd50bb7ca40eb8e35101d9"
+    },
+    "shared/validation.py": {
+      "installed_sha256": "d0629c368a1a477a4e328707afa056d77b4f0ab3eeed712e5c0232d2d7626c7c",
+      "source_sha256": "d0629c368a1a477a4e328707afa056d77b4f0ab3eeed712e5c0232d2d7626c7c"
+    }
+  },
+  "existing_live_sessions_updated": false,
+  "package": {
+    "files": 521,
+    "origin": "staging_helper",
+    "sha256": "e4502266d40ede0de2addc2af973be22e1328b2cb84579532299a3e4f211477b",
+    "status": "pass"
+  },
+  "python_tests": {
+    "count": 1742,
+    "log_sha256": "2303a986324a53721e2a43298e4c5719b51ce246d15876b62e9d6588d449796e",
+    "seconds": 83.057,
+    "skipped": 8
+  },
+  "scope": "Code reliability, isolated staged Slicer UI/package and synthetic input checks. No new whole-brain performance or anatomical acceptance.",
+  "slicer_tests": [
+    {
+      "exit_code": 0,
+      "name": "extension_install",
+      "script_sha256": "02ec083bad2b8f98988f8327117ddf68835d490015c6b2694ded6b9142ae45ab",
+      "seconds": 18.84260310418904,
+      "status": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "input_inspection",
+      "script_sha256": "1115edc5b053d25b298b1fbaaeb013a500433a09ccbba41d55a43b7cd0385d27",
+      "seconds": 16.939087346196175,
+      "status": "PASS"
+    }
+  ],
+  "status": "passed",
+  "working_tree": "Uncommitted; core source/installed hashes below identify the tested state."
+}

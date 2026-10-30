@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the homepage's method inventory and always-visible bibliography."""
+"""Render the method inventory with direct links to primary publications."""
 
 import argparse
 from html import escape
@@ -41,8 +41,8 @@ METHODS = (
     ("dti_tracking", "Tractography", "DTI deterministic", "Tensor-based direction tracking with stopping criteria.", "SlicerDMRI; DIPY", [45, 28, 30], "tractography/dti.py"),
     ("ukf", "Tractography", "UKF two-tensor", "Automatic invocation of the official tracking CLI.", "UKFTractography extension; SlicerDMRI", [19, 28], "tractography/ukf.py"),
     ("saf", "Tractography", "SAF", "Surface-constrained short-association tracking and geometric filtering.", "MRtrix3; post-processed native surfaces", [20], "tractography/saf.py"),
-    ("wmql", "Fiber bundles", "WMQL (default)", "Official multi-bundle queries with optional subset selection.", "Author tract_querier; DDParcel labels", [21], "tractography/wmql.py"),
-    ("wma", "Fiber bundles", "WMA", "ORG-atlas registration and clustering; automatic UKF handoff.", "WMA; ORG atlas; UKF reference route", [22, 23, 24, 26], "tractography/wma.py"),
+    ("wmql", "Fiber bundles", "WMQL (default)", "Official bundle queries; optional subsets and regional cerebellar selections.", "Author tract_querier; DDParcel labels", [21], "tractography/wmql.py"),
+    ("wma", "Fiber bundles", "WMA", "ORG, East-West or NABA atlas registration and clustering; automatic UKF handoff.", "WMA; selected atlas; UKF reference route", [22, 23, 24, 26, 54, 55], "tractography/wma.py"),
     ("tractcloud", "Fiber bundles", "TractCloud", "Author learned tract parcellation and bundle export.", "PyTorch backend; model and centroids", [25, 22], "tractography/tractcloud.py"),
     ("count", "Connectome", "Streamline count", "Endpoint assignment to DDParcel nodes.", "Python or eligible MRtrix3 backend", [50, 29], "connectome/pipeline.py"),
     ("sift2", "Connectome", "SIFT2-weighted count", "FOD-informed weighting and matrix construction with matched tracks.", "MRtrix3; corresponding tractogram and weights", [16, 29, 50], "connectome/pipeline.py"),
@@ -52,35 +52,28 @@ METHODS = (
 
 
 def render_methods(references):
-    ids = {row["id"] for row in references}
+    by_id = {row["id"]: row for row in references}
     lines, previous = [], None
     for identifier, stage, method, summary, runtime, citations, source in METHODS:
         if not (ROOT / source).is_file():
             raise ValueError("Method entry point is missing: " + source)
-        if not citations or not set(citations) <= ids:
+        if not citations or not set(citations) <= by_id.keys():
             raise ValueError("Method has incomplete references: " + identifier)
-        links = " ".join(f'<a href="#ref-{n}" aria-label="Reference {n}">[{n}]</a>' for n in citations)
+        links = " ".join(
+            f'<a class="method-reference" data-reference="{n}" href="{escape(by_id[n]["url"], quote=True)}" '
+            f'title="{escape(by_id[n]["citation"], quote=True)}" aria-label="Reference {n}" '
+            f'target="_blank" rel="noopener">[{n}]</a>'
+            for n in citations)
         group = ' class="stage-start"' if stage != previous else ""
         lines.append(f'            <tr data-method="{identifier}"{group}><th scope="row">{escape(stage)}</th><td>{escape(method)}</td><td>{escape(summary)}</td><td class="st-cell">{escape(runtime)}</td><td class="ref-cell">{links}</td></tr>')
         previous = stage
     return "\n".join(lines)
 
 
-def render_references(references):
-    if [row["id"] for row in references] != list(range(1, len(references) + 1)):
-        raise ValueError("Reference IDs must be unique and consecutive")
-    lines = []
-    for row in references:
-        if not row["url"].startswith("https://"):
-            raise ValueError("A reference needs a primary HTTPS link")
-        n = row["id"]
-        lines.append(f'          <li id="ref-{n}"><span class="ref-n">[{n}]</span><span class="ref-text">{escape(row["citation"])} <a class="doi" href="{escape(row["url"], quote=True)}" target="_blank" rel="noopener">{escape(row["link_label"])}</a></span></li>')
-    return "\n".join(lines)
-
-
 def render(page, references):
-    for key, value in (("methods-catalog", render_methods(references)),
-                       ("references-catalog", render_references(references))):
+    if len({row['id'] for row in references}) != len(references) or any(not row['url'].startswith('https://') for row in references):
+        raise ValueError('References need unique IDs and primary HTTPS links')
+    for key, value in (("methods-catalog", render_methods(references)),):
         start, end = f"<!-- {key}:start -->", f"<!-- {key}:end -->"
         if page.count(start) != 1 or page.count(end) != 1:
             raise ValueError("Expected one generated catalog region: " + key)
@@ -100,7 +93,7 @@ def main():
             raise SystemExit("Homepage catalogs are stale; run scripts/build_website_catalog.py")
     else:
         PAGE.write_text(expected, encoding="utf-8")
-    print(f"PASS {len(METHODS)} method entries and {len(references)} linked references")
+    print(f"PASS {len(METHODS)} method entries with direct primary-source links")
 
 
 if __name__ == "__main__":

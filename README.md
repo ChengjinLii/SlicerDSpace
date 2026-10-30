@@ -44,8 +44,8 @@ same scene.
   <img src="docs/assets/readme/SlicerDSpace_preview.gif" alt="SlicerDSpace animated video preview" width="100%">
 </a>
 
-[Watch the video (MP4, 1:12)](docs/site/media/SlicerDSpace_promo_1080p.mp4) ·
-[Website player and transcript](https://chengjinlii.github.io/SlicerDSpace/#film)
+24-second preview at normal speed · [Watch the full video (MP4, 1:12)](docs/site/media/SlicerDSpace_promo_1080p.mp4) ·
+[Website player](https://chengjinlii.github.io/SlicerDSpace/#film)
 
 ---
 
@@ -243,6 +243,8 @@ performance, regional analysis/input import and experiments. Environment
 installation remains separate.
 
 UKF runs automatically through its installed extension and can feed WMA directly.
+WMA supports `--wma-atlas org|east-west|naba` (default: `org`), with the same
+selector in Advanced settings. [Atlas selection and on-demand resources](docs/setup/WMA_ATLASES.md).
 Multiple tracking methods produce separate `<run>__<backend>` variants.
 The full quantitative tractogram is retained alongside a capped VTK display preview.
 

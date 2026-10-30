@@ -178,6 +178,8 @@ class BundleSourceTests(unittest.TestCase):
             inputs.mkdir()
             for name in ('data.nii.gz', 'bvals', 'bvecs', 'nodif_brain_mask.nii.gz'):
                 (inputs / name).write_text('fixture')
+            from test_product_orchestrator import _write_valid_raw_subject
+            _write_valid_raw_subject(root)
             config = ProductOrchestratorConfig('s', root, ('tractography', 'bundles'),
                 tractography_backend='dti_det', bundle_tractography_backend='dti_det',
                 bundle_backend='wma,tractcloud', wma_atlas_dir=root, execute=True, resume=False)

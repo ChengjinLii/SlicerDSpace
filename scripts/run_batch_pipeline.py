@@ -20,6 +20,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from shared.external_process import text_subprocess_kwargs
 from shared.pipeline import RAW_INPUT_FILES, inspect_subject_directory, is_raw_subject_root
+from shared.io_layout import subject_layout, normalize_run_name
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,11 @@ class SubjectRunResult:
     stdout_log: Path
     stderr_log: Path
     elapsed_seconds: float
+    run_status: str = 'unknown'
+    run_manifest_path: Path | None = None
+    task_counts: dict[str, int] | None = None
+    status_source: str = 'unavailable'
+    manifest_error: str | None = None
 
 
 def _parse_jobs(value: str) -> int:
@@ -172,12 +178,34 @@ def build_subject_command(
     return command
 
 
+def _command_option(command: list[str], option: str, default: str) -> str:
+    value = default
+    for index, argument in enumerate(command):
+        if argument.startswith(option + '='):
+            value = argument.split('=', 1)[1]
+        elif argument == option and index + 1 < len(command):
+            value = command[index + 1]
+    return value
+
+
+def _manifest_identity(path: Path):
+    try:
+        stat = path.stat()
+        return stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns
+    except OSError:
+        return None
+
+
 def _run_subject(command: list[str], subject: BatchSubject, log_dir: Path) -> SubjectRunResult:
     log_dir.mkdir(parents=True, exist_ok=True)
     safe_id = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in subject.subject_id)
     stdout_log = log_dir / f"{safe_id}.stdout.log"
     stderr_log = log_dir / f"{safe_id}.stderr.log"
-    started = time.time()
+    output = _command_option(command, '--output-root', '')
+    run_name = normalize_run_name(_command_option(command, '--run-name', 'Test1'))
+    child_manifest = subject_layout(subject.subject_root, output_root=Path(output) if output else None).run_metadata / f'{run_name}_orchestration_manifest.json'
+    old_identity = _manifest_identity(child_manifest)
+    started = time.monotonic()
     # Stream independent logs so a long cohort does not retain every process's
     # output in the batch driver's memory, and logs are readable during a run.
     with stdout_log.open("w", encoding="utf-8") as stdout, stderr_log.open("w", encoding="utf-8") as stderr:
@@ -186,6 +214,49 @@ def _run_subject(command: list[str], subject: BatchSubject, log_dir: Path) -> Su
         except OSError as exc:
             stderr.write(f"Could not start subject process: {exc}\n")
             completed = subprocess.CompletedProcess(command, 127)
+    process_elapsed_seconds = round(time.monotonic() - started, 3)
+    task_counts = None
+    manifest_error = None
+    run_status = 'failed' if completed.returncode else 'unknown'
+    status_source = 'process_exit_code'
+    manifest_path = None
+    try:
+        if old_identity == _manifest_identity(child_manifest):
+            raise ValueError('No fresh child orchestration manifest was written.')
+        record = json.loads(child_manifest.read_text(encoding='utf-8'))
+        if record.get('subject_id') != subject.subject_id or record.get('run_name') != run_name:
+            raise ValueError('Child manifest subject/run identity does not match this batch entry.')
+        terminal = {'completed', 'completed_with_blocks', 'failed', 'cancelled', 'planned'}
+        if record.get('status') not in terminal:
+            raise ValueError('Child manifest does not contain a terminal run status.')
+        tasks = record.get('tasks')
+        if not isinstance(tasks, list) or any(not isinstance(task, dict) or not isinstance(task.get('status'), str) for task in tasks):
+            raise ValueError('Child manifest has invalid task records.')
+        task_counts = {}
+        for task in tasks:
+            state = task['status']
+            task_counts[state] = task_counts.get(state, 0) + 1
+        run_status = record['status']
+        if any(task_counts.get(state) for state in ('failed', 'partial_failed')):
+            run_status = 'failed'
+        elif task_counts.get('cancelled'):
+            run_status = 'cancelled'
+        elif task_counts.get('blocked'):
+            run_status = 'completed_with_blocks'
+        elif any(task_counts.get(state) for state in ('running', 'pending', 'will_run')) or (
+                '--execute' in command and task_counts.get('planned')):
+            run_status = 'unknown'
+        if completed.returncode:
+            run_status = 'cancelled' if run_status == 'cancelled' else 'failed'
+        manifest_path = child_manifest
+        status_source = 'child_manifest'
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
+        manifest_error = str(exc)
+        # Custom runners may not implement our manifest contract. Keep that
+        # distinction explicit instead of treating stale manifests as evidence.
+        builtins = {(REPO_ROOT / 'shared/run_subject_pipeline_cli.py').resolve(), (REPO_ROOT / 'run_subject_pipeline.py').resolve()}
+        if len(command) > 1 and Path(command[1]).resolve() not in builtins:
+            run_status = 'failed' if completed.returncode else 'process_completed'
     return SubjectRunResult(
         subject_id=subject.subject_id,
         subject_root=subject.subject_root,
@@ -193,7 +264,12 @@ def _run_subject(command: list[str], subject: BatchSubject, log_dir: Path) -> Su
         returncode=completed.returncode,
         stdout_log=stdout_log,
         stderr_log=stderr_log,
-        elapsed_seconds=round(time.time() - started, 3),
+        elapsed_seconds=process_elapsed_seconds,
+        run_status=run_status,
+        run_manifest_path=manifest_path,
+        task_counts=task_counts,
+        status_source=status_source,
+        manifest_error=manifest_error,
     )
 
 
@@ -231,6 +307,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--include-missing", action="store_true", help="Include missing subjects in the manifest instead of only skipped.")
     parser.add_argument("--continue-on-error", action="store_true", help="Keep launching remaining subjects after failures. Otherwise, finish and record active subjects, then stop.")
+    parser.add_argument('--allow-partial-success', action='store_true', help='Allow exit code 0 when child runs are blocked; the batch still records completed_with_blocks.')
     parser.add_argument("--manifest", type=Path, help="Batch manifest path. Defaults under output root or batch root.")
     parser.add_argument("--log-dir", type=Path, help="Per-subject stdout/stderr log directory.")
     parser.add_argument(
@@ -326,7 +403,9 @@ def main(argv: list[str] | None = None) -> int:
                 for future in done:
                     future_to_subject.pop(future)
                     result = future.result()
-                    if result.returncode != 0:
+                    unsuccessful = result.run_status in {'failed', 'cancelled', 'unknown'} or (
+                        result.run_status == 'completed_with_blocks' and not args.allow_partial_success)
+                    if result.returncode != 0 or unsuccessful:
                         failures += 1
                         stop_submitting = not args.continue_on_error
                     result_payloads.append(
@@ -338,6 +417,11 @@ def main(argv: list[str] | None = None) -> int:
                             "command": result.command,
                             "stdout_log": result.stdout_log.as_posix(),
                             "stderr_log": result.stderr_log.as_posix(),
+                            "status": result.run_status,
+                            "status_source": result.status_source,
+                            "run_manifest_path": result.run_manifest_path.as_posix() if result.run_manifest_path else None,
+                            "task_counts": result.task_counts,
+                            "manifest_error": result.manifest_error,
                         }
                     )
                 # Drain active processes after a failure so their outputs and
@@ -345,9 +429,20 @@ def main(argv: list[str] | None = None) -> int:
                 while not stop_submitting and len(future_to_subject) < args.jobs and submit_next():
                     pass
 
+    subject_counts: dict[str, int] = {}
+    task_counts: dict[str, int] = {}
+    for item in result_payloads:
+        state = str(item['status'])
+        subject_counts[state] = subject_counts.get(state, 0) + 1
+        for state, count in (item['task_counts'] or {}).items():
+            task_counts[state] = task_counts.get(state, 0) + count
+    batch_status = ('empty' if not result_payloads else 'failed' if subject_counts.get('failed') else
+                    'cancelled' if subject_counts.get('cancelled') else 'incomplete' if subject_counts.get('unknown') else
+                    'completed_with_blocks' if subject_counts.get('completed_with_blocks') else
+                    'completed' if args.execute else 'planned')
     payload: dict[str, object] = {
         "kind": "slicerdsurfer_batch_run",
-        "version": 1,
+        "version": 2,
         "batch_root": args.batch_root.expanduser().resolve().as_posix(),
         "output_root": output_base.as_posix() if args.output_root else None,
         "run_name": args.run_name,
@@ -369,7 +464,10 @@ def main(argv: list[str] | None = None) -> int:
         "results": sorted(result_payloads, key=lambda item: str(item["subject_id"])),
         "not_launched": [subject.subject_id for subject in runnable_subjects
                          if subject.subject_id not in {str(item["subject_id"]) for item in result_payloads}],
-        "status": "failed" if failures else ("completed" if args.execute else "planned") if result_payloads else "empty",
+        "status": batch_status,
+        "subject_status_counts": subject_counts,
+        "task_status_counts": task_counts,
+        "allow_partial_success": bool(args.allow_partial_success),
         "elapsed_seconds": round(time.time() - started, 3),
         "manifest_path": "",
     }

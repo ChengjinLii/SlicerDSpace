@@ -381,7 +381,13 @@ pipeline bundles_wmql --targets validation,parcellation,tractography,bundles \
   --wmql-query-preset official --brain-mask-backend provided --plan
 ```
 
-The official WMQL rules run all output queries by default. To choose families:
+The official WMQL rules run all output queries by default. For the optional
+regional cerebellar selections, replace `--wmql-query-preset official` with
+`--wmql-query-preset official_cerebellar` (48 original queries plus three regional
+selections), or `cerebellar` (regional selections only). These select left/right
+cerebellar--brainstem and bilateral cerebellar candidates, without assigning
+individual cerebellar-peduncle labels. See [definitions and checks](WMQL_CEREBELLAR.md).
+To choose families:
 
 <!-- cli-template: bundle-wmql-subset -->
 ```bash
@@ -394,8 +400,11 @@ pipeline bundles_wmql_subset --targets validation,parcellation,tractography,bund
 ```bash
 pipeline bundles_wma --targets validation,tractography,bundles \
   --tractography-backend ukf --bundle-backend wma --bundle-tractography-backend ukf \
+  --wma-atlas org \
   --slicer-executable "$SLICER" --brain-mask-backend provided --plan
 ```
+
+WMA defaults to ORG. Use `--wma-atlas east-west` or `--wma-atlas naba` for the Eastern/Western adult or neonatal/adult atlas. In direct CLI calls, pass `--wma-atlas org|east-west|naba`; `--wma-atlas-dir` optionally selects an existing atlas. Prepare only the selected resource profile (`wma`, `wma-east-west` or `wma-naba`) under the confirmed model root. See [WMA atlas guide](WMA_ATLASES.md).
 
 <!-- cli-template: bundle-tractcloud -->
 ```bash
@@ -475,6 +484,11 @@ One configuration per prepared subject; start with one or two concurrent
 subjects according to combined RAM/GPU requirements. This writes plans by
 default; add `--execute` to run the cohort. Without `--continue-on-error`, the
 batch runner stops new submissions after a failure and drains active jobs.
+The batch manifest includes each subject's actual run status and task counts.
+Blocked child tasks produce `completed_with_blocks` and a nonzero batch exit
+code by default, even when the single-subject CLI allows partial execution.
+Use `--allow-partial-success` only when that partial result is acceptable; it
+allows exit code 0 but retains the blocked state in the manifest.
 
 <!-- cli-template: cohort -->
 ```bash

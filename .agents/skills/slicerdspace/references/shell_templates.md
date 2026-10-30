@@ -3,7 +3,7 @@
 Generated from `docs/setup/CLI_TEMPLATES.md`; do not edit this catalogue or its generated scripts.
 Regenerate with `python scripts/build_skill_shell_templates.py` from the authorized checkout.
 
-Source SHA-256 (UTF-8, LF): `c1d7c06909573c466938d14d3823a15b4284754181cedaa406be4b57e27ce89b`.
+Source SHA-256 (UTF-8, LF): `e8ec3f198f2163c36052e11ce0a3665c12cbe01cc1504014c87827b3c6205225`.
 
 ## Contents
 
@@ -370,6 +370,7 @@ pipeline bundles_wmql_subset --targets validation,parcellation,tractography,bund
 ```bash
 pipeline bundles_wma --targets validation,tractography,bundles \
   --tractography-backend ukf --bundle-backend wma --bundle-tractography-backend ukf \
+  --wma-atlas org \
   --slicer-executable "$SLICER" --brain-mask-backend provided --plan
 ```
 

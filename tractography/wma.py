@@ -28,6 +28,8 @@ from shared.external_process import (
 )
 from shared.output_contracts import vtp_streamline_count
 from shared.product_staging import archive_run_records, new_product_staging, publish_products, retain_failed_products
+from tractography.wma_atlases import (atlas_definition, atlas_output_contract, detect_atlas_family,
+                                      validate_group_hemispheres)
 
 
 WMA_APPLY_ORG_SCRIPT = Path("bin") / "wm_apply_ORG_atlas_to_subject.sh"
@@ -94,7 +96,7 @@ def _file_info(path: Path) -> dict[str, object]:
 
 @dataclass(frozen=True)
 class WMAOrgAtlasConfig:
-    """Configuration for applying the WMA ORG atlas to one tractogram."""
+    """Configuration for applying a supported WMA atlas to one tractogram."""
 
     subject_id: str
     input_tractography: Path
@@ -112,11 +114,12 @@ class WMAOrgAtlasConfig:
     clean_files: int = 0
     execute: bool = False
     registration_preprocess_cache: bool = True
+    atlas_family: str = "auto"
 
 
 @dataclass(frozen=True)
 class WMAOrgAtlasResult:
-    """Prepared or completed WMA ORG atlas run."""
+    """Prepared or completed WMA atlas run."""
 
     subject_id: str
     status: str
@@ -350,22 +353,29 @@ def inspect_wma_backend(
     return status
 
 
-def inspect_wma_org_atlas(atlas_dir: Path) -> dict[str, Any]:
-    """Inspect the expected ORG atlas directory layout."""
+def inspect_wma_org_atlas(atlas_dir: Path, atlas_family: str = "auto") -> dict[str, Any]:
+    """Inspect the selected atlas layout and its tract/hemisphere definitions."""
 
     root = atlas_dir.expanduser().resolve()
+    family = detect_atlas_family(root, atlas_family)
+    definition = atlas_definition(family)
+    required_dirs = definition["directories"]
     status: dict[str, Any] = {
         "available": False,
         "root": root.as_posix(),
         "exists": root.is_dir(),
         "missing_required_dirs": [],
         "required_dirs": {},
+        "atlas_family": family,
+        "label": definition["label"],
+        "source": definition["source"],
+        "paper": definition["paper"],
     }
     if not root.is_dir():
-        status["missing_required_dirs"] = list(EXPECTED_ORG_ATLAS_DIRS)
+        status["missing_required_dirs"] = list(required_dirs)
         return status
 
-    for dirname in EXPECTED_ORG_ATLAS_DIRS:
+    for dirname in required_dirs:
         path = root / dirname
         file_count = sum(1 for item in path.rglob("*") if item.is_file()) if path.is_dir() else 0
         status["required_dirs"][dirname] = {
@@ -376,6 +386,20 @@ def inspect_wma_org_atlas(atlas_dir: Path) -> dict[str, Any]:
         if not path.is_dir():
             status["missing_required_dirs"].append(dirname)
     status["available"] = not status["missing_required_dirs"]
+    if family != "org" and status["available"]:
+        try:
+            status["output_contract"] = atlas_output_contract(family, root / required_dirs[1])
+            for relative in (required_dirs[0] + "/registration_atlas.vtk",
+                             required_dirs[1] + "/atlas.p", required_dirs[1] + "/atlas.vtp",
+                             required_dirs[1] + "/cluster_hemisphere_location.txt"):
+                if not (root / relative).is_file():
+                    raise ValueError("Missing atlas resource: " + relative)
+            if len(list((root / required_dirs[1]).glob("cluster_*.vtp"))) != 800:
+                raise ValueError("The atlas requires all 800 reference clusters for WMA outlier removal")
+            status["tract_hemisphere_check"] = validate_group_hemispheres(
+                root / required_dirs[1], status["output_contract"]["groups"])
+        except ValueError as exc:
+            status.update(available=False, error=str(exc))
     return status
 
 
@@ -512,12 +536,7 @@ def _derive_wma_status(output_summary: dict[str, Any], execution_error: Optional
         return "partial_failed"
     if execution_error:
         return "failed"
-    if (
-        anatomical_tract_count >= MIN_ANATOMICAL_TRACT_COUNT
-        and readable_tract_count >= MIN_ANATOMICAL_TRACT_COUNT
-        and nonempty_tract_count >= MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT
-        and _wma_output_contract_error(output_summary) is None
-    ):
+    if _wma_output_contract_error(output_summary) is None:
         return "completed"
     if anatomical_tract_count > 0:
         return "partial_failed"
@@ -531,26 +550,32 @@ def _derive_wma_status(output_summary: dict[str, Any], execution_error: Optional
 
 
 def _wma_output_contract_error(output_summary: dict[str, Any]) -> Optional[str]:
+    contract = output_summary.get("atlas_contract", {})
+    minimum = contract.get("minimum_anatomical_tract_count", MIN_ANATOMICAL_TRACT_COUNT)
+    nonempty_minimum = contract.get("minimum_nonempty_anatomical_tract_count", MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT)
     tract_count = int(output_summary.get("anatomical_tract_count", 0) or 0)
     readable_count = int(output_summary.get("anatomical_tract_readable_count", 0) or 0)
     nonempty_count = int(output_summary.get("anatomical_tract_nonempty_count", 0) or 0)
-    if tract_count < MIN_ANATOMICAL_TRACT_COUNT:
+    if tract_count < minimum:
         return (
             "WMA command returned without a complete AnatomicalTracts output "
-            f"(expected at least {MIN_ANATOMICAL_TRACT_COUNT} files, found {tract_count})."
+            f"(expected at least {minimum} files, found {tract_count})."
         )
     if readable_count != tract_count:
         return (
             "WMA AnatomicalTracts output contains unreadable VTP files "
             f"(expected all {tract_count} files to decode, found {readable_count})."
         )
-    if nonempty_count < MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT:
+    if nonempty_count < nonempty_minimum:
         return (
             "WMA AnatomicalTracts output is under-populated "
-            f"(expected at least {MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT} non-empty tracts, found {nonempty_count}). "
+            f"(expected at least {nonempty_minimum} non-empty tracts, found {nonempty_count}). "
             "Review whole-brain tractography coverage, streamline lengths and atlas registration."
         )
     counts = output_summary.get('anatomical_tract_streamline_counts') or {}
+    missing = sorted(set(contract.get("expected_tract_files", ())) - counts.keys())
+    if missing:
+        return "WMA atlas-specific tracts are missing: " + ", ".join(missing)
     sparse = [f'{name}={counts.get(name, "missing")}' for name in REQUIRED_MAJOR_TRACTS
               if int(counts.get(name, 0)) < MIN_MAJOR_TRACT_STREAMLINES]
     if sparse:
@@ -602,6 +627,26 @@ def build_wma_org_atlas_command(config: WMAOrgAtlasConfig) -> tuple[str, ...]:
                 config.fiber_tract_measurements_cli.expanduser().resolve().as_posix(),
             ]
         )
+    family = detect_atlas_family(config.atlas_dir, config.atlas_family)
+    if family != "org":
+        runner = Path(__file__).resolve().parents[1] / "scripts/run_wma_atlas.py"
+        author_shell = str(script)
+        # Execution prepares the same PythonSlicer PATH shim used by the
+        # author's env-python tools; python-real cannot run in a cleaned env.
+        python = "python"
+        if sys.platform == "win32":
+            from shared.wsl_bridge import bridge_config
+            bridge = bridge_config(script)
+            python = str(wma_root / "bin/python.exe")
+            python_bridge = bridge_config(python) if Path(python).is_file() else None
+            if (not bridge or len(bridge["arguments"]) != 1 or not Path(python).is_file()
+                    or not python_bridge or len(python_bridge["arguments"]) != 1
+                    or python_bridge["distribution"] != bridge["distribution"]
+                    or python_bridge["target"] != bridge["target"]
+                    or Path(python_bridge["arguments"][0]).name != "python"):
+                raise RuntimeError("Repair the Windows WMA runtime to enable its atlas Python bridge")
+            author_shell = bridge["arguments"][0]
+        cmd = [python, str(runner), "--family", family, "--author-shell", author_shell, "--", *cmd[1:]]
     return tuple(cmd)
 
 
@@ -628,7 +673,7 @@ def validate_wma_org_inputs(config: WMAOrgAtlasConfig) -> None:
         raise ValueError("subject_id is required.")
     input_suffix = config.input_tractography.suffix.lower()
     if input_suffix not in {".vtk", ".vtp", ".tck"}:
-        raise ValueError("WMA ORG atlas input must be a whole-brain VTK/VTP/TCK tractography file.")
+        raise ValueError("WMA atlas input must be a whole-brain VTK/VTP/TCK tractography file.")
     if not config.input_tractography.expanduser().is_file():
         raise FileNotFoundError(f"Input tractography not found: {config.input_tractography}")
     if input_suffix == ".tck" and _resolve_tckconvert(config) is None:
@@ -637,11 +682,12 @@ def validate_wma_org_inputs(config: WMAOrgAtlasConfig) -> None:
             "SLICERDSPACE_MRTRIX_BIN_DIR, MRTRIX_BIN_DIR, or PATH."
         )
     if not config.atlas_dir.expanduser().is_dir():
-        raise FileNotFoundError(f"WMA ORG atlas directory not found: {config.atlas_dir}")
-    atlas_status = inspect_wma_org_atlas(config.atlas_dir)
+        raise FileNotFoundError(f"WMA atlas directory not found: {config.atlas_dir}")
+    atlas_status = inspect_wma_org_atlas(config.atlas_dir, config.atlas_family)
     if not atlas_status["available"]:
         missing = ", ".join(atlas_status["missing_required_dirs"])
-        raise FileNotFoundError(f"WMA ORG atlas directory is incomplete. Missing: {missing}")
+        label = "ORG" if atlas_status["atlas_family"] == "org" else atlas_status["atlas_family"]
+        raise FileNotFoundError(f"WMA {label} atlas directory is incomplete. Missing: {missing}. " + atlas_status.get("error", ""))
     if not config.slicer_executable.expanduser().is_file():
         raise FileNotFoundError(f"Slicer executable not found: {config.slicer_executable}")
     if config.transform_path is not None and not config.transform_path.expanduser().is_file():
@@ -671,7 +717,7 @@ def run_wma_org_atlas(
     *,
     log: Optional[Callable[[str], None]] = None,
 ) -> WMAOrgAtlasResult:
-    """Prepare or execute WMA ORG atlas clustering for one tractogram."""
+    """Prepare or execute clustering with the selected WMA atlas."""
 
     validate_wma_org_inputs(config)
     wma_root = resolve_wma_root(config.wma_root)
@@ -680,7 +726,13 @@ def run_wma_org_atlas(
         require_virtual_x=config.use_virtual_x,
         require_diffusion_measurements=config.export_diffusion_measures,
     )
-    atlas_status = inspect_wma_org_atlas(config.atlas_dir)
+    atlas_status = inspect_wma_org_atlas(config.atlas_dir, config.atlas_family)
+    atlas_contract = atlas_status.get("output_contract", {})
+    def summarize(directory, tractogram):
+        summary = summarize_wma_outputs(directory, tractogram)
+        if atlas_contract:
+            summary["atlas_contract"] = atlas_contract
+        return summary
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     source_tractography = config.input_tractography.expanduser().resolve()
@@ -708,12 +760,13 @@ def run_wma_org_atlas(
     conversion_stdout_log = log_dir / "tckconvert_stdout.log"
     conversion_stderr_log = log_dir / "tckconvert_stderr.log"
     previous_cache_reports = set(log_dir.glob("registration_cache_*.json"))
-    output_summary = summarize_wma_outputs(output_dir, prepared_tractography)
+    output_summary = summarize(output_dir, prepared_tractography)
 
     manifest = {
         "kind": "wma_org_atlas",
         "version": 4,
-        "name": "WMA ORG atlas clustering",
+        "name": "WMA " + atlas_status["atlas_family"] + " atlas clustering",
+        "atlas_family": atlas_status["atlas_family"],
         "subject_id": config.subject_id,
         "input_tractography": source_tractography.as_posix(),
         "prepared_input_tractography": prepared_tractography.as_posix(),
@@ -756,7 +809,7 @@ def run_wma_org_atlas(
 
     if log:
         mode = "Executing" if config.execute else "Prepared dry-run"
-        log(f"[WMA] {mode} ORG atlas command: {' '.join(command)}")
+        log(f"[WMA] {mode} {atlas_status['atlas_family']} atlas command: {' '.join(command)}")
         log(f"[WMA] Manifest: {manifest_path}")
 
     start_time = time.monotonic()
@@ -912,7 +965,7 @@ def run_wma_org_atlas(
         finally:
             if temp_python_dir is not None:
                 temp_python_dir.cleanup()
-            output_summary = summarize_wma_outputs(staging, prepared_tractography) if staging else {}
+            output_summary = summarize(staging, prepared_tractography) if staging else {}
             contract_error = _wma_output_contract_error(output_summary) if config.execute else None
             if execution_error is None and contract_error is not None:
                 log_hint = _last_nonempty_line(stderr_log.read_text(encoding="utf-8") if stderr_log.is_file() else "")
@@ -925,10 +978,10 @@ def run_wma_org_atlas(
                 try:
                     if execution_error is None:
                         published_archive = publish_products(staging, output_dir, (prepared_tractography.stem,))
-                        output_summary = summarize_wma_outputs(output_dir, prepared_tractography)
+                        output_summary = summarize(output_dir, prepared_tractography)
                     else:
                         staging = retain_failed_products(staging, output_dir)
-                        output_summary = summarize_wma_outputs(staging, prepared_tractography)
+                        output_summary = summarize(staging, prepared_tractography)
                 except OSError as exc:
                     execution_error = f'Failed to publish WMA products: {exc}'
 
@@ -941,6 +994,7 @@ def run_wma_org_atlas(
     status = _derive_wma_status(output_summary, execution_error, bool(config.execute))
     qc = {
         "kind": "wma_org_atlas_qc",
+        "atlas_family": atlas_status["atlas_family"],
         "version": WMA_QC_VERSION,
         "subject_id": config.subject_id,
         "status": status,
@@ -957,18 +1011,19 @@ def run_wma_org_atlas(
         "warnings": (["Some atlas tracts have insufficient sampling and must not be used for quantification: "
                       + ", ".join(output_summary["tract_sampling"]["excluded_from_quantification"])]
                      if output_summary.get("tract_sampling", {}).get("excluded_from_quantification") else []),
-        "scientific_scope": "Fresh decoded ORG products and explicit coverage policy; not expert anatomy or suitability of every tractogram for the atlas.",
+        "scientific_scope": "Fresh decoded atlas products and atlas-specific coverage and sampling checks.",
         "previous_products": published_archive,
         "backend_available": bool(backend_status["available"]),
         "atlas_available": bool(atlas_status["available"]),
         "output_summary": output_summary,
         "acceptance_criteria": {
-            "minimum_anatomical_tract_count": MIN_ANATOMICAL_TRACT_COUNT,
-            "minimum_readable_anatomical_tract_count": MIN_ANATOMICAL_TRACT_COUNT,
-            "minimum_nonempty_anatomical_tract_count": MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT,
+            "minimum_anatomical_tract_count": atlas_contract.get("minimum_anatomical_tract_count", MIN_ANATOMICAL_TRACT_COUNT),
+            "minimum_readable_anatomical_tract_count": atlas_contract.get("minimum_anatomical_tract_count", MIN_ANATOMICAL_TRACT_COUNT),
+            "minimum_nonempty_anatomical_tract_count": atlas_contract.get("minimum_nonempty_anatomical_tract_count", MIN_NONEMPTY_ANATOMICAL_TRACT_COUNT),
+            "expected_tract_files": atlas_contract.get("expected_tract_files", []),
             "required_major_tracts": list(REQUIRED_MAJOR_TRACTS),
             "minimum_streamlines_per_major_tract": MIN_MAJOR_TRACT_STREAMLINES,
-            "scope": "Whole-brain adult ORG sampling/identity sanity, not anatomical accuracy or statistical power.",
+            "scope": "Atlas-specific whole-brain sampling/identity checks; anatomical review is recorded separately.",
         },
         "logs": {
             "stdout": stdout_log.as_posix(),

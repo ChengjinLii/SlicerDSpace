@@ -39,29 +39,20 @@ async function insideViewport(locator, width, height) {
     `Outside ${width}x${height}: ${JSON.stringify(r)}`);
 }
 
-async function assertDockedGuide(page, width, height) {
+async function assertFloatingGuide(page, width, height) {
   const position = await page.evaluate(() => {
-    const box = element => {
-      const r = element.getBoundingClientRect();
-      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-    };
-    const overlap = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
     const bot = document.querySelector('.guide-bot');
-    const launcher = box(document.querySelector('.guide-bot__launcher'));
-    const dock = box(document.querySelector('.guide-bot__dock'));
-    const collisions = [...document.querySelectorAll('.brand, .menu-btn, .site-nav a, .chip-status')]
-      .filter(element => element.getClientRects().length && overlap(launcher, box(element)))
-      .map(element => element.textContent.trim());
-    return { docked: bot.classList.contains('is-docked'), launcher, dock, collisions,
+    const r = document.querySelector('.guide-bot__launcher').getBoundingClientRect();
+    return { docked: bot.classList.contains('is-docked'), dock: !!document.querySelector('.guide-bot__dock'),
+      width: r.width, height: r.height, top: r.top,
       headerBottom: document.querySelector('.site-header').getBoundingClientRect().bottom,
       horizontalOverflow: document.documentElement.scrollWidth > innerWidth };
   });
-  assert(position.docked, `Expected a docked guide at ${width}x${height}`);
-  for (const edge of ['left', 'top', 'right', 'bottom']) {
-    assert(Math.abs(position.launcher[edge] - position.dock[edge]) < 1, JSON.stringify(position));
-  }
-  assert(position.launcher.bottom <= position.headerBottom, 'Launcher must stay above the body text');
-  assert.deepEqual(position.collisions, [], `Header collision at ${width}x${height}`);
+  assert(!position.docked && !position.dock, `Guide must float at ${width}x${height}`);
+  assert.equal(position.width, 52);
+  assert.equal(position.height, 52);
+  assert(position.top >= position.headerBottom, 'Default launcher must stay below the header');
+  await insideViewport(page.locator('.guide-bot__launcher'), width, height);
   assert.equal(position.horizontalOverflow, false);
 }
 
@@ -78,13 +69,11 @@ try {
     await page.route('**/*.mp4', route => route.abort());
     await page.goto(origin + '/', { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => document.fonts.ready);
-    if (width < 1400 || height < 480) {
-      await assertDockedGuide(page, width, height);
-      await page.locator('#integrated').scrollIntoViewIfNeeded();
-      await page.waitForTimeout(50);
-      await assertDockedGuide(page, width, height);
-      await page.screenshot({ path: path.join(out, `docked-${width}x${height}.png`) });
-    }
+    await assertFloatingGuide(page, width, height);
+    await page.locator('#integrated').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(50);
+    await assertFloatingGuide(page, width, height);
+    await page.screenshot({ path: path.join(out, `floating-${width}x${height}.png`) });
     const launcher = page.locator('.guide-bot__launcher');
     const panel = page.locator('.guide-bot__panel');
     if (width <= 1023) {
@@ -141,7 +130,7 @@ try {
       assert.equal(await launcher.evaluate(el => document.activeElement === el), true);
     } else {
       await launcher.click();
-      await page.locator('.brand').click();
+      await page.mouse.click(width - 8, height - 8);
       assert(await panel.isHidden(), 'Clicking outside the desktop guide should return to reading');
     }
     assert.deepEqual(foreign, []);
@@ -163,12 +152,24 @@ try {
   assert(after.x > box.x + 100, 'launcher did not follow the drag');
   await page.setViewportSize({ width: 390, height: 844 });
   await insideViewport(launcher, 390, 844);
-  await assertDockedGuide(page, 390, 844);
+  assert(await page.locator('.guide-bot').evaluate(el => !el.classList.contains('is-docked')));
+  const mobileBox = await launcher.boundingBox();
+  await page.mouse.move(mobileBox.x + 26, mobileBox.y + 26);
+  await page.mouse.down();
+  await page.mouse.move(110, 600, { steps: 8 });
+  await page.mouse.up();
+  const mobileAfter = await launcher.boundingBox();
+  assert(Math.abs(mobileAfter.x - mobileBox.x) > 20, 'The guide must remain draggable on small screens');
+  await page.locator('#start').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(50);
+  const afterScroll = await launcher.boundingBox();
+  assert(Math.abs(afterScroll.x - mobileAfter.x) < 1 && Math.abs(afterScroll.y - mobileAfter.y) < 1,
+    'Scrolling must not move the floating guide into the header');
   await page.setViewportSize({ width: 1440, height: 900 });
   assert(await page.locator('.guide-bot').evaluate(el => !el.classList.contains('is-docked')));
   const restored = await launcher.boundingBox();
-  assert(Math.abs(restored.x - after.x) < 1 && Math.abs(restored.y - after.y) < 1,
-    'Restore the user-selected floating position on a wide screen');
+  assert(Math.abs(restored.x - mobileAfter.x) < 1 && Math.abs(restored.y - mobileAfter.y) < 1,
+    'Preserve the latest user-selected floating position after resizing');
   await page.setViewportSize({ width: 390, height: 844 });
   await launcher.click();
   await insideViewport(page.locator('.guide-bot__panel'), 390, 844);
@@ -179,7 +180,7 @@ try {
     await page.locator('.guide-bot__form').evaluate(form => form.requestSubmit());
   }
   await page.locator('.guide-bot__message a').last().click();
-  assert.equal(new URL(page.url()).hash, '#cite');
+  assert.equal(new URL(page.url()).hash, '#integrated');
   assert(await page.locator('.guide-bot__panel').isHidden());
   await page.close();
   const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
@@ -249,7 +250,7 @@ try {
   assert(await noJs.locator('.guide-bot__launcher').isHidden());
   assert(await noJs.locator('h1').isVisible());
   await noJs.close();
-  console.log('PASS header docking, drag restoration, header drag, resize, navigation, focus trap, motion, festive asset, and no-JavaScript fallback');
+  console.log('PASS floating guide, mobile drag, resize, navigation, focus trap, motion, festive asset, and no-JavaScript fallback');
 } finally {
   await browser.close();
   await new Promise(resolve => server.close(resolve));

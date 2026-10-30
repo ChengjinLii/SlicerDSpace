@@ -126,6 +126,10 @@ class ResumeInvalidationTest(unittest.TestCase):
         layout.ddseg.mkdir(parents=True, exist_ok=True)
         for name in ("SegmentationMap_GMWMCSF", "ProbabilisticMap_GM", "ProbabilisticMap_WM", "ProbabilisticMap_CSF"):
             (layout.ddseg / f"{name}.nii.gz").write_text(name, encoding="utf-8")
+        from shared.orchestrator import _segmentation_outputs
+        from shared.pipeline import _artifact_record
+        qc['output_artifacts'] = {key: _artifact_record(path, verify_content=True)
+                                  for key, path in _segmentation_outputs(subject_root).items() if key != 'qc'}
         (layout.ddseg / "ddseg_qc.json").write_text(json.dumps(qc), encoding="utf-8")
         return layout.ddseg / "SegmentationMap_GMWMCSF.nii.gz"
 
@@ -211,6 +215,8 @@ class WorldQCGateTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             subject_root = _subject(tmp)
+            from test_product_orchestrator import _write_valid_raw_subject
+            _write_valid_raw_subject(subject_root)
             layout = subject_layout(subject_root)
             layout.ddseg.mkdir(parents=True)
             layout.ddparcel.mkdir(parents=True)

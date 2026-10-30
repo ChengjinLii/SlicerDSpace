@@ -4,6 +4,7 @@
 import argparse
 import json
 from pathlib import Path
+import shutil
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -15,8 +16,9 @@ from shared.model_assets import configured_model_assets_root, _sha256_cache
 from shared.optional_assets import MANIFEST, verified_resource_directory
 from shared.model_asset_integrity import verify_against_manifest
 
-PROFILES = ("pnl-cnn", "tractcloud", "wma", "synthstrip", "surface-postprocess")
-PATH_SETTINGS = {"pnl-cnn": "pnl_mask_model_dir", "tractcloud": "tractcloud_data_dir", "wma": "wma_atlas_dir"}
+PROFILES = ("pnl-cnn", "tractcloud", "wma", "wma-east-west", "wma-naba", "synthstrip", "surface-postprocess")
+PATH_SETTINGS = {"pnl-cnn": "pnl_mask_model_dir", "tractcloud": "tractcloud_data_dir", "wma": "wma_atlas_dir",
+                 "wma-east-west": "wma_atlas_dir", "wma-naba": "wma_atlas_dir"}
 
 
 def prepare(profiles, *, asset_root=None, execute=False, accept_terms=False, offline_root=None):
@@ -31,6 +33,12 @@ def prepare(profiles, *, asset_root=None, execute=False, accept_terms=False, off
               "root": str(root), "size_bytes": sum(int(record["size_bytes"]) for record in records.values()),
               "terms": list(dict.fromkeys(notice for plan in plans for notice in plan.terms_notices)),
               "external_dependencies": {}, "scope": "Resource integrity only; runtimes and scientific QC are separate"}
+    definitions = [manifest["profiles"][profile] for profile in profiles]
+    expanded = sum(int(item.get("expanded_size_bytes", 0)) for item in definitions)
+    scratch = max((sum(int(records[part]["size_bytes"]) for part in item.get("archive_parts", ()))
+                   for item in definitions), default=0)
+    result["expanded_size_bytes"] = expanded
+    result["estimated_peak_disk_bytes"] = result["size_bytes"] + expanded + scratch
     if not execute:
         return result
     if not accept_terms and not offline_root:
@@ -57,6 +65,17 @@ def prepare(profiles, *, asset_root=None, execute=False, accept_terms=False, off
             if profile in PATH_SETTINGS:
                 result["external_dependencies"][PATH_SETTINGS[profile]] = str(existing)
             continue
+        definition = manifest["profiles"][profile]
+        if definition.get("archive_parts"):
+            missing_bytes = sum(record["size_bytes"] for relative, record in plan.asset_records.items()
+                                if not (root / relative).is_file())
+            scratch_bytes = sum(plan.asset_records[part]["size_bytes"] for part in definition["archive_parts"])
+            required = missing_bytes + int(definition["expanded_size_bytes"]) + scratch_bytes
+            disk = root
+            while not disk.exists():
+                disk = disk.parent
+            if shutil.disk_usage(disk).free < required:
+                raise OSError(f"Insufficient atlas storage: allow {required} additional bytes for download, extraction and scratch files under {root}")
         if offline_root:
             for relative, record in plan.asset_records.items():
                 import_file(Path(offline_root) / relative, root / relative, record)
@@ -72,6 +91,9 @@ def prepare(profiles, *, asset_root=None, execute=False, accept_terms=False, off
                 if relative.endswith(".zip"):
                     print("[Resources] Extracting and verifying " + relative, flush=True)
                     extract_org(root / relative, root / "bundles/wma")
+        elif manifest["profiles"][profile].get("archive_parts"):
+            from scripts.import_external_resources import extract_indexed_archive
+            extract_indexed_archive(root, manifest["profiles"][profile])
         directory = verified_resource_directory(profile, asset_root=root)
         if directory is None:
             raise RuntimeError("Resources are incomplete after preparation: " + profile)

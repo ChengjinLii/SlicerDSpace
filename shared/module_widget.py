@@ -615,6 +615,7 @@ class SharedWidgetMixin:
                     defaults.get("bundle_backend") or node.orchestrationBundleBackend or "wmql", BUNDLES, "wmql"
                 )
                 stages = defaults.get("microstructure_stages") or ["dti"]
+                node.wmaAtlas = str(defaults.get("wma_atlas") or "org")
                 node.orchestrationMicrostructureStages = ",".join(canonical_microstructure_stages(stages))
                 node.orchestrationDkiFitMethod = str(defaults.get("dki_fit_method") or "WLS").upper()
                 node.connectomeBackend = str(defaults.get("connectome_backend") or node.connectomeBackend or "python")
@@ -675,6 +676,7 @@ class SharedWidgetMixin:
                         "tractcloud_device": "cuda" if (node.ddsegDevice or "auto").startswith("cuda") else node.ddsegDevice or "auto",
                         "tractography_backend": node.orchestrationTractographyBackend or "csd_act",
                         "bundle_backend": node.orchestrationBundleBackend or "wmql",
+                        "wma_atlas": getattr(node, "wmaAtlas", "org") or "org",
                         "microstructure_stages": stages or ["dti"],
                         "dki_fit_method": getattr(node, "orchestrationDkiFitMethod", "WLS") or "WLS",
                         "connectome_backend": node.connectomeBackend or "python",
@@ -1620,6 +1622,10 @@ class SharedWidgetMixin:
             widget = widgets.get(dependency_id)
             value = self._line_edit_text(widget) if widget else self._read_environment_path_setting(dependency_id)
             kwargs[dependency_id] = value if item.get("value_type") == "text" else (Path(value).expanduser() if value else None)
+        selected_atlas = getattr(getattr(self, "_parameterNode", None), "wmaAtlas", "org") or "org"
+        from shared.optional_assets import inherited_wma_atlas_directory
+        kwargs["wma_atlas_dir"] = inherited_wma_atlas_directory(
+            kwargs.get("wma_atlas_dir"), selected_atlas, kwargs.get("model_assets_dir"))
         return kwargs
 
     def _environment_check_kwargs(
@@ -1660,6 +1666,7 @@ class SharedWidgetMixin:
             "output_root": Path(output_root_text).expanduser() if output_root_text else None,
             "preprocessing_backend": (node.preprocessingBackend or "dipy").strip(),
             "brain_mask_backend": mask_backend,
+            "wma_atlas": getattr(node, "wmaAtlas", "org") or "org",
             "brain_mask_device": getattr(node, "brainMaskDevice", "auto") or "auto",
             "tractcloud_device": "cuda" if (node.ddsegDevice or "auto").startswith("cuda") else node.ddsegDevice or "auto",
             "brain_mask_required": bool(brain_mask_required),
@@ -2079,6 +2086,8 @@ class SharedWidgetMixin:
                 control.visible = bool(node and node.targetBundles and "wmql" in algorithms(bundle_backend or self._bundle_backend_text(), BUNDLES, "wmql"))
 
         wma_input_widgets = (
+            getattr(self.ui, "wmaAtlasLabel", None),
+            getattr(self.ui, "wmaAtlasComboBox", None),
             getattr(self.ui, "wmaInputTractographyLabel", None),
             getattr(self.ui, "wmaInputTractographyPath", None),
         )
@@ -2878,7 +2887,8 @@ class SharedWidgetMixin:
             return
         try:
             from tractography.wmql_protocol import canonical_wmql_selection
-            canonical_wmql_selection(getattr(self._parameterNode, 'orchestrationWmqlSelection', ''))
+            canonical_wmql_selection(getattr(self._parameterNode, 'orchestrationWmqlSelection', ''),
+                                     getattr(self._parameterNode, 'orchestrationWmqlPreset', 'official'))
         except ValueError as exc:
             self._setStatus('error', str(exc))
             return
@@ -2911,6 +2921,7 @@ class SharedWidgetMixin:
             bundle_backend=self._bundle_backend_text(),
             microstructure_freewater=run_free_water,
             wmql_query_preset=getattr(self._parameterNode, "orchestrationWmqlPreset", "official") or "official",
+            wma_atlas=getattr(self._parameterNode, "wmaAtlas", "org") or "org",
             wmql_query_selection=getattr(self._parameterNode, 'orchestrationWmqlSelection', '') or '',
             max_parallel_models=int(getattr(self._parameterNode, 'maxParallelModels', 1)),
             ukf_parameters_text=getattr(self._parameterNode, 'ukfParameters', '{}'),

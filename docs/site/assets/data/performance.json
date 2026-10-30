@@ -1,7 +1,7 @@
 {
   "kind": "slicerddsurfer_public_performance_evidence",
-  "version": 3,
-  "reviewed_on": "2026-10-29",
+  "version": 4,
+  "reviewed_on": "2026-10-30",
   "sources": [
     {
       "file": "freewater_protocol_full_20261029.json",
@@ -14,6 +14,10 @@
     {
       "file": "mkcurve_qr_scipy1181_20261022.json",
       "sha256": "e4b11207509cd39278ce3d12d9c4336d1912584cb6a3d5dac4ffeeccfbef6bab"
+    },
+    {
+      "file": "performance_next_20261029.json",
+      "sha256": "634b458fe75d2a087705c65b530a2b29ca73a781a63b3c47b1372cad8689205e"
     },
     {
       "file": "dki_latest_stable_integration_20261022.json",
@@ -179,6 +183,168 @@
       "measurement_source": {
         "file": "mkcurve_qr_scipy1181_20261022.json",
         "sha256": "e4b11207509cd39278ce3d12d9c4336d1912584cb6a3d5dac4ffeeccfbef6bab"
+      }
+    },
+    {
+      "id": "mkcurve-signal",
+      "title": "MK-Curve signal reuse",
+      "category": "port",
+      "scope": "64-voxel numeric chunk / incremental QR change",
+      "evidence_date": "2026-10-29",
+      "reference_seconds": 1.1927573941648006,
+      "optimized_seconds": 1.0585052892565727,
+      "speed_ratio": 1.1268317752124961,
+      "seconds_saved": 0.13425210490822792,
+      "reduction_percent": 11.255608689999752,
+      "method": "Within each chunk, reuse non-b0 signals and their logarithms across the full synthetic-b0 scan; update only the candidate b0 column.",
+      "baseline": "The preceding qualified-QR Python implementation versus added signal reuse; solver, grid, correction rules and one numerical thread stay fixed.",
+      "unchanged": "Original/corrected coefficients, complete curves, parameter maps, residuals and validity masks match exactly in all three acquisitions and both solvers.",
+      "limitation": "Displayed medians use acquisition 1, selected consistently with the earlier QR record. Three alternating repeats after one warmup. Batched-path changes range from -1.50% to +3.07%, so signal reuse remains enabled only for the reference solver. These incremental timings overlap the earlier QR implementation and are not additive.",
+      "sample": "Three acquisitions, 64 voxels each, 181 measurements and 200-201 synthetic-b0 samples. Reference-QR time falls 10.24-11.26%. Numeric computation only; input preparation and file export excluded.",
+      "solver_results": [
+        {
+          "subject": "100206",
+          "solver": "reference",
+          "reference_seconds": 1.1927573941648006,
+          "optimized_seconds": 1.0585052892565727,
+          "speed_ratio": 1.1268317752124961,
+          "reduction_percent": 11.255608689999752,
+          "times_seconds": {
+            "reference": [
+              1.1927573941648006,
+              1.2019269801676273,
+              1.1919206473976374
+            ],
+            "optimized": [
+              1.0207987371832132,
+              1.0585052892565727,
+              1.070963742211461
+            ]
+          },
+          "repeats": 3,
+          "warmups_per_method": 1,
+          "exact_output_parity": true
+        },
+        {
+          "subject": "100206",
+          "solver": "batched",
+          "reference_seconds": 1.2688054032623768,
+          "optimized_seconds": 1.2298601604998112,
+          "speed_ratio": 1.031666399167478,
+          "reduction_percent": 3.0694417490994996,
+          "times_seconds": {
+            "reference": [
+              1.2688054032623768,
+              1.271308571100235,
+              1.235209895297885
+            ],
+            "optimized": [
+              1.2298601604998112,
+              1.2604374289512634,
+              1.2253218963742256
+            ]
+          },
+          "repeats": 3,
+          "warmups_per_method": 1,
+          "exact_output_parity": true
+        },
+        {
+          "subject": "149741",
+          "solver": "reference",
+          "reference_seconds": 1.1262251231819391,
+          "optimized_seconds": 0.9996459484100342,
+          "speed_ratio": 1.126624006202629,
+          "reduction_percent": 11.239242684826555,
+          "times_seconds": {
+            "reference": [
+              1.1262251231819391,
+              1.1196276098489761,
+              1.17492313683033
+            ],
+            "optimized": [
+              0.9996459484100342,
+              1.0016715954989195,
+              0.9965290371328592
+            ]
+          },
+          "repeats": 3,
+          "warmups_per_method": 1,
+          "exact_output_parity": true
+        },
+        {
+          "subject": "149741",
+          "solver": "batched",
+          "reference_seconds": 1.2162422314286232,
+          "optimized_seconds": 1.2170489244163036,
+          "speed_ratio": 0.9993371729176234,
+          "reduction_percent": -0.066326671351713,
+          "times_seconds": {
+            "reference": [
+              1.2206490524113178,
+              1.214735932648182,
+              1.2162422314286232
+            ],
+            "optimized": [
+              1.2349246833473444,
+              1.2074226699769497,
+              1.2170489244163036
+            ]
+          },
+          "repeats": 3,
+          "warmups_per_method": 1,
+          "exact_output_parity": true
+        },
+        {
+          "subject": "877168",
+          "solver": "reference",
+          "reference_seconds": 1.1016755998134613,
+          "optimized_seconds": 0.9888402372598648,
+          "speed_ratio": 1.1141087895717816,
+          "reduction_percent": 10.242158632968001,
+          "times_seconds": {
+            "reference": [
+              1.1003651916980743,
+              1.1062925271689892,
+              1.1016755998134613
+            ],
+            "optimized": [
+              0.9972374346107244,
+              0.983831824734807,
+              0.9888402372598648
+            ]
+          },
+          "repeats": 3,
+          "warmups_per_method": 1,
+          "exact_output_parity": true
+        },
+        {
+          "subject": "877168",
+          "solver": "batched",
+          "reference_seconds": 1.197767648845911,
+          "optimized_seconds": 1.2157144881784916,
+          "speed_ratio": 0.9852376199287792,
+          "reduction_percent": -1.4983573274727213,
+          "times_seconds": {
+            "reference": [
+              1.1941859479993582,
+              1.2184639926999807,
+              1.197767648845911
+            ],
+            "optimized": [
+              1.2157144881784916,
+              1.1968240924179554,
+              1.2282808683812618
+            ]
+          },
+          "repeats": 3,
+          "warmups_per_method": 1,
+          "exact_output_parity": true
+        }
+      ],
+      "upstream_reference": "Recorded 29 October with SciPy 1.18.1; source/input checksums and one-thread settings are preserved. This is an incremental comparison within the Python port, following the qualified QR change.",
+      "measurement_source": {
+        "file": "performance_next_20261029.json",
+        "sha256": "634b458fe75d2a087705c65b530a2b29ca73a781a63b3c47b1372cad8689205e"
       }
     },
     {

@@ -66,6 +66,24 @@ explicit WMA/TractCloud file with the automatic source option. WMA commonly
 uses UKF; runnable CSD/DTI sources still need their own coverage/QC review.
 SAF is not a whole-brain bundle source.
 
+WMQL keeps the unchanged 48-query `official` preset as the default. Use
+`--wmql-query-preset official_cerebellar` to add three SlicerDSpace regional
+cerebellar selections, or `cerebellar` for those selections only. Subsets such as
+`--wmql-query-selection cerebellar_brainstem,cerebellar_bilateral` belong to these
+new presets. They select regional candidates, not independently identified
+ICP/MCP/SCP bundles. Preserve the query provenance and per-output QC; see
+`docs/setup/WMQL_CEREBELLAR.md`.
+
+WMA atlas selection is independent of tractography source: `--wma-atlas org`
+is the default; `east-west` selects the Eastern/Western adult atlas, and `naba`
+selects the neonatal/adult atlas. NABA is not a general paediatric atlas.
+Prepare only `wma`, `wma-east-west` or `wma-naba` under the confirmed asset root
+using `scripts/setup_optional_assets.py`; inspect its plan and terms before
+downloading. `--wma-atlas-dir` can point to an existing copy of the selected
+atlas. Keep atlas comparisons in separate runs and retain the atlas-specific
+group definitions, registration and per-bundle QC. GUI: Advanced settings >
+Model parameters > WMA atlas. See `docs/setup/WMA_ATLASES.md` for sources.
+
 ## Prepare, Plan, Execute
 
 In the GUI: enter Inputs, choose Products and their `...` algorithms, then
@@ -105,6 +123,10 @@ The basic `scripts/run_batch_pipeline.py` runs one configuration per subject.
 The `scripts/run_experiments.py` request format runs explicit named variants.
 Its JSON paths are literal absolute paths, not shell variables. Start with one
 level of concurrency; `--jobs` and `--max-parallel-models` multiply resource use.
+Read each child manifest and the batch task/status counts, not just process exit
+codes. Blocked analyses make the batch exit nonzero unless the user explicitly
+accepts partial results with `--allow-partial-success`; that flag does not clear
+the blocked state or certify missing outputs.
 Preserve failed, cancelled and unlaunched jobs. Never select only the best seed
 or relabel an unavailable method as a reproduced result.
 

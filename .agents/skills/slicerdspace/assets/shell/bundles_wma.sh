@@ -60,4 +60,5 @@ pipeline() {
 # docs/setup/CLI_TEMPLATES.md: bundle-wma
 pipeline bundles_wma --targets validation,tractography,bundles \
   --tractography-backend ukf --bundle-backend wma --bundle-tractography-backend ukf \
+  --wma-atlas org \
   --slicer-executable "$SLICER" --brain-mask-backend provided --plan

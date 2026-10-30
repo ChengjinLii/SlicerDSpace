@@ -62,6 +62,36 @@ class SegmentationInferenceTest(unittest.TestCase):
         self.assertEqual(qc["probability_semantics"], DDSEG_PROBABILITY_SEMANTICS)
         self.assertEqual(qc["probability_qc"]["tissue_mass_valid_fraction"], 1.0)
         self.assertEqual(qc["probability_qc"]["label_agreement"], 1.0)
+        self.assertEqual(set(qc['output_artifacts']), set(outputs))
+
+    def test_resume_rejects_changed_outputs_even_with_unchanged_size_and_mtime(self):
+        import nibabel as nib
+        import os
+        from shared.orchestrator import _segmentation_complete, _segmentation_outputs
+
+        for changed in ('segmentation', 'gm_probability', 'wm_probability', 'csf_probability'):
+            with self.subTest(changed=changed), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                outputs = {key: path for key, path in _segmentation_outputs(root).items() if key != 'qc'}
+                output_dir = outputs['segmentation'].parent
+                output_dir.mkdir(parents=True)
+                labels = np.ones((3, 3, 3), dtype=np.int16)
+                probabilities = np.zeros((*labels.shape, 4), dtype=np.float32)
+                probabilities[..., 1] = 1
+                for key, path in outputs.items():
+                    data = labels if key == 'segmentation' else (probabilities[..., 1] if key == 'wm_probability' else probabilities[..., 0])
+                    nib.save(nib.Nifti1Image(data, np.eye(4)), path)
+                write_ddseg_qc_record(DDSegConfig(
+                    input_mask_nii=root / 'mask.nii.gz', parameter_type='DTI',
+                    output_folder=output_dir, weights_dir=root / 'weights'),
+                    labels=labels, probability_maps=probabilities, outputs=outputs)
+                self.assertTrue(_segmentation_complete(root))
+                path = outputs[changed]
+                stat = path.stat()
+                original = path.read_bytes()
+                path.write_bytes(b'X' * len(original))
+                os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+                self.assertFalse(_segmentation_complete(root))
 
     def test_ddseg_qc_rejects_mismatched_probability_shape(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

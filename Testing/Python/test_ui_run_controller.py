@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import unittest
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from shared.ui_run_controller import (
@@ -511,6 +511,20 @@ class UIRunControllerTest(unittest.TestCase):
             self.assertIn('"seedsPerVoxel": 3', command[command.index('--ukf-parameters') + 1])
             self.assertEqual(command[command.index('--ukf-executable') + 1], str(root / 'UKFTractography'))
             self.assertEqual(command[command.index('--dwiconvert-executable') + 1], str(root / 'DWIConvert'))
+
+    def test_selected_atlas_reaches_gui_single_and_batch_children(self):
+        root = Path('/tmp/selected-atlas')
+        for family in ('org', 'east-west', 'naba'):
+            selection = replace(self._run_selection(root), wma_atlas=family, bundle_backend='wma')
+            single = build_single_subject_run_kwargs(selection, {}, preflight_blocked_targets={})
+            batch = build_batch_run_kwargs(selection, batch_root=root / 'batch')
+            self.assertEqual(single['wma_atlas'], family)
+            self.assertEqual(batch['wma_atlas'], family)
+            commands = [build_background_cli_args(single, {}, repo_root=root),
+                        build_batch_background_cli_args(batch, {}, repo_root=root,
+                            batch_root=root / 'batch', batch_size=1, arrange_inputs='copy')]
+            for command in commands:
+                self.assertEqual(command[command.index('--wma-atlas') + 1], family)
 
     def test_extract_background_manifest_path_uses_explicit_or_latest_existing_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

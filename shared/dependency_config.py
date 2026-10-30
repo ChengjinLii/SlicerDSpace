@@ -64,7 +64,7 @@ DEPENDENCY_CONFIG_HELP = {
     "dki_matlab_executable": "External MATLAB executable for the author's original MK-Curve method.",
     "dki_mkcurve_root": "Checkout directory containing the author's original MATLAB MK-Curve code.",
     "wma_root": "WhiteMatterAnalysis checkout or installation root.",
-    "wma_atlas_dir": "ORG atlas directory used by WhiteMatterAnalysis.",
+    "wma_atlas_dir": "Directory for the selected ORG, East-West or NABA atlas used by WhiteMatterAnalysis.",
     "slicer_executable": "Slicer executable used by external bundle-analysis helpers.",
     "fiber_tract_measurements_cli": "FiberTractMeasurements CLI executable.",
     "tract_querier_root": "TractQuerier checkout root when not installed in the active Python.",
@@ -203,10 +203,10 @@ UI_DEPENDENCY_PATHS: tuple[dict[str, str], ...] = (
     },
     {
         "id": "wma_atlas_dir",
-        "label": "WMA ORG atlas dir",
+        "label": "WMA atlas directory",
         "section": "bundle-backends",
         "mode": "dir",
-        "tooltip": "Optional. Directory containing ORG-RegAtlas-100HCP and ORG-800FC-100HCP.",
+        "tooltip": "Optional. Root containing the registration and 800-cluster directories of the atlas selected in Advanced settings.",
     },
     {
         "id": "slicer_executable",

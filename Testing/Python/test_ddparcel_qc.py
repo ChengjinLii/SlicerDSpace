@@ -28,6 +28,16 @@ class DDParcelQcTest(unittest.TestCase):
         self.assertEqual(regional['left_regional_white_matter_voxels'], 1)
         self.assertEqual(regional['right_regional_white_matter_voxels'], 1)
 
+    def test_callosal_anatomy_is_reported_separately_from_wmql_aliases(self):
+        values = np.array([0, 2, 41, 192, 192, 251, 255, 1004, 2004, 3004, 4004, 1001])
+        before = values.copy()
+        record = label_semantics(values)
+        self.assertEqual(record['corpus_callosum_label_ids'], [192, 251, 255, 1004, 2004, 3004, 4004])
+        self.assertEqual(record['corpus_callosum_voxels'], 8)
+        self.assertEqual(record['corpus_callosum_192_voxels'], 2)
+        np.testing.assert_array_equal(values, before)
+        self.assertEqual(label_semantics(np.array([0, 2, 41]))['corpus_callosum_voxels'], 0)
+
     def test_native_export_missing_corrupt_or_wrong_grid_cannot_complete(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

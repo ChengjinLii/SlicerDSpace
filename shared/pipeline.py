@@ -363,10 +363,14 @@ def _write_manifest(path: Path, payload: dict[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
-@lru_cache(maxsize=128)
-def _artifact_digest(path: str, identity: tuple) -> str:
+def _content_digest(path: str) -> str:
     with Path(path).open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest() if hasattr(hashlib, 'file_digest') else _stream_digest(stream)
+
+
+@lru_cache(maxsize=128)
+def _artifact_digest(path: str, identity: tuple) -> str:
+    return _content_digest(path)
 
 
 def _stream_digest(stream) -> str:
@@ -376,12 +380,13 @@ def _stream_digest(stream) -> str:
     return digest.hexdigest()
 
 
-def _artifact_record(path: Path) -> dict:
+def _artifact_record(path: Path, *, verify_content: bool = False) -> dict:
     stat = path.stat()
     if not path.is_file() or stat.st_size == 0:
         raise ValueError(f'Missing or empty shared artifact: {path}')
     identity = (stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
-    digest = _artifact_digest(str(path.resolve()), identity)
+    digest = (_content_digest(str(path.resolve())) if verify_content
+              else _artifact_digest(str(path.resolve()), identity))
     after = path.stat()
     if identity != (after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns):
         raise ValueError(f'Shared artifact changed while being checked: {path}')

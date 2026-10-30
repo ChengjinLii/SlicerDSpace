@@ -122,6 +122,7 @@ class EnvironmentDoctorConfig:
     model_assets_dir: Optional[Path] = None
     wma_root: Optional[Path] = None
     wma_atlas_dir: Optional[Path] = None
+    wma_atlas: str = "org"
     slicer_executable: Optional[Path] = None
     fiber_tract_measurements_cli: Optional[Path] = None
     tract_querier_root: Optional[Path] = None
@@ -1424,18 +1425,25 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 group="wma",
                 bin_dir=wma_root / "bin" if config.wma_root is not None and wma_root is not None else None,
             )
+            if platform_name == "Windows" and config.wma_atlas != "org" and wma_root is not None:
+                _path(specs, target=target, key="wma_atlas_python_bridge",
+                      label="WMA atlas Python bridge (repair Windows runtime if missing)",
+                      path=wma_root / "bin/python.exe", path_kind="file", group="wma",
+                      discovery_source="managed Windows runtime")
             wma_atlas_dir_source = "user setting"
             wma_atlas_dir = _resolve_path(config.wma_atlas_dir)
             if wma_atlas_dir is None:
+                atlas_env = ("SLICERDSPACE_WMA_ATLAS_" + config.wma_atlas.upper().replace("-", "_") + "_DIR",)
+                if config.wma_atlas == "org":
+                    atlas_env += ("SLICERDSPACE_WMA_ATLAS_DIR", "WMA_ATLAS_DIR")
                 wma_atlas_dir, wma_atlas_dir_source = _env_path_with_source(
-                    "SLICERDSPACE_WMA_ATLAS_DIR",
-                    "WMA_ATLAS_DIR",
+                    *atlas_env,
                 )
             if wma_atlas_dir is None:
                 from shared.optional_assets import resolve_wma_atlas_directory
-                wma_atlas_dir = resolve_wma_atlas_directory(asset_root=config.model_assets_dir)
+                wma_atlas_dir = resolve_wma_atlas_directory(asset_root=config.model_assets_dir, atlas_family=config.wma_atlas)
                 wma_atlas_dir_source = "verified shared resource directory"
-            if wma_atlas_dir is None:
+            if wma_atlas_dir is None and config.wma_atlas == "org":
                 wma_atlas_dir, _ = _first_existing_path(_common_wma_atlas_dirs(platform_name), kind="dir")
                 if wma_atlas_dir is not None:
                     wma_atlas_dir_source = "common path"
@@ -1444,13 +1452,14 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     specs,
                     target=target,
                     key="wma_org_atlas",
-                    label="WMA ORG atlas directory",
+                    label="WMA " + config.wma_atlas + " atlas directory",
                     path=wma_atlas_dir,
                     path_kind="dir",
                     group="wma",
                     discovery_source=wma_atlas_dir_source,
                 )
-                for child in ("ORG-RegAtlas-100HCP", "ORG-800FC-100HCP"):
+                from tractography.wma_atlases import atlas_definition
+                for child in atlas_definition(config.wma_atlas)["directories"]:
                     _path(
                         specs,
                         target=target,
@@ -1466,9 +1475,9 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                     specs,
                     target=target,
                     key="wma_org_atlas",
-                    label="WMA ORG atlas directory",
+                    label="WMA " + config.wma_atlas + " atlas directory",
                     group="wma",
-                    notes="Pass --wma-atlas-dir. The directory must contain ORG-RegAtlas-100HCP and ORG-800FC-100HCP.",
+                    notes="Selected atlas: " + config.wma_atlas + ". Prepare its resource profile or pass --wma-atlas-dir.",
                 )
             _env(
                 specs,

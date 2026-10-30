@@ -12,13 +12,10 @@
   var messages = bot.querySelector('.guide-bot__messages');
   var form = bot.querySelector('.guide-bot__form');
   var input = form.querySelector('input');
-  var dock = document.querySelector('.guide-bot__dock');
   var siteHeader = document.querySelector('.site-header');
-  var content = document.querySelector('main .container');
-  var docked = false;
   var floatingPosition = null;
   var starters = Array.prototype.slice.call(bot.querySelectorAll('[data-guide-question]'));
-  var language = 'en';
+  var language = document.documentElement.lang.toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
   var history = [{ type: 'answer', key: 'welcome' }];
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var copy = {
@@ -32,13 +29,13 @@
         dependencies: 'Dependencies', results: 'Results & QC', references: 'References' },
       answers: {
         welcome: { text: 'Hello! I can help you explore SlicerDSpace. Choose a topic or ask a question about the project. I use a small, curated set of answers from this website.' },
-        start: { text: 'Start with 3D Slicer, stage the module, and add its module path in Slicer. In the GUI, enter the subject details, choose products, and prepare the selected environment before running. The repository is currently private; access is required.', href: '#start' },
-        skills: { text: 'We provide an install-and-use Agent Skill. Give its SKILL.md to your local Agent for installation, input preparation, method selection, plan review, requested analyses or batch experiments, and result/QC inspection. The Agent Skills section includes the files and a sample prompt.', href: '#skills' },
+        start: { text: 'Start with 3D Slicer, stage the module, and add its module path in Slicer. In the GUI, enter the subject details, choose products, and prepare the selected environment before running.', href: '#start' },
+        skills: { text: 'We provide an install-and-use Agent Skill. Give its SKILL.md to your local Agent for installation, input preparation, method selection, plan review, requested analyses or batch experiments, and result/QC inspection. Get started includes the Skill and copyable installation and analysis prompts.', href: '#skills' },
         inputs: { text: 'The workflow accepts diffusion MRI in DICOM, NIfTI or NRRD/NHDR formats. Prepared NIfTI inputs need matched b-values and b-vectors; a compatible brain mask can be supplied or generated. Use the input-import controls when conversion is needed.', href: '#start' },
         methods: { text: 'The module combines DDSeg, DDParcel and DDSurfer with microstructure, tractography, bundle identification and connectome analyses. DTI is the default microstructure model; use the selectors beside products to choose one or more available methods.', href: '#integrated' },
         dependencies: { text: 'Install SlicerDMRI and PyTorch in Slicer. UKF also needs the separate UKFTractography extension. Other tools, models and licences depend on the selected route; use Environment and installation to prepare and check them.', href: '#start' },
         results: { text: 'Successful key products can load into the Slicer scene. Open Results and QC to inspect the run and its checks, then review anatomy, alignment and method-specific outputs before accepting results.', href: '#outputs' },
-        references: { text: 'The methods table links each route to its supporting references. The complete numbered list is at the end of this page.', href: '#cite' },
+        references: { text: 'Each entry in What is integrated links directly to its primary paper, DOI or official software documentation.', href: '#integrated' },
         gpu: { text: 'Hardware support depends on the selected method and installed backend. Configure the available device in the environment and model settings; some stages use CPU tools even on a machine with a GPU.', href: '#start' },
         performance: { text: 'The performance section reports measured comparisons for specific operations and inputs. The results should be interpreted at their recorded scope rather than as a single whole-workflow speedup.', href: '#performance' },
         identity: { text: 'I am a local site guide, inspired by Chengjin Bot. I match questions to curated project information; I am not a live AI model, and your questions stay in this browser tab.' },
@@ -55,13 +52,13 @@
         dependencies: '环境依赖', results: '结果与 QC', references: '参考文献' },
       answers: {
         welcome: { text: '你好！我是 SlicerDSpace 项目助手。可以选择下方问题，或输入有关项目的问题。我根据本网页整理的内容回答。' },
-        start: { text: '先安装 3D Slicer，部署插件并添加模块路径。在界面中填写被试信息、选择分析产品，然后准备所选环境并运行。仓库目前为私有状态，需要获得访问权限。', href: '#start' },
-        skills: { text: '我们提供安装与使用 Agent Skill。将 SKILL.md 交给自己的本地 Agent，可按指南完成安装、输入准备、方法选择、计划检查、按请求分析或批量实验，以及结果与 QC 检查。Agent Skills 区域提供文件入口和示例指令。', href: '#skills' },
+        start: { text: '先安装 3D Slicer，部署插件并添加模块路径。在界面中填写被试信息、选择分析产品，然后准备所选环境并运行。', href: '#start' },
+        skills: { text: '我们提供安装与使用 Agent Skill。将 SKILL.md 交给自己的本地 Agent，可按指南完成安装、输入准备、方法选择、计划检查、按请求分析或批量实验，以及结果与 QC 检查。Get started 内提供文件入口和可复制的安装、分析指令。', href: '#skills' },
         inputs: { text: '支持 DICOM、NIfTI 和 NRRD/NHDR 格式的扩散影像。准备好的 NIfTI 需要配套 b 值和 b 向量；脑掩膜可自行提供或生成。需要格式转换时，可使用输入导入功能。', href: '#start' },
         methods: { text: '插件将 DDSeg、DDParcel 和 DDSurfer 与微结构、纤维追踪、纤维束识别及连接组分析结合。微结构默认使用 DTI；可通过产品旁的选择按钮选择一种或多种可用方法。', href: '#integrated' },
         dependencies: { text: '在 Slicer 中安装 SlicerDMRI 和 PyTorch。UKF 还需要独立的 UKFTractography 扩展。其他工具、模型及许可取决于所选路线，可在 Environment and installation 中准备和检查。', href: '#start' },
         results: { text: '成功生成的关键结果可自动加载到 Slicer 场景。请在 Results and QC 中查看运行记录和检查结果，并在接受结果前检查解剖结构、配准和相应方法的输出。', href: '#outputs' },
-        references: { text: '方法表为各条分析路线提供了对应文献，完整的编号文献列表位于页面末尾。', href: '#cite' },
+        references: { text: '已集成的方法表为各条分析路线提供论文、DOI 或官方软件文档的直接链接。', href: '#integrated' },
         gpu: { text: '硬件支持取决于所选方法和已安装的后端。可在环境及模型设置中选择可用设备；即使设备有 GPU，部分步骤仍使用 CPU 工具。', href: '#start' },
         performance: { text: '性能部分展示了特定操作和输入条件下的实测对照，应按各自记录的范围理解，不能直接当作完整工作流的统一加速比。', href: '#performance' },
         identity: { text: '我是参考 Chengjin Bot 设计的本地项目助手，根据预设项目资料匹配问题，不是在线大模型；输入只留在当前浏览器页面中。' },
@@ -74,33 +71,6 @@
     var v = window.visualViewport;
     return { left: v ? v.offsetLeft : 0, top: v ? v.offsetTop : 0,
       width: v ? v.width : window.innerWidth, height: v ? v.height : window.innerHeight };
-  }
-  function positionLauncher() {
-    if (!dock || !content) { return; }
-    var v = viewport();
-    var contentLeft = content.getBoundingClientRect().left + parseFloat(getComputedStyle(content).paddingLeft);
-    // Keep the mascot and its glow in the outer gutter, or reserve a header slot.
-    var shouldDock = v.width <= 680 || contentLeft - v.left < 96 || v.height < 480;
-    if (shouldDock !== docked) {
-      if (shouldDock) {
-        floatingPosition = { left: bot.style.left, top: bot.style.top, bottom: bot.style.bottom };
-      } else {
-        bot.style.left = floatingPosition ? floatingPosition.left : '';
-        bot.style.top = floatingPosition ? floatingPosition.top : '';
-        bot.style.bottom = floatingPosition ? floatingPosition.bottom : '';
-      }
-      docked = shouldDock;
-      dock.hidden = !docked;
-      bot.classList.toggle('is-docked', docked);
-      document.body.classList.toggle('guide-bot-docked', docked);
-      if (docked) { pointer = null; bot.classList.remove('is-dragging'); }
-    }
-    if (docked) {
-      var slot = dock.getBoundingClientRect();
-      bot.style.left = slot.left + 'px';
-      bot.style.top = slot.top + 'px';
-      bot.style.bottom = 'auto';
-    }
   }
   function positionPanel() {
     if (panel.hidden) { return; }
@@ -136,11 +106,10 @@
     panel.style.top = (y - anchor.top) + 'px';
   }
   function fitDraggedLauncher() {
-    if (docked || !bot.style.left) { return; }
+    if (!floatingPosition) { return; }
     var v = viewport();
-    var rect = bot.getBoundingClientRect();
-    bot.style.left = Math.max(v.left + 8, Math.min(rect.left, v.left + v.width - 60)) + 'px';
-    bot.style.top = Math.max(v.top + 8, Math.min(rect.top, v.top + v.height - 60)) + 'px';
+    bot.style.left = Math.max(v.left + 8, Math.min(floatingPosition.left, v.left + v.width - 60)) + 'px';
+    bot.style.top = Math.max(v.top + 8, Math.min(floatingPosition.top, v.top + v.height - 60)) + 'px';
   }
   function setOpen(open, restoreFocus) {
     panel.hidden = !open;
@@ -224,7 +193,6 @@
   var pointer = null;
   var suppressClick = false;
   function startDrag(event) {
-    if (docked) { return; }
     if (event.button !== 0) { return; }
     if (event.currentTarget === header && event.target.closest('button, input, a')) { return; }
     if (event.currentTarget === header) { event.preventDefault(); }
@@ -240,8 +208,11 @@
     pointer.moved = true;
     bot.classList.add('is-dragging');
     var v = viewport();
-    bot.style.left = Math.max(v.left + 8, Math.min(pointer.left + dx, v.left + v.width - 60)) + 'px';
-    bot.style.top = Math.max(v.top + 8, Math.min(pointer.top + dy, v.top + v.height - 60)) + 'px';
+    floatingPosition = {
+      left: Math.max(v.left + 8, Math.min(pointer.left + dx, v.left + v.width - 60)),
+      top: Math.max(v.top + 8, Math.min(pointer.top + dy, v.top + v.height - 60))
+    };
+    fitDraggedLauncher();
     bot.style.bottom = 'auto';
     positionPanel();
   }
@@ -299,7 +270,7 @@
       }
     }
   });
-  function resize() { positionLauncher(); fitDraggedLauncher(); positionPanel(); }
+  function resize() { fitDraggedLauncher(); positionPanel(); }
   window.addEventListener('resize', resize);
   var layoutPending = false;
   function scheduleLayout() {

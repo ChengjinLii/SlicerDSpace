@@ -98,6 +98,33 @@ class OfficialWMQLTests(unittest.TestCase):
         self.assertEqual(args.wmql_query_preset, 'official')
         self.assertEqual(args.wmql_query_selection, 'AF,UF')
 
+    def test_ddparcel_callosal_192_does_not_satisfy_official_alias_requirements(self):
+        from tractography.wmql_protocol import atlas_compatibility
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'labels.nii.gz'
+            values = np.array([0, 2, 41, 192, 1001, 2001, 1024, 2024], np.int16).reshape(2, 2, 2)
+            nib.save(nib.Nifti1Image(values, np.eye(4)), path)
+            before = path.read_bytes()
+            report = atlas_compatibility(path)
+            self.assertEqual(report['label_semantics']['corpus_callosum_192_voxels'], 1)
+            self.assertEqual(report['official_callosal_alias_label_ids'], {'left': [], 'right': []})
+            self.assertEqual(report['official_queries_with_unavailable_required_labels'], ['cc', 'cc_5', 'cc_6'])
+            self.assertTrue(any('label-convention mismatch' in warning for warning in report['warnings']))
+            self.assertEqual(path.read_bytes(), before)
+            for left, right in ((1004, 2004), (3004, 4004)):
+                values.flat[0] = left
+                values.flat[3] = right
+                nib.save(nib.Nifti1Image(values, np.eye(4)), path)
+                report = atlas_compatibility(path)
+                self.assertEqual(report['official_callosal_alias_label_ids'], {'left': [left], 'right': [right]})
+                self.assertEqual(report['official_queries_with_unavailable_required_labels'], [])
+            values.flat[3] = 192
+            nib.save(nib.Nifti1Image(values, np.eye(4)), path)
+            report = atlas_compatibility(path)
+            self.assertEqual(report['official_queries_with_unavailable_required_labels'], ['cc_5', 'cc_6'])
+            # cc_4 uses endpoint regions, not the callosal aliases.
+            self.assertNotIn('cc_4', report['official_queries_with_unavailable_required_labels'])
+
 
 if __name__ == '__main__':
     unittest.main()

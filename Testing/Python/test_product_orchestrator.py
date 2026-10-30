@@ -34,6 +34,29 @@ def _write_test_surface(path: Path) -> None:
     trimesh.creation.icosphere(subdivisions=1).export(path)
 
 
+def _ddseg_artifact_fixture(directory: Path):
+    from shared.pipeline import _artifact_record
+    names = dict(segmentation='SegmentationMap_GMWMCSF', gm_probability='ProbabilisticMap_GM',
+                 wm_probability='ProbabilisticMap_WM', csf_probability='ProbabilisticMap_CSF')
+    return {key: _artifact_record(directory / (name + '.nii.gz'), verify_content=True) for key, name in names.items()}
+
+
+def _write_valid_raw_subject(subject_root: Path, shape=(5, 5, 5)):
+    import nibabel as nib
+    import numpy as np
+    directory = subject_root / 'input'
+    directory.mkdir(parents=True, exist_ok=True)
+    nib.save(nib.Nifti1Image(np.ones((*shape, 4), dtype=np.float32), np.eye(4)), directory / 'data.nii.gz')
+    mask = np.zeros(shape, dtype=np.uint8)
+    if min(shape) <= 2:
+        mask[...] = 1
+    else:
+        mask[1:4, 1:4, 1:4] = 1
+    nib.save(nib.Nifti1Image(mask, np.eye(4)), directory / 'nodif_brain_mask.nii.gz')
+    (directory / 'bvals').write_text('0 1000 1000 1000')
+    (directory / 'bvecs').write_text('0 1 0 0\n0 0 1 0\n0 0 0 1\n')
+
+
 def _write_test_tractogram(path: Path, *, length_mm: float = 20.0, count: int = 1) -> None:
     import nibabel as nib
     import numpy as np
@@ -95,6 +118,19 @@ def _write_current_act_prep(layout, subject_id: str, segmentation: Path) -> dict
 
 
 class ProductOrchestratorTest(unittest.TestCase):
+    def test_report_time_is_included_in_wall_clock_but_not_legacy_elapsed(self):
+        import time
+        from shared import ProductOrchestratorConfig, run_subject_products
+        def delayed_report(**kwargs):
+            time.sleep(.03)
+            raise RuntimeError('synthetic report failure')
+        with tempfile.TemporaryDirectory() as tmp, mock.patch('shared.reporting.write_subject_reports', side_effect=delayed_report):
+            result = run_subject_products(ProductOrchestratorConfig('timing', Path(tmp), targets=('validation',), execute=False))
+            manifest = json.loads(result.run_manifest_path.read_text())
+            self.assertGreaterEqual(manifest['wall_time_seconds'] - manifest['elapsed_seconds'], .03)
+            self.assertGreaterEqual(manifest['phase_timings_seconds']['subject_reports_and_refresh'], .03)
+            self.assertEqual(manifest['report_error'], 'synthetic report failure')
+
     def test_reusing_run_name_archives_previous_manifest_and_plan(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products
 
@@ -541,6 +577,9 @@ class ProductOrchestratorTest(unittest.TestCase):
             self.assertTrue(manifest["connectome_compress_mrtrix_dense"])
             profile = manifest["performance_profile"]
             self.assertEqual(profile["schema"], "slicerddsurfer.performance_profile.v1")
+            self.assertGreaterEqual(manifest['wall_time_seconds'], manifest['elapsed_seconds'])
+            self.assertGreaterEqual(manifest['phase_timings_seconds']['subject_reports_and_refresh'], 0)
+            self.assertEqual(profile['wall_time_seconds'], manifest['wall_time_seconds'])
             self.assertTrue(Path(manifest["performance_profile_path"]).is_file())
             self.assertIn("slowest_tasks", profile)
             self.assertIn("largest_top_dirs", profile)
@@ -907,6 +946,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
                 (input_dir / name).write_text("x", encoding="utf-8")
 
+            _write_valid_raw_subject(subject_root)
             layout = subject_layout(subject_root)
             csd_dir = layout.csd
             csd_dir.mkdir(parents=True)
@@ -1166,7 +1206,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             input_dir.mkdir(parents=True)
             for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
                 (input_dir / name).write_text("input", encoding="utf-8")
-            _write_test_volume(input_dir / 'nodif_brain_mask.nii.gz')
+            _write_valid_raw_subject(subject_root, shape=(2, 2, 2))
             layout = subject_layout(subject_root)
             run_name = "csd_act_test"
             csd_dir = layout.csd / run_name
@@ -1192,6 +1232,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                         "schema_version": 2,
                         "orientation_convention": "affine_reoriented_ras_model_input_v2",
                         "probability_semantics": "four_class_softmax_tissue_channels_v1",
+                        "output_artifacts": _ddseg_artifact_fixture(seg_dir),
                         "probability_qc": {
                             "finite_and_bounded": True,
                             "tissue_mass_valid_fraction": 1.0,
@@ -1579,6 +1620,7 @@ class ProductOrchestratorTest(unittest.TestCase):
                         "schema_version": 2,
                         "orientation_convention": "affine_reoriented_ras_model_input_v2",
                         "probability_semantics": "four_class_softmax_tissue_channels_v1",
+                        "output_artifacts": _ddseg_artifact_fixture(layout.ddseg),
                         "probability_qc": {
                             "finite_and_bounded": True,
                             "tissue_mass_valid_fraction": 1.0,
@@ -1684,6 +1726,7 @@ class ProductOrchestratorTest(unittest.TestCase):
             for name in ("data.nii.gz", "bvals", "bvecs", "nodif_brain_mask.nii.gz"):
                 (input_dir / name).write_text("x", encoding="utf-8")
 
+            _write_valid_raw_subject(subject_root)
             layout = subject_layout(subject_root)
             csd_dir = layout.csd
             csd_dir.mkdir(parents=True)

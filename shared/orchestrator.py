@@ -92,6 +92,7 @@ class ProductOrchestratorConfig:
     bundle_tractography_backend: Optional[str] = None
     wmql_query_preset: str = "official"
     wmql_query_selection: tuple[str, ...] = ()
+    wmql_atlas_mode: str = 'native'
     execute: bool = False
     resume: bool = True
     preprocessing_backend: str = "dipy"
@@ -174,6 +175,7 @@ class ProductOrchestratorConfig:
     saf_mrtrix_prefix: str = ""
     wma_input_tractography: Optional[Path] = None
     wma_atlas_dir: Optional[Path] = None
+    wma_atlas: str = "org"
     wma_root: Optional[Path] = None
     slicer_executable: Optional[Path] = None
     wma_use_virtual_x: bool = False
@@ -329,6 +331,7 @@ def _wmql_complete(
     parcellation: Optional[Path] = None,
     query_preset: str = "official",
     query_selection: tuple[str, ...] = (),
+    atlas_mode: str = 'native',
 ) -> bool:
     """Reuse frozen, readable extraction, retaining official coverage warnings as warnings."""
 
@@ -336,19 +339,29 @@ def _wmql_complete(
         from tractography.wmql import (summarize_wmql_outputs, _wmql_output_contract_error, WMQL_QC_VERSION,
                                        bundled_wmql_query_path, wmql_query_cache_current,
                                        canonical_wmql_selection, official_query_names, AUTHOR_ALIAS_SHA256)
+        from tractography.wmql_protocol import CATALOG_PRESETS, preset_query_names
         import hashlib
 
         native_manifest_path = manifest_path or qc_path.with_name("wmql_manifest.json")
         manifest = _read_json(native_manifest_path)
         qc = _read_json(qc_path)
-        official = query_preset == 'official'
-        if (qc.get('version') != WMQL_QC_VERSION or qc.get('status') != 'completed' or qc.get('error')
-                or (official and (not qc.get('official_multibundle') or not qc.get('execution_passed')
-                                  or not qc.get('output_integrity_passed')))
-                or (not official and qc.get('automatic_qc_passed') is not True)):
+        if manifest.get('atlas_mode', 'native') != atlas_mode:
             return False
-        selected = canonical_wmql_selection(query_selection) if official else tuple(query_selection)
-        if official and tuple(manifest.get('query_selection', ())) != selected:
+        if atlas_mode != 'native':
+            from tractography.wmql_atlas import prepared_atlas_current
+            if not prepared_atlas_current(manifest.get('atlas_preparation') or {}, parcellation):
+                return False
+        official = query_preset == 'official'
+        catalogue = query_preset in CATALOG_PRESETS
+        if (qc.get('version') != WMQL_QC_VERSION or qc.get('status') != 'completed' or qc.get('error')
+                or (catalogue and (not (qc.get('official_multibundle') if official else qc.get('coverage_report_mode'))
+                                  or not qc.get('execution_passed')
+                                  or not qc.get('output_integrity_passed')))
+                or (not catalogue and qc.get('automatic_qc_passed') is not True)):
+            return False
+        selected = canonical_wmql_selection(query_selection, query_preset) if catalogue else tuple(query_selection)
+        if catalogue and (manifest.get('query_preset', 'official') != query_preset
+                          or tuple(manifest.get('query_selection', ())) != selected):
             return False
         query = Path(manifest.get('query_path') or '')
         if not query.is_file() or manifest.get('query_sha256') != hashlib.sha256(query.read_bytes()).hexdigest():
@@ -357,7 +370,7 @@ def _wmql_complete(
             return False
         if not wmql_query_cache_current(manifest):
             return False
-        if official and not any(Path(path).name == 'FreeSurfer.qry' and digest == AUTHOR_ALIAS_SHA256
+        if catalogue and not any(Path(path).name == 'FreeSurfer.qry' and digest == AUTHOR_ALIAS_SHA256
                                 for path, digest in manifest.get('query_dependencies', {}).items()):
             return False
         expected_dependencies = {
@@ -375,15 +388,15 @@ def _wmql_complete(
         ):
             return False
         summary = summarize_wmql_outputs(qc_path.parent, manifest.get('subject_id'))
-        requested = (selected or official_query_names()) if official else tuple(manifest.get('query_selection') or ())
-        expected_count = 1 if official else max(1, len(requested))
+        requested = (selected or preset_query_names(query_preset)) if catalogue else tuple(manifest.get('query_selection') or ())
+        expected_count = 1 if catalogue else max(1, len(requested))
         bundle_count = int(summary.get("bundle_count", 0) or 0)
         readable_count = int(summary.get("bundle_readable_count", 0) or 0)
         nonempty_count = int(summary.get("bundle_nonempty_count", 0) or 0)
         if bundle_count < expected_count:
             return False
         return readable_count == bundle_count and nonempty_count >= expected_count and _wmql_output_contract_error(
-            summary, expected_count, requested, require_sampling=not official) is None
+            summary, expected_count, requested, require_sampling=not catalogue) is None
     except (OSError, TypeError, ValueError):
         return False
 
@@ -733,6 +746,7 @@ def _wma_complete(
     *,
     input_tractography: Optional[Path] = None,
     atlas_dir: Optional[Path] = None,
+    atlas_family: str = "org",
 ) -> bool:
     if input_tractography is None:
         return False
@@ -748,6 +762,8 @@ def _wma_complete(
             return False
 
         manifest = _read_json(manifest_path)
+        if manifest.get("atlas_family", "org") != atlas_family:
+            return False
         expected_dependencies = {
             key: path
             for key, path in {
@@ -766,6 +782,14 @@ def _wma_complete(
         if not prepared_input.is_file():
             return False
         summary = summarize_wma_outputs(output_dir, prepared_input)
+        if atlas_family != "org":
+            from tractography.wma import inspect_wma_org_atlas
+            if atlas_dir is None:
+                return False
+            atlas_status = inspect_wma_org_atlas(atlas_dir, atlas_family)
+            if not atlas_status["available"]:
+                return False
+            summary["atlas_contract"] = atlas_status["output_contract"]
     except Exception:
         return False
     return (_wma_output_contract_error(summary) is None
@@ -1274,6 +1298,11 @@ def _segmentation_complete(subject_root: Path, output_root: Optional[Path] = Non
             return False
         mass_fraction = float(probability_qc.get("tissue_mass_valid_fraction", 0.0))
         label_agreement = float(probability_qc.get("label_agreement", 0.0))
+        schema_version = int(qc.get('schema_version') or 0)
+        from shared.pipeline import _artifact_record
+        artifacts = {key: _artifact_record(path, verify_content=True) for key, path in outputs.items() if key != 'qc'}
+        if qc.get('output_artifacts') != artifacts:
+            return False
     except Exception:
         return False
     from anatomy.segmentation.orientation import ORIENTATION_CONVENTION
@@ -1288,7 +1317,7 @@ def _segmentation_complete(subject_root: Path, output_root: Optional[Path] = Non
 
     return (
         qc.get("status") == "completed"
-        and int(qc.get("schema_version") or 0) >= DDSEG_QC_SCHEMA_VERSION
+        and schema_version >= DDSEG_QC_SCHEMA_VERSION
         and qc.get("orientation_convention") == ORIENTATION_CONVENTION
         and qc.get("probability_semantics") == "four_class_softmax_tissue_channels_v1"
         and bool(probability_qc.get("finite_and_bounded"))
@@ -1865,9 +1894,13 @@ def _validate_surface_settings(config: ProductOrchestratorConfig) -> None:
 
 
 def _validate_tractography_settings(config: ProductOrchestratorConfig) -> None:
-    if config.wmql_query_preset == 'official':
-        from tractography.wmql_protocol import canonical_wmql_selection
-        canonical_wmql_selection(config.wmql_query_selection)
+    from tractography.wmql_protocol import CATALOG_PRESETS, canonical_wmql_selection
+    if config.wmql_atlas_mode not in ('native', 'ddparcel_wm'):
+        raise ValueError('Unknown WMQL atlas mode: ' + config.wmql_atlas_mode)
+    if config.wmql_atlas_mode != 'native' and config.wmql_query_preset not in CATALOG_PRESETS:
+        raise ValueError('Experimental DDParcel WM preparation requires a bundled WMQL catalogue')
+    if config.wmql_query_preset in CATALOG_PRESETS:
+        canonical_wmql_selection(config.wmql_query_selection, config.wmql_query_preset)
     if config.tractography_backend == 'ukf':
         from tractography.ukf import parameters
         parameters(config.ukf_parameters)
@@ -1885,9 +1918,11 @@ def _validate_tractography_settings(config: ProductOrchestratorConfig) -> None:
 
 def _with_shared_bundle_resources(config):
     from shared.optional_assets import resolve_wma_atlas_directory, resolve_tractcloud_data_directory
+    from tractography.wma_atlases import atlas_definition
+    atlas_definition(config.wma_atlas)
     if config.wma_atlas_dir is None and ("wma" in config.targets or
             "bundles" in config.targets and "wma" in _normalize_bundle_backends(config.bundle_backend)):
-        atlas = resolve_wma_atlas_directory(asset_root=config.model_assets_dir)
+        atlas = resolve_wma_atlas_directory(asset_root=config.model_assets_dir, atlas_family=config.wma_atlas)
         if atlas is not None:
             config = replace(config, wma_atlas_dir=atlas)
     if config.tractcloud_data_dir is None and ("tractcloud" in config.targets or
@@ -2105,6 +2140,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 wmql_dir / "wmql_qc.json",
                 query_preset=config.wmql_query_preset,
                 query_selection=config.wmql_query_selection,
+                atlas_mode=config.wmql_atlas_mode,
                 input_tractography=tractogram_trk,
                 parcellation=parcellation,
             )
@@ -2122,6 +2158,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 wma_dir,
                 input_tractography=wma_input_tractography,
                 atlas_dir=config.wma_atlas_dir,
+                atlas_family=config.wma_atlas,
             )
         if target == "tractcloud":
             return _tractcloud_complete(
@@ -2430,6 +2467,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 wmql_outputs["qc"],
                 query_preset=config.wmql_query_preset,
                 query_selection=config.wmql_query_selection,
+                atlas_mode=config.wmql_atlas_mode,
                 manifest_path=wmql_outputs["manifest"],
                 input_tractography=tractogram_trk,
                 parcellation=parcellation,
@@ -2484,6 +2522,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                     wma_dir,
                     input_tractography=wma_input_tractography,
                     atlas_dir=config.wma_atlas_dir,
+                    atlas_family=config.wma_atlas,
                 )
             ):
                 add(target, "skipped", "completed outputs found", "reuse", outputs=wma_outputs)
@@ -2518,7 +2557,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 add(
                     target,
                     "will_run",
-                    "ready to run WMA ORG atlas",
+                    "ready to run WMA " + config.wma_atlas + " atlas",
                     "runnable",
                     inputs={"input_tractography": wma_input_tractography, "atlas_dir": config.wma_atlas_dir},
                     outputs=wma_outputs,
@@ -3030,7 +3069,7 @@ def _path_within(child: Path, parent: Path) -> bool:
         return False
 
 
-def _declared_task_output_stats(task: ProductTaskRecord) -> tuple[int, int]:
+def _declared_task_output_stats(task: ProductTaskRecord, *, scan_records=None) -> tuple[int, int]:
     candidates: list[Path] = []
     for value in (task.outputs or {}).values():
         if not value:
@@ -3055,7 +3094,11 @@ def _declared_task_output_stats(task: ProductTaskRecord) -> tuple[int, int]:
     total_files = 0
     total_bytes = 0
     for path in roots:
+        started = time.monotonic()
         file_count, size_bytes = _path_stats(path)
+        if scan_records is not None:
+            scan_records.append(dict(path=path.as_posix(), file_count=file_count, size_bytes=size_bytes,
+                                     seconds=time.monotonic() - started))
         total_files += file_count
         total_bytes += size_bytes
     return total_files, total_bytes
@@ -3089,8 +3132,9 @@ def _build_performance_profile(
     orchestration_elapsed_seconds: float,
 ) -> dict[str, object]:
     task_rows = []
+    scan_records = []
     for task in tasks:
-        output_files, output_bytes = _declared_task_output_stats(task)
+        output_files, output_bytes = _declared_task_output_stats(task, scan_records=scan_records)
         task_rows.append(
             {
                 "name": task.name,
@@ -3107,7 +3151,9 @@ def _build_performance_profile(
         )
 
     output_root = layout.outputs
+    top_scan_started = time.monotonic()
     top_dirs = _top_dir_stats(output_root)
+    top_scan_seconds = time.monotonic() - top_scan_started
 
     profile = {
         "kind": "slicerddsurfer_performance_profile",
@@ -3119,6 +3165,8 @@ def _build_performance_profile(
         "orchestration_elapsed_seconds": orchestration_elapsed_seconds,
         "task_runtime_seconds_total": sum(float(row["runtime_seconds"]) for row in task_rows),
         "task_intervals": task_rows,
+        "directory_statistics": dict(declared_output_queries=scan_records, top_level_scan_seconds=top_scan_seconds,
+                                     total_scan_seconds=top_scan_seconds + sum(row['seconds'] for row in scan_records)),
         "profile_notes": [
             "Task runtime_seconds use explicit subprocess intervals when available; otherwise they measure elapsed time between orchestrator task appends.",
             "Skipped task runtimes measure resume detection overhead, not the original compute runtime.",
@@ -3224,6 +3272,7 @@ def _run_subject_products_impl(
     start = time.monotonic()
     previous_run_records = _archive_existing_run_records(layout, run_name)
     plan = plan_subject_products(config, write=True)
+    planning_seconds = time.monotonic() - start
     manifest_path = layout.run_metadata / f"{run_name}_orchestration_manifest.json"
     tasks: list[ProductTaskRecord] = _TimedTaskList(
         start,
@@ -3252,6 +3301,7 @@ def _run_subject_products_impl(
     }
     run_targets = tuple(target for target in targets if target not in preflight_blocked_targets)
 
+    input_started = time.monotonic()
     materialize_canonical_output_tree(subject_root, output_root=output_root, mode="symlink", archive_legacy=False)
     mask_mrtrix_bin_dir = config.mrtrix_bin_dir or config.preprocessing_mrtrix_bin_dir
     from shared.brain_mask import brain_mask_config_from_options
@@ -3285,7 +3335,13 @@ def _run_subject_products_impl(
                 )
             )
 
-    if "validation" in run_targets:
+    dwi_targets = {'preprocessing', 'segmentation', 'parcellation', 'surface', 'microstructure',
+                   'microstructure_freewater', 'microstructure_noddi', 'microstructure_dki', 'tractography'}
+    if 'saf' in run_targets and config.saf_pregenerated_tractogram is None:
+        dwi_targets.add('saf')
+    input_validation_path = None
+    input_blocked_targets = {}
+    if "validation" in run_targets or (config.execute and dwi_targets.intersection(run_targets)):
         validation = validate_subject_inputs(
             InputValidationConfig(
                 subject_id=config.subject_id,
@@ -3303,16 +3359,29 @@ def _run_subject_products_impl(
                 postprocess_freesurfer_home=config.postprocess_freesurfer_home,
             )
         )
-        tasks.append(
-            ProductTaskRecord(
+        input_validation_path = validation.report_path
+        if 'validation' in run_targets or not validation.passed:
+            tasks.append(ProductTaskRecord(
                 name="validation",
                 status=validation.status,
                 reason=f"errors={validation.error_count}; warnings={validation.warning_count}",
                 manifest_path=validation.report_path,
                 qc_path=validation.report_path,
-            )
-        )
+            ))
+        if config.execute and not validation.passed:
+            errors = [issue for issue in validation.messages if issue.level == 'error']
+            invalid_data = any(issue.category in {'file', 'dwi', 'gradient', 'brain_mask'} for issue in errors)
+            for target in run_targets:
+                if (invalid_data and target in dwi_targets) or (
+                        target == 'preprocessing' and any(issue.category == 'metadata' for issue in errors)):
+                    reason = 'Input validation failed: ' + '; '.join(issue.message for issue in errors)
+                    input_blocked_targets[target] = reason
+                    tasks.append(ProductTaskRecord(name=_task_name_for_target(target, config), status='blocked',
+                                                   reason=reason, qc_path=validation.report_path))
+            run_targets = tuple(target for target in run_targets if target not in input_blocked_targets)
 
+    input_seconds = time.monotonic() - input_started
+    execution_started = time.monotonic()
     if "preprocessing" in run_targets:
         preprocessing_outputs = _preprocessing_outputs(subject_root, config.subject_id, output_root)
         if config.resume and _preprocessing_complete(subject_root, config.subject_id, output_root, config=config):
@@ -4225,6 +4294,7 @@ def _run_subject_products_impl(
             wmql_qc,
             query_preset=config.wmql_query_preset,
             query_selection=config.wmql_query_selection,
+            atlas_mode=config.wmql_atlas_mode,
             input_tractography=tractogram_trk,
             parcellation=parcellation,
         ):
@@ -4249,6 +4319,7 @@ def _run_subject_products_impl(
                     tract_querier_root=config.tract_querier_root,
                     query_preset=config.wmql_query_preset,
                     query_selection=config.wmql_query_selection,
+                    atlas_mode=config.wmql_atlas_mode,
                     execute=True,
                 ),
                 log=log,
@@ -4261,6 +4332,7 @@ def _run_subject_products_impl(
                 parcellation=parcellation,
                 query_preset=config.wmql_query_preset,
                 query_selection=config.wmql_query_selection,
+                atlas_mode=config.wmql_atlas_mode,
             )
             tasks.append(
                 _task_from_result(
@@ -4386,6 +4458,7 @@ def _run_subject_products_impl(
             wma_dir,
             input_tractography=wma_input_tractography,
             atlas_dir=config.wma_atlas_dir,
+            atlas_family=config.wma_atlas,
         ):
             tasks.append(
                 ProductTaskRecord(
@@ -4422,6 +4495,7 @@ def _run_subject_products_impl(
                 wma_dir,
                 input_tractography=wma_input_tractography,
                 atlas_dir=config.wma_atlas_dir,
+                atlas_family=config.wma_atlas,
             ):
                 tasks.append(ProductTaskRecord(name="bundles.wma", status="skipped", reason="completed outputs found", qc_path=wma_qc, manifest_path=wma_dir / "wma_org_atlas_manifest.json", outputs={"anatomical_tract_count": str(anatomical_tract_count), "anatomical_tract_nonempty_count": str(nonempty_tract_count)}))
             elif wma_input_tractography is None:
@@ -4458,6 +4532,7 @@ def _run_subject_products_impl(
                         subject_id=config.subject_id,
                         input_tractography=wma_input_tractography,
                         atlas_dir=config.wma_atlas_dir,
+                        atlas_family=config.wma_atlas,
                         output_dir=wma_dir,
                         slicer_executable=slicer_executable,
                         wma_root=config.wma_root,
@@ -4473,6 +4548,7 @@ def _run_subject_products_impl(
                     wma_dir,
                     input_tractography=wma_input_tractography,
                     atlas_dir=config.wma_atlas_dir,
+                    atlas_family=config.wma_atlas,
                 )
                 tasks.append(
                     _task_from_result(
@@ -4679,6 +4755,8 @@ def _run_subject_products_impl(
                 )
                 tasks.append(_task_from_result("connectome.sift2_weighted", weighted))
 
+    execution_seconds = time.monotonic() - execution_started
+    metadata_started = time.monotonic()
     normalized_task_records = _write_normalized_task_records(
         layout=layout,
         run_name=run_name,
@@ -4732,6 +4810,8 @@ def _run_subject_products_impl(
         tasks=tasks,
         orchestration_elapsed_seconds=elapsed_seconds,
     )
+    phase_timings = dict(planning=planning_seconds, input_preparation_and_validation=input_seconds,
+                         product_execution=execution_seconds, metadata_and_profile=time.monotonic() - metadata_started)
 
     manifest = {
         "kind": "slicerddsurfer_product_orchestration",
@@ -4764,6 +4844,8 @@ def _run_subject_products_impl(
         },
         "archived_development_outputs": {key: value.as_posix() for key, value in archived_outputs.items()},
         "preflight_blocked_targets": preflight_blocked_targets,
+        "input_validation_path": input_validation_path.as_posix() if input_validation_path else None,
+        "input_blocked_targets": input_blocked_targets,
         "preflight_blocked_by_backend": config.preflight_blocked_by_backend,
         "run_name": run_name,
         "tractography_backend": config.tractography_backend,
@@ -4774,6 +4856,8 @@ def _run_subject_products_impl(
         "primary_tractography_backend": primary_tractography_backend,
         "bundle_backend": config.bundle_backend,
         "wmql_query_preset": config.wmql_query_preset,
+        "wmql_atlas_mode": config.wmql_atlas_mode,
+        "wma_atlas": config.wma_atlas,
         "wmql_query_selection": list(config.wmql_query_selection),
         "max_parallel_models": config.max_parallel_models,
         "bundle_backends": list(bundle_backends),
@@ -4870,12 +4954,14 @@ def _run_subject_products_impl(
         "tractcloud_batch_size": config.tractcloud_batch_size,
         "tractcloud_random_seed": config.tractcloud_random_seed,
         "elapsed_seconds": elapsed_seconds,
+        "phase_timings_seconds": phase_timings,
         "performance_profile_path": performance_profile.get("path"),
         "performance_profile": performance_profile,
         "tasks": task_payloads,
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    report_started = time.monotonic()
     try:
         from shared.output_tree_report import write_output_tree_report
 
@@ -4889,7 +4975,9 @@ def _run_subject_products_impl(
         manifest["output_tree_report_paths"] = output_tree_report_paths.to_dict()
     except Exception as exc:  # pragma: no cover - report generation must not break pipeline execution
         manifest["output_tree_report_error"] = str(exc)
+    phase_timings['output_tree_report'] = time.monotonic() - report_started
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    subject_report_started = time.monotonic()
     try:
         from shared.reporting import write_subject_reports
 
@@ -4923,6 +5011,13 @@ def _run_subject_products_impl(
         }
     except Exception as exc:  # pragma: no cover - reporting must not break pipeline execution
         manifest["report_error"] = str(exc)
+    phase_timings['subject_reports_and_refresh'] = time.monotonic() - subject_report_started
+    manifest['wall_time_seconds'] = time.monotonic() - start
+    manifest['wall_time_scope'] = 'Orchestrator planning through product execution and report generation; final telemetry write, CLI preflight and GUI loading are outside this interval.'
+    performance_profile['phase_timings_seconds'] = dict(phase_timings)
+    performance_profile['wall_time_seconds'] = manifest['wall_time_seconds']
+    performance_profile['wall_time_scope'] = manifest['wall_time_scope']
+    Path(performance_profile['path']).write_text(json.dumps(performance_profile, indent=2, sort_keys=True) + '\n', encoding='utf-8')
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return ProductOrchestratorResult(
         subject_id=config.subject_id,

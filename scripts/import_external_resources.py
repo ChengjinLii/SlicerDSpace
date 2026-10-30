@@ -82,6 +82,52 @@ def extract_org(archive, destination):
     return records
 
 
+def extract_indexed_archive(root, definition):
+    """Reassemble verified mirror parts and extract only the pinned file inventory."""
+    root = Path(root)
+    destination = root / definition["directory"]
+    index = json.loads((root / definition["extracted_index"]).read_text(encoding="utf-8"))
+    files = {item["path"]: item for item in index["files"]}
+    if not files or len(files) > 5000 or sum(item["size_bytes"] for item in files.values()) > 64 * 1024**3:
+        raise ValueError("Atlas index exceeds extraction limits")
+    for name in files:
+        path = PurePosixPath(name)
+        if path.is_absolute() or ".." in path.parts or "\\" in name or ":" in name:
+            raise ValueError("Unsafe atlas index member: " + name)
+    destination.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".atlas-import-", dir=destination) as temporary:
+        archive = Path(temporary) / "runtime.zip"
+        with archive.open("wb") as output:
+            for part in definition["archive_parts"]:
+                with (root / part).open("rb") as source:
+                    shutil.copyfileobj(source, output)
+        if digest(archive) != definition["archive_sha256"]:
+            raise ValueError("Reassembled atlas archive checksum mismatch")
+        with zipfile.ZipFile(archive) as zipped:
+            entries = zipped.infolist()
+            if len(entries) != len(files) or {item.filename for item in entries} != set(files):
+                raise ValueError("Atlas archive differs from its pinned extraction inventory")
+            for item in entries:
+                record = files[item.filename]
+                if item.file_size != record["size_bytes"] or stat.S_ISLNK(item.external_attr >> 16):
+                    raise ValueError("Atlas member size/type mismatch: " + item.filename)
+                target = destination.joinpath(*PurePosixPath(item.filename).parts)
+                if any(path.is_symlink() for path in (target, *target.parents)):
+                    raise ValueError("Refusing symlink extraction target")
+                if target.exists():
+                    if not target.is_file() or digest(target) != record["sha256"]:
+                        raise FileExistsError("Existing atlas file differs: " + str(target))
+                    continue
+                staged = Path(temporary) / "member"
+                with zipped.open(item) as source, staged.open("wb") as output:
+                    shutil.copyfileobj(source, output)
+                if digest(staged) != record["sha256"]:
+                    raise ValueError("Atlas member checksum mismatch: " + item.filename)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                staged.replace(target)
+    return len(files)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--asset-root', type=Path, required=True)

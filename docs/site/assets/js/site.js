@@ -3,6 +3,12 @@
 (function () {
   'use strict';
 
+  var chinese = document.documentElement.lang.toLowerCase().indexOf('zh') === 0;
+  var labels = chinese ? { play: '播放宣传片', replay: '重新播放', copy: '复制',
+    copied: '已复制', manualCopy: '请按 Ctrl+C', film: '（SlicerDSpace 宣传片）' } :
+    { play: 'Play film', replay: 'Play again', copy: 'Copy',
+      copied: 'Copied', manualCopy: 'Press Ctrl+C', film: ' (SlicerDSpace film)' };
+
   var reduceMotion = window.matchMedia &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -93,7 +99,7 @@
 
     function show(text) {
       label.textContent = text;
-      btn.setAttribute('aria-label', text + ' (SlicerDSpace film)');
+      btn.setAttribute('aria-label', text + labels.film);
       btn.hidden = false;
     }
     function start() {
@@ -107,7 +113,7 @@
 
     video.removeAttribute('controls');
     frame.appendChild(btn);
-    show('Play film · 1:12');
+    show(labels.play);
 
     btn.addEventListener('click', function () {
       if (video.ended) { video.currentTime = 0; }
@@ -116,7 +122,7 @@
     });
     video.addEventListener('ended', function () {
       video.removeAttribute('controls');
-      show('Play again');
+      show(labels.replay);
     });
 
     /* Hero button: scroll to the film and start it. */
@@ -166,9 +172,9 @@
       var timer = null;
       btn.addEventListener('click', function () {
         copyText(code.textContent).then(function () {
-          btn.textContent = 'Copied';
+          btn.textContent = labels.copied;
         }, function () {
-          btn.textContent = 'Press Ctrl+C';
+          btn.textContent = labels.manualCopy;
           var range = document.createRange();
           range.selectNodeContents(code);
           var sel = window.getSelection();
@@ -176,28 +182,23 @@
           sel.addRange(range);
         });
         clearTimeout(timer);
-        timer = setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
+        timer = setTimeout(function () { btn.textContent = labels.copy; }, 2000);
       });
     });
   }
 
-  /* ---------- Open the performance evidence for #performance, and any closed
-     <details> that holds the target of a hash ---------- */
+  /* ---------- Open any closed <details> containing the fragment target ---------- */
   function openForId(id) {
     if (!id) { return; }
     var target = document.getElementById(id);
     if (!target) { return; }
     var opened = false;
-    if (id === 'performance') {
-      var evidence = document.getElementById('performance-evidence');
-      if (evidence && !evidence.open) { evidence.open = true; opened = true; }
-    }
     var parent = target.parentElement ? target.parentElement.closest('details') : null;
     while (parent) {
       if (!parent.open) { parent.open = true; opened = true; }
       parent = parent.parentElement ? parent.parentElement.closest('details') : null;
     }
-    if (opened && id !== 'performance' && target.scrollIntoView) { target.scrollIntoView(); }
+    if (opened && target.scrollIntoView) { target.scrollIntoView(); }
   }
 
   function hashId() {
@@ -215,6 +216,14 @@
   }
 
   function init() {
+    Array.prototype.forEach.call(document.querySelectorAll('.lang-btn'), function (languageLink) {
+      languageLink.addEventListener('click', function (event) {
+        if (languageLink.classList.contains('is-active')) { event.preventDefault(); return; }
+        var target = new URL(languageLink.href);
+        target.hash = location.hash;
+        languageLink.href = target.href;
+      });
+    });
     initReveal();
     initMenu();
     initScrollSpy();

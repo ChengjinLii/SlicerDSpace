@@ -44,7 +44,7 @@ ENVIRONMENT_SECTION_METADATA = {
 ENVIRONMENT_SUBSECTION_METADATA = {
     "wma": {
         "title": "WMA Paths",
-        "description": "WhiteMatterAnalysis checkout, ORG atlas, and helper Slicer/CLI paths.",
+        "description": "WhiteMatterAnalysis, the selected ORG / East-West / NABA atlas, and Slicer/CLI paths.",
     },
     "tractcloud": {
         "title": "TractCloud Paths",
@@ -124,12 +124,17 @@ PATH_STATUS_DEPENDENCY_KEYS = {
         "command:mri_segstats",
     },
     "tract_querier_root": {"path:tract_querier_root", "path:tract_querier_root_script", "python:tract_querier"},
-    "wma_root": {"env:wma_root", "path:wma_root_path", "command:wm_apply_ORG_atlas_to_subject.sh"},
+    "wma_root": {"env:wma_root", "path:wma_root_path", "command:wm_apply_ORG_atlas_to_subject.sh",
+                 "path:wma_atlas_python_bridge"},
     "wma_atlas_dir": {
         "setting:wma_org_atlas",
         "path:wma_org_atlas",
         "path:wma_org_atlas_ORG-RegAtlas-100HCP",
         "path:wma_org_atlas_ORG-800FC-100HCP",
+        "path:wma_org_atlas_East-West_WM_Atlas_Reg",
+        "path:wma_org_atlas_East-West_WM_Atlas_800FC",
+        "path:wma_org_atlas_NABA-RegAtlas",
+        "path:wma_org_atlas_NABA-800FC",
     },
     "slicer_executable": {"env:slicer_executable", "path:slicer_executable_path"},
     "fiber_tract_measurements_cli": {"path:fiber_tract_measurements_cli"},

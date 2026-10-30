@@ -163,6 +163,7 @@ def snapshot_selection(owner):
         preprocessing_backend=node.preprocessingBackend, brain_mask_backend=node.brainMaskBackend,
         brain_mask_device=node.brainMaskDevice, microstructure_dki=owner._microstructure_dki_enabled(),
         dki_fit_method=node.orchestrationDkiFitMethod, wmql_query_preset=node.orchestrationWmqlPreset,
+        wma_atlas=getattr(node, "wmaAtlas", "org"),
         wmql_query_selection=node.orchestrationWmqlSelection, max_parallel_models=node.maxParallelModels,
         ukf_parameters_text=node.ukfParameters, wma_input_tractography_text=node.wmaInputTractography.strip(), topup=topup.parameters)
 

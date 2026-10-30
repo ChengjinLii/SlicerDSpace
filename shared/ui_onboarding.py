@@ -505,8 +505,8 @@ ENVIRONMENT_DEPENDENCY_TEXT = {
         ),
         "wma_root": ("WMA root", "Optional. External WhiteMatterAnalysis checkout root."),
         "wma_atlas_dir": (
-            "WMA ORG atlas dir",
-            "Optional. Directory containing ORG-RegAtlas-100HCP and ORG-800FC-100HCP.",
+            "WMA atlas directory",
+            "Optional. Registration and 800-cluster root for the atlas chosen in Advanced settings.",
         ),
         "slicer_executable": (
             "Slicer executable for WMA",
@@ -542,7 +542,7 @@ ENVIRONMENT_DEPENDENCY_TEXT = {
         "dki_mkcurve_root": ("作者原始 MK-Curve 代码目录", "包含作者原始外部 MATLAB MK-Curve 代码的目录；标准 DKI WLS/OLS 不使用此路径。"),
         "tract_querier_root": ("TractQuerier 根目录", "可选。当 Slicer Python 未安装 tract_querier 时，WMQL 使用的代码根目录。"),
         "wma_root": ("WMA 根目录", "可选。外部 WhiteMatterAnalysis 代码根目录。"),
-        "wma_atlas_dir": ("WMA ORG atlas 目录", "可选。包含 ORG-RegAtlas-100HCP 和 ORG-800FC-100HCP 的目录。"),
+        "wma_atlas_dir": ("WMA 图谱目录", "可选。高级设置中所选图谱的配准图谱和 800 簇目录所在位置。"),
         "slicer_executable": ("WMA 使用的 Slicer", "可选。WMA/SlicerDMRI 辅助调用使用的 Slicer 可执行文件。"),
         "fiber_tract_measurements_cli": ("FiberTractMeasurements CLI", "可选。SlicerDMRI FiberTractMeasurements CLI 路径。"),
         "tractcloud_root": ("TractCloud 根目录", "可选。TractCloud 软件包/代码根目录。"),

@@ -23,8 +23,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # The public Pages film is intentionally ordinary Git content, not a model asset
 # or an LFS pointer that a static Pages server could not play. No blanket media exemption.
 PUBLIC_FILM = "docs/site/media/SlicerDSpace_promo_1080p.mp4"
-PUBLIC_FILM_BYTES = 47767254
-PUBLIC_FILM_SHA256 = "4ead178f6d1165b98d0c5b61b1c94e250ac53d7893c5fae2d7847d6cdd1e13b5"
+PUBLIC_FILM_BYTES = 24799408
+PUBLIC_FILM_SHA256 = "877f7e3a4dc7afbf4641a609398940a65bf2b21c26d918c3f170efee78c27df9"
 LFS_REQUIRED_SUFFIXES = (
     ".pt",
     ".pkl",

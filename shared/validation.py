@@ -261,6 +261,26 @@ def _check_metadata(
         )
 
 
+def _check_dwi(raw: RawInputBundle, messages: list[ValidationIssue], metrics: dict[str, Any]) -> None:
+    try:
+        import nibabel as nib
+        image = nib.load(raw.dwi_path)
+        shape = tuple(int(value) for value in image.shape)
+        zooms = tuple(float(value) for value in image.header.get_zooms()[:3])
+        finite_geometry = all(math.isfinite(float(value)) for row in image.affine for value in row)
+        valid = len(shape) == 4 and all(value > 0 for value in shape)
+        valid_geometry = finite_geometry and len(zooms) == 3 and all(math.isfinite(value) and value > 0 for value in zooms)
+        metrics['dwi'] = {'valid': valid and valid_geometry, 'shape': list(shape),
+                          'volume_count': shape[3] if len(shape) == 4 else None}
+        if not valid:
+            _add_issue(messages, 'error', 'dwi', 'DWI must be a nonempty 4D image.', shape=list(shape))
+        if not valid_geometry:
+            _add_issue(messages, 'error', 'dwi', 'DWI has invalid affine or spatial voxel sizes.')
+    except Exception as exc:
+        metrics['dwi'] = {'valid': False}
+        _add_issue(messages, 'error', 'dwi', 'Failed to read the DWI image header.', error=str(exc))
+
+
 def _check_gradients(raw: RawInputBundle, messages: list[ValidationIssue], metrics: dict[str, Any]) -> None:
     try:
         bvals = _parse_bvals(raw.bval_path)
@@ -294,17 +314,25 @@ def _check_gradients(raw: RawInputBundle, messages: list[ValidationIssue], metri
         for idx, (bval, norm) in enumerate(zip(bvals, bvec_norms))
         if bval <= 50 and norm > 0.2
     ]
-    shells = sorted({int(round(value / 100.0) * 100) for value in bvals if value > 50})
+    shells = sorted({int(round(value / 100.0) * 100) for value in bvals if math.isfinite(value) and value > 50})
+    volume_count = metrics.get('dwi', {}).get('volume_count')
+    count_matches = volume_count is None or volume_count == len(bvals)
+    finite_norms = [value for value in bvec_norms if math.isfinite(value)]
 
     metrics["gradients"] = {
-        "valid": not (negative_bvals or nonfinite_bvals or nonfinite_bvecs),
+        "valid": not (negative_bvals or nonfinite_bvals or nonfinite_bvecs) and count_matches,
         "count": len(bvals),
+        "dwi_volume_count": volume_count,
         "b0_count": sum(1 for value in bvals if value <= 50),
         "diffusion_count": sum(1 for value in bvals if value > 50),
         "shells_rounded": shells,
-        "bvec_norm_min": min(bvec_norms) if bvec_norms else None,
-        "bvec_norm_max": max(bvec_norms) if bvec_norms else None,
+        "bvec_norm_min": min(finite_norms) if finite_norms else None,
+        "bvec_norm_max": max(finite_norms) if finite_norms else None,
     }
+
+    if not count_matches:
+        _add_issue(messages, 'error', 'gradient', 'Gradient count does not match the DWI volume count.',
+                   gradient_count=len(bvals), volume_count=volume_count)
 
     if negative_bvals:
         _add_issue(messages, "error", "gradient", "bvals contain negative values.", indices=negative_bvals[:20])
@@ -448,6 +476,7 @@ def validate_subject_inputs(config: InputValidationConfig) -> InputValidationRes
         else:
             subject_root = raw.subject_root
             _check_file_layout(raw, messages, metrics)
+            _check_dwi(raw, messages, metrics)
             _check_gradients(raw, messages, metrics)
             _check_metadata(raw, config, messages, metrics)
             _check_brain_mask(raw, config, messages, metrics)

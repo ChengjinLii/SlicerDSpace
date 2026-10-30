@@ -91,6 +91,8 @@ def write_ddseg_qc_record(
         },
         "outputs": {key: path.resolve().as_posix() for key, path in outputs.items()},
     }
+    from shared.pipeline import _artifact_record
+    record['output_artifacts'] = {key: _artifact_record(path, verify_content=True) for key, path in outputs.items()}
     qc_path = cfg.output_folder / "ddseg_qc.json"
     temporary_path = qc_path.with_suffix(".json.tmp")
     temporary_path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")

@@ -91,6 +91,8 @@ class ComputeScheduleTest(unittest.TestCase):
         source.mkdir()
         for name in ('data.nii.gz','bvals','bvecs','nodif_brain_mask.nii.gz'):
             (source/name).write_text('fixture')
+        from test_product_orchestrator import _write_valid_raw_subject
+        _write_valid_raw_subject(self.root)
         raw=RawInputBundle(self.root,'fixture',source,*[source/name for name in ('data.nii.gz','bvals','bvecs','nodif_brain_mask.nii.gz')])
         names=('fa','md','ad','rd','l1','l2','l3','trace','fwf','fw_tissue_fa','fw_tissue_md',
                'fw_tissue_valid_mask','free_water_qc','noddi_ndi','noddi_odi','noddi_fwf',

@@ -7,6 +7,8 @@ from pathlib import Path
 
 
 OFFICIAL_DIR = Path(__file__).resolve().parent / 'wmql_queries/official'
+CATALOG_PRESETS = ('official', 'cerebellar', 'official_cerebellar')
+CEREBELLAR_QUERIES = ('cerebellar_bilateral', 'cerebellar_brainstem.left', 'cerebellar_brainstem.right')
 
 
 def official_query_names():
@@ -25,13 +27,23 @@ def official_query_names():
     return tuple(sorted(set(names)))
 
 
-def canonical_wmql_selection(selection=()):
-    """Empty means all official outputs; a family name expands to its two sides."""
+def preset_query_names(preset='official'):
+    if preset == 'official':
+        return official_query_names()
+    if preset == 'cerebellar':
+        return CEREBELLAR_QUERIES
+    if preset == 'official_cerebellar':
+        return tuple(sorted((*official_query_names(), *CEREBELLAR_QUERIES)))
+    raise ValueError('Unknown bundled WMQL catalogue: ' + preset)
+
+
+def canonical_wmql_selection(selection=(), preset='official'):
+    """Empty means the selected catalogue; a family expands to both sides."""
     values = selection.split(',') if isinstance(selection, str) else selection
     requested = [str(value).strip().lower() for value in values if str(value).strip()]
     if not requested or requested == ['all']:
         return ()
-    available = set(official_query_names())
+    available = set(preset_query_names(preset))
     result = set()
     for name in requested:
         if name in available:
@@ -39,7 +51,7 @@ def canonical_wmql_selection(selection=()):
         elif {name + '.left', name + '.right'} <= available:
             result.update((name + '.left', name + '.right'))
         else:
-            raise ValueError(f'Unknown official WMQL query: {name}. Use all, a family such as AF, or an exact query name.')
+            raise ValueError(f'Unknown {preset} WMQL query: {name}. Use all, a family such as AF, or an exact query name.')
     return tuple(sorted(result))
 
 
@@ -62,12 +74,34 @@ def atlas_compatibility(path):
         raise ValueError('Official WMQL rules require FreeSurfer/DK regional label IDs; a tissue mask is not sufficient')
     warnings = []
     if not regional:
-        warnings.append('No regional WM labels (3000/4000 series). DK cortex/aseg IDs are usable but do not establish FreeSurfer wmparc equivalence; crossing-rule coverage may be sparse on ACT tracks.')
-    missing_core = sorted({2, 41, 10, 49, 11, 50, 12, 51, 17, 53, 18, 54, 16} - labels)
+        warnings.append('No regional WM labels (3000/4000 series). This is expected for DDParcel, '
+                        'but its generic WM (2/41) does not replace regional WM in the official '
+                        'crossing/only rules, including on UKF tracks.')
+    # The official aliases do not reference DDParcel's unsplit callosal label 192.
+    callosal_aliases = {'left': sorted(labels & {1004, 3004}), 'right': sorted(labels & {2004, 4004})}
+    unavailable_queries = []
+    if not callosal_aliases['left'] or not callosal_aliases['right']:
+        unavailable_queries.extend(('cc_5', 'cc_6'))
+        if not callosal_aliases['left'] and not callosal_aliases['right']:
+            unavailable_queries.append('cc')
+        warnings.append('Official callosal aliases are missing on one or both sides; required label '
+                        'conditions cannot be satisfied for: ' + ', '.join(sorted(unavailable_queries)) + '.')
+        if 192 in labels:
+            warnings.append('Corpus callosum is present as label 192, but the unchanged official '
+                            'corpuscallosum.left/right aliases use 1004/3004 and 2004/4004, not 192. '
+                            'This is a label-convention mismatch, not evidence of missing callosal anatomy.')
+    missing_core = {10, 49, 11, 50, 12, 51, 17, 53, 18, 54, 16} - labels
+    # A complete wmparc replaces generic 2/41 with regional/deep WM labels.
+    for generic, base, deep in ((2, 3000, 5001), (41, 4000, 5002)):
+        if generic not in labels and deep not in labels and not any(base < n <= base + 35 for n in labels):
+            missing_core.add(generic)
+    missing_core = sorted(missing_core)
     if missing_core:
         warnings.append('Some upstream subcortical/generic WM IDs are absent: ' + ', '.join(map(str, missing_core)))
     return dict(schema='wmql_dk_compatibility.v1', integer_labels=True, label_ids=sorted(labels),
                 cortical_region_ids=sorted(cortical), regional_wm_ids=sorted(regional),
+                official_callosal_alias_label_ids=callosal_aliases,
+                official_queries_with_unavailable_required_labels=sorted(unavailable_queries),
                 missing_core_ids=missing_core, label_semantics=label_semantics(data), warnings=warnings,
                 anatomical_equivalence_verified=False, spatial_alignment_review='pending',
                 scope='Numeric label convention only; no relabeling, dilation or substitution of author rules')

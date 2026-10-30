@@ -109,10 +109,11 @@ class SlicerDSpaceParameterNode:
     orchestrationTractographyBackend: Annotated[str, Choice(selection_choices(TRACKING))] = "csd_act"
     ukfParameters: str = "{}"
     orchestrationBundleBackend: Annotated[str, Choice([*selection_choices(BUNDLES), "all"]) ] = "wmql"
-    orchestrationWmqlPreset: Annotated[str, Choice(["official"])] = "official"
+    orchestrationWmqlPreset: Annotated[str, Choice(["official", "official_cerebellar", "cerebellar"])] = "official"
     orchestrationWmqlSelection: str = ""
     maxParallelModels: Annotated[int, WithinRange(1, 3)] = 1
     wmaInputTractography: str = ""
+    wmaAtlas: Annotated[str, Choice(["org", "east-west", "naba"])] = "org"
     orchestrationSelectStreamlines: int = 1000000
     orchestrationMicrostructureStages: Annotated[str, Choice([
         "dti", "dti,freewater", "dti,noddi", "dti,dki",
