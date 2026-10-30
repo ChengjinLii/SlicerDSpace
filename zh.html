@@ -20,7 +20,7 @@
 <link rel="apple-touch-icon" href="assets/img/icon-180.png">
 <link rel="preload" href="assets/fonts/InterTight.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/css/site.css?v=agent-steps-1">
+<link rel="stylesheet" href="assets/css/site.css?v=results-overview-1">
 <link rel="stylesheet" href="assets/css/performance.css?v=hidden-details-1">
 <link rel="stylesheet" href="assets/css/guide-bot.css">
 <script>document.documentElement.classList.add('js');</script>
@@ -105,7 +105,7 @@
         <li>SlicerDSpace：在 3D Slicer 中从扩散 MRI 获得大脑解剖结构。</li>
       </ol>
     </details>
-    <p class="note">宣传片展示解剖重建、纤维追踪及 TractCloud 纤维束。下方图集还提供微结构和连接组分析结果。</p>
+    <p class="note">宣传片展示解剖重建、纤维追踪及 TractCloud 纤维束。下方结果总览包含微结构、皮层表面及连接组输出。</p>
   </div>
 </section>
 
@@ -114,129 +114,14 @@
     <p class="eyebrow">原生扩散空间</p>
     <h2>SlicerDSpace 的输出结果。</h2>
     <p class="intro">展示各分析路线的代表性参数图、皮层表面、纤维通路和连接网络，所有结果均位于原生扩散空间。</p>
-    <div class="gallery">
-      <article class="tile">
-        <img src="assets/img/res-dec.jpg" width="1200" height="900" loading="lazy" alt="轴位和冠状位的方向编码彩色图">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">DTI</span> · <span class="chip-q">微结构</span></p>
-          <h3>方向编码彩色图</h3>
-          <p>以 FA 加权的主要扩散方向，来自 DTI 拟合。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-fw.jpg" width="1200" height="900" loading="lazy" alt="轴位和冠状位的自由水比例图">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">自由水</span> · <span class="chip-q">微结构</span></p>
-          <h3>自由水比例</h3>
-          <p>使用 b = 0、1000、2000 数据拟合 DIPY 自由水张量模型。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-ndi.jpg" width="1200" height="900" loading="lazy" alt="轴位和冠状位的 NODDI 神经突密度图">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">NODDI</span> · <span class="chip-q">微结构</span></p>
-          <h3>神经突密度</h3>
-          <p>使用双壳层数据通过 AMICO 拟合 NODDI，获得 NDI。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-mk.jpg" width="1200" height="900" loading="lazy" alt="轴位和冠状位的 DKI 平均峰度图">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">DKI</span> · <span class="chip-q">微结构</span></p>
-          <h3>平均峰度</h3>
-          <p>通过 DIPY 加权最小二乘 DKI 拟合获得 MK。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-mkcurve.jpg" width="1200" height="900" loading="lazy" alt="轴位和冠状位的 MK-Curve 平均峰度图">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">MK-Curve</span> · <span class="chip-q">微结构</span></p>
-          <h3>平均峰度：MK-Curve</h3>
-          <p>同一数据的非官方 Python 移植版结果。该次自动 QC 未通过：掩膜内有效体素占 98.7%，检查要求全部有效。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-tissue.jpg" width="1200" height="900" loading="lazy" alt="DDSeg 组织分割标签">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">DDSeg</span> · <span class="chip-q">组织</span></p>
-          <h3>组织分割</h3>
-          <p>根据 DTI 特征预测白质、灰质和脑脊液标签。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-parcel.jpg" width="1200" height="900" loading="lazy" alt="DDParcel 脑区分区">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">DDParcel</span> · <span class="chip-q">脑区</span></p>
-          <h3>脑区分区</h3>
-          <p>直接标记在扩散影像中的解剖脑区。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/out-surfaces.jpg" width="1200" height="900" loading="lazy" alt="DDSurfer 软脑膜面">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">DDSurfer</span> · <span class="chip-q">表面</span></p>
-          <h3>皮层表面</h3>
-          <p>原生扩散空间中的白质面和软脑膜面网格；图示为软脑膜面。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/out-tracts.jpg" width="1200" height="900" loading="lazy" alt="纤维追踪">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">纤维追踪</span> · <span class="chip-q">DTI</span></p>
-          <h3>全脑纤维追踪</h3>
-          <p>确定性 DTI 纤维追踪；图中展示 130,780 条流线中的 24,000 条。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-tr-ukf.jpg" width="1200" height="900" loading="lazy" alt="UKF 双张量纤维追踪">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">纤维追踪</span> · <span class="chip-q">UKF</span></p>
-          <h3>UKF 双张量纤维追踪</h3>
-          <p>使用 UKFTractography；图中展示 208,295 条流线中的 24,000 条。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-tr-csd.jpg" width="1200" height="900" loading="lazy" alt="结合 ACT 的 MSMT-CSD 纤维追踪">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">纤维追踪</span> · <span class="chip-q">CSD/ACT</span></p>
-          <h3>MSMT-CSD 与 ACT</h3>
-          <p>MRtrix3 iFOD2 追踪结合 ACT；图中展示 1,000,000 条流线中的 24,000 条。</p>
-        </div>
-      </article>
-      <article class="tile tile-wmql">
-        <img src="assets/img/res-wmql-ukf.jpg" width="1852" height="1000" loading="lazy" alt="基于 UKF 流线的 WMQL 官方多束查询结果">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">WMQL</span> · <span class="chip-q">纤维束</span></p>
-          <h3>多纤维束查询结果</h3>
-          <p>对 UKF 追踪结果运行 WMQL 官方查询。颜色区分查询类别，图中展示部分流线。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-tc-ukf.jpg" width="1200" height="900" loading="lazy" alt="TractCloud 纤维束">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">TractCloud</span> · <span class="chip-q">纤维束</span></p>
-          <h3>42 类白质纤维束</h3>
-          <p>对 UKF 流线运行 TractCloud：分类得到 84,356 条流线，图中展示其中 9,321 条。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/out-connectome.jpg" width="1200" height="900" loading="lazy" alt="连接组节点、边和矩阵">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">连接组</span> · <span class="chip-q">DDParcel 节点</span></p>
-          <h3>结构连接组</h3>
-          <p>展示 854 条边中最强的 260 条；矩阵显示完整的 84 × 84 节点连接。</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-net-sift2.jpg" width="1200" height="900" loading="lazy" alt="SIFT2 加权连接组的节点、边和矩阵">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">连接组</span> · <span class="chip-q">SIFT2</span></p>
-          <h3>SIFT2 加权连接组</h3>
-          <p>来自 CSD/ACT 追踪结果；图中展示 2,726 条边中最强的 260 条。</p>
-        </div>
-      </article>
-    </div>
-    <p class="note">图集使用流线子集和适当色标便于观察。评估结果时应结合拟合、几何、采样检查和解剖复核。</p>
+    <figure class="results-overview">
+      <div class="results-scroll" role="region" tabindex="0" aria-label="完整结果总览；小屏幕可横向滚动查看">
+        <a href="assets/img/results-overview.svg" target="_blank" rel="noopener" aria-label="打开完整结果总览矢量图">
+          <img src="assets/img/results-overview.svg" width="1830" height="2036" loading="lazy" decoding="async" alt="完整结果总览：解剖先验、微结构参数图、四种纤维追踪方法、WMQL、TractCloud 与 WMA 纤维束，以及结构连接组">
+        </a>
+      </div>
+      <figcaption>各分析路线的参数图、皮层表面、纤维束与连接组结果。 <a href="assets/img/results-overview.svg" target="_blank" rel="noopener">查看完整矢量图</a></figcaption>
+    </figure>
   </div>
 </section>
 
@@ -445,7 +330,7 @@ export SUBJECT_ROOT="/path/to/sub-01"
             <tr data-method="ukf"><th scope="row">纤维追踪</th><td>UKF 双张量</td><td>自动调用官方追踪命令行工具。</td><td class="st-cell">UKFTractography 扩展及 SlicerDMRI。</td><td class="ref-cell"><a class="method-reference" data-reference="19" href="https://doi.org/10.1109/TMI.2010.2048121" title="Malcolm JG, et al. Filtered multitensor tractography. IEEE Transactions on Medical Imaging 29(9):1664–1675, 2010." target="_blank" rel="noopener">DOI 10.1109/TMI.2010.2048121</a> <a class="method-reference" data-reference="28" href="https://doi.org/10.1200/CCI.19.00141" title="Zhang F, et al. SlicerDMRI: Diffusion MRI and tractography research software for brain cancer surgery planning and visualization. JCO Clinical Cancer Informatics, issue 4:299–309, 2020." target="_blank" rel="noopener">DOI 10.1200/CCI.19.00141</a></td></tr>
             <tr data-method="saf"><th scope="row">纤维追踪</th><td>SAF</td><td>表面约束的短联络纤维追踪与几何筛选。</td><td class="st-cell">MRtrix3；后处理后的原生表面。</td><td class="ref-cell"><a class="method-reference" data-reference="20" href="https://doi.org/10.1016/j.neuroimage.2022.119423" title="Shastin D, et al. Surface-based tracking for short association fibre tractography. NeuroImage 260:119423, 2022." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2022.119423</a></td></tr>
             <tr data-method="wmql" class="stage-start"><th scope="row">纤维束</th><td>WMQL（默认）</td><td>官方多束查询，支持选择束子集。</td><td class="st-cell">作者 tract_querier；DDParcel 标签。</td><td class="ref-cell"><a class="method-reference" data-reference="21" href="https://doi.org/10.1007/s00429-015-1179-4" title="Wassermann D, et al. The white matter query language: a novel approach for describing human white matter anatomy. Brain Structure and Function 221(9):4705–4721, 2016." target="_blank" rel="noopener">DOI 10.1007/s00429-015-1179-4</a></td></tr>
-            <tr data-method="wma"><th scope="row">纤维束</th><td>WMA</td><td>ORG 图谱配准与聚类，自动衔接 UKF。</td><td class="st-cell">WMA、ORG 图谱及 UKF 参考路线。</td><td class="ref-cell"><a class="method-reference" data-reference="22" href="https://doi.org/10.1016/j.neuroimage.2018.06.027" title="Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. NeuroImage 179:429–447, 2018." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2018.06.027</a> <a class="method-reference" data-reference="23" href="https://doi.org/10.1109/TMI.2007.906785" title="O’Donnell LJ, Westin CF. Automatic tractography segmentation using a high-dimensional white matter atlas. IEEE Transactions on Medical Imaging 26(11):1562–1575, 2007." target="_blank" rel="noopener">DOI 10.1109/TMI.2007.906785</a> <a class="method-reference" data-reference="24" href="https://doi.org/10.1007/978-3-642-33454-2_16" title="O’Donnell LJ, et al. Unbiased groupwise registration of white matter tractography. MICCAI 2012, Lecture Notes in Computer Science, pp. 123–130, 2012." target="_blank" rel="noopener">DOI 10.1007/978-3-642-33454-2_16</a> <a class="method-reference" data-reference="26" href="https://doi.org/10.5281/zenodo.2648292" title="Zhang F, et al. O’Donnell Research Group (ORG) Fiber Clustering White Matter Atlas, version 1.1.1. Zenodo dataset, 2019." target="_blank" rel="noopener">DOI 10.5281/zenodo.2648292</a></td></tr>
+            <tr data-method="wma"><th scope="row">纤维束</th><td>WMA</td><td>ORG、East-West 或 NABA 图谱配准与聚类；自动衔接 UKF。</td><td class="st-cell">WMA；所选图谱；UKF 参考路线</td><td class="ref-cell"><a class="method-reference" data-reference="22" href="https://doi.org/10.1016/j.neuroimage.2018.06.027" title="Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. NeuroImage 179:429–447, 2018." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2018.06.027</a> <a class="method-reference" data-reference="23" href="https://doi.org/10.1109/TMI.2007.906785" title="O’Donnell LJ, Westin CF. Automatic tractography segmentation using a high-dimensional white matter atlas. IEEE Transactions on Medical Imaging 26(11):1562–1575, 2007." target="_blank" rel="noopener">DOI 10.1109/TMI.2007.906785</a> <a class="method-reference" data-reference="24" href="https://doi.org/10.1007/978-3-642-33454-2_16" title="O’Donnell LJ, et al. Unbiased groupwise registration of white matter tractography. MICCAI 2012, Lecture Notes in Computer Science, pp. 123–130, 2012." target="_blank" rel="noopener">DOI 10.1007/978-3-642-33454-2_16</a> <a class="method-reference" data-reference="26" href="https://doi.org/10.5281/zenodo.2648292" title="Zhang F, et al. O’Donnell Research Group (ORG) Fiber Clustering White Matter Atlas, version 1.1.1. Zenodo dataset, 2019." target="_blank" rel="noopener">DOI 10.5281/zenodo.2648292</a> <a class="method-reference" data-reference="54" href="https://doi.org/10.1038/s41597-024-03624-2" title="Li Y, et al. A diffusion MRI tractography atlas for concurrent white matter mapping across Eastern and Western populations. Scientific Data 11:787, 2024." target="_blank" rel="noopener">DOI 10.1038/s41597-024-03624-2</a> <a class="method-reference" data-reference="55" href="https://doi.org/10.1016/j.fmre.2025.12.030" title="Zhang W, et al. Cross-population white matter atlas creation for concurrent mapping of brain connections in neonates and adults with diffusion MRI tractography. Fundamental Research 6(3):1838-1847, 2026." target="_blank" rel="noopener">DOI 10.1016/j.fmre.2025.12.030</a></td></tr>
             <tr data-method="tractcloud"><th scope="row">纤维束</th><td>TractCloud</td><td>调用作者学习型纤维分区模型并导出纤维束。</td><td class="st-cell">PyTorch 后端、模型及质心。</td><td class="ref-cell"><a class="method-reference" data-reference="25" href="https://doi.org/10.1007/978-3-031-43993-3_40" title="Xue T, et al. TractCloud: Registration-free tractography parcellation with a novel local-global streamline point cloud representation. MICCAI 2023, Lecture Notes in Computer Science, pp. 409–419, 2023." target="_blank" rel="noopener">DOI 10.1007/978-3-031-43993-3_40</a> <a class="method-reference" data-reference="22" href="https://doi.org/10.1016/j.neuroimage.2018.06.027" title="Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. NeuroImage 179:429–447, 2018." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2018.06.027</a></td></tr>
             <tr data-method="count" class="stage-start"><th scope="row">连接组</th><td>流线计数</td><td>将流线端点分配到 DDParcel 节点。</td><td class="st-cell">Python 或适用的 MRtrix3 后端。</td><td class="ref-cell"><a class="method-reference" data-reference="50" href="https://doi.org/10.1016/j.neuroimage.2019.05.005" title="Yeh CH, et al. Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential. NeuroImage 199:160-171, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.05.005</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></td></tr>
             <tr data-method="sift2"><th scope="row">连接组</th><td>SIFT2 加权计数</td><td>利用 FOD 计算权重，并使用匹配流线构建矩阵。</td><td class="st-cell">MRtrix3；对应的流线文件及权重。</td><td class="ref-cell"><a class="method-reference" data-reference="16" href="https://doi.org/10.1016/j.neuroimage.2015.06.092" title="Smith RE, et al. SIFT2: Enabling dense quantitative assessment of brain white matter connectivity using streamlines tractography. NeuroImage 119:338–351, 2015." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2015.06.092</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a> <a class="method-reference" data-reference="50" href="https://doi.org/10.1016/j.neuroimage.2019.05.005" title="Yeh CH, et al. Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential. NeuroImage 199:160-171, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.05.005</a></td></tr>

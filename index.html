@@ -20,7 +20,7 @@
 <link rel="apple-touch-icon" href="assets/img/icon-180.png">
 <link rel="preload" href="assets/fonts/InterTight.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/css/site.css?v=agent-steps-1">
+<link rel="stylesheet" href="assets/css/site.css?v=results-overview-1">
 <link rel="stylesheet" href="assets/css/performance.css?v=hidden-details-1">
 <link rel="stylesheet" href="assets/css/guide-bot.css">
 <script>document.documentElement.classList.add('js');</script>
@@ -105,7 +105,7 @@
         <li>SlicerDSpace. Brain anatomy from diffusion MRI, inside 3D Slicer.</li>
       </ol>
     </details>
-    <p class="note">The film introduces anatomical reconstruction, tracking and TractCloud bundle views. Explore the gallery below for additional microstructure and connectivity results.</p>
+    <p class="note">The film introduces anatomical reconstruction, tracking and TractCloud bundle views. Explore the results overview below for microstructure, surface and connectivity outputs.</p>
   </div>
 </section>
 
@@ -114,129 +114,14 @@
     <p class="eyebrow">Native diffusion space</p>
     <h2>Outputs from SlicerDSpace.</h2>
     <p class="intro">Representative maps, surfaces, pathways and networks from the available analysis routes. Each view highlights a different product in native diffusion space.</p>
-    <div class="gallery">
-      <article class="tile">
-        <img src="assets/img/res-dec.jpg" width="1200" height="900" loading="lazy" alt="DEC map on an axial and a coronal plane">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">DTI</span> · <span class="chip-q">microstructure</span></p>
-          <h3>Direction-encoded colour</h3>
-          <p>Principal diffusion direction weighted by FA, from the DTI fit.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-fw.jpg" width="1200" height="900" loading="lazy" alt="Free-water fraction on an axial and a coronal plane">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">Free water</span> · <span class="chip-q">microstructure</span></p>
-          <h3>Free-water fraction</h3>
-          <p>Free-water tensor model (DIPY) on b = 0, 1000 and 2000.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-ndi.jpg" width="1200" height="900" loading="lazy" alt="NODDI neurite density on an axial and a coronal plane">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">NODDI</span> · <span class="chip-q">microstructure</span></p>
-          <h3>Neurite density</h3>
-          <p>NDI from the NODDI fit (AMICO) on two shells.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-mk.jpg" width="1200" height="900" loading="lazy" alt="DKI mean kurtosis on an axial and a coronal plane">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">DKI</span> · <span class="chip-q">microstructure</span></p>
-          <h3>Mean kurtosis</h3>
-          <p>MK from the DKI fit (DIPY, WLS).</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-mkcurve.jpg" width="1200" height="900" loading="lazy" alt="MK-Curve mean kurtosis on an axial and a coronal plane">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">MK-Curve</span> · <span class="chip-q">microstructure</span></p>
-          <h3>Mean kurtosis, MK-Curve</h3>
-          <p>Unofficial Python port, same data. Automatic QC did not pass: 98.7% of mask voxels are valid; the check needs all.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-tissue.jpg" width="1200" height="900" loading="lazy" alt="DDSeg tissue labels">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">DDSeg</span> · <span class="chip-q">tissue</span></p>
-          <h3>Tissue labels</h3>
-          <p>White matter, grey matter and CSF, predicted from DTI features.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-parcel.jpg" width="1200" height="900" loading="lazy" alt="DDParcel regions">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">DDParcel</span> · <span class="chip-q">regions</span></p>
-          <h3>Brain regions</h3>
-          <p>Anatomical regions labelled in the diffusion volume.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/out-surfaces.jpg" width="1200" height="900" loading="lazy" alt="DDSurfer pial surface">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">DDSurfer</span> · <span class="chip-q">surfaces</span></p>
-          <h3>Cortical surfaces</h3>
-          <p>White and pial meshes in native diffusion space. Shown: the pial surface.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/out-tracts.jpg" width="1200" height="900" loading="lazy" alt="Tractography">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">Tractography</span> · <span class="chip-q">DTI</span></p>
-          <h3>Whole-brain tractography</h3>
-          <p>Deterministic DTI tractography. Shown: a display subset of 24,000 of 130,780 streamlines.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-tr-ukf.jpg" width="1200" height="900" loading="lazy" alt="UKF two-tensor tractography">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">Tractography</span> · <span class="chip-q">UKF</span></p>
-          <h3>UKF two-tensor tractography</h3>
-          <p>UKFTractography. Shown: a display subset of 24,000 of 208,295 streamlines.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-tr-csd.jpg" width="1200" height="900" loading="lazy" alt="MSMT-CSD tractography with ACT">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">Tractography</span> · <span class="chip-q">CSD/ACT</span></p>
-          <h3>MSMT-CSD with ACT</h3>
-          <p>MRtrix3 iFOD2 with ACT. Shown: 24,000 of 1,000,000 streamlines.</p>
-        </div>
-      </article>
-      <article class="tile tile-wmql">
-        <img src="assets/img/res-wmql-ukf.jpg" width="1852" height="1000" loading="lazy" alt="Official WMQL multi-bundle queries on UKF tractography">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">WMQL</span> · <span class="chip-q">fiber bundles</span></p>
-          <h3>Multi-bundle query results</h3>
-          <p>Official WMQL queries on UKF tractography. Colours distinguish query families; a display subset is shown.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-tc-ukf.jpg" width="1200" height="900" loading="lazy" alt="TractCloud bundles">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">TractCloud</span> · <span class="chip-q">fiber bundles</span></p>
-          <h3>42 white-matter tracts</h3>
-          <p>TractCloud on the UKF tractogram: 84,356 streamlines classified; 9,321 shown.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/out-connectome.jpg" width="1200" height="900" loading="lazy" alt="Connectome nodes/edges and matrix">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">Connectome</span> · <span class="chip-q">DDParcel nodes</span></p>
-          <h3>Structural connectome</h3>
-          <p>The 260 strongest of 854 edges are drawn; the matrix shows all 84 × 84 nodes.</p>
-        </div>
-      </article>
-      <article class="tile">
-        <img src="assets/img/res-net-sift2.jpg" width="1200" height="900" loading="lazy" alt="SIFT2-weighted connectome nodes/edges and matrix">
-        <div class="tile-body">
-          <p class="chip"><span class="chip-name">Connectome</span> · <span class="chip-q">SIFT2</span></p>
-          <h3>SIFT2-weighted connectome</h3>
-          <p>From the CSD/ACT tractogram. The 260 strongest of 2,726 edges are drawn.</p>
-        </div>
-      </article>
-    </div>
-    <p class="note">Gallery views use display subsets and colour scales for clarity. Assess each result with its recorded fit, geometry and sampling checks and anatomical review.</p>
+    <figure class="results-overview">
+      <div class="results-scroll" role="region" tabindex="0" aria-label="Complete results overview; scroll horizontally on small screens">
+        <a href="assets/img/results-overview.svg" target="_blank" rel="noopener" aria-label="Open the full-size results overview SVG">
+          <img src="assets/img/results-overview.svg" width="1830" height="2036" loading="lazy" decoding="async" alt="Complete result overview: anatomical priors, microstructure maps, four tractography methods, WMQL, TractCloud and WMA fiber bundles, and structural connectomes">
+        </a>
+      </div>
+      <figcaption>Maps, cortical surfaces, fiber bundles and connectomes from the available analysis routes. <a href="assets/img/results-overview.svg" target="_blank" rel="noopener">Open full-size SVG</a></figcaption>
+    </figure>
   </div>
 </section>
 
@@ -445,7 +330,7 @@ export SUBJECT_ROOT="/path/to/sub-01"
             <tr data-method="ukf"><th scope="row">Tractography</th><td>UKF two-tensor</td><td>Automatic invocation of the official tracking CLI.</td><td class="st-cell">UKFTractography extension; SlicerDMRI</td><td class="ref-cell"><a class="method-reference" data-reference="19" href="https://doi.org/10.1109/TMI.2010.2048121" title="Malcolm JG, et al. Filtered multitensor tractography. IEEE Transactions on Medical Imaging 29(9):1664–1675, 2010." target="_blank" rel="noopener">DOI 10.1109/TMI.2010.2048121</a> <a class="method-reference" data-reference="28" href="https://doi.org/10.1200/CCI.19.00141" title="Zhang F, et al. SlicerDMRI: Diffusion MRI and tractography research software for brain cancer surgery planning and visualization. JCO Clinical Cancer Informatics, issue 4:299–309, 2020." target="_blank" rel="noopener">DOI 10.1200/CCI.19.00141</a></td></tr>
             <tr data-method="saf"><th scope="row">Tractography</th><td>SAF</td><td>Surface-constrained short-association tracking and geometric filtering.</td><td class="st-cell">MRtrix3; post-processed native surfaces</td><td class="ref-cell"><a class="method-reference" data-reference="20" href="https://doi.org/10.1016/j.neuroimage.2022.119423" title="Shastin D, et al. Surface-based tracking for short association fibre tractography. NeuroImage 260:119423, 2022." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2022.119423</a></td></tr>
             <tr data-method="wmql" class="stage-start"><th scope="row">Fiber bundles</th><td>WMQL (default)</td><td>Official multi-bundle queries with optional subset selection.</td><td class="st-cell">Author tract_querier; DDParcel labels</td><td class="ref-cell"><a class="method-reference" data-reference="21" href="https://doi.org/10.1007/s00429-015-1179-4" title="Wassermann D, et al. The white matter query language: a novel approach for describing human white matter anatomy. Brain Structure and Function 221(9):4705–4721, 2016." target="_blank" rel="noopener">DOI 10.1007/s00429-015-1179-4</a></td></tr>
-            <tr data-method="wma"><th scope="row">Fiber bundles</th><td>WMA</td><td>ORG-atlas registration and clustering; automatic UKF handoff.</td><td class="st-cell">WMA; ORG atlas; UKF reference route</td><td class="ref-cell"><a class="method-reference" data-reference="22" href="https://doi.org/10.1016/j.neuroimage.2018.06.027" title="Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. NeuroImage 179:429–447, 2018." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2018.06.027</a> <a class="method-reference" data-reference="23" href="https://doi.org/10.1109/TMI.2007.906785" title="O’Donnell LJ, Westin CF. Automatic tractography segmentation using a high-dimensional white matter atlas. IEEE Transactions on Medical Imaging 26(11):1562–1575, 2007." target="_blank" rel="noopener">DOI 10.1109/TMI.2007.906785</a> <a class="method-reference" data-reference="24" href="https://doi.org/10.1007/978-3-642-33454-2_16" title="O’Donnell LJ, et al. Unbiased groupwise registration of white matter tractography. MICCAI 2012, Lecture Notes in Computer Science, pp. 123–130, 2012." target="_blank" rel="noopener">DOI 10.1007/978-3-642-33454-2_16</a> <a class="method-reference" data-reference="26" href="https://doi.org/10.5281/zenodo.2648292" title="Zhang F, et al. O’Donnell Research Group (ORG) Fiber Clustering White Matter Atlas, version 1.1.1. Zenodo dataset, 2019." target="_blank" rel="noopener">DOI 10.5281/zenodo.2648292</a></td></tr>
+            <tr data-method="wma"><th scope="row">Fiber bundles</th><td>WMA</td><td>ORG, East-West or NABA atlas registration and clustering; automatic UKF handoff.</td><td class="st-cell">WMA; selected atlas; UKF reference route</td><td class="ref-cell"><a class="method-reference" data-reference="22" href="https://doi.org/10.1016/j.neuroimage.2018.06.027" title="Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. NeuroImage 179:429–447, 2018." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2018.06.027</a> <a class="method-reference" data-reference="23" href="https://doi.org/10.1109/TMI.2007.906785" title="O’Donnell LJ, Westin CF. Automatic tractography segmentation using a high-dimensional white matter atlas. IEEE Transactions on Medical Imaging 26(11):1562–1575, 2007." target="_blank" rel="noopener">DOI 10.1109/TMI.2007.906785</a> <a class="method-reference" data-reference="24" href="https://doi.org/10.1007/978-3-642-33454-2_16" title="O’Donnell LJ, et al. Unbiased groupwise registration of white matter tractography. MICCAI 2012, Lecture Notes in Computer Science, pp. 123–130, 2012." target="_blank" rel="noopener">DOI 10.1007/978-3-642-33454-2_16</a> <a class="method-reference" data-reference="26" href="https://doi.org/10.5281/zenodo.2648292" title="Zhang F, et al. O’Donnell Research Group (ORG) Fiber Clustering White Matter Atlas, version 1.1.1. Zenodo dataset, 2019." target="_blank" rel="noopener">DOI 10.5281/zenodo.2648292</a> <a class="method-reference" data-reference="54" href="https://doi.org/10.1038/s41597-024-03624-2" title="Li Y, et al. A diffusion MRI tractography atlas for concurrent white matter mapping across Eastern and Western populations. Scientific Data 11:787, 2024." target="_blank" rel="noopener">DOI 10.1038/s41597-024-03624-2</a> <a class="method-reference" data-reference="55" href="https://doi.org/10.1016/j.fmre.2025.12.030" title="Zhang W, et al. Cross-population white matter atlas creation for concurrent mapping of brain connections in neonates and adults with diffusion MRI tractography. Fundamental Research 6(3):1838-1847, 2026." target="_blank" rel="noopener">DOI 10.1016/j.fmre.2025.12.030</a></td></tr>
             <tr data-method="tractcloud"><th scope="row">Fiber bundles</th><td>TractCloud</td><td>Author learned tract parcellation and bundle export.</td><td class="st-cell">PyTorch backend; model and centroids</td><td class="ref-cell"><a class="method-reference" data-reference="25" href="https://doi.org/10.1007/978-3-031-43993-3_40" title="Xue T, et al. TractCloud: Registration-free tractography parcellation with a novel local-global streamline point cloud representation. MICCAI 2023, Lecture Notes in Computer Science, pp. 409–419, 2023." target="_blank" rel="noopener">DOI 10.1007/978-3-031-43993-3_40</a> <a class="method-reference" data-reference="22" href="https://doi.org/10.1016/j.neuroimage.2018.06.027" title="Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. NeuroImage 179:429–447, 2018." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2018.06.027</a></td></tr>
             <tr data-method="count" class="stage-start"><th scope="row">Connectome</th><td>Streamline count</td><td>Endpoint assignment to DDParcel nodes.</td><td class="st-cell">Python or eligible MRtrix3 backend</td><td class="ref-cell"><a class="method-reference" data-reference="50" href="https://doi.org/10.1016/j.neuroimage.2019.05.005" title="Yeh CH, et al. Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential. NeuroImage 199:160-171, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.05.005</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></td></tr>
             <tr data-method="sift2"><th scope="row">Connectome</th><td>SIFT2-weighted count</td><td>FOD-informed weighting and matrix construction with matched tracks.</td><td class="st-cell">MRtrix3; corresponding tractogram and weights</td><td class="ref-cell"><a class="method-reference" data-reference="16" href="https://doi.org/10.1016/j.neuroimage.2015.06.092" title="Smith RE, et al. SIFT2: Enabling dense quantitative assessment of brain white matter connectivity using streamlines tractography. NeuroImage 119:338–351, 2015." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2015.06.092</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a> <a class="method-reference" data-reference="50" href="https://doi.org/10.1016/j.neuroimage.2019.05.005" title="Yeh CH, et al. Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential. NeuroImage 199:160-171, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.05.005</a></td></tr>

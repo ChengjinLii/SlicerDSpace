@@ -1087,3 +1087,13 @@ figcaption {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+/* Keep the complete scientific plate readable without overflowing the page. */
+.results-overview { margin: 2rem 0 0; }
+.results-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+.results-scroll a { display: block; min-width: min(900px, 100%); }
+.results-scroll img { display: block; width: 100%; height: auto; }
+.results-overview figcaption { margin-top: 1rem; color: var(--muted, #9ca5b1); line-height: 1.7; }
+.results-overview figcaption a { white-space: nowrap; margin-left: .5em; }
+@media (max-width: 700px) {
+  .results-scroll a { min-width: 850px; }
+}
