@@ -40,3 +40,9 @@ goal_completion_audit.md
 
 # Superseded local website checkout; the maintained site is docs/site/.
 /website/
+
+# Independent manuscript checkout and publication source material.
+/paper-latex/
+/docs/paper/
+/docs/figures/
+/scripts/figures/

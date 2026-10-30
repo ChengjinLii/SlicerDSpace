@@ -87,19 +87,19 @@ scrolling, header collisions and switching between docked and floating modes.
 The integration catalogue sits immediately before References. The product map
 remains; the six example combinations and standalone In Slicer section are
 removed. Header/footer branding and browser icons are transparent PNG exports
-of `docs/figures/logo-ref.svg`. Verify them with
-`python3 scripts/sync_website_logo.py --check`.
+of `paper-latex:docs/figures/logo-ref.svg`. Verify them with
+`python3 scripts/check_website_assets.py --check`.
 
 - The WMQL gallery tile uses `assets/img/res-wmql-ukf.jpg`, an unchanged copy of
-  the official multi-query UKF render in `docs/figures/src/results/`. Its source
-  and hash are recorded in `wmql_sources.json`. `python3 scripts/sync_wmql_site_asset.py --check`
-  verifies the copy; omit `--check` to refresh it. The full lateral view fits
+  the official multi-query UKF render in `paper-latex:docs/figures/src/results/`. Its source
+  and hash are recorded in `wmql_sources.json`. `python3 scripts/check_website_assets.py --check`
+  verifies the published copy; regenerate and import artwork from the independent repository when updating it. The full lateral view fits
   inside the gallery tile without cropping. The earlier CSD/ACT AF/CST thumbnail is retired.
 - `assets/img/fig-product-map.png` (section `#choose`) and
   `assets/img/fig-runtime-resources.png` and `assets/img/fig-runtime-optimizations.png`
   (two independent figures in section `#runtime`) are rasterised from the
-  editable SVG sources in `docs/figures/`, which are not published. See
-  [`docs/figures/README.md`](../figures/README.md) to rebuild them. Each `<img>` carries
+  editable SVG sources in `paper-latex:docs/figures/`, which are not published. See
+  [the independent artwork repository](https://github.com/ChengjinLii/paper-latex/blob/main/docs/figures/README.md) to rebuild them. Each `<img>` carries
   the pixel size of its file and links to the full-size file.
 - The standalone "What is integrated" section (`#integrated`) lists 35 concrete
   method/utility entries, including the available denoisers, masking alternatives,
@@ -191,3 +191,5 @@ guarantee that every scientific route passes on every subject or platform.
 Keep its release-state and review caveats until stronger evidence exists.
 The film's automatic transcript/timing checks do not replace listening to its
 audio mix; the contributor recorded that human audio review is still pending.
+
+Editable artwork, source renders and generation scripts are maintained in the independent [paper-latex repository](https://github.com/ChengjinLii/paper-latex). This software checkout retains reviewed website images and their SHA256 receipts.

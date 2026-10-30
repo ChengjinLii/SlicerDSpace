@@ -42,7 +42,7 @@ review does not merge or overwrite those remote changes.
 | `run_postprocess_docker.py` | Retain | Documented compatibility entry for the optional Docker route, covered by regression tests. |
 | `anatomy/surface/ddsurfer_postprocess_release/` | Retain | Still resolved by `anatomy/surface/postprocess_release.py` and used by postprocessing tests. |
 | `anatomy/surface/ddsurfer_backend/` | Retain | Current DDSurfer algorithm source, not a superseded plugin version. |
-| Original figure assets and reference metadata | Retain | Inputs to figure regeneration, manuscript assets or archived citation verification. |
+| Original figure assets and manuscript reference metadata | Separate repository | Maintained in `paper-latex`; the software repository keeps published display images and software citations. |
 | Website `idea.jpg` and `fig-route-guide.png` | Review only | Not used by the current homepage, but still listed in the site specification; retained as source material. |
 
 No additional backup, `.orig`, `.rej` or retired-source directory is present
@@ -85,4 +85,4 @@ headers and notices of every remaining FastSurfer-derived file.
 Before publishing a cleanup, run `make test-fast` on an isolated snapshot of
 the exact staged content and perform installed-extension smoke checks. Do not
 include unrelated local algorithm, model or validation changes in the cleanup
-commit, and do not rewrite published history to erase the old files.
+commit. The separately authorized manuscript migration also removes publication-only paths from reachable Git history; its recovery backup is stored outside this repository.

@@ -65,18 +65,18 @@
 首页主标题为“SlicerDSpace”，论文题目的说明部分作为下方副标题。移除独立的
 The idea、Workflows 和 Status 部分，结果简介不再反复强调被试编号，来源记录继续保留。
 “What is integrated” 紧邻最后的 References 之前。方法总图继续保留，六种产品组合示例
-及独立 In Slicer 区块不再展示。页眉、页脚和浏览器图标改用 `docs/figures/logo-ref.svg`
-导出的透明 PNG；`python3 scripts/sync_website_logo.py --check` 检查矢量源及导出资源。
+及独立 In Slicer 区块不再展示。页眉、页脚和浏览器图标改用 `paper-latex:docs/figures/logo-ref.svg`
+导出的透明 PNG；`python3 scripts/check_website_assets.py --check` 检查矢量源及导出资源。
 Get started 提供安装路径、输入准备、
 按需环境安装、方法选择及 CLI 示例。
 
 - `assets/img/fig-product-map.png`（`#choose`），以及 `#runtime` 中独立的
   `assets/img/fig-runtime-resources.png` 和 `assets/img/fig-runtime-optimizations.png`
-  由 `docs/figures/` 中可编辑的 SVG 生成，SVG 不公开发布，重建方法见 `docs/figures/README.md`。
+  由 `paper-latex:docs/figures/` 中可编辑的 SVG 生成，SVG 不公开发布，重建方法见 `paper-latex:docs/figures/README.md`。
   每个 `<img>` 的宽高与文件像素一致，并链接到原图。
 - WMQL 卡片改用 `assets/img/res-wmql-ukf.jpg`，与 Results 图的官方多束规则 UKF
-  素材逐字节一致，来源及哈希见 `docs/figures/src/results/wmql_sources.json`。
-  `python3 scripts/sync_wmql_site_asset.py --check` 校验同步状态，去掉 `--check` 可刷新。
+  素材逐字节一致，来源及哈希见 `paper-latex:docs/figures/src/results/wmql_sources.json`。
+  `python3 scripts/check_website_assets.py --check` 校验已发布文件；更新时从独立论文仓库重新生成并导入。
   完整侧位图按比例显示，不裁切边缘；旧 CSD/ACT AF/CST 缩略图不再发布。
 - 独立的 `#integrated` 部分用“What is integrated”表列出 35 项具体方法及分析工具，
   覆盖去噪、脑掩膜、解剖、微结构、追踪、束分析、连接组和选区分析，每项均有来源引用。
@@ -140,3 +140,5 @@ node Testing/Website/browser_check.mjs
 页面介绍已展示的工作流与审核证据，不表示所有算法在每个被试、平台都通过。
 正式发布前保留科学与发布状态说明。自动字幕/时间检查不等于已经人工听过视频
 混音；贡献者明确记录了人工听审仍待完成。
+
+可编辑插图、原始素材与生成脚本由独立的 [paper-latex 仓库](https://github.com/ChengjinLii/paper-latex) 管理。本软件仓库保留网站展示图片及 SHA256 凭据。

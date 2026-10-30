@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "source_repository": "ChengjinLii/paper-latex",
+  "files": {
+    "Resources/Icons/SlicerDSpace.png": {
+      "sha256": "88fe72d9290b8fc0e60d451afbcb64fb75920f32041207ed17620ee9a2fcdf1a"
+    },
+    "docs/site/assets/img/logo-ddsurfer.png": {
+      "sha256": "88fe72d9290b8fc0e60d451afbcb64fb75920f32041207ed17620ee9a2fcdf1a"
+    },
+    "docs/site/assets/img/icon-64.png": {
+      "sha256": "27d7d4c6bc3c0917f9cff3c40807c53b63b9ee23ec421cc3ea1e357c62c0a34d"
+    },
+    "docs/site/assets/img/icon-180.png": {
+      "sha256": "de12f86ae4cb0265b1c743c65ea8751cae253c4df5180fd914d53341ab49e840"
+    },
+    "docs/site/assets/img/slicerdspace-wordmark.svg": {
+      "sha256": "499c206b72b1901b5615559c83a4d28e169b22073879396f396ec68f7a7b30f2"
+    },
+    "docs/site/assets/img/slicerdspace-wordmark-light.svg": {
+      "sha256": "6819d2b477efb64d95327d306c3b30d95ddd4e853f51dc54b209ed3066e6a46f"
+    },
+    "docs/site/assets/img/res-wmql-ukf.jpg": {
+      "sha256": "af942ba00b27f4fe52009ede25a6afae3263a244cd52c40fb89824d0d0d23598",
+      "query_preset": "official_multibundle",
+      "input_method": "UKF"
+    },
+    "docs/site/assets/img/fig-product-map.png": {
+      "sha256": "b0da2ea13bc32b1fb04dfb1ed0472f2427711a1062d3cccf354efdb142326a90"
+    },
+    "docs/site/assets/img/fig-route-guide.png": {
+      "sha256": "400931d034332c54e2557e2b185ca1979fc92c76bcfc54f31be2a312eca34a3a"
+    },
+    "docs/site/assets/img/fig-runtime-resources.png": {
+      "sha256": "7b34ee9dad3fdf57872ef77c3b266a66e75be992ba3aebb8c55e9a6ccb325391"
+    },
+    "docs/site/assets/img/fig-runtime-optimizations.png": {
+      "sha256": "019703f494e6ee3fbdf40b7c5aaa4477684fdb1d3ea3b1824694dc0e9407fc5e"
+    }
+  }
+}

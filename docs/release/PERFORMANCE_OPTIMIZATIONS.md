@@ -153,9 +153,7 @@ from history. Ten operations do not mean ten scientific algorithms or ten
 original contributions. The public catalogue retains 13 classified records with
 source hashes; source freshness remains dated 22 October, not a new audit.
 
-[600-dpi figure](../figures/export/runtime_optimizations_600dpi.png) ·
-[Vector PDF](../figures/export/runtime_optimizations.pdf) ·
-[Editable SVG](../figures/runtime_optimizations.svg).
+[Runtime comparison](../site/assets/img/fig-runtime-optimizations.png).
 
 ---
 

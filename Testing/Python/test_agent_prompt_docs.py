@@ -1,4 +1,4 @@
-"""Keep user-facing Agent prompts in the READMEs, homepage and manuscript."""
+"""Keep user-facing Agent prompts in the READMEs and homepage."""
 
 from html import unescape
 from pathlib import Path
@@ -63,14 +63,6 @@ class AgentPromptDocsTests(unittest.TestCase):
             self.assertEqual(len(matches), 1, identity)
             self.assertEqual(normalized(unescape(matches[0])), normalized(self.examples[index]))
 
-    def test_manuscript_includes_the_same_two_standalone_prompts(self):
-        source = (ROOT / "docs/paper/manuscript.tex").read_text(encoding="utf-8")
-        prompts = re.findall(r"\\begin\{quote\}\\small\\raggedright (.*?)\\end\{quote\}", source, re.S)
-        prompts = [item for item in prompts if URL in item]
-        self.assertEqual(len(prompts), 2)
-        for actual, expected in zip(prompts, self.examples[:2]):
-            actual = re.sub(r"\\url\{([^}]+)\}", r"\1", actual)
-            self.assertEqual(normalized(actual), normalized(expected))
 
     def test_analysis_example_has_input_output_and_plan_confirmation(self):
         install, analysis = self.examples[:2]
@@ -84,12 +76,6 @@ class AgentPromptDocsTests(unittest.TestCase):
         self.assertIn("wait for confirmation before running", analysis)
         self.assertIn("QC findings", analysis)
 
-    def test_both_prompts_appear_together_in_equipment_setup(self):
-        source = (ROOT / "docs/paper/manuscript.tex").read_text(encoding="utf-8")
-        setup = source.split(r"\textbf{Agent-assisted installation and use.}", 1)[1].split(
-            r"\textbf{Interface and command-line variables.}", 1)[0]
-        self.assertEqual(setup.count(r"\begin{quote}"), 2)
-        self.assertIn("DDParcel", setup)
 
 
 if __name__ == "__main__":

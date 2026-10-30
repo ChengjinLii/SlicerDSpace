@@ -4,7 +4,7 @@
 
 **2026-10-29 · 代码审阅与实测证据整理 · 后续 Agent 实施交接**
 
-[项目](../../README.zh-CN.md) | [已有优化与实测](PERFORMANCE_OPTIMIZATIONS.zh-CN.md) | [运行时间](../paper/evidence/runtime_observations.csv)
+[项目](../../README.zh-CN.md) | [已有优化与实测](PERFORMANCE_OPTIMIZATIONS.zh-CN.md) | [运行时间](benchmarks/runtime_devices_20261024.json)
 
 </div>
 
@@ -49,7 +49,7 @@ DDParcel 同输入 CUDA 预测循环为 **68.5 s**，DDSeg CPU/CUDA 预测记录
 
 证据入口：
 
-- [论文运行时间数据](../paper/evidence/runtime_observations.csv)与[设备记录](benchmarks/runtime_devices_20261024.json)。
+- [运行设备与时间记录](benchmarks/runtime_devices_20261024.json)与[设备记录](benchmarks/runtime_devices_20261024.json)。
 - [完整模块配对](benchmarks/complete_models_20261020.json)：NODDI、WMA、早期 MK-Curve 的完成记录，以及 DKI ROI 对照。
 - [最新 Free-water 全脑配对](benchmarks/freewater_protocol_full_20261029.json)。
 - [MK-Curve 最新 SciPy 小块对照](benchmarks/mkcurve_qr_scipy1181_20261022.json)：不能外推到全脑。

@@ -133,9 +133,7 @@ DDParcel 的新记录还绑定归一化输入、模型权重、设置和导出�
 网页证据目录扩至 13 条，新增条目仍按实现／移植／继承／I/O 分类，保留来源 JSON
 及 SHA256；上游版本核验日期仍为 10 月 22 日。
 
-[高清图](../figures/export/runtime_optimizations_600dpi.png) ·
-[矢量 PDF](../figures/export/runtime_optimizations.pdf) ·
-[可编辑 SVG](../figures/runtime_optimizations.svg)。
+[运行时间对照图](../site/assets/img/fig-runtime-optimizations.png)。
 
 ---
 

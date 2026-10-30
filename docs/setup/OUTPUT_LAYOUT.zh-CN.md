@@ -2,7 +2,7 @@
 
 # 输出目录
 
-[首页](../../README.zh-CN.md) | [快速开始](QUICKSTART.zh-CN.md) | [插图](../figures/README.md) | [English](OUTPUT_LAYOUT.md)
+[首页](../../README.zh-CN.md) | [快速开始](QUICKSTART.zh-CN.md) | [网站](../website/README.zh-CN.md) | [English](OUTPUT_LAYOUT.md)
 
 </div>
 

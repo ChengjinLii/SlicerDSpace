@@ -58,6 +58,10 @@ FORBIDDEN_TRACKED_PATH_PARTS = (
     "release_artifacts",
 )
 FORBIDDEN_TRACKED_ASSET_PREFIXES = (
+    "paper-latex/",
+    "docs/paper/",
+    "docs/figures/",
+    "scripts/figures/",
     "Resources/Data/",
     "surface/template/",
     "segmentation/weights/",

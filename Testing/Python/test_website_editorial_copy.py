@@ -1,4 +1,4 @@
-"""Keep the homepage aligned with the manuscript and current GUI entry points."""
+"""Keep the homepage aligned with the published assets and current GUI entry points."""
 import html
 import hashlib
 import json
@@ -48,21 +48,19 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
             logo = re.search(r'class="' + css_class + r'"[^>]*>\s*<img\b([^>]+)>', self.source).group(1)
             self.assertIn('src="assets/img/logo-ddsurfer.png"', logo)
         record = json.loads((ROOT / "docs/website/logo_provenance.json").read_text(encoding="utf-8"))
-        self.assertEqual(record["source"], "docs/figures/logo-ref.svg")
-        subprocess.run([sys.executable, "scripts/sync_website_logo.py", "--check"],
+        self.assertEqual(record["source_repository"], "ChengjinLii/paper-latex")
+        subprocess.run([sys.executable, "scripts/check_website_assets.py", "--check"],
                        cwd=ROOT, check=True, capture_output=True, text=True)
 
     def test_wmql_gallery_matches_latest_official_query_asset(self):
         card = re.search(r'<article class="tile tile-wmql">(.*?)</article>',
                          self.source, re.S).group(1)
-        source = ROOT / "docs/figures/src/results/bu_wmql_ukf.jpg"
         published = ROOT / "docs/site/assets/img/res-wmql-ukf.jpg"
-        receipt = json.loads((source.parent / "wmql_sources.json").read_text(encoding="utf-8"))
-        self.assertEqual(receipt["query_provenance"]["preset"], "official_multibundle")
-        self.assertEqual(receipt["stills"]["bu_wmql_ukf"]["display"]["input_method"], "UKF")
-        self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),
-                         receipt["stills"]["bu_wmql_ukf"]["display"]["jpeg_sha256"])
-        self.assertEqual(published.read_bytes(), source.read_bytes())
+        receipt = json.loads((ROOT / "docs/website/published_assets.json").read_text(encoding="utf-8"))
+        entry = receipt["files"]["docs/site/assets/img/res-wmql-ukf.jpg"]
+        self.assertEqual(entry["query_preset"], "official_multibundle")
+        self.assertEqual(entry["input_method"], "UKF")
+        self.assertEqual(hashlib.sha256(published.read_bytes()).hexdigest(), entry["sha256"])
         self.assertIn('src="assets/img/res-wmql-ukf.jpg"', card)
         self.assertIn('width="1852" height="1000"', card)
         self.assertIn("Official WMQL queries on UKF", card)

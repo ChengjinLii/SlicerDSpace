@@ -2,7 +2,7 @@
 
 # Output Layout
 
-[Home](../../README.md) | [Quick Start](QUICKSTART.md) | [Figures](../figures/README.md) | [中文](OUTPUT_LAYOUT.zh-CN.md)
+[Home](../../README.md) | [Quick Start](QUICKSTART.md) | [Website](../website/README.md) | [中文](OUTPUT_LAYOUT.zh-CN.md)
 
 </div>
 

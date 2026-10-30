@@ -95,7 +95,7 @@ Settled decisions (not to be reopened in review):
      `docs/release/BUNDLE_BACKENDS_20261013.md`, `docs/release/SAF_PYTHON_20261013.md`,
      `docs/release/ALGORITHM_SELECTION_20261021.md`, `docs/setup/SUPPORT_MATRIX.md`, `docs/setup/UKF.md`,
      `docs/setup/MICROSTRUCTURE.md` and `docs/architecture/IMPLEMENTATION_PROVENANCE.md`.
-   - Figures (§5.6a, §5.10a): `docs/figures/README.md` (legends, generators and data files) and the data files it names
+   - Figures (§5.6a, §5.10a): `paper-latex:docs/figures/README.md` (legends, generators and data files) and the data files it names
      (`docs/release/benchmarks/module_runtimes_20261017.json`, `docs/site/assets/data/performance.json`).
    - Performance section (§5.10b): `docs/release/benchmarks/*.json`, through `scripts/build_performance_site.py`.
    - References (§5.10): the DOI record of each entry (Crossref or DataCite) and the page of the tool that asks for the
@@ -129,7 +129,7 @@ docs/site/assets/img/                         icon-64.png, icon-180.png (from R/
                                               (header and footer logo), guide-bot-hat.svg (project-guide mascot), poster.jpg,
                                               social.jpg, idea.jpg, out-surfaces.jpg, out-tracts.jpg, out-connectome.jpg, slicer.jpg,
                                               fig-product-map.png, fig-route-guide.png, fig-runtime-resources.png, fig-runtime-optimizations.png (the four
-                                              figures are rasterised from `docs/figures/*.svg`, which is not served), and twelve result tiles: res-dec.jpg,
+                                              figures are rasterised from `paper-latex:docs/figures/*.svg`, which is not served), and twelve result tiles: res-dec.jpg,
                                               res-fw.jpg, res-ndi.jpg, res-mk.jpg, res-mkcurve.jpg, res-tissue.jpg, res-parcel.jpg, res-tr-ukf.jpg,
                                               res-tr-csd.jpg, res-wmql-ukf.jpg, res-tc-ukf.jpg, res-net-sift2.jpg
 docs/site/media/SlicerDSpace_promo_1080p.mp4  copy of P/out/SlicerDSpace_promo_1080p.mp4 (47,767,254 bytes)
@@ -308,7 +308,7 @@ Two columns: text left, `idea.jpg` right.
 | out-tracts.jpg | “Tractography · DTI” | “Whole-brain tractography” | “Deterministic DTI tractography. Shown: a display subset of 24,000 of 130,780 streamlines.” | F9 caveats |
 | res-tr-ukf.jpg | “Tractography · UKF” | “UKF two-tensor tractography” | “UKFTractography. Shown: a display subset of 24,000 of 208,295 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
 | res-tr-csd.jpg | “Tractography · CSD/ACT” | “MSMT-CSD with ACT” | “MRtrix3 iFOD2 with ACT. Shown: 24,000 of 1,000,000 streamlines.” | P/film/data/gallery/index.json; QC file of the run |
-| res-wmql-ukf.jpg | “WMQL · fiber bundles” | “Multi-bundle query results” | “Official WMQL queries on UKF tractography. Colours distinguish query families; a display subset is shown.” | unchanged copy of `docs/figures/src/results/bu_wmql_ukf.jpg`; source and hash in `docs/figures/src/results/wmql_sources.json` (`scripts/sync_wmql_site_asset.py --check`) |
+| res-wmql-ukf.jpg | “WMQL · fiber bundles” | “Multi-bundle query results” | “Official WMQL queries on UKF tractography. Colours distinguish query families; a display subset is shown.” | unchanged copy of `paper-latex:docs/figures/src/results/bu_wmql_ukf.jpg`; source and hash in `paper-latex:docs/figures/src/results/wmql_sources.json` (`scripts/check_website_assets.py --check`) |
 | res-tc-ukf.jpg | “TractCloud · bundles” | “42 white-matter tracts” | “TractCloud on the UKF tractogram: 84,356 streamlines classified; 9,321 shown.” | P/film/data/gallery/index.json; QC file of the run |
 | out-connectome.jpg | “Connectome · DDParcel nodes” | “Structural connectome” | “The 260 strongest of 854 edges are drawn; the matrix shows all 84 × 84 nodes.” | F9 caveats |
 | res-net-sift2.jpg | “Connectome · SIFT2” | “SIFT2-weighted connectome” | “From the CSD/ACT tractogram. The 260 strongest of 2,726 edges are drawn.” | P/film/data/gallery/index.json; QC file of the run |
@@ -654,3 +654,5 @@ Code review round 1 (commit 935a5d9): Opus B1 removed the “model-asset reposit
 repository is public); Codex B1 moved the nav fold from ≤ 860px to ≤ 1023px and added the header overlap check to
 §7.2. Non-blocking items are in `README.md` → “Review backlog”.
 
+
+Editable artwork, source renders and generation scripts are maintained in the independent [paper-latex repository](https://github.com/ChengjinLii/paper-latex). This software checkout retains reviewed website images and their SHA256 receipts.

@@ -20,13 +20,6 @@ tractography/wmql_queries/official/*.qry -text whitespace=-blank-at-eol,-blank-a
 # Preserve contributed upstream font-license bytes, including their original CRLF/spacing.
 docs/site/assets/fonts/OFL-*.txt -text whitespace=-blank-at-eol,-blank-at-eof,cr-at-eol
 docs/website/SPEC.md whitespace=-blank-at-eof
-# Manuscript source/material receipts verify exact bytes across checkouts.
-docs/paper/** -text
-docs/paper/evidence/*.csv whitespace=cr-at-eol
-docs/paper/evidence/box_quantification/*.csv whitespace=cr-at-eol
-docs/paper/sn-nature.bst whitespace=-blank-at-eol,-blank-at-eof,cr-at-eol
-# Matplotlib preserves line separators inside SVG path data.
-docs/paper/figures/box_regional_results.svg whitespace=-blank-at-eol
 *.pt filter=lfs diff=lfs merge=lfs -text
 *.pkl filter=lfs diff=lfs merge=lfs -text
 *.nii.gz filter=lfs diff=lfs merge=lfs -text
