@@ -846,6 +846,7 @@ figcaption {
 
 /* ---------- Get started ---------- */
 .start-route-title {
+  --route-accent: #a9bfd0;
   display: flex;
   align-items: flex-start;
   gap: 18px;
@@ -862,9 +863,9 @@ figcaption {
   height: 42px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--orange);
-  background: color-mix(in srgb, var(--orange) 12%, transparent);
-  color: var(--orange);
+  border: 1px solid color-mix(in srgb, var(--route-accent) 50%, transparent);
+  background: color-mix(in srgb, var(--route-accent) 8%, transparent);
+  color: var(--route-accent);
   font-family: var(--f-mono);
   font-size: 20px;
   font-weight: 600;
@@ -874,7 +875,7 @@ figcaption {
 .start-route-label { min-width: 0; }
 .start-recommended {
   display: inline-block;
-  color: var(--orange);
+  color: var(--route-accent);
   font-family: var(--f-body);
   font-size: .56em;
   font-weight: 500;
