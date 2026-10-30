@@ -1,0 +1,33 @@
+/* Always-visible measurements using the existing project type and colour tokens. */
+.perf-evidence { max-width: none; margin-top: 24px; }
+.perf-evidence > .perf-intro-line { margin: 24px 0; }
+.perf-intro-line { display: flex; flex-wrap: wrap; gap: 12px 36px; color: var(--muted); font-size: 13px; }
+.perf-intro-line p { margin: 0; }
+.perf-kind { display: inline-block; font: 400 10px/1.5 var(--f-mono); color: #b6cce4; text-transform: uppercase; letter-spacing: .035em; }
+.perf-kind.parallel { color: #ddbc88; }
+.perf-kind.workflow { color: #97c6b3; }
+.perf-kind.port { color: #c4b9a9; }
+.perf-table-wrap { overflow-x: auto; width: 100%; border-top: 1px solid var(--line-2); }
+.perf-table { width: 100%; border-collapse: collapse; min-width: 760px; font-size: 14px; }
+.perf-table caption { caption-side: bottom; text-align: left; font-size: 12px; color: var(--muted); padding: 16px 0; }
+.perf-table th, .perf-table td { text-align: left; padding: 20px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.perf-table thead th { font: 400 10px var(--f-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding-top: 17px; padding-bottom: 17px; }
+.perf-table th:first-child, .perf-table td:first-child { padding-left: 0; }
+.perf-table tbody th { font-weight: 500; max-width: 260px; }
+.perf-table td:nth-child(n+3) { font-family: var(--f-mono); font-size: 12px; white-space: nowrap; }
+.perf-table small { display: block; font: 400 11px/1.5 var(--f-body); color: var(--muted); margin-top: 5px; }
+.perf-toggle { display: inline-flex; align-items: baseline; gap: 8px; min-height: 28px; margin: 0; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.perf-toggle-icon { width: 1em; flex: none; color: var(--muted); font-family: var(--f-mono); text-align: center; }
+.perf-toggle:hover:not(:disabled) { color: var(--blue); }
+.perf-toggle:disabled { cursor: default; }
+.perf-detail-row[hidden] { display: none !important; }
+.perf-detail-row { scroll-margin-top: 90px; }
+.perf-table .perf-detail-row > td { padding: 24px 20px; background: var(--bg-2); }
+.perf-method-body { width: min(100%, calc(100vw - 2 * var(--gutter) - 40px)); max-width: 1000px; }
+.perf-method-body dl { display: grid; grid-template-columns: 135px minmax(0, 1fr); gap: 16px 25px; font-size: 14px; margin: 0; }
+.perf-method-body dt { color: var(--muted); }
+.perf-method-body dd { margin: 0; }
+@media (max-width: 650px) {
+  .perf-method-body dl { grid-template-columns: 1fr; gap: 5px; }
+  .perf-method-body dd { margin-bottom: 16px; }
+}

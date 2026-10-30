@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SlicerDSpace</title>
+<meta name="description" content="SlicerDSpace 将扩散 MRI 解剖重建、微结构定量和白质连接分析整合到一个 3D Slicer 模块中。">
+<meta name="theme-color" content="#06080b">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="SlicerDSpace">
+<meta property="og:description" content="SlicerDSpace 将扩散 MRI 解剖重建、微结构定量和白质连接分析整合到一个 3D Slicer 模块中。">
+<meta property="og:url" content="https://chengjinlii.github.io/SlicerDSpace/zh.html">
+<meta property="og:image" content="https://chengjinlii.github.io/SlicerDSpace/assets/img/social.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://chengjinlii.github.io/SlicerDSpace/zh.html">
+<link rel="alternate" hreflang="en" href="https://chengjinlii.github.io/SlicerDSpace/">
+<link rel="alternate" hreflang="zh-CN" href="https://chengjinlii.github.io/SlicerDSpace/zh.html">
+<link rel="icon" type="image/png" href="assets/img/icon-64.png">
+<link rel="apple-touch-icon" href="assets/img/icon-180.png">
+<link rel="preload" href="assets/fonts/InterTight.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/css/site.css?v=agent-steps-1">
+<link rel="stylesheet" href="assets/css/performance.css?v=hidden-details-1">
+<link rel="stylesheet" href="assets/css/guide-bot.css">
+<script>document.documentElement.classList.add('js');</script>
+<script src="assets/js/site.js" defer></script>
+<script src="assets/js/performance.js?v=hidden-details-1" defer></script>
+<script src="assets/js/guide-bot.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">跳到正文</a>
+
+<header class="site-header" id="site-header">
+  <div class="header-inner">
+    <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">
+      <span class="menu-icon" aria-hidden="true"></span>
+      <span>菜单</span>
+    </button>
+    <nav class="site-nav" id="site-nav" aria-label="页面导航">
+      <ul>
+        <li><a href="#film">宣传片</a></li>
+        <li><a href="#outputs">分析结果</a></li>
+        <li><a href="#start">开始使用</a></li>
+        <li><a href="#performance">性能优化</a></li>
+        <li><a href="#integrated">分析方法</a></li>
+      </ul>
+    </nav>
+    <div class="language-switch" role="group" aria-label="语言">
+      <a class="lang-btn" href="index.html" data-lang="en" lang="en" hreflang="en" aria-label="切换到英文">Eng</a>
+      <a class="lang-btn is-active" href="zh.html" data-lang="zh" lang="zh-CN" hreflang="zh-CN" aria-label="切换到中文" aria-current="page">中文</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero" id="top">
+  <div class="container">
+    <h1 class="product-title">
+      <span class="sr-only">SlicerDSpace</span>
+      <img class="product-wordmark" src="assets/img/slicerdspace-wordmark-light.svg" alt="SlicerDSpace" aria-hidden="true" width="1324" height="239" fetchpriority="high" decoding="async">
+    </h1>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="#film" data-play-film>
+        <svg viewbox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>
+        观看宣传片
+      </a>
+      <a class="btn btn-secondary" href="#start">开始使用</a>
+    </div>
+  </div>
+</section>
+
+<section class="section film-section reveal" id="film">
+  <h2 class="sr-only">宣传片</h2>
+  <div class="container">
+    <div class="film-wrap">
+      <div class="film-frame" id="film-frame">
+        <video id="film-video" controls playsinline preload="metadata" poster="assets/img/poster.jpg" width="1920" height="1080" aria-label="SlicerDSpace 宣传片，72 秒，含英文配音和画面字幕">
+          <source src="media/SlicerDSpace_promo_1080p.mp4" type="video/mp4">
+          <a href="media/SlicerDSpace_promo_1080p.mp4" download>下载宣传片（MP4）</a>
+        </video>
+      </div>
+    </div>
+    <p class="meta-row">
+      <span>72 秒 · 1920 × 1080 · 英文配音及画面字幕</span>
+      <a href="media/SlicerDSpace_promo_1080p.mp4" download>下载 MP4（48 MB）</a>
+      <a href="media/SlicerDSpace.en.srt" download>英文字幕（.srt）</a>
+    </p>
+    <details class="transcript" id="transcript">
+      <summary>宣传片文字稿</summary>
+      <ol>
+        <li>扩散 MRI 记录活体大脑中水分子的运动。</li>
+        <li>传统的解剖分析通常需要额外采集 T1 加权影像，并将其配准到扩散空间。</li>
+        <li>SlicerDSpace 直接从扩散 MRI 重建解剖结构，分析时无需配对 T1 加权影像。</li>
+        <li>它支持 DTI、自由水、NODDI 和峰度等微结构分析。</li>
+        <li>组织分割。</li>
+        <li>脑区分区。</li>
+        <li>白质面和软脑膜面，</li>
+        <li>均位于原生扩散空间。</li>
+        <li>在同一原生空间内进行全脑纤维追踪。</li>
+        <li>从同一纤维追踪结果中识别白质纤维束。</li>
+        <li>基于同一解剖分区构建结构连接组。</li>
+        <li>一个 3D Slicer 模块，提供自动质量检查和完整的运行记录。</li>
+        <li>SlicerDSpace：在 3D Slicer 中从扩散 MRI 获得大脑解剖结构。</li>
+      </ol>
+    </details>
+    <p class="note">宣传片展示解剖重建、纤维追踪及 TractCloud 纤维束。下方图集还提供微结构和连接组分析结果。</p>
+  </div>
+</section>
+
+<section class="section section-alt reveal" id="outputs">
+  <div class="container">
+    <p class="eyebrow">原生扩散空间</p>
+    <h2>SlicerDSpace 的输出结果。</h2>
+    <p class="intro">展示各分析路线的代表性参数图、皮层表面、纤维通路和连接网络，所有结果均位于原生扩散空间。</p>
+    <div class="gallery">
+      <article class="tile">
+        <img src="assets/img/res-dec.jpg" width="1200" height="900" loading="lazy" alt="轴位和冠状位的方向编码彩色图">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DTI</span> · <span class="chip-q">微结构</span></p>
+          <h3>方向编码彩色图</h3>
+          <p>以 FA 加权的主要扩散方向，来自 DTI 拟合。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-fw.jpg" width="1200" height="900" loading="lazy" alt="轴位和冠状位的自由水比例图">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">自由水</span> · <span class="chip-q">微结构</span></p>
+          <h3>自由水比例</h3>
+          <p>使用 b = 0、1000、2000 数据拟合 DIPY 自由水张量模型。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-ndi.jpg" width="1200" height="900" loading="lazy" alt="轴位和冠状位的 NODDI 神经突密度图">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">NODDI</span> · <span class="chip-q">微结构</span></p>
+          <h3>神经突密度</h3>
+          <p>使用双壳层数据通过 AMICO 拟合 NODDI，获得 NDI。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-mk.jpg" width="1200" height="900" loading="lazy" alt="轴位和冠状位的 DKI 平均峰度图">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DKI</span> · <span class="chip-q">微结构</span></p>
+          <h3>平均峰度</h3>
+          <p>通过 DIPY 加权最小二乘 DKI 拟合获得 MK。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-mkcurve.jpg" width="1200" height="900" loading="lazy" alt="轴位和冠状位的 MK-Curve 平均峰度图">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">MK-Curve</span> · <span class="chip-q">微结构</span></p>
+          <h3>平均峰度：MK-Curve</h3>
+          <p>同一数据的非官方 Python 移植版结果。该次自动 QC 未通过：掩膜内有效体素占 98.7%，检查要求全部有效。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-tissue.jpg" width="1200" height="900" loading="lazy" alt="DDSeg 组织分割标签">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DDSeg</span> · <span class="chip-q">组织</span></p>
+          <h3>组织分割</h3>
+          <p>根据 DTI 特征预测白质、灰质和脑脊液标签。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-parcel.jpg" width="1200" height="900" loading="lazy" alt="DDParcel 脑区分区">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DDParcel</span> · <span class="chip-q">脑区</span></p>
+          <h3>脑区分区</h3>
+          <p>直接标记在扩散影像中的解剖脑区。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-surfaces.jpg" width="1200" height="900" loading="lazy" alt="DDSurfer 软脑膜面">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">DDSurfer</span> · <span class="chip-q">表面</span></p>
+          <h3>皮层表面</h3>
+          <p>原生扩散空间中的白质面和软脑膜面网格；图示为软脑膜面。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-tracts.jpg" width="1200" height="900" loading="lazy" alt="纤维追踪">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">纤维追踪</span> · <span class="chip-q">DTI</span></p>
+          <h3>全脑纤维追踪</h3>
+          <p>确定性 DTI 纤维追踪；图中展示 130,780 条流线中的 24,000 条。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-tr-ukf.jpg" width="1200" height="900" loading="lazy" alt="UKF 双张量纤维追踪">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">纤维追踪</span> · <span class="chip-q">UKF</span></p>
+          <h3>UKF 双张量纤维追踪</h3>
+          <p>使用 UKFTractography；图中展示 208,295 条流线中的 24,000 条。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-tr-csd.jpg" width="1200" height="900" loading="lazy" alt="结合 ACT 的 MSMT-CSD 纤维追踪">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">纤维追踪</span> · <span class="chip-q">CSD/ACT</span></p>
+          <h3>MSMT-CSD 与 ACT</h3>
+          <p>MRtrix3 iFOD2 追踪结合 ACT；图中展示 1,000,000 条流线中的 24,000 条。</p>
+        </div>
+      </article>
+      <article class="tile tile-wmql">
+        <img src="assets/img/res-wmql-ukf.jpg" width="1852" height="1000" loading="lazy" alt="基于 UKF 流线的 WMQL 官方多束查询结果">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">WMQL</span> · <span class="chip-q">纤维束</span></p>
+          <h3>多纤维束查询结果</h3>
+          <p>对 UKF 追踪结果运行 WMQL 官方查询。颜色区分查询类别，图中展示部分流线。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-tc-ukf.jpg" width="1200" height="900" loading="lazy" alt="TractCloud 纤维束">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">TractCloud</span> · <span class="chip-q">纤维束</span></p>
+          <h3>42 类白质纤维束</h3>
+          <p>对 UKF 流线运行 TractCloud：分类得到 84,356 条流线，图中展示其中 9,321 条。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/out-connectome.jpg" width="1200" height="900" loading="lazy" alt="连接组节点、边和矩阵">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">连接组</span> · <span class="chip-q">DDParcel 节点</span></p>
+          <h3>结构连接组</h3>
+          <p>展示 854 条边中最强的 260 条；矩阵显示完整的 84 × 84 节点连接。</p>
+        </div>
+      </article>
+      <article class="tile">
+        <img src="assets/img/res-net-sift2.jpg" width="1200" height="900" loading="lazy" alt="SIFT2 加权连接组的节点、边和矩阵">
+        <div class="tile-body">
+          <p class="chip"><span class="chip-name">连接组</span> · <span class="chip-q">SIFT2</span></p>
+          <h3>SIFT2 加权连接组</h3>
+          <p>来自 CSD/ACT 追踪结果；图中展示 2,726 条边中最强的 260 条。</p>
+        </div>
+      </article>
+    </div>
+    <p class="note">图集使用流线子集和适当色标便于观察。评估结果时应结合拟合、几何、采样检查和解剖复核。</p>
+  </div>
+</section>
+
+<section class="section reveal" id="choose">
+  <div class="container">
+    <p class="eyebrow">选择分析路线</p>
+    <h2>选择适合研究的分析路线。</h2>
+    <figure class="shot fig">
+      <a href="assets/img/fig-product-map.png" target="_blank" rel="noopener" aria-label="查看完整的方法关系图">
+        <img src="assets/img/fig-product-map.png" width="2400" height="859" loading="lazy" decoding="async" alt="方法关系图：微结构、解剖、纤维追踪、纤维束和连接组五类方法及其输入与输出。">
+      </a>
+      <figcaption>各方法的输入与输出。自由水、NODDI 和 DKI 至少需要两个非零壳层；DKI 仅计入不超过 2500 s/mm² 的壳层。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section section-alt reveal" id="start">
+  <div class="container">
+    <p class="eyebrow">开始使用</p>
+    <h2>从安装到获得第一份结果。</h2>
+    <div class="start-skills" id="skills" aria-labelledby="skills-title">
+      <h3 id="skills-title">让 Agent 协助安装、分析与结果检查。</h3>
+      <ol class="start-steps agent-steps">
+        <li class="start-step">
+          <div class="start-body">
+            <h4>查看 Skill</h4>
+            <p>我们为 SlicerDSpace 提供安装与使用 Skill。将 SKILL.md 交给本地 Agent，即可按照指南准备环境、执行分析并检查结果。</p>
+            <p class="note">下方指令以 SKILL.md 为入口。如需安装 Skill，请一并保留 slicerdspace 文件夹中的参考资料、脚本和模板。</p>
+            <ul class="doc-links">
+              <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/SKILL.md" target="_blank" rel="noopener">查看 Skill</a></li>
+              <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/references/usage.md" target="_blank" rel="noopener">Agent 使用指南</a></li>
+              <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/setup/CLI_TEMPLATES.md" target="_blank" rel="noopener">命令行模板</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="start-step">
+          <div class="start-body skill-prompt">
+            <h4>安装并启用</h4>
+            <div class="code" data-code>
+              <div class="code-head"><span>Agent 安装指令</span><button class="copy" type="button" hidden>复制</button></div>
+              <pre><code id="agent-install-prompt">参考 https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/SKILL.md
+帮我将 SlicerDSpace 安装并启用到本机的 3D Slicer 中，
+配置需要的依赖环境，并下载相应的模型权重。</code></pre>
+            </div>
+            <p class="note">Agent 会检查存储空间和已有资源，在你选定存放位置后保存路径，并按所选分析准备环境。遇到许可或重启提示时请确认。</p>
+          </div>
+        </li>
+        <li class="start-step">
+          <div class="start-body skill-prompt">
+            <h4>使用已安装的插件</h4>
+            <p>替换输入与输出路径，并选择研究所需的方法。以下示例运行 DDParcel、CSD/ACT 纤维追踪和结构连接组分析。</p>
+            <div class="code" data-code>
+              <div class="code-head"><span>Agent 分析指令</span><button class="copy" type="button" hidden>复制</button></div>
+              <pre><code id="agent-analysis-prompt">参考 https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/SKILL.md
+使用 SlicerDSpace 对 /path/to/subject 运行 DDParcel 脑区分区、CSD/ACT 纤维追踪和结构连接组分析，结果保存到 /path/to/results。
+先展示计划，等我确认后再运行；完成后汇总输出与 QC 结果。</code></pre>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+    <h3 class="start-manual-title">也可以手动配置</h3>
+    <ol class="start-steps">
+      <li class="start-step">
+        <div class="start-body">
+          <h4>安装插件</h4>
+          <p>先安装 3D Slicer，本方案参考版本为 5.10。克隆源码并创建独立的插件安装目录：</p>
+          <div class="code" data-code>
+            <div class="code-head"><span>bash</span><button class="copy" type="button" hidden>复制</button></div>
+            <pre><code>git clone https://github.com/ChengjinLii/SlicerDSpace.git
+cd SlicerDSpace
+python3 scripts/stage_slicer_extension.py \
+  --install-root ~/SlicerDSpace-extension --slicer-version 5.10 \
+  --link-mode copy</code></pre>
+          </div>
+          <p>将 <code>5.10</code> 替换为 Slicer“关于”窗口中显示的主次版本号。脚本会部署模块并报告安装目录。</p>
+        </div>
+      </li>
+      <li class="start-step">
+        <div class="start-body">
+          <h4>添加模块路径</h4>
+          <p>打开 Edit › Application Settings › Modules › Additional module paths，添加以下目录展开后的绝对路径： <code>~/SlicerDSpace-extension/SlicerDSpace/lib/Slicer-5.10/qt-scripted-modules</code>，并与部署时选择的版本号保持一致。</p>
+          <p>通过 Slicer 的扩展管理器安装 SlicerDMRI 和 PyTorch。如需使用 UKF，还要安装独立的 UKFTractography 扩展。重启 Slicer 后打开 Modules › Diffusion › SlicerDSpace。</p>
+        </div>
+      </li>
+      <li class="start-step">
+        <div class="start-body">
+          <h4>准备被试输入</h4>
+          <p>填写 Subject ID 和 Subject root。已准备好的输入采用以下目录结构；输出目录留空时使用被试目录下的 <code>outputs/</code> 文件夹。</p>
+          <pre class="code-block"><code>sub-01/
+  input/
+    data.nii.gz
+    bvals
+    bvecs
+    nodif_brain_mask.nii.gz   # optional; supply or generate</code></pre>
+          <p>DWI 与脑掩膜必须使用相同体素网格。梯度数量应匹配 DWI 的体积数，运动校正后的影像需要配套旋转后的梯度。</p>
+          <p>对于 DICOM 或 NRRD/NHDR，在 Advanced settings › Regions &amp; input import › Input import / conversion 中预览导入，再准备标准化输入。</p>
+        </div>
+      </li>
+      <li class="start-step">
+        <div class="start-body">
+          <h4>选择方法并准备环境</h4>
+          <p>首次试运行可只选择 Microstructure，取消其他产品，并在其“...”选择器中保留 DTI。需要更多分析时，可在各产品旁选择一种或多种算法；模型和追踪参数位于 Advanced settings。</p>
+          <p>打开 Environment and installation › Prepare selected analysis environment，确认所需工具、模型和资源许可。下载资源会校验并缓存；如提示重启，重启后再次选择 Prepare 继续。</p>
+          <p>离线模型导入、修复和手动路径设置位于 More options。只运行 DTI 时，提供已复核的脑掩膜即可省去掩膜生成后端。</p>
+        </div>
+      </li>
+      <li class="start-step">
+        <div class="start-body">
+          <h4>运行并检查</h4>
+          <p>点击 Run SlicerDSpace。未填写的必需项会高亮，日志显示进度或具体修正提示。成功生成的关键结果自动加载到场景；DTI 提供 FA 和 MD 供检查。</p>
+          <p>在 Results and QC 中选择运行记录，查看检查结果并重新加载或替换输出，避免重复场景节点。接受结果前应复核掩膜覆盖、对齐及方法对应的 QC。</p>
+        </div>
+      </li>
+    </ol>
+    <div class="start-cli" id="cli" aria-labelledby="cli-title">
+      <h3 id="cli-title">命令行运行与队列批处理</h3>
+      <p>在代码目录中使用 Slicer 的 Python 检查 DTI 路线，先替换以下两个绝对路径：</p>
+      <div class="code" data-code>
+        <div class="code-head"><span>bash</span><button class="copy" type="button" hidden>复制</button></div>
+        <pre><code>export SLICER_LAUNCHER="/path/to/Slicer"
+export SUBJECT_ROOT="/path/to/sub-01"
+"$SLICER_LAUNCHER" --launch PythonSlicer run_subject_pipeline.py \
+  --subject-root "$SUBJECT_ROOT" --subject-id sub-01 --no-user-config \
+  --targets microstructure --microstructure-stages dti --doctor</code></pre>
+      </div>
+      <p>将上述选项换为 <code>--plan</code> 可查看处理计划，再使用 <code>--execute</code> 执行。三条命令的算法选项应保持一致。</p>
+      <p>例如， <code>--microstructure-stages dti,noddi</code> 选择两个微结构模型； <code>--tractography-backend csd_act,ukf</code> 选择两种追踪方法； <code>--bundle-backend wmql,wma</code> 选择两种纤维束方法。运行前仍会检查各方法的输入与依赖。</p>
+      <p>对于独立被试，可使用 <code>scripts/run_batch_pipeline.py --batch-root /path/to/study --jobs 2</code> 并添加所选分析参数。GUI 处理当前被试，批处理命令为各被试维护独立输出和日志。</p>
+    </div>
+    <ul class="doc-links">
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/setup/QUICKSTART.md" target="_blank" rel="noopener">快速开始</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/setup/SUPPORT_MATRIX.md" target="_blank" rel="noopener">平台与功能支持</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/assets/MODEL_ASSET_TERMS.md" target="_blank" rel="noopener">模型资源许可</a></li>
+      <li><a class="btn btn-secondary" href="https://github.com/ChengjinLii/SlicerDSpace" target="_blank" rel="noopener">代码仓库</a></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section section-alt reveal" id="runtime">
+  <div class="container">
+    <p class="eyebrow">运行时间</p>
+    <h2>各模块实测运行时间。</h2>
+    <figure class="shot fig">
+      <a href="assets/img/fig-runtime-resources.png" target="_blank" rel="noopener" aria-label="查看完整的运行时间图">
+        <img src="assets/img/fig-runtime-resources.png" width="2400" height="1217" loading="lazy" decoding="async" alt="每行对应一种算法，圆点为 CPU，空心菱形为 CUDA，共用对数时间轴。对齐列展示两种设备的计时，标题标明硬件配置。">
+      </a>
+      <figcaption>共享 Linux 主机上的阶段计时，每行一种算法；七条路线同时记录 CPU 和 CUDA 时间，横杠表示该设备未测量。各方法线程预算不同且设备共享，不能将其视为受控的设备加速比或直接求和。SAF 对已有 100,000 条流线重新筛选；TractCloud 使用 50,000 条流线。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section reveal" id="performance">
+  <div class="container">
+    <p class="eyebrow">性能优化</p>
+    <h2>运行效率优化。</h2>
+    <p class="intro">各项操作的实测性能对比，附测量范围与实现细节。</p>
+    <div class="perf-evidence" id="performance-evidence">
+      <div class="perf-intro-line"><p>目录更新于 2026 年 10 月 30 日</p><a href="assets/data/performance.json" download>下载测量数据（JSON）</a></div>
+        <!-- measured-evidence:start -->
+<div class="perf-table-wrap" tabindex="0" role="region" aria-label="实测性能对比，小屏幕可横向滚动"><table class="perf-table"><caption>不同模型与测量范围不作横向排名。比值为原始实现耗时除以优化实现耗时。</caption><thead><tr><th scope="col">计算内容 / 范围</th><th scope="col">优化类型</th><th scope="col">原始实现</th><th scope="col">优化实现</th><th scope="col">实测比值</th></tr></thead><tbody><tr class="perf-record" data-category="implementation" data-record="freewater"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-freewater" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>自由水 WLS</span></button><small>全脑 / 记录 2026-10-29</small></th><td><span class="perf-kind implementation">同方法实现优化</span></td><td>15.64 分钟</td><td>11.89 分钟</td><td>1.32x<small>耗时减少 23.99%</small></td></tr><tr class="perf-detail-row" id="method-freewater" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>测量使用 DIPY 1.12.1，为 10 月 29 日的最新稳定版。稳定版与主分支的拟合定义通过哈希核验，本次全脑配对已包含有界协议缓存复用。</dd><dt>优化方法</dt><dd>在有界内部缓存中复用仅依赖采集协议的衰减、谱和网格数组，同时使用无显式对角矩阵的权重计算和经源码核验的张量辅助函数。</dd><dt>原始实现</dt><dd>参考为已安装的原始 DIPY WLS；两条路径均使用一个数值线程。</dd><dt>一致性验证</dt><dd>13 个原始拟合参数、四个参数图或掩膜、仿射矩阵、数据类型和自动 QC 均一致，同样排除 116935 个体素。</dd><dt>测量范围</dt><dd>740916 个掩膜体素、288 次测量；自动 QC 通过，待解剖复核。</dd><dt>适用范围与限制</dt><dd>共享 Linux 主机上的单被试配对，先运行优化实现；未清空操作系统缓存，两次调用均包含原始参数导出。</dd></dl></div></td></tr><tr class="perf-record" data-category="implementation" data-record="wma"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-wma" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>WMA 配准与分类</span></button><small>完整模块 / 记录 2026-10-20</small></th><td><span class="perf-kind implementation">同方法实现优化</span></td><td>102.10 分钟</td><td>74.22 分钟</td><td>1.38x<small>耗时减少 27.31%</small></td></tr><tr class="perf-detail-row" id="method-wma" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>作者提交 4532b911386d 与核查时的主分支及测量源码字节一致。</dd><dt>优化方法</dt><dd>通过批量几何复制和已验证的配准输入复用，减少重复 Python/VTK 遍历与准备。</dd><dt>原始实现</dt><dd>对比原作者处理流程与等价的批量及缓存实现，使用完全相同的 UKF 输入和图谱。</dd><dt>一致性验证</dt><dd>74 个解剖纤维束输出文件逐字节一致，源输入和作者代码未改变。</dd><dt>测量范围</dt><dd>包含完整配准和 74 束输出，未为计时增加流线降采样。</dd><dt>适用范围与限制</dt><dd>共享 Linux 主机上的一组完整模块配对。文件一致性与小束采样、解剖有效性分别评估；本组计时未包含后续坐标变换优化。</dd></dl></div></td></tr><tr class="perf-record" data-category="parallel" data-record="noddi"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-noddi" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>NODDI / AMICO</span></button><small>全脑 / 记录 2026-10-20</small></th><td><span class="perf-kind parallel">原生多线程</span></td><td>29.15 分钟</td><td>5.19 分钟</td><td>5.61x<small>耗时减少 82.19%</small></td></tr><tr class="perf-detail-row" id="method-noddi" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>两组计时均核验为 AMICO 2.1.1，即核查时最新稳定版。多线程为上游已有功能。</dd><dt>优化方法</dt><dd>使用 AMICO 原生多线程，对比 1 线程和 8 线程。</dd><dt>原始实现</dt><dd>使用相同作者实现和模型设置，对比线程配置。</dd><dt>一致性验证</dt><dd>NDI、ODI、IsoVF、RMSE、NRMSE 及组织有效掩膜逐体素一致，仿射矩阵也一致。</dd><dt>测量范围</dt><dd>使用原始 740916 体素脑掩膜和全新输出目录。</dd><dt>适用范围与限制</dt><dd>共享主机上的一组配对，反映该硬件的多线程收益，不外推为通用速度或完整工作流收益。</dd></dl></div></td></tr><tr class="perf-record" data-category="port" data-record="mkcurve"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-mkcurve" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>MK-Curve QR / Python 移植版</span></button><small>64 体素数值计算块 / 记录 2026-10-22</small></th><td><span class="perf-kind port">Python 移植版计算</span></td><td>1.73 秒</td><td>1.09 秒</td><td>1.58x<small>耗时减少 36.70%</small></td></tr><tr class="perf-detail-row" id="method-mkcurve" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>MATLAB 参考提交为 9a213e1a5850，测量使用 SciPy 1.18.1 稳定版。此处仅比较 Python 移植版内部实现，不比较 MATLAB 速度，也不将上游原生批处理列为新方法。</dd><dt>优化方法</dt><dd>复用协议与设计矩阵检查及 LAPACK 工作区大小，保留相同的列主元 QR 和完整 b0 网格。</dd><dt>原始实现</dt><dd>在同一 Python 移植版中，对比 SciPy 1.18.1 公共 gelsy 求解器与经核验的底层驱动及缓存调用。</dd><dt>一致性验证</dt><dd>三个被试的原始系数、完整曲线、所有参数图和有效性判断均一致，已检查参考与批处理求解器。</dd><dt>测量范围</dt><dd>三个真实的 64 体素计算块，181 次测量、完整的 200–201 点 b0 网格，使用一个数值线程。</dd><dt>适用范围与限制</dt><dd>表中为被试 100206 默认 QR 实现的中位数，预热后交替重复三次。数值块计时不含输入准备和导出，不外推为整个 ROI 或全脑耗时；SciPy 已提供原生批处理。</dd></dl></div></td></tr><tr class="perf-record" data-category="port" data-record="mkcurve-signal"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-mkcurve-signal" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>MK-Curve 信号复用</span></button><small>64 体素计算块 / QR 后续增量优化 / 记录 2026-10-29</small></th><td><span class="perf-kind port">Python 移植版计算</span></td><td>1.19 秒</td><td>1.06 秒</td><td>1.13x<small>耗时减少 11.26%</small></td></tr><tr class="perf-detail-row" id="method-mkcurve-signal" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>10 月 29 日使用 SciPy 1.18.1 测量，保留源码及输入校验和、单线程设置。比较的是 Python 移植版完成 QR 优化之后的增量改动。</dd><dt>优化方法</dt><dd>在每个计算块的完整合成 b0 扫描中复用非 b0 信号及其对数，只更新候选 b0 列。</dd><dt>原始实现</dt><dd>对照为先前经过核验的 QR Python 实现与新增信号复用的实现；求解器、扫描网格、校正规则和单数值线程设置一致。</dd><dt>一致性验证</dt><dd>三份采集数据、两种求解器的原始及校正系数、完整曲线、参数图、残差和有效掩膜均完全一致。</dd><dt>测量范围</dt><dd>三份采集数据，各取 64 个体素、181 次测量及 200–201 个合成 b0 采样点。reference QR 路径耗时减少 10.24%–11.26%。计时范围为数值计算，不含输入准备和文件导出。</dd><dt>适用范围与限制</dt><dd>表中使用采集数据 1，与之前 QR 记录的选取方式一致。预热一次后交替重复三次。批量求解路径的耗时变化为减少 -1.50% 至 +3.07%，因此默认仅在 reference 求解器启用信号复用。此处是之前 QR 实现上的增量对照，收益不可叠加。</dd></dl></div></td></tr><tr class="perf-record" data-category="integration" data-record="dki"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-dki" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>DKI WLS 参数计算</span></button><small>原生网格 24³ ROI / 记录 2026-10-22</small></th><td><span class="perf-kind integration">上游已有能力</span></td><td>37.11 秒</td><td>11.47 秒</td><td>3.24x<small>耗时减少 69.09%</small></td></tr><tr class="perf-detail-row" id="method-dki" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>核查时 DIPY 1.12.1 为最新稳定版。数组参数计算已存在于上游，此项为插件接入优化。</dd><dt>优化方法</dt><dd>每个数据块一次调用作者已有的数组峰度计算，避免逐体素重复创建结果包装对象。</dd><dt>原始实现</dt><dd>对比插件原有逐体素接入和现有 DIPY 数组 API 的使用，不视为超越作者原生向量化 API。</dd><dt>一致性验证</dt><dd>三个被试的所有导出体素数组和仿射矩阵一致，各交替重复三次。</dd><dt>测量范围</dt><dd>三个被试，每条路径重复三次，使用原生网格 ROI，不重采样；DIPY 1.12.1、SciPy 1.18.1。</dd><dt>适用范围与限制</dt><dd>表中展示被试 100307 的中位数。此项采用 DIPY 已有原生功能；尚无完成的全脑 DKI 配对，ROI 耗时不外推到全脑。</dd></dl></div></td></tr><tr class="perf-record" data-category="workflow" data-record="scheduling"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-scheduling" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>独立的 FW 与 DKI 任务</span></button><small>原生网格 24³ ROI / 记录 2026-10-20</small></th><td><span class="perf-kind workflow">工作流调度</span></td><td>43.95 秒</td><td>24.63 秒</td><td>1.78x<small>耗时减少 43.96%</small></td></tr><tr class="perf-detail-row" id="method-scheduling" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>插件调度器的历史对照，不作为最新上游算法性能结论。</dd><dt>优化方法</dt><dd>在共享输入就绪后并发运行独立模型子进程，同时保留下游依赖关系。</dd><dt>原始实现</dt><dd>相同模型计算，对比串行调度和两个并发工作进程。</dd><dt>一致性验证</dt><dd>全部导出参数和掩膜数组一致，计时包含进程启动。</dd><dt>测量范围</dt><dd>两个独立模型，受 CPU 和内存预算约束的调度；此处并非全脑计时。</dd><dt>适用范围与限制</dt><dd>一组 ROI 配对，缩短调度墙钟时间，单模型计算不变。默认并发数仍为一，内存或 CPU 预算可能限制并发。</dd></dl></div></td></tr><tr class="perf-record" data-category="implementation" data-record="wma-filter"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-wma-filter" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>WMA 图谱长度筛选</span></button><small>单个子步骤 / 记录 2026-10-20</small></th><td><span class="perf-kind implementation">同方法实现优化</span></td><td>134.29 秒</td><td>2.48 秒</td><td>54.06x<small>耗时减少 98.15%</small></td></tr><tr class="perf-detail-row" id="method-wma-filter" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>与完整模块记录使用相同的固定 WMA 源码核查。</dd><dt>优化方法</dt><dd>用等价的批量坐标与拓扑操作替代 Python 逐点几何复制。</dd><dt>原始实现</dt><dd>在完整的 1989106 条流线配准图谱上运行未修改的作者筛选器。</dd><dt>一致性验证</dt><dd>输出坐标、拓扑及固定种子采样完全一致。</dd><dt>测量范围</dt><dd>仅包含完整配准图谱的长度筛选子步骤。</dd><dt>适用范围与限制</dt><dd>一组完整图谱子步骤配对，不包含全部 WMA；局部比值不能与完整 WMA 结果相乘或叠加。</dd></dl></div></td></tr><tr class="perf-record" data-category="implementation" data-record="freewater-nls"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-freewater-nls" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>自由水 NLS 调用分派</span></button><small>1728 体素 ROI / 记录 2026-10-21</small></th><td><span class="perf-kind implementation">同方法实现优化</span></td><td>12.47 秒</td><td>5.17 秒</td><td>2.41x<small>耗时减少 58.50%</small></td></tr><tr class="perf-detail-row" id="method-freewater-nls" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>在 Slicer 中测量 DIPY 1.12.1，作者 NLS、残差和雅可比源码哈希与注明日期的稳定版核查一致。</dd><dt>优化方法</dt><dd>直接调用经源码核验的作者 NLS、残差和雅可比函数主体，减少重复的关键字兼容性分派。</dd><dt>原始实现</dt><dd>比较原始 DIPY 1.12.1 串行 NLS 与相同函数主体，两条路径均使用一个数值线程。</dd><dt>一致性验证</dt><dd>三个被试的 13 个原始参数、导出参数图、仿射矩阵和 QC 判断全部一致。</dd><dt>测量范围</dt><dd>三个原生网格 12³ ROI，288 次测量；包含完整 ROI 处理和全新导出。</dd><dt>适用范围与限制</dt><dd>被试 100307 的中位数，预热后交替重复三次。仅限 ROI；测量早于后续 WLS 初始化及辅助函数修改，收益不可叠加。</dd></dl></div></td></tr><tr class="perf-record" data-category="implementation" data-record="wma-transform"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-wma-transform" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>WMA 点坐标变换</span></button><small>1000 条流线 × 15 个点 / 记录 2026-10-21</small></th><td><span class="perf-kind implementation">同方法实现优化</span></td><td>24.6 毫秒</td><td>0.322 毫秒</td><td>76.31x<small>耗时减少 98.69%</small></td></tr><tr class="perf-detail-row" id="method-wma-transform" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>作者 register_two_subjects.py 的 SHA256 与 10 月 22 日 WMA 源码核查一致，测量批量 vtkTransform 路径。</dd><dt>优化方法</dt><dd>使用相同作者 vtkTransform，按有界数据块批量变换，替代逐点 Python/VTK 调用。</dd><dt>原始实现</dt><dd>对比原作者逐点循环与批量调用，保持 float64 点顺序和变换一致。</dd><dt>一致性验证</dt><dd>三个被试的全部变换点、小规模优化器完整轨迹和最终变换均一致。</dd><dt>测量范围</dt><dd>三个真实被试样例，独立优化器检查使用明确记录的合成偏移。</dd><dt>适用范围与限制</dt><dd>被试 100206 点变换重复五次的中位数，不包含完整配准。小规模优化器收益约为 1.27–1.28 倍，点变换比值不外推到整个 WMA。</dd></dl></div></td></tr><tr class="perf-record" data-category="implementation" data-record="wma-fibers"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-wma-fibers" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>WMA 纤维数组转换</span></button><small>20000 条流线 × 15 个点 / 记录 2026-10-21</small></th><td><span class="perf-kind implementation">同方法实现优化</span></td><td>0.59 秒</td><td>12.8 毫秒</td><td>45.84x<small>耗时减少 97.82%</small></td></tr><tr class="perf-detail-row" id="method-wma-fibers" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>独立核验作者提交 4532b911386d 的 fibers.py；使用原生 VTK 数组采样，配准算法不变。</dd><dt>优化方法</dt><dd>按有界 NumPy 数据块，从 VTK 拓扑中提取与作者规则相同的最近邻流线采样点。</dd><dt>原始实现</dt><dd>对比原作者 FiberArray 转换与等价批量转换，不新增插值或流线缩减。</dd><dt>一致性验证</dt><dd>三个被试的全部数组、半球标记及独立小规模优化器轨迹和变换均一致。</dd><dt>测量范围</dt><dd>每个被试使用相同的 20000 条采样流线，保留原始最近邻规则和顺序。</dd><dt>适用范围与限制</dt><dd>被试 100206 转换重复五次的中位数；不代表完整 WMA。小规模优化器收益约 1.02–1.05 倍，历史采样失败状态不作改写。</dd></dl></div></td></tr><tr class="perf-record" data-category="implementation" data-record="wma-cache"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-wma-cache" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>WMA 配准输入复用</span></button><small>三次准备调用 / 记录 2026-10-20</small></th><td><span class="perf-kind implementation">同方法实现优化</span></td><td>8.90 分钟</td><td>3.01 分钟</td><td>2.96x<small>耗时减少 66.17%</small></td></tr><tr class="perf-detail-row" id="method-wma-cache" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>保留相同作者实现的准备阶段配对，通过源码核验后复用，未重新标为最新版本测速。</dd><dt>优化方法</dt><dd>在不同种子间复用已验证的确定性图谱和被试长度筛选结果，每次仍执行作者随机采样。</dd><dt>原始实现</dt><dd>相同输入和固定种子下，对比三次原作者准备调用与首次缓存填充加后续复用。</dd><dt>一致性验证</dt><dd>配准输入签名逐位一致，源文件哈希不变。</dd><dt>测量范围</dt><dd>三次固定种子准备调用，包含首次缓存填充；不包含完整 WMA。</dd><dt>适用范围与限制</dt><dd>单被试一组配对，包含初次缓存建立；与 WMA 筛选和完整模块计时重叠，收益不能相加。</dd></dl></div></td></tr><tr class="perf-record" data-category="inherited" data-record="surface-mapping"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-surface-mapping" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>DDSurfer 表面映射复用</span></button><small>左半球四个叠加图 / 记录 2026-10-20</small></th><td><span class="perf-kind inherited">继承的上游优化</span></td><td>13.38 秒</td><td>3.52 秒</td><td>3.80x<small>耗时减少 73.70%</small></td></tr><tr class="perf-detail-row" id="method-surface-mapping" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>优化继承 DDSurfer 提交 c3b2d40，不列为插件原创或最新 FreeSurfer 加速结论。</dd><dt>优化方法</dt><dd>将四个叠加图打包为一次多帧 mri_surf2surf 调用，共用表面配准。</dd><dt>原始实现</dt><dd>对比四次独立 FreeSurfer 调用和一次多帧调用；此优化继承 DDSurfer 上游 c3b2d40。</dd><dt>一致性验证</dt><dd>四个 MGH 输出逐字节一致，每图 163842 个顶点，源哈希不变。</dd><dt>测量范围</dt><dd>100307 左半球，四次独立 FreeSurfer 调用对比一次多帧调用。</dd><dt>适用范围与限制</dt><dd>单被试的命令计时，不含额外打包和核验；不代表表面重建或新的 FreeSurfer 算法。</dd></dl></div></td></tr><tr class="perf-record" data-category="io" data-record="dwi-io"><th scope="row"><button class="perf-toggle" type="button" aria-controls="method-dwi-io" aria-expanded="false" disabled><span class="perf-toggle-icon" aria-hidden="true">+</span><span>压缩 DWI 分块读取</span></button><small>三个数据分块 / 记录 2026-10-20</small></th><td><span class="perf-kind io">压缩数据 I/O</span></td><td>37.25 秒</td><td>17.08 秒</td><td>2.18x<small>耗时减少 54.15%</small></td></tr><tr class="perf-detail-row" id="method-dwi-io" hidden><td colspan="5"><div class="perf-method-body"><dl><dt>上游核查</dt><dd>通用压缩及 I/O 对照，不涉及科学估计器本身的改变或上游版本新鲜度结论。</dd><dt>优化方法</dt><dd>将 gzip 一次解码到临时磁盘，再通过内存映射读取相同分块，保持源文件不变。</dd><dt>原始实现</dt><dd>对比重复读取压缩数组与一次顺序解码后按块读取；本次测量未使用 indexed_gzip。</dd><dt>一致性验证</dt><dd>三个分块的数组和仿射矩阵完全一致，输入哈希不变。</dd><dt>测量范围</dt><dd>三个真实数据分块，包含顺序解码，不代表模型拟合或完整流程加速。</dd><dt>适用范围与限制</dt><dd>单被试一组配对，未控制系统页缓存，需临时磁盘；仅测量 I/O，不外推为模型拟合或通用存储性能。</dd></dl></div></td></tr></tbody></table></div>
+<!-- measured-evidence:end -->
+    </div>
+    <p class="note"><a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/release/PERFORMANCE_OPTIMIZATIONS.md" target="_blank" rel="noopener">阅读完整优化报告</a></p>
+  </div>
+</section>
+
+<section class="section reveal" id="integrated">
+  <div class="container">
+    <p class="eyebrow">方法与资源</p>
+    <h2>已集成的方法</h2>
+    <p class="intro">在各产品旁选择一种或多种方法。工作流会检查采集适用性、处理依赖并复用共同准备步骤。</p>
+    <div class="integration">
+      <div class="table-wrap" tabindex="0" role="region" aria-label="已集成的方法表，小屏幕可横向滚动">
+        <table class="int-table">
+          <caption>各分析路线的方法、实现及所需资源。</caption>
+          <thead><tr><th scope="col">阶段</th><th scope="col">方法</th><th scope="col">集成内容</th><th scope="col">运行环境与资源</th><th scope="col">论文 / DOI</th></tr></thead>
+          <tbody>
+<!-- methods-catalog:start -->
+            <tr data-method="input" class="stage-start"><th scope="row">输入</th><td>DICOM / NIfTI / NRRD</td><td>格式转换、梯度验证与空间检查。</td><td class="st-cell">dcm2niix 或 Slicer DWIConvert；可使用已有脑掩膜。</td><td class="ref-cell"><a class="method-reference" data-reference="36" href="https://doi.org/10.1016/j.jneumeth.2016.03.001" title="Li X, et al. The first step for neuroimaging data analysis: DICOM to NIfTI conversion. Journal of Neuroscience Methods 264:47-56, 2016." target="_blank" rel="noopener">DOI 10.1016/j.jneumeth.2016.03.001</a> <a class="method-reference" data-reference="27" href="https://doi.org/10.1016/j.mri.2012.05.001" title="Fedorov A, et al. 3D Slicer as an image computing platform for the Quantitative Imaging Network. Magnetic Resonance Imaging 30(9):1323–1341, 2012." target="_blank" rel="noopener">DOI 10.1016/j.mri.2012.05.001</a> <a class="method-reference" data-reference="28" href="https://doi.org/10.1200/CCI.19.00141" title="Zhang F, et al. SlicerDMRI: Diffusion MRI and tractography research software for brain cancer surgery planning and visualization. JCO Clinical Cancer Informatics, issue 4:299–309, 2020." target="_blank" rel="noopener">DOI 10.1200/CCI.19.00141</a></td></tr>
+            <tr data-method="pnl_cnn" class="stage-start"><th scope="row">脑掩膜</th><td>PNL CNN（默认）</td><td>作者扩散 CNN 脑掩膜模型及配准。</td><td class="st-cell">托管 PNL 环境、权重及 ANTs。</td><td class="ref-cell"><a class="method-reference" data-reference="37" href="https://doi.org/10.1038/s41597-024-03058-w" title="Cetin-Karayumak S, et al. Harmonized diffusion MRI data and white matter measures from the Adolescent Brain Cognitive Development Study. Scientific Data 11:249, 2024." target="_blank" rel="noopener">DOI 10.1038/s41597-024-03058-w</a> <a class="method-reference" data-reference="38" href="https://github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segmentation" title="Palanivelu S, et al. CNN based diffusion MRI brain segmentation tool. Author software and citation instructions." target="_blank" rel="noopener">github.com/pnlbwh/CNN-Diffusion-MRIBrain-Segmentation</a></td></tr>
+            <tr data-method="synthstrip"><th scope="row">脑掩膜</th><td>SynthStrip</td><td>使用作者模型进行脑提取。</td><td class="st-cell">隔离环境及模型权重。</td><td class="ref-cell"><a class="method-reference" data-reference="32" href="https://doi.org/10.1016/j.neuroimage.2022.119474" title="Hoopes A, et al. SynthStrip: skull-stripping for any brain image. NeuroImage 260:119474, 2022." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2022.119474</a></td></tr>
+            <tr data-method="dwi2mask"><th scope="row">脑掩膜</th><td>MRtrix3 dwi2mask</td><td>原生扩散体积掩膜生成。</td><td class="st-cell">MRtrix3</td><td class="ref-cell"><a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></td></tr>
+            <tr data-method="mppca" class="stage-start"><th scope="row">预处理</th><td>MP-PCA</td><td>随机矩阵去噪及噪声估计。</td><td class="st-cell">DIPY or MRtrix3 dwidenoise</td><td class="ref-cell"><a class="method-reference" data-reference="39" href="https://doi.org/10.1016/j.neuroimage.2016.08.016" title="Veraart J, et al. Denoising of diffusion MRI using random matrix theory. NeuroImage 142:394-406, 2016." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2016.08.016</a> <a class="method-reference" data-reference="52" href="https://doi.org/10.1002/mrm.26059" title="Veraart J, Fieremans E, Novikov DS. Diffusion MRI noise mapping using random matrix theory. Magnetic Resonance in Medicine 76:1582-1593, 2016." target="_blank" rel="noopener">DOI 10.1002/mrm.26059</a> <a class="method-reference" data-reference="53" href="https://doi.org/10.1016/j.neuroimage.2019.06.039" title="Cordero-Grande L, et al. Complex diffusion-weighted image estimation via matrix recovery under general noise models. NeuroImage 200:391-404, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.06.039</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a> <a class="method-reference" data-reference="30" href="https://doi.org/10.3389/fninf.2014.00008" title="Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014." target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></td></tr>
+            <tr data-method="localpca"><th scope="row">预处理</th><td>Local PCA</td><td>过完备局部 PCA 去噪。</td><td class="st-cell">DIPY；可选去噪方法。</td><td class="ref-cell"><a class="method-reference" data-reference="40" href="https://doi.org/10.1371/journal.pone.0073021" title="Manjón JV, et al. Diffusion Weighted Image Denoising Using Overcomplete Local PCA. PLoS ONE 8:e73021, 2013." target="_blank" rel="noopener">DOI 10.1371/journal.pone.0073021</a> <a class="method-reference" data-reference="30" href="https://doi.org/10.3389/fninf.2014.00008" title="Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014." target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></td></tr>
+            <tr data-method="patch2self"><th scope="row">预处理</th><td>Patch2Self</td><td>自监督扩散体积去噪。</td><td class="st-cell">DIPY；可选去噪方法。</td><td class="ref-cell"><a class="method-reference" data-reference="41" href="https://proceedings.neurips.cc/paper/2020/hash/bc047286b224b7bfa73d4cb02de1238d-Abstract.html" title="Fadnavis S, Batson J, Garyfallidis E. Patch2Self: Denoising Diffusion MRI with Self-Supervised Learning. Advances in Neural Information Processing Systems 33, 2020." target="_blank" rel="noopener">proceedings.neurips.cc/paper/2020/hash/bc047286b224b7bfa73d4cb02de1238d-Abstract.html</a> <a class="method-reference" data-reference="30" href="https://doi.org/10.3389/fninf.2014.00008" title="Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014." target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></td></tr>
+            <tr data-method="gibbs"><th scope="row">预处理</th><td>Gibbs 振铃去除</td><td>局部亚体素位移振铃校正。</td><td class="st-cell">DIPY or MRtrix3 mrdegibbs</td><td class="ref-cell"><a class="method-reference" data-reference="42" href="https://doi.org/10.1002/mrm.26054" title="Kellner E, et al. Gibbs‐ringing artifact removal based on local subvoxel‐shifts. Magnetic Resonance in Medicine 76:1574-1581, 2016." target="_blank" rel="noopener">DOI 10.1002/mrm.26054</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a> <a class="method-reference" data-reference="30" href="https://doi.org/10.3389/fninf.2014.00008" title="Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014." target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></td></tr>
+            <tr data-method="motion"><th scope="row">预处理</th><td>体积间配准</td><td>体积间运动校正及梯度旋转。</td><td class="st-cell">DIPY；不执行 FSL eddy 校正。</td><td class="ref-cell"><a class="method-reference" data-reference="30" href="https://doi.org/10.3389/fninf.2014.00008" title="Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014." target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></td></tr>
+            <tr data-method="eddy"><th scope="row">预处理</th><td>FSL eddy</td><td>涡流及运动校正。</td><td class="st-cell">MRtrix3 dwifslpreproc 与 FSL。</td><td class="ref-cell"><a class="method-reference" data-reference="43" href="https://doi.org/10.1016/j.neuroimage.2015.10.019" title="Andersson JLR, Sotiropoulos SN. An integrated approach to correction for off-resonance effects and subject movement in diffusion MR imaging. NeuroImage 125:1063-1078, 2016." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2015.10.019</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></td></tr>
+            <tr data-method="topup"><th scope="row">预处理</th><td>FSL topup</td><td>磁敏感畸变估计与校正。</td><td class="st-cell">FSL；需反向相位编码数据及采集元数据。</td><td class="ref-cell"><a class="method-reference" data-reference="44" href="https://doi.org/10.1016/S1053-8119(03)00336-7" title="Andersson JLR, Skare S, Ashburner J. How to correct susceptibility distortions in spin-echo echo-planar images: application to diffusion tensor imaging. NeuroImage 20:870-888, 2003." target="_blank" rel="noopener">DOI 10.1016/S1053-8119(03)00336-7</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></td></tr>
+            <tr data-method="dti" class="stage-start"><th scope="row">微结构</th><td>DTI（默认）</td><td>LS/WLS 张量拟合；输出 FA、MD、AD、RD、特征值和张量迹。</td><td class="st-cell">SlicerDMRI</td><td class="ref-cell"><a class="method-reference" data-reference="45" href="https://doi.org/10.1016/S0006-3495(94)80775-1" title="Basser PJ, Mattiello J, LeBihan D. MR diffusion tensor spectroscopy and imaging. Biophysical Journal 66:259-267, 1994." target="_blank" rel="noopener">DOI 10.1016/S0006-3495(94)80775-1</a> <a class="method-reference" data-reference="27" href="https://doi.org/10.1016/j.mri.2012.05.001" title="Fedorov A, et al. 3D Slicer as an image computing platform for the Quantitative Imaging Network. Magnetic Resonance Imaging 30(9):1323–1341, 2012." target="_blank" rel="noopener">DOI 10.1016/j.mri.2012.05.001</a> <a class="method-reference" data-reference="28" href="https://doi.org/10.1200/CCI.19.00141" title="Zhang F, et al. SlicerDMRI: Diffusion MRI and tractography research software for brain cancer surgery planning and visualization. JCO Clinical Cancer Informatics, issue 4:299–309, 2020." target="_blank" rel="noopener">DOI 10.1200/CCI.19.00141</a></td></tr>
+            <tr data-method="freewater"><th scope="row">微结构</th><td>自由水</td><td>自由水比例及组织校正 FA/MD；支持 WLS 或 NLS 拟合。</td><td class="st-cell">DIPY；需适合的多壳层采样。</td><td class="ref-cell"><a class="method-reference" data-reference="4" href="https://doi.org/10.1002/mrm.22055" title="Pasternak O, et al. Free water elimination and mapping from diffusion MRI. Magnetic Resonance in Medicine 62(3):717–730, 2009." target="_blank" rel="noopener">DOI 10.1002/mrm.22055</a> <a class="method-reference" data-reference="5" href="https://doi.org/10.1016/j.neuroimage.2014.09.053" title="Hoy AR, et al. Optimization of a free water elimination two-compartment model for diffusion tensor imaging. NeuroImage 103:323–333, 2014." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2014.09.053</a> <a class="method-reference" data-reference="6" href="https://doi.org/10.1101/108795" title="Henriques RN, et al. [Re] Optimization of a free water elimination two-compartment model for diffusion tensor imaging. bioRxiv preprint, not peer reviewed, 2017." target="_blank" rel="noopener">DOI 10.1101/108795</a> <a class="method-reference" data-reference="30" href="https://doi.org/10.3389/fninf.2014.00008" title="Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014." target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></td></tr>
+            <tr data-method="noddi"><th scope="row">微结构</th><td>NODDI / AMICO</td><td>输出 NDI、ODI、IsoVF 及拟合残差。</td><td class="st-cell">AMICO；需适合的多壳层采样。</td><td class="ref-cell"><a class="method-reference" data-reference="7" href="https://doi.org/10.1016/j.neuroimage.2012.03.072" title="Zhang H, et al. NODDI: Practical in vivo neurite orientation dispersion and density imaging of the human brain. NeuroImage 61(4):1000–1016, 2012." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2012.03.072</a> <a class="method-reference" data-reference="31" href="https://doi.org/10.1016/j.neuroimage.2014.10.026" title="Daducci A, et al. Accelerated Microstructure Imaging via Convex Optimization (AMICO) from diffusion MRI data. NeuroImage 105:32–44, 2015." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2014.10.026</a></td></tr>
+            <tr data-method="dki"><th scope="row">微结构</th><td>DKI</td><td>WLS/OLS 拟合；输出 MK、AK、RK、KFA、MKT、RTK 和有效性掩膜。</td><td class="st-cell">DIPY；检查壳层、方向数及设计矩阵秩。</td><td class="ref-cell"><a class="method-reference" data-reference="8" href="https://doi.org/10.1002/mrm.20508" title="Jensen JH, et al. Diffusional kurtosis imaging: The quantification of non-gaussian water diffusion by means of magnetic resonance imaging. Magnetic Resonance in Medicine 53(6):1432–1440, 2005." target="_blank" rel="noopener">DOI 10.1002/mrm.20508</a> <a class="method-reference" data-reference="30" href="https://doi.org/10.3389/fninf.2014.00008" title="Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014." target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></td></tr>
+            <tr data-method="mkcurve"><th scope="row">微结构</th><td>MK-Curve</td><td>校正曲线、校正后的峰度图及各参数有效性。</td><td class="st-cell">内置 Python 后端；检查 DKI 适用条件。</td><td class="ref-cell"><a class="method-reference" data-reference="9" href="https://doi.org/10.1016/j.neuroimage.2019.04.015" title="Zhang F, et al. MK-curve - Characterizing the relation between mean kurtosis and alterations in the diffusion MRI signal. NeuroImage 196:68–80, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.04.015</a></td></tr>
+            <tr data-method="ddseg" class="stage-start"><th scope="row">解剖先验</th><td>DDSeg</td><td>使用转换后的 PyTorch 模型输出组织标签和概率。</td><td class="st-cell">PyTorch；DDSeg 权重。</td><td class="ref-cell"><a class="method-reference" data-reference="2" href="https://doi.org/10.1016/j.neuroimage.2021.117934" title="Zhang F, et al. Deep learning based segmentation of brain tissue from diffusion MRI. NeuroImage 233:117934, 2021." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2021.117934</a></td></tr>
+            <tr data-method="ddparcel"><th scope="row">解剖先验</th><td>DDParcel</td><td>使用源自作者的模型推断解剖脑区。</td><td class="st-cell">PyTorch；权重及配准模板。</td><td class="ref-cell"><a class="method-reference" data-reference="3" href="https://doi.org/10.1109/TMI.2023.3331691" title="Zhang F, et al. DDParcel: Deep Learning Anatomical Brain Parcellation From Diffusion MRI. IEEE Transactions on Medical Imaging 43(3):1191–1202, 2024." target="_blank" rel="noopener">DOI 10.1109/TMI.2023.3331691</a></td></tr>
+            <tr data-method="ddsurfer"><th scope="row">解剖先验</th><td>DDSurfer</td><td>重建原生空间白质面和软脑膜面网格。</td><td class="st-cell">PyTorch；DDSurfer 权重。</td><td class="ref-cell"><a class="method-reference" data-reference="1" href="https://doi.org/10.1002/advs.76596" title="Li C, et al. DDSurfer: A Weakly-Supervised Dual-Stream Deep Learning Framework for Cortical Surface Reconstruction From Diffusion MRI. Advanced Science 13(56):e76596, 2026." target="_blank" rel="noopener">DOI 10.1002/advs.76596</a></td></tr>
+            <tr data-method="brainsfit"><th scope="row">解剖先验</th><td>BRAINSFit 配准</td><td>为适用的解剖路线执行模板配准。</td><td class="st-cell">Slicer BRAINSFit / BRAINSResample</td><td class="ref-cell"><a class="method-reference" data-reference="51" href="https://slicer.readthedocs.io/en/latest/user_guide/modules/brainsfit.html" title="Johnson HJ, Harris G, Williams K. BRAINSFit: Mutual Information Registrations of Whole-Brain 3D Images, Using the Insight Toolkit. The Insight Journal, 2007; 3D Slicer module documentation." target="_blank" rel="noopener">slicer.readthedocs.io/en/latest/user_guide/modules/brainsfit.html</a> <a class="method-reference" data-reference="27" href="https://doi.org/10.1016/j.mri.2012.05.001" title="Fedorov A, et al. 3D Slicer as an image computing platform for the Quantitative Imaging Network. Magnetic Resonance Imaging 30(9):1323–1341, 2012." target="_blank" rel="noopener">DOI 10.1016/j.mri.2012.05.001</a></td></tr>
+            <tr data-method="surface_postprocess"><th scope="row">解剖先验</th><td>表面后处理</td><td>厚度、曲率、球面配准和 DK/Destrieux 图谱映射。</td><td class="st-cell">有许可的原生组件运行包；完整软件套件可选。</td><td class="ref-cell"><a class="method-reference" data-reference="33" href="https://doi.org/10.1016/j.neuroimage.2012.01.021" title="Fischl B. FreeSurfer. NeuroImage 62(2):774–781, 2012." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2012.01.021</a> <a class="method-reference" data-reference="47" href="https://doi.org/10.1073/pnas.200033797" title="Fischl B, Dale AM. Measuring the thickness of the human cerebral cortex from magnetic resonance images. Proceedings of the National Academy of Sciences 97:11050-11055, 2000." target="_blank" rel="noopener">DOI 10.1073/pnas.200033797</a> <a class="method-reference" data-reference="48" href="https://doi.org/10.1016/j.neuroimage.2006.01.021" title="Desikan RS, et al. An automated labeling system for subdividing the human cerebral cortex on MRI scans into gyral based regions of interest. NeuroImage 31:968-980, 2006." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2006.01.021</a> <a class="method-reference" data-reference="49" href="https://doi.org/10.1016/j.neuroimage.2010.06.010" title="Destrieux C, et al. Automatic parcellation of human cortical gyri and sulci using standard anatomical nomenclature. NeuroImage 53:1-15, 2010." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2010.06.010</a></td></tr>
+            <tr data-method="response" class="stage-start"><th scope="row">纤维追踪</th><td>响应函数估计</td><td>Dhollander 三组织响应函数估计。</td><td class="st-cell">MRtrix3</td><td class="ref-cell"><a class="method-reference" data-reference="12" href="https://archive.ismrm.org/2019/0555.html" title="Dhollander T, et al. Improved white matter response function estimation for 3-tissue constrained spherical deconvolution. Proc Intl Soc Mag Reson Med (ISMRM), abstract 555, 2019." target="_blank" rel="noopener">archive.ismrm.org/2019/0555.html</a> <a class="method-reference" data-reference="13" href="https://userdocs.mrtrix.org/en/latest/reference/commands/dwi2response.html#dwi2response-dhollander" title="Dhollander T, et al. Unsupervised 3-tissue response function estimation from single-shell or multi-shell diffusion MR data without a co-registered T1 image. ISMRM Workshop on Breaking the Barriers of Diffusion MRI, 2016, 5." target="_blank" rel="noopener">userdocs.mrtrix.org/en/latest/reference/commands/dwi2response.html#dwi2response-dhollander</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></td></tr>
+            <tr data-method="csd"><th scope="row">纤维追踪</th><td>CSD / MSMT-CSD</td><td>单组织或多组织纤维方向分布。</td><td class="st-cell">MRtrix3；取决于所选采集路线。</td><td class="ref-cell"><a class="method-reference" data-reference="11" href="https://doi.org/10.1016/j.neuroimage.2004.07.037" title="Tournier JD, et al. Direct estimation of the fiber orientation density function from diffusion-weighted MRI data using spherical deconvolution. NeuroImage 23(3):1176–1185, 2004." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2004.07.037</a> <a class="method-reference" data-reference="46" href="https://doi.org/10.1016/j.neuroimage.2007.02.016" title="Tournier JD, Calamante F, Connelly A. Robust determination of the fibre orientation distribution in diffusion MRI: Non-negativity constrained super-resolved spherical deconvolution. NeuroImage 35:1459-1472, 2007." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2007.02.016</a> <a class="method-reference" data-reference="10" href="https://doi.org/10.1016/j.neuroimage.2014.07.061" title="Jeurissen B, et al. Multi-tissue constrained spherical deconvolution for improved analysis of multi-shell diffusion MRI data. NeuroImage 103:411–426, 2014." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2014.07.061</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></td></tr>
+            <tr data-method="mtnormalise"><th scope="row">纤维追踪</th><td>多组织归一化</td><td>对数域信号强度和不均匀性归一化。</td><td class="st-cell">MRtrix3 mtnormalise</td><td class="ref-cell"><a class="method-reference" data-reference="17" href="https://archive.ismrm.org/2017/3541.html" title="Raffelt D, et al. Bias field correction and intensity normalisation for quantitative analysis of apparent fibre density. Proc Intl Soc Mag Reson Med (ISMRM), abstract 3541, 2017." target="_blank" rel="noopener">archive.ismrm.org/2017/3541.html</a> <a class="method-reference" data-reference="18" href="https://archive.ismrm.org/2021/2472.html" title="Dhollander T, et al. Multi-tissue log-domain intensity and inhomogeneity normalisation for quantitative apparent fibre density. Proc Intl Soc Mag Reson Med (ISMRM), abstract 2472, 2021." target="_blank" rel="noopener">archive.ismrm.org/2021/2472.html</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></td></tr>
+            <tr data-method="csd_act"><th scope="row">纤维追踪</th><td>iFOD2 / ACT（默认）</td><td>使用 DDSeg 组织约束的概率追踪。</td><td class="st-cell">MRtrix3；需复核解剖先验。</td><td class="ref-cell"><a class="method-reference" data-reference="14" href="https://archive.ismrm.org/2010/1670.html" title="Tournier JD, et al. Improved probabilistic streamlines tractography by 2nd order integration over fibre orientation distributions. Proc Intl Soc Mag Reson Med (ISMRM), abstract 1670, 2010." target="_blank" rel="noopener">archive.ismrm.org/2010/1670.html</a> <a class="method-reference" data-reference="15" href="https://doi.org/10.1016/j.neuroimage.2012.06.005" title="Smith RE, et al. Anatomically-constrained tractography: Improved diffusion MRI streamlines tractography through effective use of anatomical information. NeuroImage 62(3):1924–1938, 2012." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2012.06.005</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></td></tr>
+            <tr data-method="dti_tracking"><th scope="row">纤维追踪</th><td>DTI 确定性追踪</td><td>基于张量方向及终止条件的纤维追踪。</td><td class="st-cell">SlicerDMRI 与 DIPY。</td><td class="ref-cell"><a class="method-reference" data-reference="45" href="https://doi.org/10.1016/S0006-3495(94)80775-1" title="Basser PJ, Mattiello J, LeBihan D. MR diffusion tensor spectroscopy and imaging. Biophysical Journal 66:259-267, 1994." target="_blank" rel="noopener">DOI 10.1016/S0006-3495(94)80775-1</a> <a class="method-reference" data-reference="28" href="https://doi.org/10.1200/CCI.19.00141" title="Zhang F, et al. SlicerDMRI: Diffusion MRI and tractography research software for brain cancer surgery planning and visualization. JCO Clinical Cancer Informatics, issue 4:299–309, 2020." target="_blank" rel="noopener">DOI 10.1200/CCI.19.00141</a> <a class="method-reference" data-reference="30" href="https://doi.org/10.3389/fninf.2014.00008" title="Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014." target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></td></tr>
+            <tr data-method="ukf"><th scope="row">纤维追踪</th><td>UKF 双张量</td><td>自动调用官方追踪命令行工具。</td><td class="st-cell">UKFTractography 扩展及 SlicerDMRI。</td><td class="ref-cell"><a class="method-reference" data-reference="19" href="https://doi.org/10.1109/TMI.2010.2048121" title="Malcolm JG, et al. Filtered multitensor tractography. IEEE Transactions on Medical Imaging 29(9):1664–1675, 2010." target="_blank" rel="noopener">DOI 10.1109/TMI.2010.2048121</a> <a class="method-reference" data-reference="28" href="https://doi.org/10.1200/CCI.19.00141" title="Zhang F, et al. SlicerDMRI: Diffusion MRI and tractography research software for brain cancer surgery planning and visualization. JCO Clinical Cancer Informatics, issue 4:299–309, 2020." target="_blank" rel="noopener">DOI 10.1200/CCI.19.00141</a></td></tr>
+            <tr data-method="saf"><th scope="row">纤维追踪</th><td>SAF</td><td>表面约束的短联络纤维追踪与几何筛选。</td><td class="st-cell">MRtrix3；后处理后的原生表面。</td><td class="ref-cell"><a class="method-reference" data-reference="20" href="https://doi.org/10.1016/j.neuroimage.2022.119423" title="Shastin D, et al. Surface-based tracking for short association fibre tractography. NeuroImage 260:119423, 2022." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2022.119423</a></td></tr>
+            <tr data-method="wmql" class="stage-start"><th scope="row">纤维束</th><td>WMQL（默认）</td><td>官方多束查询，支持选择束子集。</td><td class="st-cell">作者 tract_querier；DDParcel 标签。</td><td class="ref-cell"><a class="method-reference" data-reference="21" href="https://doi.org/10.1007/s00429-015-1179-4" title="Wassermann D, et al. The white matter query language: a novel approach for describing human white matter anatomy. Brain Structure and Function 221(9):4705–4721, 2016." target="_blank" rel="noopener">DOI 10.1007/s00429-015-1179-4</a></td></tr>
+            <tr data-method="wma"><th scope="row">纤维束</th><td>WMA</td><td>ORG 图谱配准与聚类，自动衔接 UKF。</td><td class="st-cell">WMA、ORG 图谱及 UKF 参考路线。</td><td class="ref-cell"><a class="method-reference" data-reference="22" href="https://doi.org/10.1016/j.neuroimage.2018.06.027" title="Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. NeuroImage 179:429–447, 2018." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2018.06.027</a> <a class="method-reference" data-reference="23" href="https://doi.org/10.1109/TMI.2007.906785" title="O’Donnell LJ, Westin CF. Automatic tractography segmentation using a high-dimensional white matter atlas. IEEE Transactions on Medical Imaging 26(11):1562–1575, 2007." target="_blank" rel="noopener">DOI 10.1109/TMI.2007.906785</a> <a class="method-reference" data-reference="24" href="https://doi.org/10.1007/978-3-642-33454-2_16" title="O’Donnell LJ, et al. Unbiased groupwise registration of white matter tractography. MICCAI 2012, Lecture Notes in Computer Science, pp. 123–130, 2012." target="_blank" rel="noopener">DOI 10.1007/978-3-642-33454-2_16</a> <a class="method-reference" data-reference="26" href="https://doi.org/10.5281/zenodo.2648292" title="Zhang F, et al. O’Donnell Research Group (ORG) Fiber Clustering White Matter Atlas, version 1.1.1. Zenodo dataset, 2019." target="_blank" rel="noopener">DOI 10.5281/zenodo.2648292</a></td></tr>
+            <tr data-method="tractcloud"><th scope="row">纤维束</th><td>TractCloud</td><td>调用作者学习型纤维分区模型并导出纤维束。</td><td class="st-cell">PyTorch 后端、模型及质心。</td><td class="ref-cell"><a class="method-reference" data-reference="25" href="https://doi.org/10.1007/978-3-031-43993-3_40" title="Xue T, et al. TractCloud: Registration-free tractography parcellation with a novel local-global streamline point cloud representation. MICCAI 2023, Lecture Notes in Computer Science, pp. 409–419, 2023." target="_blank" rel="noopener">DOI 10.1007/978-3-031-43993-3_40</a> <a class="method-reference" data-reference="22" href="https://doi.org/10.1016/j.neuroimage.2018.06.027" title="Zhang F, et al. An anatomically curated fiber clustering white matter atlas for consistent white matter tract parcellation across the lifespan. NeuroImage 179:429–447, 2018." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2018.06.027</a></td></tr>
+            <tr data-method="count" class="stage-start"><th scope="row">连接组</th><td>流线计数</td><td>将流线端点分配到 DDParcel 节点。</td><td class="st-cell">Python 或适用的 MRtrix3 后端。</td><td class="ref-cell"><a class="method-reference" data-reference="50" href="https://doi.org/10.1016/j.neuroimage.2019.05.005" title="Yeh CH, et al. Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential. NeuroImage 199:160-171, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.05.005</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a></td></tr>
+            <tr data-method="sift2"><th scope="row">连接组</th><td>SIFT2 加权计数</td><td>利用 FOD 计算权重，并使用匹配流线构建矩阵。</td><td class="st-cell">MRtrix3；对应的流线文件及权重。</td><td class="ref-cell"><a class="method-reference" data-reference="16" href="https://doi.org/10.1016/j.neuroimage.2015.06.092" title="Smith RE, et al. SIFT2: Enabling dense quantitative assessment of brain white matter connectivity using streamlines tractography. NeuroImage 119:338–351, 2015." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2015.06.092</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a> <a class="method-reference" data-reference="50" href="https://doi.org/10.1016/j.neuroimage.2019.05.005" title="Yeh CH, et al. Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential. NeuroImage 199:160-171, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.05.005</a></td></tr>
+            <tr data-method="scalar_length"><th scope="row">连接组</th><td>标量与长度统计</td><td>FA、MD、ODI 等参数均值，以及流线平均长度和总长度。</td><td class="st-cell">Python API；需匹配参数图、节点及流线。</td><td class="ref-cell"><a class="method-reference" data-reference="50" href="https://doi.org/10.1016/j.neuroimage.2019.05.005" title="Yeh CH, et al. Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential. NeuroImage 199:160-171, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.05.005</a> <a class="method-reference" data-reference="29" href="https://doi.org/10.1016/j.neuroimage.2019.116137" title="Tournier JD, et al. MRtrix3: A fast, flexible and open software framework for medical image processing and visualisation. NeuroImage 202:116137, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.116137</a> <a class="method-reference" data-reference="30" href="https://doi.org/10.3389/fninf.2014.00008" title="Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014." target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a></td></tr>
+            <tr data-method="regional" class="stage-start"><th scope="row">区域分析</th><td>指定脑区分析</td><td>复用参数图进行 ROI 统计、筛选流线并提取节点子矩阵。</td><td class="st-cell">Advanced settings；基于已完成输出的工作流工具。</td><td class="ref-cell"><a class="method-reference" data-reference="3" href="https://doi.org/10.1109/TMI.2023.3331691" title="Zhang F, et al. DDParcel: Deep Learning Anatomical Brain Parcellation From Diffusion MRI. IEEE Transactions on Medical Imaging 43(3):1191–1202, 2024." target="_blank" rel="noopener">DOI 10.1109/TMI.2023.3331691</a> <a class="method-reference" data-reference="30" href="https://doi.org/10.3389/fninf.2014.00008" title="Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Frontiers in Neuroinformatics 8:8, 2014." target="_blank" rel="noopener">DOI 10.3389/fninf.2014.00008</a> <a class="method-reference" data-reference="50" href="https://doi.org/10.1016/j.neuroimage.2019.05.005" title="Yeh CH, et al. Connectomes from streamlines tractography: Assigning streamlines to brain parcellations is not trivial but highly consequential. NeuroImage 199:160-171, 2019." target="_blank" rel="noopener">DOI 10.1016/j.neuroimage.2019.05.005</a></td></tr>
+<!-- methods-catalog:end -->
+          </tbody>
+        </table>
+      </div>
+      <p class="note">默认使用 DTI、CSD/ACT 和 WMQL。详细参数位于 Advanced settings，所选依赖在 Environment and installation 中单独准备。外部工具和模型安装前会请求确认。</p>
+      <p class="note"><a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/docs/architecture/IMPLEMENTATION_PROVENANCE.md" target="_blank" rel="noopener">实现来源与验证记录</a> 记录各后端版本及单项测试范围。</p>
+    </div>
+  </div>
+</section>
+
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-identity">
+        <a class="foot-brand" href="#top"><img src="assets/img/slicerdspace-wordmark-light.svg" alt="SlicerDSpace" width="1324" height="239" loading="lazy" decoding="async"></a>
+        <p>3D Slicer 中的扩散 MRI 分析工作流。</p>
+      </div>
+      <nav class="foot-nav" aria-label="资源">
+        <div>
+          <h2 class="foot-title">浏览</h2>
+          <ul>
+            <li><a href="#outputs">分析结果</a></li>
+            <li><a href="#performance">性能优化</a></li>
+            <li><a href="#integrated">分析方法</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="foot-title">资源</h2>
+          <ul>
+            <li><a href="#start">开始使用</a></li>
+            <li><a href="https://github.com/ChengjinLii/SlicerDSpace" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/SKILL.md" target="_blank" rel="noopener">Agent Skill</a></li>
+            <li><a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/CITATION.cff" target="_blank" rel="noopener">引用本软件</a></li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+    <div class="foot-bottom">
+      <p>© 2026 Chengjin Li 与 SlicerDSpace 贡献者。</p>
+      <nav class="foot-links" aria-label="许可与声明">
+        <a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/LICENSE.txt" target="_blank" rel="noopener">BSD-3-Clause</a>
+        <a href="https://github.com/ChengjinLii/SlicerDSpace/blob/main/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">第三方声明</a>
+      </nav>
+      <a class="foot-top-link" href="#top">返回顶部</a>
+    </div>
+  </div>
+</footer>
+
+<button class="guide-bot__backdrop" type="button" hidden aria-label="关闭助手"></button>
+<aside class="guide-bot" id="guide-bot" aria-label="SlicerDSpace 项目助手">
+  <button class="guide-bot__launcher" type="button" hidden aria-label="打开 SlicerDSpace 助手" aria-expanded="false" aria-controls="guide-bot-panel" title="打开项目助手">
+    <span class="guide-bot__hat" aria-hidden="true"></span>
+    <span class="guide-bot__face" aria-hidden="true"></span>
+  </button>
+  <section class="guide-bot__panel" id="guide-bot-panel" role="dialog" aria-labelledby="guide-bot-title" hidden>
+    <header class="guide-bot__header">
+      <div class="guide-bot__identity">
+        <span class="guide-bot__eyebrow"><span aria-hidden="true"></span>SLICERDSPACE</span>
+        <h2 id="guide-bot-title">问问项目助手</h2>
+        <p class="guide-bot__description">SlicerDSpace 本地导览</p>
+      </div>
+      <div class="guide-bot__controls">
+        <button class="guide-bot__language" type="button" aria-label="切换到中文">中文</button>
+        <button class="guide-bot__close" type="button" aria-label="关闭助手">×</button>
+      </div>
+    </header>
+    <div class="guide-bot__messages" role="log" aria-live="polite" aria-label="助手对话"></div>
+    <div class="guide-bot__starters" aria-label="推荐问题">
+      <button type="button" data-guide-question="start">如何开始</button>
+      <button type="button" data-guide-question="inputs">输入数据</button>
+      <button type="button" data-guide-question="methods">分析方法</button>
+      <button type="button" data-guide-question="dependencies">环境依赖</button>
+      <button type="button" data-guide-question="results">结果与 QC</button>
+      <button type="button" data-guide-question="references">参考文献</button>
+    </div>
+    <form class="guide-bot__form">
+      <label class="sr-only" for="guide-bot-input">向项目助手提问</label>
+      <input id="guide-bot-input" type="text" maxlength="240" autocomplete="off" placeholder="输入有关使用流程的问题…">
+      <button type="submit">提问</button>
+    </form>
+    <p class="guide-bot__privacy">本地回答 · 不会发送输入</p>
+  </section>
+</aside>
+
+</body>
+</html>
