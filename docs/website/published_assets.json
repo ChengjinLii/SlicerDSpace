@@ -38,8 +38,8 @@
       "sha256": "e51323bc167818b72b32e7b52afdf0e07aeb6a958a5c75d115f588aa4d4cbbcc"
     },
     "docs/site/assets/img/results-overview.svg": {
-      "sha256": "bfbccc096045d066f8d330c7c1f38b157056adedd9d567c4203e030a72409ee5",
-      "source_sha256": "81c2146c0789712050022b7fb1432fb4fea4631efb23b33f05a6784c942f4755",
+      "sha256": "1cd2ad30989a74f33fc0c5edceff2f2ddb7f2890ead5e367b038eae4335ec91e",
+      "source_sha256": "e1fbe66beacde6928683cda82011add2ebd071cb91a9e04437326bb1ee5b4476",
       "derivative": "Black website gutters and white panel outlines; scientific artwork unchanged",
       "query_preset": "official_cerebellar",
       "query_provenance_sha256": "9c68b93eb8b2711cd03fb9e3c31db566b1c8d02f78aa5ea2729632e9e1c70a06"
