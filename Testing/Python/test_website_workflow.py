@@ -14,6 +14,9 @@ class WebsiteWorkflowTests(unittest.TestCase):
         from prepare_website_workflow import render
         source = (ROOT / 'docs/site/assets/img/workflow-overview.svg').read_bytes()
         before, after = ET.fromstring(source), ET.fromstring(render(source))
+        frames = [n for n in after.iter() if n.get('data-workflow-frame')]
+        self.assertEqual(len(frames), 10)
+        self.assertTrue(all(n.get('stroke') == '#ffffff' and n.get('fill') == 'none' for n in frames))
         for tag in ('text', 'image'):
             a, b = list(before.iter('{http://www.w3.org/2000/svg}' + tag)), list(after.iter('{http://www.w3.org/2000/svg}' + tag))
             self.assertEqual(len(a), len(b))

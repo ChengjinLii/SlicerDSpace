@@ -27,7 +27,7 @@ def render(source):
     # Publication metadata is not needed by the public display copy.
     for parent in root.iter():
         for child in list(parent):
-            if child.tag.rsplit('}', 1)[-1] == 'metadata':
+            if child.tag.rsplit('}', 1)[-1] == 'metadata' or child.get('data-workflow-frame'):
                 parent.remove(child)
     validate_static_svg(root)
     for node in root.iter():
@@ -40,6 +40,12 @@ def render(source):
     for node in logo.iter():
         if node.tag == NS + 'path' and node.get('fill') not in (None, 'none'):
             node.set('fill', '#a8b0b8' if node.get('fill') in ('#787f84', '#a8b0b8') else '#edf0f3')
+    for parent in list(root.iter()):
+        for node in list(parent):
+            if node.tag == NS + 'image':
+                frame = ET.Element(NS + 'rect', {key: node.get(key) for key in ('x', 'y', 'width', 'height')})
+                frame.attrib.update(fill='none', stroke='#ffffff', **{'stroke-width': '2', 'data-workflow-frame': 'true'})
+                parent.insert(list(parent).index(node) + 1, frame)
     ET.register_namespace('', NS[1:-1])
     ET.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
     return ET.tostring(root, encoding='utf-8', xml_declaration=True) + b'\n'
@@ -56,7 +62,7 @@ def main():
     receipt = json.loads(path.read_text())
     receipt['files'][OUTPUT] = dict(sha256=hashlib.sha256(output).hexdigest(),
         source_sha256=hashlib.sha256(source).hexdigest(),
-        derivative='Dark website palette; original workflow layout, labels and embedded result images retained')
+        derivative='Dark website palette and white image outlines; original workflow layout, labels and embedded result images retained')
     path.write_text(json.dumps(receipt, indent=2) + '\n')
     assert args.source.read_bytes() == source
     print('PASS website workflow SVG; paper source unchanged')

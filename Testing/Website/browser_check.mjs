@@ -167,7 +167,7 @@ async function runViewport(browser, origin, name, width, height, opts) {
   const webpSources = await page.locator('picture > img').evaluateAll(items => items.map(image => image.currentSrc));
   record(webpSources.length === 1 && webpSources.every(source => source.endsWith('.webp')),
     `${tag}: lossless WebP alternatives are selected for PNG figures`, JSON.stringify(webpSources));
-  record(await page.locator('#choose img').getAttribute('src') === 'assets/img/workflow-overview.svg',
+  record((await page.locator('#choose img').getAttribute('src')).split('?')[0] === 'assets/img/workflow-overview.svg',
     `${tag}: route overview uses the paper workflow as a vector image`);
 
   const wordmark = await page.locator('.product-wordmark').evaluate((img) => {
