@@ -249,8 +249,13 @@ class ScientificOutputAuditTest(unittest.TestCase):
                 nib.save(nib.Nifti1Image(np.ones((3, 3, 3), dtype=np.float32), np.eye(4)), path)
                 stat = path.stat()
                 act_dependencies[key] = dict(path=str(path), size=stat.st_size, mtime_ns=stat.st_mtime_ns)
-            (csd_dir / "act_prep_qc.json").write_text(json.dumps(dict(status="completed", version=ACT_PREP_VERSION)))
-            (csd_dir / "act_prep_manifest.json").write_text(json.dumps(dict(inputs={})))
+            prior = csd_dir / "source_parcellation.nii.gz"
+            nib.save(nib.Nifti1Image(np.full((3, 3, 3), 10, dtype=np.int16), np.eye(4)), prior)
+            prior_stat = prior.stat()
+            (csd_dir / "act_prep_qc.json").write_text(json.dumps(dict(status="completed", version=ACT_PREP_VERSION,
+                sgm_from_ddparcel=True, five_tt_stats={"channel_volume_voxel_units": {"sgm": 27.0}})))
+            (csd_dir / "act_prep_manifest.json").write_text(json.dumps(dict(inputs={"parcellation": {
+                "path": str(prior), "exists": True, "size": prior_stat.st_size, "mtime_ns": prior_stat.st_mtime_ns}})))
             csd_manifest.write_text(
                 json.dumps({"parameters": {"min_length_mm": 1.0, "max_length_mm": 250.0}, "dependencies": act_dependencies}),
                 encoding="utf-8",

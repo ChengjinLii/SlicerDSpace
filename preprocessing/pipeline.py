@@ -33,6 +33,17 @@ from shared.pipeline import RawInputBundle, find_subject_root
 REQUIRED_COMMANDS = ("dwidenoise", "mrdegibbs", "dwifslpreproc", "dwi2mask")
 REVERSE_PHASE_COMMANDS = ("mrconvert", "dwiextract", "mrcat")
 DIAGNOSTIC_COMMANDS = ("eddy", "topup")
+DIPY_BVEC_ROTATION_POLICY = "inverse_sampling_affine_polar_v1"
+
+
+def preprocessing_gradients_current(manifest: dict) -> bool:
+    """Reject motion-corrected DIPY products using the superseded rotation rule."""
+    key = manifest.get("cache_key") or {}
+    if not isinstance(key, dict) or key.get("backend") != "dipy":
+        return True
+    parameters = key.get("parameters") or {}
+    return (parameters.get("dipy_run_motion_correction") is False
+            or parameters.get("dipy_bvec_rotation_policy") == DIPY_BVEC_ROTATION_POLICY)
 
 
 def _default_eddy_threads() -> int:
@@ -300,6 +311,8 @@ def _preprocessing_cache_key(
             "dipy_denoise_method": config.dipy_denoise_method.lower(),
             "dipy_run_gibbs": bool(config.dipy_run_gibbs),
             "dipy_run_motion_correction": bool(config.dipy_run_motion_correction),
+            **({"dipy_bvec_rotation_policy": DIPY_BVEC_ROTATION_POLICY}
+               if str(backend.get("backend") or config.backend).lower() == "dipy" and config.dipy_run_motion_correction else {}),
             "b0_threshold": float(config.b0_threshold),
             "phase_encoding_direction": config.phase_encoding_direction,
             "readout_time": config.readout_time,
@@ -689,11 +702,11 @@ def _write_bvecs(path: Path, vectors: list[list[float]]) -> None:
 
 
 def _rotate_bvecs_best_effort(raw_bvec_path: Path, output_bvec_path: Path, affines: Any) -> dict[str, Any]:
+    """Reorient gradients using DIPY's reference-to-moving sampling transforms."""
     try:
         import numpy as np
     except Exception as exc:  # pragma: no cover
-        shutil.copy2(raw_bvec_path, output_bvec_path)
-        return {"status": "copied", "reason": f"numpy unavailable: {exc}"}
+        raise RuntimeError("Gradient reorientation requires NumPy") from exc
 
     bvecs = _load_bvecs(raw_bvec_path)
     affine_array = np.asarray(affines)
@@ -717,13 +730,9 @@ def _rotate_bvecs_best_effort(raw_bvec_path: Path, output_bvec_path: Path, affin
         affine_layout = "Nx4x4"
 
     if affine_layout is None:
-        shutil.copy2(raw_bvec_path, output_bvec_path)
-        return {
-            "status": "copied",
-            "reason": "unexpected affine array shape or gradient count mismatch",
-            "affine_shape": input_affine_shape,
-            "gradient_count": len(bvecs),
-        }
+        raise ValueError(f"Motion affine shape {input_affine_shape} does not match {len(bvecs)} gradients")
+    if not np.isfinite(affine_array).all() or not np.isfinite(bvecs).all():
+        raise ValueError("Motion affines and gradients must be finite for reorientation")
 
     rotated: list[list[float]] = []
     for vector, affine in zip(bvecs, affine_array):
@@ -733,12 +742,15 @@ def _rotate_bvecs_best_effort(raw_bvec_path: Path, output_bvec_path: Path, affin
             rotated.append([0.0, 0.0, 0.0])
             continue
         linear = affine[:3, :3]
+        if np.linalg.matrix_rank(linear) < 3:
+            raise ValueError("Singular motion affine cannot define a gradient rotation")
         try:
             u, _, vt = np.linalg.svd(linear)
             rotation = u @ vt
-        except np.linalg.LinAlgError:
-            rotation = np.eye(3)
-        new_vec = rotation @ vec
+        except np.linalg.LinAlgError as exc:
+            raise ValueError("Motion affine polar decomposition failed") from exc
+        # DIPY affines map reference positions to moving samples; gradients use R^-1.
+        new_vec = rotation.T @ vec
         new_norm = float(np.linalg.norm(new_vec))
         if new_norm > 1e-8:
             new_vec = new_vec / new_norm
@@ -746,7 +758,7 @@ def _rotate_bvecs_best_effort(raw_bvec_path: Path, output_bvec_path: Path, affin
     _write_bvecs(output_bvec_path, rotated)
     return {
         "status": "rotated",
-        "method": "best_effort_polar_decomposition_of_dipy_affines",
+        "method": "inverse_polar_rotation_of_dipy_sampling_affines",
         "gradient_count": len(rotated),
         "affine_layout": affine_layout,
         "affine_shape": input_affine_shape,

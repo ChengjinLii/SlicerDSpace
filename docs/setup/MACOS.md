@@ -70,11 +70,13 @@ In SlicerDSpace:
 ## 4. External Tools
 
 MRtrix3, FSL, FreeSurfer, WMA and TractCloud are optional depending on selected
-targets. Install them using your lab's preferred method, Homebrew, conda or the
-official project instructions. Then select the installed path in
-SlicerDSpace.
-
-The Linux-only managed MRtrix/FSL setup button does not install macOS packages.
+targets. The unified preparation entry can acquire pinned WMA/WMQL/TractCloud
+sources and Python wheels without Git. It now includes the official MRtrix3
+3.0.8 Intel package for macOS 14.5+, with an architecture-matched Miniforge
+bootstrap. This package route has planning tests but awaits real-Mac execution.
+Apple Silicon is not silently switched to an Intel/Rosetta environment.
+FSL/PNL and other unqualified native routes still use an existing compatible
+installation; Linux Conda prefixes cannot be copied to macOS.
 WMA path discovery now accepts `Slicer.app/Contents` libraries and installed
 SlicerDMRI modules rather than assuming Linux layout. This has app-layout
 regression tests, not real macOS scientific acceptance.

@@ -53,7 +53,11 @@ def run():
                                   label="NumPy", targets=("validation",), install_group="python", install_hint="Install numpy",
                                   details={"package": "numpy>=1"})
         pending = SimpleNamespace(statuses=(missing,), targets=("validation",), blocker_count=1)
-        ready = SimpleNamespace(statuses=(), targets=("validation",), blocker_count=0)
+        scientific_statuses = tuple(SimpleNamespace(key='python:' + name, label=name, targets=('validation',),
+            install_group='python', install_hint='', required=True, status='available', kind='python',
+            details={'import': name, 'python_executable': str(Path(slicer.app.slicerHome) / 'bin/PythonSlicer')})
+            for name in ('numpy', 'nibabel', 'vtk', 'torch'))
+        ready = SimpleNamespace(statuses=scientific_statuses, targets=("validation",), blocker_count=0)
         plan = build_setup_plan(pending)
         def accept_confirmation():
             for widget in qt.QApplication.topLevelWidgets():
@@ -104,6 +108,28 @@ def run():
         assert results and json.loads(results[-1].read_text())["status"] == "completed"
         assert json.loads((Path(owner._latestEnvironmentReportDir) / "result.json").read_text())["status"] == "ready"
         records.append("real_cancellable_python_worker_and_final_recheck")
+        assert setup.prepare_selected_environment(owner, ready)
+        wait()
+        functional = json.loads((Path(owner._latestEnvironmentReportDir) / 'functional-0-result.json').read_text())
+        assert functional['status'] == 'passed', functional
+        assert 'vtk:streamline_write_read' in functional['checks'], functional
+        records.append('real_functional_worker_writes_and_reads_volume_and_streamline')
+        from unittest.mock import patch
+        with patch('shared.setup_selftest.requests_for_report', return_value=[dict(python=None, imports=['torch'],
+                models=[dict(path='/does/not/exist.pt', sha256='0' * 64, torchscript=True)])]):
+            assert setup.prepare_selected_environment(owner, ready)
+            wait()
+        assert owner._setupFunctionalFailure
+        assert json.loads((Path(owner._latestEnvironmentReportDir) / 'result.json').read_text())['status'] == 'failed'
+        with patch('shared.ui_environment_check.request_prepare_environment') as retry:
+            owner.ui.runSelectedButton.click()
+            retry.assert_called_once_with(owner)
+        assert not owner._pipelineActive
+        records.append('failed_functional_test_prevents_ready_and_run')
+        assert setup.prepare_selected_environment(owner, ready)
+        wait()
+        assert not owner._setupFunctionalFailure
+        records.append('explicit_retest_recovers_without_reinstalling')
         optional_missing = SimpleNamespace(key="tractcloud_data_dir", kind="setting", status="missing", required=True,
             label="TractCloud inference resources", targets=("validation",), install_group="tractcloud", install_hint="Prepare", details={})
         optional_report = SimpleNamespace(statuses=(optional_missing,), targets=("validation",), blocker_count=1)
@@ -133,6 +159,27 @@ def run():
         assert owner._managedRuntimeSetupButton.text == "准备所选分析环境"
         assert owner._offlineModelResourcesButton.text == "使用离线模型资源"
         records.append("chinese_translation")
+        import runpy
+        setup_helper = runpy.run_path(str(Path(os.environ['SLICERDSPACE_AGENT_SETUP_HELPER'])))
+        request = dict(mode='plan', targets=['validation'], model_assets_dir=os.environ['SLICERDSPACE_MODEL_ASSETS_DIR'],
+                       parameters={'brainMaskBackend': 'provided'})
+        before_nodes = slicer.mrmlScene.GetNumberOfNodes()
+        for mode in ('plan', 'prepare'):
+            path = root / ('agent-setup-' + mode + '.json')
+            path.unlink(missing_ok=True)
+            setup_helper['start'](dict(request, mode=mode), path)
+            deadline = time.monotonic() + 90
+            while not path.is_file() or json.loads(path.read_text()).get('status') == 'checking':
+                if time.monotonic() > deadline:
+                    raise RuntimeError('Agent setup helper did not produce a receipt')
+                loop = qt.QEventLoop()
+                qt.QTimer.singleShot(100, loop.quit)
+                loop.exec_()
+            receipt = json.loads(path.read_text())
+            assert receipt['status'] == ('planned' if mode == 'plan' else 'ready'), receipt
+            assert not receipt['scientific_analysis_started']
+        assert slicer.mrmlScene.GetNumberOfNodes() == before_nodes
+        records.append('real_agent_helper_plan_and_prepare_without_patient_analysis_or_scene_reset')
         owner._advancedSettingsPanel.collapsed = False
         owner.ui.environmentCollapsibleButton.collapsed = False
         slicer.app.processEvents()

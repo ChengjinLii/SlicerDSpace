@@ -93,6 +93,8 @@ class SelectedSetupTests(unittest.TestCase):
         owner._onboardingLanguage = "en"
         owner._managedRuntimeSetupButton = None
         owner._uiLanguageBindings = []
+        owner._environment_dependency_path_kwargs.return_value = {}
+        owner._setup_python_command.return_value = ('python', [])
         owner._run_environment_dependency_check.return_value = report
         owner._tractography_backend_text.return_value = "csd_act"
         return owner
@@ -116,7 +118,7 @@ class SelectedSetupTests(unittest.TestCase):
     def test_python_models_and_runtime_phases_finish_with_a_fresh_check(self):
         initial = result(item("numpy"), item("weights", "model-resources", "path", ("segmentation",), None))
         owner = self.owner(result())
-        owner._install_python_packages_from_environment_dialog.side_effect = lambda packages, on_complete: on_complete(True)
+        owner._install_python_packages_from_environment_dialog.side_effect = lambda packages, on_complete, **kwargs: on_complete(True)
         owner._install_model_assets_from_environment_dialog.side_effect = lambda profile, on_complete: on_complete(True, "verified")
         context, _ = self.run_preparation(owner, initial)
         with tempfile.TemporaryDirectory() as temp, context, patch("shared.ui_selected_setup._confirm", return_value=True), \
@@ -143,6 +145,21 @@ class SelectedSetupTests(unittest.TestCase):
         owner._run_environment_dependency_check.assert_not_called()
         owner._install_python_packages_from_environment_dialog.assert_not_called()
 
+    def test_importable_environment_must_pass_functional_checks_before_ready(self):
+        report = result()
+        owner = self.owner(report)
+        context, _ = self.run_preparation(owner, report)
+        with tempfile.TemporaryDirectory() as temp, context, \
+                patch('shared.user_config.default_user_config_path', return_value=Path(temp) / 'config.json'), \
+                patch('shared.setup_selftest.requests_for_report', return_value=[{'python': 'python'}]), \
+                patch('shared.ui_setup_jobs.start_setup_job', side_effect=lambda widget, title, commands, done:
+                      done('failed', 'Synthetic model test failed', None)):
+            prepare_selected_environment(owner, report)
+            receipt = next(Path(temp).glob('setup-history/*/result.json'))
+            self.assertEqual(json.loads(receipt.read_text())['status'], 'failed')
+        self.assertTrue(owner._setupFunctionalFailure)
+        self.assertFalse(owner._selectedSetupActive)
+
     def test_completed_restart_preparation_clears_previous_pending_request(self):
         from shared.setup_resume import remember_setup, pending_setup
         report = result()
@@ -158,7 +175,7 @@ class SelectedSetupTests(unittest.TestCase):
     def test_failure_stops_the_chain_and_releases_preparation_lock(self):
         initial = result(item("numpy"))
         owner = self.owner(initial)
-        owner._install_python_packages_from_environment_dialog.side_effect = lambda packages, on_complete: on_complete(False)
+        owner._install_python_packages_from_environment_dialog.side_effect = lambda packages, on_complete, **kwargs: on_complete(False)
         context, _ = self.run_preparation(owner, initial)
         with tempfile.TemporaryDirectory() as temp, context, patch("shared.ui_selected_setup._confirm", return_value=True), \
                 patch("shared.user_config.default_user_config_path", return_value=Path(temp) / "config.json"):

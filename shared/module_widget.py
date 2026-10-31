@@ -1756,6 +1756,7 @@ class SharedWidgetMixin:
             self._set_environment_path_status_label(label, text, state)
 
     def cleanup(self) -> None:
+        self._setupResumeEnabled = False
         if getattr(self, "_cleanedUp", False):
             return
         self._cleanedUp = True
@@ -1802,13 +1803,16 @@ class SharedWidgetMixin:
         self.removeObservers()
 
     def enter(self) -> None:
+        self._setupResumeEnabled = True
         self.initializeParameterNode()
-        from shared.setup_resume import refresh_setup_button
+        from shared.setup_resume import refresh_setup_button, offer_pending_preparation
         refresh_setup_button(self)
+        offer_pending_preparation(self)
         # Runs may have been produced from the command line or another session.
         self._refresh_run_history()
 
     def exit(self) -> None:
+        self._setupResumeEnabled = False
         if self._parameterNode:
             if self._parameterNodeGuiTag is not None:
                 self._parameterNode.disconnectGui(self._parameterNodeGuiTag)
@@ -2871,6 +2875,14 @@ class SharedWidgetMixin:
         if getattr(self, "_setupRestartRequired", False):
             self._setStatus("warning", onboarding_text(getattr(self, "_onboardingLanguage", "en"), "setup_restart_required"))
             return
+        from shared.setup_resume import functional_failure_matches, pending_setup
+        previous = pending_setup()
+        if (getattr(self, '_setupFunctionalFailure', False) or
+                (previous and previous.get('status') == 'functional_failed' and functional_failure_matches(
+                    self._environment_check_signature(self._environment_check_kwargs())))):
+            from shared.ui_environment_check import request_prepare_environment
+            request_prepare_environment(self)
+            return
         if getattr(self._parameterNode, 'experimentsEnabled', False):
             from shared.ui_experiments import submit
             submit(self)
@@ -2985,13 +2997,12 @@ class SharedWidgetMixin:
         doctor_result = self._environment_doctor_result_for_run(doctor_kwargs, doctor_signature)
         if doctor_result is None:
             return
-        if doctor_result.blocker_count and auto_install_python and doctor_result.missing_python_packages:
-            doctor_result = self._install_missing_python_before_run(doctor_result, doctor_kwargs, doctor_signature)
-            if doctor_result is None:
-                return
-
         preflight_blockers = preflight_blockers_for_targets(doctor_result, selected_targets)
         if preflight_blockers:
+            if auto_install_python:
+                from shared.ui_selected_setup import prepare_selected_environment
+                prepare_selected_environment(self, doctor_result)
+                return
             self.ui.environmentCollapsibleButton.collapsed = False
             self._update_environment_result_label(doctor_result)
             self._update_environment_status(doctor_result)
@@ -3228,17 +3239,17 @@ class SharedWidgetMixin:
     def _setup_python_command(self, python_override=None):
         result = getattr(self, "_lastEnvironmentResult", None)
         python = str(python_override or getattr(result, "python_executable", "") or "")
-        if python and Path(python).resolve() != Path(sys.executable).resolve():
-            return python, []
-        return self._slicer_launcher_program(), ["--launch", "PythonSlicer"]
+        from shared.python_environment import setup_python_command
+        return setup_python_command(python, slicer_home=str(slicer.app.slicerHome),
+                                    launcher=self._slicer_launcher_program())
 
-    def _install_python_packages_from_environment_dialog(self, packages: tuple[str, ...], on_complete=None) -> None:
+    def _install_python_packages_from_environment_dialog(self, packages: tuple[str, ...], on_complete=None, *, requests=None) -> None:
         from shared.ui_setup_jobs import start_setup_job
         from shared.ui_selected_setup import python_setup_commands
         packages = tuple(dict.fromkeys(p.strip() for p in packages if p.strip()))
         if not packages:
             return
-        commands, receipts = python_setup_commands(self, packages)
+        commands, receipts = python_setup_commands(self, packages, requests=requests)
 
         def done(status, details, log_path):
             if status == "completed":

@@ -155,10 +155,14 @@ class ResumeInvalidationTest(unittest.TestCase):
         gmwmi = act_dir / "100307_gmwmi_from_labels.nii.gz"
         five_tt.write_text("5tt", encoding="utf-8")
         gmwmi.write_text("gmwmi", encoding="utf-8")
+        parcellation = act_dir / "source_parcellation.nii.gz"
+        parcellation.write_text("parcellation", encoding="utf-8")
         (act_dir / "act_prep_manifest.json").write_text(
-            json.dumps({"version": version, "inputs": {"segmentation": _record(segmentation)}}), encoding="utf-8"
+            json.dumps({"version": version, "inputs": {"segmentation": _record(segmentation),
+                "parcellation": {**_record(parcellation), "exists": True}}}), encoding="utf-8"
         )
-        (act_dir / "act_prep_qc.json").write_text(json.dumps({"version": version, "status": "completed"}), encoding="utf-8")
+        (act_dir / "act_prep_qc.json").write_text(json.dumps({"version": version, "status": "completed",
+            "sgm_from_ddparcel": True, "five_tt_stats": {"channel_volume_voxel_units": {"sgm": 1.0}}}), encoding="utf-8")
         return five_tt, gmwmi
 
     def _csd_manifest(self, root: Path, five_tt: Path, gmwmi: Path) -> Path:
@@ -209,7 +213,77 @@ class ResumeInvalidationTest(unittest.TestCase):
             self.assertFalse(_act_inputs_current(manifest))
 
 
+    def test_ddseg_only_cache_requires_explicit_permission_on_each_run(self):
+        from shared.orchestrator import _act_inputs_current, _act_prep_complete
+        from tractography.act_prep import ACT_PREP_VERSION
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = _subject(tmp)
+            segmentation = self._write_ddseg(subject, _ddseg_qc(2, "x"))
+            five_tt, gmwmi = self._act_prep(subject, segmentation, ACT_PREP_VERSION)
+            manifest = self._csd_manifest(Path(tmp), five_tt, gmwmi)
+            prep_path = five_tt.parent / "act_prep_manifest.json"
+            prep = json.loads(prep_path.read_text())
+            prep["inputs"]["parcellation"] = None
+            prep["allow_ddseg_only"] = True
+            prep_path.write_text(json.dumps(prep))
+            qc_path = five_tt.parent / "act_prep_qc.json"
+            qc = json.loads(qc_path.read_text())
+            qc.update(sgm_from_ddparcel=False, anatomical_prior_status="ddseg_only")
+            qc_path.write_text(json.dumps(qc))
+            self.assertFalse(_act_inputs_current(manifest))
+            self.assertFalse(_act_prep_complete(subject, "100307"))
+            self.assertTrue(_act_inputs_current(manifest, allow_ddseg_only=True))
+            self.assertTrue(_act_prep_complete(subject, "100307", allow_ddseg_only=True))
+
+    def test_changed_probability_map_invalidates_act_cache(self):
+        from shared.orchestrator import _act_inputs_current
+        from tractography.act_prep import ACT_PREP_VERSION
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = _subject(tmp)
+            segmentation = self._write_ddseg(subject, _ddseg_qc(2, "x"))
+            five_tt, gmwmi = self._act_prep(subject, segmentation, ACT_PREP_VERSION)
+            manifest = self._csd_manifest(Path(tmp), five_tt, gmwmi)
+            probability = segmentation.parent / "ProbabilisticMap_WM.nii.gz"
+            prep_path = five_tt.parent / "act_prep_manifest.json"
+            prep = json.loads(prep_path.read_text())
+            prep["inputs"]["probabilities"] = {"wm": {**_record(probability), "exists": True}}
+            prep_path.write_text(json.dumps(prep))
+            self.assertTrue(_act_inputs_current(manifest))
+            probability.write_text("changed probability data")
+            self.assertFalse(_act_inputs_current(manifest))
+
+
 class WorldQCGateTest(unittest.TestCase):
+    def test_missing_ddparcel_blocks_default_act_in_plan_and_execution(self):
+        from dataclasses import replace
+        from unittest.mock import patch
+        from shared import ProductOrchestratorConfig, plan_subject_products, run_subject_products, subject_layout
+        from test_product_orchestrator import _write_valid_raw_subject
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subject = _subject(tmp)
+            _write_valid_raw_subject(subject)
+            layout = subject_layout(subject)
+            layout.ddseg.mkdir(parents=True)
+            (layout.ddseg / "SegmentationMap_GMWMCSF.nii.gz").write_text("segmentation")
+            config = ProductOrchestratorConfig("100307", subject, ("tractography",),
+                execute=True, resume=False, brain_mask_backend="provided")
+            plan = plan_subject_products(config, write=False)
+            task = next(t for t in plan.items if t.target == "tractography")
+            self.assertEqual(task.status, "blocked")
+            self.assertIn("DDParcel", task.reason)
+            fallback = plan_subject_products(replace(config, allow_act_ddseg_only=True), write=False)
+            self.assertEqual(next(t for t in fallback.items if t.target == "tractography").status, "will_run")
+            with patch("tractography.act_prep.run_act_prep") as prepare, patch("tractography.csd.run_csd_act") as track:
+                result = run_subject_products(config)
+            prepare.assert_not_called()
+            track.assert_not_called()
+            task = next(t for t in result.tasks if t.name == "tractography.csd_act")
+            self.assertEqual(task.status, "blocked")
+            self.assertIn("DDParcel", task.reason)
+
     def test_mirrored_ddseg_blocks_csd_act(self) -> None:
         from shared import ProductOrchestratorConfig, run_subject_products, subject_layout
 

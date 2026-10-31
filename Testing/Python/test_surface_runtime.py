@@ -80,15 +80,20 @@ class SurfaceRuntimeTests(unittest.TestCase):
         self.assertFalse(plan['surface_build_required'])
         self.assertIn('surface_postprocess_license', [item['key'] for item in plan['manual_items']])
 
-    def test_build_is_selected_only_for_missing_local_components_on_linux(self):
+    def test_prebuilt_install_is_selected_without_implicit_compilation(self):
         item = SimpleNamespace(key='surface_postprocess_runtime', required=True, status='missing', kind='setting',
             targets=('surface_postprocess',), details={'build_required': True}, install_group='surface-runtime',
             label='components', install_hint='prepare')
         result = SimpleNamespace(statuses=(item,))
-        self.assertTrue(build_setup_plan(result, system='Linux', machine='x86_64')['surface_build_required'])
+        from shared.prebuilt_surface import bundle_for_platform
+        bundle = dict(bundle_for_platform('Linux', 'x86_64'), published=True)
+        with patch('shared.prebuilt_surface.bundle_for_platform', return_value=bundle):
+            plan = build_setup_plan(result, system='Linux', machine='x86_64')
+        self.assertFalse(plan['surface_build_required'])
+        self.assertTrue(plan['surface_prebuilt_required'])
         for system, machine in (('Darwin', 'arm64'), ('Windows', 'AMD64')):
             plan = build_setup_plan(result, system=system, machine=machine)
-            self.assertFalse(plan['surface_build_required'])
+            self.assertFalse(plan['surface_prebuilt_required'])
             self.assertTrue(plan['manual_items'])
         item.details['build_required'] = False
         self.assertFalse(build_setup_plan(result, system='Linux', machine='x86_64')['surface_build_required'])
@@ -104,9 +109,9 @@ class SurfaceRuntimeTests(unittest.TestCase):
 
     def test_gui_tooltips_describe_the_optional_full_installation(self):
         from shared.ui_onboarding import TRANSLATIONS
-        self.assertIn('locally compiled', TRANSLATIONS['en']['surface_postprocess_tooltip'])
+        self.assertIn('verified native', TRANSLATIONS['en']['surface_postprocess_tooltip'])
         self.assertIn('full FreeSurfer installation is optional', TRANSLATIONS['en']['surface_postprocess_tooltip'])
-        self.assertIn('本机编译', TRANSLATIONS['zh']['surface_postprocess_tooltip'])
+        self.assertIn('经校验的原生', TRANSLATIONS['zh']['surface_postprocess_tooltip'])
         self.assertIn('不强制安装完整 FreeSurfer', TRANSLATIONS['zh']['surface_postprocess_tooltip'])
 
     def test_builder_dry_run_and_unapproved_execute_never_prepare_resources(self):
@@ -126,7 +131,7 @@ class SurfaceRuntimeTests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmp, patch('platform.system', return_value=system), \
                     patch('scripts.setup_optional_assets.prepare') as resources:
                 prefix = Path(tmp) / 'components'
-                with self.assertRaisesRegex(ValueError, 'validated on Linux only'):
+                with self.assertRaisesRegex(ValueError, 'No qualified prebuilt surface bundle'):
                     prepare(prefix=prefix)
                 self.assertFalse(prefix.exists())
                 resources.assert_not_called()

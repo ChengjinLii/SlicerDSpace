@@ -291,6 +291,9 @@ def resolve_preprocessed_input_bundle(
         return raw
     if manifest.get("status") not in {"completed", "cached"}:
         return raw
+    from preprocessing.pipeline import preprocessing_gradients_current
+    if not preprocessing_gradients_current(manifest):
+        return raw
     if "cache_key" in manifest:
         cache_key = manifest.get("cache_key")
         inputs = cache_key.get("inputs") if isinstance(cache_key, dict) else None

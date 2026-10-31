@@ -8,7 +8,22 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from shared.external_process import interpreter_path, text_subprocess_kwargs
+from shared.external_process import interpreter_path, text_subprocess_kwargs, slicer_runtime_roots
+
+
+def setup_python_command(python, *, slicer_home, launcher, current_python=None):
+    """Slicer's raw interpreter needs its launcher; external venvs keep their identity."""
+    if not python:
+        return launcher, ['--launch', 'PythonSlicer']
+    selected = interpreter_path(python)
+    current = interpreter_path(current_python or sys.executable)
+    home = Path(slicer_home).expanduser().resolve()
+    slicer_bins = {(root / 'bin').resolve() for root in (slicer_runtime_roots(home) or (home,))}
+    own_python = (selected.parent.resolve() in slicer_bins and selected.name.lower() in
+                  {'python-real', 'python-real.exe', 'pythonslicer', 'pythonslicer.exe'})
+    if selected == current or own_python:
+        return launcher, ['--launch', 'PythonSlicer']
+    return str(selected), []
 
 
 def _looks_like_path(value: str) -> bool:

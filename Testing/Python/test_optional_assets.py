@@ -63,7 +63,7 @@ class OptionalAssetsTests(unittest.TestCase):
             server.server_close()
             thread.join(timeout=5)
 
-    def test_only_selected_missing_resources_are_planned_and_code_blockers_remain(self):
+    def test_only_selected_missing_resources_and_backend_sources_are_planned(self):
         def item(key, group):
             return SimpleNamespace(key=key, kind="path", status="missing", required=True, targets=("wma",),
                                    label=key, details={}, install_group=group, install_hint="configure")
@@ -71,8 +71,10 @@ class OptionalAssetsTests(unittest.TestCase):
                                            item("tractcloud_data_dir", "tractcloud")])
         plan = build_setup_plan(result, brain_mask_backend="provided", system="Linux", machine="x86_64")
         self.assertEqual(plan["optional_asset_profiles"], ["wma", "tractcloud"])
-        self.assertEqual([item["key"] for item in plan["manual_items"]], ["wma_root"])
+        self.assertEqual(plan['backend_profiles'], ['wma'])
+        self.assertEqual(plan['manual_items'], [])
         self.assertGreater(plan["optional_asset_size_bytes"], 1800000000)
+        self.assertGreaterEqual(plan['optional_asset_peak_disk_bytes'], plan['optional_asset_size_bytes'] + 2439318525)
         clean = build_setup_plan(SimpleNamespace(statuses=[]))
         self.assertEqual(clean["optional_asset_profiles"], [])
 

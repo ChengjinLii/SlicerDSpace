@@ -42,8 +42,29 @@ def runtime_root():
                 default_user_model_assets_root().parent / "runtimes").expanduser().resolve()
 
 
-def supported_platform(system=None, machine=None):
-    return (system or platform.system()) == "Linux" and (machine or platform.machine()) in {"x86_64", "amd64"}
+def supported_platform(system=None, machine=None, *, profiles=None):
+    system, machine = system or platform.system(), (machine or platform.machine()).lower()
+    if system == 'Linux' and machine in {'x86_64', 'amd64'}:
+        return True
+    if system == 'Darwin' and machine in {'x86_64', 'amd64'} and profiles and set(profiles) <= {'mrtrix'}:
+        version = platform.mac_ver()[0]
+        return (tuple(map(int, version.split('.')[:2])) >= (14, 5)) if version else platform.system() != 'Darwin'
+    return False
+
+
+def profile_spec(name):
+    spec = dict(PROFILES[name])
+    if platform.system() == 'Darwin' and name == 'mrtrix':
+        spec['packages'] = ('mrtrix3=3.0.8=hee5d243_0', 'python=3.12')
+    return spec
+
+
+def bootstrap_artifact():
+    if platform.system() == 'Darwin':
+        filename = 'Miniforge3-26.7.2-0-MacOSX-x86_64.sh'
+        return (MINIFORGE_URL.rsplit('/', 1)[0] + '/' + filename,
+                'b00e7798658f92721a3ae2f6b9832695ffc6baf07758894d726268055359f6c5')
+    return MINIFORGE_URL, MINIFORGE_SHA256
 
 
 def cuda_visible():
@@ -83,13 +104,13 @@ def install_plan(profiles, root=None):
         raise ValueError("Choose one FSL device profile, not both")
     base = (root or runtime_root()).expanduser().resolve()
     return {"kind": "slicerdsurfer_runtime_plan", "root": str(base),
-            "platform_supported": supported_platform(), "profiles": list(selected),
+            "platform_supported": supported_platform(profiles=selected), "profiles": list(selected),
             "prefixes": {name: str(base / PROFILES[name]["directory"]) for name in selected},
             "fsl_license_required": any(name.startswith("fsl_") for name in selected),
             "pnl_terms_required": "pnl_cnn" in selected,
             "fsl_terms_url": FSL_TERMS_URL, "changes_slicer_python": False,
-            "changes_shell_or_driver": False, "bootstrap_url": MINIFORGE_URL,
-            "bootstrap_sha256": MINIFORGE_SHA256}
+            "changes_shell_or_driver": False, "bootstrap_url": bootstrap_artifact()[0],
+            "bootstrap_sha256": bootstrap_artifact()[1]}
 
 
 def file_hash(path):
@@ -107,7 +128,7 @@ def write_json(path, payload):
 
 
 def verify_prefix(profile, prefix):
-    spec = PROFILES[profile]
+    spec = profile_spec(profile)
     if prefix.is_symlink():
         raise ValueError("Managed runtime prefix cannot be a symlink")
     commands = {name: prefix / "bin" / name for name in spec["commands"]}
@@ -129,9 +150,45 @@ def verify_prefix(profile, prefix):
                                    timeout=30, env=external_python_environment())
             if probe.returncode or "not found" in probe.stdout:
                 raise RuntimeError(f"Runtime libraries unavailable for {name}: {probe.stdout} {probe.stderr}")
+    functionality = []
+    if profile == 'mrtrix':
+        import struct
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix='slicerdspace-mrtrix-test-') as tmp:
+            original, output = Path(tmp) / 'input.mif', Path(tmp) / 'output.mif'
+            header = b'mrtrix image\ndim: 2,2,2\nvox: 1,1,1\nlayout: +0,+1,+2\ndatatype: Float32LE\nfile: . 256\nEND\n'
+            original.write_bytes(header.ljust(256, b'\0') + struct.pack('<8f', *range(8)))
+            subprocess.run([str(prefix / 'bin/mrconvert'), str(original), str(output), '-quiet', '-datatype', 'Float32LE'],
+                           check=True, capture_output=True, timeout=60, env=external_python_environment())
+            data = output.read_bytes()
+            end = data.index(b'\nEND\n')
+            offset_line = next(line for line in data[:end].decode('ascii').splitlines() if line.startswith('file:'))
+            offset = int(offset_line.split()[-1])
+            if struct.unpack('<8f', data[offset:offset + 32]) != tuple(float(i) for i in range(8)):
+                raise RuntimeError('MRtrix synthetic image round-trip failed')
+            functionality.append('mrconvert:synthetic_image_roundtrip')
+    if profile == 'pnl_cnn':
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix='slicerdspace-ants-test-') as tmp:
+            original, output = Path(tmp) / 'input.nii.gz', Path(tmp) / 'output.nii.gz'
+            python = str(prefix / 'bin/python')
+            environment = external_python_environment(path_prepend=[prefix / 'bin'])
+            create = ('import sys, nibabel as n, numpy as np; '
+                      'n.save(n.Nifti1Image(np.arange(27,dtype=np.float32).reshape(3,3,3),np.eye(4)),sys.argv[1])')
+            subprocess.run([python, '-c', create, str(original)], check=True, capture_output=True,
+                           timeout=60, env=environment)
+            subprocess.run([str(prefix / 'bin/ImageMath'), '3', str(output), 'm', str(original), '1'],
+                           check=True, capture_output=True, timeout=60, env=environment)
+            compare = ('import sys, nibabel as n, numpy as np; a,b=[n.load(p) for p in sys.argv[1:]]; '
+                       'np.testing.assert_array_equal(np.asanyarray(a.dataobj),np.asanyarray(b.dataobj)); '
+                       'np.testing.assert_allclose(a.affine,b.affine,atol=1e-6)')
+            subprocess.run([python, '-c', compare, str(original), str(output)], check=True, capture_output=True,
+                           timeout=60, env=environment)
+            functionality.append('ants:synthetic_image_roundtrip')
     return {"external_dependencies": {key: str(prefix / "bin") for key in spec["settings"]},
             "command_sha256": {name: file_hash(path) for name, path in commands.items()},
-            "package_versions": installed, "scientific_validation": "not_inferred_from_installation"}
+            "package_versions": installed, "functional_checks": functionality,
+            "scientific_validation": "not_inferred_from_installation"}
 
 
 def _run(argv):
@@ -174,27 +231,28 @@ def ensure_conda(root, explicit=None):
         receipt = json.loads(marker.read_text()) if marker.is_file() else {}
         if receipt.get("kind") != "slicerdsurfer_miniforge_bootstrap" or receipt.get("prefix") != str(bootstrap):
             raise RuntimeError("Refusing to repair an unmanaged bootstrap directory: " + str(bootstrap))
-    installer = root / "Miniforge3-26.7.2-0-Linux-x86_64.sh"
-    if not installer.is_file() or file_hash(installer) != MINIFORGE_SHA256:
+    bootstrap_url, bootstrap_sha256 = bootstrap_artifact()
+    installer = root / bootstrap_url.rsplit('/', 1)[-1]
+    if not installer.is_file() or file_hash(installer) != bootstrap_sha256:
         part = installer.with_suffix(".part")
         print("[Runtime setup] Downloading verified Miniforge bootstrap", flush=True)
-        with urllib.request.urlopen(MINIFORGE_URL, timeout=60) as response, part.open("wb") as output:
+        with urllib.request.urlopen(bootstrap_url, timeout=60) as response, part.open("wb") as output:
             count = 0
             for chunk in iter(lambda: response.read(1024 * 1024), b""):
                 output.write(chunk)
                 count += len(chunk)
                 print(f"[Runtime setup] Bootstrap download: {count // (1024 * 1024)} MiB", flush=True)
-        if file_hash(part) != MINIFORGE_SHA256:
+        if file_hash(part) != bootstrap_sha256:
             raise RuntimeError("Miniforge checksum mismatch; downloaded file will not be executed")
         part.replace(installer)
     # The installer's update mode repairs an interrupted plugin-owned prefix.
     write_json(marker, {"kind": "slicerdsurfer_miniforge_bootstrap", "prefix": str(bootstrap),
-                        "url": MINIFORGE_URL, "sha256": MINIFORGE_SHA256, "status": "installing"})
+                        "url": bootstrap_url, "sha256": bootstrap_sha256, "status": "installing"})
     _run(["bash", str(installer), "-b", *( ["-u"] if bootstrap.exists() else []), "-p", str(bootstrap)])
     if not executable.is_file():
         raise RuntimeError("Miniforge did not produce its expected conda executable")
     write_json(marker, {"kind": "slicerdsurfer_miniforge_bootstrap", "prefix": str(bootstrap),
-                        "url": MINIFORGE_URL, "sha256": MINIFORGE_SHA256, "status": "ready"})
+                        "url": bootstrap_url, "sha256": bootstrap_sha256, "status": "ready"})
     return str(executable)
 
 
@@ -220,7 +278,9 @@ def configured_profiles(config, candidates, root=None):
 def provision(profiles, *, root=None, conda=None, accept_fsl_license=False, accept_pnl_terms=False, repair=False, asset_root=None):
     plan = install_plan(profiles, root)
     if not plan["platform_supported"]:
-        raise RuntimeError("Managed MRtrix/FSL/PNL setup currently supports Linux x86_64 only")
+        raise RuntimeError("No qualified managed package for the selected platform/profile combination")
+    if platform.system() == 'Darwin' and platform.mac_ver()[0] and tuple(map(int, platform.mac_ver()[0].split('.')[:2])) < (14, 5):
+        raise RuntimeError('The qualified MRtrix macOS package requires macOS 14.5 or later')
     if plan["fsl_license_required"] and not accept_fsl_license:
         raise PermissionError("Read and explicitly accept the FSL license before installing: " + FSL_TERMS_URL)
     if "pnl_cnn" in profiles and not accept_pnl_terms:
@@ -231,7 +291,7 @@ def provision(profiles, *, root=None, conda=None, accept_fsl_license=False, acce
     with setup_lock(base):
         manager = None
         for profile in plan["profiles"]:
-            spec, prefix = PROFILES[profile], Path(plan["prefixes"][profile])
+            spec, prefix = profile_spec(profile), Path(plan["prefixes"][profile])
             if prefix.is_symlink():
                 raise ValueError("Managed runtime prefix cannot be a symlink")
             receipt_path = base / (spec["directory"] + ".json")

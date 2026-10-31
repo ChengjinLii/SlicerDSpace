@@ -12,14 +12,21 @@
 
 选择分析任务后，展开独立的“环境与安装”区域，点击 **准备所选分析环境**。
 环境报告的组合入口使用同一逻辑。检查与最终复核均在可取消的后台进程中进行。
-只有存在待处理项目时才确认计划、下载和相关许可；已经就绪时不弹出重复确认。
+只有存在待处理项目时才确认安装计划、下载和相关许可；依赖已能导入时不重复安装，仍执行功能自检。
 离线资源、修复和手工路径位于环境区的“更多选项”，不混入算法高级设置。
 只处理本次所需依赖：
 
 1. 通过 Slicer 扩展管理器安装缺少的 SlicerDMRI/PyTorch；仅选择 UKF 时请求 UKFTractography。
-2. 新安装或启用扩展后，保存工作并重启 Slicer，再点击准备继续；不会重复安装已有扩展。
-3. 后台 worker 按所选解释器安装缺少的 Python 包，下载所需解剖模型，准备支持的隔离工具。
-4. 校验成功后保存路径，重新检查所选依赖，明确显示就绪、仍有阻碍或需要重启。
+2. 新安装或启用扩展后，保存工作并重启 Slicer；重新进入 SlicerDSpace 后提示继续准备，复用已有扩展。
+3. 后台准备固定版本的 WMQL/WMA/TractCloud 源码，无需 Git；安装缺少的 Python wheel、下载模型并准备支持的隔离工具。
+4. 校验成功后保存路径，重新检查依赖并执行小型功能测试。自检失败时不能进入分析，须重新准备并通过。
+
+同一配置的功能自检失败会跨重启保留。源码发现与实际运行使用同一份经校验缓存，
+未保存显式源码路径时也能复用。Windows 的 WMA 不会把 Bash 源码目录当作 WSL 可执行桥接。
+
+启用“首次使用准备”后，点击运行时发现缺少依赖会进入同一个确认流程，安装或重启后不自动启动科学计算。
+确认页展示资源目录、已知模型与源码大小及许可。Python/Conda 依赖的下载量由求解器决定，
+不计入这些大小总计，可能另外需要数 GB。
 
 这些自动配置路线不需要打开终端、管理员权限、激活 Conda 或手动寻找可执行文件。
 如果没有 Conda，插件会从 conda-forge 官方 GitHub 下载固定版本的 Miniforge，
@@ -38,10 +45,13 @@ FSL 与 PNL 源码、模型、模板条款均需明确确认。
 
 Python 安装检测 `slicer.packaging.pip_ensure` 是否存在；Slicer 5.10 没有该模块，
 使用可取消的后台 Python 进程。常规 pip 安装约束现有 NumPy、SciPy、VTK、SimpleITK、
-PyTorch 等核心版本，不为解决冲突而静默升级基础栈。PyTorch 使用官方扩展辅助器。
+PyTorch 等核心版本，不为解决冲突而静默升级基础栈。PyTorch 使用官方扩展辅助器，
+保留所选算法中最严格的最低版本要求。DDSeg、DDParcel、DDSurfer、TractCloud 默认复用兼容的
+PyTorch；WMQL、DIPY、AMICO 默认使用工作流 Python，明确配置的其他解释器仍保留。
 已加载的包发生变更时，必须重启后再运行分析。
 新版 packaging API 当前通过契约测试验证，并非已实测更新版 Slicer 二进制。
-裸 VCS URL 和本地工程使用原生 `pip_install`，避免传入仅解析标准包名的
+普通包请求只使用二进制 wheel；缺少兼容 wheel 时报告失败，不在用户机器上启动编译器。
+专家手动指定的 VCS URL 和本地工程使用原生 `pip_install`，避免传入仅解析标准包名的
 `pip_ensure`；同样应用版本约束并在最后检查实际导入。
 
 ---
@@ -59,7 +69,8 @@ PyTorch 等核心版本，不为解决冲突而静默升级基础栈。PyTorch �
 
 PNL 模型/模板、TractCloud 推理参考、SynthStrip 权重和 WMA ORG 图谱使用统一资源目录。
 准备所选环境时，按缺少的分组获取资源、核对 SHA256 并安全解压 ORG，成功后保存路径。
-仅下载数据不等于安装 WMA、TractCloud 或 FreeSurfer 的可执行后端。
+算法源码与数据分阶段准备；源码压缩包固定提交和 SHA256，保留作者许可，校验后自动保存路径。
+用户明确配置的其他源码目录不会被替换。
 详见[可选资源与离线导入](../assets/EXTERNAL_RESOURCES.zh-CN.md)。
 
 已有软件、离线部署或集群管理员管理的环境仍可在高级路径设置中配置。
@@ -72,18 +83,22 @@ PNL 模型/模板、TractCloud 推理参考、SynthStrip 权重和 WMA ORG 图�
 
 | 工具 | 自动配置范围 |
 | --- | --- |
-| MRtrix3 3.0.8 | Linux x86_64，官方 MRtrix3 Conda 源 |
+| MRtrix3 3.0.8 | 官方预编译 Conda 包；Linux x86_64；增加 macOS Intel 安装适配，要求 macOS 14.5+，尚未 Mac 真机运行 |
 | FSL eddy 2602.0 / topup 2203.5 | Linux x86_64，官方 FSL 源，安装前确认许可 |
 | CUDA eddy 2602.0 | 可选 FSL profile，需要 NVIDIA 驱动，不要求安装完整 CUDA Toolkit |
 | DDSurfer / DDSeg / DDParcel 资源 | 已有后台下载，改为按产品选择并使用默认目录 |
 | Python 科学计算包 | 所选解释器、核心版本约束、可用时使用原生 packaging API；官方 PyTorch 辅助器 |
 | PNL diffusion CNN | Linux x86_64；固定官方源码、v0.3 三方向权重、IIT b0 模板、Python 3.11、TensorFlow 2.15.1/Keras 2、ANTs 2.3.0，独立环境 |
-| 可选皮层后处理 | Linux x86_64；[明确同意后本机源码编译](SURFACE_COMPONENTS.zh-CN.md)七个原始 FreeSurfer 组件，需工具链及个人激活文件；完整版安装可选 |
+| 可选皮层后处理 | Linux x86_64 [合格预编译运行包](SURFACE_COMPONENTS.zh-CN.md)；已测离线安装，在线发布待完成；个人激活文件独立提供，GUI 不编译源码 |
 | WMA / TractCloud / SynthStrip 非代码资源 | 所选分组下载/导入、校验、ORG 解压及自动保存路径；私有镜像仍需访问权限 |
-| 完整 FreeSurfer、WMA/WMQL/TractCloud 可执行后端 | 尚未全部自动配置；保留现有适配器与缺失项指引 |
-| Windows/macOS 的 MRtrix/FSL/PNL 自动配置 | 尚未实现并验收，继续使用对应平台说明与高级路径配置 |
+| WMA/WMQL/TractCloud 源码 | 固定提交压缩包、安全解压、逐文件哈希、自动发现并保存路径，无需 Git，也不重复实现算法 |
+| Windows 原生、macOS ARM、macOS FSL/PNL | 本安装器暂无合格的自动原生配置；保留 Windows/WSL 和已有环境路线 |
 
-安装校验检查命令、指定包版本、ELF 库和可执行文件哈希，并保存实际环境的显式锁定文件。
+功能自检按所选依赖执行 NumPy 求解、小型 NIfTI 与 VTK 流线写入读回、所选 PyTorch 设备计算、
+解剖模型反序列化及 DDSeg、TractCloud 小型前向推理；MRtrix 转换小体积图像，
+PNL 受管环境通过 ANTs ImageMath 执行恒等运算后读回影像。
+回执保存在 `setup-history`，不使用患者数据。
+安装校验还检查命令、指定包版本、ELF 库和可执行文件哈希，并保存实际环境的显式锁定文件。
 PNL 在反序列化前核对固定源码、模型与模板哈希，并执行三方向模型有限值前向检查，保存 pip 包清单。
 CUDA wheel 的库和工具仅对该 Python 子进程可见，不修改全局 PATH、LD_LIBRARY_PATH 或驱动。
 默认优先可用 CUDA，不统一禁用 GPU；固定作者兼容框架首次运行时可能需编译 GPU 内核。
@@ -95,8 +110,12 @@ CUDA wheel 的库和工具仅对该 Python 子进程可见，不修改全局 PAT
 ## 重启后继续
 
 经过用户确认但尚未完成的准备操作会跨重启保留。现有按钮显示为“继续准备所选分析环境”，
-点击后重新检查当前选择，必要时再次确认；不会重放保存的命令、把旧许可确认用于不同计划，
+重新进入模块会提示续接，也可点击按钮继续；重新检查当前选择，必要时再次确认，不会重放保存的命令、把旧许可确认用于不同计划，
 或自动启动科学计算。已有的合格资源与环境会复用，最终就绪检查成功后才清除待续接标记。
+
+仓库的完整 Skill 新增 `prepare_in_slicer.py`，供 Agent 导出计划并进入同一 GUI 准备流程，
+保留真实确认弹窗，不自动接受许可或启动患者数据分析。
+见 [Agent 安装参考](https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/references/setup.md)。
 
 ---
 

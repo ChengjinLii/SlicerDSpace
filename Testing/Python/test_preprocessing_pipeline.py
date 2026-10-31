@@ -135,6 +135,17 @@ pathlib.Path(sys.argv[3]).write_text('se-epi-pair')
 
 
 class DwiPreprocessingPipelineTest(unittest.TestCase):
+    def test_motion_cache_requires_current_gradient_rotation_policy(self):
+        from preprocessing.pipeline import DIPY_BVEC_ROTATION_POLICY, preprocessing_gradients_current
+        manifest = {"cache_key": {"backend": "dipy", "parameters": {"dipy_run_motion_correction": True}}}
+        self.assertFalse(preprocessing_gradients_current(manifest))
+        manifest["cache_key"]["parameters"]["dipy_bvec_rotation_policy"] = DIPY_BVEC_ROTATION_POLICY
+        self.assertTrue(preprocessing_gradients_current(manifest))
+        manifest["cache_key"]["parameters"] = {"dipy_run_motion_correction": False}
+        self.assertTrue(preprocessing_gradients_current(manifest))
+        manifest["cache_key"]["backend"] = "mrtrix_fsl"
+        self.assertTrue(preprocessing_gradients_current(manifest))
+
     def test_rotate_bvecs_accepts_n_by_4_by_4_affines(self) -> None:
         import numpy as np
 
@@ -162,7 +173,7 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
             self.assertEqual(status["status"], "rotated")
             self.assertEqual(status["affine_layout"], "Nx4x4")
             np.testing.assert_allclose(rotated[:, 0], [1.0, 0.0, 0.0], atol=1e-8)
-            np.testing.assert_allclose(rotated[:, 1], [-1.0, 0.0, 0.0], atol=1e-8)
+            np.testing.assert_allclose(rotated[:, 1], [1.0, 0.0, 0.0], atol=1e-8)
 
     def test_rotate_bvecs_accepts_dipy_4_by_4_by_n_affines(self) -> None:
         import numpy as np
@@ -191,7 +202,43 @@ class DwiPreprocessingPipelineTest(unittest.TestCase):
             self.assertEqual(status["status"], "rotated")
             self.assertEqual(status["affine_layout"], "4x4xN")
             np.testing.assert_allclose(rotated[:, 0], [1.0, 0.0, 0.0], atol=1e-8)
-            np.testing.assert_allclose(rotated[:, 1], [-1.0, 0.0, 0.0], atol=1e-8)
+            np.testing.assert_allclose(rotated[:, 1], [1.0, 0.0, 0.0], atol=1e-8)
+
+    def test_gradient_reorientation_matches_dipy_with_rotation_and_shear(self):
+        import numpy as np
+        from dipy.core.gradients import gradient_table, reorient_bvecs
+        from scipy.spatial.transform import Rotation
+        from preprocessing.pipeline import _rotate_bvecs_best_effort
+
+        rng = np.random.default_rng(42)
+        vectors = rng.normal(size=(7, 3))
+        vectors /= np.linalg.norm(vectors, axis=1, keepdims=True)
+        vectors[0] = 0
+        bvals = np.array([0] + [1000] * 6)
+        affines = np.repeat(np.eye(4)[..., None], len(vectors), axis=-1)
+        for index in range(1, len(vectors)):
+            stretch = np.array([[1.1, .08, 0], [.08, .9, .04], [0, .04, 1.03]])
+            affines[:3, :3, index] = Rotation.from_euler("xyz", [index * 7, -11, 18], degrees=True).as_matrix() @ stretch
+        reference = reorient_bvecs(gradient_table(bvals, bvecs=vectors.copy()), affines[..., 1:]).bvecs
+        with tempfile.TemporaryDirectory() as tmp:
+            source, output = Path(tmp) / "source.bvec", Path(tmp) / "rotated.bvec"
+            np.savetxt(source, vectors.T)
+            for layout in (affines, np.moveaxis(affines, -1, 0)):
+                result = _rotate_bvecs_best_effort(source, output, layout)
+                np.testing.assert_allclose(np.loadtxt(output).T, reference, atol=1e-9, rtol=1e-9)
+                self.assertEqual(result["status"], "rotated")
+
+    def test_invalid_motion_affines_do_not_silently_copy_gradients(self):
+        import numpy as np
+        from preprocessing.pipeline import _rotate_bvecs_best_effort
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source, output = Path(tmp) / "source.bvec", Path(tmp) / "rotated.bvec"
+            source.write_text("1 0\n0 1\n0 0\n")
+            for affines in (np.eye(4)[..., None], np.full((4, 4, 2), np.nan), np.zeros((4, 4, 2))):
+                with self.assertRaises(ValueError):
+                    _rotate_bvecs_best_effort(source, output, affines)
+                self.assertFalse(output.exists())
 
     def test_skip_writes_optional_skipped_manifest(self) -> None:
         from preprocessing import DwiPreprocessingConfig, run_dwi_preprocessing

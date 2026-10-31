@@ -166,6 +166,8 @@ class ProductOrchestratorConfig:
     ddseg_min_wm_dice: float = 0.70
     # ACT anatomy must come from the CSD DWI unless this is set.
     allow_anatomy_space_mismatch: bool = False
+    # Explicit exploratory fallback; the GUI retains complete DDSeg + DDParcel priors.
+    allow_act_ddseg_only: bool = False
     tract_querier_root: Optional[Path] = None
     connectome_backend: str = "python"
     connectome_compress_mrtrix_dense: bool = False
@@ -1096,6 +1098,9 @@ def _preprocessing_complete(
         manifest = _read_json(outputs["manifest"])
         if manifest.get("status") not in {"completed", "cached"}:
             return False
+        from preprocessing.pipeline import preprocessing_gradients_current
+        if not preprocessing_gradients_current(manifest):
+            return False
         cache_key = manifest.get("cache_key")
         raw = _resolve_raw_inputs(subject_root)
         if isinstance(cache_key, dict) and not all(
@@ -1564,14 +1569,32 @@ def _act_prep_outputs(subject_root: Path, subject_id: str, output_root: Optional
     }
 
 
-def _act_prep_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None) -> bool:
+def _act_anatomy_current(qc: dict, manifest: dict, *, allow_ddseg_only: bool = False) -> bool:
+    """Require anatomical evidence separately from the MRtrix format check."""
+
+    parcellation = (manifest.get("inputs") or {}).get("parcellation")
+    if not isinstance(parcellation, dict) or not parcellation.get("exists"):
+        return bool(allow_ddseg_only and manifest.get("allow_ddseg_only") is True
+                    and qc.get("anatomical_prior_status") == "ddseg_only"
+                    and qc.get("sgm_from_ddparcel") is False)
+    try:
+        volume = float(qc["five_tt_stats"]["channel_volume_voxel_units"]["sgm"])
+        return (qc.get("sgm_from_ddparcel") is True and math.isfinite(volume) and volume > 0
+                and _file_record_matches(parcellation, Path(str(parcellation.get("path") or ""))))
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def _act_prep_complete(subject_root: Path, subject_id: str, output_root: Optional[Path] = None, *, allow_ddseg_only: bool = False) -> bool:
     from tractography.act_prep import ACT_PREP_VERSION
 
     outputs = _act_prep_outputs(subject_root, subject_id, output_root)
     if not (outputs["five_tt"].is_file() and outputs["gmwmi"].is_file() and _qc_completed(outputs["qc"])):
         return False
     try:
-        return int(_read_json(outputs["qc"]).get("version") or 0) >= ACT_PREP_VERSION
+        qc = _read_json(outputs["qc"])
+        return (int(qc.get("version") or 0) >= ACT_PREP_VERSION
+                and _act_anatomy_current(qc, _read_json(outputs["manifest"]), allow_ddseg_only=allow_ddseg_only))
     except Exception:
         return False
 
@@ -1703,7 +1726,7 @@ def _optional_microstructure_options_match(config, manifest_path, stage):
         return False
 
 
-def _act_inputs_current(csd_manifest_path: Path) -> bool:
+def _act_inputs_current(csd_manifest_path: Path, *, allow_ddseg_only: bool = False) -> bool:
     """True when the CSD manifest's 5TT/GMWMI are unchanged, current-version ACT prep outputs."""
 
     from tractography.act_prep import ACT_PREP_VERSION
@@ -1718,9 +1741,15 @@ def _act_inputs_current(csd_manifest_path: Path) -> bool:
         act_manifest = _read_json(act_dir / "act_prep_manifest.json")
         if act_qc.get("status") != "completed" or int(act_qc.get("version") or 0) < ACT_PREP_VERSION:
             return False
+        if not _act_anatomy_current(act_qc, act_manifest, allow_ddseg_only=allow_ddseg_only):
+            return False
         inputs = act_manifest.get("inputs") or {}
         for key in ("segmentation", "parcellation"):
             record = inputs.get(key)
+            if isinstance(record, dict) and record.get("exists"):
+                if not _file_record_matches(record, Path(str(record.get("path") or ""))):
+                    return False
+        for record in (inputs.get("probabilities") or {}).values():
             if isinstance(record, dict) and record.get("exists"):
                 if not _file_record_matches(record, Path(str(record.get("path") or ""))):
                     return False
@@ -1737,6 +1766,8 @@ def _csd_act_complete(
     tractogram_vtk: Path,
     weights: Path,
     analysis_inputs: dict[str, Path],
+    *,
+    allow_ddseg_only: bool = False,
 ) -> bool:
     """Require current inputs and decoded output evidence before CSD/ACT reuse.
 
@@ -1753,7 +1784,7 @@ def _csd_act_complete(
         "dependencies",
     ):
         return False
-    if not _act_inputs_current(manifest_path):
+    if not _act_inputs_current(manifest_path, allow_ddseg_only=allow_ddseg_only):
         return False
     try:
         qc = _read_json(qc_path)
@@ -2133,6 +2164,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                     csd_tractogram_vtk,
                     sift2_weights,
                     analysis_inputs,
+                    allow_ddseg_only=config.allow_act_ddseg_only,
                 )
             return _qc_completed(dti_qc) and tractogram_trk.is_file()
         if target == "bundles":
@@ -2437,6 +2469,7 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                     csd_tractogram_vtk,
                     sift2_weights,
                     analysis_inputs,
+                    allow_ddseg_only=config.allow_act_ddseg_only,
                 )
                 and (not config.bundle_tractography_backend or _csd_bundle_parameters_current(config, csd_dir / 'csd_act_manifest.json'))
                 if primary_tractography_backend == "csd_act"
@@ -2451,6 +2484,9 @@ def plan_subject_products(config: ProductOrchestratorConfig, *, write: bool = Tr
                 pass
             elif primary_tractography_backend == "csd_act" and not segmentation_ready:
                 add(target, "blocked", "missing DDSeg segmentation; select segmentation or provide existing output", "upstream", inputs=raw, outputs=tractography_outputs, dependencies={"segmentation": "missing"}, provides=False)
+            elif (primary_tractography_backend == "csd_act" and not config.allow_act_ddseg_only
+                  and parcellation is None and not available.get("parcellation", False)):
+                add(target, "blocked", "missing DDParcel anatomical labels for ACT; select parcellation or provide existing output", "upstream", inputs=raw, outputs=tractography_outputs, dependencies={"parcellation": "missing"}, provides=False)
             else:
                 add(target, "will_run", f"ready to run tractography backend {config.tractography_backend}", "runnable", inputs=analysis_inputs, outputs=tractography_outputs, dependencies={"segmentation": "available" if segmentation is not None else ("will_run" if available.get("segmentation", False) else None)})
             continue
@@ -4119,6 +4155,7 @@ def _run_subject_products_impl(
                 csd_tractogram_vtk,
                 sift2_weights,
                 analysis_inputs,
+                allow_ddseg_only=config.allow_act_ddseg_only,
             )
             and (not config.bundle_tractography_backend or _csd_bundle_parameters_current(config, csd_dir / 'csd_act_manifest.json'))
             if primary_tractography_backend == "csd_act"
@@ -4148,6 +4185,8 @@ def _run_subject_products_impl(
             tasks.append(ProductTaskRecord(name=tractography_task_name, status="blocked", reason="missing raw input: " + ", ".join(missing)))
         elif primary_tractography_backend == "csd_act" and segmentation is None:
             tasks.append(ProductTaskRecord(name=tractography_task_name, status="blocked", reason="missing DDSeg segmentation"))
+        elif primary_tractography_backend == "csd_act" and parcellation is None and not config.allow_act_ddseg_only:
+            tasks.append(ProductTaskRecord(name=tractography_task_name, status="blocked", reason="missing DDParcel anatomical labels for ACT"))
         elif primary_tractography_backend == "csd_act" and ddseg_world_qc_gate() is not None:
             tasks.append(
                 ProductTaskRecord(
@@ -4169,7 +4208,7 @@ def _run_subject_products_impl(
                     "csd_dwi": analysis_inputs["dwi"].resolve().as_posix(),
                 }
                 if parcellation is None:
-                    _emit("[Orchestrator] WARNING: DDParcel output missing; ACT 5TT has no sub-cortical GM channel.", log)
+                    _emit("[Orchestrator] WARNING: Explicit DDSeg-only ACT fallback; subcortical GM priors are unavailable.", log)
                 act_prep = run_act_prep(
                     ACTPrepConfig(
                         subject_id=config.subject_id,
@@ -4179,6 +4218,7 @@ def _run_subject_products_impl(
                         parcellation_path=parcellation,
                         mrtrix_bin_dir=config.mrtrix_bin_dir,
                         anatomy_source=anatomy_sources,
+                        allow_ddseg_only=config.allow_act_ddseg_only,
                     ),
                     log=log,
                 )
@@ -4205,6 +4245,7 @@ def _run_subject_products_impl(
                         seeding=config.tractography_seeding,
                         anatomy_source_dwi=_anatomy_dwi_for_check(anatomy_sources),
                         allow_anatomy_space_mismatch=config.allow_anatomy_space_mismatch,
+                        act_prep_qc_path=act_prep.qc_path,
                         execute=True,
                     ),
                     log=log,
@@ -4281,7 +4322,8 @@ def _run_subject_products_impl(
         else:
             bundle_source_invalid = bundle_source_invalid or not _csd_act_complete(
                 csd_qc, csd_dir / 'csd_act_manifest.json', csd_tractogram,
-                csd_tractogram_trk, csd_tractogram_vtk, sift2_weights, analysis_inputs)
+                csd_tractogram_trk, csd_tractogram_vtk, sift2_weights, analysis_inputs,
+                allow_ddseg_only=config.allow_act_ddseg_only)
             bundle_source_invalid = bundle_source_invalid or not _csd_bundle_parameters_current(config, csd_dir / 'csd_act_manifest.json')
 
     if "bundles" in run_targets:
@@ -4931,6 +4973,7 @@ def _run_subject_products_impl(
         "tractography_seeding": config.tractography_seeding,
         "ddseg_min_wm_dice": config.ddseg_min_wm_dice,
         "allow_anatomy_space_mismatch": config.allow_anatomy_space_mismatch,
+        "allow_act_ddseg_only": config.allow_act_ddseg_only,
         "anatomy_input": "preprocessed DWI when preprocessing completed, else raw input (DDSeg/DDParcel/DDSurfer)",
         "connectome_backend": config.connectome_backend,
         "connectome_compress_mrtrix_dense": config.connectome_compress_mrtrix_dense,

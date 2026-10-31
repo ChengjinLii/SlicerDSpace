@@ -317,7 +317,8 @@ pipeline tracks_ukf --targets validation,tractography --tractography-backend ukf
   --brain-mask-backend provided --ukf-parameters '{"numThreads":8}' --plan
 ```
 
-CSD/ACT 需要 MRtrix 和兼容解剖输入，同时计算与流线匹配的 SIFT2 权重：
+CSD/ACT 需要 MRtrix、DDSeg 组织概率图及 DDParcel 解剖标签，并计算与流线匹配的 SIFT2 权重。
+选择下方两种解剖产物，或提供已有输出；标准路线在缺少 DDParcel 时阻止运行。
 
 <!-- cli-template: tract-csd -->
 ```bash
@@ -325,6 +326,10 @@ pipeline tracks_csd --targets validation,segmentation,parcellation,tractography 
   --tractography-backend csd_act --brain-mask-backend provided \
   --select-streamlines 1000000 --tckgen-seeding dynamic --mrtrix-nthreads 8 --plan
 ```
+
+`--allow-act-ddseg-only` 可显式启用缺少 DDParcel 的探索性回退。ACT QC 会记录缺少皮层下灰质、
+脑室及指定白质结构先验；这些输出不会被标准路线复用。两条路线的第五个 5TT 通道均设为零，
+不估计病灶专属组织先验。
 
 SAF 使用 CSD 输入和通过检查的原生表面/后处理：
 

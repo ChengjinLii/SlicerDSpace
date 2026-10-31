@@ -492,6 +492,7 @@
       ]
     },
     "wma": {
+      "expanded_size_bytes": 2439318525,
       "description": "Pinned official ORG distribution archives. Extract with validated paths before WMA use; not part of the default core download.",
       "directory": "bundles/wma",
       "required_paths": [

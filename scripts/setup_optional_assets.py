@@ -66,10 +66,10 @@ def prepare(profiles, *, asset_root=None, execute=False, accept_terms=False, off
                 result["external_dependencies"][PATH_SETTINGS[profile]] = str(existing)
             continue
         definition = manifest["profiles"][profile]
-        if definition.get("archive_parts"):
+        if definition.get("expanded_size_bytes"):
             missing_bytes = sum(record["size_bytes"] for relative, record in plan.asset_records.items()
                                 if not (root / relative).is_file())
-            scratch_bytes = sum(plan.asset_records[part]["size_bytes"] for part in definition["archive_parts"])
+            scratch_bytes = sum(plan.asset_records[part]["size_bytes"] for part in definition.get("archive_parts", ()))
             required = missing_bytes + int(definition["expanded_size_bytes"]) + scratch_bytes
             disk = root
             while not disk.exists():

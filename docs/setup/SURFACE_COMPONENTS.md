@@ -2,7 +2,7 @@
 
 # Surface Postprocessing Components
 
-**Optional source-built tools, without a full FreeSurfer installation**
+**Optional native tools, without a full FreeSurfer installation**
 
 [Project](../../README.md) | [Setup](QUICKSTART.md) | [Platforms](SUPPORT_MATRIX.md) | [中文](SURFACE_COMPONENTS.zh-CN.md)
 
@@ -19,7 +19,7 @@ replacement for the complete FreeSurfer suite. Postprocessing remains optional.
 
 | Configuration | Behavior |
 | --- | --- |
-| Surface component path supplied | Use that source-built runtime, without discovering the full suite |
+| Surface component path supplied | Use that verified runtime, without discovering the full suite |
 | No component path; existing FreeSurfer detected | Reuse the existing installation |
 | Neither supplied | Look for the upstream recipe-matched user cache |
 
@@ -38,39 +38,37 @@ seven-command backend: it has additional dependencies and a different contract.
 
 ## First Preparation
 
-**Check never downloads or compiles. Run never prepares a compiler silently.**
-After checking the selected analysis, use **Prepare selected environment**.
-When local components are missing, the confirmation explains the source/data
-terms and requests approval before starting a cancellable background build.
-The successful receipt saves the component path automatically. A missing
-personal activation file remains a separate manual requirement, not a rebuild.
+**Check never installs. The GUI preparation route never compiles sources.**
+**Prepare selected analysis environment** prefers a qualified prebuilt bundle,
+checks archive/file hashes, recipe and native library availability, then saves
+the component path. The Linux x86_64 candidate contains seven unchanged native
+commands and atlas data: 40,994,566 bytes compressed, about 85.2 MiB unpacked.
+It contains no personal activation key. Your own activation remains required.
 
-Source building needs Git, C/C++ compilers, system development libraries
-(including crypt on the tested Linux system), and **CMake >=3.24,<4**. The plugin
-does not install system compilers or change Slicer's Python/driver/shell. If the
-tools are absent, install them first; an alternative is to configure a previously
-built component directory or existing FreeSurfer. First-use source downloads and
-build trees require additional disk space and may take several minutes or longer.
+Publication of this bundle in the model repository is pending. Until published,
+place the qualified archive at
+`<asset-root>/runtime/surface/surface-runtime-linux-x86_64.tar.gz`, or use an
+existing verified runtime/FreeSurfer installation. Missing unpublished bundles
+remain visible as manual items; preparation does not fall back to compilation.
 
-CLI preparation, with explicit agreement to applicable source/data terms:
+Install an offline bundle after reviewing its component/data terms:
 
 ```bash
-python scripts/setup_surface_runtime.py --execute --accept-terms --jobs 4
+python scripts/setup_surface_runtime.py --execute --accept-terms \
+  --asset-root /path/to/assets --offline
 ```
 
-Use `--cmake /path/to/cmake` when CMake is not on PATH. `--work-dir`, `--prefix`,
-`--source-root` and `--offline` support controlled preparation. Offline mode
-requires the atlas profile, pinned Git source and checked dependency archives
-to be cached already. Without `--execute`, the command only prints its plan.
-Existing corrupt or differently built prefixes are not overwritten.
+Without `--execute`, the command only prints its plan. Existing corrupt or
+differently built prefixes are not overwritten. The default destination is the
+upstream recipe-addressed user cache; `--prefix` selects another empty location.
 
-The unchanged upstream builder compiles the pinned FreeSurfer revision,
-ITK Common/VNL and zlib. The adapter only relocates atlas data to the shared
-user asset directory. Its 29,657,074-byte archive is downloaded from a pinned
-DDSurfer commit and SHA256-verified; it is not part of the extension package,
-and this change does not claim it has been uploaded to SlicerDSpace-models.
-The component runtime remains in the upstream recipe-addressed user cache
-unless an explicit prefix is supplied.
+Maintainers can explicitly use `--build-from-source --jobs 4`; this expert route
+requires Git, C/C++ development tools and CMake >=3.24,<4. The upstream builder
+and numerical source remain unchanged. `scripts/package_surface_runtime.py`
+packages a verified matching build without an activation key. Platform, source
+revision, build recipe, file hashes and archive size are recorded in
+`models/runtime_bundles.json`. A bundle is enabled for online download only after
+it is published and its distribution permissions are cleared.
 
 ---
 
@@ -95,7 +93,7 @@ QC success does not replace anatomical review. Runtime identity is recorded in
 the manifest and cache signature; switching an explicit runtime prevents reuse
 of the previous runtime's completion state.
 
-Automatic source preparation is currently **Linux x86_64 only**. macOS source
+The qualified prebuilt bundle is currently **Linux x86_64 only**. macOS source
 compilation and native Windows are not certified; Windows/WSL is not equivalent
 to native Windows support. Existing platform-native FreeSurfer remains an
 alternative where supported. No end-to-end computation speedup is claimed.

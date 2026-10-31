@@ -14,6 +14,28 @@ from shared.ui_managed_runtimes import apply_runtime_result, asset_profiles_for_
 
 
 class ManagedRuntimeTests(unittest.TestCase):
+    def test_pnl_native_image_test_must_succeed_before_a_ready_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prefix = Path(tmp)
+            (prefix / 'bin').mkdir()
+            (prefix / 'conda-meta').mkdir()
+            for name in runtime.PROFILES['pnl_cnn']['commands']:
+                command = prefix / 'bin' / name
+                command.write_text('# synthetic executable fixture\n')
+                command.chmod(0o755)
+            for package in runtime.PROFILES['pnl_cnn']['packages']:
+                name, version = package.split('=')[:2]
+                (prefix / 'conda-meta' / (name + '.json')).write_text(json.dumps(dict(name=name, version=version)))
+            with patch.object(runtime.subprocess, 'run') as run:
+                result = runtime.verify_prefix('pnl_cnn', prefix)
+                self.assertEqual(result['functional_checks'], ['ants:synthetic_image_roundtrip'])
+                self.assertEqual(Path(run.call_args_list[1].args[0][0]).name, 'ImageMath')
+                self.assertEqual(len(run.call_args_list), 3)
+            import subprocess
+            with patch.object(runtime.subprocess, 'run', side_effect=[None, subprocess.CalledProcessError(1, 'ImageMath')]):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    runtime.verify_prefix('pnl_cnn', prefix)
+
     def test_plan_has_no_filesystem_side_effect_and_only_selected_profiles(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "uncreated"

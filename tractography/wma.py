@@ -140,7 +140,7 @@ def _wma_script_path(root: Path) -> Path:
 
 
 def resolve_configured_wma_root() -> Path:
-    """Resolve WMA from environment variables or PATH."""
+    """Resolve WMA from environment, PATH, then the verified POSIX source cache."""
 
     for env_name in ("SLICERDSPACE_WMA_ROOT", "WMA_ROOT"):
         env_value = os.environ.get(env_name)
@@ -153,6 +153,13 @@ def resolve_configured_wma_root() -> Path:
         if script_path.parent.name == "bin":
             return script_path.parent.parent
         return script_path.parent
+
+    # The prepared source archive has no native Windows/WSL executable bridge.
+    if sys.platform != "win32":
+        from shared.backend_sources import available_source
+        prepared = available_source("wma")
+        if prepared is not None:
+            return prepared.expanduser().resolve()
 
     raise FileNotFoundError(
         "WMA ORG atlas script was not found. Configure WMA by passing wma_root, "

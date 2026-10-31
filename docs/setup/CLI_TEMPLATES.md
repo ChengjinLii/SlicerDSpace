@@ -335,8 +335,9 @@ pipeline tracks_ukf --targets validation,tractography --tractography-backend ukf
   --brain-mask-backend provided --ukf-parameters '{"numThreads":8}' --plan
 ```
 
-CSD/ACT requires MRtrix and compatible anatomical priors; it also computes matching
-SIFT2 weights:
+CSD/ACT requires MRtrix, DDSeg tissue probabilities and DDParcel anatomical labels;
+it also computes matching SIFT2 weights. Select both anatomical products below or
+provide their existing outputs. The standard route blocks when DDParcel is missing.
 
 <!-- cli-template: tract-csd -->
 ```bash
@@ -344,6 +345,11 @@ pipeline tracks_csd --targets validation,segmentation,parcellation,tractography 
   --tractography-backend csd_act --brain-mask-backend provided \
   --select-streamlines 1000000 --tckgen-seeding dynamic --mrtrix-nthreads 8 --plan
 ```
+
+`--allow-act-ddseg-only` explicitly permits an exploratory fallback without
+DDParcel. Its ACT QC records the missing subcortical GM, ventricular and selected
+WM priors. These outputs are not reused by the standard route. The fifth 5TT
+channel is zero in both routes: lesion-specific tissue priors are not estimated.
 
 SAF uses CSD inputs and accepted native surfaces/postprocessing:
 

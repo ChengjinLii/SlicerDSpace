@@ -807,6 +807,11 @@ def _repo_checkout_roots(repo_root: Path, name: str) -> tuple[Path, ...]:
         suffixes = ()
 
     candidates: list[Path] = []
+    from shared.backend_sources import available_source
+    profile = {'tract_querier': 'wmql', 'wma': 'wma', 'tractcloud': 'tractcloud'}.get(name)
+    owned = available_source(profile) if profile and not (name == 'wma' and platform.system() == 'Windows') else None
+    if owned is not None:
+        candidates.append(owned)
     # ``Path.parents`` only gained slice support in Python 3.10.  Slicer 5.6
     # embeds Python 3.9, so materialize the sequence before taking the nearby
     # checkout roots.
@@ -1369,7 +1374,9 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
             # C3: the author scripts run with the PythonSlicer of the configured Slicer (tractography/wma.py),
             # so probe that interpreter; fall back to the doctor's Python when it cannot be resolved.
             wma_python = _pythonslicer_next_to(slicer_executable)
-            for import_name, package in (("joblib", "joblib"), ("scipy", "scipy"), ("xlrd", "xlrd")):
+            for import_name, package in (("joblib", "joblib"), ("scipy", "scipy"), ("xlrd", "xlrd"),
+                                         ("matplotlib", "matplotlib"), ("pandas", "pandas"),
+                                         ("PIL", "Pillow"), ("statsmodels", "statsmodels")):
                 # N1: own key, so the host interpreter's check of the same module is not merged into this one.
                 _python(specs, target=target, import_name=import_name, package=package,
                         python_executable=wma_python, key=f"python:wma:{import_name}",
@@ -1585,6 +1592,10 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 python_path_entries = (_tractcloud_pythonpath(tractcloud_root),)
             else:
                 python_path_entries = ()
+            for import_name, package in (('numpy', 'numpy>=1.21'), ('vtk', 'vtk>=9')):
+                _python(specs, target=target, import_name=import_name, package=package,
+                        python_executable=tractcloud_python, key='python:tractcloud:' + import_name,
+                        label=import_name + ' (TractCloud)')
             _python(
                 specs,
                 target=target,
@@ -1597,8 +1608,9 @@ def build_dependency_specs(config: EnvironmentDoctorConfig) -> tuple[DependencyS
                 specs,
                 target=target,
                 import_name="torch",
-                package="torch>=2.0.0",
+                package="torch>=2.3.1",
                 python_executable=tractcloud_python,
+                key='python:tractcloud:torch',
                 notes="Inside Slicer, prefer installing torch via the Slicer PyTorch extension.",
             )
             _device(
@@ -2141,7 +2153,7 @@ def run_environment_doctor(config: EnvironmentDoctorConfig, *, _probe_cache=None
             DependencyStatus(key='surface_postprocess_runtime', kind='setting', label='Surface postprocessing components',
                 status='available' if surface['components_available'] else 'missing', required=True,
                 targets=('surface_postprocess',), details=surface, install_group='surface-runtime',
-                install_hint='Use Environment > Prepare to build missing local components, or configure an existing component directory / FreeSurfer installation. No full suite is required; Check never compiles.'),
+                install_hint='Use Environment > Prepare for qualified precompiled components, or configure an existing runtime. If its archive is not yet published, import the verified offline bundle. Source compilation is an expert CLI opt-in; Check never installs.'),
             DependencyStatus(key='surface_postprocess_license', kind='setting', label='Personal FreeSurfer activation',
                 status='available' if surface['license_available'] else 'missing', required=True,
                 targets=('surface_postprocess',), details={'notes': 'Set the activation file or FS_LICENSE; it is not downloaded or included in the runtime.'},

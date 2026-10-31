@@ -11,8 +11,9 @@ version is Slicer 5.10 on Linux; consult the support matrix for other platforms.
 
 ## Choose The Requested Mode
 
-- **Install/upgrade:** follow the installation steps below. Stop after activation
-  and requested dependency preparation unless analysis is also requested.
+- **Install/enable/prepare/repair:** read [setup](references/setup.md) for source
+  staging, activation, the unified GUI preparation entry and Agent automation.
+  Stop after the requested setup unless analysis is also authorized.
 - **Use/analyze:** if the module already works, do not reinstall it. Read
   [the usage workflow](references/usage.md), then select the relevant
   [algorithm Shell template](references/shell_templates.md).
@@ -26,140 +27,21 @@ Read this `SKILL.md` as the entry point. When installing or copying the Skill,
 preserve its complete directory, including `references/`, `scripts/`, `assets/`
 and `agents/`; the entry Markdown file alone does not include those resources.
 
-## Inspect First
+## Setup Boundaries
 
-- Find the user's Slicer launcher, OS/architecture, installed Slicer version,
-  authorized checkout and intended install location. Never invent credentials,
-  download a different Slicer, or change drivers to make installation succeed.
-- If starting from a web link, obtain an authorized checkout before using its
-  scripts or relative references. If the private repository is inaccessible,
-  request access or a local checkout rather than treating the page as a missing
-  software dependency.
-- Read `docs/setup/QUICKSTART.md` and `docs/setup/SUPPORT_MATRIX.md` in the checkout.
-  For Windows or macOS, also read the corresponding setup guide.
-- Preserve open scenes and other Slicer/Agent sessions. Ask before closing or
-  restarting an existing session. A separate test process must use isolated
-  settings and a separate display if required.
-- Prefer a trusted official extension package when available. Otherwise use the
-  source-staging route below; do not describe it as an Extension Manager release.
-  Record `git rev-parse HEAD` and local modifications. Do not overwrite a dirty
-  checkout or expose a private repository.
-
-## Source Installation
-
-Use a normal Python interpreter for staging. Substitute real paths and the
-installed Slicer major/minor version; the example is for Slicer 5.10:
-
-```bash
-python3 scripts/stage_slicer_extension.py \
-  --install-root /path/to/user/extensions --slicer-version Slicer-5.10 \
-  --link-mode copy
-```
-
-The module directory is
-`<install-root>/SlicerDSpace/lib/Slicer-<major>.<minor>/qt-scripted-modules`.
-Check that it contains `SlicerDSpace.py`, runtime resources and the staging
-manifest at the extension root. Never replace this with a copy of the entire
-development repository. Use `--clean` only for an approved upgrade of this exact
-staged extension, after retaining its previous manifest/settings.
-
-To verify in a fresh Slicer process, set these environment variables:
-
-| Variable | Value |
-| --- | --- |
-| `SLICERDSPACE_AGENT_MODULE_DIR` | Absolute staged module directory |
-| `SLICERDSPACE_AGENT_RECEIPT` | Writable JSON receipt path |
-| `SLICERDSPACE_AGENT_PERSIST` | `1` only if the user requests persistent enablement |
-| `SLICERDSPACE_AGENT_EXIT` | `1` for an isolated test process; otherwise omit |
-
-Launch the actual Slicer executable, not `SlicerApp-real` or an unrelated Python:
-
-```bash
-/path/to/Slicer --no-splash \
-  --additional-module-paths /absolute/staged/module-directory \
-  --python-script /absolute/path/to/this-skill/scripts/enable_in_slicer.py
-```
-
-On PowerShell, set variables with `$env:NAME = 'value'` and invoke the executable
-with `&`. For a `.app`, use its `Contents/MacOS/Slicer` launcher. Do not pass
-shell syntax through a subprocess argument list. Do not use isolated test settings
-when the user's intent is to persist activation in their normal profile.
-
-The helper verifies the installed import path, opens the widget and runs the
-registered native Self Tests before saving the additional-module path. It refuses
-conflicting existing installations. It does not install dependencies, start an
-analysis, alter algorithm settings, clear the scene or terminate another process.
-Inspect its JSON receipt; launching a process alone is not proof of installation.
-
-## Confirm Model And Resource Storage
-
-Before downloading model weights, atlases or other large resources, establish
-where the user wants them stored. Keep them outside the staged extension so an
-upgrade does not remove them. Apply this storage-choice step even when the
-user's installation request does not mention storage paths.
-
-- If the user already gives a path, validate and use it; do not ask them to
-  choose again. Otherwise, inspect the saved `external_dependencies.model_assets_dir`,
-  `SLICERDSPACE_MODEL_ASSETS_DIR` and the platform-specific root returned by
-  `shared.model_assets.default_user_model_assets_root()`. Check user-approved
-  data locations or mounted user storage for an alternative with more space.
-  Limit discovery to these locations, without searching unrelated medical data
-  or accepting another account's cache as trusted.
-- Offer two or three usable candidates when available, using absolute paths.
-  For each, show available disk space, writability, whether verified assets can
-  be reused and the reason to choose it. Identify the recommended option. If
-  only one is usable, explain that instead of inventing alternatives. Allow a
-  custom path. For a new directory, assess the nearest existing parent first.
-- Ask the user to select the model-storage location and **wait for their answer
-  before creating it, moving files or downloading resources**. A recommendation
-  or a preselected option is not confirmation. Do not silently choose the
-  default, a developer-specific path, the system drive or the largest disk.
-- For the chosen analyses, use `models/assets_manifest.json` and the optional
-  resource manifests to estimate remaining download and extraction space.
-  Check that external backends can access the path, including Windows/WSL path
-  mapping when needed. Reuse existing resources only after manifest verification;
-  do not download every profile or move an existing cache without approval.
-- Save the selected absolute root as `external_dependencies.model_assets_dir`
-  using `shared.user_config.update_user_config`, preserving the other settings.
-  The GUI's **Environment and installation > More options > Model assets root**
-  uses this setting. Use the same root for downloader `--asset-root` and analysis
-  `--model-assets-dir`. Check for a conflicting `SLICERDSPACE_MODEL_ASSETS_DIR`;
-  use the confirmed root for the setup process and subsequent launch, without
-  editing global shell profiles or system environment variables unasked.
-
-If later analysis requests need additional resources, reuse the confirmed root
-and ask about the new downloads/terms; ask for a new location only when the user
-requests it or the existing root is no longer suitable.
-
-## Prepare Only Requested Analyses
-
-If the user prioritizes fewer external environments, read
-`docs/setup/EXPERIMENTS.md` and offer the explicit Slicer-native preset before
-preparing dependencies. It selects different masking/tracking methods; explain
-that tradeoff and do not change PNL/CSD selections without approval. Existing
-valid supplied masks avoid automatic extraction altogether.
-
-In Slicer, select the intended products, then use **Environment and installation
-> Prepare selected analysis environment**. The plugin discovers installed
-extensions and prepares supported dependencies/resources. Confirm the model and
-resource root above before starting preparation. Ask for the user's
-approval of downloads, licenses and necessary restarts. Never accept FSL/PNL or
-FreeSurfer terms on the user's behalf. Recheck after a restart.
-
-Start with the user's chosen route, or offer DTI as a minimal installation check.
-Do not default to installing every backend. CLI checks use the same selections:
-
-```bash
-/path/to/Slicer --launch PythonSlicer /path/to/runtime/shared/run_subject_pipeline_cli.py \
-  --no-user-config --subject-root /path/to/subject \
-  --targets validation,microstructure --microstructure-stages dti --doctor
-```
-
-`--doctor` reports readiness; it is not an instruction to run patient data.
-Use `--plan` before an explicitly requested analysis. See
-`docs/setup/MANAGED_SETUP.md` for repair/offline import and
-`docs/setup/CLI_TEMPLATES.md` for full route commands, source selection,
-model concurrency, batch execution and result inspection.
+- Before resource downloads, follow the [storage-choice step](references/setup.md#confirm-storage):
+  validate an already supplied path, or present usable candidates and **ask and
+  wait** before creating directories, moving caches or downloading resources.
+- Use **Environment and installation > Prepare selected analysis environment**
+  as the normal preparation entry. Prefer compatible shared Slicer Python/PyTorch
+  and pinned no-Git sources; keep managed PNL isolated. Prepare only requested routes.
+- Require explicit user approval of downloads and applicable terms. Never
+  autoclick approval boxes, bypass the real confirmation dialog or accept terms
+  on the user's behalf. Installation authorization never authorizes a scientific run.
+- Preserve scenes and other sessions; ask before closing or restarting them.
+  Resume preparation after extension restarts, not analysis. Platform adaptation
+  and offline tests are not all-platform, zero-configuration acceptance; see
+  [setup limits](references/setup.md#platform-and-delivery-limits).
 
 ## Use After Installation
 

@@ -14,14 +14,25 @@ Select your analyses, then open the separate **Environment and installation** se
 and choose **Prepare selected analysis environment**. Review the plan and
 approve downloads and applicable licenses. The dependency report uses the same
 entry. Checks and final verification run in cancellable background processes.
-An already-ready environment skips confirmation and installation. Offline import,
+An already-importable environment skips installation and runs functional checks. Offline import,
 repair and manual paths live under Environment > More options, not Advanced
 algorithm settings. It prepares required selected items, not every optional backend:
 
 1. Slicer's Extension Manager installs missing SlicerDMRI/PyTorch extensions; UKFTractography is requested only for a selected UKF route.
-2. If an extension was installed or enabled, save your work and restart Slicer. Click Prepare again to continue; extensions are not reinstalled.
-3. A background worker installs missing Python packages into their selected interpreter, downloads selected anatomical model profiles, and prepares supported isolated tools.
-4. Paths are saved only after successful verification. A fresh environment check decides whether the workflow is ready, blocked or awaiting restart.
+2. If an extension was installed or enabled, save your work and restart Slicer. Reopening SlicerDSpace offers to continue preparation; extensions are reused.
+3. Background workers prepare pinned WMQL/WMA/TractCloud sources without Git, install missing Python wheels, download selected models, and prepare supported isolated tools.
+4. Paths are saved after verification. A fresh dependency check and synthetic functional tests determine readiness. A failed functional test prevents analysis until preparation passes again.
+
+Functional failures are retained across restarts for the same configuration.
+Source discovery is shared with runtime execution, so verified prepared sources
+remain usable if an explicit saved source path is absent. Windows WMA is not
+offered a Bash-only source checkout as a substitute for its WSL executable bridge.
+
+With **First-use setup** enabled, clicking Run with missing dependencies opens this
+same preparation plan. It does not start analysis automatically after installation
+or restart. The confirmation lists resource locations, known model/source sizes
+and applicable licenses. Solver-dependent Python/Conda downloads are not included
+in those size totals; they may require several additional GB.
 
 No terminal, administrator account, shell activation or manual executable-path
 selection is needed for these managed routes. If Conda is unavailable, a pinned
@@ -49,11 +60,15 @@ back installed packages. Open install logs to inspect the failed phase.
 Python installation feature-detects `slicer.packaging.pip_ensure`. Slicer 5.10,
 which lacks that module, uses a cancellable Python subprocess. Existing Slicer
 NumPy/SciPy/VTK/SimpleITK/PyTorch versions are constrained during ordinary pip
-installation. PyTorch uses the official PyTorch extension helper. Conflicts fail
+installation. PyTorch uses the official PyTorch extension helper, retaining the
+strongest selected minimum version. Compatible DDSeg/DDParcel/DDSurfer/TractCloud
+tasks share it by default; WMQL, DIPY and AMICO use the workflow Python. Explicit
+interpreter overrides are retained. Conflicts fail
 visibly instead of upgrading Slicer's core stack. Changed loaded packages require
 a restart. The newer packaging API has contract tests; a newer Slicer binary
 has not been validated in this campaign.
-Bare VCS URLs and local projects use native `pip_install`, not the name-only
+Ordinary dependency requests use binary wheels only. Missing wheels fail with a
+setup log instead of starting a compiler. Expert VCS URLs and local projects use native `pip_install`, not the name-only
 `pip_ensure` parser; the same constraints and final import checks apply.
 
 ---
@@ -76,8 +91,10 @@ model downloads may still require source authorization; setup does not bypass it
 Optional PNL models/templates, TractCloud inference references, SynthStrip weights
 and WMA ORG atlases use the shared resource layout. Selected preparation acquires
 missing profiles, verifies SHA256 and safely extracts ORG before saving paths.
-It does not install the WMA/TractCloud/FreeSurfer executable backends merely by
-downloading their data. See [optional resources and offline import](../assets/EXTERNAL_RESOURCES.md).
+Algorithm sources and their data are separate preparation phases. Pinned source
+archives retain upstream licenses and checksums; prepared roots are saved
+automatically. Existing custom roots are not replaced. See
+[optional resources and offline import](../assets/EXTERNAL_RESOURCES.md).
 
 External-path fields in Environment and installation remain available for existing installations, offline
 environments and administrator-managed clusters. Managed setup is opt-in and does
@@ -90,18 +107,23 @@ User-local defaults live alongside model assets under `SlicerDSpace/runtimes`.
 
 | Component | Managed path |
 | --- | --- |
-| MRtrix3 3.0.8 | Linux x86_64, official MRtrix3 Conda channel |
+| MRtrix3 3.0.8 | Official prebuilt Conda packages: Linux x86_64; macOS Intel package/installer adaptation, requiring macOS 14.5+, not yet run on a Mac |
 | FSL eddy 2602.0 / topup 2203.5 | Linux x86_64, official FSL channel; explicit license approval |
 | CUDA eddy 2602.0 | Optional FSL profile; NVIDIA driver required; no full CUDA Toolkit installation |
 | DDSurfer / DDSeg / DDParcel assets | Existing background download with profile-specific selection and default directory |
 | Python scientific packages | Selected interpreter, protected Slicer core packages, native packaging API when available; official PyTorch helper |
 | PNL diffusion CNN | Linux x86_64; pinned official source, v0.3 three-view weights, IIT b0 template, Python 3.11, TensorFlow 2.15.1/Keras 2 and ANTs 2.3.0 in a separate prefix |
-| Optional cortical postprocessing | Linux x86_64; [explicit local source build](SURFACE_COMPONENTS.md) of seven original FreeSurfer components, with toolchain prerequisites and personal activation; a full installation is optional |
+| Optional cortical postprocessing | [Qualified prebuilt bundle](SURFACE_COMPONENTS.md), Linux x86_64; offline installation tested. Bundle publication is pending. Personal activation is separate; the GUI never compiles sources |
 | WMA / TractCloud / SynthStrip non-code resources | Selected optional profile download/import, checksums, ORG extraction and automatic path saving; private-mirror authorization still applies |
-| Full FreeSurfer, WMA/WMQL/TractCloud executable backends | Not all provisioned by this installer; configured adapters and missing-item guidance remain |
-| Windows/macOS managed MRtrix/FSL/PNL setup | Not implemented/accepted; existing platform setup and Advanced paths remain |
+| WMA/WMQL/TractCloud sources | Pinned archives, safe extraction, file hashes, automatic discovery/path saving; no Git or duplicated algorithm implementation |
+| Native Windows, macOS ARM, macOS FSL/PNL | No qualified automatic native profiles in this installer; existing Windows/WSL and administrator-provided routes remain |
 
-Installation verification checks command availability, selected package versions,
+Functional preparation tests execute a NumPy solve, write/read a small NIfTI and
+VTK streamline where selected, exercise the selected PyTorch device, deserialize
+selected anatomical checkpoints, and run synthetic DDSeg and TractCloud inference. MRtrix
+converts a small image; the managed PNL runtime runs an ANTs ImageMath identity
+operation and reads the image back. Receipts are saved in `setup-history`.
+These tests use no patient data. Installation verification also checks command availability, selected package versions,
 ELF libraries and executable hashes, and saves an explicit environment lockfile.
 PNL also verifies pinned source/model/template hashes before deserialization,
 checks finite synthetic forward outputs for all three views, and saves a pip
@@ -118,11 +140,17 @@ SDK/package and platform acceptance. See the dated
 
 An unfinished, explicitly confirmed setup is remembered across Slicer restarts.
 The existing preparation button becomes **Continue preparing selected analysis
-environment**. Clicking it rechecks current selections and requests any needed
+environment**. Reentering the module offers a recheck; the button also remains
+available. Continuing rechecks current selections and requests any needed
 confirmation again; it does not replay stored commands, reuse a license approval
 as permission for a different plan, or automatically run scientific analysis.
 Verified resources and environments are reused. The pending marker is cleared
 only after the final readiness check succeeds.
+
+For Agent-assisted installation, the complete repository Skill includes
+`prepare_in_slicer.py`: a plan/export and GUI preparation helper that keeps the
+real confirmation dialog. It never starts patient analysis or accepts terms
+automatically. See the [Agent setup reference](https://github.com/ChengjinLii/SlicerDSpace/blob/main/.agents/skills/slicerdspace/references/setup.md).
 
 ---
 

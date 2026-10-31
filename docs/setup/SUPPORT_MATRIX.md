@@ -64,7 +64,7 @@ inherit Linux QC or timings.
 | PNL CNN mask | External TensorFlow/Keras/ANTs route measured; Linux x86_64 managed setup and CUDA forward/mask checks | **Unavailable in native Windows GUI**; supply a mask or explicitly select MRtrix/WSL | POSIX/ANTs/TensorFlow required; no CUDA, Metal unimplemented; unmeasured here |
 | DIPY median-Otsu mask | Python-only generation and DTI sample route measured | Native Python candidate; no POSIX tool required, unmeasured here | Native Python candidate, unmeasured here |
 | Full FreeSurfer SynthStrip environment | CPU/CUDA measured | **Not native Windows in this wrapper**; full Linux/WSL environment needed | FreeSurfer/Python CPU candidate, unmeasured here |
-| Cortical postprocessing | Source-built native components or existing FreeSurfer; [setup](SURFACE_COMPONENTS.md) | Native source build unsupported; WSL/full-install bridge acceptance pending | Existing native FreeSurfer candidate; local source build unvalidated, not auto-provisioned |
+| Cortical postprocessing | Verified native components or existing FreeSurfer; offline prebuilt installation tested, publication pending; [setup](SURFACE_COMPONENTS.md) | No qualified native prebuilt bundle; WSL/full-install bridge acceptance pending | Existing native FreeSurfer candidate; no qualified prebuilt bundle |
 | MRtrix/FSL preprocessing | CPU/CUDA recorded | WSL 2 bridges; device policy runs in actual WSL Python | Native CPU MRtrix/FSL candidate; **no CUDA eddy** |
 | CSD/ACT/SIFT2 | External MRtrix route recorded | MRtrix WSL bridges; acceptance pending | Native MRtrix candidate; acceptance pending |
 | Full SAF | Python filter/geometry checks on recorded inputs | Windows argv/PATH adaptation added; MRtrix bridges/prepared surfaces; acceptance pending | POSIX/MRtrix with prepared surfaces; acceptance pending |
@@ -72,7 +72,7 @@ inherit Linux QC or timings.
 | WMA | 149741 scoped pass; old 100307 coverage failures remain excluded | WSL author shell/Slicer reverse bridge; acceptance pending | Author shell/display/Slicer CLI requirements; acceptance pending |
 | TractCloud | Seeded CUDA/repeat checks on recorded inputs | WSL device-selected CPU/CUDA; native Python not certified | External Python CPU candidate; MPS not implemented |
 | Python connectome/ROI statistics/VTK previews | Scoped tests recorded | Native candidate given valid input products | Native candidate given valid input products |
-| Managed MRtrix/FSL/PNL setup | **Linux x86_64 only** | Separate Windows/WSL installer, not equivalent PNL acceptance | **Unavailable**; detect/configure existing tools instead |
+| Managed MRtrix/FSL/PNL setup | Linux x86_64 | Separate Windows/WSL installer, not equivalent PNL acceptance | MRtrix Intel/macOS 14.5+ package adaptation, not real-host tested; no ARM/FSL/PNL profile |
 
 ---
 

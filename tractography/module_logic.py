@@ -159,6 +159,8 @@ class TractographyLogicMixin:
         gm_label: int = 2,
         csf_label: int = 3,
         execute: bool = False,
+        parcellation_path: Optional[Path] = None,
+        allow_ddseg_only: bool = False,
     ) -> ACTPrepResult:
         resolved_output_dir = (
             output_dir
@@ -173,6 +175,8 @@ class TractographyLogicMixin:
             gm_label=gm_label,
             csf_label=csf_label,
             execute=execute,
+            parcellation_path=parcellation_path,
+            allow_ddseg_only=allow_ddseg_only,
         )
         result = run_act_prep(config, log=self.log)
         self.log(f"[ACT Prep] 5TT: {result.five_tt_path}")

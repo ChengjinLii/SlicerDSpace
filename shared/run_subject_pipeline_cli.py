@@ -620,6 +620,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="World-space QC gate: minimum Dice of DDSeg WM vs DDParcel WM before ACT may run.",
     )
     parser.add_argument(
+        "--allow-act-ddseg-only",
+        action="store_true",
+        help="Explicit exploratory ACT fallback without DDParcel; records missing subcortical GM priors in QC. Disabled by default.",
+    )
+    parser.add_argument(
         "--allow-anatomy-space-mismatch",
         action="store_true",
         help="Allow ACT anatomy derived from a different DWI than the CSD input (not recommended).",
@@ -966,6 +971,7 @@ def main(argv: list[str] | None = None) -> int:
         tractography_seeding=args.tckgen_seeding,
         ddseg_min_wm_dice=args.ddseg_min_wm_dice,
         allow_anatomy_space_mismatch=bool(args.allow_anatomy_space_mismatch),
+        allow_act_ddseg_only=bool(args.allow_act_ddseg_only),
         tract_querier_root=args.tract_querier_root,
         connectome_backend=args.connectome_backend,
         connectome_compress_mrtrix_dense=bool(args.compress_mrtrix_dense),

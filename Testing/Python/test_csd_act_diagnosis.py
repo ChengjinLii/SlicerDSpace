@@ -43,7 +43,11 @@ class CSDActDiagnosticTest(unittest.TestCase):
                 dependencies[key] = dict(path=str(path), size=stat.st_size, mtime_ns=stat.st_mtime_ns)
             manifest = root / 'csd_act_manifest.json'
             manifest.write_text(json.dumps(dict(dependencies=dependencies)))
-            (root / 'act_prep_manifest.json').write_text(json.dumps(dict(inputs={})))
+            prior = root / 'source_parcellation.nii.gz'
+            prior.write_bytes(b'recorded DDParcel fixture')
+            stat = prior.stat()
+            (root / 'act_prep_manifest.json').write_text(json.dumps(dict(inputs={'parcellation': {
+                'path': str(prior), 'exists': True, 'size': stat.st_size, 'mtime_ns': stat.st_mtime_ns}})))
             qc = root / 'act_prep_qc.json'
             qc.write_text(json.dumps(dict(status='completed', version=2)))
             self.assertFalse(_act_inputs_current(manifest))
@@ -52,7 +56,8 @@ class CSDActDiagnosticTest(unittest.TestCase):
                 'manifest_path': str(manifest), 'status': 'completed'}]}, checks)
             self.assertEqual(len(checks), 1)
             self.assertFalse(checks[0]['passed'])
-            qc.write_text(json.dumps(dict(status='completed', version=ACT_PREP_VERSION)))
+            qc.write_text(json.dumps(dict(status='completed', version=ACT_PREP_VERSION, sgm_from_ddparcel=True,
+                five_tt_stats={'channel_volume_voxel_units': {'sgm': 1.0}})))
             self.assertTrue(_act_inputs_current(manifest))
 
 

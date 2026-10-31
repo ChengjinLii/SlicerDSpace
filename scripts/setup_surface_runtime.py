@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Explicit, cancellable source build; no modification of the extension install."""
+"""Install qualified prebuilt surface tools; source compilation is an expert opt-in."""
 
 import argparse
 from functools import partial
@@ -14,7 +14,11 @@ sys.path.insert(0, str(ROOT))
 
 
 def prepare(*, execute=False, accept_terms=False, prefix=None, asset_root=None, jobs=4,
-            cmake=None, source_root=None, work_dir=None, offline=False):
+            cmake=None, source_root=None, work_dir=None, offline=False, build_from_source=False):
+    if not build_from_source:
+        from shared.prebuilt_surface import prepare as install_prebuilt
+        return install_prebuilt(prefix=prefix, asset_root=asset_root, execute=execute,
+                                accept_terms=accept_terms, offline=offline)
     from anatomy.surface.backend_bridge import BACKEND_ROOT
     from shared.surface_runtime import default_surface_runtime
     from shared.optional_assets import verified_resource_directory
@@ -82,6 +86,8 @@ def main(argv=None):
     parser.add_argument('--source-root', type=Path)
     parser.add_argument('--work-dir', type=Path)
     parser.add_argument('--offline', action='store_true')
+    parser.add_argument('--build-from-source', action='store_true',
+                        help='Expert opt-in: compile the source instead of using qualified prebuilt components')
     parser.add_argument('--result', type=Path)
     args = parser.parse_args(argv)
     options = vars(args).copy()

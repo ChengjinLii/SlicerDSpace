@@ -56,6 +56,7 @@ class ACTPrepConfig:
     mrtrix_bin_dir: Optional[Path] = None
     anatomy_source: Mapping[str, object] = field(default_factory=dict)
     wm_prior_labels: tuple[int, ...] = DEFAULT_WM_LABELS
+    allow_ddseg_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -264,6 +265,8 @@ def _base_manifest(config: ACTPrepConfig, segmentation_path: Path, five_tt_path:
         "csf_override_labels": list(config.csf_labels),
         "wm_prior_labels": list(config.wm_prior_labels),
         "anatomy_source": dict(config.anatomy_source),
+        "allow_ddseg_only": config.allow_ddseg_only,
+        "pathology_channel": {"index": 4, "modelled": False, "value": 0.0},
         "inputs": {
             "segmentation": _file_info(segmentation_path),
             "probabilities": {key: _file_info(Path(path)) for key, path in probability_paths.items()},
@@ -278,6 +281,7 @@ def _base_manifest(config: ACTPrepConfig, segmentation_path: Path, five_tt_path:
             "Brainstem, ventral DC and cerebellar WM: WM = 1 - P(CSF), preserving CSF partial volume and DDSeg foreground.",
             "Tissue identities: MRtrix3 share/mrtrix3/_5ttgen/FreeSurfer2ACT_sgm_amyg_hipp.txt.",
             "GMWMI is generated with MRtrix3 5tt2gmwmi; the 5TT is validated with 5ttcheck.",
+            "The optional pathology channel is zero; lesion-specific tissue priors are not estimated.",
         ],
         "warnings": [],
     }
@@ -306,49 +310,71 @@ def run_act_prep(config: ACTPrepConfig, *, log: Optional[Callable[[str], None]] 
     }
 
     if config.execute:
-        commands = {name: _resolve_command(name, config.mrtrix_bin_dir) for name in ("5ttcheck", "5tt2gmwmi")}
-        missing = [name for name, resolved in commands.items() if resolved is None]
-        if missing:
-            raise RuntimeError(f"ACT prep requires MRtrix3 command(s): {', '.join(missing)}")
-        # Invalidate any previous completed record before touching outputs.
-        qc_path.write_text(json.dumps({**qc, "status": "running"}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        img, labels, probabilities, _, parcellation_on_grid = _load_inputs(config, segmentation_path)
-        if probabilities is None:
-            manifest["warnings"].append("DDSeg probability maps missing: hard labels used for the 5TT.")
-        if parcellation_on_grid is None:
-            manifest["warnings"].append("DDParcel unavailable: no sub-cortical GM channel, ventricle prior or brainstem/ventral-DC WM prior.")
-        for warning in manifest["warnings"]:
-            if log:
-                log(f"[ACT Prep] WARNING: {warning}")
-        five_tt, stats = build_partial_volume_5tt(
-            labels,
-            probabilities,
-            parcellation_on_grid,
-            wm_label=config.wm_label,
-            gm_label=config.gm_label,
-            csf_label=config.csf_label,
-            sgm_labels=tuple(config.sgm_labels),
-            csf_labels=tuple(config.csf_labels),
-            wm_prior_labels=tuple(config.wm_prior_labels),
-        )
-        _save_like(img, five_tt, five_tt_path)
-        check = _run_mrtrix([str(commands["5ttcheck"]), five_tt_path.as_posix()], log)
-        gmwmi = _run_mrtrix([str(commands["5tt2gmwmi"]), five_tt_path.as_posix(), gmwmi_path.as_posix(), "-force"], log)
-        manifest["commands"] = [check["command"], gmwmi["command"]]
-        qc.update(
-            {
-                "status": "completed",
-                "mode": "partial_volume" if probabilities is not None else "hard_labels",
-                "sgm_from_ddparcel": parcellation_on_grid is not None,
-                "five_tt_stats": stats,
-                "wm_voxels": stats["channel_voxels_ge_0p5"]["wm"],
-                "gm_voxels": stats["channel_voxels_ge_0p5"]["cgm"] + stats["channel_voxels_ge_0p5"]["sgm"],
-                "csf_voxels": stats["channel_voxels_ge_0p5"]["csf"],
-                "gmwmi_voxels": _gmwmi_voxels(gmwmi_path),
-                "5ttcheck": {"returncode": check["returncode"], "output": (check["stdout"] + check["stderr"])[-2000:]},
-            }
-        )
-        manifest["status"] = "completed"
+        # Invalidate old completion records before checking any execution prerequisites.
+        qc["status"] = "running"
+        qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        try:
+            if config.parcellation_path is None and not config.allow_ddseg_only:
+                raise ValueError("ACT preparation requires DDParcel anatomical labels; select parcellation or provide existing output. DDSeg-only fallback requires explicit allow_ddseg_only=True.")
+            commands = {name: _resolve_command(name, config.mrtrix_bin_dir) for name in ("5ttcheck", "5tt2gmwmi")}
+            missing = [name for name, resolved in commands.items() if resolved is None]
+            if missing:
+                raise RuntimeError(f"ACT prep requires MRtrix3 command(s): {', '.join(missing)}")
+            img, labels, probabilities, _, parcellation_on_grid = _load_inputs(config, segmentation_path)
+            if probabilities is None:
+                manifest["warnings"].append("DDSeg probability maps missing: hard labels used for the 5TT.")
+            if parcellation_on_grid is None:
+                manifest["warnings"].append("Explicit DDSeg-only ACT fallback: subcortical GM, ventricular and selected WM priors are unavailable; anatomical review is required.")
+            five_tt, stats = build_partial_volume_5tt(
+                labels,
+                probabilities,
+                parcellation_on_grid,
+                wm_label=config.wm_label,
+                gm_label=config.gm_label,
+                csf_label=config.csf_label,
+                sgm_labels=tuple(config.sgm_labels),
+                csf_labels=tuple(config.csf_labels),
+                wm_prior_labels=tuple(config.wm_prior_labels),
+            )
+            qc.update(
+                mode="partial_volume" if probabilities is not None else "hard_labels",
+                sgm_from_ddparcel=parcellation_on_grid is not None,
+                anatomical_prior_status="complete" if parcellation_on_grid is not None else "ddseg_only",
+                pathology_channel=manifest["pathology_channel"],
+                warnings=list(manifest["warnings"]),
+                five_tt_stats=stats,
+            )
+            if parcellation_on_grid is not None and stats["channel_volume_voxel_units"]["sgm"] <= 0:
+                raise ValueError("DDParcel contributes no subcortical GM to ACT 5TT; check label compatibility, brain coverage and spatial alignment.")
+            if stats["foreground_voxels"] == 0:
+                raise ValueError("DDSeg foreground is empty; ACT preparation cannot proceed.")
+            for warning in manifest["warnings"]:
+                if log:
+                    log(f"[ACT Prep] WARNING: {warning}")
+            _save_like(img, five_tt, five_tt_path)
+            check = _run_mrtrix([str(commands["5ttcheck"]), five_tt_path.as_posix()], log)
+            gmwmi = _run_mrtrix([str(commands["5tt2gmwmi"]), five_tt_path.as_posix(), gmwmi_path.as_posix(), "-force"], log)
+            manifest["commands"] = [check["command"], gmwmi["command"]]
+            qc.update(
+                status="completed",
+                wm_voxels=stats["channel_voxels_ge_0p5"]["wm"],
+                gm_voxels=stats["channel_voxels_ge_0p5"]["cgm"] + stats["channel_voxels_ge_0p5"]["sgm"],
+                csf_voxels=stats["channel_voxels_ge_0p5"]["csf"],
+                gmwmi_voxels=_gmwmi_voxels(gmwmi_path),
+                format_validated=True,
+                anatomical_review="required",
+                **{"5ttcheck": {"returncode": check["returncode"], "output": (check["stdout"] + check["stderr"])[-2000:]}},
+            )
+            if qc["gmwmi_voxels"] == 0:
+                raise ValueError("ACT GM-WM interface is empty; inspect tissue priors before tracking.")
+            manifest["status"] = "completed"
+        except Exception as exc:
+            qc.update(status="failed", error=str(exc))
+            manifest.update(status="failed", error=str(exc))
+            manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            raise
 
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     qc_path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")

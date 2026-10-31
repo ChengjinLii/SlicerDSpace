@@ -247,6 +247,9 @@ def inspect_wmql_backend(
 
     python_path = _resolve_python(python_executable)
     root = tract_querier_root.expanduser().resolve() if tract_querier_root is not None else None
+    if root is None:
+        env_root = os.environ.get("SLICERDSPACE_TRACT_QUERIER_ROOT") or os.environ.get("TRACT_QUERIER_ROOT")
+        root = Path(env_root).expanduser().resolve() if env_root else None
     explicit_cli = tract_querier_executable.expanduser().resolve() if tract_querier_executable is not None else None
     env_cli = os.environ.get("SLICERDSPACE_WMQL_EXECUTABLE") or os.environ.get("TRACT_QUERIER_EXECUTABLE")
     cli_path: Optional[Path] = None
@@ -258,6 +261,10 @@ def inspect_wmql_backend(
         found = shutil.which("tract_querier")
         if found:
             cli_path = Path(found).resolve()
+
+    if root is None and cli_path is None:
+        from shared.backend_sources import available_source
+        root = available_source("wmql")
 
     root_script = root / "scripts" / "cli_tract_querier.py" if root is not None else None
     package_status = _probe_python_package(python_path, root)
@@ -334,6 +341,8 @@ def build_wmql_command(config: WMQLConfig, backend_status: Optional[dict[str, An
         tract_querier_executable=config.tract_querier_executable,
         python_executable=config.python_executable,
     )
+    if backend.get("root"):
+        config = replace(config, tract_querier_root=Path(backend["root"]))
     query_path = (config.query_path or bundled_wmql_query_path(config.query_preset)).expanduser().resolve()
     output_prefix = config.output_dir.expanduser().resolve() / f"{config.subject_id}_desc-wmql"
     include_dirs = _query_include_dirs(config, query_path)
@@ -508,6 +517,8 @@ def run_wmql_bundle_segmentation(
         tract_querier_executable=config.tract_querier_executable,
         python_executable=config.python_executable,
     )
+    if backend_status.get("root"):
+        config = replace(config, tract_querier_root=Path(backend_status["root"]))
     _validate_wmql_config(config, backend_status)
     output_dir = config.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)

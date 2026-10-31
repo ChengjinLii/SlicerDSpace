@@ -31,6 +31,20 @@ class VenvLinkCase(unittest.TestCase):
 
 
 class InterpreterPathTests(VenvLinkCase):
+    def test_setup_keeps_an_external_virtualenv_symlink(self):
+        from shared.python_environment import setup_python_command
+        self.assertEqual(setup_python_command(self.link, slicer_home=self.tmp / 'Slicer', launcher='Slicer'),
+                         (str(self.link), []))
+
+    def test_setup_uses_slicer_launcher_for_its_raw_interpreter_and_wrapper(self):
+        from shared.python_environment import setup_python_command
+        home = self.tmp / 'Slicer'
+        for name in ('python-real', 'PythonSlicer', 'python-real.exe', 'PythonSlicer.exe'):
+            self.assertEqual(setup_python_command(home / 'bin' / name, slicer_home=home, launcher='Slicer'),
+                             ('Slicer', ['--launch', 'PythonSlicer']))
+            self.assertEqual(setup_python_command(home / 'bin' / name, slicer_home=home / 'bin/..', launcher='Slicer'),
+                             ('Slicer', ['--launch', 'PythonSlicer']))
+
     def test_helper_keeps_symlink_and_expands_user(self) -> None:
         from shared.external_process import interpreter_path
 
@@ -54,7 +68,7 @@ class InterpreterPathTests(VenvLinkCase):
             tractcloud_python_executable=self.link,
         )
         specs = {spec.key: spec for spec in build_dependency_specs(config)}
-        self.assertEqual(specs["python:torch"].python_executable, self.link)
+        self.assertEqual(specs["python:tractcloud:torch"].python_executable, self.link)
         self.assertEqual(specs["python:tractcloud"].python_executable, self.link)
 
     def test_doctor_tractcloud_env_interpreter_keeps_symlink(self) -> None:
@@ -63,7 +77,7 @@ class InterpreterPathTests(VenvLinkCase):
         config = EnvironmentDoctorConfig(targets=("tractcloud",), repo_root=REPO_ROOT)
         with mock.patch.dict(os.environ, {"TRACTCLOUD_PYTHON_EXECUTABLE": str(self.link)}):
             specs = {spec.key: spec for spec in build_dependency_specs(config)}
-        self.assertEqual(specs["python:torch"].python_executable, self.link)
+        self.assertEqual(specs["python:tractcloud:torch"].python_executable, self.link)
 
     def test_postprocess_command_keeps_symlink(self) -> None:
         from anatomy.surface import postprocess_release

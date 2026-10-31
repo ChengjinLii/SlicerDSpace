@@ -1,6 +1,7 @@
 """Remember unfinished preparation, never commands or authorization to execute."""
 
 import json
+import hashlib
 from pathlib import Path
 
 KIND = "slicerddsurfer_pending_setup"
@@ -43,6 +44,24 @@ def complete_setup(request):
         pending_path().unlink(missing_ok=True)
 
 
+def remember_functional_failure(request, signature):
+    from shared.managed_runtimes import write_json
+    remember_setup(request)
+    record = pending_setup()
+    record.update(status='functional_failed', signature=_signature_hash(signature))
+    write_json(pending_path(), record)
+
+
+def _signature_hash(signature):
+    return hashlib.sha256(json.dumps(signature, default=str, sort_keys=True).encode()).hexdigest()
+
+
+def functional_failure_matches(signature):
+    record = pending_setup()
+    return bool(record and record.get('status') == 'functional_failed' and
+                record.get('signature') == _signature_hash(signature))
+
+
 def refresh_setup_button(owner):
     from shared.ui_onboarding import onboarding_text
 
@@ -54,3 +73,29 @@ def refresh_setup_button(owner):
     owner._uiLanguageBindings = [(widget, prop, key if widget is button and prop == "text" else text)
                                  for widget, prop, text in bindings]
     button.setText(onboarding_text(getattr(owner, "_onboardingLanguage", "en"), key))
+
+
+def offer_pending_preparation(owner):
+    """Recheck after restart; installation still requires the normal confirmation."""
+    record = pending_setup()
+    if not record or getattr(owner, '_setupResumeOffered', None) == record['request']:
+        return False
+    if getattr(owner, '_pipelineActive', False) or getattr(owner, '_selectedSetupActive', False):
+        return False
+    owner._setupResumeOffered = record['request']
+    import qt
+    from shared.ui_environment_check import request_prepare_environment
+
+    def resume():
+        if not getattr(owner, '_setupResumeEnabled', True):
+            owner._setupResumeOffered = None
+            return
+        if getattr(owner, '_pipelineActive', False) or getattr(owner, '_setupJob', None) or getattr(owner, '_selectedSetupActive', False):
+            owner._setupResumeOffered = None
+            return
+        current = pending_setup()
+        if current and current['request'] == record['request']:
+            request_prepare_environment(owner)
+
+    qt.QTimer.singleShot(0, resume)
+    return True

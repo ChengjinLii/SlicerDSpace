@@ -1128,17 +1128,17 @@
         <item row="1" column="0">
          <widget class="QLabel" name="autoInstallPythonDependenciesLabel">
           <property name="text">
-           <string>Missing Python deps</string>
+            <string>First-use setup</string>
           </property>
          </widget>
         </item>
         <item row="1" column="1">
          <widget class="QCheckBox" name="autoInstallPythonDependenciesCheckBox">
           <property name="text">
-           <string>Install missing Python packages before running</string>
+            <string>Offer to prepare missing dependencies before running</string>
           </property>
           <property name="toolTip">
-           <string>Missing Python packages are installed in the background. Review setup, then click Run SlicerDSpace again. External tools are not installed silently.</string>
+            <string>Review one preparation plan for the selected analysis. Missing extensions, compatible packages, algorithm sources, models and supported tools are prepared in the background after confirmation.</string>
           </property>
           <property name="checked">
            <bool>true</bool>

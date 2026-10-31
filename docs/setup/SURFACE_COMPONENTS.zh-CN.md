@@ -2,7 +2,7 @@
 
 # 表面后处理组件
 
-**可选本机源码编译，不再强制安装完整 FreeSurfer**
+**可选原生运行组件，不再强制安装完整 FreeSurfer**
 
 [项目](../../README.zh-CN.md) | [入门](QUICKSTART.zh-CN.md) | [平台](SUPPORT_MATRIX.zh-CN.md) | [English](SURFACE_COMPONENTS.md)
 
@@ -18,7 +18,7 @@
 
 | 配置 | 实际行为 |
 | --- | --- |
-| 填写表面组件目录 | 使用该源码编译运行包，不再搜索完整 FreeSurfer |
+| 填写表面组件目录 | 使用该经校验运行包，不再搜索完整 FreeSurfer |
 | 未填组件目录，检测到已有 FreeSurfer | 复用已有安装 |
 | 两者都没有 | 查找与上游构建配方匹配的用户缓存 |
 
@@ -34,30 +34,32 @@
 
 ## 首次准备
 
-**“检查”不下载或编译，“运行分析”也不会暗中准备编译器。**
-检查所选任务后，点击“准备所选分析环境”。若缺少本机组件，确认弹窗会说明
-源码／数据条款及首次编译成本；用户同意后才在后台执行，可取消，成功后自动保存路径。
-缺少个人激活文件单独提示，不会因此重复编译组件。
+**“检查”不安装依赖，GUI 的准备流程不编译源码。**
+“准备所选分析环境”优先安装合格预编译包，核对压缩包及逐文件哈希、构建配方、动态库，
+成功后保存组件路径。Linux x86_64 候选包包含七个不变的原生命令及图谱，
+压缩大小为 40,994,566 字节，解压约 85.2 MiB，不包含个人激活文件。
+分析时仍需您自己的激活文件。
 
-需要 Git、C/C++ 编译器、系统开发库（本次 Linux 包括 crypt）和 **CMake >=3.24,<4**。
-插件不自动安装系统编译器、不修改 Slicer Python、驱动或 shell。
-如果缺少工具，应先准备工具链，也可以直接指定已编译的组件目录或已有 FreeSurfer。
-首次下载源码与保存构建缓存需要额外磁盘空间，可能耗时数分钟或更久。
+该运行包尚待发布到模型仓库。发布前可将合格压缩包放到
+`<asset-root>/runtime/surface/surface-runtime-linux-x86_64.tar.gz`，
+或配置已有的合格运行目录／FreeSurfer 安装。缺少尚未发布的包会明确列为待处理项，
+不会自动转为源码编译。
 
-命令行显式接受相关源码／数据许可后准备：
+阅读组件与数据许可后安装离线包：
 
 ```bash
-python scripts/setup_surface_runtime.py --execute --accept-terms --jobs 4
+python scripts/setup_surface_runtime.py --execute --accept-terms \
+  --asset-root /path/to/assets --offline
 ```
 
-CMake 不在 PATH 时可加 `--cmake /path/to/cmake`。另支持 `--work-dir`、`--prefix`、
-`--source-root` 和 `--offline`；离线模式要求已有图谱、固定 Git 源码及已校验依赖压缩包。
-不加 `--execute` 只打印计划。损坏或配方不同的已有安装不会被覆盖。
+不加 `--execute` 只打印计划。损坏或配方不同的已有安装不会被覆盖；默认使用上游按配方
+区分的用户缓存，也可通过 `--prefix` 选择新的安装位置。
 
-保持上游构建器原样，编译固定 FreeSurfer 版本、ITK Common/VNL 和 zlib。
-Slicer 适配层仅调整图谱的数据存放位置：29,657,074 字节的压缩包从固定 DDSurfer 提交
-按需下载并校验 SHA256，不放进扩展安装包；本次也没有声称它已上传模型资源仓库。
-组件默认保存到上游按构建配方区分的用户缓存，也可指定独立目录。
+维护者可明确使用 `--build-from-source --jobs 4`，该专家路线需要 Git、C/C++ 开发工具和
+CMake >=3.24,<4，保持上游构建器与数值源码不变。
+`scripts/package_surface_runtime.py` 将合格构建打包，不收录激活文件。
+`models/runtime_bundles.json` 记录平台、版本、配方、哈希和大小；
+只有完成运行包发布及分发授权核对后，才启用在线下载。
 
 ---
 
@@ -78,7 +80,7 @@ python run_subject_pipeline.py --subject-root /data/sub-01 --subject-id sub-01 \
 不代替人工解剖审核。清单及缓存签名记录运行环境身份；切换显式组件目录时不会沿用
 上一运行环境的“已完成”状态。
 
-自动源码准备目前仅验证 **Linux x86_64**；未认证 macOS 编译或原生 Windows，
+合格预编译包目前仅覆盖 **Linux x86_64**；未认证 macOS 编译或原生 Windows，
 WSL 也不等于原生 Windows 支持。支持的平台上仍可使用已有原生 FreeSurfer。
 不宣称核心算法或完整计算流程因此提速。
 

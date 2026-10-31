@@ -68,6 +68,7 @@ class CSDActConfig:
     # must be the CSD DWI unless allow_anatomy_space_mismatch is True.
     anatomy_source_dwi: Optional[Path] = None
     allow_anatomy_space_mismatch: bool = False
+    act_prep_qc_path: Optional[Path] = None
     export_trk: bool = False
     export_vtk: bool = False
     mrtrix_bin_dir: Optional[Path] = None
@@ -642,6 +643,16 @@ def run_csd_act(config: CSDActConfig, *, log: Optional[Callable[[str], None]] = 
         "error": None,
         "scientific_output_summary": {},
     }
+    if config.act_prep_qc_path is not None:
+        preparation = json.loads(config.act_prep_qc_path.read_text(encoding="utf-8"))
+        if preparation.get("status") != "completed":
+            raise ValueError("CSD/ACT requires completed ACT preparation QC.")
+        prior_record = {"qc_path": str(config.act_prep_qc_path.resolve()),
+            **{key: preparation.get(key) for key in (
+                "anatomical_prior_status", "sgm_from_ddparcel", "pathology_channel", "warnings", "anatomical_review")}}
+        manifest["act_preparation"] = prior_record
+        qc["act_preparation"] = prior_record
+        manifest["dependencies"]["act_prep_qc"] = _file_info(config.act_prep_qc_path)
 
     return_code: Optional[int] = None
     error: Optional[str] = None

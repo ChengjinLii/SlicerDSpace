@@ -3,7 +3,7 @@
 Generated from `docs/setup/CLI_TEMPLATES.md`; do not edit this catalogue or its generated scripts.
 Regenerate with `python scripts/build_skill_shell_templates.py` from the authorized checkout.
 
-Source SHA-256 (UTF-8, LF): `e8ec3f198f2163c36052e11ce0a3665c12cbe01cc1504014c87827b3c6205225`.
+Source SHA-256 (UTF-8, LF): `2ec2f668f9795cb063ee0e3cbaab2bdca45349e364bba52a27f261d3d837137d`.
 
 ## Contents
 

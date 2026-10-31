@@ -156,12 +156,15 @@ def resolve_tractcloud_python(python_executable: Optional[Path] = None) -> Path:
 
 
 def resolve_tractcloud_root(tractcloud_root: Optional[Path] = None) -> Optional[Path]:
-    """Resolve an optional TractCloud source checkout."""
+    """Resolve explicit/environment sources before the verified prepared cache."""
 
     candidate_value = tractcloud_root
     if candidate_value is None:
         env_value = os.environ.get("SLICERDSPACE_TRACTCLOUD_ROOT") or os.environ.get("TRACTCLOUD_ROOT")
         candidate_value = Path(env_value) if env_value else None
+    if candidate_value is None:
+        from shared.backend_sources import available_source
+        candidate_value = available_source("tractcloud")
     if candidate_value is None:
         return None
 

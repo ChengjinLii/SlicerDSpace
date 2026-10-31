@@ -19,6 +19,12 @@ if str(REPO_ROOT) not in sys.path:
 
 
 class RunSubjectPipelineCliTest(unittest.TestCase):
+    def test_ddseg_only_act_fallback_requires_an_explicit_option(self):
+        from shared.run_subject_pipeline_cli import build_parser
+        parser = build_parser()
+        self.assertFalse(parser.parse_args([]).allow_act_ddseg_only)
+        self.assertTrue(parser.parse_args(["--allow-act-ddseg-only"]).allow_act_ddseg_only)
+
     def test_surface_precision_and_resource_defaults_follow_upstream(self) -> None:
         from shared.run_subject_pipeline_cli import build_parser
         defaults = build_parser().parse_args([])

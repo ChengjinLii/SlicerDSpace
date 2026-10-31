@@ -163,6 +163,7 @@ class ACTPrepRunTest(unittest.TestCase):
                         execute=True,
                         mrtrix_bin_dir=root / "bin",
                         anatomy_source={"ddseg_source_dwi": "/x/dwi_final.nii.gz"},
+                        allow_ddseg_only=True,
                     )
                 )
             invoked = [Path(call.args[0][0]).name for call in mock_run.call_args_list]
@@ -181,7 +182,11 @@ class ACTPrepRunTest(unittest.TestCase):
             self.assertFalse(qc["sgm_from_ddparcel"])
             self.assertGreater(qc["gmwmi_voxels"], 0)
             self.assertEqual(manifest["anatomy_source"]["ddseg_source_dwi"], "/x/dwi_final.nii.gz")
-            self.assertTrue(any("DDParcel unavailable" in warning for warning in manifest["warnings"]))
+            self.assertTrue(any("DDSeg-only" in warning for warning in manifest["warnings"]))
+            self.assertEqual(qc["anatomical_prior_status"], "ddseg_only")
+            self.assertEqual(qc["warnings"], manifest["warnings"])
+            self.assertTrue(qc["format_validated"])
+            self.assertFalse(qc["pathology_channel"]["modelled"])
 
     def test_ddparcel_is_resampled_through_affines_not_array_indices(self) -> None:
         from tractography import ACTPrepConfig, run_act_prep
@@ -214,6 +219,38 @@ class ACTPrepRunTest(unittest.TestCase):
             self.assertFalse(sgm[3].any())
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
             self.assertTrue(qc["sgm_from_ddparcel"])
+            self.assertEqual(qc["anatomical_prior_status"], "complete")
+
+    def test_missing_ddparcel_is_rejected_before_mrtrix_and_clears_old_completion(self):
+        from tractography import ACTPrepConfig, run_act_prep
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            segmentation, _ = self._write_ddseg(root)
+            output = root / "act_prep"
+            output.mkdir()
+            (output / "act_prep_qc.json").write_text('{"status":"completed"}')
+            with mock.patch("tractography.act_prep.subprocess.run") as run:
+                with self.assertRaisesRegex(ValueError, "requires DDParcel"):
+                    run_act_prep(ACTPrepConfig("subject", segmentation, output, execute=True))
+            run.assert_not_called()
+            for name in ("act_prep_qc.json", "act_prep_manifest.json"):
+                self.assertEqual(json.loads((output / name).read_text())["status"], "failed")
+
+    def test_supplied_parcellation_without_sgm_is_not_accepted_as_complete(self):
+        from tractography import ACTPrepConfig, run_act_prep
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            segmentation, labels = self._write_ddseg(root)
+            parcellation = root / "cortex_only.nii.gz"
+            nib.save(nib.Nifti1Image(np.where(labels > 0, 1001, 0).astype(np.int16), RAS), parcellation)
+            _fake_mrtrix(root / "bin")
+            with mock.patch("tractography.act_prep.subprocess.run") as run:
+                with self.assertRaisesRegex(ValueError, "no subcortical GM"):
+                    run_act_prep(ACTPrepConfig("subject", segmentation, root / "act_prep",
+                        parcellation_path=parcellation, mrtrix_bin_dir=root / "bin", execute=True))
+            run.assert_not_called()
 
     def test_missing_mrtrix_fails_loudly(self) -> None:
         from tractography import ACTPrepConfig, run_act_prep
@@ -230,6 +267,7 @@ class ACTPrepRunTest(unittest.TestCase):
                             output_dir=root / "act_prep",
                             execute=True,
                             mrtrix_bin_dir=root / "no_bin",
+                            allow_ddseg_only=True,
                         )
                     )
 
@@ -253,6 +291,7 @@ class ACTPrepRunTest(unittest.TestCase):
                             output_dir=output_dir,
                             execute=True,
                             mrtrix_bin_dir=root / "bin",
+                            allow_ddseg_only=True,
                         )
                     )
             qc = json.loads((output_dir / "act_prep_qc.json").read_text(encoding="utf-8"))

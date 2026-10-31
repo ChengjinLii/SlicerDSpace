@@ -107,12 +107,16 @@ def _write_current_act_prep(layout, subject_id: str, segmentation: Path) -> dict
     five_tt.write_text("5tt", encoding="utf-8")
     gmwmi.write_text("gmwmi", encoding="utf-8")
     seg_record = {**_file_record(segmentation), "exists": True}
+    parcellation = layout.act_prep / "source_parcellation.nii.gz"
+    parcellation.write_text("parcellation", encoding="utf-8")
     (layout.act_prep / "act_prep_manifest.json").write_text(
-        json.dumps({"version": ACT_PREP_VERSION, "status": "completed", "inputs": {"segmentation": seg_record, "parcellation": None}}) + "\n",
+        json.dumps({"version": ACT_PREP_VERSION, "status": "completed", "inputs": {"segmentation": seg_record,
+            "parcellation": {**_file_record(parcellation), "exists": True}}}) + "\n",
         encoding="utf-8",
     )
     (layout.act_prep / "act_prep_qc.json").write_text(
-        json.dumps({"version": ACT_PREP_VERSION, "status": "completed"}) + "\n", encoding="utf-8"
+        json.dumps({"version": ACT_PREP_VERSION, "status": "completed", "sgm_from_ddparcel": True,
+            "five_tt_stats": {"channel_volume_voxel_units": {"sgm": 1.0}}}) + "\n", encoding="utf-8"
     )
     return {"five_tt": five_tt, "gmwmi": gmwmi}
 
@@ -741,7 +745,8 @@ class ProductOrchestratorTest(unittest.TestCase):
                 ProductOrchestratorConfig(
                     subject_id="100307",
                     subject_root=subject_root,
-                    targets=("segmentation", "tractography", "wma"),
+                    targets=("segmentation", "parcellation", "tractography", "wma"),
+                    atlas_t2=input_dir / "data.nii.gz",
                     bundle_backend="wma",
                     execute=True,
                     wma_atlas_dir=atlas_dir,
@@ -843,8 +848,9 @@ class ProductOrchestratorTest(unittest.TestCase):
                 ProductOrchestratorConfig(
                     subject_id="100307",
                     subject_root=subject_root,
-                    targets=("tractography", "saf"),
+                    targets=("parcellation", "tractography", "saf"),
                     tractography_backend="csd_act",
+                    atlas_t2=input_dir / "data.nii.gz",
                     saf_fs_dir=fs_dir,
                     execute=True,
                     resume=False,
@@ -912,7 +918,8 @@ class ProductOrchestratorTest(unittest.TestCase):
                 ProductOrchestratorConfig(
                     subject_id="100307",
                     subject_root=subject_root,
-                    targets=("tractography", "saf", "tractcloud"),
+                    targets=("parcellation", "tractography", "saf", "tractcloud"),
+                    atlas_t2=input_dir / "data.nii.gz",
                     run_name=run_name,
                     saf_fs_dir=fs_dir,
                     execute=True,

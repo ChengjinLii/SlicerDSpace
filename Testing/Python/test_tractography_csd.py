@@ -56,6 +56,12 @@ class CSDActBackendTest(unittest.TestCase):
             nib.save(nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), np.eye(4)), str(gmwmi))
             bval.write_text("0 1000\n", encoding="utf-8")
             bvec.write_text("0 1\n0 0\n0 0\n", encoding="utf-8")
+            prep_qc = root / "act_prep_qc.json"
+            prior_warning = "Explicit DDSeg-only fallback: subcortical GM is unavailable."
+            prep_qc.write_text(json.dumps({"status": "completed", "anatomical_prior_status": "ddseg_only",
+                "sgm_from_ddparcel": False, "warnings": [prior_warning],
+                "pathology_channel": {"index": 4, "modelled": False, "value": 0.0},
+                "anatomical_review": "required"}))
 
             result = run_csd_act(
                 CSDActConfig(
@@ -72,6 +78,7 @@ class CSDActBackendTest(unittest.TestCase):
                     export_trk=True,
                     export_vtk=True,
                     mrtrix_bin_dir=root / "fake_mrtrix_bin",
+                    act_prep_qc_path=prep_qc,
                 )
             )
 
@@ -83,6 +90,10 @@ class CSDActBackendTest(unittest.TestCase):
             qc = json.loads(result.qc_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["kind"], "mrtrix_csd_act")
             self.assertEqual(qc["status"], "planned")
+            self.assertEqual(qc["act_preparation"], manifest["act_preparation"])
+            self.assertEqual(qc["act_preparation"]["anatomical_prior_status"], "ddseg_only")
+            self.assertEqual(qc["act_preparation"]["warnings"], [prior_warning])
+            self.assertEqual(manifest["dependencies"]["act_prep_qc"]["path"], str(prep_qc))
             self.assertEqual(manifest["parameters"]["mrtrix_bin_dir"], (root / "fake_mrtrix_bin").as_posix())
             self.assertEqual(
                 manifest["parameters"]["tractogram_dir"],

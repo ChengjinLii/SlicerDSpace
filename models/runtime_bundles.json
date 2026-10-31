@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "surface": [
+    {
+      "system": "Linux",
+      "machine": "x86_64",
+      "recipe_sha256": "b5893600d8f178feef50297d1d413bc13bf2741cccd066a28779055793c6fbb5",
+      "source_revision": "7eb846079b0dc0c92e8313205a3d2387b5c7a354",
+      "asset": "runtime/surface/surface-runtime-linux-x86_64.tar.gz",
+      "sha256": "d1bdcb2bf307f506cfb9393a1aaeca5169674e91020ff6a42b089d9c41d835f3",
+      "bytes": 40994566,
+      "unpacked_bytes": 89390119,
+      "files": 67,
+      "published": false,
+      "url": "https://media.githubusercontent.com/media/ChengjinLii/SlicerDSpace-models/main/runtime/surface/surface-runtime-linux-x86_64.tar.gz",
+      "terms": "https://surfer.nmr.mgh.harvard.edu/fswiki/FreeSurferSoftwareLicense",
+      "activation_key_included": false
+    }
+  ]
+}
