@@ -23,7 +23,7 @@ class WebsiteWorkflowTests(unittest.TestCase):
         for frame in rounded:
             self.assertFalse(parents[frame].get('clip-path'))
             self.assertEqual(frame.get('vector-effect'), 'non-scaling-stroke')
-            self.assertEqual(frame.get('stroke-width'), '3')
+            self.assertEqual(frame.get('stroke-width'), '1')
         for tag in ('text', 'image'):
             a, b = list(before.iter('{http://www.w3.org/2000/svg}' + tag)), list(after.iter('{http://www.w3.org/2000/svg}' + tag))
             self.assertEqual(len(a), len(b))

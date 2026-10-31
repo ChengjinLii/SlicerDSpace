@@ -49,7 +49,7 @@ def render(source):
                 frame.attrib.update(fill='none', stroke='#ffffff', **{'stroke-width': '2', 'data-workflow-frame': 'true'})
                 if parent.get('clip-path'):
                     # Outline the rounded tile outside its clip so the full stroke survives.
-                    frame.attrib.update(rx='18', **{'stroke-width': '3', 'vector-effect': 'non-scaling-stroke'})
+                    frame.attrib.update(rx='18', **{'stroke-width': '1', 'vector-effect': 'non-scaling-stroke'})
                     clip_id = parent.get('clip-path')[5:-1]
                     for corner in clips[clip_id].iter(NS + 'rect'):
                         corner.set('rx', '18')
