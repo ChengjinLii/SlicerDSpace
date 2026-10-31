@@ -40,12 +40,19 @@ def render(source):
     for node in logo.iter():
         if node.tag == NS + 'path' and node.get('fill') not in (None, 'none'):
             node.set('fill', '#a8b0b8' if node.get('fill') in ('#787f84', '#a8b0b8') else '#edf0f3')
+    parents = {child: parent for parent in root.iter() for child in parent}
     for parent in list(root.iter()):
         for node in list(parent):
             if node.tag == NS + 'image':
                 frame = ET.Element(NS + 'rect', {key: node.get(key) for key in ('x', 'y', 'width', 'height')})
                 frame.attrib.update(fill='none', stroke='#ffffff', **{'stroke-width': '2', 'data-workflow-frame': 'true'})
-                parent.insert(list(parent).index(node) + 1, frame)
+                if parent.get('clip-path'):
+                    # Outline the rounded tile outside its clip so the full stroke survives.
+                    frame.attrib.update(rx='10', **{'stroke-width': '2.5', 'vector-effect': 'non-scaling-stroke'})
+                    container = parents[parent]
+                    container.insert(list(container).index(parent) + 1, frame)
+                else:
+                    parent.insert(list(parent).index(node) + 1, frame)
     ET.register_namespace('', NS[1:-1])
     ET.register_namespace('xlink', 'http://www.w3.org/1999/xlink')
     return ET.tostring(root, encoding='utf-8', xml_declaration=True) + b'\n'

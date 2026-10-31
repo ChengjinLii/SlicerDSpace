@@ -17,6 +17,13 @@ class WebsiteWorkflowTests(unittest.TestCase):
         frames = [n for n in after.iter() if n.get('data-workflow-frame')]
         self.assertEqual(len(frames), 10)
         self.assertTrue(all(n.get('stroke') == '#ffffff' and n.get('fill') == 'none' for n in frames))
+        parents = {child: parent for parent in after.iter() for child in parent}
+        rounded = [n for n in frames if n.get('rx') == '10']
+        self.assertEqual(len(rounded), 7)
+        for frame in rounded:
+            self.assertFalse(parents[frame].get('clip-path'))
+            self.assertEqual(frame.get('vector-effect'), 'non-scaling-stroke')
+            self.assertEqual(frame.get('stroke-width'), '2.5')
         for tag in ('text', 'image'):
             a, b = list(before.iter('{http://www.w3.org/2000/svg}' + tag)), list(after.iter('{http://www.w3.org/2000/svg}' + tag))
             self.assertEqual(len(a), len(b))
@@ -48,6 +55,7 @@ class WebsiteWorkflowTests(unittest.TestCase):
             footer = (ROOT / 'docs/site' / name).read_text().split('<footer', 1)[1]
             self.assertIn('fans-lab-wordmark-light.svg', footer)
             self.assertLess(footer.index('slicerdspace-wordmark'), footer.index('fans-lab-wordmark'))
+            self.assertGreater(footer.index('fans-lab-wordmark'), footer.index('foot-bottom'))
             self.assertIn("© 2026 Chengjin Li from Fan's Lab.", footer)
 
 
