@@ -155,15 +155,20 @@ async function runViewport(browser, origin, name, width, height, opts) {
 
   // 3. images
   await scrollThrough(page);
-  await page.waitForFunction(() => [...document.images].every((i) => i.complete), null, { timeout: 15000 }).catch(() => {});
+  for (const image of await page.locator('img').all()) {
+    if (await image.evaluate(i => !i.complete || i.naturalWidth === 0)) await image.scrollIntoViewIfNeeded();
+  }
+  await page.waitForFunction(() => [...document.images].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 15000 }).catch(() => {});
   const imgs = await page.evaluate(() => [...document.images].map((i) => ({
     src: i.getAttribute('src'), ok: i.complete && i.naturalWidth > 0,
   })));
   const bad = imgs.filter((i) => !i.ok).map((i) => i.src);
   record(bad.length === 0, `${tag}: all ${imgs.length} images loaded`, 'not loaded: ' + bad.join(', '));
   const webpSources = await page.locator('picture > img').evaluateAll(items => items.map(image => image.currentSrc));
-  record(webpSources.length === 2 && webpSources.every(source => source.endsWith('.webp')),
+  record(webpSources.length === 1 && webpSources.every(source => source.endsWith('.webp')),
     `${tag}: lossless WebP alternatives are selected for PNG figures`, JSON.stringify(webpSources));
+  record(await page.locator('#choose img').getAttribute('src') === 'assets/img/workflow-overview.svg',
+    `${tag}: route overview uses the paper workflow as a vector image`);
 
   const wordmark = await page.locator('.product-wordmark').evaluate((img) => {
     const box = img.getBoundingClientRect();
@@ -376,13 +381,17 @@ async function runViewport(browser, origin, name, width, height, opts) {
   });
   record(!hero.paused && hero.t > 0.2 && hero.top >= -5 && hero.top < 250, `${tag}: "Watch the film" scrolls to #film and plays (top ${hero.top}, t ${hero.t.toFixed(2)})`, JSON.stringify(hero));
 
-  // The short workflow description precedes the only download link.
+  // Source code comes first, followed by the description and the video download.
   await page.evaluate(() => { document.getElementById('film-video').pause(); });
   const minimalFilm = await page.evaluate(() => !document.getElementById('transcript') &&
-    document.querySelectorAll('#film .meta-row a').length === 1 &&
-    document.querySelector('#film .meta-row').firstElementChild.textContent === 'Diffusion MRI workflows in 3D Slicer.' &&
+    document.querySelectorAll('#film .meta-row a').length === 2 &&
+    document.querySelector('#film .meta-row').firstElementChild.matches('a.source-link') &&
+    document.querySelector('#film .source-link').href === 'https://github.com/ChengjinLii/SlicerDSpace' &&
+    document.querySelector('#film .source-link').textContent.trim() === 'Source code' &&
+    !!document.querySelector('#film .source-link svg[aria-hidden="true"]') &&
+    document.querySelector('#film .meta-row span').textContent === 'Diffusion MRI workflows in 3D Slicer.' &&
     document.querySelectorAll('#film a[href$=".srt"]').length === 0);
-  record(minimalFilm, `${tag}: workflow description precedes the only video download`);
+  record(minimalFilm, `${tag}: GitHub source link precedes the description and video download`);
 
   record(consoleErrors.length === 0 && failed.length === 0 && foreign.length === 0,
     `${tag}: no console error, failed request or foreign host`,

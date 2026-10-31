@@ -15,14 +15,16 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 GUIDE_HAT = "assets/img/guide-bot-hat.svg"
 GUIDE_HAT_SHA256 = "3159ef890d7fd74135e39bc02a78a5371c90e4974edac3dd02e938e648bf8af4"
-WORDMARKS = {"assets/img/slicerdspace-wordmark.svg", "assets/img/slicerdspace-wordmark-light.svg"}
+WORDMARKS = {"assets/img/slicerdspace-wordmark.svg", "assets/img/slicerdspace-wordmark-light.svg",
+             "assets/img/fans-lab-wordmark.svg", "assets/img/fans-lab-wordmark-light.svg"}
 RESULTS = "assets/img/results-overview.svg"
+WORKFLOW = "assets/img/workflow-overview.svg"
 
 
 def audit(root=ROOT):
     site = root / "docs/site"
     required = {".nojekyll", "index.html", "404.html"}
-    allowed_top = required | {"zh.html", "assets/data/performance.json", GUIDE_HAT, RESULTS} | WORDMARKS
+    allowed_top = required | {"zh.html", "assets/data/performance.json", GUIDE_HAT, RESULTS, WORKFLOW} | WORDMARKS
     allowed_extensions = {
         "assets/css": {".css"},
         "assets/js": {".js"},
@@ -46,11 +48,11 @@ def audit(root=ROOT):
             problems.append("Unexpected public file: " + relative)
         if relative == GUIDE_HAT and hashlib.sha256(path.read_bytes()).hexdigest() != GUIDE_HAT_SHA256:
             problems.append("Unapproved guide asset: " + relative)
-        if relative == RESULTS:
+        if relative in (RESULTS, WORKFLOW):
             try:
                 validate_static_svg(ET.fromstring(path.read_bytes()))
                 receipt = json.loads((root / "docs/website/published_assets.json").read_text())
-                expected = receipt["files"]["docs/site/" + RESULTS]["sha256"]
+                expected = receipt["files"]["docs/site/" + relative]["sha256"]
                 if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
                     raise ValueError("Results artwork differs from the reviewed receipt")
             except (ValueError, KeyError, OSError, ET.ParseError) as exc:

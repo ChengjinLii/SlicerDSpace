@@ -114,6 +114,21 @@
       "complete_frame_ssim": 0.99387,
       "ssim_frames_checked": 2160,
       "faststart": true
+    },
+    "docs/site/assets/img/workflow-overview.svg": {
+      "sha256": "b27b2ac3184100ff1c893e52bca8d518307ac28634214ff783847a1a6111f122",
+      "source_sha256": "1a31282c1e822cc3afe9f057d5e7fffa04328c2e8fd0dfe62711bfec106c7e52",
+      "derivative": "Dark website palette; original workflow layout, labels and embedded result images retained"
+    },
+    "docs/site/assets/img/fans-lab-wordmark.svg": {
+      "sha256": "77c18bc7f0e67209effe122df03948a608836d630288eaee4bc2e0850a807f12",
+      "source_sha256": "fb33b3ab399b4a7697cd72de4c40f2655e0de2473593f7eb48c5702dc411281d",
+      "derivative": "Reference-traced cubic outlines; transparent background; no fonts or embedded raster"
+    },
+    "docs/site/assets/img/fans-lab-wordmark-light.svg": {
+      "sha256": "70489246b3db85802c4007ac0cc62daa4968e3de26631f349d97fb4732c21d10",
+      "source_sha256": "fb33b3ab399b4a7697cd72de4c40f2655e0de2473593f7eb48c5702dc411281d",
+      "derivative": "Reference-traced cubic outlines; transparent background; no fonts or embedded raster"
     }
   }
 }

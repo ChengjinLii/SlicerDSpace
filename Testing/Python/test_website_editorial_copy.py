@@ -40,7 +40,7 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
             self.assertNotIn('id="' + name + '"', self.source)
             self.assertNotIn('href="#' + name + '"', self.source)
         self.assertNotIn("fig-route-guide.png", self.source)
-        self.assertIn("fig-product-map.png", self.source)
+        self.assertIn("workflow-overview.svg", self.source)
 
     def test_methods_are_the_last_section_without_separate_references(self):
         main = self.source.split('<main id="main">', 1)[1].split('</main>', 1)[0]
@@ -117,7 +117,9 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
         self.assertIn('preload="none"', film)
         self.assertIn('poster="assets/img/poster.jpg"', film)
         meta = re.search(r'<p class="meta-row">(.*?)</p>', film, re.S).group(1)
-        self.assertEqual(len(re.findall(r'<a\b', meta)), 1)
+        self.assertEqual(len(re.findall(r'<a\b', meta)), 2)
+        self.assertIn('class="source-link"', meta)
+        self.assertIn('https://github.com/ChengjinLii/SlicerDSpace', meta)
         self.assertIn('Download video', meta)
         self.assertIn('<span>Diffusion MRI workflows in 3D Slicer.</span>', meta)
         self.assertLess(meta.index('Diffusion MRI workflows'), meta.index('Download video'))
