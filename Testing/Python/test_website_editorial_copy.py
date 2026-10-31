@@ -123,6 +123,8 @@ class WebsiteEditorialCopyTests(unittest.TestCase):
         self.assertIn('Download video', meta)
         self.assertIn('<span>Diffusion MRI workflows in 3D Slicer.</span>', meta)
         self.assertLess(meta.index('Diffusion MRI workflows'), meta.index('Download video'))
+        self.assertLess(meta.index('Diffusion MRI workflows'), meta.index('class="source-link"'))
+        self.assertLess(meta.index('class="source-link"'), meta.index('Download video'))
         for removed in ('72.0 s', '1920 × 1080', '.srt', 'id="transcript"', 'narrated', 'subtitles in the picture'):
             self.assertNotIn(removed, film)
 

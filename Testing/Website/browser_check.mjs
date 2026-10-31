@@ -381,17 +381,18 @@ async function runViewport(browser, origin, name, width, height, opts) {
   });
   record(!hero.paused && hero.t > 0.2 && hero.top >= -5 && hero.top < 250, `${tag}: "Watch the film" scrolls to #film and plays (top ${hero.top}, t ${hero.t.toFixed(2)})`, JSON.stringify(hero));
 
-  // Source code comes first, followed by the description and the video download.
+  // The description comes first, followed by source code and the video download.
   await page.evaluate(() => { document.getElementById('film-video').pause(); });
   const minimalFilm = await page.evaluate(() => !document.getElementById('transcript') &&
     document.querySelectorAll('#film .meta-row a').length === 2 &&
-    document.querySelector('#film .meta-row').firstElementChild.matches('a.source-link') &&
+    document.querySelector('#film .meta-row').firstElementChild.matches('span') &&
+    document.querySelector('#film .meta-row').children[1].matches('a.source-link') &&
     document.querySelector('#film .source-link').href === 'https://github.com/ChengjinLii/SlicerDSpace' &&
     document.querySelector('#film .source-link').textContent.trim() === 'Source code' &&
     !!document.querySelector('#film .source-link svg[aria-hidden="true"]') &&
     document.querySelector('#film .meta-row span').textContent === 'Diffusion MRI workflows in 3D Slicer.' &&
     document.querySelectorAll('#film a[href$=".srt"]').length === 0);
-  record(minimalFilm, `${tag}: GitHub source link precedes the description and video download`);
+  record(minimalFilm, `${tag}: workflow description precedes source code and video download`);
 
   record(consoleErrors.length === 0 && failed.length === 0 && foreign.length === 0,
     `${tag}: no console error, failed request or foreign host`,
