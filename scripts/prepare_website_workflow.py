@@ -41,6 +41,7 @@ def render(source):
         if node.tag == NS + 'path' and node.get('fill') not in (None, 'none'):
             node.set('fill', '#a8b0b8' if node.get('fill') in ('#787f84', '#a8b0b8') else '#edf0f3')
     parents = {child: parent for parent in root.iter() for child in parent}
+    clips = {node.get('id'): node for node in root.iter(NS + 'clipPath')}
     for parent in list(root.iter()):
         for node in list(parent):
             if node.tag == NS + 'image':
@@ -48,7 +49,10 @@ def render(source):
                 frame.attrib.update(fill='none', stroke='#ffffff', **{'stroke-width': '2', 'data-workflow-frame': 'true'})
                 if parent.get('clip-path'):
                     # Outline the rounded tile outside its clip so the full stroke survives.
-                    frame.attrib.update(rx='10', **{'stroke-width': '2.5', 'vector-effect': 'non-scaling-stroke'})
+                    frame.attrib.update(rx='18', **{'stroke-width': '3', 'vector-effect': 'non-scaling-stroke'})
+                    clip_id = parent.get('clip-path')[5:-1]
+                    for corner in clips[clip_id].iter(NS + 'rect'):
+                        corner.set('rx', '18')
                     container = parents[parent]
                     container.insert(list(container).index(parent) + 1, frame)
                 else:
